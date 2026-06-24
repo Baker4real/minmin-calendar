@@ -133,7 +133,7 @@
 **Calendar derivation helpers:**
 - Purpose: Convert persisted records into day-grid UI state.
 - Examples: `utils/util.js`, `pages/index/index.js`
-- Pattern: Pure helper functions compute month grid, lunar/holiday metadata, and prediction labels.
+- Pattern: Pure helper functions compute month grid, lunar/holiday metadata, and calendar marker flags.
 
 **Cycle model helpers:**
 - Purpose: Convert period records into prediction ranges, confidence, reminder states, and display labels for flow/symptom metadata.

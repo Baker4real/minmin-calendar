@@ -17,7 +17,8 @@ Core domain files:
 - `pages/bind/**` - shared-room create/join/recover flow.
 - `pages/settings/**` - room code, export, local cache controls.
 - `utils/cloud.js` - frontend cloud-function data access wrapper.
-- `utils/util.js` - date, prediction, lunar, holiday, and calendar-grid logic.
+- `utils/util.js` - date, lunar, holiday, and calendar-grid logic.
+- `utils/cycle.js` - cycle prediction, reminders, and period metadata labels.
 - `cloudfunctions/dataOp/index.js` - server-side room-scoped CRUD gateway.
 
 ## Durable Workflow
@@ -38,8 +39,12 @@ Run relevant checks before claiming work is complete. Current lightweight checks
 
 ```powershell
 node --test tests\calendar-display.test.js
+node --test tests\cycle-prediction.test.js
 node --check utils\util.js
+node --check utils\cycle.js
 node --check pages\index\index.js
+node --check pages\period\period.js
+node --check pages\period\edit\edit.js
 ```
 
 For UI changes, also perform manual visual verification in WeChat DevTools when available, especially at small-phone widths.

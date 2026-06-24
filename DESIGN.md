@@ -100,6 +100,19 @@ components:
     backgroundColor: "#F0C4C0"
     textColor: "#0A0E27"
     rounded: 9999px
+  prediction-meta:
+    textColor: "rgba(255,255,255,0.58)"
+    confidenceBg: "#D4A574"
+    confidenceText: "#0A0E27"
+  reminder-card:
+    backgroundColor: "rgba(255,255,255,0.075)"
+    railColor: "#D4A574"
+    dueRailColor: "#E8909E"
+    overdueRailColor: "#F97373"
+  choice-chip:
+    minTouchHeight: 44px
+    inactiveBg: "rgba(255,255,255,0.065)"
+    activeBg: "#E8909E"
 ---
 
 ## Overview
@@ -121,9 +134,12 @@ System font stack for zero-bloat + excellent CJK rendering. H1 2rem/700 for mont
 
 All cards use glassmorphism: rgba(255,255,255,0.06) bg + blur(20px) + subtle top edge highlight. No heavy shadows.
 
+Prediction metadata, reminder cards, and period tag chips should stay compact and low-noise. Do not reuse the memory heart for today or prediction. Interactive chips need at least a 44px touch target.
+
 ## Do's and Don'ts
 
 - Do use warm rose as sole bright accent
+- Do use warm gold for secondary certainty/range metadata
 - Do keep animations slow (6-12s cycles)
 - Don't use neon/bright colors
 - Don't use gradient text fills for body content

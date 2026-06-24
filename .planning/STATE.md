@@ -23,6 +23,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-24)
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 1 | Added cycle prediction range/confidence, in-app reminders, and period flow/symptom tags | 2026-06-24 | `5936c32` | `utils/`, `pages/index/`, `pages/period/`, `tests/` |
 
 ## Research Artifacts
 

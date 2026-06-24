@@ -17,10 +17,11 @@ Two people can reliably see the same private calendar state and understand what 
 - Shared room binding exists through create/join/recover flows in `pages/bind/bind.js` and room cloud functions.
 - Period records can be created, edited, deleted, listed, and shown on the homepage calendar.
 - Memory records can be created, edited, deleted, listed, and shown on the homepage calendar.
-- Homepage prediction exists and now has tested compact date plus weekday display.
+- Homepage prediction display includes tested compact date plus weekday display, range, confidence, and in-app reminder states.
+- Period records support optional flow level and symptom tags through edit/list/detail views.
 - Calendar day metadata now includes tested lunar date and 2026 China public holiday/adjusted workday labels.
 - Data access is mediated through `cloudfunctions/dataOp/index.js`, which checks room membership before list/add/update/remove operations.
-- Basic Node tests exist for calendar display/date rules in `tests/calendar-display.test.js`.
+- Basic Node tests exist for calendar display/date rules in `tests/calendar-display.test.js` and cycle prediction/metadata rules in `tests/cycle-prediction.test.js`.
 
 ### Active
 
@@ -42,7 +43,7 @@ Two people can reliably see the same private calendar state and understand what 
 - Stack: WeChat Mini Program JavaScript/WXML/WXSS plus WeChat Cloud Functions using `wx-server-sdk`.
 - Cloud environment is initialized in `app.js` with env `cloud1-d8gyqvcez4e66b3da`.
 - Main app pages are configured in `app.json`: bind, index, period, period edit, memory, memory edit, settings.
-- Shared frontend data access lives in `utils/cloud.js`; date/calendar logic lives in `utils/util.js`.
+- Shared frontend data access lives in `utils/cloud.js`; date/calendar logic lives in `utils/util.js`; cycle prediction and period metadata logic lives in `utils/cycle.js`.
 - The product visual direction is documented in `DESIGN.md` as Aurora Bloom: dark navy, warm rose, soft lavender, warm gold, and glass surfaces.
 - Codebase map lives under `.planning/codebase/` and should be refreshed after significant structural changes.
 
@@ -83,4 +84,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state.
 
 ---
-*Last updated: 2026-06-24 after project workflow initialization*
+*Last updated: 2026-06-24 after cycle prediction, reminder, and period tag implementation*

@@ -72,7 +72,7 @@
 - Prefer one responsibility per function, especially inside `Page({ ... })` objects.
 
 **Parameters:**
-- Prefer a single options object for utility functions with multiple inputs, as in `buildCalendarDays({ year, month, periods, memories, nextPredict, today })`.
+- Prefer a single options object for utility functions with multiple inputs, as in `buildCalendarDays({ year, month, periods, memories, nextPredict, predictionWindow, today })`.
 - Page event handlers usually accept the event object directly and extract `e.detail.value` or `e.currentTarget.dataset.*`.
 
 **Return Values:**

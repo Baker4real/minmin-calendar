@@ -47,8 +47,8 @@ minmin-calendar/
 
 **`tests/`:**
 - Purpose: Automated checks for shared calendar behavior.
-- Contains: Test files such as `tests/calendar-display.test.js`.
-- Key files: `tests/calendar-display.test.js`.
+- Contains: Test files such as `tests/calendar-display.test.js` and `tests/cycle-prediction.test.js`.
+- Key files: `tests/calendar-display.test.js`, `tests/cycle-prediction.test.js`.
 
 **`scripts/`:**
 - Purpose: Maintenance and environment automation scripts.

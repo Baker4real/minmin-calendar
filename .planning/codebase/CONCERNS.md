@@ -52,12 +52,6 @@
 - Cause: heavy per-cell work on the main thread and no memoization/cache for month grids.
 - Improvement path: cache month grids by `year/month` and update immediately after `setData` rather than relying on a fixed delay.
 
-**Profile data loads are serialized on the home page:**
-- Problem: `pages/index/index.js` fetches periods and memories sequentially.
-- Files: `pages/index/index.js`, `utils/cloud.js`
-- Cause: `await` chain instead of parallel request dispatch.
-- Improvement path: fetch both collections in parallel and merge results before rendering.
-
 ## Fragile Areas
 
 **Date math and date-string comparisons assume zero-padded ISO strings:**
