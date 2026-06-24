@@ -1,6 +1,6 @@
 # Project State: Minmin Calendar
 
-Last activity: 2026-06-24 - Implemented prediction range, in-app reminders, and optional period flow/symptom tags.
+Last activity: 2026-06-24 - Cleaned ignored root maintenance reports and added a repository README.
 
 ## Project Reference
 
@@ -24,6 +24,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-24)
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Added cycle prediction range/confidence, in-app reminders, and period flow/symptom tags | 2026-06-24 | `5936c32` | `utils/`, `pages/index/`, `pages/period/`, `tests/` |
+| 2 | Removed ignored root `hermes-*` reports from the working tree and added project README | 2026-06-24 | This commit | root |
 
 ## Research Artifacts
 

@@ -6,6 +6,7 @@
 
 ```text
 minmin-calendar/
+├── README.md
 ├── app.js
 ├── app.json
 ├── app.wxss
@@ -22,8 +23,8 @@ minmin-calendar/
 
 **Root files:**
 - Purpose: App bootstrap, global routing, and project metadata.
-- Contains: `app.js`, `app.json`, `app.wxss`, `project.config.json`, `sitemap.json`.
-- Key files: `app.js`, `app.json`, `project.config.json`.
+- Contains: `README.md`, `app.js`, `app.json`, `app.wxss`, `project.config.json`, `sitemap.json`.
+- Key files: `README.md`, `app.js`, `app.json`, `project.config.json`.
 
 **`pages/`:**
 - Purpose: User-facing mini program screens and page-specific logic.
@@ -58,6 +59,7 @@ minmin-calendar/
 ## Key File Locations
 
 **Entry Points:**
+- `README.md`: Human-facing setup, verification, and repository hygiene entry point.
 - `app.js`: App startup and cloud initialization.
 - `app.json`: Page registry and tab bar configuration.
 - `pages/index/index.js`: Main calendar home page.
