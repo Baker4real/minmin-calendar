@@ -1,6 +1,6 @@
 # Project State: Minmin Calendar
 
-Last activity: 2026-06-24 - Initialized git, codebase map, and durable project workflow.
+Last activity: 2026-06-24 - Researched period-tracker feature candidates and a more robust prediction model.
 
 ## Project Reference
 
@@ -24,6 +24,12 @@ See: `.planning/PROJECT.md` (updated 2026-06-24)
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 
+## Research Artifacts
+
+| Topic | Date | File |
+|-------|------|------|
+| Period-tracker feature candidates and prediction model | 2026-06-24 | `.planning/research/period-tracker-features-and-prediction.md` |
+
 ## Current Verification Commands
 
 ```powershell
@@ -40,4 +46,4 @@ node --check pages\index\index.js
 
 ## Next Recommended Action
 
-Run `$gsd-discuss-phase 1` to finish Phase 1 details, or manually complete Phase 1 by verifying files and committing the workflow baseline.
+Use `.planning/research/period-tracker-features-and-prediction.md` to choose the next slice: prediction-range/formula work, optional symptoms, reminders, or partner-sharing controls.
