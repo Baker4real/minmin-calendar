@@ -1,0 +1,46 @@
+{
+  "pages": [
+    "pages/bind/bind",
+    "pages/index/index",
+    "pages/period/period",
+    "pages/period/edit/edit",
+    "pages/memory/memory",
+    "pages/memory/edit/edit",
+    "pages/settings/settings"
+  ],
+  "tabBar": {
+    "color": "rgba(255,255,255,0.4)",
+    "selectedColor": "#FF6B81",
+    "backgroundColor": "#0A0E27",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "iconPath": "images/calendar.png",
+        "selectedIconPath": "images/calendar_active.png",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/period/period",
+        "iconPath": "images/add.png",
+        "selectedIconPath": "images/add_active.png",
+        "text": "记录"
+      },
+      {
+        "pagePath": "pages/settings/settings",
+        "iconPath": "images/settings.png",
+        "selectedIconPath": "images/settings_active.png",
+        "text": "设置"
+      }
+    ]
+  },
+  "window": {
+    "navigationStyle": "custom",
+    "navigationBarBackgroundColor": "#0A0E27",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0A0E27",
+    "backgroundTextStyle": "light"
+  },
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

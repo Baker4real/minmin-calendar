@@ -1,0 +1,120 @@
+/* ===== UI/UX Pro Max: Memory – Aurora Dark ===== */
+.page {
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Custom Nav Bar */
+.nav-bar {
+  position: relative;
+  z-index: 10;
+}
+.nav-back {
+  position: relative;
+  z-index: 11;
+  padding: 20rpx;
+}
+
+.content {
+  padding: 0 24rpx 30rpx;
+  position: relative;
+  z-index: 1;
+}
+
+/* Btn Premium */
+.btn-premium {
+  margin: 24rpx 0 20rpx;
+}
+
+/* List Items – Glass with Timeline */
+.premium-card {
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 24rpx;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
+  overflow: hidden;
+}
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28rpx 30rpx;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  transition: all 0.3s ease;
+  position: relative;
+  animation: timelineReveal 0.5s ease-out both;
+}
+.list-item:nth-child(1) { animation-delay: 0.05s; }
+.list-item:nth-child(2) { animation-delay: 0.1s; }
+.list-item:nth-child(3) { animation-delay: 0.15s; }
+.list-item:nth-child(4) { animation-delay: 0.2s; }
+.list-item:nth-child(5) { animation-delay: 0.25s; }
+@keyframes timelineReveal {
+  from { opacity: 0; transform: translateX(-20rpx); }
+  to { opacity: 1; transform: translateX(0); }
+}
+/* Timeline dot on left */
+.list-item::before {
+  content: '';
+  position: absolute;
+  left: 16rpx;
+  top: 50%;
+  width: 8rpx;
+  height: 8rpx;
+  background: #E8909E;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(255,20,147,0.6);
+  transform: translateY(-50%);
+  /* 时间线圆点发光脉冲 */
+  animation: dotPulse 2s ease-in-out infinite;
+}
+@keyframes dotPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(255,107,129,0.3); }
+  50% { box-shadow: 0 0 16px rgba(255,107,129,0.6); }
+}
+.list-item:last-child {
+  border-bottom: none;
+}
+.list-item:active {
+  background: rgba(255,255,255,0.05);
+}
+
+.memory-left {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding-left: 20rpx;
+}
+.memory-heart {
+  font-size: 36rpx;
+  filter: drop-shadow(0 0 10px rgba(232,144,158,0.3));
+}
+.memory-date {
+  font-size: 28rpx;
+  color: rgba(255,255,255,0.85);
+  font-weight: 600;
+}
+.memory-note {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.4);
+  margin-top: 4rpx;
+}
+.memory-arrow {
+  font-size: 32rpx;
+  color: rgba(255,255,255,0.3);
+}
+
+/* Empty State */
+.empty-state {
+  padding: 80rpx 40rpx;
+  text-align: center;
+  color: rgba(255,255,255,0.35);
+  font-size: 28rpx;
+  line-height: 1.8;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24rpx;
+}

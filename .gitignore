@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+cloudfunctions/**/node_modules/
+
+# WeChat DevTools local state
+project.private.config.json
+.eslintrc.local
+
+# Local agent/editor state
+.serena/
+.tdd/
+
+# Imported/reference material not part of this mini program
+_external/
+scripts/
+
+# Historical local maintenance reports
+hermes-*.csv
+hermes-*.md
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.log

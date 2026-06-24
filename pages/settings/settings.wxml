@@ -1,0 +1,60 @@
+<view class="page safe-top">
+  <view class="nav-bar header-gradient">
+    <view class="nav-placeholder"></view>
+    <view class="nav-title">设置</view>
+    <view class="nav-placeholder"></view>
+  </view>
+
+  <view class="content">
+    <!-- 用户卡片 -->
+    <view class="profile-card premium-card fade-in">
+      <view class="profile-avatar">❤️</view>
+      <view class="profile-name">美少女的日历</view>
+      <text class="profile-desc">记录属于你们的每一天</text>
+    </view>
+
+    <!-- 房间号 -->
+    <view class="premium-card fade-in fade-in-d1">
+      <view class="menu-item room-code-item">
+        <text class="menu-icon">🔑</text>
+        <view class="room-code-content">
+          <text class="room-code-label">我的房间码</text>
+          <text class="room-code-value">{{roomCode}}</text>
+        </view>
+        <view class="copy-btn" bindtap="copyRoomCode">复制</view>
+      </view>
+    </view>
+
+    <!-- 功能菜单 -->
+    <view class="premium-card fade-in fade-in-d2">
+      <view class="menu-item" bindtap="goMemory">
+        <text class="menu-icon">❤️</text>
+        <text class="menu-text">欢乐时光</text>
+        <text class="menu-arrow">›</text>
+      </view>
+    </view>
+
+    <view class="premium-card fade-in fade-in-d3">
+      <view class="menu-item" bindtap="exportData">
+        <text class="menu-icon">📤</text>
+        <text class="menu-text">导出数据</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      <view class="menu-item" bindtap="clearData">
+        <text class="menu-icon">🗑️</text>
+        <text class="menu-text">清除本地数据</text>
+        <text class="menu-arrow">›</text>
+      </view>
+    </view>
+
+    <view class="premium-card fade-in fade-in-d3">
+      <view class="menu-item" bindtap="about">
+        <text class="menu-icon">ℹ️</text>
+        <text class="menu-text">关于</text>
+        <text class="menu-arrow">›</text>
+      </view>
+    </view>
+
+    <text class="version">v1.0.0</text>
+  </view>
+</view>

@@ -1,0 +1,157 @@
+/* ===== UI/UX Pro Max: Settings – Aurora Dark ===== */
+.page {
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Custom Nav Bar */
+.nav-bar {
+  position: relative;
+  z-index: 10;
+}
+.nav-back {
+  position: relative;
+  z-index: 11;
+  padding: 20rpx;
+}
+
+.content {
+  padding: 0 24rpx 30rpx;
+  position: relative;
+  z-index: 1;
+}
+
+/* Profile Card */
+.profile-card {
+  padding: 40rpx;
+  text-align: center;
+  margin: 24rpx 0;
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 24rpx;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
+  position: relative;
+  overflow: hidden;
+  animation: cardDropIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes cardDropIn {
+  from { opacity: 0; transform: translateY(-20rpx) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.profile-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1rpx;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+}
+.profile-avatar {
+  font-size: 72rpx;
+  margin-bottom: 16rpx;
+  filter: drop-shadow(0 0 20px rgba(232,144,158,0.3));
+}
+.profile-name {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: rgba(255,255,255,0.9);
+}
+.profile-desc {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.5);
+  margin-top: 8rpx;
+  display: block;
+}
+
+/* Premium Card – Glass */
+.premium-card {
+  margin-bottom: 20rpx;
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 24rpx;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
+  overflow: hidden;
+  animation: fadeSlideUp 0.5s ease-out both;
+}
+.premium-card:nth-child(1) { animation-delay: 0.1s; }
+.premium-card:nth-child(2) { animation-delay: 0.2s; }
+.premium-card:nth-child(3) { animation-delay: 0.3s; }
+.premium-card:nth-child(4) { animation-delay: 0.4s; }
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(20rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Menu Items */
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 30rpx;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  transition: all 0.3s ease;
+}
+.menu-item:last-child {
+  border-bottom: none;
+}
+.menu-item:active {
+  background: rgba(255,255,255,0.05);
+}
+.menu-icon {
+  font-size: 32rpx;
+  margin-right: 20rpx;
+}
+.menu-text {
+  flex: 1;
+  font-size: 28rpx;
+  color: rgba(255,255,255,0.85);
+  font-weight: 500;
+}
+.menu-arrow {
+  font-size: 32rpx;
+  color: rgba(255,255,255,0.3);
+}
+
+/* Room Code Item */
+.room-code-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.room-code-label {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.5);
+}
+.room-code-value {
+  font-size: 36rpx;
+  font-weight: 800;
+  letter-spacing: 6rpx;
+  margin-top: 4rpx;
+  color: #E8909E;
+  word-break: break-all;
+}
+
+/* Copy Button */
+.copy-btn {
+  background: linear-gradient(135deg, #E8909E, #E8909E);
+  color: #fff;
+  padding: 12rpx 28rpx;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(232,144,158,0.3);
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.copy-btn:active {
+  transform: scale(0.9);
+}
+
+/* Version */
+.version {
+  text-align: center;
+  display: block;
+  color: rgba(255,255,255,0.25);
+  font-size: 22rpx;
+  margin-top: 40rpx;
+}

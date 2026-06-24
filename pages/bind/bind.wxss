@@ -1,0 +1,179 @@
+/* ===== UI/UX Pro Max: Bind Page – Aurora Dark ===== */
+.page {
+  min-height: 100vh;
+  position: relative;
+}
+.content {
+  padding: 60rpx 30rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* Hero Section */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+.hero-icon {
+  font-size: 120rpx;
+  margin-bottom: 20rpx;
+  animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  filter: drop-shadow(0 0 20px rgba(232,144,158,0.3));
+}
+@keyframes bounceIn {
+  from { opacity: 0; transform: scale(0.3); }
+  50% { transform: scale(1.15); }
+  to { opacity: 1; transform: scale(1); }
+}
+.hero-title {
+  font-size: 48rpx;
+  font-weight: 800;
+  color: #E8909E;
+  letter-spacing: 2rpx;
+  text-shadow: 0 0 40px rgba(232,144,158,0.3);
+}
+.hero-desc {
+  font-size: 26rpx;
+  color: rgba(255,255,255,0.5);
+  margin-top: 16rpx;
+  text-align: center;
+  line-height: 1.8;
+}
+
+/* Premium Card – Glass */
+.premium-card {
+  width: 100%;
+  padding: 40rpx;
+  margin-top: 30rpx;
+  animation: fadeSlideUp 0.6s ease-out both;
+}
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(20rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Tab Bar */
+.tab-bar {
+  display: flex;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.15);
+  margin-bottom: 30rpx;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
+}
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx;
+  font-size: 28rpx;
+  color: rgba(255,255,255,0.6);
+  font-weight: 500;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tab.active {
+  background: linear-gradient(135deg, #E8909E, #E8909E);
+  color: #fff;
+  font-weight: 600;
+}
+.info-text {
+  font-size: 26rpx;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 30rpx;
+  text-align: center;
+}
+
+/* Code Input – Dark Glass */
+.code-input {
+  width: 60%;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: var(--radius-sm);
+  padding: 20rpx;
+  font-size: 40rpx;
+  text-align: center;
+  letter-spacing: 12rpx;
+  margin-bottom: 30rpx;
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px);
+  font-weight: 700;
+  color: #fff;
+}
+.code-input::placeholder {
+  color: rgba(255,255,255,0.3);
+}
+.code-input:focus {
+  border-color: rgba(232,144,158,0.4);
+  box-shadow: 0 0 20px rgba(232,144,158,0.1);
+}
+
+/* Room Code Box */
+.room-code-box {
+  margin-top: 20rpx;
+  text-align: center;
+  padding: 30rpx;
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--radius-md);
+  width: 100%;
+}
+.room-code-label {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.5);
+}
+.room-code {
+  font-size: 64rpx;
+  font-weight: 800;
+  letter-spacing: 12rpx;
+  display: block;
+  margin: 16rpx 0;
+  color: #E8909E;
+  animation: glowPulse 2s ease-in-out infinite;
+}
+@keyframes glowPulse {
+  0%, 100% { text-shadow: 0 0 10px rgba(255,107,129,0.3); }
+  50% { text-shadow: 0 0 25px rgba(255,107,129,0.6); }
+}
+.room-code-hint {
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.35);
+  display: block;
+}
+
+/* Bound Status */
+.bound-status {
+  font-size: 32rpx;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 20rpx;
+  text-shadow: 0 0 20px rgba(57,255,20,0.3);
+}
+.bound-code {
+  font-size: 28rpx;
+  color: rgba(255,255,255,0.6);
+  text-align: center;
+  display: block;
+  margin-bottom: 30rpx;
+}
+.btn-text {
+  text-align: center;
+  padding: 20rpx;
+  color: rgba(255,255,255,0.4);
+  font-size: 26rpx;
+  margin-top: 10rpx;
+}
+.error-msg {
+  font-size: 24rpx;
+  color: #FF3B30;
+  margin-top: 20rpx;
+  text-align: center;
+  background: rgba(255,59,48,0.1);
+  padding: 16rpx 30rpx;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,59,48,0.2);
+}

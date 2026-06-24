@@ -1,0 +1,32 @@
+<view class="page safe-top">
+  <view class="nav-bar header-gradient">
+    <view class="nav-back" bindtap="goBack">‹</view>
+    <view class="nav-title">欢乐时光</view>
+    <view class="nav-placeholder"></view>
+  </view>
+
+  <view class="content">
+    <view class="btn-premium fade-in" bindtap="addMemory">＋ 记录欢乐时光</view>
+
+    <view wx:if="{{memories.length > 0 && !loading}}" class="premium-card fade-in fade-in-d1">
+      <view class="list-item" wx:for="{{memories}}" wx:key="_id" wx:for-index="i" bindtap="editMemory" data-index="{{i}}" style="animation-delay:{{(i * 0.05) + 0.25}}s">
+        <view class="memory-left">
+          <text class="memory-heart">❤️</text>
+          <view class="memory-info">
+            <view class="memory-date">{{item.date}}</view>
+            <view class="memory-note">{{item.note || '我们的欢乐时光'}}</view>
+          </view>
+        </view>
+        <view class="memory-arrow">›</view>
+      </view>
+    </view>
+
+    <view wx:if="{{memories.length === 0 && !loading}}" class="empty-state fade-in">
+      <text>还没有记录\n点上面按钮新增</text>
+    </view>
+
+    <view wx:if="{{loading}}" class="loading-view">
+      <view class="loading-spinner"></view>
+    </view>
+  </view>
+</view>

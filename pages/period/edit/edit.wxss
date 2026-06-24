@@ -1,0 +1,86 @@
+/* ===== UI/UX Pro Max: Period Edit – Aurora Dark ===== */
+.page {
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Custom Nav Bar */
+.nav-bar {
+  position: relative;
+  z-index: 10;
+}
+.nav-back {
+  position: relative;
+  z-index: 11;
+  padding: 20rpx;
+}
+
+.content {
+  padding: 24rpx;
+  position: relative;
+  z-index: 1;
+}
+
+/* Form Card – Glass */
+.premium-card {
+  padding: 36rpx;
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 24rpx;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+/* Form Items */
+.form-item {
+  margin-bottom: 36rpx;
+}
+.form-label {
+  font-size: 26rpx;
+  color: rgba(255,255,255,0.6);
+  display: block;
+  margin-bottom: 12rpx;
+  font-weight: 500;
+  letter-spacing: 1rpx;
+}
+.form-picker {
+  font-size: 32rpx;
+  color: rgba(255,255,255,0.85);
+  font-weight: 600;
+  padding: 22rpx;
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,0.12);
+  transition: all 0.3s ease;
+}
+.form-picker:active {
+  border-color: rgba(232,144,158,0.4);
+  box-shadow: 0 0 20px rgba(232,144,158,0.1);
+}
+.form-input {
+  font-size: 32rpx;
+  color: rgba(255,255,255,0.85);
+  padding: 22rpx;
+  background: rgba(255,255,255,0.06);
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255,255,255,0.12);
+  transition: all 0.3s ease;
+}
+.form-input::placeholder {
+  color: rgba(255,255,255,0.3);
+}
+.form-input:focus {
+  border-color: rgba(232,144,158,0.4);
+  box-shadow: 0 0 20px rgba(232,144,158,0.1);
+}
+
+/* Buttons */
+.btns {
+  margin-top: 30rpx;
+}
+.btn-premium {
+  margin-bottom: 20rpx;
+}

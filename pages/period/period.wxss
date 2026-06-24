@@ -1,0 +1,161 @@
+/* ===== UI/UX Pro Max: Period – Aurora Dark ===== */
+.page {
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Custom Nav Bar */
+.nav-bar {
+  position: relative;
+  z-index: 10;
+}
+.nav-back {
+  position: relative;
+  z-index: 11;
+  padding: 20rpx;
+}
+
+.content {
+  padding: 0 24rpx 30rpx;
+  position: relative;
+  z-index: 1;
+}
+
+/* Cycle Card – Aurora Gradient + Glass */
+.cycle-card {
+  background: linear-gradient(135deg, rgba(232,144,158,0.2), rgba(255,20,147,0.15), rgba(191,0,255,0.1));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin: 24rpx 0 20rpx;
+  box-shadow: 0 8px 32px rgba(232,144,158,0.15);
+  position: relative;
+  overflow: hidden;
+  animation: cardDropIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes cardDropIn {
+  from { opacity: 0; transform: translateY(-20rpx) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.cycle-card::before {
+  content: '';
+  position: absolute;
+  top: -30%;
+  right: -15%;
+  width: 250rpx;
+  height: 250rpx;
+  background: radial-gradient(circle, rgba(0,255,255,0.1) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.card-label {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.7);
+  font-weight: 500;
+  position: relative;
+  letter-spacing: 2rpx;
+  text-shadow: 0 0 20px rgba(232,144,158,0.2);
+}
+.cycle-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 24rpx;
+  position: relative;
+}
+.cycle-item {
+  text-align: center;
+}
+.cycle-num {
+  font-size: 44rpx;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 0 20px rgba(232,144,158,0.3);
+}
+.cycle-label {
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.5);
+  margin-top: 8rpx;
+  display: block;
+}
+
+/* Btn Premium */
+.btn-premium {
+  margin-bottom: 20rpx;
+}
+
+/* List Items – Glass */
+.premium-card {
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 24rpx;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
+  overflow: hidden;
+}
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 28rpx 30rpx;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  transition: all 0.3s ease;
+  animation: slideInRight 0.4s ease-out both;
+}
+.list-item:nth-child(1) { animation-delay: 0.05s; }
+.list-item:nth-child(2) { animation-delay: 0.1s; }
+.list-item:nth-child(3) { animation-delay: 0.15s; }
+.list-item:nth-child(4) { animation-delay: 0.2s; }
+.list-item:nth-child(5) { animation-delay: 0.25s; }
+.list-item:nth-child(6) { animation-delay: 0.3s; }
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(30rpx); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.list-item:last-child {
+  border-bottom: none;
+}
+.list-item:active {
+  background: rgba(255,255,255,0.05);
+}
+.item-left {
+  flex: 1;
+}
+.item-date {
+  font-size: 28rpx;
+  color: rgba(255,255,255,0.85);
+  font-weight: 600;
+}
+.item-note {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.4);
+  margin-top: 6rpx;
+}
+.item-right {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.item-duration {
+  font-size: 24rpx;
+  color: #E8909E;
+  font-weight: 600;
+  background: rgba(232,144,158,0.12);
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
+  text-shadow: 0 0 10px rgba(232,144,158,0.2);
+}
+.item-arrow {
+  font-size: 32rpx;
+  color: rgba(255,255,255,0.3);
+}
+
+/* Empty State */
+.empty-state {
+  padding: 80rpx 40rpx;
+  text-align: center;
+  color: rgba(255,255,255,0.35);
+  font-size: 28rpx;
+  line-height: 1.8;
+}
