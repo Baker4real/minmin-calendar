@@ -17,12 +17,14 @@
 - [ ] **CAL-02**: User can see lunar dates and China public holiday/adjusted-workday labels in calendar cells.
 - [ ] **CAL-03**: User can read "next predicted period" as a compact date with weekday without awkward wrapping.
 - [ ] **CAL-04**: User can tap a calendar day and understand period and memory details for that day.
+- [ ] **CAL-07**: User can see the next period prediction as a range with confidence and timely in-app reminder states.
 
 ### Records
 
 - [ ] **REC-01**: User can create, edit, and delete period records with start/end date validation.
 - [ ] **REC-02**: User can create, edit, and delete memory records for a selected date.
 - [ ] **REC-03**: User can review record lists with dates, notes, and durations where relevant.
+- [ ] **REC-04**: User can optionally record and review flow level and symptom tags on period records.
 
 ### Room Sharing
 
@@ -42,6 +44,7 @@
 - [ ] **QUAL-01**: Date and calendar metadata logic has automated tests for prediction display, lunar dates, official holidays, and marker semantics.
 - [ ] **QUAL-02**: JavaScript files touched by behavior changes pass syntax checks.
 - [ ] **QUAL-03**: Codebase map and project context stay updated after significant structure or domain changes.
+- [ ] **QUAL-04**: Cycle prediction and period metadata helpers have automated tests for outliers, fallbacks, reminders, and tag normalization.
 
 ## v2 Requirements
 
@@ -80,9 +83,11 @@
 | CAL-02 | Phase 2 | Pending |
 | CAL-03 | Phase 2 | Pending |
 | CAL-04 | Phase 2 | Pending |
+| CAL-07 | Phase 2 | In Progress |
 | REC-01 | Phase 4 | Pending |
 | REC-02 | Phase 4 | Pending |
 | REC-03 | Phase 4 | Pending |
+| REC-04 | Phase 4 | In Progress |
 | ROOM-01 | Phase 3 | Pending |
 | ROOM-02 | Phase 3 | Pending |
 | ROOM-03 | Phase 3 | Pending |
@@ -93,10 +98,11 @@
 | QUAL-01 | Phase 1 | In Progress |
 | QUAL-02 | Phase 1 | In Progress |
 | QUAL-03 | Phase 5 | Pending |
+| QUAL-04 | Phase 1 | In Progress |
 
 **Coverage:**
-- v1 requirements: 20 total
-- Mapped to phases: 20
+- v1 requirements: 23 total
+- Mapped to phases: 23
 - Unmapped: 0
 
 ---

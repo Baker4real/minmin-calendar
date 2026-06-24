@@ -105,12 +105,12 @@ function getChineseDateMeta(dateStr) {
   }
 }
 
-function buildCalendarDays({ year, month, periods = [], memories = [], nextPredict = null, today = formatDate(new Date()) }) {
+function buildCalendarDays({ year, month, periods = [], memories = [], nextPredict = null, predictionWindow = null, today = formatDate(new Date()) }) {
   const daysInMonth = getDaysInMonth(year, month)
   const firstDay = getFirstDayOfMonth(year, month)
   const periodDates = collectPeriodDates(periods)
   const memoryDates = new Set(memories.map(m => m.date))
-  const predictDates = collectPredictDates(nextPredict, year, month)
+  const predictDates = collectPredictDates(nextPredict, year, month, predictionWindow)
 
   const days = []
   for (let i = 0; i < firstDay; i++) days.push({ isEmpty: true })
@@ -146,8 +146,21 @@ function collectPeriodDates(periods) {
   return periodDates
 }
 
-function collectPredictDates(nextPredict, year, month) {
+function collectPredictDates(nextPredict, year, month, predictionWindow) {
   const predictDates = new Set()
+  const startDate = predictionWindow && (predictionWindow.rangeStart || predictionWindow.startDate)
+  const endDate = predictionWindow && (predictionWindow.rangeEnd || predictionWindow.endDate)
+
+  if (isDateString(startDate) && isDateString(endDate)) {
+    let d = parseDate(startDate)
+    const end = parseDate(endDate)
+    while (d <= end) {
+      if (d.getMonth() === month && d.getFullYear() === year) predictDates.add(formatDate(d))
+      d.setDate(d.getDate() + 1)
+    }
+    return predictDates
+  }
+
   if (!isDateString(nextPredict)) return predictDates
 
   const pStart = parseDate(nextPredict)

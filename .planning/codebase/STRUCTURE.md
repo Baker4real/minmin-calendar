@@ -32,8 +32,8 @@ minmin-calendar/
 
 **`utils/`:**
 - Purpose: Shared client helpers.
-- Contains: Date/calendar utilities and cloud-function wrappers.
-- Key files: `utils/util.js`, `utils/cloud.js`.
+- Contains: Date/calendar utilities, cycle prediction helpers, period metadata helpers, and cloud-function wrappers.
+- Key files: `utils/util.js`, `utils/cycle.js`, `utils/cloud.js`.
 
 **`cloudfunctions/`:**
 - Purpose: Server-side logic for room management and shared record persistence.
@@ -71,11 +71,13 @@ minmin-calendar/
 **Core Logic:**
 - `utils/cloud.js`: Shared data-access facade.
 - `utils/util.js`: Calendar/date calculations.
+- `utils/cycle.js`: Cycle prediction, reminders, flow labels, and symptom labels.
 - `pages/index/index.js`: Derived calendar view model.
 - `cloudfunctions/dataOp/index.js`: CRUD gateway for shared records.
 
 **Testing:**
-- `tests/calendar-display.test.js`: Calendar display logic coverage.
+- `tests/calendar-display.test.js`: Calendar display and template contract coverage.
+- `tests/cycle-prediction.test.js`: Cycle prediction, reminder, and period metadata coverage.
 
 ## Naming Conventions
 

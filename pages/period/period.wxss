@@ -132,6 +132,29 @@
   color: rgba(255,255,255,0.4);
   margin-top: 6rpx;
 }
+.item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-top: 10rpx;
+}
+.item-tag {
+  height: 30rpx;
+  line-height: 30rpx;
+  padding: 0 12rpx;
+  border-radius: 999rpx;
+  box-sizing: border-box;
+  font-size: 19rpx;
+  font-weight: 700;
+  color: rgba(255,255,255,0.72);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.item-tag.flow {
+  color: #0A0E27;
+  background: rgba(212,165,116,0.86);
+  border-color: rgba(212,165,116,0.9);
+}
 .item-right {
   display: flex;
   align-items: center;

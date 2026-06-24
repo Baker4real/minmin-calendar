@@ -66,11 +66,49 @@ test('buildCalendarDays includes lunar and holiday metadata without conflating t
   assert.equal(springFestival.lunarText, '正月初一')
 })
 
+test('buildCalendarDays marks the prediction range exactly when provided', () => {
+  const days = util.buildCalendarDays({
+    year: 2026,
+    month: 7,
+    periods: [],
+    memories: [],
+    nextPredict: '2026-08-10',
+    predictionWindow: {
+      rangeStart: '2026-08-09',
+      rangeEnd: '2026-08-11'
+    },
+    today: '2026-08-01'
+  })
+
+  const predictedDates = days.filter(day => day.isPredict).map(day => day.date)
+  assert.deepEqual(predictedDates, ['2026-08-09', '2026-08-10', '2026-08-11'])
+})
+
 test('index calendar only shows the heart mark for memories', () => {
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
 
   assert.doesNotMatch(wxml, /item\.isToday\s*\|\|\s*item\.isMemory/)
   assert.match(wxml, /wx:if="{{item\.isMemory}}"/)
+})
+
+test('period edit page exposes flow and symptom controls', () => {
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/period/edit/edit.wxml'), 'utf8')
+
+  assert.match(wxml, /flow-options/)
+  assert.match(wxml, /symptom-options/)
+  assert.match(wxml, /toggleSymptom/)
+})
+
+test('period edit chips keep touch targets large enough', () => {
+  const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/period/edit/edit.wxss'), 'utf8')
+
+  assert.match(wxss, /\.flow-chip,\s*[\r\n]+\.symptom-chip\s*{[\s\S]*min-height:\s*88rpx/)
+})
+
+test('period list shows a toast when loading records fails', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'pages/period/period.js'), 'utf8')
+
+  assert.match(js, /catch\(e\)\s*{[\s\S]*wx\.showToast\(\{\s*title:\s*'加载失败，请检查网络'/)
 })
 
 function pickMeta(meta) {

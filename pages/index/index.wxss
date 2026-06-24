@@ -313,7 +313,7 @@
   flex: 1.35;
 }
 .predict-value {
-  min-height: 52rpx;
+  min-height: 40rpx;
   display: flex;
   align-items: baseline;
   justify-content: center;
@@ -337,6 +337,33 @@
   line-height: 1.15;
   color: rgba(255,255,255,0.72);
 }
+.predict-subline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  max-width: 100%;
+  min-height: 28rpx;
+  margin-top: 2rpx;
+  white-space: nowrap;
+}
+.predict-range {
+  font-size: 19rpx;
+  color: rgba(255,255,255,0.58);
+  line-height: 1.1;
+}
+.predict-confidence {
+  min-width: 30rpx;
+  height: 24rpx;
+  line-height: 24rpx;
+  padding: 0 8rpx;
+  border-radius: 999rpx;
+  box-sizing: border-box;
+  font-size: 17rpx;
+  font-weight: 700;
+  color: #0A0E27;
+  background: rgba(212,165,116,0.86);
+}
 .stat-label {
   font-size: 22rpx;
   color: rgba(255,255,255,0.5);
@@ -346,6 +373,75 @@
   width: 1rpx;
   height: 40rpx;
   background: rgba(255,255,255,0.1);
+}
+
+/* ===== Cycle Reminders ===== */
+.reminder-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+  margin-top: 18rpx;
+}
+.reminder-card {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 18rpx 20rpx;
+  background: rgba(255,255,255,0.075);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20rpx;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.13);
+  box-sizing: border-box;
+  transition: all 0.25s ease;
+}
+.reminder-card:active {
+  transform: scale(0.98);
+  background: rgba(255,255,255,0.12);
+}
+.reminder-rail {
+  width: 6rpx;
+  align-self: stretch;
+  min-height: 52rpx;
+  border-radius: 999rpx;
+  background: #D4A574;
+  box-shadow: 0 0 14rpx rgba(212,165,116,0.36);
+}
+.reminder-card.due .reminder-rail {
+  background: #E8909E;
+  box-shadow: 0 0 14rpx rgba(232,144,158,0.4);
+}
+.reminder-card.overdue .reminder-rail {
+  background: #F97373;
+  box-shadow: 0 0 14rpx rgba(249,115,115,0.38);
+}
+.reminder-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+.reminder-title {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: rgba(255,255,255,0.88);
+}
+.reminder-text {
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.54);
+  line-height: 1.35;
+}
+.reminder-action {
+  min-width: 72rpx;
+  height: 44rpx;
+  line-height: 44rpx;
+  text-align: center;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #0A0E27;
+  background: rgba(232,144,158,0.88);
 }
 
 /* ===== Quick Actions ===== */

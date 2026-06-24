@@ -6,7 +6,7 @@
 
 **Files:**
 - Pages use lowercase feature folders and paired Mini Program files, for example `pages/index/index.js`, `pages/index/index.wxml`, `pages/index/index.wxss`, and `pages/index/index.json`.
-- Shared helpers live under `utils/`, such as `utils/util.js` and `utils/cloud.js`.
+- Shared helpers live under `utils/`, such as `utils/util.js`, `utils/cycle.js`, and `utils/cloud.js`.
 - Tests live under `tests/`, for example `tests/calendar-display.test.js`.
 
 **Functions:**
@@ -19,7 +19,7 @@
 
 **Types:**
 - This codebase is plain JavaScript, not TypeScript.
-- Data objects are shaped ad hoc through `Page({ data: { ... } })` and returned POJOs from `utils/util.js`.
+- Data objects are shaped ad hoc through `Page({ data: { ... } })` and returned POJOs from `utils/util.js` / `utils/cycle.js`.
 
 ## Code Style
 
@@ -84,6 +84,7 @@
 **Exports:**
 - Use CommonJS `module.exports` / `require(...)` throughout.
 - `utils/cloud.js` exports a small operation surface for periods, memories, and room-code lookup.
+- `utils/cycle.js` owns cycle prediction, reminder derivation, and period metadata labels so WXML stays mostly declarative.
 
 **Barrel Files:**
 - Not used.

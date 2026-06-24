@@ -30,6 +30,15 @@
       <view class="list-item" wx:for="{{periods}}" wx:key="_id" wx:for-index="i" bindtap="editPeriod" data-index="{{i}}" style="animation-delay:{{(i * 0.05) + 0.3}}s">
         <view class="item-left">
           <view class="item-date">{{item.startDate}} ~ {{item.endDate}}</view>
+          <view wx:if="{{item.flowLabel || item.symptomText}}" class="item-tags">
+            <text wx:if="{{item.flowLabel}}" class="item-tag flow">{{item.flowLabel}}</text>
+            <text
+              wx:for="{{item.symptomLabels}}"
+              wx:for-item="tag"
+              wx:key="*this"
+              class="item-tag"
+            >{{tag}}</text>
+          </view>
           <view class="item-note">{{item.note || '无备注'}}</view>
         </view>
         <view class="item-right">

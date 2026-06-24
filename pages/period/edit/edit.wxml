@@ -22,7 +22,31 @@
       </view>
       <view class="form-item">
         <text class="form-label">备注</text>
-        <input class="form-input" placeholder="如：痛经、量少..." value="{{note}}" bindinput="onNoteInput"/>
+        <input class="form-input" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput"/>
+      </view>
+      <view class="form-item">
+        <text class="form-label">经量</text>
+        <view class="flow-options">
+          <view
+            wx:for="{{flowOptions}}"
+            wx:key="value"
+            class="flow-chip {{flow === item.value ? 'active' : ''}}"
+            data-value="{{item.value}}"
+            bindtap="selectFlow"
+          >{{item.label}}</view>
+        </view>
+      </view>
+      <view class="form-item form-item-last">
+        <text class="form-label">身体状态</text>
+        <view class="symptom-options">
+          <view
+            wx:for="{{symptomOptions}}"
+            wx:key="value"
+            class="symptom-chip {{item.selected ? 'active' : ''}}"
+            data-value="{{item.value}}"
+            bindtap="toggleSymptom"
+          >{{item.label}}</view>
+        </view>
       </view>
     </view>
 

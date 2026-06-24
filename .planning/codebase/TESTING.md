@@ -29,7 +29,8 @@ node --test
 **Structure:**
 ```text
 tests/
-└── calendar-display.test.js
+├── calendar-display.test.js
+└── cycle-prediction.test.js
 ```
 
 ## Test Structure
@@ -93,6 +94,7 @@ node --test --experimental-test-coverage
 
 **Unit Tests:**
 - `tests/calendar-display.test.js` covers date formatting, lunar/holiday metadata, and calendar grid assembly via `utils/util.js`.
+- `tests/cycle-prediction.test.js` covers robust cycle prediction, manual fallback settings, reminder state derivation, and optional flow/symptom metadata normalization via `utils/cycle.js`.
 
 **Integration Tests:**
 - Template-level regression checks exist by reading `pages/index/index.wxml` and matching the rendered markup contract.
@@ -111,7 +113,11 @@ node --test --experimental-test-coverage
 ## Current Coverage
 
 - `utils/util.js` has direct coverage for `formatPredictDisplay`, `getChineseDateMeta`, and `buildCalendarDays`.
+- `utils/cycle.js` has direct coverage for prediction ranges, confidence, reminders, and period metadata helpers.
 - `pages/index/index.wxml` has a regression test to ensure the heart mark only appears for memories.
+- `pages/period/edit/edit.wxml` has a regression test to ensure flow and symptom controls stay present.
+- `pages/period/edit/edit.wxss` has a regression test to keep interactive chips at the 88rpx touch-target floor.
+- `pages/period/period.js` has a source-level regression test to ensure record loading failures show a user-facing toast.
 - `utils/cloud.js`, cloud-function wrappers, and most page event handlers are not covered by visible tests.
 
 ## Verification Gaps

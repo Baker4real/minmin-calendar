@@ -1,14 +1,30 @@
 const util = require('../../../utils/util')
 const cloud = require('../../../utils/cloud')
+const cycle = require('../../../utils/cycle')
 
 Page({
-  data: { id: '', startDate: '', endDate: '', note: '', isEdit: false, saving: false },
+  data: {
+    id: '',
+    startDate: '',
+    endDate: '',
+    note: '',
+    flow: '',
+    symptoms: [],
+    flowOptions: cycle.FLOW_OPTIONS,
+    symptomOptions: cycle.buildSymptomOptions(),
+    isEdit: false,
+    saving: false
+  },
 
   onLoad(options) {
+    const symptoms = options.symptoms ? decodeURIComponent(options.symptoms).split(',').filter(Boolean) : []
     this.setData({
       startDate: options.startDate || util.formatDate(new Date()),
       endDate: options.endDate || util.formatDate(new Date()),
       note: options.note ? decodeURIComponent(options.note) : '',
+      flow: options.flow || '',
+      symptoms,
+      symptomOptions: cycle.buildSymptomOptions(symptoms),
       isEdit: !!options.id, id: options.id || ''
     })
   },
@@ -19,23 +35,38 @@ Page({
   },
   onEndChange(e) { this.setData({ endDate: e.detail.value }) },
   onNoteInput(e) { this.setData({ note: e.detail.value }) },
+  selectFlow(e) {
+    const flow = e.currentTarget.dataset.value
+    this.setData({ flow: this.data.flow === flow ? '' : flow })
+  },
+  toggleSymptom(e) {
+    const value = e.currentTarget.dataset.value
+    const selected = new Set(this.data.symptoms)
+    if (selected.has(value)) selected.delete(value)
+    else selected.add(value)
+    const symptoms = Array.from(selected)
+    this.setData({
+      symptoms,
+      symptomOptions: cycle.buildSymptomOptions(symptoms)
+    })
+  },
 
   goBack() {
     wx.navigateBack()
   },
 
   async save() {
-    const { id, startDate, endDate, note, isEdit } = this.data
+    const { id, startDate, endDate, note, flow, symptoms, isEdit } = this.data
     if (!startDate || !endDate) { wx.showToast({ title: '请选择日期', icon: 'none' }); return }
     if (startDate > endDate) { wx.showToast({ title: '结束日期不能早于开始', icon: 'none' }); return }
     this.setData({ saving: true })
-    const duration = util.daysBetween(util.parseDate(startDate), util.parseDate(endDate)) + 1
+    const payload = cycle.buildPeriodPayload({ startDate, endDate, note, flow, symptoms })
     try {
       let res
       if (isEdit) {
-        res = await cloud.updatePeriod(id, { startDate, endDate, note, duration })
+        res = await cloud.updatePeriod(id, payload)
       } else {
-        res = await cloud.addPeriod({ startDate, endDate, note, duration })
+        res = await cloud.addPeriod(payload)
       }
       if (res.result && res.result.code === 0) {
         wx.showToast({ title: '保存成功' })

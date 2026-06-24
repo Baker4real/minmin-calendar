@@ -16,7 +16,7 @@
          ▼                  ▼                     ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                 Shared client service / utils               │
-│                 `utils/cloud.js`, `utils/util.js`          │
+│          `utils/cloud.js`, `utils/util.js`, `utils/cycle.js`│
 └────────┬────────────────────────────────────────────────────┘
          │
          ▼
@@ -46,6 +46,7 @@
 | Settings | Reads room code, exports data, clears local cache | `pages/settings/settings.js` |
 | Shared client API | Wraps cloud function calls and local room-code access | `utils/cloud.js` |
 | Date / calendar logic | Formats dates, computes holiday/lunar metadata, builds calendar grid | `utils/util.js` |
+| Cycle model logic | Predicts cycle ranges, reminders, and period metadata labels | `utils/cycle.js` |
 | Backend CRUD gateway | Validates access and performs CRUD on records | `cloudfunctions/dataOp/index.js` |
 
 ## Pattern Overview
@@ -64,13 +65,13 @@
 - Purpose: Render tab pages, forms, lists, and calendar cells.
 - Location: `pages/**`
 - Contains: `Page({ data, onLoad/onShow, event handlers })`, page-specific navigation, modal/toast interactions.
-- Depends on: `utils/cloud.js`, `utils/util.js`, `wx.*` APIs.
+- Depends on: `utils/cloud.js`, `utils/util.js`, `utils/cycle.js`, `wx.*` APIs.
 - Used by: Users through `app.json` page routing and tab bar.
 
 **Shared client layer:**
 - Purpose: Normalize data access and shared date logic.
-- Location: `utils/cloud.js`, `utils/util.js`
-- Contains: room-code storage lookup, cloud-function wrappers, calendar/date helpers.
+- Location: `utils/cloud.js`, `utils/util.js`, `utils/cycle.js`
+- Contains: room-code storage lookup, cloud-function wrappers, calendar/date helpers, cycle prediction helpers, period metadata helpers.
 - Depends on: `wx.cloud`, `wx.getStorageSync`, `wx.setStorageSync`.
 - Used by: `pages/index/index.js`, `pages/period/*`, `pages/memory/*`, `pages/settings/settings.js`, `pages/bind/bind.js`.
 
@@ -96,7 +97,7 @@
 2. `pages/index/index.js` reads `roomCode` through `utils/cloud.js` and loads `periods` and `memories` with `cloud.getPeriods()` / `cloud.getMemories()`.
 3. `utils/cloud.js` calls `cloudfunctions/dataOp/index.js` with `wx.cloud.callFunction`.
 4. `cloudfunctions/dataOp/index.js` validates that the caller belongs to the room before reading or mutating `rooms`, `periods`, or `memories`.
-5. Returned records are transformed in the page with `utils/util.js` helpers into calendar days, stats, and predictions.
+5. Returned records are transformed with `utils/util.js` and `utils/cycle.js` helpers into calendar days, cycle stats, prediction ranges, reminders, and period labels.
 
 ### Room Binding Flow
 
@@ -133,6 +134,11 @@
 - Purpose: Convert persisted records into day-grid UI state.
 - Examples: `utils/util.js`, `pages/index/index.js`
 - Pattern: Pure helper functions compute month grid, lunar/holiday metadata, and prediction labels.
+
+**Cycle model helpers:**
+- Purpose: Convert period records into prediction ranges, confidence, reminder states, and display labels for flow/symptom metadata.
+- Examples: `utils/cycle.js`, `pages/index/index.js`, `pages/period/*`
+- Pattern: Keep health-adjacent math and labels in pure functions, then let pages render the resulting view model.
 
 ## Entry Points
 
@@ -176,7 +182,7 @@
 
 **What happens:** A page stores derived calendar cells, statistics, or predictions as if they were source data.
 **Why it's wrong:** It duplicates logic and risks stale UI when records change.
-**Do this instead:** Recompute with `utils/util.js` in `pages/index/index.js` from `periods` and `memories`.
+**Do this instead:** Recompute with `utils/util.js` and `utils/cycle.js` in page controllers from `periods` and `memories`.
 
 ## Error Handling
 

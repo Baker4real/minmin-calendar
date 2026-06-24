@@ -1,12 +1,21 @@
 const util = require('../../utils/util')
 const cloud = require('../../utils/cloud')
+const cycle = require('../../utils/cycle')
 
 Page({
   data: {
     year: 0, month: 0, days: [],
     weekDays: ['日','一','二','三','四','五','六'],
     periods: [], memories: [],
-    avgCycle: null, nextPredict: null, nextPredictDisplay: '--', nextPredictWeekday: '', predictConfidence: null,
+    avgCycle: null,
+    avgDuration: null,
+    nextPredict: null,
+    nextPredictDisplay: '--',
+    nextPredictWeekday: '',
+    predictionRangeDisplay: '',
+    predictionWindow: null,
+    predictConfidence: null,
+    cycleReminders: [],
     loading: true, noRoom: false
   },
 
@@ -31,8 +40,10 @@ Page({
   async loadData() {
     this.setData({ loading: true })
     try {
-      const periods = await cloud.getPeriods()
-      const memories = await cloud.getMemories()
+      const [periods, memories] = await Promise.all([
+        cloud.getPeriods(),
+        cloud.getMemories()
+      ])
       this.setData({ periods, memories })
       this.calcStats(periods)
       // ⚠️ 关键修复：数据加载后重新渲染日历网格
@@ -46,50 +57,42 @@ Page({
   },
 
   calcStats(periods) {
-    if (periods.length < 2) {
-      this.setData({ avgCycle: null, nextPredict: null, nextPredictDisplay: '--', nextPredictWeekday: '', predictConfidence: null })
-      return
-    }
-    const sorted = [...periods].sort((a, b) => a.startDate.localeCompare(b.startDate))
-    const gaps = []
-    for (let i = 1; i < sorted.length; i++) {
-      const d1 = util.parseDate(sorted[i-1].startDate)
-      const d2 = util.parseDate(sorted[i].startDate)
-      gaps.push(util.daysBetween(d1, d2))
-    }
-    // 异常值过滤：去掉偏离均值超过7天的值
-    const rawAvg = gaps.reduce((a,b) => a+b, 0) / gaps.length
-    const filtered = gaps.filter(g => Math.abs(g - rawAvg) <= 7)
-    if (filtered.length === 0) {
-      this.setData({ avgCycle: Math.round(rawAvg), nextPredict: '--', nextPredictDisplay: '--', nextPredictWeekday: '', predictConfidence: '低' })
+    const prediction = cycle.predictNextPeriod(periods)
+    if (!prediction.canPredict) {
+      this.setData({
+        avgCycle: null,
+        avgDuration: null,
+        nextPredict: null,
+        nextPredictDisplay: '--',
+        nextPredictWeekday: '',
+        predictionRangeDisplay: '',
+        predictionWindow: null,
+        predictConfidence: null,
+        cycleReminders: []
+      })
       return
     }
 
-    // 加权平均：最近几次权重递增
-    const recent = filtered.slice(-3)
-    const weights = [1, 2, 3].slice(3 - recent.length)
-    const weightedAvg = Math.round(recent.reduce((s, g, i) => s + g * weights[i], 0) / weights.reduce((a,b) => a+b, 0))
-
-    const last = util.parseDate(sorted[sorted.length-1].startDate)
-    const next = new Date(last); next.setDate(next.getDate() + weightedAvg)
-    const nextPredict = util.formatDate(next)
-    const predictDisplay = util.formatPredictDisplay(nextPredict)
-
-    // 置信度
-    const confidence = filtered.length >= 4 ? '高' : filtered.length >= 2 ? '中' : '低'
     this.setData({
-      avgCycle: weightedAvg,
-      nextPredict,
-      nextPredictDisplay: predictDisplay.date,
-      nextPredictWeekday: predictDisplay.weekday,
-      predictConfidence: confidence
+      avgCycle: prediction.avgCycle,
+      avgDuration: prediction.avgDuration,
+      nextPredict: prediction.nextStart,
+      nextPredictDisplay: prediction.nextDisplay,
+      nextPredictWeekday: prediction.nextWeekday,
+      predictionRangeDisplay: prediction.rangeDisplay,
+      predictionWindow: {
+        rangeStart: prediction.rangeStart,
+        rangeEnd: prediction.rangeEnd
+      },
+      predictConfidence: prediction.confidenceText,
+      cycleReminders: cycle.buildCycleReminders(prediction, periods)
     })
   },
 
   renderCalendar() {
-    const { year, month, periods, memories } = this.data
+    const { year, month, periods, memories, predictionWindow } = this.data
     const today = util.formatDate(new Date())
-    const days = util.buildCalendarDays({ year, month, periods, memories, nextPredict: this.data.nextPredict, today })
+    const days = util.buildCalendarDays({ year, month, periods, memories, nextPredict: this.data.nextPredict, predictionWindow, today })
     this.setData({ days })
   },
 
@@ -126,7 +129,10 @@ Page({
     const { periods, memories } = this.data
     let msg = `📅 ${date}\n`
     periods.filter(p => date >= p.startDate && date <= p.endDate).forEach(p => {
+      const detail = cycle.decoratePeriod(p)
       msg += `\n🩸 经期: ${p.startDate} ~ ${p.endDate}`
+      if (detail.flowLabel) msg += `\n经量: ${detail.flowLabel}`
+      if (detail.symptomText) msg += `\n状态: ${detail.symptomText}`
     })
     memories.filter(m => m.date === date).forEach(m => {
       msg += `\n❤️ 欢乐时光: ${m.note || '特别日子'}`
@@ -139,6 +145,11 @@ Page({
   quickPeriod() {
     const now = util.formatDate(new Date())
     wx.navigateTo({ url: `/pages/period/edit/edit?startDate=${now}&endDate=${now}` })
+  },
+  onReminderTap(e) {
+    const reminder = this.data.cycleReminders[e.currentTarget.dataset.index]
+    if (!reminder || reminder.action !== 'quickPeriod') return
+    wx.navigateTo({ url: `/pages/period/edit/edit?startDate=${reminder.date}&endDate=${reminder.date}` })
   },
   quickMemory() {
     const now = util.formatDate(new Date())
