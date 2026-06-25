@@ -1,6 +1,6 @@
 # Architecture
 
-**Analysis Date:** 2026-06-24
+**Analysis Date:** 2026-06-25
 
 ## System Overview
 
@@ -47,7 +47,7 @@
 | Settings | Reads room code, exports data, clears local cache | `pages/settings/settings.js` |
 | Room session | Owns room-code cache, recovery, create/join calls, and local clear behavior | `utils/room.js` |
 | Shared client API | Wraps cloud function calls and local room-code access | `utils/cloud.js` |
-| Date / calendar logic | Formats dates, computes holiday/lunar metadata, builds calendar grid | `utils/util.js` |
+| Date / calendar logic | Formats dates, computes holiday/lunar metadata, builds calendar grid | `utils/util.js`, `utils/chinaHolidays.js` |
 | Cycle model logic | Predicts cycle ranges, reminders, and period metadata labels | `utils/cycle.js` |
 | Backend CRUD gateway | Validates access and performs CRUD on records | `cloudfunctions/dataOp/index.js` |
 | Room record rules | Validates, normalizes, sorts, and mutates Room-scoped period/memory records | `cloudfunctions/dataOp/roomRecords.js` |
@@ -75,7 +75,7 @@
 **Shared client layer:**
 - Purpose: Normalize data access and shared date logic.
 - Location: `utils/room.js`, `utils/cloud.js`, `utils/util.js`, `utils/cycle.js`
-- Contains: room-code cache/session lookup, cloud-function wrappers, calendar/date helpers, cycle prediction helpers, period metadata helpers.
+- Contains: room-code cache/session lookup, cloud-function wrappers, calendar/date helpers, published holiday data, cycle prediction helpers, period metadata helpers.
 - Depends on: `wx.cloud`, `wx.getStorageSync`, `wx.setStorageSync`.
 - Used by: `pages/index/index.js`, `pages/period/*`, `pages/memory/*`, `pages/settings/settings.js`, `pages/bind/bind.js`.
 
@@ -102,7 +102,7 @@
 3. `utils/cloud.js` calls `cloudfunctions/dataOp/index.js` with `wx.cloud.callFunction`.
 4. `cloudfunctions/dataOp/index.js` validates that the caller belongs to the room before reading or mutating `rooms`, `periods`, or `memories`.
 5. `cloudfunctions/dataOp/roomRecords.js` validates and normalizes Period record / Memory record payloads before writes.
-6. Returned records are transformed with `utils/util.js` and `utils/cycle.js` helpers into calendar days, cycle stats, prediction ranges, reminders, and period labels.
+6. Returned records are transformed with `utils/util.js`, `utils/chinaHolidays.js`, and `utils/cycle.js` helpers into calendar days, lunar/holiday labels, cycle stats, prediction ranges, reminders, and period labels.
 
 ### Room Binding Flow
 
@@ -153,7 +153,7 @@
 
 **Calendar derivation helpers:**
 - Purpose: Convert persisted records into day-grid UI state.
-- Examples: `utils/util.js`, `pages/index/index.js`
+- Examples: `utils/util.js`, `utils/chinaHolidays.js`, `pages/index/index.js`
 - Pattern: Pure helper functions compute month grid, lunar/holiday metadata, and calendar marker flags.
 
 **Cycle model helpers:**
@@ -226,4 +226,4 @@
 
 ---
 
-*Architecture analysis: 2026-06-24*
+*Architecture analysis: 2026-06-25*

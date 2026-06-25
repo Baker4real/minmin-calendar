@@ -18,6 +18,7 @@
 - [ ] **CAL-03**: User can read "next predicted period" as a compact date with weekday without awkward wrapping.
 - [ ] **CAL-04**: User can tap a calendar day and understand period and memory details for that day.
 - [ ] **CAL-07**: User can see the next period prediction as a range with confidence and timely in-app reminder states.
+- [ ] **CAL-08**: User can open the calendar month title and quickly jump to a selected year and month.
 
 ### Records
 
@@ -84,6 +85,7 @@
 | CAL-03 | Phase 2 | Pending |
 | CAL-04 | Phase 2 | Pending |
 | CAL-07 | Phase 2 | In Progress |
+| CAL-08 | Phase 2 | In Progress |
 | REC-01 | Phase 4 | Pending |
 | REC-02 | Phase 4 | Pending |
 | REC-03 | Phase 4 | Pending |
@@ -101,10 +103,10 @@
 | QUAL-04 | Phase 1 | In Progress |
 
 **Coverage:**
-- v1 requirements: 23 total
-- Mapped to phases: 23
+- v1 requirements: 24 total
+- Mapped to phases: 24
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-24*  
-*Last updated: 2026-06-24 after workflow initialization*
+*Last updated: 2026-06-25 after calendar month-jump requirement capture*

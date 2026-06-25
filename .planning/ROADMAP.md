@@ -22,14 +22,15 @@
 **Goal:** Make the homepage calendar readable and semantically unambiguous on mobile.  
 **Mode:** mvp
 
-**Requirements:** CAL-01, CAL-02, CAL-03, CAL-04, CAL-07
+**Requirements:** CAL-01, CAL-02, CAL-03, CAL-04, CAL-07, CAL-08
 
 **Success Criteria:**
 1. Calendar markers visually distinguish period, memory, today, prediction, holiday, and adjusted-workday states.
 2. "Prediction next" display stays compact and includes weekday.
 3. Lunar and holiday labels do not overlap primary dates on small-phone layouts.
-4. Day detail modal remains accurate for period and memory records.
+4. Day detail sheet remains accurate for period and memory records.
 5. Prediction range, confidence, and reminder states are visible without implying medical certainty.
+6. Month title navigation supports quick year/month jumping without leaving the calendar.
 
 ### Phase 3: Room and Cloud Data Reliability
 **Goal:** Keep shared-room data access trustworthy and recoverable.  
@@ -73,15 +74,15 @@
 | # | Phase | Goal | Requirements |
 |---|-------|------|--------------|
 | 1 | Workflow Baseline | Traceable, testable future changes | FLOW-01, FLOW-02, FLOW-03, QUAL-01, QUAL-02, QUAL-04 |
-| 2 | Calendar Display Clarity | Readable, unambiguous homepage calendar | CAL-01, CAL-02, CAL-03, CAL-04, CAL-07 |
+| 2 | Calendar Display Clarity | Readable, unambiguous homepage calendar | CAL-01, CAL-02, CAL-03, CAL-04, CAL-07, CAL-08 |
 | 3 | Room and Cloud Data Reliability | Trustworthy shared-room access | ROOM-01, ROOM-02, ROOM-03, ROOM-04 |
 | 4 | Record and Settings Flow Polish | Consistent daily management flows | REC-01, REC-02, REC-03, REC-04, SET-01, SET-02, SET-03 |
 | 5 | Documentation and Release Readiness | Current project knowledge and next-step readiness | QUAL-03 |
 
 ## Coverage
 
-- v1 requirements mapped: 23/23
+- v1 requirements mapped: 24/24
 - Unmapped requirements: 0
 
 ---
-*Last updated: 2026-06-24 after cycle prediction, reminder, and period tag implementation*
+*Last updated: 2026-06-25 after calendar month-jump requirement capture*

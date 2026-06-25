@@ -1,6 +1,6 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-06-24
+**Analysis Date:** 2026-06-25
 
 ## Tech Debt
 
@@ -20,17 +20,11 @@
 
 ## Known Bugs
 
-**Holiday/calendar rules are hard-coded to 2026:**
-- Symptoms: `tests/calendar-display.test.js` and `utils/util.js` both encode 2026 public holiday ranges and adjusted workdays, so the calendar will mark the wrong holidays once the year changes.
-- Files: `utils/util.js`, `tests/calendar-display.test.js`
-- Trigger: any month outside the 2026 rule set.
-- Workaround: none in code; manual update is required each year.
-
-**Day details can exceed modal-friendly length:**
-- Symptoms: `pages/index/index.js` concatenates all matching period and memory entries into one `wx.showModal` content string without truncation.
-- Files: `pages/index/index.js`
+**Dense day details still need small-phone visual acceptance:**
+- Symptoms: the custom day detail sheet renders multiple period and memory rows with wrapped notes; very long notes or many overlapping records can still make the sheet visually heavy.
+- Files: `pages/index/index.js`, `pages/index/index.wxml`, `pages/index/index.wxss`
 - Trigger: days with multiple overlapping records or verbose notes.
-- Workaround: none; long content may be clipped or awkward to read.
+- Workaround: verify in WeChat DevTools on small-phone widths; consider row truncation or a dedicated detail page if real data becomes too dense.
 
 ## Security Considerations
 
@@ -62,11 +56,11 @@
 - Safe modification: keep normalization centralized in `utils/util.js` and validate any new date input before storage.
 - Test coverage: current tests cover only a small subset of calendar formatting, not mutation flows or invalid dates.
 
-**Annual holiday rules will silently drift:**
-- Files: `utils/util.js`, `tests/calendar-display.test.js`
-- Why fragile: the holiday table is embedded data, not a generated source of truth.
-- Safe modification: isolate the rule table behind a versioned config or external source, then refresh tests with the same source.
-- Test coverage: the existing test only validates 2026 examples.
+**Published holiday data needs ongoing maintenance beyond 2026:**
+- Files: `utils/chinaHolidays.js`, `utils/util.js`, `tests/calendar-display.test.js`
+- Why fragile: official China holiday and adjusted-workday arrangements are embedded as published data through 2026. Future State Council releases must be added to the table; future years fall back to lunar/traditional labels when no official arrangement exists.
+- Safe modification: update `utils/chinaHolidays.js` from the latest official arrangement source, then add or refresh representative holiday and adjusted-workday tests.
+- Test coverage: the current suite validates published data across 2001, 2006, 2007, 2019, 2020, 2025, and 2026, plus lunar fallback behavior for 2027.
 
 ## Test Coverage Gaps
 
@@ -85,4 +79,4 @@
 
 ---
 
-*Concerns audit: 2026-06-24*
+*Concerns audit: 2026-06-25*

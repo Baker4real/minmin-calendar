@@ -1,6 +1,6 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-06-24
+**Analysis Date:** 2026-06-25
 
 ## Directory Layout
 
@@ -33,8 +33,8 @@ minmin-calendar/
 
 **`utils/`:**
 - Purpose: Shared client helpers.
-- Contains: Room session/cache logic, date/calendar utilities, cycle prediction helpers, period metadata helpers, and cloud-function wrappers.
-- Key files: `utils/room.js`, `utils/util.js`, `utils/cycle.js`, `utils/cloud.js`.
+- Contains: Room session/cache logic, date/calendar utilities, published holiday data, cycle prediction helpers, period metadata helpers, and cloud-function wrappers.
+- Key files: `utils/room.js`, `utils/util.js`, `utils/chinaHolidays.js`, `utils/cycle.js`, `utils/cloud.js`.
 
 **`cloudfunctions/`:**
 - Purpose: Server-side logic for room management, membership revoke, and shared record persistence.
@@ -74,6 +74,7 @@ minmin-calendar/
 - `utils/cloud.js`: Shared data-access facade.
 - `utils/room.js`: Room-code cache, recovery, create/join, server-side leave, and local clear Interface.
 - `utils/util.js`: Calendar/date calculations.
+- `utils/chinaHolidays.js`: Published China public holiday and adjusted-workday data for 2001-2026.
 - `utils/cycle.js`: Cycle prediction, reminders, flow labels, and symptom labels.
 - `pages/index/index.js`: Derived calendar view model.
 - `cloudfunctions/dataOp/index.js`: CRUD gateway for shared records.
@@ -142,4 +143,4 @@ minmin-calendar/
 
 ---
 
-*Structure analysis: 2026-06-24*
+*Structure analysis: 2026-06-25*

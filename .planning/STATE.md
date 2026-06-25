@@ -4,7 +4,7 @@ Last activity: 2026-06-25 - Expanded calendar holidays, themed day sheets, and a
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-06-24)
+See: `.planning/PROJECT.md` (updated 2026-06-25)
 
 **Core value:** Two people can reliably see the same private calendar state and understand what each calendar marker means at a glance.  
 **Current focus:** Phase 1 - Workflow Baseline
@@ -24,12 +24,12 @@ See: `.planning/PROJECT.md` (updated 2026-06-24)
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Added cycle prediction range/confidence, in-app reminders, and period flow/symptom tags | 2026-06-24 | `5936c32` | `utils/`, `pages/index/`, `pages/period/`, `tests/` |
-| 2 | Removed ignored root `hermes-*` reports from the working tree and added project README | 2026-06-24 | This commit | root |
-| 3 | Deepened Room-scoped record writes with server-side validation, normalization, and tests | 2026-06-25 | This commit | `cloudfunctions/dataOp/`, `tests/` |
-| 4 | Added RoomSession client Module for room-code cache, recovery, create/join, and local clear flows | 2026-06-25 | This commit | `utils/`, `pages/bind/`, `pages/settings/`, `tests/` |
-| 5 | Added server-side Room leave/unpair flow with ownership transfer and client unbind wiring | 2026-06-25 | This commit | `cloudfunctions/leaveRoom/`, `utils/`, `pages/bind/`, `tests/`, `docs/adr/` |
-| 6 | Verified `leaveRoom` deployment through WeChat DevTools CLI in `cloud1-d8gyqvcez4e66b3da` | 2026-06-25 | This commit | WeChat Cloud |
-| 7 | Expanded calendar holidays to published 2001-2026 arrangements, replaced system day action/detail dialogs with themed sheets, and added a themed year-month jump sheet | 2026-06-25 | Uncommitted | `utils/`, `pages/index/`, `tests/` |
+| 2 | Removed ignored root `hermes-*` reports from the working tree and added project README | 2026-06-24 | `7f2de92` | root |
+| 3 | Deepened Room-scoped record writes with server-side validation, normalization, and tests | 2026-06-25 | `605adf3` | `cloudfunctions/dataOp/`, `tests/` |
+| 4 | Added RoomSession client Module for room-code cache, recovery, create/join, and local clear flows | 2026-06-25 | `605adf3` | `utils/`, `pages/bind/`, `pages/settings/`, `tests/` |
+| 5 | Added server-side Room leave/unpair flow with ownership transfer and client unbind wiring | 2026-06-25 | `605adf3` | `cloudfunctions/leaveRoom/`, `utils/`, `pages/bind/`, `tests/`, `docs/adr/` |
+| 6 | Verified `leaveRoom` deployment through WeChat DevTools CLI in `cloud1-d8gyqvcez4e66b3da` | 2026-06-25 | `605adf3` | WeChat Cloud |
+| 7 | Expanded calendar holidays to published 2001-2026 arrangements, replaced system day action/detail dialogs with themed sheets, and added a themed year-month jump sheet | 2026-06-25 | `56fc4d1` | `utils/`, `pages/index/`, `tests/` |
 
 ## Research Artifacts
 

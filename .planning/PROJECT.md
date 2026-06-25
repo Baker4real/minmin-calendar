@@ -19,7 +19,8 @@ Two people can reliably see the same private calendar state and understand what 
 - Memory records can be created, edited, deleted, listed, and shown on the homepage calendar.
 - Homepage prediction display includes tested compact date plus weekday display, range, confidence, and in-app reminder states.
 - Period records support optional flow level and symptom tags through edit/list/detail views.
-- Calendar day metadata now includes tested lunar date and 2026 China public holiday/adjusted workday labels.
+- Calendar day metadata now includes tested lunar date and published 2001-2026 China public holiday/adjusted workday labels.
+- Homepage calendar uses themed day action/detail sheets and a themed year-month jump sheet instead of native white system dialogs.
 - Data access is mediated through `cloudfunctions/dataOp/index.js`, which checks room membership before list/add/update/remove operations.
 - Room-scoped period and memory writes now pass through server-side record validation and normalization in `cloudfunctions/dataOp/roomRecords.js`.
 - Room-code cache, recovery, create/join, and local clear behavior now go through the tested `utils/room.js` RoomSession Module.
@@ -90,4 +91,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state.
 
 ---
-*Last updated: 2026-06-25 after server-side Room leave implementation*
+*Last updated: 2026-06-25 after calendar holiday/navigation polish and server-side Room leave implementation*
