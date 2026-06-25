@@ -23,7 +23,15 @@
   <view wx:else class="content fade-in">
     <view class="month-nav">
       <view class="nav-btn" bindtap="prevMonth">‹</view>
-      <view class="month-title">{{year}}年{{month + 1}}月</view>
+      <view
+        class="month-title month-title-trigger"
+        bindtap="openMonthPicker"
+        aria-role="button"
+        aria-label="选择年份和月份"
+      >
+        <text>{{year}}年{{month + 1}}月</text>
+        <text class="month-title-caret">⌄</text>
+      </view>
       <view class="nav-btn" bindtap="nextMonth">›</view>
     </view>
 
@@ -106,6 +114,140 @@
         <text class="quick-icon">❤️</text>
         <text class="quick-text">欢乐时光</text>
       </view>
+    </view>
+  </view>
+
+  <view wx:if="{{monthPickerVisible}}" class="day-sheet-mask month-jump-mask" bindtap="closeMonthPicker">
+    <view class="calendar-jump-sheet safe-bottom" catchtap="noop">
+      <view class="sheet-handle"></view>
+      <view class="sheet-head">
+        <view class="sheet-date-copy">
+          <text class="sheet-title">选择月份</text>
+          <text class="sheet-subtitle">{{jumpYear}}年{{jumpMonth + 1}}月</text>
+        </view>
+        <view class="sheet-close" bindtap="closeMonthPicker">×</view>
+      </view>
+
+      <view class="jump-section">
+        <view class="jump-section-head">
+          <text class="jump-section-title">年份</text>
+          <view class="jump-year-controls">
+            <view class="jump-nav-btn" data-delta="-12" bindtap="shiftJumpYears">早些</view>
+            <view class="jump-nav-btn" data-delta="12" bindtap="shiftJumpYears">晚些</view>
+          </view>
+        </view>
+        <view class="jump-year-grid">
+          <view
+            class="jump-option year-option {{item == jumpYear ? 'active' : ''}}"
+            wx:for="{{jumpYears}}"
+            wx:key="*this"
+            data-year="{{item}}"
+            bindtap="selectJumpYear"
+          >{{item}}</view>
+        </view>
+      </view>
+
+      <view class="jump-section">
+        <text class="jump-section-title">月份</text>
+        <view class="jump-month-grid">
+          <view
+            class="jump-option month-option {{item.value == jumpMonth ? 'active' : ''}}"
+            wx:for="{{jumpMonths}}"
+            wx:key="value"
+            data-month="{{item.value}}"
+            bindtap="selectJumpMonth"
+          >{{item.label}}</view>
+        </view>
+      </view>
+
+      <view class="jump-confirm" bindtap="confirmMonthJump">跳转到 {{jumpYear}}年{{jumpMonth + 1}}月</view>
+    </view>
+  </view>
+
+  <view wx:if="{{dayActionSheetVisible}}" class="day-sheet-mask" bindtap="closeDayActions">
+    <view class="day-action-sheet safe-bottom" catchtap="noop">
+      <view class="sheet-handle"></view>
+      <view class="sheet-head">
+        <view class="sheet-date-copy">
+          <text class="sheet-title">{{selectedDate}}</text>
+          <text class="sheet-subtitle">{{selectedDateSubtitle}}</text>
+        </view>
+        <view class="sheet-close" bindtap="closeDayActions">×</view>
+      </view>
+
+      <block wx:if="{{daySheetMode == 'actions'}}">
+        <view class="sheet-actions">
+          <view class="sheet-action" data-action="period" bindtap="onDayActionTap">
+            <text class="sheet-action-icon period-tone">●</text>
+            <view class="sheet-action-copy">
+              <text class="sheet-action-title">记录经期</text>
+              <text class="sheet-action-desc">添加这一天的经期记录</text>
+            </view>
+            <text class="sheet-action-arrow">›</text>
+          </view>
+          <view class="sheet-action" data-action="memory" bindtap="onDayActionTap">
+            <text class="sheet-action-icon memory-tone">♥</text>
+            <view class="sheet-action-copy">
+              <text class="sheet-action-title">欢乐时光</text>
+              <text class="sheet-action-desc">写下这一天的特别记忆</text>
+            </view>
+            <text class="sheet-action-arrow">›</text>
+          </view>
+          <view class="sheet-action" data-action="detail" bindtap="onDayActionTap">
+            <text class="sheet-action-icon detail-tone">i</text>
+            <view class="sheet-action-copy">
+              <text class="sheet-action-title">查看详情</text>
+              <text class="sheet-action-desc">经期与记忆都在这里</text>
+            </view>
+            <text class="sheet-action-arrow">›</text>
+          </view>
+        </view>
+      </block>
+
+      <block wx:elif="{{daySheetMode == 'detail'}}">
+        <view class="day-detail-list">
+          <view wx:if="{{selectedDayDetail.empty}}" class="day-detail-empty">
+            <text class="detail-empty-title">当天无记录</text>
+            <text class="detail-empty-desc">可以从这里补一条经期或记忆</text>
+          </view>
+
+          <view
+            wx:for="{{selectedDayDetail.periods}}"
+            wx:key="range"
+            class="day-detail-row period-detail"
+          >
+            <view class="detail-rail"></view>
+            <view class="detail-copy">
+              <text class="detail-title">经期</text>
+              <text class="detail-main">{{item.range}}</text>
+              <text wx:if="{{item.metaText}}" class="detail-meta">{{item.metaText}}</text>
+            </view>
+          </view>
+
+          <view
+            wx:for="{{selectedDayDetail.memories}}"
+            wx:key="note"
+            class="day-detail-row memory-detail"
+          >
+            <view class="detail-rail"></view>
+            <view class="detail-copy">
+              <text class="detail-title">欢乐时光</text>
+              <text class="detail-main">{{item.note}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="sheet-actions compact-actions">
+          <view class="sheet-action compact" data-action="period" bindtap="onDayActionTap">
+            <text class="sheet-action-icon period-tone">●</text>
+            <text class="sheet-action-title">补经期</text>
+          </view>
+          <view class="sheet-action compact" data-action="memory" bindtap="onDayActionTap">
+            <text class="sheet-action-icon memory-tone">♥</text>
+            <text class="sheet-action-title">补记忆</text>
+          </view>
+        </view>
+      </block>
     </view>
   </view>
 </view>

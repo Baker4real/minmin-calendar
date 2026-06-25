@@ -1,5 +1,11 @@
 // 日期工具函数
 
+const {
+  PUBLISHED_HOLIDAY_START_YEAR,
+  getPublishedHoliday,
+  hasPublishedHolidayYear
+} = require('./chinaHolidays')
+
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
 const LUNAR_INFO = [
@@ -32,26 +38,6 @@ const LUNAR_DAY_NAMES = [
   '十一', '十二', '十三', '十四', '十五', '十六', '十七', '十八', '十九', '二十',
   '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十'
 ]
-
-// 2026 follows the State Council public holiday arrangement published in 2025.
-const CHINA_PUBLIC_HOLIDAY_RANGES = [
-  { name: '元旦', start: '2026-01-01', end: '2026-01-03' },
-  { name: '春节', start: '2026-02-15', end: '2026-02-23' },
-  { name: '清明', start: '2026-04-04', end: '2026-04-06' },
-  { name: '劳动节', start: '2026-05-01', end: '2026-05-05' },
-  { name: '端午', start: '2026-06-19', end: '2026-06-21' },
-  { name: '中秋', start: '2026-09-25', end: '2026-09-27' },
-  { name: '国庆', start: '2026-10-01', end: '2026-10-07' }
-]
-
-const CHINA_ADJUSTED_WORKDAYS = new Set([
-  '2026-01-04',
-  '2026-02-14',
-  '2026-02-28',
-  '2026-05-09',
-  '2026-09-20',
-  '2026-10-10'
-])
 
 function formatDate(date) {
   const y = date.getFullYear()
@@ -92,7 +78,10 @@ function formatPredictDisplay(dateStr) {
 function getChineseDateMeta(dateStr) {
   const date = parseDate(dateStr)
   const lunar = solarToLunar(date)
-  const officialHoliday = getOfficialHolidayName(dateStr)
+  const publishedHoliday = getPublishedHoliday(dateStr)
+  const officialHoliday = publishedHoliday && publishedHoliday.isOffDay
+    ? publishedHoliday.name
+    : getOfficialHolidayName(dateStr, lunar)
 
   return {
     weekday: WEEKDAYS[date.getDay()],
@@ -101,7 +90,7 @@ function getChineseDateMeta(dateStr) {
     lunarText: formatLunarText(lunar),
     holidayName: officialHoliday,
     isHoliday: !!officialHoliday,
-    isWorkday: CHINA_ADJUSTED_WORKDAYS.has(dateStr)
+    isWorkday: publishedHoliday ? !publishedHoliday.isOffDay : false
   }
 }
 
@@ -175,9 +164,42 @@ function collectPredictDates(nextPredict, year, month, predictionWindow) {
   return predictDates
 }
 
-function getOfficialHolidayName(dateStr) {
-  const holiday = CHINA_PUBLIC_HOLIDAY_RANGES.find(item => dateStr >= item.start && dateStr <= item.end)
-  return holiday ? holiday.name : ''
+function getOfficialHolidayName(dateStr, lunar) {
+  const year = parseDate(dateStr).getFullYear()
+  if (hasPublishedHolidayYear(year) || year < PUBLISHED_HOLIDAY_START_YEAR) return ''
+  return getStatutoryHolidayName(dateStr, lunar)
+}
+
+function getStatutoryHolidayName(dateStr, lunar) {
+  const date = parseDate(dateStr)
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+
+  if (month === 1 && day === 1) return '元旦'
+  if (isSpringFestivalDay(date, lunar)) return '春节'
+  if (month === 4 && day === getQingmingDay(year)) return '清明'
+  if (month === 5 && (day === 1 || (year >= 2025 && day === 2))) return '劳动节'
+  if (!lunar.isLeap && lunar.month === 5 && lunar.day === 5) return '端午'
+  if (!lunar.isLeap && lunar.month === 8 && lunar.day === 15) return '中秋'
+  if (month === 10 && day >= 1 && day <= 3) return '国庆'
+  return ''
+}
+
+function isSpringFestivalDay(date, lunar) {
+  if (!lunar.isLeap && lunar.month === 1 && lunar.day >= 1 && lunar.day <= 3) return true
+  if (date.getFullYear() < 2025) return false
+
+  const nextDay = new Date(date)
+  nextDay.setDate(nextDay.getDate() + 1)
+  const nextLunar = solarToLunar(nextDay)
+  return !nextLunar.isLeap && nextLunar.month === 1 && nextLunar.day === 1
+}
+
+function getQingmingDay(year) {
+  const shortYear = year % 100
+  const coefficient = year >= 2000 ? 4.81 : 5.59
+  return Math.floor(shortYear * 0.2422 + coefficient) - Math.floor((shortYear - 1) / 4)
 }
 
 function solarToLunar(date) {

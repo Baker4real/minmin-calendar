@@ -6,6 +6,24 @@ Page({
   data: {
     year: 0, month: 0, days: [],
     weekDays: ['日','一','二','三','四','五','六'],
+    jumpMonths: [
+      { value: 0, label: '1月' },
+      { value: 1, label: '2月' },
+      { value: 2, label: '3月' },
+      { value: 3, label: '4月' },
+      { value: 4, label: '5月' },
+      { value: 5, label: '6月' },
+      { value: 6, label: '7月' },
+      { value: 7, label: '8月' },
+      { value: 8, label: '9月' },
+      { value: 9, label: '10月' },
+      { value: 10, label: '11月' },
+      { value: 11, label: '12月' }
+    ],
+    jumpYears: [],
+    jumpYear: 0,
+    jumpMonth: 0,
+    monthPickerVisible: false,
     periods: [], memories: [],
     avgCycle: null,
     avgDuration: null,
@@ -16,6 +34,11 @@ Page({
     predictionWindow: null,
     predictConfidence: null,
     cycleReminders: [],
+    dayActionSheetVisible: false,
+    daySheetMode: 'actions',
+    selectedDate: '',
+    selectedDateSubtitle: '',
+    selectedDayDetail: null,
     loading: true, noRoom: false
   },
 
@@ -99,15 +122,67 @@ Page({
   prevMonth() {
     let { year, month } = this.data
     month--; if (month < 0) { month = 11; year-- }
-    this.setData({ year, month })
+    this.setData({ year, month, monthPickerVisible: false })
     setTimeout(() => this.renderCalendar(), 200)
   },
 
   nextMonth() {
     let { year, month } = this.data
     month++; if (month > 11) { month = 0; year++ }
-    this.setData({ year, month })
+    this.setData({ year, month, monthPickerVisible: false })
     setTimeout(() => this.renderCalendar(), 200)
+  },
+
+  openMonthPicker() {
+    const { year, month } = this.data
+    this.setData({
+      monthPickerVisible: true,
+      jumpYear: year,
+      jumpMonth: month,
+      jumpYears: this.buildMonthJumpYears(year)
+    })
+  },
+
+  closeMonthPicker() {
+    this.setData({ monthPickerVisible: false })
+  },
+
+  shiftJumpYears(e) {
+    const delta = Number(e.currentTarget.dataset.delta)
+    if (Number.isNaN(delta)) return
+    const jumpYear = this.data.jumpYear + delta
+    this.setData({
+      jumpYear,
+      jumpYears: this.buildMonthJumpYears(jumpYear)
+    })
+  },
+
+  selectJumpYear(e) {
+    const year = Number(e.currentTarget.dataset.year)
+    if (Number.isNaN(year)) return
+    this.setData({ jumpYear: year })
+  },
+
+  selectJumpMonth(e) {
+    const month = Number(e.currentTarget.dataset.month)
+    if (Number.isNaN(month)) return
+    this.setData({ jumpMonth: month })
+  },
+
+  confirmMonthJump() {
+    this.setData({
+      year: this.data.jumpYear,
+      month: this.data.jumpMonth,
+      monthPickerVisible: false
+    }, () => this.renderCalendar())
+  },
+
+  buildMonthJumpYears(centerYear) {
+    const years = []
+    for (let year = centerYear - 6; year <= centerYear + 6; year++) {
+      years.push(year)
+    }
+    return years
   },
 
   goBind() { wx.redirectTo({ url: '/pages/bind/bind' }) },
@@ -115,30 +190,81 @@ Page({
   onDayTap(e) {
     const date = e.currentTarget.dataset.date
     if (!date) return
-    wx.showActionSheet({
-      itemList: ['记录经期', '欢乐时光', '查看详情'],
-      success: (res) => {
-        if (res.tapIndex === 0) wx.navigateTo({ url: `/pages/period/edit/edit?startDate=${date}&endDate=${date}` })
-        else if (res.tapIndex === 1) wx.navigateTo({ url: `/pages/memory/edit/edit?date=${date}` })
-        else if (res.tapIndex === 2) this.showDayDetail(date)
+    const selectedDay = this.data.days.find(day => day.date === date) || { date }
+    this.setData({
+      dayActionSheetVisible: true,
+      daySheetMode: 'actions',
+      selectedDate: date,
+      selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
+      selectedDayDetail: null
+    })
+  },
+
+  onDayActionTap(e) {
+    const action = e.currentTarget.dataset.action
+    const date = this.data.selectedDate
+    if (!date) return
+
+    if (action === 'period') {
+      this.closeDayActions()
+      wx.navigateTo({ url: `/pages/period/edit/edit?startDate=${date}&endDate=${date}` })
+    } else if (action === 'memory') {
+      this.closeDayActions()
+      wx.navigateTo({ url: `/pages/memory/edit/edit?date=${date}` })
+    } else if (action === 'detail') {
+      this.showDayDetail(date)
+    }
+  },
+
+  closeDayActions() {
+    this.setData({
+      dayActionSheetVisible: false,
+      daySheetMode: 'actions',
+      selectedDate: '',
+      selectedDateSubtitle: '',
+      selectedDayDetail: null
+    })
+  },
+
+  noop() {},
+
+  showDayDetail(date) {
+    const { periods, memories } = this.data
+    const selectedDay = this.data.days.find(day => day.date === date) || { date }
+    const periodDetails = periods.filter(p => date >= p.startDate && date <= p.endDate).map(p => {
+      const detail = cycle.decoratePeriod(p)
+      const meta = []
+      if (detail.flowLabel) meta.push(`经量 ${detail.flowLabel}`)
+      if (detail.symptomText) meta.push(detail.symptomText)
+      return {
+        range: `${p.startDate} ~ ${p.endDate}`,
+        metaText: meta.join(' · ')
+      }
+    })
+    const memoryDetails = memories.filter(m => m.date === date).map(m => {
+      return { note: m.note || '特别日子' }
+    })
+
+    this.setData({
+      dayActionSheetVisible: true,
+      daySheetMode: 'detail',
+      selectedDate: date,
+      selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
+      selectedDayDetail: {
+        periods: periodDetails,
+        memories: memoryDetails,
+        empty: !periodDetails.length && !memoryDetails.length
       }
     })
   },
 
-  showDayDetail(date) {
-    const { periods, memories } = this.data
-    let msg = `📅 ${date}\n`
-    periods.filter(p => date >= p.startDate && date <= p.endDate).forEach(p => {
-      const detail = cycle.decoratePeriod(p)
-      msg += `\n🩸 经期: ${p.startDate} ~ ${p.endDate}`
-      if (detail.flowLabel) msg += `\n经量: ${detail.flowLabel}`
-      if (detail.symptomText) msg += `\n状态: ${detail.symptomText}`
-    })
-    memories.filter(m => m.date === date).forEach(m => {
-      msg += `\n❤️ 欢乐时光: ${m.note || '特别日子'}`
-    })
-    if (msg === `📅 ${date}\n`) msg += '\n当天无记录'
-    wx.showModal({ title: '详情', content: msg, showCancel: false })
+  formatDaySubtitle(day) {
+    const parts = []
+    if (day.weekday) parts.push(day.weekday)
+    if (day.lunarText) parts.push(day.lunarText)
+    if (day.holidayName) parts.push(day.holidayName)
+    else if (day.isWorkday) parts.push('调休上班')
+    return parts.join(' · ')
   },
 
   // 快速操作
