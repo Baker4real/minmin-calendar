@@ -14,9 +14,13 @@
 **Run Commands:**
 ```bash
 node --test tests/calendar-display.test.js
+node --test tests/room-lifecycle.test.js
+node --test tests/room-session.test.js
 node --test tests
 node --test
 ```
+
+Prefer explicit test-file lists on the current Windows/Node setup because `node --test tests` may be interpreted as a module path instead of a directory test discovery target.
 
 ## Test File Organization
 
@@ -30,7 +34,10 @@ node --test
 ```text
 tests/
 ├── calendar-display.test.js
-└── cycle-prediction.test.js
+├── cycle-prediction.test.js
+├── room-lifecycle.test.js
+├── room-records.test.js
+└── room-session.test.js
 ```
 
 ## Test Structure
@@ -95,6 +102,9 @@ node --test --experimental-test-coverage
 **Unit Tests:**
 - `tests/calendar-display.test.js` covers date formatting, lunar/holiday metadata, and calendar grid assembly via `utils/util.js`.
 - `tests/cycle-prediction.test.js` covers robust cycle prediction, manual fallback settings, reminder state derivation, and optional flow/symptom metadata normalization via `utils/cycle.js`.
+- `tests/room-lifecycle.test.js` covers server-side Room leave/unpair behavior through `cloudfunctions/leaveRoom/roomLifecycle.js`, including creator transfer, partner removal, empty-room deletion, and no-op leave.
+- `tests/room-session.test.js` covers Room-code cache, cloud recovery, create/join behavior, invalid join-code rejection, and local clear behavior via `utils/room.js`.
+- `tests/room-records.test.js` covers server-side Period record / Memory record validation, normalization, and cross-Room mutation blocking via `cloudfunctions/dataOp/roomRecords.js`.
 
 **Integration Tests:**
 - Template-level regression checks exist by reading `pages/index/index.wxml` and matching the rendered markup contract.
@@ -118,12 +128,15 @@ node --test --experimental-test-coverage
 - `pages/period/edit/edit.wxml` has a regression test to ensure flow and symptom controls stay present.
 - `pages/period/edit/edit.wxss` has a regression test to keep interactive chips at the 88rpx touch-target floor.
 - `pages/period/period.js` has a source-level regression test to ensure record loading failures show a user-facing toast.
-- `utils/cloud.js`, cloud-function wrappers, and most page event handlers are not covered by visible tests.
+- `utils/room.js` has direct Node coverage for cached Room lookups, `getMyRoom` recovery, cloud failure messages, room creation, room joining, server-side leave calls, invalid join-code rejection, and local cache clearing.
+- `cloudfunctions/leaveRoom/roomLifecycle.js` has direct Node coverage for creator ownership transfer, partner removal, empty-room deletion, and no-op leave.
+- `cloudfunctions/dataOp/roomRecords.js` has direct Node coverage for malformed payloads, reserved field stripping, duration calculation, symptom normalization, and cross-Room mutation blocking.
+- `utils/cloud.js`, deployed cloud-function wrappers, and most page event handlers are not covered by visible tests.
 
 ## Verification Gaps
 
 - No automated tests were found for `pages/period/edit/edit.js`, `pages/memory/edit/edit.js`, `pages/settings/settings.js`, or `pages/bind/bind.js`.
-- No tests were found for `utils/cloud.js` timeout behavior, room-code persistence, or cloud-function error handling.
+- No tests were found for `utils/cloud.js` timeout behavior or deployed Room lifecycle cloud-function adapter behavior.
 - No lint or CI config was detected, so test execution appears to be manual unless an external runner is configured elsewhere.
 
 ---

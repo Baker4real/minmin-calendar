@@ -21,6 +21,9 @@ Two people can reliably see the same private calendar state and understand what 
 - Period records support optional flow level and symptom tags through edit/list/detail views.
 - Calendar day metadata now includes tested lunar date and 2026 China public holiday/adjusted workday labels.
 - Data access is mediated through `cloudfunctions/dataOp/index.js`, which checks room membership before list/add/update/remove operations.
+- Room-scoped period and memory writes now pass through server-side record validation and normalization in `cloudfunctions/dataOp/roomRecords.js`.
+- Room-code cache, recovery, create/join, and local clear behavior now go through the tested `utils/room.js` RoomSession Module.
+- Server-side room leave/unpair now goes through `cloudfunctions/leaveRoom/index.js`, with `RoomLifecycle` tests covering creator transfer, partner removal, and last-member deletion.
 - Basic Node tests exist for calendar display/date rules in `tests/calendar-display.test.js` and cycle prediction/metadata rules in `tests/cycle-prediction.test.js`.
 
 ### Active
@@ -43,7 +46,9 @@ Two people can reliably see the same private calendar state and understand what 
 - Stack: WeChat Mini Program JavaScript/WXML/WXSS plus WeChat Cloud Functions using `wx-server-sdk`.
 - Cloud environment is initialized in `app.js` with env `cloud1-d8gyqvcez4e66b3da`.
 - Main app pages are configured in `app.json`: bind, index, period, period edit, memory, memory edit, settings.
-- Shared frontend data access lives in `utils/cloud.js`; date/calendar logic lives in `utils/util.js`; cycle prediction and period metadata logic lives in `utils/cycle.js`.
+- Shared frontend data access lives in `utils/cloud.js`; Room session/cache logic lives in `utils/room.js`; date/calendar logic lives in `utils/util.js`; cycle prediction and period metadata logic lives in `utils/cycle.js`.
+- Room-scoped record write rules live in `cloudfunctions/dataOp/roomRecords.js`, behind the room-authorized `dataOp` cloud-function adapter.
+- Room membership revoke rules live in `cloudfunctions/leaveRoom/roomLifecycle.js`, behind the `leaveRoom` cloud-function adapter.
 - The product visual direction is documented in `DESIGN.md` as Aurora Bloom: dark navy, warm rose, soft lavender, warm gold, and glass surfaces.
 - Codebase map lives under `.planning/codebase/` and should be refreshed after significant structural changes.
 
@@ -65,6 +70,7 @@ Two people can reliably see the same private calendar state and understand what 
 | Use single-context domain docs | This is a small single mini program, not a monorepo | - Pending |
 | Keep planning docs in git | Planning state should survive sessions and explain future changes | - Pending |
 | Treat calendar marker semantics as product-critical | Ambiguous markers directly reduce trust in the calendar | - Pending |
+| Transfer Room creator role on server-side leave | A remaining partner should keep access without leaving an ownerless Room document | `docs/adr/0001-room-leave-ownership-transfer.md` |
 
 ## Evolution
 
@@ -84,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state.
 
 ---
-*Last updated: 2026-06-24 after cycle prediction, reminder, and period tag implementation*
+*Last updated: 2026-06-25 after server-side Room leave implementation*

@@ -9,10 +9,11 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 - `pages/memory/` - memory list plus create/edit flow.
 - `pages/bind/` - shared-room create, join, and recover flow.
 - `pages/settings/` - room code, export, and local cache controls.
+- `utils/room.js` - room-code cache, recovery, create/join, leave, and local clear wrapper.
 - `utils/cloud.js` - frontend cloud-function access wrapper.
 - `utils/util.js` - date, lunar, holiday, and calendar-grid helpers.
 - `utils/cycle.js` - cycle prediction, reminders, and period metadata labels.
-- `cloudfunctions/` - WeChat Cloud Functions for room and record persistence.
+- `cloudfunctions/` - WeChat Cloud Functions for room lifecycle and record persistence.
 - `.planning/` - GSD project state, requirements, roadmap, and codebase map.
 
 ## Local Development
@@ -25,16 +26,24 @@ The mini program initializes WeChat Cloud in `app.js` with:
 env: 'cloud1-d8gyqvcez4e66b3da'
 ```
 
-Cloud functions live under `cloudfunctions/`; each function has its own `package.json` and lockfile.
+Cloud functions live under `cloudfunctions/`; each function has its own `package.json`, and older functions may also include a lockfile.
 
 ## Verification
 
-Run the lightweight local checks after changing date, prediction, calendar, or page behavior:
+Run the lightweight local checks after changing date, prediction, room, calendar, or page behavior:
 
 ```powershell
-node --test tests\calendar-display.test.js tests\cycle-prediction.test.js
+node --test tests\calendar-display.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js
+node --check cloudfunctions\leaveRoom\roomLifecycle.js
+node --check cloudfunctions\leaveRoom\index.js
+node --check cloudfunctions\dataOp\roomRecords.js
+node --check cloudfunctions\dataOp\index.js
+node --check utils\room.js
+node --check utils\cloud.js
 node --check utils\util.js
 node --check utils\cycle.js
+node --check pages\bind\bind.js
+node --check pages\settings\settings.js
 node --check pages\index\index.js
 node --check pages\period\period.js
 node --check pages\period\edit\edit.js
@@ -63,4 +72,3 @@ Use GSD Core for non-trivial work. Start with:
 - `.planning/PROJECT.md`
 - `.planning/STATE.md`
 - relevant files under `.planning/codebase/`
-

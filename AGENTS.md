@@ -16,10 +16,12 @@ Core domain files:
 - `pages/memory/**` - memory list and edit flows.
 - `pages/bind/**` - shared-room create/join/recover flow.
 - `pages/settings/**` - room code, export, local cache controls.
+- `utils/room.js` - frontend room-code cache, recovery, create/join, leave, and local clear wrapper.
 - `utils/cloud.js` - frontend cloud-function data access wrapper.
 - `utils/util.js` - date, lunar, holiday, and calendar-grid logic.
 - `utils/cycle.js` - cycle prediction, reminders, and period metadata labels.
 - `cloudfunctions/dataOp/index.js` - server-side room-scoped CRUD gateway.
+- `cloudfunctions/leaveRoom/**` - server-side room membership revoke and ownership-transfer flow.
 
 ## Durable Workflow
 
@@ -38,10 +40,17 @@ Before planning or implementation, read `.planning/PROJECT.md`, `.planning/STATE
 Run relevant checks before claiming work is complete. Current lightweight checks:
 
 ```powershell
-node --test tests\calendar-display.test.js
-node --test tests\cycle-prediction.test.js
+node --test tests\calendar-display.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js
+node --check cloudfunctions\leaveRoom\roomLifecycle.js
+node --check cloudfunctions\leaveRoom\index.js
+node --check cloudfunctions\dataOp\roomRecords.js
+node --check cloudfunctions\dataOp\index.js
+node --check utils\room.js
+node --check utils\cloud.js
 node --check utils\util.js
 node --check utils\cycle.js
+node --check pages\bind\bind.js
+node --check pages\settings\settings.js
 node --check pages\index\index.js
 node --check pages\period\period.js
 node --check pages\period\edit\edit.js
@@ -55,6 +64,7 @@ For UI changes, also perform manual visual verification in WeChat DevTools when 
 - Do not edit ignored dependencies under `node_modules/` or `_external/`.
 - Keep calendar marker semantics explicit: today highlight, period dot, memory heart, prediction label, holiday/workday tags should not reuse the same visual meaning.
 - Server-side room authorization belongs in cloud functions, not only in the mini program client.
+- Bind-page unbind must call server-side `leaveRoom`; Settings "clear local cache" is intentionally local-only.
 
 ## Agent skills
 

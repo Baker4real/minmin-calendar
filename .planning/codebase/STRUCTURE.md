@@ -33,13 +33,13 @@ minmin-calendar/
 
 **`utils/`:**
 - Purpose: Shared client helpers.
-- Contains: Date/calendar utilities, cycle prediction helpers, period metadata helpers, and cloud-function wrappers.
-- Key files: `utils/util.js`, `utils/cycle.js`, `utils/cloud.js`.
+- Contains: Room session/cache logic, date/calendar utilities, cycle prediction helpers, period metadata helpers, and cloud-function wrappers.
+- Key files: `utils/room.js`, `utils/util.js`, `utils/cycle.js`, `utils/cloud.js`.
 
 **`cloudfunctions/`:**
-- Purpose: Server-side logic for room management and shared record persistence.
+- Purpose: Server-side logic for room management, membership revoke, and shared record persistence.
 - Contains: One folder per cloud function, each with `index.js` and package files.
-- Key files: `cloudfunctions/createRoom/index.js`, `cloudfunctions/joinRoom/index.js`, `cloudfunctions/getMyRoom/index.js`, `cloudfunctions/login/index.js`, `cloudfunctions/dataOp/index.js`.
+- Key files: `cloudfunctions/createRoom/index.js`, `cloudfunctions/joinRoom/index.js`, `cloudfunctions/getMyRoom/index.js`, `cloudfunctions/leaveRoom/index.js`, `cloudfunctions/login/index.js`, `cloudfunctions/dataOp/index.js`.
 
 **`images/`:**
 - Purpose: Tab icons and UI assets.
@@ -47,9 +47,9 @@ minmin-calendar/
 - Key files: `images/calendar.png`, `images/calendar_active.png`, `images/add.png`, `images/add_active.png`, `images/settings.png`, `images/settings_active.png`.
 
 **`tests/`:**
-- Purpose: Automated checks for shared calendar behavior.
-- Contains: Test files such as `tests/calendar-display.test.js` and `tests/cycle-prediction.test.js`.
-- Key files: `tests/calendar-display.test.js`, `tests/cycle-prediction.test.js`.
+- Purpose: Automated checks for shared calendar behavior, Room session behavior, Room lifecycle behavior, and Room-scoped record rules.
+- Contains: Test files such as `tests/calendar-display.test.js`, `tests/cycle-prediction.test.js`, `tests/room-lifecycle.test.js`, `tests/room-records.test.js`, and `tests/room-session.test.js`.
+- Key files: `tests/calendar-display.test.js`, `tests/cycle-prediction.test.js`, `tests/room-lifecycle.test.js`, `tests/room-records.test.js`, `tests/room-session.test.js`.
 
 **`scripts/`:**
 - Purpose: Maintenance and environment automation scripts.
@@ -72,14 +72,21 @@ minmin-calendar/
 
 **Core Logic:**
 - `utils/cloud.js`: Shared data-access facade.
+- `utils/room.js`: Room-code cache, recovery, create/join, server-side leave, and local clear Interface.
 - `utils/util.js`: Calendar/date calculations.
 - `utils/cycle.js`: Cycle prediction, reminders, flow labels, and symptom labels.
 - `pages/index/index.js`: Derived calendar view model.
 - `cloudfunctions/dataOp/index.js`: CRUD gateway for shared records.
+- `cloudfunctions/dataOp/roomRecords.js`: Server-side validation and normalization for Room-scoped records.
+- `cloudfunctions/leaveRoom/index.js`: Cloud adapter for current-user Room membership revoke.
+- `cloudfunctions/leaveRoom/roomLifecycle.js`: Server-side Room leave/unpair and ownership transfer rules.
 
 **Testing:**
 - `tests/calendar-display.test.js`: Calendar display and template contract coverage.
 - `tests/cycle-prediction.test.js`: Cycle prediction, reminder, and period metadata coverage.
+- `tests/room-lifecycle.test.js`: Server-side Room leave/unpair and ownership transfer behavior.
+- `tests/room-records.test.js`: Server-side Period record / Memory record validation and Room ownership behavior.
+- `tests/room-session.test.js`: Client-side RoomSession cache, recovery, create/join, server-side leave, and local clear behavior.
 
 ## Naming Conventions
 

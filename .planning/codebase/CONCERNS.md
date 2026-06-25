@@ -4,17 +4,19 @@
 
 ## Tech Debt
 
-**Cloud function input trust boundary is thin:**
-- Issue: `utils/cloud.js` forwards `collection`, `action`, `id`, and payload data directly to `cloudfunctions/dataOp/index.js`; the server only checks membership by `roomCode` and does not validate record shape, field lengths, or date formats.
-- Files: `utils/cloud.js`, `cloudfunctions/dataOp/index.js`, `pages/period/edit/edit.js`, `pages/memory/edit/edit.js`
-- Impact: malformed records can reach the database, and future fields are easy to abuse or break accidentally.
-- Fix approach: add server-side schema validation per action/collection and reject unknown fields before write.
+**Cloud function input trust boundary was thin for record writes:**
+- Status: Partially mitigated on 2026-06-25.
+- Issue: `utils/cloud.js` still forwards `collection`, `action`, `id`, and payload data to `cloudfunctions/dataOp/index.js`, but Period record / Memory record writes now pass through `cloudfunctions/dataOp/roomRecords.js`.
+- Files: `utils/cloud.js`, `cloudfunctions/dataOp/index.js`, `cloudfunctions/dataOp/roomRecords.js`, `pages/period/edit/edit.js`, `pages/memory/edit/edit.js`
+- Impact: Unknown fields, invalid dates, cross-Room updates/removes, and client-supplied reserved fields are now covered for `dataOp` record writes; client Room session/cache behavior is now covered through `tests/room-session.test.js`; deployed cloud-function lifecycle behavior still needs broader automated coverage.
+- Fix approach: continue by adding deployed `createRoom`, `joinRoom`, and `getMyRoom` adapter tests where practical.
 
 **Room binding depends on local storage as a soft auth token:**
-- Issue: the active room is persisted in `wx` storage and reused across pages; `pages/bind/bind.js` clears only local state on unbind, while the server keeps the room membership intact.
-- Files: `utils/cloud.js`, `pages/bind/bind.js`, `cloudfunctions/joinRoom/index.js`, `cloudfunctions/getMyRoom/index.js`
-- Impact: access survives on the backend until the room is deleted or replaced; shared devices can retain access longer than users expect.
-- Fix approach: add an explicit server-side revoke/unpair path, and treat local storage as cache only.
+- Status: Mitigated for the bind-page unbind flow on 2026-06-25; `leaveRoom` deployment confirmed Active through WeChat DevTools CLI; end-to-end runtime behavior still needs manual verification.
+- Issue: the active room is persisted in `wx` storage and reused across pages; previously `pages/bind/bind.js` cleared only local state on unbind, while the server kept room membership intact.
+- Files: `utils/room.js`, `utils/cloud.js`, `pages/bind/bind.js`, `cloudfunctions/leaveRoom/index.js`, `cloudfunctions/leaveRoom/roomLifecycle.js`, `cloudfunctions/joinRoom/index.js`, `cloudfunctions/getMyRoom/index.js`
+- Impact: `RoomSession.leaveRoom()` now calls server-side `leaveRoom` before clearing local `roomCode`; Settings "clear local cache" remains local-only by design and can still be recovered from server membership.
+- Fix approach: manually verify the bind-page unbind flow in WeChat DevTools or on a device; add deployed cloud-function adapter coverage where practical.
 
 ## Known Bugs
 
@@ -68,10 +70,11 @@
 
 ## Test Coverage Gaps
 
-**Cloud function authorization and mutation paths are untested:**
-- What's not tested: `createRoom`, `joinRoom`, `getMyRoom`, and `dataOp` success/failure paths, including duplicate room join, unauthorized access, and malformed payloads.
-- Files: `cloudfunctions/createRoom/index.js`, `cloudfunctions/joinRoom/index.js`, `cloudfunctions/getMyRoom/index.js`, `cloudfunctions/dataOp/index.js`
-- Risk: regressions in room access control or write behavior will ship unnoticed.
+**Cloud function authorization and lifecycle paths are still narrow-tested:**
+- What's tested now: `tests/room-records.test.js` covers `dataOp` record-rule behavior through the `RoomRecords` interface, including malformed payloads and cross-Room update/remove attempts. `tests/room-session.test.js` covers client cache/recovery/create/join/leave/local-clear behavior with injected adapters. `tests/room-lifecycle.test.js` covers server-side leave/unpair ownership transfer, partner removal, empty-room deletion, and no-op behavior.
+- What's not tested: deployed `createRoom`, `joinRoom`, `getMyRoom`, `leaveRoom`, and full deployed `dataOp` cloud context behavior, including duplicate room join.
+- Files: `cloudfunctions/createRoom/index.js`, `cloudfunctions/joinRoom/index.js`, `cloudfunctions/getMyRoom/index.js`, `cloudfunctions/leaveRoom/index.js`, `cloudfunctions/dataOp/index.js`, `cloudfunctions/dataOp/roomRecords.js`
+- Risk: regressions in room lifecycle and deployed cloud-function adapter behavior can still ship unnoticed.
 - Priority: High
 
 **UI flow tests are narrow and snapshot-like:**
