@@ -1,0 +1,220 @@
+const assert = require('node:assert/strict')
+const test = require('node:test')
+
+const { createRoomRecords } = require('../cloudfunctions/dataOp/roomRecords')
+
+const SERVER_DATE = { serverDate: true }
+
+test('RoomRecords add stores a normalized Period record for the active Room', async () => {
+  const db = createFakeDb()
+  const records = createRoomRecords({ db, serverDate: () => SERVER_DATE })
+
+  const result = await records.add({
+    collection: 'periods',
+    roomCode: 'ROOM01',
+    openid: 'user-a',
+    data: {
+      _id: 'client-id',
+      roomCode: 'OTHER',
+      createdBy: 'attacker',
+      createdAt: 'old',
+      startDate: '2026-06-10',
+      endDate: '2026-06-12',
+      duration: 99,
+      note: 'need rest',
+      flow: 'heavy',
+      symptoms: ['cramps', 'unknown', 'cramps', 'headache']
+    }
+  })
+
+  assert.deepEqual(result, { code: 0, id: 'periods-1' })
+  assert.deepEqual(db.data.periods, [
+    {
+      _id: 'periods-1',
+      roomCode: 'ROOM01',
+      createdBy: 'user-a',
+      createdAt: SERVER_DATE,
+      startDate: '2026-06-10',
+      endDate: '2026-06-12',
+      note: 'need rest',
+      duration: 3,
+      flow: 'heavy',
+      symptoms: ['cramps', 'headache']
+    }
+  ])
+})
+
+test('RoomRecords rejects unknown Period record fields before writing', async () => {
+  const db = createFakeDb()
+  const records = createRoomRecords({ db, serverDate: () => SERVER_DATE })
+
+  const result = await records.add({
+    collection: 'periods',
+    roomCode: 'ROOM01',
+    openid: 'user-a',
+    data: {
+      startDate: '2026-06-10',
+      endDate: '2026-06-12',
+      unexpected: true
+    }
+  })
+
+  assert.equal(result.code, -1)
+  assert.match(result.msg, /不支持的字段: unexpected/)
+  assert.deepEqual(db.data.periods, [])
+})
+
+test('RoomRecords rejects invalid Period record date ranges before updating', async () => {
+  const db = createFakeDb({
+    periods: [
+      { _id: 'p1', roomCode: 'ROOM01', startDate: '2026-06-10', endDate: '2026-06-12', duration: 3 }
+    ]
+  })
+  const records = createRoomRecords({ db, serverDate: () => SERVER_DATE })
+
+  const result = await records.update({
+    collection: 'periods',
+    roomCode: 'ROOM01',
+    id: 'p1',
+    data: {
+      startDate: '2026-06-13',
+      endDate: '2026-06-12'
+    }
+  })
+
+  assert.equal(result.code, -1)
+  assert.equal(result.msg, '结束日期不能早于开始日期')
+  assert.equal(db.data.periods[0].startDate, '2026-06-10')
+})
+
+test('RoomRecords add stores a normalized Memory record for the active Room', async () => {
+  const db = createFakeDb()
+  const records = createRoomRecords({ db, serverDate: () => SERVER_DATE })
+
+  const result = await records.add({
+    collection: 'memories',
+    roomCode: 'ROOM01',
+    openid: 'user-a',
+    data: {
+      roomCode: 'OTHER',
+      createdBy: 'attacker',
+      date: '2026-06-24',
+      note: 'anniversary'
+    }
+  })
+
+  assert.deepEqual(result, { code: 0, id: 'memories-1' })
+  assert.deepEqual(db.data.memories, [
+    {
+      _id: 'memories-1',
+      roomCode: 'ROOM01',
+      createdBy: 'user-a',
+      createdAt: SERVER_DATE,
+      date: '2026-06-24',
+      note: 'anniversary'
+    }
+  ])
+})
+
+test('RoomRecords blocks cross-Room updates and removes', async () => {
+  const db = createFakeDb({
+    memories: [
+      { _id: 'm1', roomCode: 'OTHER', date: '2026-06-24', note: 'private' }
+    ]
+  })
+  const records = createRoomRecords({ db, serverDate: () => SERVER_DATE })
+
+  const update = await records.update({
+    collection: 'memories',
+    roomCode: 'ROOM01',
+    id: 'm1',
+    data: { date: '2026-06-25', note: 'changed' }
+  })
+  const remove = await records.remove({
+    collection: 'memories',
+    roomCode: 'ROOM01',
+    id: 'm1'
+  })
+
+  assert.deepEqual(update, { code: -1, msg: '记录不存在或无权修改' })
+  assert.deepEqual(remove, { code: -1, msg: '记录不存在或无权删除' })
+  assert.deepEqual(db.data.memories, [
+    { _id: 'm1', roomCode: 'OTHER', date: '2026-06-24', note: 'private' }
+  ])
+})
+
+function createFakeDb(initial = {}) {
+  const data = {
+    periods: clone(initial.periods || []),
+    memories: clone(initial.memories || [])
+  }
+
+  return {
+    data,
+    collection(name) {
+      return createCollection(data, name)
+    }
+  }
+}
+
+function createCollection(allData, name) {
+  return {
+    where(query) {
+      return createQuery(allData[name], query)
+    },
+    async add({ data }) {
+      const id = `${name}-${allData[name].length + 1}`
+      allData[name].push({ _id: id, ...clone(data) })
+      return { _id: id }
+    },
+    doc(id) {
+      return {
+        async update({ data }) {
+          const record = allData[name].find(item => item._id === id)
+          if (record) Object.assign(record, clone(data))
+          return {}
+        },
+        async remove() {
+          const index = allData[name].findIndex(item => item._id === id)
+          if (index >= 0) allData[name].splice(index, 1)
+          return {}
+        }
+      }
+    }
+  }
+}
+
+function createQuery(records, query) {
+  let limitCount = null
+  let order = null
+
+  const chain = {
+    limit(count) {
+      limitCount = count
+      return chain
+    },
+    orderBy(field, direction) {
+      order = { field, direction }
+      return chain
+    },
+    async get() {
+      let result = records.filter(record =>
+        Object.keys(query).every(key => record[key] === query[key])
+      )
+      if (order) {
+        result = [...result].sort((a, b) => {
+          const comparison = String(a[order.field] || '').localeCompare(String(b[order.field] || ''))
+          return order.direction === 'desc' ? -comparison : comparison
+        })
+      }
+      if (limitCount !== null) result = result.slice(0, limitCount)
+      return { data: clone(result) }
+    }
+  }
+
+  return chain
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value))
+}

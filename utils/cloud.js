@@ -1,4 +1,5 @@
 // 云数据库工具层 — 统一通过云函数操作，避免小程序端数据库权限影响共享读写。
+const roomSession = require('./room')
 
 // ===== 查询超时包装 =====
 const QUERY_TIMEOUT = 15000 // 15 秒超时
@@ -13,7 +14,7 @@ function withTimeout(promise, ms = QUERY_TIMEOUT) {
 }
 
 function getRoomCode() {
-  return wx.getStorageSync('roomCode') || ''
+  return roomSession.getRoomCode()
 }
 
 async function callDataOp(action, collection, data, id) {
@@ -32,7 +33,6 @@ async function getPeriods() {
 }
 
 async function addPeriod(data) {
-  data.roomCode = getRoomCode()
   return callDataOp('add', 'periods', data)
 }
 
@@ -52,7 +52,6 @@ async function getMemories() {
 }
 
 async function addMemory(data) {
-  data.roomCode = getRoomCode()
   return callDataOp('add', 'memories', data)
 }
 

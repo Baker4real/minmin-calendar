@@ -1,0 +1,17 @@
+const cloud = require('wx-server-sdk')
+const { createRoomLifecycle } = require('./roomLifecycle')
+
+cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
+const db = cloud.database()
+const lifecycle = createRoomLifecycle({ db, serverDate: () => db.serverDate() })
+
+exports.main = async (event, context) => {
+  const { OPENID } = cloud.getWXContext()
+  if (!OPENID) return { code: -1, msg: '获取用户信息失败' }
+
+  try {
+    return await lifecycle.leave({ openid: OPENID })
+  } catch (error) {
+    return { code: -1, msg: error.message }
+  }
+}

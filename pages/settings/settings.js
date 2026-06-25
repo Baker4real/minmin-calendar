@@ -1,24 +1,15 @@
 const cloud = require('../../utils/cloud')
+const roomSession = require('../../utils/room')
 
 Page({
   data: { roomCode: '' },
 
   async onShow() {
-    const roomCode = cloud.getRoomCode()
-    if (roomCode) {
-      this.setData({ roomCode })
+    const room = await roomSession.getActiveRoom()
+    if (room.bound) {
+      this.setData({ roomCode: room.roomCode })
       return
     }
-
-    try {
-      const res = await wx.cloud.callFunction({ name: 'getMyRoom' })
-      const room = res.result?.room
-      if (res.result?.code === 0 && room?.roomCode) {
-        wx.setStorageSync('roomCode', room.roomCode)
-        this.setData({ roomCode: room.roomCode })
-        return
-      }
-    } catch (e) {}
 
     this.setData({ roomCode: '未绑定' })
   },
@@ -67,7 +58,7 @@ Page({
       content: '将清除所有本地缓存，不会影响云端数据。确定？',
       success: (res) => {
         if (res.confirm) {
-          wx.removeStorageSync('roomCode')
+          roomSession.clearLocalRoom()
           this.setData({ roomCode: '未绑定' })
           wx.showToast({ title: '已清除' })
         }
