@@ -22,9 +22,9 @@
 
 ### Records
 
-- [ ] **REC-01**: User can create, edit, and delete period records with start/end date validation.
-- [ ] **REC-02**: User can create, edit, and delete memory records for a selected date.
-- [ ] **REC-03**: User can review record lists with dates, notes, and durations where relevant.
+- [x] **REC-01**: User can create, edit, and delete period records with start/end date validation.
+- [x] **REC-02**: User can create, edit, and delete memory records for a selected date.
+- [x] **REC-03**: User can review record lists with dates, notes, and durations where relevant.
 - [ ] **REC-04**: User can optionally record and review flow level and symptom tags on period records.
 
 ### Room Sharing
@@ -92,9 +92,9 @@
 | CAL-06 | Phase 2.1 | Satisfied (manual visual check pending) |
 | CAL-09 | Phase 2.1 | Satisfied (manual visual check pending) |
 | CAL-10 | Phase 2.1 | Satisfied (manual visual check pending) |
-| REC-01 | Phase 4 / Phase 7 | Pending |
-| REC-02 | Phase 4 / Phase 7 | Pending |
-| REC-03 | Phase 4 / Phase 7 | Pending |
+| REC-01 | Phase 4 / Phase 7 | Complete |
+| REC-02 | Phase 4 / Phase 7 | Complete |
+| REC-03 | Phase 4 / Phase 7 | Complete |
 | REC-04 | Phase 4 | Satisfied |
 | ROOM-01 | Phase 3 | Partial |
 | ROOM-02 | Phase 3 | Partial |
