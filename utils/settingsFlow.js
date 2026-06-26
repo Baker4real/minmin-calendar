@@ -1,5 +1,6 @@
 const cloudApi = require('./cloud')
 const roomSessionApi = require('./room')
+const roomAccessOutcome = require('./roomAccessOutcome')
 
 function copyRoomCode(options = {}) {
   const wxApi = options.wx || getWx()
@@ -110,58 +111,37 @@ async function listRecords({ cloud, client, collection }) {
 }
 
 function handleExportLoadFailure(wxApi, outcome, retryExport, navigateToBind) {
-  if (outcome.kind === 'retryable-failure') {
+  const prompt = roomAccessOutcome.buildModalRoomAccessPrompt(outcome, {
+    retryTitle: '导出失败',
+    retryContent: '导出失败，请检查网络',
+    noRoomContent: '导出前需要先绑定房间',
+    repairRetryContent: getRoomRepairMessage(outcome.repair)
+  })
+
+  if (prompt.mode === 'retry') {
     return promptRetry({
       wxApi,
-      title: '导出失败',
-      content: '导出失败，请检查网络',
+      title: prompt.title,
+      content: prompt.content,
       retryAction: retryExport,
       fallback: outcome
     })
   }
 
-  if (outcome.kind === 'room-repair') {
-    if (outcome.repair && outcome.repair.kind === 'success' && outcome.repair.bound && outcome.repair.roomCode) {
-      return promptRetry({
-        wxApi,
-        title: '房间状态已更新',
-        content: getRoomRepairMessage(outcome.repair),
-        retryAction: retryExport,
-        fallback: outcome
-      })
-    }
-    if (outcome.repair && outcome.repair.kind === 'success' && !outcome.repair.bound) {
-      return promptNavigateToBind({
-        wxApi,
-        title: '房间状态已变化',
-        content: getRoomRepairMessage(outcome.repair),
-        navigateToBind,
-        fallback: outcome
-      })
-    }
-    return promptRetry({
-      wxApi,
-      title: '房间同步失败',
-      content: getRoomRepairMessage(outcome.repair),
-      retryAction: retryExport,
-      fallback: outcome
-    })
-  }
-
-  if (outcome.kind === 'no-room') {
+  if (prompt.mode === 'navigate-to-bind') {
     return promptNavigateToBind({
       wxApi,
-      title: '请先绑定房间',
-      content: '导出前需要先绑定房间',
+      title: prompt.title,
+      content: prompt.content,
       navigateToBind,
       fallback: outcome
     })
   }
 
-  showToast(wxApi, { title: outcome.message || '导出失败', icon: 'none' })
+  showToast(wxApi, { title: prompt.content, icon: 'none' })
   return {
     kind: 'export-failed',
-    message: outcome.message || '导出失败'
+    message: prompt.content
   }
 }
 

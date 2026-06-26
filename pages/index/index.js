@@ -1,6 +1,7 @@
 const util = require('../../utils/util')
 const cloud = require('../../utils/cloud')
 const calendarInsights = require('../../utils/calendarInsights')
+const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
@@ -367,53 +368,12 @@ Page({
   },
 
   applyRoomStatusOutcome(outcome) {
-    if (outcome.kind === 'no-room') {
-      this.showRoomStatus({
-        title: '还没绑定房间',
-        desc: '需要先创建或加入一个共享房间\n才能和对方一起使用',
-        actionText: '去绑定',
-        action: 'bind'
-      })
-      return
-    }
-
-    if (outcome.kind === 'room-repair') {
-      const repair = outcome.repair || {}
-      if (repair.kind === 'success' && repair.bound && repair.roomCode) {
-        this.showRoomStatus({
-          title: '房间状态已更新',
-          desc: '房间状态已同步，请重新加载日历',
-          actionText: '重新加载',
-          action: 'retry'
-        })
-        return
-      }
-
-      if (repair.kind === 'success' && !repair.bound) {
-        this.showRoomStatus({
-          title: '房间状态已变化',
-          desc: '当前共享房间已不可用，请重新绑定后再查看日历',
-          actionText: '去绑定',
-          action: 'bind'
-        })
-        return
-      }
-
-      this.showRoomStatus({
-        title: '房间同步失败',
-        desc: repair.message || '同步房间状态失败，请稍后重试',
-        actionText: '重试',
-        action: 'retry'
-      })
-      return
-    }
-
-    this.showRoomStatus({
-      title: '日历加载失败',
-      desc: outcome.message || '请检查网络后重试',
-      actionText: '重试',
-      action: 'retry'
-    })
+    this.showRoomStatus(roomAccessOutcome.buildInlineRoomStatus(outcome, {
+      noRoomTitle: '还没绑定房间',
+      noRoomDesc: '需要先创建或加入一个共享房间\n才能和对方一起使用',
+      failureTitle: '日历加载失败',
+      fallbackDesc: '请检查网络后重试'
+    }))
   },
 
   showRoomStatus({ title, desc, actionText, action }) {

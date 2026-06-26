@@ -164,6 +164,51 @@ test('exportRecordsAsJson surfaces a retry action and retries the export when th
   assert.equal(memoriesCalls, 1)
 })
 
+test('exportRecordsAsJson keeps repaired room export failures on the export retry copy', async () => {
+  assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
+
+  const env = createFakeSettingsEnv()
+  let periodsCalls = 0
+  const client = createFakeRoomDataClient({
+    periods: () => {
+      periodsCalls += 1
+      if (periodsCalls === 1) {
+        return {
+          kind: 'room-repair',
+          roomCode: 'ROOM01',
+          repair: {
+            kind: 'success',
+            bound: true,
+            roomCode: 'ROOM02'
+          }
+        }
+      }
+      return [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05' }]
+    },
+    memories: []
+  })
+
+  const promise = settingsFlow.exportRecordsAsJson({
+    wx: env.wx,
+    cloud: { createRoomDataClient: () => client },
+    now: () => '2026-06-26T08:00:00.000Z',
+    userDataPath: '/tmp/user-data'
+  })
+
+  await waitForAsyncTurn()
+  assert.equal(env.wx.modals.length, 1)
+  assert.equal(env.wx.modals[0].title, '房间状态已更新')
+  assert.equal(env.wx.modals[0].content, '房间状态已更新，请重试导出')
+  assert.equal(env.wx.modals[0].confirmText, '重试')
+
+  const result = await env.wx.resolveModal(true, promise)
+
+  assert.equal(result.kind, 'shared')
+  assert.equal(periodsCalls, 2)
+  assert.equal(env.wx.hideLoadingCalls, 2)
+  assert.deepEqual(env.wx.toasts, [{ title: '导出成功' }])
+})
+
 test('exportRecordsAsJson offers to rebind when the room cache is stale and cannot be repaired', async () => {
   assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
 

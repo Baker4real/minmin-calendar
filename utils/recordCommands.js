@@ -1,3 +1,5 @@
+const roomAccessOutcome = require('./roomAccessOutcome')
+
 function runRecordSave(options) {
   const {
     page,
@@ -269,27 +271,11 @@ async function handleFailureOutcome({
 }
 
 function normalizeRoomRepairOutcome(outcome, roomRepairTitle) {
-  const repair = outcome.repair || {}
-  if (repair.kind === 'success' && repair.bound) {
-    return {
-      ...outcome,
-      action: 'retry',
-      message: '房间状态已同步，请重试'
-    }
-  }
-
-  if (repair.kind === 'success' && !repair.bound) {
-    return {
-      ...outcome,
-      action: 'rebind',
-      message: roomRepairTitle
-    }
-  }
-
   return {
     ...outcome,
-    action: 'repair-retry',
-    message: repair.message || '同步房间状态失败，请稍后重试'
+    ...roomAccessOutcome.buildRoomRepairAction(outcome, {
+      rebindMessage: roomRepairTitle
+    })
   }
 }
 

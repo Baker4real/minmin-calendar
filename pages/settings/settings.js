@@ -1,5 +1,6 @@
 const cloud = require('../../utils/cloud')
 const roomSession = require('../../utils/room')
+const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const settingsFlow = require('../../utils/settingsFlow')
 
 Page({
@@ -23,14 +24,9 @@ Page({
       cloud,
       roomSession
     })
-    if (result.kind === 'room-repair') {
-      if (shouldSyncRoomCode(result.repair)) {
-        syncRoomCode(this, result.repair)
-      }
-      return
-    }
-    if (result.kind === 'no-room') {
-      this.setData({ roomCode: '', roomCodeDisplay: '未绑定' })
+    const displayState = roomAccessOutcome.buildRoomDisplayStateFromAccessOutcome(result)
+    if (displayState) {
+      this.setData(displayState)
     }
   },
 
@@ -60,25 +56,5 @@ Page({
 })
 
 function syncActiveRoom(page, room) {
-  if (room && room.bound && room.roomCode) {
-    page.setData({ roomCode: room.roomCode, roomCodeDisplay: room.roomCode })
-    return
-  }
-  if (room && (room.kind === 'retryable-failure' || room.errorMsg)) {
-    page.setData({ roomCode: '', roomCodeDisplay: '同步失败，请重试' })
-    return
-  }
-  page.setData({ roomCode: '', roomCodeDisplay: '未绑定' })
-}
-
-function syncRoomCode(page, repair) {
-  if (repair && repair.kind === 'success' && repair.bound && repair.roomCode) {
-    page.setData({ roomCode: repair.roomCode, roomCodeDisplay: repair.roomCode })
-    return
-  }
-  page.setData({ roomCode: '', roomCodeDisplay: '未绑定' })
-}
-
-function shouldSyncRoomCode(repair) {
-  return !!(repair && repair.kind === 'success')
+  page.setData(roomAccessOutcome.buildRoomDisplayState(room))
 }
