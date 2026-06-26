@@ -208,6 +208,51 @@ test('exportRecordsAsJson offers to rebind when the room cache is stale and cann
   assert.equal(env.fs.writes.length, 0)
 })
 
+test('exportRecordsAsJson keeps room repair retryable failures on the retry path', async () => {
+  assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
+
+  const env = createFakeSettingsEnv()
+  const client = createFakeRoomDataClient({
+    periods: {
+      kind: 'room-repair',
+      roomCode: 'ROOM01',
+      repair: {
+        kind: 'retryable-failure',
+        message: '同步房间状态失败：network down'
+      }
+    },
+    memories: []
+  })
+
+  const promise = settingsFlow.exportRecordsAsJson({
+    wx: env.wx,
+    cloud: { createRoomDataClient: () => client },
+    now: () => '2026-06-26T08:00:00.000Z',
+    userDataPath: '/tmp/user-data'
+  })
+
+  await waitForAsyncTurn()
+  assert.equal(env.wx.modals.length, 1)
+  assert.equal(env.wx.modals[0].title, '房间同步失败')
+  assert.equal(env.wx.modals[0].content, '同步房间状态失败：network down')
+  assert.equal(env.wx.modals[0].confirmText, '重试')
+
+  const result = await env.wx.resolveModal(false, promise)
+
+  assert.deepEqual(result, {
+    kind: 'room-repair',
+    roomCode: 'ROOM01',
+    repair: {
+      kind: 'retryable-failure',
+      message: '同步房间状态失败：network down'
+    }
+  })
+  assert.equal(env.wx.hideLoadingCalls, 1)
+  assert.deepEqual(env.wx.navigateToCalls, [])
+  assert.deepEqual(env.wx.toasts, [])
+  assert.equal(env.fs.writes.length, 0)
+})
+
 test('exportRecordsAsJson hides loading and reports export failure when file writing throws', async () => {
   assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
 

@@ -130,11 +130,20 @@ function handleExportLoadFailure(wxApi, outcome, retryExport, navigateToBind) {
         fallback: outcome
       })
     }
-    return promptNavigateToBind({
+    if (outcome.repair && outcome.repair.kind === 'success' && !outcome.repair.bound) {
+      return promptNavigateToBind({
+        wxApi,
+        title: '房间状态已变化',
+        content: getRoomRepairMessage(outcome.repair),
+        navigateToBind,
+        fallback: outcome
+      })
+    }
+    return promptRetry({
       wxApi,
-      title: '房间状态已变化',
+      title: '房间同步失败',
       content: getRoomRepairMessage(outcome.repair),
-      navigateToBind,
+      retryAction: retryExport,
       fallback: outcome
     })
   }
@@ -160,7 +169,10 @@ function getRoomRepairMessage(repair) {
   if (repair && repair.kind === 'success' && repair.bound && repair.roomCode) {
     return '房间状态已更新，请重试导出'
   }
-  return '房间状态已变化，请重新绑定'
+  if (repair && repair.kind === 'success' && !repair.bound) {
+    return '房间状态已变化，请重新绑定'
+  }
+  return repair && repair.message ? repair.message : '同步房间状态失败，请稍后重试'
 }
 
 function createLoadingGuard(wxApi) {

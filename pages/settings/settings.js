@@ -24,7 +24,9 @@ Page({
       roomSession
     })
     if (result.kind === 'room-repair') {
-      syncRoomCode(this, result.repair)
+      if (shouldSyncRoomCode(result.repair)) {
+        syncRoomCode(this, result.repair)
+      }
       return
     }
     if (result.kind === 'no-room') {
@@ -75,4 +77,8 @@ function syncRoomCode(page, repair) {
     return
   }
   page.setData({ roomCode: '', roomCodeDisplay: '未绑定' })
+}
+
+function shouldSyncRoomCode(repair) {
+  return !!(repair && repair.kind === 'success')
 }

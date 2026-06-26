@@ -224,6 +224,55 @@ test('settings page keeps retryable room sync failures visible and syncs repaire
   }
 })
 
+test('settings page exportData keeps repair retryable failures visible instead of relabeling as unbound', async () => {
+  let exportCalls = 0
+  const harness = loadPageHarness('pages/settings/settings.js', {
+    mocks: {
+      'utils/cloud.js': {},
+      'utils/room.js': {
+        async getActiveRoom() {
+          return {
+            bound: true,
+            roomCode: 'ROOM01'
+          }
+        }
+      },
+      'utils/settingsFlow.js': {
+        async copyRoomCode() {
+          return { kind: 'success' }
+        },
+        async exportRecordsAsJson() {
+          exportCalls += 1
+          return {
+            kind: 'room-repair',
+            repair: {
+              kind: 'retryable-failure',
+              message: '同步房间状态失败：network down'
+            }
+          }
+        },
+        async clearLocalCache() {
+          return { kind: 'success', roomCode: '未绑定' }
+        }
+      }
+    }
+  })
+
+  try {
+    await harness.page.onShow()
+    assert.equal(harness.page.data.roomCode, 'ROOM01')
+    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
+
+    await harness.page.exportData()
+
+    assert.equal(exportCalls, 1)
+    assert.equal(harness.page.data.roomCode, 'ROOM01')
+    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
+  } finally {
+    harness.teardown()
+  }
+})
+
 function loadPageHarness(relativePath, { mocks = {}, wxOverrides = {} } = {}) {
   const absolutePagePath = path.join(repoRoot, relativePath)
   const absoluteMocks = Object.fromEntries(
