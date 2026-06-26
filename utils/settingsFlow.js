@@ -1,0 +1,224 @@
+const cloudApi = require('./cloud')
+const roomSessionApi = require('./room')
+
+function copyRoomCode(options = {}) {
+  const wxApi = options.wx || getWx()
+  const roomCode = normalizeRoomCode(options.roomCode)
+  if (!roomCode) {
+    showToast(wxApi, { title: '请先绑定房间', icon: 'none' })
+    return Promise.resolve({ kind: 'unbound' })
+  }
+
+  return new Promise(resolve => {
+    wxApi.setClipboardData({
+      data: roomCode,
+      success: () => {
+        showToast(wxApi, { title: '房间码已复制' })
+        resolve({ kind: 'success', roomCode })
+      },
+      fail: error => {
+        showToast(wxApi, { title: '复制失败', icon: 'error' })
+        resolve({ kind: 'copy-failed', message: getErrorMessage(error) })
+      }
+    })
+  })
+}
+
+async function exportRecordsAsJson(options = {}) {
+  const wxApi = options.wx || getWx()
+  const cloud = options.cloud || cloudApi
+  const roomSession = options.roomSession || roomSessionApi
+  const now = options.now || (() => new Date().toISOString())
+  const userDataPath = options.userDataPath || getUserDataPath(wxApi)
+  const hideLoading = createLoadingGuard(wxApi)
+
+  wxApi.showLoading({ title: '导出中...' })
+  try {
+    const client = createRoomDataClient(cloud, roomSession)
+    const periodsOutcome = await listRecords({ cloud, client, collection: 'periods' })
+    if (periodsOutcome.kind !== 'success') {
+      hideLoading()
+      return handleExportLoadFailure(wxApi, periodsOutcome)
+    }
+
+    const memoriesOutcome = await listRecords({ cloud, client, collection: 'memories' })
+    if (memoriesOutcome.kind !== 'success') {
+      hideLoading()
+      return handleExportLoadFailure(wxApi, memoriesOutcome)
+    }
+
+    const payload = {
+      exportTime: normalizeExportTime(now()),
+      periods: periodsOutcome.data,
+      memories: memoriesOutcome.data
+    }
+    const json = JSON.stringify(payload, null, 2)
+    const filePath = `${userDataPath}/minmin-calendar-backup.json`
+    const fs = wxApi.getFileSystemManager()
+
+    fs.writeFileSync(filePath, json, 'utf8')
+    hideLoading()
+
+    return await shareOrCopyJson({
+      wxApi,
+      filePath,
+      json
+    })
+  } catch (error) {
+    hideLoading()
+    showToast(wxApi, { title: '导出失败', icon: 'error' })
+    return {
+      kind: 'export-failed',
+      message: getErrorMessage(error)
+    }
+  }
+}
+
+function clearLocalCache(options = {}) {
+  const wxApi = options.wx || getWx()
+  const roomSession = options.roomSession || roomSessionApi
+
+  roomSession.clearLocalRoom()
+  showToast(wxApi, { title: '已清除' })
+  return Promise.resolve({ kind: 'success', roomCode: '未绑定' })
+}
+
+function createRoomDataClient(cloud, roomSession) {
+  if (!cloud || typeof cloud.createRoomDataClient !== 'function') {
+    return null
+  }
+  return cloud.createRoomDataClient({ roomSession })
+}
+
+async function listRecords({ cloud, client, collection }) {
+  if (client && typeof client.list === 'function') {
+    return client.list(collection)
+  }
+
+  try {
+    const getter = collection === 'periods' ? cloud.getPeriods : cloud.getMemories
+    const data = await getter()
+    return { kind: 'success', data }
+  } catch (error) {
+    return {
+      kind: 'retryable-failure',
+      message: getErrorMessage(error),
+      retry: () => listRecords({ cloud, client, collection })
+    }
+  }
+}
+
+function handleExportLoadFailure(wxApi, outcome) {
+  if (outcome.kind === 'retryable-failure') {
+    showToast(wxApi, { title: '导出失败，请检查网络', icon: 'none' })
+    return outcome
+  }
+
+  if (outcome.kind === 'room-repair') {
+    showToast(wxApi, {
+      title: getRoomRepairMessage(outcome.repair),
+      icon: 'none'
+    })
+    return outcome
+  }
+
+  if (outcome.kind === 'no-room') {
+    showToast(wxApi, { title: '请先绑定房间', icon: 'none' })
+    return outcome
+  }
+
+  showToast(wxApi, { title: outcome.message || '导出失败', icon: 'none' })
+  return {
+    kind: 'export-failed',
+    message: outcome.message || '导出失败'
+  }
+}
+
+function getRoomRepairMessage(repair) {
+  if (repair && repair.kind === 'success' && repair.bound && repair.roomCode) {
+    return '房间状态已更新，请重试导出'
+  }
+  return '房间状态已变化，请重新绑定'
+}
+
+function createLoadingGuard(wxApi) {
+  let hidden = false
+  return function hideLoading() {
+    if (hidden) return
+    hidden = true
+    wxApi.hideLoading()
+  }
+}
+
+async function shareOrCopyJson({ wxApi, filePath, json }) {
+  if (typeof wxApi.shareFileMessage === 'function') {
+    const shared = await shareFile(wxApi, filePath)
+    if (shared) {
+      showToast(wxApi, { title: '导出成功' })
+      return { kind: 'shared', filePath }
+    }
+  }
+
+  await setClipboardData(wxApi, json)
+  showToast(wxApi, { title: '已复制到剪贴板' })
+  return { kind: 'clipboard', filePath }
+}
+
+function shareFile(wxApi, filePath) {
+  return new Promise(resolve => {
+    wxApi.shareFileMessage({
+      filePath,
+      success: () => resolve(true),
+      fail: () => resolve(false)
+    })
+  })
+}
+
+function setClipboardData(wxApi, data) {
+  return new Promise((resolve, reject) => {
+    wxApi.setClipboardData({
+      data,
+      success: resolve,
+      fail: reject
+    })
+  })
+}
+
+function normalizeRoomCode(value) {
+  const roomCode = String(value || '').trim()
+  if (!roomCode || roomCode === '未绑定') {
+    return ''
+  }
+  return roomCode
+}
+
+function normalizeExportTime(value) {
+  if (typeof value === 'string') return value
+  if (value instanceof Date) return value.toISOString()
+  return new Date(value || Date.now()).toISOString()
+}
+
+function getUserDataPath(wxApi) {
+  return wxApi.env && wxApi.env.USER_DATA_PATH ? wxApi.env.USER_DATA_PATH : ''
+}
+
+function showToast(wxApi, options) {
+  wxApi.showToast(options)
+}
+
+function getWx() {
+  if (typeof wx === 'undefined') {
+    throw new Error('wx is unavailable outside the WeChat runtime')
+  }
+  return wx
+}
+
+function getErrorMessage(error) {
+  return error && error.message ? error.message : String(error || '未知错误')
+}
+
+module.exports = {
+  copyRoomCode,
+  exportRecordsAsJson,
+  clearLocalCache
+}
