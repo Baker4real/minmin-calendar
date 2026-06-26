@@ -1,76 +1,50 @@
 ---
 phase: 07
-status: clean
-reviewed_at: 2026-06-26T19:11:05.0976294+08:00
+reviewed: 2026-06-26T12:19:34.8399660Z
 depth: deep
-files_reviewed: 38
+files_reviewed: 12
+files_reviewed_list:
+  - utils/cloud.js
+  - utils/recordCommands.js
+  - utils/settingsFlow.js
+  - pages/index/index.js
+  - pages/period/period.js
+  - pages/memory/memory.js
+  - pages/period/edit/edit.js
+  - pages/memory/edit/edit.js
+  - tests/room-data-client.test.js
+  - tests/record-flow.test.js
+  - tests/settings-flow.test.js
+  - tests/page-registration.test.js
 findings:
   critical: 0
   warning: 0
   info: 0
   total: 0
-files_reviewed_list:
-  - pages/index/index.js
-  - pages/index/index.wxml
-  - pages/index/index.wxss
-  - pages/period/period.js
-  - pages/period/period.wxml
-  - pages/memory/memory.js
-  - pages/memory/memory.wxml
-  - pages/settings/settings.js
-  - pages/settings/settings.wxml
-  - pages/bind/bind.js
-  - pages/bind/bind.wxml
-  - pages/period/edit/edit.js
-  - pages/memory/edit/edit.js
-  - utils/cloud.js
-  - utils/room.js
-  - utils/recordCommands.js
-  - utils/settingsFlow.js
-  - utils/homeCalendarState.js
-  - utils/calendarInsights.js
-  - utils/util.js
-  - utils/cycle.js
-  - cloudfunctions/dataOp/index.js
-  - cloudfunctions/dataOp/dataOpHandler.js
-  - cloudfunctions/dataOp/roomRecords.js
-  - cloudfunctions/leaveRoom/index.js
-  - cloudfunctions/leaveRoom/roomLifecycle.js
-  - tests/page-registration.test.js
-  - tests/room-data-client.test.js
-  - tests/record-flow.test.js
-  - tests/settings-flow.test.js
-  - tests/home-calendar-state.test.js
-  - tests/data-op-auth.test.js
-  - tests/calendar-display.test.js
-  - tests/calendar-insights.test.js
-  - tests/cycle-prediction.test.js
-  - tests/room-lifecycle.test.js
-  - tests/room-records.test.js
-  - tests/room-session.test.js
+status: clean
 ---
 
 # Phase 07: Code Review Report
 
-**Reviewed:** 2026-06-26T19:11:05.0976294+08:00  
+**Reviewed:** 2026-06-26T12:19:34.8399660Z  
 **Depth:** deep  
-**Files Reviewed:** 38  
+**Files Reviewed:** 12  
 **Status:** clean
 
 ## Summary
 
-This re-review covered the full Phase 07 source and test scope listed in the request, with explicit deep tracing of the two prior warnings.
+This was a post-security-fix deep targeted review of commit `f57cdc3` and its caller chain. The code change itself is narrow: `utils/cloud.js` now adds `retryDescriptor` to every `retryable-failure`, while only `list` keeps an executable `retry`; the new test coverage in `tests/room-data-client.test.js` matches that split.
 
-- WR-01 is closed. `pages/settings/settings.js` and `pages/bind/bind.js` now load room state through `roomSession.getVerifiedActiveRoom()`, so those pages no longer trust cached `roomCode` on open. Retryable room-sync failures remain visible instead of being flattened to an unbound state.
-- WR-02 is closed. `utils/room.js#repairCachedRoom(expectedRoomCode)` now normalizes and honors `expectedRoomCode`, and only clears the cache when the current cached room still matches the stale room being repaired. The rebinding race is covered by regression tests.
-- Cross-file review did not find additional correctness, security, or maintainability defects in the requested Phase 07 scope.
+I traced the affected flows through `utils/recordCommands.js`, `utils/settingsFlow.js`, `pages/index/index.js`, `pages/period/period.js`, `pages/memory/memory.js`, `pages/period/edit/edit.js`, `pages/memory/edit/edit.js`, plus the targeted regression tests. I also spot-checked dependent page wiring in `pages/settings/settings.js` and `pages/bind/bind.js` because `tests/page-registration.test.js` exercises those paths. I did not find a new bug, compatibility regression, or false-positive test in this post-fix scope.
 
-Relevant verification observed during this review:
+Targeted verification run during review:
 
-- Orchestrator context reported the full Phase 07 suite passed: `98/98`.
-- I re-ran the most relevant regression set locally:
-  `node --test tests\room-session.test.js tests\room-data-client.test.js tests\settings-flow.test.js tests\page-registration.test.js`
-  Result: `44/44` passing.
+- `git -C D:\wechat\minmin-calendar show --stat --oneline f57cdc3`
+  Result: only `utils/cloud.js` and `tests/room-data-client.test.js` changed in the fix commit.
+- `node --test D:\wechat\minmin-calendar\tests\room-data-client.test.js D:\wechat\minmin-calendar\tests\record-flow.test.js D:\wechat\minmin-calendar\tests\settings-flow.test.js D:\wechat\minmin-calendar\tests\page-registration.test.js`
+  Result: `43/43` passing.
+- `node --check` for all scoped utils/pages
+  Result: passed.
 
 ## Narrative Findings (AI reviewer)
 
@@ -78,6 +52,6 @@ No Critical, Warning, or Info findings were identified in the reviewed scope.
 
 ---
 
-_Reviewed: 2026-06-26T19:11:05.0976294+08:00_  
+_Reviewed: 2026-06-26T12:19:34.8399660Z_  
 _Reviewer: the agent (gsd-code-reviewer)_  
 _Depth: deep_
