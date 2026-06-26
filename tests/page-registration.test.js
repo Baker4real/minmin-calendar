@@ -36,7 +36,7 @@ test('index page onShow consumes RoomDataClient no-room outcomes without legacy 
   })
 
   try {
-    await harness.page.onShow()
+    await awaitPageOnShow(harness.page)
 
     assert.equal(harness.page.data.noRoom, true)
     assert.equal(harness.page.data.roomStatusTitle, '还没绑定房间')
@@ -74,7 +74,7 @@ test('index page exposes retry state and can reload after retryable RoomDataClie
   })
 
   try {
-    await harness.page.onShow()
+    await awaitPageOnShow(harness.page)
 
     assert.equal(harness.page.data.noRoom, true)
     assert.equal(harness.page.data.roomStatusAction, 'retry')
@@ -101,6 +101,7 @@ test('period page onShow executes loadData and updates derived stats through the
         createRoomDataClient() {
           return {
             async list() {
+              await waitForTimerTick()
               return {
                 kind: 'success',
                 data: [
@@ -125,7 +126,7 @@ test('period page onShow executes loadData and updates derived stats through the
   })
 
   try {
-    await harness.page.onShow()
+    await awaitPageOnShow(harness.page)
 
     assert.deepEqual(harness.page.data.periods, [
       { _id: 'p2', startDate: '2026-07-03', duration: 5, decorated: true },
@@ -145,6 +146,7 @@ test('memory page onShow executes loadData and populates sorted memories through
         createRoomDataClient() {
           return {
             async list() {
+              await waitForTimerTick()
               return {
                 kind: 'success',
                 data: [
@@ -161,7 +163,7 @@ test('memory page onShow executes loadData and populates sorted memories through
   })
 
   try {
-    await harness.page.onShow()
+    await awaitPageOnShow(harness.page)
 
     assert.deepEqual(harness.page.data.memories, [
       { _id: 'm2', date: '2026-07-03', note: 'newer' },
@@ -260,7 +262,7 @@ test('settings page keeps retryable room sync failures visible and syncs repaire
   })
 
   try {
-    await harness.page.onShow()
+    await awaitPageOnShow(harness.page)
     assert.equal(harness.page.data.roomCodeDisplay, '同步失败，请重试')
     assert.equal(harness.page.data.roomCode, '')
 
@@ -309,7 +311,7 @@ test('settings page exportData keeps repair retryable failures visible instead o
   })
 
   try {
-    await harness.page.onShow()
+    await awaitPageOnShow(harness.page)
     assert.equal(harness.page.data.roomCode, 'ROOM01')
     assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
 
@@ -381,7 +383,7 @@ async function assertListPageRepairRetry(relativePath, mocks) {
   })
 
   try {
-    const promise = harness.page.onShow()
+    const promise = startPageOnShow(harness.page)
     await Promise.resolve()
 
     assert.equal(modals.length, 1)
@@ -397,6 +399,23 @@ async function assertListPageRepairRetry(relativePath, mocks) {
   } finally {
     harness.teardown()
   }
+}
+
+function startPageOnShow(page) {
+  const result = page.onShow()
+  assert.ok(
+    result && typeof result.then === 'function',
+    'page onShow must return a Promise so the harness can await page load completion'
+  )
+  return result
+}
+
+async function awaitPageOnShow(page) {
+  await startPageOnShow(page)
+}
+
+function waitForTimerTick() {
+  return new Promise(resolve => setTimeout(resolve, 0))
 }
 
 function instantiatePage(config) {

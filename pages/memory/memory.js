@@ -6,7 +6,7 @@ Page({
   goBack() { wx.navigateBack() },
   data: { memories: [], loading: true },
 
-  onShow() { this.loadData() },
+  onShow() { return this.loadData() },
 
   async loadData() {
     const client = cloud.createRoomDataClient()

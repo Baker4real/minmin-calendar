@@ -7,7 +7,7 @@ Page({
   goBack() { wx.navigateBack() },
   data: { periods: [], avgCycle: null, avgDuration: null, loading: true },
 
-  onShow() { this.loadData() },
+  onShow() { return this.loadData() },
 
   async loadData() {
     const client = cloud.createRoomDataClient()

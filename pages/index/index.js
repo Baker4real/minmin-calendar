@@ -68,6 +68,7 @@ Page({
     if (!this._loadingPromise) {
       this._loadingPromise = this.loadData()
     }
+    return this._loadingPromise
   },
 
   async loadData() {
