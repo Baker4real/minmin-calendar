@@ -1,6 +1,7 @@
 const util = require('../../utils/util')
 const cloud = require('../../utils/cloud')
 const cycle = require('../../utils/cycle')
+const recordCommands = require('../../utils/recordCommands')
 
 Page({
   goBack() { wx.navigateBack() },
@@ -9,19 +10,18 @@ Page({
   onShow() { this.loadData() },
 
   async loadData() {
-    this.setData({ loading: true })
-    try {
-      const periods = await cloud.getPeriods()
-      const sorted = [...periods]
-        .sort((a,b) => b.startDate.localeCompare(a.startDate))
-        .map(cycle.decoratePeriod)
-      this.setData({ periods: sorted })
-      this.calcStats(periods)
-    } catch(e) {
-      console.error(e)
-      wx.showToast({ title: '加载失败，请检查网络', icon: 'none' })
-    }
-    this.setData({ loading: false })
+    const client = cloud.createRoomDataClient()
+    await recordCommands.runRecordListLoad({
+      page: this,
+      itemsKey: 'periods',
+      action: () => client.list('periods'),
+      mapRecords: periods => [...periods]
+        .sort((a, b) => b.startDate.localeCompare(a.startDate))
+        .map(cycle.decoratePeriod),
+      onLoaded: periods => this.calcStats(periods),
+      retryableTitle: '加载失败，请检查网络',
+      failureTitle: '加载失败'
+    })
   },
 
   calcStats(periods) {

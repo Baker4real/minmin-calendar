@@ -296,10 +296,10 @@ function createFakeCommandEnv() {
         assert.ok(modal, 'expected a pending modal')
         await modal.success({ confirm, cancel: !confirm })
         return promise
+      },
+      navigateBack() {
+        navigateBackCalls.push({ at: navigateBackCalls.length })
       }
-    },
-    navigateBack() {
-      navigateBackCalls.push({ at: navigateBackCalls.length })
     }
   }
 }

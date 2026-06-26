@@ -1,6 +1,7 @@
 const util = require('../../../utils/util')
 const cloud = require('../../../utils/cloud')
 const cycle = require('../../../utils/cycle')
+const recordCommands = require('../../../utils/recordCommands')
 
 Page({
   data: {
@@ -57,43 +58,34 @@ Page({
 
   async save() {
     const { id, startDate, endDate, note, flow, symptoms, isEdit } = this.data
-    if (!startDate || !endDate) { wx.showToast({ title: '请选择日期', icon: 'none' }); return }
-    if (startDate > endDate) { wx.showToast({ title: '结束日期不能早于开始', icon: 'none' }); return }
-    this.setData({ saving: true })
     const payload = cycle.buildPeriodPayload({ startDate, endDate, note, flow, symptoms })
-    try {
-      let res
-      if (isEdit) {
-        res = await cloud.updatePeriod(id, payload)
-      } else {
-        res = await cloud.addPeriod(payload)
-      }
-      if (res.result && res.result.code === 0) {
-        wx.showToast({ title: '保存成功' })
-        setTimeout(() => wx.navigateBack(), 1000)
-      } else {
-        wx.showToast({ title: res.result?.msg || '保存失败', icon: 'error' })
-      }
-    } catch(e) {
-      wx.showToast({ title: '保存失败', icon: 'error' })
-    }
-    this.setData({ saving: false })
+    const client = cloud.createRoomDataClient()
+    await recordCommands.runRecordSave({
+      page: this,
+      action: () => {
+        if (isEdit) {
+          return client.update('periods', id, payload)
+        }
+        return client.add('periods', payload)
+      },
+      validate: () => {
+        if (!startDate || !endDate) return '请选择日期'
+        if (startDate > endDate) return '结束日期不能早于开始'
+        return ''
+      },
+      successTitle: '保存成功',
+      failureTitle: '保存失败'
+    })
   },
 
   delete() {
-    wx.showModal({
-      title: '确认删除',
-      success: async (res) => {
-        if (res.confirm) {
-          try {
-            const r = await cloud.deletePeriod(this.data.id)
-            if (r.result && r.result.code === 0) {
-              wx.showToast({ title: '已删除' })
-              setTimeout(() => wx.navigateBack(), 1000)
-            }
-          } catch(e) { wx.showToast({ title: '删除失败', icon: 'error' }) }
-        }
-      }
+    const client = cloud.createRoomDataClient()
+    return recordCommands.runRecordDelete({
+      page: this,
+      action: () => client.remove('periods', this.data.id),
+      confirmTitle: '确认删除',
+      successTitle: '已删除',
+      failureTitle: '删除失败'
     })
   }
 })

@@ -1,5 +1,6 @@
 const cloud = require('../../utils/cloud')
 const util = require('../../utils/util')
+const recordCommands = require('../../utils/recordCommands')
 
 Page({
   goBack() { wx.navigateBack() },
@@ -8,12 +9,15 @@ Page({
   onShow() { this.loadData() },
 
   async loadData() {
-    this.setData({ loading: true })
-    try {
-      const memories = await cloud.getMemories()
-      this.setData({ memories: [...memories].sort((a,b) => b.date.localeCompare(a.date)) })
-    } catch(e) { console.error(e) }
-    this.setData({ loading: false })
+    const client = cloud.createRoomDataClient()
+    await recordCommands.runRecordListLoad({
+      page: this,
+      itemsKey: 'memories',
+      action: () => client.list('memories'),
+      mapRecords: memories => [...memories].sort((a, b) => b.date.localeCompare(a.date)),
+      retryableTitle: '加载失败，请检查网络',
+      failureTitle: '加载失败'
+    })
   },
 
   addMemory() {
