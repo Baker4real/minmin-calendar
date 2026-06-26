@@ -1,16 +1,15 @@
 const util = require('../../../utils/util')
 const cloud = require('../../../utils/cloud')
 const recordCommands = require('../../../utils/recordCommands')
+const recordEditRoute = require('../../../utils/recordEditRoute')
 
 Page({
   data: { id: '', date: '', note: '', isEdit: false, saving: false },
 
   onLoad(options) {
-    this.setData({
-      date: options.date || util.formatDate(new Date()),
-      note: options.note ? decodeURIComponent(options.note) : '',
-      isEdit: !!options.id, id: options.id || ''
-    })
+    this.setData(recordEditRoute.parseMemoryEditOptions(options, {
+      today: util.formatDate(new Date())
+    }))
   },
 
   onDateChange(e) { this.setData({ date: e.detail.value }) },

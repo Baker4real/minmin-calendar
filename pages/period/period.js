@@ -2,6 +2,7 @@ const util = require('../../utils/util')
 const cloud = require('../../utils/cloud')
 const cycle = require('../../utils/cycle')
 const recordCommands = require('../../utils/recordCommands')
+const recordEditRoute = require('../../utils/recordEditRoute')
 
 Page({
   goBack() { wx.navigateBack() },
@@ -39,14 +40,11 @@ Page({
 
   addPeriod() {
     const today = util.formatDate(new Date())
-    wx.navigateTo({ url: `/pages/period/edit/edit?startDate=${today}&endDate=${today}` })
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: today, endDate: today }) })
   },
 
   editPeriod(e) {
     const p = this.data.periods[e.currentTarget.dataset.index]
-    const symptoms = encodeURIComponent((p.symptoms || []).join(','))
-    wx.navigateTo({
-      url: `/pages/period/edit/edit?id=${p._id}&startDate=${p.startDate}&endDate=${p.endDate}&note=${encodeURIComponent(p.note||'')}&flow=${p.flow || ''}&symptoms=${symptoms}`
-    })
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(p) })
   }
 })

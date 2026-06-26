@@ -2,6 +2,7 @@ const util = require('../../utils/util')
 const cloud = require('../../utils/cloud')
 const calendarInsights = require('../../utils/calendarInsights')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
+const recordEditRoute = require('../../utils/recordEditRoute')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
@@ -305,10 +306,10 @@ Page({
 
     if (action === 'period') {
       this.closeDayActions()
-      wx.navigateTo({ url: `/pages/period/edit/edit?startDate=${date}&endDate=${date}` })
+      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: date, endDate: date }) })
     } else if (action === 'memory') {
       this.closeDayActions()
-      wx.navigateTo({ url: `/pages/memory/edit/edit?date=${date}` })
+      wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl({ date }) })
     } else if (action === 'detail') {
       this.showDayDetail(date)
     }
@@ -355,16 +356,16 @@ Page({
   // 快速操作
   quickPeriod() {
     const now = util.formatDate(new Date())
-    wx.navigateTo({ url: `/pages/period/edit/edit?startDate=${now}&endDate=${now}` })
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: now, endDate: now }) })
   },
   onReminderTap(e) {
     const reminder = this.data.cycleReminders[e.currentTarget.dataset.index]
     if (!reminder || reminder.action !== 'quickPeriod') return
-    wx.navigateTo({ url: `/pages/period/edit/edit?startDate=${reminder.date}&endDate=${reminder.date}` })
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: reminder.date, endDate: reminder.date }) })
   },
   quickMemory() {
     const now = util.formatDate(new Date())
-    wx.navigateTo({ url: `/pages/memory/edit/edit?date=${now}` })
+    wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl({ date: now }) })
   },
 
   applyRoomStatusOutcome(outcome) {

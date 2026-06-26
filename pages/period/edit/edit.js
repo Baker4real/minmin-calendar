@@ -2,6 +2,7 @@ const util = require('../../../utils/util')
 const cloud = require('../../../utils/cloud')
 const cycle = require('../../../utils/cycle')
 const recordCommands = require('../../../utils/recordCommands')
+const recordEditRoute = require('../../../utils/recordEditRoute')
 
 Page({
   data: {
@@ -18,15 +19,12 @@ Page({
   },
 
   onLoad(options) {
-    const symptoms = options.symptoms ? decodeURIComponent(options.symptoms).split(',').filter(Boolean) : []
+    const routeState = recordEditRoute.parsePeriodEditOptions(options, {
+      today: util.formatDate(new Date())
+    })
     this.setData({
-      startDate: options.startDate || util.formatDate(new Date()),
-      endDate: options.endDate || util.formatDate(new Date()),
-      note: options.note ? decodeURIComponent(options.note) : '',
-      flow: options.flow || '',
-      symptoms,
-      symptomOptions: cycle.buildSymptomOptions(symptoms),
-      isEdit: !!options.id, id: options.id || ''
+      ...routeState,
+      symptomOptions: cycle.buildSymptomOptions(routeState.symptoms)
     })
   },
 

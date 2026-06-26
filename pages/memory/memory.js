@@ -1,6 +1,7 @@
 const cloud = require('../../utils/cloud')
 const util = require('../../utils/util')
 const recordCommands = require('../../utils/recordCommands')
+const recordEditRoute = require('../../utils/recordEditRoute')
 
 Page({
   goBack() { wx.navigateBack() },
@@ -22,13 +23,11 @@ Page({
 
   addMemory() {
     const today = util.formatDate(new Date())
-    wx.navigateTo({ url: `/pages/memory/edit/edit?date=${today}` })
+    wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl({ date: today }) })
   },
 
   editMemory(e) {
     const m = this.data.memories[e.currentTarget.dataset.index]
-    wx.navigateTo({
-      url: `/pages/memory/edit/edit?id=${m._id}&date=${m.date}&note=${encodeURIComponent(m.note||'')}`
-    })
+    wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl(m) })
   }
 })

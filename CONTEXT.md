@@ -27,6 +27,7 @@
 - `utils/recordCommands.js` owns shared period/memory list, save, delete, retry, and rebind feedback flows.
 - `utils/settingsFlow.js` owns room-code copy, data export, retry/rebind, and local-cache helper flows.
 - `utils/homeCalendarState.js` owns pure homepage state composition for prediction, reminders, day details, and monthly recap.
+- `utils/recordEditRoute.js` owns Period record and Memory record edit URL construction plus edit-page route option hydration.
 - `utils/room.js` owns room-code cache, recovery, create/join, local clear, and server-side leave calls.
 - `utils/util.js` owns date formatting, lunar conversion, official holiday metadata, and calendar-grid construction.
 - `utils/cycle.js` owns cycle prediction, reminder derivation, flow labels, and symptom labels.
