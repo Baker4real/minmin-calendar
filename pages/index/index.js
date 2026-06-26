@@ -4,10 +4,17 @@ const calendarInsights = require('../../utils/calendarInsights')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
+const INITIAL_VIEW_DATE = new Date()
+const INITIAL_HOME_STATE = buildHomeCalendarState({
+  year: INITIAL_VIEW_DATE.getFullYear(),
+  month: INITIAL_VIEW_DATE.getMonth(),
+  today: util.formatDate(INITIAL_VIEW_DATE)
+})
 
 Page({
   data: {
-    year: 0, month: 0, days: [],
+    year: INITIAL_VIEW_DATE.getFullYear(),
+    month: INITIAL_VIEW_DATE.getMonth(),
     weekDays: ['日','一','二','三','四','五','六'],
     jumpMonths: [
       { value: 0, label: '1月' },
@@ -29,17 +36,7 @@ Page({
     monthPickerVisible: false,
     calendarDensity: 'full',
     periods: [], memories: [],
-    avgCycle: null,
-    avgDuration: null,
-    nextPredict: null,
-    nextPredictDisplay: '--',
-    nextPredictWeekday: '',
-    predictionRangeDisplay: '',
-    predictionWindow: null,
-    predictConfidence: null,
-    predictionDetail: null,
-    predictionExplanation: calendarInsights.buildPredictionExplanation(null),
-    cycleReminders: [],
+    ...INITIAL_HOME_STATE,
     legendItems: calendarInsights.CALENDAR_LEGEND_ITEMS,
     infoSheetVisible: false,
     infoSheetMode: '',

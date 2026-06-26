@@ -297,7 +297,10 @@ test('index exposes calendar meaning and monthly recap sheets', () => {
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
 
-  assert.match(js, /calendarInsights/)
+  assert.match(js, /buildHomeCalendarState/)
+  assert.doesNotMatch(js, /buildCalendarDays\(/)
+  assert.doesNotMatch(js, /buildMonthlyRecap\(/)
+  assert.doesNotMatch(js, /buildDayMeanings\(/)
   assert.match(js, /openLegendSheet\(\)/)
   assert.match(js, /openPredictionSheet\(\)/)
   assert.match(js, /openMonthlyRecap\(\)/)
