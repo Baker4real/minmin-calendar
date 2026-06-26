@@ -148,13 +148,26 @@
 5. Final architecture review finds no blocking module-boundary, verification, or planning-state issues.
 
 Plans:
+**Wave 1**
 
 - [ ] 07-01-PLAN.md — RoomDataClient, stale room-code repair, and client reliability tests
+- [ ] 07-05-PLAN.md — Cloud authorization harness and local access-control tests
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 07-02-PLAN.md — Period/memory record command helpers and page-flow tests
 - [ ] 07-03-PLAN.md — Settings copy/export/local-cache flow helper and tests
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 07-04-PLAN.md — Homepage calendar view-model seam and marker regression tests
-- [ ] 07-05-PLAN.md — Cloud authorization harness and local access-control tests
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 07-06-PLAN.md — Final architecture audit and verification evidence
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 07-07-PLAN.md — Codebase map and durable project-state refresh
 
 ---
