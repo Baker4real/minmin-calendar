@@ -3,28 +3,28 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 07-03-PLAN.md
-last_updated: "2026-06-26T08:45:59.858Z"
+stopped_at: Completed 07-04-PLAN.md
+last_updated: "2026-06-26T08:58:55.609Z"
 last_activity: 2026-06-26
-last_activity_desc: Completed Phase 7 Plan 07-03 settings flow helpers.
+last_activity_desc: Completed Phase 7 Plan 07-04 homepage view-model seam.
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 14
-  completed_plans: 11
-  percent: 79
+  completed_plans: 12
+  percent: 86
 ---
 
 # Project State: Minmin Calendar
 
-Last activity: 2026-06-26 - Completed Phase 7 Plan 07-03 settings flow helpers.
+Last activity: 2026-06-26 - Completed Phase 7 Plan 07-04 homepage view-model seam.
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-06-26)
 
 **Core value:** Two people can reliably see the same private calendar state and understand what each calendar marker means at a glance.  
-**Current focus:** Phase 7 architecture quality and reliability hardening: Wave 2 settings flow helpers are complete, and the homepage view-model seam is next.
+**Current focus:** Phase 7 architecture quality and reliability hardening: the homepage view-model seam is complete, and the final architecture audit is next.
 
 ## Roadmap Status
 
@@ -38,7 +38,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 | 4. Record and Settings Flow Polish | Partial / Gaps Found | 35% | Period metadata and local cache behavior are done; broader record/settings polish remains |
 | 5. Documentation and Release Readiness | Backfilled / Human Check Needed | 80% | History ledger and phase artifacts exist; release smoke test remains manual |
 | 6. Calendar Density and Today Jump | Implemented / Automated Checks Passed | 100% | Full density defaults on; compact/full choice persists locally; month picker has return-to-today |
-| 7. Architecture Quality and Reliability Hardening | In Progress | 57% | `07-01`, `07-02`, `07-03`, and `07-05` complete: client reliability seams, cloud auth harness, record helpers, and settings flow helpers are in place; homepage view-model work is next |
+| 7. Architecture Quality and Reliability Hardening | In Progress | 71% | `07-01`, `07-02`, `07-03`, `07-04`, and `07-05` complete: client reliability seams, cloud auth harness, record/settings helpers, and the homepage view-model seam are in place; final audit/docs waves remain |
 
 ## GSD History Artifacts
 
@@ -72,6 +72,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 | 11 | Implemented remembered calendar density control and month-picker return-to-today action | 2026-06-26 | `4adf3fc` | `pages/index/`, `tests/`, `.planning/phases/06-*` |
 | 12 | Implemented RoomDataClient outcome classification and stale cached room repair seam | 2026-06-26 | `485edb8` | `utils/`, `tests/`, `.planning/phases/07-*` |
 | 13 | Added a testable dataOp authorization seam and local cloud access-control harness | 2026-06-26 | `4e1c933` | `cloudfunctions/dataOp/`, `tests/`, `.planning/phases/07-*` |
+| 14 | Extracted homepage calendar state into a pure view-model seam with marker regression coverage | 2026-06-26 | `343be4f` | `utils/`, `pages/index/`, `tests/`, `.planning/phases/07-*` |
 
 ## Accumulated Context
 
@@ -85,6 +86,8 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 - Separate stale-room business failures from retryable transport failures and let `RoomSession` own cache repair.
 - Keep room membership lookup and action dispatch in the server-side `createDataOpHandler()` seam while `cloudfunctions/dataOp/index.js` stays responsible for cloud runtime wiring.
 - Lock the extracted `dataOp` handler boundary with a source-contract test so `wx-server-sdk` does not creep into the injectable seam.
+- Keep `pages/index/index.js` as the WeChat adapter while `buildHomeCalendarState` owns prediction, day-grid, and monthly recap composition.
+- Precompute `dayDetailsByDate` in the pure homepage builder so selected-day meanings and detail rows stay aligned with calendar marker semantics.
 
 ## Research Artifacts
 
@@ -123,7 +126,7 @@ node --check pages\period\edit\edit.js
 
 ## Next Recommended Action
 
-Execute `07-04-PLAN.md` next to start Wave 3 with the homepage calendar view-model seam and marker regression tests now that Wave 2 is complete.
+Execute `07-06-PLAN.md` next to run the final architecture audit and verification evidence pass now that Wave 3 is complete.
 
 ## Performance Metrics
 
@@ -131,6 +134,7 @@ Execute `07-04-PLAN.md` next to start Wave 3 with the homepage calendar view-mod
 |-------|------|----------|-------|
 | Phase 07 P02 | 3 min | 3 tasks | 6 files |
 | Phase 07 P03 | 4 min | 3 tasks | 3 files |
+| Phase 07 P04 | 3 min | 3 tasks | 4 files |
 
 ## Decisions
 
@@ -138,9 +142,11 @@ Execute `07-04-PLAN.md` next to start Wave 3 with the homepage calendar view-mod
 - [Phase 07]: Moved period and memory pages to RoomDataClient outcomes directly so retryable failures and stale-room repair stay distinct instead of re-parsing legacy cloud result shapes.
 - [Phase 07]: Kept settings export on RoomDataClient list outcomes. — This preserves retryable failures and stale-room repair feedback instead of flattening export loads into legacy fallbacks.
 - [Phase 07]: Kept the destructive local-clear confirmation copy in the page adapter. — The helper owns clipboard/share/file branching while the page keeps the user-facing confirmation wording and visible room-code sync.
+- [Phase 07]: Kept pages/index/index.js as the WeChat adapter — buildHomeCalendarState now owns prediction, day-grid, and monthly recap composition.
+- [Phase 07]: Precomputed dayDetailsByDate in the pure homepage builder — Selected-day meanings and detail rows now stay aligned with calendar marker semantics.
 
 ## Session
 
-**Last session:** 2026-06-26T08:45:59.524Z
-**Stopped at:** Completed 07-03-PLAN.md
+**Last session:** 2026-06-26T08:58:55.609Z
+**Stopped at:** Completed 07-04-PLAN.md
 **Resume file:** None

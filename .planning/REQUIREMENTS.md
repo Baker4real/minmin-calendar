@@ -42,7 +42,7 @@
 
 ### Quality
 
-- [ ] **QUAL-01**: Date and calendar metadata logic has automated tests for prediction display, lunar dates, official holidays, and marker semantics.
+- [x] **QUAL-01**: Date and calendar metadata logic has automated tests for prediction display, lunar dates, official holidays, and marker semantics.
 - [x] **QUAL-02**: JavaScript files touched by behavior changes pass syntax checks.
 - [ ] **QUAL-03**: Codebase map and project context stay updated after significant structure or domain changes.
 - [ ] **QUAL-04**: Cycle prediction and period metadata helpers have automated tests for outliers, fallbacks, reminders, and tag normalization.
