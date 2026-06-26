@@ -1,6 +1,6 @@
 ---
 phase: 07-architecture-quality-and-reliability-hardening
-reviewed: 2026-06-26T09:59:41.7010919Z
+reviewed: 2026-06-26T11:01:00Z
 depth: deep
 files_reviewed: 24
 files_reviewed_list:
@@ -38,109 +38,130 @@ status: issues_found
 
 # Phase 07: Code Review Report
 
-**Reviewed:** 2026-06-26T09:59:41.7010919Z
+**Reviewed:** 2026-06-26T11:01:00Z
 **Depth:** deep
 **Files Reviewed:** 24
 **Status:** issues_found
 
 ## Summary
 
-本次是 Phase 07 在修复 `CR-01`、`CR-02`、`CR-03`、`WR-01` 后的 deep re-review。我复核了指定的 24 个实现/测试文件，并重新执行了用户要求范围内的 `node:test` 套件；70/70 测试全部通过，但代码里仍然残留 1 个阻断问题，外加 1 个直接解释为什么这次阻断问题没有被现有回归拦住的测试覆盖缺口。
+这是 Phase 07 第二轮修复后的第三次 deep re-review。我按指定范围复核了 RoomDataClient、record/settings helper、首页状态构建、`dataOp` 服务端授权边界、相关页面适配层和测试 harness，并重新执行了用户点名的 8 个测试文件及语法检查。
+
+本轮确认已经修好的点：
+- `settings` 导出链路现在能正确区分 `repair.success + bound`、`repair.success + !bound`、`repair.retryable-failure` 三态，不再把可重试修复失败改写成 `未绑定`。
+- 首页仍直接消费 `RoomDataClient` outcome，`no-room` / `retryable-failure` / `room-repair` 都保留为显式页面状态。
+- `RoomDataClient` 仍会先尝试 `getActiveRoom()`，并把恢复失败保留成 `retryable-failure`。
+- `save/delete` 的普通传输失败仍不会重放非幂等写操作。
+- `dataOp` 的房间授权仍留在服务端 `createDataOpHandler()` / `roomRecords` 边界里。
+
+但 record 页面共用的 `recordCommands` 仍残留 1 个运行时回退：当 stale-room 修复本身再次失败时，它只弹瞬时 toast，不给 period/memory 列表或编辑页留下任何可见的重试/重绑路径。对应分支也没有被当前回归覆盖。
 
 ## Narrative Findings (AI reviewer)
 
 ## Critical Issues
 
-### CR-01: [BLOCKER] 设置页仍把房间修复失败的可重试状态误导成“去绑定/未绑定”
+### CR-01: [BLOCKER] 记录页对 `room-repair + repair.retryable-failure` 仍然只给 toast，实际把“可重试修复失败”降级成无恢复路径
 
-**File:** `utils/settingsFlow.js:123-139`, `pages/settings/settings.js:26-32`, `pages/settings/settings.js:72-77`
-**Issue:** `createRoomDataClient()` 已经把“检测到 stale room，并尝试 `repairCachedRoom()` 后仍失败”的情况保留成 `room-repair` + `repair.kind === 'retryable-failure'`。但设置页导出链路没有延续这个语义：
-- `utils/settingsFlow.js` 在 `handleExportLoadFailure()` 里只把 `repair.kind === 'success' && bound` 当成可重试，其余所有 `room-repair` 都直接走 `promptNavigateToBind()`。
-- `pages/settings/settings.js` 在 `exportData()` 收到任意 `room-repair` 后，又调用 `syncRoomCode()`，而 `syncRoomCode()` 会把所有非 `success && bound` 的修复结果都改写成 `roomCodeDisplay: '未绑定'`。
+**File:** `utils/recordCommands.js:207-228`, `utils/recordCommands.js:253-275`, `pages/period/period.js:12-24`, `pages/memory/memory.js:11-20`, `pages/period/edit/edit.js:59-89`, `pages/memory/edit/edit.js:23-48`
+**Issue:** `createRoomDataClient()` 已经把“缓存房间过期，随后 `repairCachedRoom()` 又因网络/云函数失败而未能确认房间状态”的情况保留成：
 
-结果是：当房间缓存过期，但 `getMyRoom` 只是暂时网络失败/云函数失败时，设置页会把“同步失败，请稍后重试”的状态错误地降级成“房间状态已变化，请重新绑定”，并在页面上继续显示“未绑定”。这正好违背了本轮复审要求里的两条：恢复失败必须保持可重试，设置页不能把这种故障标成未绑定。
-
-我还做了最小复现：让 `exportRecordsAsJson()` 收到 `{ kind: 'room-repair', repair: { kind: 'retryable-failure', message: '同步房间状态失败：network down' } }`，当前实现弹出的仍然是“房间状态已变化 / 去绑定”而不是“重试”。
-
-**Fix:** 把设置导出分支的 `room-repair` 处理改成与首页/`recordCommands` 一致的三态逻辑：
-- `repair.kind === 'success' && bound`：提示“重试导出”。
-- `repair.kind === 'success' && !bound`：提示重新绑定。
-- 其他修复失败：保留为可重试故障，不要导航去绑定，也不要把页面状态改成“未绑定”。
-
-```javascript
-function handleExportLoadFailure(wxApi, outcome, retryExport, navigateToBind) {
-  if (outcome.kind === 'room-repair') {
-    const repair = outcome.repair || {}
-
-    if (repair.kind === 'success' && repair.bound && repair.roomCode) {
-      return promptRetry({
-        wxApi,
-        title: '房间状态已更新',
-        content: '房间状态已更新，请重试导出',
-        retryAction: retryExport,
-        fallback: outcome
-      })
-    }
-
-    if (repair.kind === 'success' && !repair.bound) {
-      return promptNavigateToBind({
-        wxApi,
-        title: '房间状态已变化',
-        content: '房间状态已变化，请重新绑定',
-        navigateToBind,
-        fallback: outcome
-      })
-    }
-
-    return promptRetry({
-      wxApi,
-      title: '房间同步失败',
-      content: repair.message || '同步房间状态失败，请稍后重试',
-      retryAction: retryExport,
-      fallback: outcome
-    })
-  }
+```js
+{
+  kind: 'room-repair',
+  repair: { kind: 'retryable-failure', message: '同步房间状态失败：...' }
 }
 ```
 
-同时，`pages/settings/settings.js` 不应在 `repair.kind !== 'success'` 时调用 `syncRoomCode()` 把页面降级成“未绑定”；应保留现有房间码，或明确显示“同步失败，请重试”。
+但 `recordCommands.handleFailureOutcome()` 对这条分支仍然只是：
+- `normalizeRoomRepairOutcome()` 产出 `action: 'repair-retry'`
+- 然后直接 `wxApi.showToast(...)` 并返回结果
+
+它不会像 `settingsFlow` 或首页那样弹出可继续操作的 `重试` / `去绑定` 交互。问题在于 period/memory 页面对 helper 的返回值没有后续处理，只是 `await` 后结束，所以用户最终看到的是：
+- 列表页：`loading` 结束，列表保持空或旧状态，只闪过一条 toast，没有任何可点击恢复路径。
+- 编辑页：保存/删除失败只闪过一条 toast，没有“稍后重试/重新绑定/刷新确认”的持久引导。
+
+我做了最小复现：对 `runRecordListLoad()` 注入 `{ kind: 'room-repair', repair: { kind: 'retryable-failure', message: '同步房间状态失败：network down' } }`，当前结果是仅产生 1 次 `showToast`，`showModal` 和 `navigateTo` 都不会发生。也就是说，本轮你要求复查的“active-room recovery failures stay retryable”在 record flows 这条分支上仍然不成立。
+
+**Fix:** 把 `recordCommands` 的 `repair-retry` 分支升级成真正的用户恢复动作，而不是瞬时 toast。由于这里的原始失败是服务端先返回 stale-room 授权失败，写操作并没有成功落库，所以在修复失败分支继续给“重试当前操作”是安全的；至少也要给出和 `retryable-failure` 一样不会被页面吞掉的 modal。
+
+```javascript
+if (outcome.kind === 'room-repair') {
+  const normalized = normalizeRoomRepairOutcome(outcome, roomRepairTitle)
+
+  if (normalized.action === 'retry') {
+    return promptRetry({
+      wxApi,
+      title: '房间状态已同步',
+      content: normalized.message,
+      retryAction,
+      fallback: normalized
+    })
+  }
+
+  if (normalized.action === 'rebind') {
+    return promptNavigateToBind({
+      wxApi,
+      title: '房间状态已变化',
+      content: normalized.message,
+      navigateToBind,
+      fallback: normalized
+    })
+  }
+
+  return promptRetry({
+    wxApi,
+    title: failureTitle,
+    content: normalized.message,
+    retryAction,
+    fallback: normalized
+  })
+}
+```
+
+如果你不想立即重放编辑页的保存/删除，也至少应改成 `promptAcknowledge(...)` 并给出“请稍后重试/返回列表刷新确认”的持久提示，不能继续只靠 toast。
 
 ## Warnings
 
-### WR-01: [WARNING] 现有回归没有覆盖“room-repair 里的 repair 再次失败”分支，所以阻断问题整套 70 测试仍然全部通过
+### WR-01: [WARNING] 当前回归没有覆盖 record flows 的 `room-repair.repair.retryable-failure` 分支，所以这个回退可以一路漏过到第三次复审
 
-**File:** `tests/settings-flow.test.js:117-209`, `tests/page-registration.test.js:175-221`
-**Issue:** 当前新测试只覆盖了两类场景：
-- `retryable-failure` 直接发生在导出列表读取前。
-- `room-repair` 且 `repair.kind === 'success'`，分别验证 `bound: true` 与 `bound: false`。
+**File:** `tests/record-flow.test.js:121-165`, `tests/record-flow.test.js:282-328`, `tests/page-registration.test.js:97-173`
+**Issue:** 现有测试只覆盖了：
+- 普通 `retryable-failure` 的 modal retry / acknowledge。
+- `room-repair` 且 `repair.success + !bound` 的 rebind。
+- period/memory 页面 harness 的成功加载路径。
 
-缺的正是这次仍然出错的分支：`room-repair` 已经发生，但 `repairCachedRoom()` 自己返回 `retryable-failure`。`tests/settings-flow.test.js` 没有单测这个结果，`tests/page-registration.test.js` 的 settings 页面 harness 也只断言了“导出后修复成功并更新房间码”。因此即使用户指定的 70 条相关测试全部通过，也无法阻止设置页继续把修复失败当成重新绑定/未绑定。
+缺的正是这次仍有问题的分支：
+- `runRecordListLoad()` / `runRecordSave()` / `runRecordDelete()` 收到 `room-repair + repair.retryable-failure`
+- period/memory 页面在该分支下是否还能给用户保留可见恢复动作
 
-**Fix:** 至少补两条回归：
+因此 72/72 测试全部通过，但 record flows 依然会把这类故障降级成 toast-only dead end。
+
+**Fix:** 至少补两类回归：
+
 ```javascript
-test('exportRecordsAsJson keeps room repair failures retryable', async () => {
-  const result = await settingsFlow.exportRecordsAsJson({
+test('runRecordListLoad keeps room repair sync failures retryable', async () => {
+  const promise = recordCommands.runRecordListLoad({
+    page,
     wx,
-    cloud: { createRoomDataClient: () => ({
-      list: async () => ({
-        kind: 'room-repair',
-        roomCode: 'ROOM01',
-        repair: { kind: 'retryable-failure', message: '同步房间状态失败：network down' }
-      })
-    }) }
+    itemsKey: 'periods',
+    action: async () => ({
+      kind: 'room-repair',
+      roomCode: 'ROOM01',
+      repair: { kind: 'retryable-failure', message: '同步房间状态失败：network down' }
+    })
   })
 
-  assert.equal(modal.title, '房间同步失败')
-  assert.equal(modal.confirmText, '重试')
+  await Promise.resolve()
+  assert.equal(wx.modals[0].confirmText, '重试')
 })
 
-test('settings page exportData does not relabel repair failures as unbound', async () => {
-  // exportRecordsAsJson -> room-repair + repair.retryable-failure
-  // assert roomCodeDisplay stays retryable instead of becoming 未绑定
+test('period page keeps a visible recovery path when room repair sync fails', async () => {
+  // harness page -> client.list() returns room-repair + repair.retryable-failure
+  // assert the page path now surfaces the helper-owned modal or equivalent durable action
 })
 ```
 
 ---
-_Reviewed: 2026-06-26T09:59:41.7010919Z_
+_Reviewed: 2026-06-26T11:01:00Z_
 _Reviewer: the agent (gsd-code-reviewer)_
 _Depth: deep_
