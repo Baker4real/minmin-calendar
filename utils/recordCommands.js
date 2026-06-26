@@ -24,7 +24,9 @@ function runRecordSave(options) {
     failureTitle,
     navigateBack,
     navigateToBind,
-    successDelay
+    successDelay,
+    retryableMode: 'confirm-state',
+    retryableAdvice: '保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交'
   })
 }
 
@@ -48,7 +50,9 @@ function runRecordDelete(options) {
           ...options,
           wxApi,
           validate: null,
-          navigateBack
+          navigateBack,
+          retryableMode: 'confirm-state',
+          retryableAdvice: '删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作'
         }))
       }
     })
@@ -102,7 +106,8 @@ async function runRecordListLoad(options) {
     failureTitle,
     roomRepairTitle,
     retryAction: () => runRecordListLoad(options),
-    navigateToBind
+    navigateToBind,
+    retryableMode: 'retry'
   })
 }
 
@@ -113,12 +118,14 @@ async function runCommand(options) {
     timer,
     action,
     validate,
-    loadingKey,
+    loadingKey = 'saving',
     successTitle,
     failureTitle,
     navigateBack,
     navigateToBind,
-    successDelay
+    successDelay,
+    retryableMode = 'confirm-state',
+    retryableAdvice = `${failureTitle}，请稍后刷新后确认结果`
   } = options
 
   const validationMessage = typeof validate === 'function' ? validate() : ''
@@ -157,7 +164,9 @@ async function runCommand(options) {
     failureTitle,
     roomRepairTitle: '房间状态已变化，请重新绑定',
     retryAction: () => runCommand(options),
-    navigateToBind
+    navigateToBind,
+    retryableMode,
+    retryableAdvice
   })
 }
 
@@ -168,9 +177,24 @@ async function handleFailureOutcome({
   failureTitle,
   roomRepairTitle,
   retryAction,
-  navigateToBind
+  navigateToBind,
+  retryableMode = 'retry',
+  retryableAdvice = retryableTitle
 }) {
   if (outcome.kind === 'retryable-failure') {
+    if (retryableMode !== 'retry') {
+      const normalized = {
+        ...outcome,
+        action: 'refresh-check',
+        message: retryableAdvice
+      }
+      return promptAcknowledge({
+        wxApi,
+        title: failureTitle,
+        content: retryableAdvice,
+        fallback: normalized
+      })
+    }
     return promptRetry({
       wxApi,
       title: failureTitle,
@@ -277,6 +301,23 @@ function createNavigateToBind(wxApi) {
     return () => wxApi.navigateTo({ url: '/pages/bind/bind' })
   }
   return () => {}
+}
+
+function promptAcknowledge({ wxApi, title, content, fallback }) {
+  if (!wxApi || typeof wxApi.showModal !== 'function') {
+    wxApi.showToast({ title: content, icon: 'none' })
+    return Promise.resolve(fallback)
+  }
+
+  return new Promise(resolve => {
+    wxApi.showModal({
+      title,
+      content,
+      showCancel: false,
+      confirmText: '知道了',
+      success: () => resolve(fallback)
+    })
+  })
 }
 
 function promptRetry({ wxApi, title, content, retryAction, fallback }) {

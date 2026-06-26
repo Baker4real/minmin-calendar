@@ -67,14 +67,12 @@ test('runRecordSave clears saving state, shows success toast, and schedules one 
   assert.equal(env.navigateBackCalls.length, 1)
 })
 
-test('runRecordSave surfaces a retry action and re-runs the save when the user confirms', async () => {
+test('runRecordSave does not replay unknown save mutations after retryable failures', async () => {
   assert.equal(typeof recordCommands.runRecordSave, 'function')
 
   const page = createFakePage({ saving: false })
   const env = createFakeCommandEnv()
-  let retried = false
   let actionCalls = 0
-  const retry = async () => ({ kind: 'success', result: { code: 0 } })
 
   const promise = recordCommands.runRecordSave({
     page,
@@ -85,11 +83,9 @@ test('runRecordSave surfaces a retry action and re-runs the save when the user c
       if (actionCalls === 1) {
         return {
           kind: 'retryable-failure',
-          message: '云数据库查询超时 (15000ms)',
-          retry
+          message: '云数据库查询超时 (15000ms)'
         }
       }
-      retried = true
       return { kind: 'success', result: { code: 0 } }
     },
     validate: null,
@@ -99,28 +95,27 @@ test('runRecordSave surfaces a retry action and re-runs the save when the user c
 
   await Promise.resolve()
   assert.equal(env.wx.modals.length, 1)
+  const modal = env.wx.modals[0]
 
   const result = await env.wx.resolveModal(true, promise)
 
-  assert.deepEqual(result, { kind: 'success', result: { code: 0 } })
-  assert.deepEqual(page.setDataCalls, [
-    { saving: true },
-    { saving: false },
-    { saving: true },
-    { saving: false }
-  ])
-  assert.deepEqual(env.wx.modals[0], {
-    title: '保存失败',
-    content: '保存失败，请重试',
-    confirmText: '重试',
-    cancelText: '取消',
-    success: env.wx.modals[0].success
+  assert.deepEqual(result, {
+    kind: 'retryable-failure',
+    action: 'refresh-check',
+    message: '保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交'
   })
-  assert.deepEqual(env.wx.toasts, [{ title: '保存成功' }])
-  assert.equal(env.timer.calls.length, 1)
+  assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
+  assert.deepEqual(modal, {
+    title: '保存失败',
+    content: '保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
+    confirmText: '知道了',
+    showCancel: false,
+    success: modal.success
+  })
+  assert.deepEqual(env.wx.toasts, [])
+  assert.equal(env.timer.calls.length, 0)
   assert.equal(env.navigateBackCalls.length, 0)
-  assert.equal(retried, true)
-  assert.equal(actionCalls, 2)
+  assert.equal(actionCalls, 1)
 })
 
 test('runRecordSave offers to rebind when room repair cannot restore membership', async () => {
@@ -200,6 +195,48 @@ test('runRecordDelete keeps modal confirmation and success feedback behavior', a
   assert.equal(env.timer.calls.length, 1)
   env.timer.calls[0].fn()
   assert.equal(env.navigateBackCalls.length, 1)
+})
+
+test('runRecordDelete does not replay unknown delete mutations after retryable failures', async () => {
+  assert.equal(typeof recordCommands.runRecordDelete, 'function')
+
+  const page = createFakePage()
+  const env = createFakeCommandEnv()
+  let actionCalls = 0
+
+  const promise = recordCommands.runRecordDelete({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => {
+      actionCalls += 1
+      return {
+        kind: 'retryable-failure',
+        message: 'network down'
+      }
+    },
+    confirmTitle: '确认删除',
+    successTitle: '已删除',
+    failureTitle: '删除失败'
+  })
+
+  assert.equal(env.wx.modals.length, 1)
+
+  await env.wx.resolveModal(true)
+  await Promise.resolve()
+  assert.equal(env.wx.modals.length, 1)
+
+  const result = await env.wx.resolveModal(true, promise)
+
+  assert.deepEqual(result, {
+    kind: 'retryable-failure',
+    action: 'refresh-check',
+    message: '删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作'
+  })
+  assert.equal(actionCalls, 1)
+  assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
+  assert.deepEqual(env.wx.toasts, [])
+  assert.equal(env.timer.calls.length, 0)
 })
 
 test('runRecordListLoad sorts and decorates periods while preserving stats input', async () => {
@@ -361,10 +398,10 @@ function createFakeCommandEnv() {
         modals.push(options)
       },
       async resolveModal(confirm, promise) {
-        const modal = modals[0]
+        const modal = modals.shift()
         assert.ok(modal, 'expected a pending modal')
         await modal.success({ confirm, cancel: !confirm })
-        return promise
+        return promise ? promise : undefined
       },
       navigateBack() {
         navigateBackCalls.push({ at: navigateBackCalls.length })
