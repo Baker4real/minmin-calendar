@@ -26,10 +26,11 @@ Two people can reliably see the same private calendar state and understand what 
 - Room-code cache, recovery, create/join, and local clear behavior now go through the tested `utils/room.js` RoomSession Module.
 - Server-side room leave/unpair now goes through `cloudfunctions/leaveRoom/index.js`, with `RoomLifecycle` tests covering creator transfer, partner removal, and last-member deletion.
 - Basic Node tests exist for calendar display/date rules in `tests/calendar-display.test.js` and cycle prediction/metadata rules in `tests/cycle-prediction.test.js`.
+- Repository history is now backfilled into formal GSD artifacts under `.planning/phases/`, indexed by `.planning/HISTORY.md`.
 
 ### Active
 
-- [ ] Stabilize the development workflow with git, GSD planning, local issue tracking, and repeatable verification commands.
+- [ ] Finish Phase 2.1 calendar insight/monthly recap implementation and verification.
 - [ ] Polish homepage calendar density so period, memory, today, prediction, lunar, holiday, and adjusted-workday signals remain readable on small phones.
 - [ ] Harden room and data flows against stale local room codes, partial failures, and unclear user feedback.
 - [ ] Improve record editing and settings flows so saving, deleting, exporting, and clearing state have consistent feedback and error recovery.
@@ -52,6 +53,7 @@ Two people can reliably see the same private calendar state and understand what 
 - Room membership revoke rules live in `cloudfunctions/leaveRoom/roomLifecycle.js`, behind the `leaveRoom` cloud-function adapter.
 - The product visual direction is documented in `DESIGN.md` as Aurora Bloom: dark navy, warm rose, soft lavender, warm gold, and glass surfaces.
 - Codebase map lives under `.planning/codebase/` and should be refreshed after significant structural changes.
+- GSD phase history lives under `.planning/phases/`; `.planning/HISTORY.md` maps commits to phase artifacts.
 
 ## Constraints
 
@@ -91,4 +93,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state.
 
 ---
-*Last updated: 2026-06-25 after calendar holiday/navigation polish and server-side Room leave implementation*
+*Last updated: 2026-06-26 after GSD history backfill and Phase 2.1 setup*

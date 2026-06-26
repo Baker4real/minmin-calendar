@@ -1,6 +1,6 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-06-25
+**Analysis Date:** 2026-06-26
 
 ## Test Framework
 
@@ -13,7 +13,7 @@
 
 **Run Commands:**
 ```bash
-node --test tests/calendar-display.test.js tests/cycle-prediction.test.js tests/room-lifecycle.test.js tests/room-records.test.js tests/room-session.test.js
+node --test tests/calendar-display.test.js tests/calendar-insights.test.js tests/cycle-prediction.test.js tests/room-lifecycle.test.js tests/room-records.test.js tests/room-session.test.js
 ```
 
 Prefer explicit test-file lists on the current Windows/Node setup because `node --test tests` may be interpreted as a module path instead of a directory test discovery target.
@@ -30,6 +30,7 @@ Prefer explicit test-file lists on the current Windows/Node setup because `node 
 ```text
 tests/
 ├── calendar-display.test.js
+├── calendar-insights.test.js
 ├── cycle-prediction.test.js
 ├── room-lifecycle.test.js
 ├── room-records.test.js
@@ -97,6 +98,7 @@ node --test --experimental-test-coverage
 
 **Unit Tests:**
 - `tests/calendar-display.test.js` covers date formatting, lunar/holiday metadata, published 2001-2026 holiday arrangements, themed day sheets, month-jump UI contracts, and calendar grid assembly via `utils/util.js`.
+- `tests/calendar-insights.test.js` covers calendar legend items, prediction explanation copy, day marker meanings, and monthly recap/share text via `utils/calendarInsights.js`.
 - `tests/cycle-prediction.test.js` covers robust cycle prediction, manual fallback settings, reminder state derivation, and optional flow/symptom metadata normalization via `utils/cycle.js`.
 - `tests/room-lifecycle.test.js` covers server-side Room leave/unpair behavior through `cloudfunctions/leaveRoom/roomLifecycle.js`, including creator transfer, partner removal, empty-room deletion, and no-op leave.
 - `tests/room-session.test.js` covers Room-code cache, cloud recovery, create/join behavior, invalid join-code rejection, and local clear behavior via `utils/room.js`.
@@ -120,8 +122,9 @@ node --test --experimental-test-coverage
 
 - `utils/util.js` and `utils/chinaHolidays.js` have direct coverage through `formatPredictDisplay`, `getChineseDateMeta`, published holiday examples, and `buildCalendarDays`.
 - `utils/cycle.js` has direct coverage for prediction ranges, confidence, reminders, and period metadata helpers.
+- `utils/calendarInsights.js` has direct coverage for marker legend, prediction explanation, day meanings, and monthly recap summaries.
 - `pages/index/index.wxml` has a regression test to ensure the heart mark only appears for memories.
-- `pages/index/index.js`, `pages/index/index.wxml`, and `pages/index/index.wxss` have source-level regression checks for themed day sheets and year-month jump controls.
+- `pages/index/index.js`, `pages/index/index.wxml`, and `pages/index/index.wxss` have source-level regression checks for themed day sheets, year-month jump controls, calendar insight sheets, day meanings, and monthly recap controls.
 - `pages/period/edit/edit.wxml` has a regression test to ensure flow and symptom controls stay present.
 - `pages/period/edit/edit.wxss` has a regression test to keep interactive chips at the 88rpx touch-target floor.
 - `pages/period/period.js` has a source-level regression test to ensure record loading failures show a user-facing toast.
@@ -138,4 +141,4 @@ node --test --experimental-test-coverage
 
 ---
 
-*Testing analysis: 2026-06-25*
+*Testing analysis: 2026-06-26*

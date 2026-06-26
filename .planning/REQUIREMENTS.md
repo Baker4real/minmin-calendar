@@ -53,6 +53,8 @@
 
 - **CAL-05**: User can configure whether lunar/holiday labels are shown when calendar density becomes too high.
 - **CAL-06**: User can inspect a legend explaining all calendar markers.
+- **CAL-09**: User can inspect a plain-language explanation of prediction inputs, including average cycle, average duration, confidence, and ignored outliers.
+- **CAL-10**: User can open and copy a monthly recap summarizing current-month period records, happy-time memories, and next prediction.
 
 ### Reliability
 
@@ -77,30 +79,33 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FLOW-01 | Phase 1 | In Progress |
-| FLOW-02 | Phase 1 | Pending |
-| FLOW-03 | Phase 1 | Pending |
-| CAL-01 | Phase 2 | Pending |
-| CAL-02 | Phase 2 | Pending |
-| CAL-03 | Phase 2 | Pending |
-| CAL-04 | Phase 2 | Pending |
-| CAL-07 | Phase 2 | In Progress |
-| CAL-08 | Phase 2 | In Progress |
+| FLOW-01 | Phase 1 | Satisfied |
+| FLOW-02 | Phase 1 | Satisfied |
+| FLOW-03 | Phase 1 / Phase 5 | In Progress |
+| CAL-01 | Phase 2 / Phase 2.1 | In Progress |
+| CAL-02 | Phase 2 | Satisfied |
+| CAL-03 | Phase 2 | Satisfied |
+| CAL-04 | Phase 2 / Phase 2.1 | In Progress |
+| CAL-07 | Phase 2 | Satisfied |
+| CAL-08 | Phase 2 | Satisfied |
+| CAL-06 | Phase 2.1 | Satisfied (manual visual check pending) |
+| CAL-09 | Phase 2.1 | Satisfied (manual visual check pending) |
+| CAL-10 | Phase 2.1 | Satisfied (manual visual check pending) |
 | REC-01 | Phase 4 | Pending |
 | REC-02 | Phase 4 | Pending |
 | REC-03 | Phase 4 | Pending |
-| REC-04 | Phase 4 | In Progress |
-| ROOM-01 | Phase 3 | Pending |
-| ROOM-02 | Phase 3 | Pending |
-| ROOM-03 | Phase 3 | Pending |
-| ROOM-04 | Phase 3 | Pending |
+| REC-04 | Phase 4 | Satisfied |
+| ROOM-01 | Phase 3 | Partial |
+| ROOM-02 | Phase 3 | Partial |
+| ROOM-03 | Phase 3 | Satisfied |
+| ROOM-04 | Phase 3 | Satisfied |
 | SET-01 | Phase 4 | Pending |
 | SET-02 | Phase 4 | Pending |
-| SET-03 | Phase 4 | Pending |
-| QUAL-01 | Phase 1 | In Progress |
-| QUAL-02 | Phase 1 | In Progress |
-| QUAL-03 | Phase 5 | Pending |
-| QUAL-04 | Phase 1 | In Progress |
+| SET-03 | Phase 4 | Satisfied |
+| QUAL-01 | Phase 1 / Phase 2 / Phase 2.1 | Satisfied for current automated scope |
+| QUAL-02 | All implementation phases | Satisfied for current touched files |
+| QUAL-03 | Phase 5 | Satisfied |
+| QUAL-04 | Phase 1 / Phase 2 | Satisfied |
 
 **Coverage:**
 - v1 requirements: 24 total
@@ -109,4 +114,4 @@
 
 ---
 *Requirements defined: 2026-06-24*  
-*Last updated: 2026-06-25 after calendar month-jump requirement capture*
+*Last updated: 2026-06-26 after GSD history backfill*

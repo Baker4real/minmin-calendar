@@ -91,6 +91,52 @@
   background: rgba(255,255,255,0.2);
 }
 
+/* ===== Meaning Toolbar ===== */
+.meaning-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14rpx;
+  margin: 0 0 16rpx;
+}
+.meaning-tool {
+  min-height: 88rpx;
+  padding: 12rpx 10rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  box-sizing: border-box;
+  border-radius: 22rpx;
+  background: rgba(255,255,255,0.075);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.12);
+  transition: all 0.22s ease;
+}
+.meaning-tool:active {
+  transform: scale(0.97);
+  background: rgba(255,255,255,0.13);
+}
+.meaning-tool-icon {
+  flex: 0 0 auto;
+  width: 42rpx;
+  height: 42rpx;
+  line-height: 42rpx;
+  text-align: center;
+  border-radius: 50%;
+  font-size: 22rpx;
+  font-weight: 800;
+  color: #0A0E27;
+  background: linear-gradient(135deg, #E8909E, #D4A574);
+}
+.meaning-tool-text {
+  min-width: 0;
+  font-size: 24rpx;
+  font-weight: 800;
+  line-height: 1.2;
+  color: rgba(255,255,255,0.82);
+  white-space: nowrap;
+}
+
 /* ===== Week Header ===== */
 .week-header {
   display: flex;
@@ -826,6 +872,44 @@
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1);
 }
+.detail-meaning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+.detail-meaning {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  padding: 16rpx 18rpx;
+  border-radius: 20rpx;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.detail-meaning.today {
+  border-color: rgba(232,144,158,0.3);
+}
+.detail-meaning.period {
+  border-color: rgba(232,144,158,0.24);
+}
+.detail-meaning.memory {
+  border-color: rgba(240,196,192,0.24);
+}
+.detail-meaning.predict,
+.detail-meaning.holiday {
+  border-color: rgba(212,165,116,0.24);
+}
+.detail-meaning-title {
+  font-size: 24rpx;
+  font-weight: 800;
+  line-height: 1.25;
+  color: rgba(255,255,255,0.86);
+}
+.detail-meaning-text {
+  font-size: 22rpx;
+  line-height: 1.35;
+  color: rgba(255,255,255,0.52);
+}
 .detail-rail {
   width: 6rpx;
   min-height: 72rpx;
@@ -869,6 +953,134 @@
   flex: 1;
   min-height: 88rpx;
   justify-content: center;
+}
+
+/* ===== Calendar Info Sheet ===== */
+.calendar-info-sheet {
+  z-index: 64;
+}
+.calendar-info-panel {
+  max-height: 84vh;
+}
+.legend-list,
+.prediction-explanation,
+.monthly-recap {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+.legend-row {
+  min-height: 92rpx;
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 18rpx;
+  box-sizing: border-box;
+  border-radius: 22rpx;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.legend-symbol {
+  flex: 0 0 auto;
+  width: 54rpx;
+  height: 54rpx;
+  line-height: 54rpx;
+  text-align: center;
+  border-radius: 50%;
+  font-size: 23rpx;
+  font-weight: 900;
+  color: #0A0E27;
+  background: rgba(232,144,158,0.88);
+}
+.legend-row.memory .legend-symbol {
+  background: rgba(240,196,192,0.9);
+}
+.legend-row.predict .legend-symbol,
+.legend-row.holiday .legend-symbol,
+.legend-row.workday .legend-symbol {
+  background: rgba(212,165,116,0.9);
+}
+.legend-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+.legend-title {
+  font-size: 27rpx;
+  font-weight: 800;
+  color: rgba(255,255,255,0.88);
+  line-height: 1.25;
+}
+.legend-text {
+  font-size: 22rpx;
+  line-height: 1.35;
+  color: rgba(255,255,255,0.52);
+}
+.prediction-summary {
+  padding: 22rpx 20rpx;
+  border-radius: 22rpx;
+  font-size: 30rpx;
+  font-weight: 800;
+  line-height: 1.35;
+  color: rgba(255,255,255,0.9);
+  background: rgba(212,165,116,0.12);
+  border: 1px solid rgba(212,165,116,0.18);
+}
+.explain-line {
+  min-height: 64rpx;
+  padding: 16rpx 18rpx;
+  box-sizing: border-box;
+  border-radius: 18rpx;
+  font-size: 24rpx;
+  line-height: 1.35;
+  color: rgba(255,255,255,0.72);
+  background: rgba(255,255,255,0.065);
+  border: 1px solid rgba(255,255,255,0.09);
+}
+.recap-summary {
+  display: block;
+  padding: 18rpx 20rpx;
+  border-radius: 20rpx;
+  font-size: 25rpx;
+  font-weight: 700;
+  line-height: 1.35;
+  color: rgba(255,255,255,0.82);
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.recap-highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+.recap-highlight {
+  padding: 16rpx 18rpx;
+  border-radius: 18rpx;
+  font-size: 23rpx;
+  line-height: 1.45;
+  color: rgba(255,255,255,0.62);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  word-break: break-all;
+}
+.copy-recap {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4rpx;
+  box-sizing: border-box;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+  font-weight: 900;
+  color: #0A0E27;
+  background: linear-gradient(135deg, #E8909E, #D4A574);
+  box-shadow: 0 14rpx 34rpx rgba(232,144,158,0.18);
+}
+.copy-recap:active {
+  transform: scale(0.98);
 }
 @keyframes sheetFadeIn {
   from { opacity: 0; }

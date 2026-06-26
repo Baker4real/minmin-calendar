@@ -1,23 +1,38 @@
 # Project State: Minmin Calendar
 
-Last activity: 2026-06-25 - Expanded calendar holidays, themed day sheets, and added month jump navigation.
+Last activity: 2026-06-26 - Backfilled repository history into formal GSD phase artifacts and completed Phase 2.1 automated verification.
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-06-25)
+See: `.planning/PROJECT.md` (updated 2026-06-26)
 
 **Core value:** Two people can reliably see the same private calendar state and understand what each calendar marker means at a glance.  
-**Current focus:** Phase 1 - Workflow Baseline
+**Current focus:** Phase 2.1 - Calendar Insight and Monthly Recap
 
 ## Roadmap Status
 
 | Phase | Status | Progress | Notes |
 |-------|--------|----------|-------|
-| 1. Workflow Baseline | In Progress | 60% | Git initialized, map created, docs being established |
-| 2. Calendar Display Clarity | In Progress | 70% | Prediction range and reminder card implemented; still needs WeChat DevTools visual acceptance |
-| 3. Room and Cloud Data Reliability | In Progress | 65% | Room-scoped record writes validate server-side; client RoomSession and server-side leave/unpair behavior now have tests |
-| 4. Record and Settings Flow Polish | In Progress | 25% | Period edit/list now supports flow and symptom tags |
-| 5. Documentation and Release Readiness | Pending | 0% | Refresh after phases complete |
+| 00. Existing Source Baseline | Backfilled | 100% | Initial tracked mini program source captured from `d278809` |
+| 1. Workflow Baseline | Backfilled | 90% | GSD docs, codebase map, local issue docs, and CodeGraph ignore are documented |
+| 2. Calendar Display Clarity | Backfilled / Human Check Needed | 85% | Prediction, holidays, themed sheets, and month jump have tests; small-phone visual check remains manual |
+| 2.1. Calendar Insight and Monthly Recap | Implemented / Human Check Needed | 90% | Helper module, homepage sheets, monthly recap, tests, summary, and verification are complete; WeChat visual check remains |
+| 3. Room and Cloud Data Reliability | Backfilled / Human Check Needed | 85% | RoomRecords, RoomSession, and RoomLifecycle have Node tests; deployed unbind flow remains manual |
+| 4. Record and Settings Flow Polish | Partial / Gaps Found | 35% | Period metadata and local cache behavior are done; broader record/settings polish remains |
+| 5. Documentation and Release Readiness | Backfilled / Human Check Needed | 80% | History ledger and phase artifacts exist; release smoke test remains manual |
+
+## GSD History Artifacts
+
+| Artifact | Purpose |
+|----------|---------|
+| `.planning/HISTORY.md` | Commit-to-phase ledger for the whole repository history |
+| `.planning/phases/00-existing-source-baseline/` | Initial source baseline backfill |
+| `.planning/phases/01-workflow-baseline/` | Workflow, planning, codebase map, and repository hygiene backfill |
+| `.planning/phases/02-calendar-display-clarity/` | Calendar display clarity backfill |
+| `.planning/phases/02.1-calendar-insight-monthly-recap/` | Current active Phase 2.1 plan/research/context |
+| `.planning/phases/03-room-cloud-data-reliability/` | Room/cloud reliability backfill |
+| `.planning/phases/04-record-settings-flow-polish/` | Partial record/settings polish backfill |
+| `.planning/phases/05-documentation-release-readiness/` | Documentation/history backfill |
 
 ## Quick Tasks Completed
 
@@ -30,17 +45,20 @@ See: `.planning/PROJECT.md` (updated 2026-06-25)
 | 5 | Added server-side Room leave/unpair flow with ownership transfer and client unbind wiring | 2026-06-25 | `605adf3` | `cloudfunctions/leaveRoom/`, `utils/`, `pages/bind/`, `tests/`, `docs/adr/` |
 | 6 | Verified `leaveRoom` deployment through WeChat DevTools CLI in `cloud1-d8gyqvcez4e66b3da` | 2026-06-25 | `605adf3` | WeChat Cloud |
 | 7 | Expanded calendar holidays to published 2001-2026 arrangements, replaced system day action/detail dialogs with themed sheets, and added a themed year-month jump sheet | 2026-06-25 | `56fc4d1` | `utils/`, `pages/index/`, `tests/` |
+| 8 | Backfilled all repository history into GSD phase artifacts | 2026-06-26 | uncommitted | `.planning/HISTORY.md`, `.planning/phases/` |
+| 9 | Implemented Phase 2.1 calendar insights/monthly recap with TDD and homepage wiring | 2026-06-26 | uncommitted | `utils/`, `pages/index/`, `tests/`, `.planning/phases/02.1-*` |
 
 ## Research Artifacts
 
 | Topic | Date | File |
 |-------|------|------|
 | Period-tracker feature candidates and prediction model | 2026-06-24 | `.planning/research/period-tracker-features-and-prediction.md` |
+| High-rated calendar and period tracker patterns for explanations/recaps | 2026-06-26 | `.planning/phases/02.1-calendar-insight-monthly-recap/02.1-RESEARCH.md` |
 
 ## Current Verification Commands
 
 ```powershell
-node --test tests\calendar-display.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js
+node --test tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js
 node --check cloudfunctions\leaveRoom\roomLifecycle.js
 node --check cloudfunctions\leaveRoom\index.js
 node --check cloudfunctions\dataOp\roomRecords.js
@@ -49,6 +67,7 @@ node --check utils\room.js
 node --check utils\cloud.js
 node --check utils\util.js
 node --check utils\cycle.js
+node --check utils\calendarInsights.js
 node --check pages\bind\bind.js
 node --check pages\settings\settings.js
 node --check pages\index\index.js
@@ -62,7 +81,8 @@ node --check pages\period\edit\edit.js
 - Visual verification still requires WeChat DevTools.
 - Broader deployed cloud-function lifecycle tests are not yet automated; pure Node coverage now exists for `RoomRecords`, `RoomLifecycle`, and `RoomSession`.
 - WeChat DevTools CLI confirms `leaveRoom` exists in `cloud1-d8gyqvcez4e66b3da` with status `Active`; end-to-end unbind behavior still needs manual runtime verification in the simulator or on a device.
+- Phase 2.1 automated checks pass; manual WeChat DevTools visual verification remains before release sign-off.
 
 ## Next Recommended Action
 
-Manually verify the bind-page unbind flow in WeChat DevTools or on a device, then add deployed cloud-function adapter coverage for create/join/recover/leave where practical.
+Review and commit the GSD history backfill plus Phase 2.1 implementation, then run manual WeChat DevTools checks for homepage insight sheets and known room/settings flows.

@@ -1,6 +1,6 @@
 # Architecture
 
-**Analysis Date:** 2026-06-25
+**Analysis Date:** 2026-06-26
 
 ## System Overview
 
@@ -17,7 +17,7 @@
 ┌─────────────────────────────────────────────────────────────┐
 │                 Shared client service / utils               │
 │ `utils/room.js`, `utils/cloud.js`, `utils/util.js`,         │
-│ `utils/cycle.js`                                            │
+│ `utils/cycle.js`, `utils/calendarInsights.js`               │
 └────────┬────────────────────────────────────────────────────┘
          │
          ▼
@@ -49,6 +49,7 @@
 | Shared client API | Wraps cloud function calls and local room-code access | `utils/cloud.js` |
 | Date / calendar logic | Formats dates, computes holiday/lunar metadata, builds calendar grid | `utils/util.js`, `utils/chinaHolidays.js` |
 | Cycle model logic | Predicts cycle ranges, reminders, and period metadata labels | `utils/cycle.js` |
+| Calendar insight logic | Explains calendar markers, prediction math, day meanings, and monthly recap copy | `utils/calendarInsights.js` |
 | Backend CRUD gateway | Validates access and performs CRUD on records | `cloudfunctions/dataOp/index.js` |
 | Room record rules | Validates, normalizes, sorts, and mutates Room-scoped period/memory records | `cloudfunctions/dataOp/roomRecords.js` |
 | Room lifecycle rules | Revokes current-user Room membership, transfers remaining ownership, and deletes empty Rooms | `cloudfunctions/leaveRoom/roomLifecycle.js` |
@@ -60,6 +61,7 @@
 **Key Characteristics:**
 - Pages own presentation and user interaction; business state stays in page `data` and methods.
 - `utils/room.js` centralizes client-side Room session/cache behavior; `utils/cloud.js` is the only client-side path for record mutations and list reads.
+- `utils/calendarInsights.js` keeps explanation/monthly recap copy as pure presentation derivation outside the page controller.
 - Cloud functions enforce room-level access before touching shared records and own server-side Room membership changes.
 - Calendar rendering is derived from `periods`, `memories`, and computed prediction state rather than stored UI state.
 
@@ -103,6 +105,7 @@
 4. `cloudfunctions/dataOp/index.js` validates that the caller belongs to the room before reading or mutating `rooms`, `periods`, or `memories`.
 5. `cloudfunctions/dataOp/roomRecords.js` validates and normalizes Period record / Memory record payloads before writes.
 6. Returned records are transformed with `utils/util.js`, `utils/chinaHolidays.js`, and `utils/cycle.js` helpers into calendar days, lunar/holiday labels, cycle stats, prediction ranges, reminders, and period labels.
+7. `utils/calendarInsights.js` translates those derived records and prediction objects into legend rows, prediction explanation lines, day marker reasons, and monthly recap text.
 
 ### Room Binding Flow
 
@@ -160,6 +163,11 @@
 - Purpose: Convert period records into prediction ranges, confidence, reminder states, and display labels for flow/symptom metadata.
 - Examples: `utils/cycle.js`, `pages/index/index.js`, `pages/period/*`
 - Pattern: Keep health-adjacent math and labels in pure functions, then let pages render the resulting view model.
+
+**Calendar insight helpers:**
+- Purpose: Keep user-facing explanation text and monthly recap summaries testable outside page code.
+- Examples: `utils/calendarInsights.js`, `tests/calendar-insights.test.js`, `pages/index/index.js`
+- Pattern: Pure helpers consume existing calendar day flags, prediction objects, periods, and memories; the homepage renders returned display models.
 
 ## Entry Points
 
@@ -226,4 +234,4 @@
 
 ---
 
-*Architecture analysis: 2026-06-25*
+*Architecture analysis: 2026-06-26*

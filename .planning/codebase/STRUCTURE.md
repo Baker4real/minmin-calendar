@@ -1,6 +1,6 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-06-25
+**Analysis Date:** 2026-06-26
 
 ## Directory Layout
 
@@ -13,6 +13,7 @@ minmin-calendar/
 ├── cloudfunctions/
 ├── images/
 ├── pages/
+├── .planning/
 ├── scripts/
 ├── tests/
 ├── utils/
@@ -26,6 +27,11 @@ minmin-calendar/
 - Contains: `README.md`, `app.js`, `app.json`, `app.wxss`, `project.config.json`, `sitemap.json`.
 - Key files: `README.md`, `app.js`, `app.json`, `project.config.json`.
 
+**`.planning/`:**
+- Purpose: Durable GSD project workflow, history, requirements, roadmap, state, phase artifacts, and codebase maps.
+- Contains: `PROJECT.md`, `REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`, `HISTORY.md`, `codebase/`, `phases/`, `research/`.
+- Key files: `.planning/HISTORY.md`, `.planning/STATE.md`, `.planning/phases/02.1-calendar-insight-monthly-recap/02.1-01-PLAN.md`.
+
 **`pages/`:**
 - Purpose: User-facing mini program screens and page-specific logic.
 - Contains: One folder per page, each with `*.js`, `*.json`, `*.wxml`, `*.wxss`.
@@ -33,8 +39,8 @@ minmin-calendar/
 
 **`utils/`:**
 - Purpose: Shared client helpers.
-- Contains: Room session/cache logic, date/calendar utilities, published holiday data, cycle prediction helpers, period metadata helpers, and cloud-function wrappers.
-- Key files: `utils/room.js`, `utils/util.js`, `utils/chinaHolidays.js`, `utils/cycle.js`, `utils/cloud.js`.
+- Contains: Room session/cache logic, date/calendar utilities, published holiday data, cycle prediction helpers, calendar insight display helpers, period metadata helpers, and cloud-function wrappers.
+- Key files: `utils/room.js`, `utils/util.js`, `utils/chinaHolidays.js`, `utils/cycle.js`, `utils/calendarInsights.js`, `utils/cloud.js`.
 
 **`cloudfunctions/`:**
 - Purpose: Server-side logic for room management, membership revoke, and shared record persistence.
@@ -48,8 +54,8 @@ minmin-calendar/
 
 **`tests/`:**
 - Purpose: Automated checks for shared calendar behavior, Room session behavior, Room lifecycle behavior, and Room-scoped record rules.
-- Contains: Test files such as `tests/calendar-display.test.js`, `tests/cycle-prediction.test.js`, `tests/room-lifecycle.test.js`, `tests/room-records.test.js`, and `tests/room-session.test.js`.
-- Key files: `tests/calendar-display.test.js`, `tests/cycle-prediction.test.js`, `tests/room-lifecycle.test.js`, `tests/room-records.test.js`, `tests/room-session.test.js`.
+- Contains: Test files such as `tests/calendar-display.test.js`, `tests/calendar-insights.test.js`, `tests/cycle-prediction.test.js`, `tests/room-lifecycle.test.js`, `tests/room-records.test.js`, and `tests/room-session.test.js`.
+- Key files: `tests/calendar-display.test.js`, `tests/calendar-insights.test.js`, `tests/cycle-prediction.test.js`, `tests/room-lifecycle.test.js`, `tests/room-records.test.js`, `tests/room-session.test.js`.
 
 **`scripts/`:**
 - Purpose: Maintenance and environment automation scripts.
@@ -76,6 +82,7 @@ minmin-calendar/
 - `utils/util.js`: Calendar/date calculations.
 - `utils/chinaHolidays.js`: Published China public holiday and adjusted-workday data for 2001-2026.
 - `utils/cycle.js`: Cycle prediction, reminders, flow labels, and symptom labels.
+- `utils/calendarInsights.js`: Calendar legend, prediction explanation, day meaning, and monthly recap display helpers.
 - `pages/index/index.js`: Derived calendar view model.
 - `cloudfunctions/dataOp/index.js`: CRUD gateway for shared records.
 - `cloudfunctions/dataOp/roomRecords.js`: Server-side validation and normalization for Room-scoped records.
@@ -84,6 +91,7 @@ minmin-calendar/
 
 **Testing:**
 - `tests/calendar-display.test.js`: Calendar display and template contract coverage.
+- `tests/calendar-insights.test.js`: Calendar insight and monthly recap helper coverage.
 - `tests/cycle-prediction.test.js`: Cycle prediction, reminder, and period metadata coverage.
 - `tests/room-lifecycle.test.js`: Server-side Room leave/unpair and ownership transfer behavior.
 - `tests/room-records.test.js`: Server-side Period record / Memory record validation and Room ownership behavior.
@@ -141,6 +149,11 @@ minmin-calendar/
 - Generated: No.
 - Committed: Yes.
 
+**`.planning/phases/`:**
+- Purpose: GSD phase context, plans, summaries, and verification reports.
+- Generated: Partially; backfilled and maintained as durable project workflow artifacts.
+- Committed: Yes.
+
 ---
 
-*Structure analysis: 2026-06-25*
+*Structure analysis: 2026-06-26*

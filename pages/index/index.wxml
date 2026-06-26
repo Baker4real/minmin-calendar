@@ -35,6 +35,21 @@
       <view class="nav-btn" bindtap="nextMonth">›</view>
     </view>
 
+    <view class="meaning-toolbar">
+      <view class="meaning-tool" bindtap="openLegendSheet">
+        <text class="meaning-tool-icon">?</text>
+        <text class="meaning-tool-text">图例</text>
+      </view>
+      <view class="meaning-tool" bindtap="openPredictionSheet">
+        <text class="meaning-tool-icon">预</text>
+        <text class="meaning-tool-text">预测</text>
+      </view>
+      <view class="meaning-tool" bindtap="openMonthlyRecap">
+        <text class="meaning-tool-icon">月</text>
+        <text class="meaning-tool-text">小结</text>
+      </view>
+    </view>
+
     <view class="week-header">
       <view class="week-cell" wx:for="{{weekDays}}" wx:key="*this">{{item}}</view>
     </view>
@@ -206,6 +221,17 @@
 
       <block wx:elif="{{daySheetMode == 'detail'}}">
         <view class="day-detail-list">
+          <view wx:if="{{selectedDayDetail.meanings && selectedDayDetail.meanings.length}}" class="detail-meaning-list">
+            <view
+              wx:for="{{selectedDayDetail.meanings}}"
+              wx:key="key"
+              class="detail-meaning {{item.key}}"
+            >
+              <text class="detail-meaning-title">{{item.title}}</text>
+              <text class="detail-meaning-text">{{item.text}}</text>
+            </view>
+          </view>
+
           <view wx:if="{{selectedDayDetail.empty}}" class="day-detail-empty">
             <text class="detail-empty-title">当天无记录</text>
             <text class="detail-empty-desc">可以从这里补一条经期或记忆</text>
@@ -248,6 +274,58 @@
           </view>
         </view>
       </block>
+    </view>
+  </view>
+
+  <view wx:if="{{infoSheetVisible}}" class="day-sheet-mask calendar-info-sheet" bindtap="closeInfoSheet">
+    <view class="day-action-sheet calendar-info-panel safe-bottom" catchtap="noop">
+      <view class="sheet-handle"></view>
+      <view class="sheet-head">
+        <view class="sheet-date-copy">
+          <text wx:if="{{infoSheetMode == 'legend'}}" class="sheet-title">日历图例</text>
+          <text wx:elif="{{infoSheetMode == 'prediction'}}" class="sheet-title">{{predictionExplanation.title}}</text>
+          <text wx:elif="{{infoSheetMode == 'recap' && monthlyRecap}}" class="sheet-title">{{monthlyRecap.title}}</text>
+          <text class="sheet-subtitle">{{year}}年{{month + 1}}月</text>
+        </view>
+        <view class="sheet-close" bindtap="closeInfoSheet">×</view>
+      </view>
+
+      <view wx:if="{{infoSheetMode == 'legend'}}" class="legend-list">
+        <view
+          wx:for="{{legendItems}}"
+          wx:key="key"
+          class="legend-row {{item.key}}"
+        >
+          <text class="legend-symbol">{{item.marker}}</text>
+          <view class="legend-copy">
+            <text class="legend-title">{{item.title}}</text>
+            <text class="legend-text">{{item.text}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view wx:elif="{{infoSheetMode == 'prediction'}}" class="prediction-explanation">
+        <text class="prediction-summary">{{predictionExplanation.summary}}</text>
+        <view
+          wx:for="{{predictionExplanation.lines}}"
+          wx:key="*this"
+          class="explain-line"
+        >{{item}}</view>
+      </view>
+
+      <view wx:elif="{{infoSheetMode == 'recap' && monthlyRecap}}" class="monthly-recap">
+        <text class="recap-summary">{{monthlyRecap.periodSummary}}</text>
+        <text class="recap-summary">{{monthlyRecap.memorySummary}}</text>
+        <text class="recap-summary">{{monthlyRecap.predictionSummary}}</text>
+        <view wx:if="{{monthlyRecap.highlights.length}}" class="recap-highlights">
+          <view
+            wx:for="{{monthlyRecap.highlights}}"
+            wx:key="*this"
+            class="recap-highlight"
+          >{{item}}</view>
+        </view>
+        <view class="copy-recap" bindtap="copyMonthlyRecap">复制小结</view>
+      </view>
     </view>
   </view>
 </view>

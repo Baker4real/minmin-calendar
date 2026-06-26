@@ -247,6 +247,35 @@ test('index month title opens a themed year-month jump sheet', () => {
   assert.match(wxss, /\.jump-confirm\s*{[\s\S]*min-height:\s*88rpx/)
 })
 
+test('index exposes calendar meaning and monthly recap sheets', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
+
+  assert.match(js, /calendarInsights/)
+  assert.match(js, /openLegendSheet\(\)/)
+  assert.match(js, /openPredictionSheet\(\)/)
+  assert.match(js, /openMonthlyRecap\(\)/)
+  assert.match(js, /copyMonthlyRecap\(\)/)
+  assert.match(js, /selectedDayDetail:\s*{[\s\S]*meanings:/)
+
+  assert.match(wxml, /meaning-toolbar/)
+  assert.match(wxml, /bindtap="openLegendSheet"/)
+  assert.match(wxml, /bindtap="openPredictionSheet"/)
+  assert.match(wxml, /bindtap="openMonthlyRecap"/)
+  assert.match(wxml, /calendar-info-sheet/)
+  assert.match(wxml, /legend-list/)
+  assert.match(wxml, /prediction-explanation/)
+  assert.match(wxml, /monthly-recap/)
+  assert.match(wxml, /copyMonthlyRecap/)
+  assert.match(wxml, /selectedDayDetail\.meanings/)
+
+  assert.match(wxss, /\.meaning-toolbar/)
+  assert.match(wxss, /\.calendar-info-sheet/)
+  assert.match(wxss, /\.monthly-recap/)
+  assert.match(wxss, /\.detail-meaning/)
+})
+
 test('period edit page exposes flow and symptom controls', () => {
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/period/edit/edit.wxml'), 'utf8')
 

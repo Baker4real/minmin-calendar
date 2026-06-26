@@ -1,6 +1,7 @@
 const util = require('../../utils/util')
 const cloud = require('../../utils/cloud')
 const cycle = require('../../utils/cycle')
+const calendarInsights = require('../../utils/calendarInsights')
 
 Page({
   data: {
@@ -33,7 +34,13 @@ Page({
     predictionRangeDisplay: '',
     predictionWindow: null,
     predictConfidence: null,
+    predictionDetail: null,
+    predictionExplanation: calendarInsights.buildPredictionExplanation(null),
     cycleReminders: [],
+    legendItems: calendarInsights.CALENDAR_LEGEND_ITEMS,
+    infoSheetVisible: false,
+    infoSheetMode: '',
+    monthlyRecap: null,
     dayActionSheetVisible: false,
     daySheetMode: 'actions',
     selectedDate: '',
@@ -91,6 +98,8 @@ Page({
         predictionRangeDisplay: '',
         predictionWindow: null,
         predictConfidence: null,
+        predictionDetail: prediction,
+        predictionExplanation: calendarInsights.buildPredictionExplanation(prediction),
         cycleReminders: []
       })
       return
@@ -108,6 +117,8 @@ Page({
         rangeEnd: prediction.rangeEnd
       },
       predictConfidence: prediction.confidenceText,
+      predictionDetail: prediction,
+      predictionExplanation: calendarInsights.buildPredictionExplanation(prediction),
       cycleReminders: cycle.buildCycleReminders(prediction, periods)
     })
   },
@@ -187,6 +198,46 @@ Page({
 
   goBind() { wx.redirectTo({ url: '/pages/bind/bind' }) },
 
+  openLegendSheet() {
+    this.setData({
+      infoSheetVisible: true,
+      infoSheetMode: 'legend'
+    })
+  },
+
+  openPredictionSheet() {
+    this.setData({
+      infoSheetVisible: true,
+      infoSheetMode: 'prediction'
+    })
+  },
+
+  openMonthlyRecap() {
+    const { year, month, periods, memories } = this.data
+    const prediction = cycle.predictNextPeriod(periods)
+    this.setData({
+      infoSheetVisible: true,
+      infoSheetMode: 'recap',
+      monthlyRecap: calendarInsights.buildMonthlyRecap({ year, month, periods, memories, prediction })
+    })
+  },
+
+  closeInfoSheet() {
+    this.setData({
+      infoSheetVisible: false,
+      infoSheetMode: ''
+    })
+  },
+
+  copyMonthlyRecap() {
+    const recap = this.data.monthlyRecap
+    if (!recap || !recap.shareText) return
+    wx.setClipboardData({
+      data: recap.shareText,
+      success: () => wx.showToast({ title: '已复制小结', icon: 'none' })
+    })
+  },
+
   onDayTap(e) {
     const date = e.currentTarget.dataset.date
     if (!date) return
@@ -251,6 +302,7 @@ Page({
       selectedDate: date,
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
       selectedDayDetail: {
+        meanings: calendarInsights.buildDayMeanings(selectedDay),
         periods: periodDetails,
         memories: memoryDetails,
         empty: !periodDetails.length && !memoryDetails.length
