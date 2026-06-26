@@ -92,21 +92,25 @@
 | CAL-06 | Phase 2.1 | Satisfied (manual visual check pending) |
 | CAL-09 | Phase 2.1 | Satisfied (manual visual check pending) |
 | CAL-10 | Phase 2.1 | Satisfied (manual visual check pending) |
-| REC-01 | Phase 4 | Pending |
-| REC-02 | Phase 4 | Pending |
-| REC-03 | Phase 4 | Pending |
+| REC-01 | Phase 4 / Phase 7 | Pending |
+| REC-02 | Phase 4 / Phase 7 | Pending |
+| REC-03 | Phase 4 / Phase 7 | Pending |
 | REC-04 | Phase 4 | Satisfied |
 | ROOM-01 | Phase 3 | Partial |
 | ROOM-02 | Phase 3 | Partial |
 | ROOM-03 | Phase 3 | Satisfied |
 | ROOM-04 | Phase 3 | Satisfied |
-| SET-01 | Phase 4 | Pending |
-| SET-02 | Phase 4 | Pending |
+| SET-01 | Phase 4 / Phase 7 | Pending |
+| SET-02 | Phase 4 / Phase 7 | Pending |
 | SET-03 | Phase 4 | Satisfied |
 | QUAL-01 | Phase 1 / Phase 2 / Phase 2.1 | Satisfied for current automated scope |
 | QUAL-02 | All implementation phases | Satisfied for current touched files |
 | QUAL-03 | Phase 5 | Satisfied |
 | QUAL-04 | Phase 1 / Phase 2 | Satisfied |
+| REL-01 | Phase 7 | Pending |
+| REL-02 | Phase 7 | Partial |
+| TEST-01 | Phase 7 | Partial |
+| TEST-02 | Future / conditional | Pending until a suitable mini program screenshot runner is selected |
 
 **Coverage:**
 - v1 requirements: 24 total

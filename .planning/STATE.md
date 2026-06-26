@@ -1,13 +1,13 @@
 # Project State: Minmin Calendar
 
-Last activity: 2026-06-26 - Implemented Phase 6 calendar density preference and month-picker return-to-today shortcut.
+Last activity: 2026-06-26 - Added Phase 7 for architecture quality and reliability hardening.
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-06-26)
 
 **Core value:** Two people can reliably see the same private calendar state and understand what each calendar marker means at a glance.  
-**Current focus:** Phase 6 automated work complete; next feature work can continue with Phase 4 record/settings polish or reliability follow-ups.
+**Current focus:** Phase 7 architecture quality and reliability hardening: RoomDataClient/stale repair, record/settings flow polish, calendar view-model cleanup, and final architecture review.
 
 ## Roadmap Status
 
@@ -21,6 +21,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 | 4. Record and Settings Flow Polish | Partial / Gaps Found | 35% | Period metadata and local cache behavior are done; broader record/settings polish remains |
 | 5. Documentation and Release Readiness | Backfilled / Human Check Needed | 80% | History ledger and phase artifacts exist; release smoke test remains manual |
 | 6. Calendar Density and Today Jump | Implemented / Automated Checks Passed | 100% | Full density defaults on; compact/full choice persists locally; month picker has return-to-today |
+| 7. Architecture Quality and Reliability Hardening | Added / Planning | 0% | Follow-up phase for recommended architecture deepening and remaining non-manual planned gaps |
 
 ## GSD History Artifacts
 
@@ -35,6 +36,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 | `.planning/phases/04-record-settings-flow-polish/` | Partial record/settings polish backfill |
 | `.planning/phases/05-documentation-release-readiness/` | Documentation/history backfill |
 | `.planning/phases/06-calendar-density-today-jump/` | CAL-05 density preference and month-picker today shortcut |
+| `.planning/phases/07-architecture-quality-and-reliability-hardening/` | Architecture hardening, reliability gaps, record/settings polish, and final review |
 
 ## Quick Tasks Completed
 
@@ -50,7 +52,13 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 | 8 | Backfilled all repository history into GSD phase artifacts | 2026-06-26 | `4e033b0` | `.planning/HISTORY.md`, `.planning/phases/` |
 | 9 | Implemented Phase 2.1 calendar insights/monthly recap with TDD and homepage wiring | 2026-06-26 | `4e033b0` | `utils/`, `pages/index/`, `tests/`, `.planning/phases/02.1-*` |
 | 10 | Created GSD handoff state for Phase 2.1 continuation | 2026-06-26 | `e9f080d` | `.planning/HANDOFF.json`, `.planning/phases/02.1-*/.continue-here.md` |
-| 11 | Implemented remembered calendar density control and month-picker return-to-today action | 2026-06-26 | uncommitted | `pages/index/`, `tests/`, `.planning/phases/06-*` |
+| 11 | Implemented remembered calendar density control and month-picker return-to-today action | 2026-06-26 | `4adf3fc` | `pages/index/`, `tests/`, `.planning/phases/06-*` |
+
+## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 7 added: Architecture Quality and Reliability Hardening
 
 ## Research Artifacts
 
@@ -89,4 +97,4 @@ node --check pages\period\edit\edit.js
 
 ## Next Recommended Action
 
-If continuing feature work while ignoring manual visual checks, the clearest next slices are Phase 4 record/settings polish, REL-01 retry actions for cloud failures, or REL-02 stale room-code repair.
+Plan and execute Phase 7 through the full GSD flow, starting with RoomDataClient/stale room-code repair before record/settings and calendar view-model quality passes.
