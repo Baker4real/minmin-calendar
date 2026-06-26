@@ -45,6 +45,58 @@ test('RoomSession returns a recoverable error when cloud room sync fails', async
   assert.equal(storage.get('roomCode'), '')
 })
 
+test('RoomSession repairCachedRoom recovers and caches the current room from cloud', async () => {
+  const storage = createMemoryStorage({ roomCode: 'ROOM01' })
+  const cloud = createFakeCloud({
+    getMyRoom: { code: 0, room: { roomCode: ' room02 ' } }
+  })
+  const session = createRoomSession({ storage, cloud })
+
+  const result = await session.repairCachedRoom('ROOM01')
+
+  assert.deepEqual(result, {
+    kind: 'success',
+    bound: true,
+    roomCode: 'ROOM02'
+  })
+  assert.equal(storage.get('roomCode'), 'ROOM02')
+  assert.deepEqual(cloud.calls, [{ name: 'getMyRoom' }])
+})
+
+test('RoomSession repairCachedRoom clears stale local room state when cloud reports no active room', async () => {
+  const storage = createMemoryStorage({ roomCode: 'ROOM01' })
+  const cloud = createFakeCloud({
+    getMyRoom: { code: 1, msg: '未加入任何房间' }
+  })
+  const session = createRoomSession({ storage, cloud })
+
+  const result = await session.repairCachedRoom('ROOM01')
+
+  assert.deepEqual(result, {
+    kind: 'success',
+    bound: false,
+    roomCode: ''
+  })
+  assert.equal(storage.get('roomCode'), '')
+  assert.deepEqual(cloud.calls, [{ name: 'getMyRoom' }])
+})
+
+test('RoomSession repairCachedRoom returns a retryable failure when cloud room sync fails', async () => {
+  const storage = createMemoryStorage({ roomCode: 'ROOM01' })
+  const cloud = createFakeCloud({
+    getMyRoom: new Error('network down')
+  })
+  const session = createRoomSession({ storage, cloud })
+
+  const result = await session.repairCachedRoom('ROOM01')
+
+  assert.deepEqual(result, {
+    kind: 'retryable-failure',
+    message: '同步房间状态失败：network down'
+  })
+  assert.equal(storage.get('roomCode'), 'ROOM01')
+})
+
 test('RoomSession createRoom caches the created room code', async () => {
   const storage = createMemoryStorage()
   const cloud = createFakeCloud({
