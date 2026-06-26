@@ -1,7 +1,7 @@
 const util = require('../../utils/util')
 const cloud = require('../../utils/cloud')
-const cycle = require('../../utils/cycle')
 const calendarInsights = require('../../utils/calendarInsights')
+const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
 
@@ -49,6 +49,7 @@ Page({
     selectedDate: '',
     selectedDateSubtitle: '',
     selectedDayDetail: null,
+    dayDetailsByDate: {},
     loading: true, noRoom: false
   },
 
@@ -81,10 +82,7 @@ Page({
         cloud.getPeriods(),
         cloud.getMemories()
       ])
-      this.setData({ periods, memories })
-      this.calcStats(periods)
-      // ⚠️ 关键修复：数据加载后重新渲染日历网格
-      this.renderCalendar()
+      this.applyHomeCalendarState({ periods, memories })
     } catch (e) {
       console.error('load error', e)
       wx.showToast({ title: '数据加载失败，请检查网络', icon: 'none' })
@@ -94,47 +92,26 @@ Page({
   },
 
   calcStats(periods) {
-    const prediction = cycle.predictNextPeriod(periods)
-    if (!prediction.canPredict) {
-      this.setData({
-        avgCycle: null,
-        avgDuration: null,
-        nextPredict: null,
-        nextPredictDisplay: '--',
-        nextPredictWeekday: '',
-        predictionRangeDisplay: '',
-        predictionWindow: null,
-        predictConfidence: null,
-        predictionDetail: prediction,
-        predictionExplanation: calendarInsights.buildPredictionExplanation(prediction),
-        cycleReminders: []
-      })
-      return
-    }
-
-    this.setData({
-      avgCycle: prediction.avgCycle,
-      avgDuration: prediction.avgDuration,
-      nextPredict: prediction.nextStart,
-      nextPredictDisplay: prediction.nextDisplay,
-      nextPredictWeekday: prediction.nextWeekday,
-      predictionRangeDisplay: prediction.rangeDisplay,
-      predictionWindow: {
-        rangeStart: prediction.rangeStart,
-        rangeEnd: prediction.rangeEnd
-      },
-      predictConfidence: prediction.confidenceText,
-      predictionDetail: prediction,
-      predictionExplanation: calendarInsights.buildPredictionExplanation(prediction),
-      cycleReminders: cycle.buildCycleReminders(prediction, periods)
-    })
+    this.applyHomeCalendarState({ periods })
   },
 
   renderCalendar() {
-    const { year, month, periods, memories, predictionWindow } = this.data
-    const today = util.formatDate(new Date())
-    const days = util.buildCalendarDays({ year, month, periods, memories, nextPredict: this.data.nextPredict, predictionWindow, today })
-    this.setData({ days })
+    this.applyHomeCalendarState()
+  },
+
+  applyHomeCalendarState(overrides = {}) {
+    const hasOwn = (key) => Object.prototype.hasOwnProperty.call(overrides, key)
+    const periods = hasOwn('periods') ? overrides.periods : this.data.periods
+    const memories = hasOwn('memories') ? overrides.memories : this.data.memories
+    const year = hasOwn('year') ? overrides.year : this.data.year
+    const month = hasOwn('month') ? overrides.month : this.data.month
+    const today = hasOwn('today') ? overrides.today : util.formatDate(new Date())
+
+    this.setData({
+      periods,
+      memories,
+      ...buildHomeCalendarState({ year, month, periods, memories, today })
+    })
   },
 
   prevMonth() {
@@ -253,12 +230,10 @@ Page({
   },
 
   openMonthlyRecap() {
-    const { year, month, periods, memories } = this.data
-    const prediction = cycle.predictNextPeriod(periods)
     this.setData({
       infoSheetVisible: true,
       infoSheetMode: 'recap',
-      monthlyRecap: calendarInsights.buildMonthlyRecap({ year, month, periods, memories, prediction })
+      monthlyRecap: this.data.monthlyRecap
     })
   },
 
@@ -320,32 +295,18 @@ Page({
   noop() {},
 
   showDayDetail(date) {
-    const { periods, memories } = this.data
     const selectedDay = this.data.days.find(day => day.date === date) || { date }
-    const periodDetails = periods.filter(p => date >= p.startDate && date <= p.endDate).map(p => {
-      const detail = cycle.decoratePeriod(p)
-      const meta = []
-      if (detail.flowLabel) meta.push(`经量 ${detail.flowLabel}`)
-      if (detail.symptomText) meta.push(detail.symptomText)
-      return {
-        range: `${p.startDate} ~ ${p.endDate}`,
-        metaText: meta.join(' · ')
-      }
-    })
-    const memoryDetails = memories.filter(m => m.date === date).map(m => {
-      return { note: m.note || '特别日子' }
-    })
 
     this.setData({
       dayActionSheetVisible: true,
       daySheetMode: 'detail',
       selectedDate: date,
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
-      selectedDayDetail: {
-        meanings: calendarInsights.buildDayMeanings(selectedDay),
-        periods: periodDetails,
-        memories: memoryDetails,
-        empty: !periodDetails.length && !memoryDetails.length
+      selectedDayDetail: this.data.dayDetailsByDate[date] || {
+        meanings: [],
+        periods: [],
+        memories: [],
+        empty: true
       }
     })
   },

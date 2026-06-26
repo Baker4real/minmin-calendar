@@ -302,7 +302,8 @@ test('index exposes calendar meaning and monthly recap sheets', () => {
   assert.match(js, /openPredictionSheet\(\)/)
   assert.match(js, /openMonthlyRecap\(\)/)
   assert.match(js, /copyMonthlyRecap\(\)/)
-  assert.match(js, /selectedDayDetail:\s*{[\s\S]*meanings:/)
+  assert.match(js, /dayDetailsByDate:\s*\{\}/)
+  assert.match(js, /selectedDayDetail:\s*this\.data\.dayDetailsByDate\[date\]\s*\|\|\s*{[\s\S]*meanings:\s*\[\]/)
 
   assert.match(wxml, /meaning-toolbar/)
   assert.match(wxml, /bindtap="openLegendSheet"/)

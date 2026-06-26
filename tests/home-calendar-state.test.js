@@ -112,7 +112,7 @@ test('buildHomeCalendarState reuses cycle and insight helpers for predictable re
   const detail = state.dayDetailsByDate['2026-08-10']
   assert.deepEqual(
     detail.meanings.map(item => item.key),
-    ['memory', 'predict']
+    ['today', 'memory', 'predict']
   )
   assert.deepEqual(detail.memories, [
     { note: '庆祝晚餐' }
