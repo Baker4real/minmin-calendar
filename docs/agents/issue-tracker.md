@@ -30,7 +30,7 @@ What should be true when this is done?
 
 ## Notes
 
-Links to `.planning/`, screenshots, or code paths.
+Links to screenshots, ADRs, or code paths.
 ```
 
 ## External PRs

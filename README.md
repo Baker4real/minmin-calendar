@@ -18,7 +18,6 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 - `utils/cycle.js` - cycle prediction, reminders, and period metadata labels.
 - `utils/calendarInsights.js` - calendar marker explanations, prediction explanation, and monthly recap copy.
 - `cloudfunctions/` - WeChat Cloud Functions for room lifecycle and record persistence.
-- `.planning/` - GSD project state, requirements, roadmap, and codebase map.
 
 ## Local Development
 
@@ -76,10 +75,6 @@ Do not commit:
 - `scripts/`
 - `hermes-*.csv` / `hermes-*.md`
 
-## Planning
+## Project Notes
 
-Use GSD Core for non-trivial work. Start with:
-
-- `.planning/PROJECT.md`
-- `.planning/STATE.md`
-- relevant files under `.planning/codebase/`
+This is a regular non-GSD repository. For non-trivial work, start with `CONTEXT.md`, the relevant files under `docs/`, and the source/test files for the area being changed.

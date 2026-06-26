@@ -28,17 +28,15 @@ Core domain files:
 - `cloudfunctions/dataOp/dataOpHandler.js` - server-side room authorization and dataOp dispatch seam.
 - `cloudfunctions/leaveRoom/**` - server-side room membership revoke and ownership-transfer flow.
 
-## Durable Workflow
+## Workflow
 
-Use GSD Core for non-trivial project work. The current project state lives in `.planning/`:
+This is a regular non-GSD repository. Use the root project docs as the durable context:
 
-- `.planning/PROJECT.md` - product context and core value.
-- `.planning/REQUIREMENTS.md` - checkable requirements.
-- `.planning/ROADMAP.md` - phased work plan.
-- `.planning/STATE.md` - current status and next action.
-- `.planning/codebase/` - codebase map.
+- `README.md` - project shape, local development, verification, and repository hygiene.
+- `CONTEXT.md` - domain context, technical shape, boundaries, and current concerns.
+- `docs/adr/` - architecture decisions that affect future implementation choices.
 
-Before planning or implementation, read `.planning/PROJECT.md`, `.planning/STATE.md`, and the relevant `.planning/codebase/*.md` files. Refresh `.planning/codebase/` after significant structural changes.
+Before non-trivial implementation, read `CONTEXT.md` plus the relevant source and test files.
 
 ## Verification
 

@@ -9,13 +9,11 @@ This repository uses a single-context documentation layout.
 | Domain context | `CONTEXT.md` |
 | Architecture decisions | `docs/adr/` |
 | Agent workflow config | `docs/agents/` |
-| GSD project state | `.planning/` |
 
 ## Consumer Rules
 
 - Read `CONTEXT.md` before making domain or UX decisions.
-- Read `.planning/PROJECT.md` and `.planning/STATE.md` before starting non-trivial work.
-- Read relevant `.planning/codebase/*.md` files before touching architecture, cloud functions, date logic, or UI conventions.
+- Read relevant source, tests, and ADRs before touching architecture, cloud functions, date logic, or UI conventions.
 - Add ADRs under `docs/adr/` for decisions that affect future implementation choices.
 
 ## Current Domain Boundaries
