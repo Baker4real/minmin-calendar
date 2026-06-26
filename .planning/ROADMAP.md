@@ -137,7 +137,7 @@
 
 **Requirements:** REL-01, REL-02, REC-01, REC-02, REC-03, SET-01, SET-02, TEST-01, QUAL-01, QUAL-02, QUAL-03
 **Depends on:** Phase 6
-**Plans:** 0 plans
+**Plans:** 5 plans
 
 **Success Criteria:**
 
@@ -149,7 +149,11 @@
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 7 to break down)
+- [ ] 07-01-PLAN.md — RoomDataClient, stale room-code repair, and client reliability tests
+- [ ] 07-02-PLAN.md — Period/memory record command helpers and page-flow tests
+- [ ] 07-03-PLAN.md — Settings copy/export/local-cache flow helper and tests
+- [ ] 07-04-PLAN.md — Homepage calendar view-model seam and marker regression tests
+- [ ] 07-05-PLAN.md — Cloud authorization harness, final architecture audit, and planning-state refresh
 
 ---
 *Last updated: 2026-06-26 after Phase 6 calendar density and today-jump completion*
