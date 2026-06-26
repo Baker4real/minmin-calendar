@@ -1,79 +1,66 @@
 ---
 phase: 07
-fixed_at: 2026-06-26T17:52:36.2819552+08:00
+fixed_at: 2026-06-26T18:05:25.8130158+08:00
 review_path: .planning/phases/07-architecture-quality-and-reliability-hardening/07-REVIEW.md
-iteration: 1
-findings_in_scope: 4
-fixed: 4
+iteration: 2
+findings_in_scope: 2
+fixed: 2
 skipped: 0
 status: all_fixed
+commits:
+  - 228e216
+tests:
+  - node --check utils/settingsFlow.js
+  - node --check pages/settings/settings.js
+  - node --check tests/settings-flow.test.js
+  - node --check tests/page-registration.test.js
+  - node --test tests/settings-flow.test.js tests/page-registration.test.js
+  - node --test tests/page-registration.test.js tests/room-data-client.test.js tests/record-flow.test.js tests/settings-flow.test.js tests/home-calendar-state.test.js tests/data-op-auth.test.js tests/calendar-display.test.js tests/calendar-insights.test.js tests/cycle-prediction.test.js tests/room-lifecycle.test.js tests/room-records.test.js tests/room-session.test.js
 ---
 
 # Phase 07: Code Review Fix Report
 
-**Fixed at:** 2026-06-26T17:52:36.2819552+08:00
+**Fixed at:** 2026-06-26T18:05:25.8130158+08:00
 **Source review:** `.planning/phases/07-architecture-quality-and-reliability-hardening/07-REVIEW.md`
-**Iteration:** 1
+**Iteration:** 2
 
 **Summary:**
-- Findings in scope: 4
-- Fixed: 4
+- Findings in scope: 2
+- Fixed: 2
 - Skipped: 0
 
 ## Fixed Issues
 
-### CR-01: [BLOCKER] 首页仍然绕过 Phase 07 的房间恢复/修复协议
+### CR-01: [BLOCKER] 设置页仍把房间修复失败的可重试状态误导成“去绑定/未绑定”
 
 **Status:** fixed: requires human verification
-**Files modified:** `pages/index/index.js`, `pages/index/index.wxml`, `tests/calendar-display.test.js`
-**Commit:** `491317e`
-**Applied fix:** 首页不再读取 `cloud.getRoomCode()` 或旧的 `cloud.getPeriods()/getMemories()` 包装层，改为直接消费 `createRoomDataClient().list(...)` 结果，并把 `no-room` / `retryable-failure` / `room-repair` 显式映射成“去绑定 / 重试 / 重新加载”页面状态。
+**Files modified:** `utils/settingsFlow.js`, `pages/settings/settings.js`, `tests/settings-flow.test.js`, `tests/page-registration.test.js`
+**Commit:** `228e216`
+**Applied fix:** 设置导出失败链路改成三态处理：`repair.success + bound` 继续提示重试导出，`repair.success + !bound` 才提示重新绑定，`repair.retryable-failure` 或缺失修复信息时保持可重试并沿用修复消息；settings 页仅在修复成功时同步房间显示，避免把失败状态误降级成 `未绑定`。
 
-### CR-02: [BLOCKER] 活跃房间恢复失败被错误降级成“未绑定”，把可重试故障导向重新绑定
-
-**Status:** fixed: requires human verification
-**Files modified:** `utils/room.js`, `utils/cloud.js`, `pages/settings/settings.js`, `pages/settings/settings.wxml`, `tests/room-session.test.js`, `tests/room-data-client.test.js`
-**Commit:** `fc019d1`
-**Applied fix:** `RoomSession.getActiveRoom()` 现在保留显式 `retryable-failure` / `no-room` / `success` 语义；`createRoomDataClient()` 会把活跃房间同步失败继续向上报成可重试故障；设置页改为区分真实未绑定和“同步失败，请重试”，并在导出修复成功后同步展示新的房间码。
-
-### CR-03: [BLOCKER] 共享重试流程会重放非幂等写操作，超时后可能重复新增或二次删除记录
-
-**Status:** fixed: requires human verification
-**Files modified:** `utils/recordCommands.js`, `tests/record-flow.test.js`
-**Commit:** `b9d4330`
-**Applied fix:** `runRecordSave()` / `runRecordDelete()` 遇到未知结果的 `retryable-failure` 时不再直接重放 mutation，而是提示用户返回列表刷新确认结果；`runRecordListLoad()` 仍保留对幂等列表读取的重试能力。
-
-### WR-01: [WARNING] 新增测试没有执行到页面生命周期分支，DevTools 类回归仍然可以整套通过
+### WR-01: [WARNING] 现有回归没有覆盖“room-repair 里的 repair 再次失败”分支
 
 **Status:** fixed
-**Files modified:** `tests/page-registration.test.js`, `tests/settings-flow.test.js`
-**Commit:** `4222077`
-**Applied fix:** 页面测试从“只验证 `Page(...)` 注册成功”升级为真实 runtime harness，实际执行 `pages/index/index.js`、`pages/period/period.js`、`pages/memory/memory.js`、`pages/settings/settings.js` 的 `onShow()` / `loadData()` / `exportData()` 分支，并断言重试、重绑和房间同步状态。
+**Files modified:** `tests/settings-flow.test.js`, `tests/page-registration.test.js`
+**Commit:** `228e216`
+**Applied fix:** 新增 helper 级回归，断言 `room-repair.repair.retryable-failure` 会弹出“房间同步失败/重试”；新增 settings 页 harness 回归，断言导出遇到该分支时保留已有 `roomCodeDisplay`，不会被重写成 `未绑定`。
 
 ## Verification
 
 **Targeted tests:**
-- `node --test tests/page-registration.test.js tests/room-data-client.test.js tests/room-session.test.js tests/record-flow.test.js tests/settings-flow.test.js tests/calendar-display.test.js`
+- `node --check utils/settingsFlow.js`
+- `node --check pages/settings/settings.js`
+- `node --check tests/settings-flow.test.js`
+- `node --check tests/page-registration.test.js`
+- `node --test tests/settings-flow.test.js tests/page-registration.test.js`
+- Result: 16 passing `node:test` cases, 0 failures
 
 **Broad suite:**
 - `node --test tests/page-registration.test.js tests/room-data-client.test.js tests/record-flow.test.js tests/settings-flow.test.js tests/home-calendar-state.test.js tests/data-op-auth.test.js tests/calendar-display.test.js tests/calendar-insights.test.js tests/cycle-prediction.test.js tests/room-lifecycle.test.js tests/room-records.test.js tests/room-session.test.js`
-- Result: 88 passing `node:test` cases, 0 failures
-
-**`node --check` on changed JS files:**
-- `utils/room.js`
-- `utils/cloud.js`
-- `utils/recordCommands.js`
-- `pages/index/index.js`
-- `pages/settings/settings.js`
-- `tests/room-session.test.js`
-- `tests/room-data-client.test.js`
-- `tests/record-flow.test.js`
-- `tests/settings-flow.test.js`
-- `tests/calendar-display.test.js`
-- `tests/page-registration.test.js`
+- Result: 90 passing `node:test` cases, 0 failures
 
 ---
 
-_Fixed: 2026-06-26T17:52:36.2819552+08:00_
+_Fixed: 2026-06-26T18:05:25.8130158+08:00_
 _Fixer: the agent (gsd-code-fixer)_
-_Iteration: 1_
+_Iteration: 2_
