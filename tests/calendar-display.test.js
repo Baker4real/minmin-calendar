@@ -4,7 +4,6 @@ const path = require('node:path')
 const test = require('node:test')
 
 const util = require('../utils/util')
-const calendarCells = require('../utils/calendarCells')
 
 test('formatPredictDisplay returns a compact date with weekday', () => {
   assert.deepEqual(util.formatPredictDisplay('2026-06-24'), {
@@ -181,36 +180,6 @@ test('buildCalendarDays returns base date cells without app marker semantics', (
   assert.equal('isPredict' in springFestival, false)
 })
 
-test('buildCalendarCells applies calendar marker semantics on top of date metadata', () => {
-  const days = calendarCells.buildCalendarCells({
-    year: 2026,
-    month: 7,
-    periods: [{ startDate: '2026-08-08', endDate: '2026-08-09' }],
-    memories: [{ date: '2026-08-10' }],
-    nextPredict: '2026-08-10',
-    predictionWindow: {
-      rangeStart: '2026-08-09',
-      rangeEnd: '2026-08-11'
-    },
-    today: '2026-08-10'
-  })
-
-  const predictedDates = days.filter(day => day.isPredict).map(day => day.date)
-  assert.deepEqual(predictedDates, ['2026-08-09', '2026-08-10', '2026-08-11'])
-
-  const periodMemoryAndPredict = days.find(day => day.date === '2026-08-10')
-  assert.equal(periodMemoryAndPredict.isToday, true)
-  assert.equal(periodMemoryAndPredict.isPeriod, false)
-  assert.equal(periodMemoryAndPredict.isMemory, true)
-  assert.equal(periodMemoryAndPredict.isPredict, true)
-  assert.equal(periodMemoryAndPredict.lunarText, '六月廿八')
-
-  const periodAndPredict = days.find(day => day.date === '2026-08-09')
-  assert.equal(periodAndPredict.isPeriod, true)
-  assert.equal(periodAndPredict.isMemory, false)
-  assert.equal(periodAndPredict.isPredict, true)
-})
-
 test('index calendar only shows the heart mark for memories', () => {
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
 
@@ -316,6 +285,8 @@ test('index exposes calendar meaning and monthly recap sheets', () => {
   assert.doesNotMatch(js, /buildCalendarDays\(/)
   assert.doesNotMatch(js, /buildMonthlyRecap\(/)
   assert.doesNotMatch(js, /buildDayMeanings\(/)
+  assert.doesNotMatch(js, /calendarInsights/)
+  assert.doesNotMatch(js, /CALENDAR_LEGEND_ITEMS/)
   assert.match(js, /openLegendSheet\(\)/)
   assert.match(js, /openPredictionSheet\(\)/)
   assert.match(js, /openMonthlyRecap\(\)/)
@@ -338,6 +309,14 @@ test('index exposes calendar meaning and monthly recap sheets', () => {
   assert.match(wxss, /\.calendar-info-sheet/)
   assert.match(wxss, /\.monthly-recap/)
   assert.match(wxss, /\.detail-meaning/)
+})
+
+test('home calendar state is the only public seam for calendar markers', () => {
+  const root = path.join(__dirname, '..')
+  const homeState = fs.readFileSync(path.join(root, 'utils/homeCalendarState.js'), 'utf8')
+
+  assert.equal(fs.existsSync(path.join(root, 'utils/calendarCells.js')), false)
+  assert.doesNotMatch(homeState, /require\(['"]\.\/calendarCells['"]\)/)
 })
 
 test('period edit page exposes flow and symptom controls', () => {

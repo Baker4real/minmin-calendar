@@ -4,17 +4,6 @@ const test = require('node:test')
 const cycle = require('../utils/cycle')
 const insights = require('../utils/calendarInsights')
 
-test('calendar legend explains every visible marker with unique keys', () => {
-  assert.deepEqual(
-    insights.CALENDAR_LEGEND_ITEMS.map(item => item.key),
-    ['today', 'period', 'memory', 'predict', 'holiday', 'workday']
-  )
-
-  assert.equal(new Set(insights.CALENDAR_LEGEND_ITEMS.map(item => item.key)).size, 6)
-  assert.match(insights.CALENDAR_LEGEND_ITEMS.find(item => item.key === 'predict').text, /预测区间/)
-  assert.match(insights.CALENDAR_LEGEND_ITEMS.find(item => item.key === 'memory').text, /欢乐时光/)
-})
-
 test('buildPredictionExplanation turns prediction math into plain copy', () => {
   const prediction = cycle.predictNextPeriod([
     period('2026-01-01', '2026-01-05'),
@@ -37,28 +26,6 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
       '已忽略 1 次波动较大的记录'
     ]
   })
-})
-
-test('buildDayMeanings explains why a tapped date has markers', () => {
-  const meanings = insights.buildDayMeanings({
-    isToday: true,
-    isPeriod: true,
-    isMemory: true,
-    isPredict: true,
-    holidayName: '七夕',
-    isWorkday: false
-  })
-
-  assert.deepEqual(
-    meanings.map(item => [item.key, item.title]),
-    [
-      ['today', '今天'],
-      ['period', '经期记录'],
-      ['memory', '欢乐时光'],
-      ['predict', '预测区间'],
-      ['holiday', '节日']
-    ]
-  )
 })
 
 test('buildMonthlyRecap creates a gentle shareable recap for the selected month', () => {
@@ -100,6 +67,11 @@ test('buildMonthlyRecap creates a gentle shareable recap for the selected month'
   assert.match(recap.shareText, /2026年8月小结/)
   assert.match(recap.shareText, /本月记录了 1 次经期，共 5 天/)
   assert.match(recap.shareText, /留下 2 条欢乐时光/)
+})
+
+test('calendarInsights does not expose marker semantics outside home calendar state', () => {
+  assert.equal('CALENDAR_LEGEND_ITEMS' in insights, false)
+  assert.equal('buildDayMeanings' in insights, false)
 })
 
 function period(startDate, endDate) {

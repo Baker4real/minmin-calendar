@@ -26,13 +26,12 @@
 - `utils/roomAccessOutcome.js` owns client-side room access outcome presentation mapping for inline status, modal prompts, repair actions, and settings room-code display state.
 - `utils/recordCommands.js` owns shared period/memory list, save, delete, retry, and rebind feedback flows.
 - `utils/settingsFlow.js` owns room-code copy, data export, retry/rebind, and local-cache helper flows.
-- `utils/homeCalendarState.js` owns pure homepage state composition for prediction, reminders, day details, and monthly recap.
-- `utils/calendarCells.js` owns Calendar cell marker composition for today, period, memory, and prediction states on top of base date metadata.
+- `utils/homeCalendarState.js` owns pure homepage state composition for calendar cell markers, marker meanings, prediction, reminders, day details, and monthly recap.
 - `utils/recordEditRoute.js` owns Period record and Memory record edit URL construction plus edit-page route option hydration.
 - `utils/room.js` owns room-code cache, recovery, create/join, local clear, and server-side leave calls.
 - `utils/util.js` owns date formatting, lunar conversion, official holiday metadata, and base calendar-grid construction.
 - `utils/cycle.js` owns cycle prediction, reminder derivation, flow labels, and symptom labels.
-- `utils/calendarInsights.js` owns calendar marker explanations, prediction explanation copy, day marker meanings, and monthly recap text.
+- `utils/calendarInsights.js` owns prediction explanation copy and monthly recap text.
 - `cloudfunctions/dataOp/index.js` is the cloud runtime adapter for room-authorized CRUD on `periods` and `memories`.
 - `cloudfunctions/dataOp/dataOpHandler.js` owns room membership lookup and action dispatch behind the cloud adapter.
 - `cloudfunctions/leaveRoom/index.js` revokes the current user's Room membership through the `RoomLifecycle` Module.
@@ -53,7 +52,6 @@ node --check utils\cloud.js
 node --check utils\recordCommands.js
 node --check utils\settingsFlow.js
 node --check utils\homeCalendarState.js
-node --check utils\calendarCells.js
 node --check utils\util.js
 node --check utils\cycle.js
 node --check utils\calendarInsights.js

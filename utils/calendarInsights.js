@@ -1,45 +1,6 @@
 const cycle = require('./cycle')
 const util = require('./util')
 
-const CALENDAR_LEGEND_ITEMS = [
-  {
-    key: 'today',
-    title: '今天',
-    marker: '今',
-    text: '今天会用玫瑰色光圈突出。'
-  },
-  {
-    key: 'period',
-    title: '经期记录',
-    marker: '●',
-    text: '粉色圆点表示这一天有经期记录。'
-  },
-  {
-    key: 'memory',
-    title: '欢乐时光',
-    marker: '♥',
-    text: '爱心表示这一天留下了欢乐时光。'
-  },
-  {
-    key: 'predict',
-    title: '预测区间',
-    marker: '预',
-    text: '金色“预”表示下次经期的预测区间。'
-  },
-  {
-    key: 'holiday',
-    title: '节日',
-    marker: '节',
-    text: '金色标签表示节日或法定假期。'
-  },
-  {
-    key: 'workday',
-    title: '调休上班',
-    marker: '班',
-    text: '“班”表示官方调休上班日。'
-  }
-]
-
 function buildPredictionExplanation(prediction) {
   if (!prediction || !prediction.canPredict) {
     return {
@@ -70,52 +31,6 @@ function buildPredictionExplanation(prediction) {
     summary: `预计 ${prediction.nextDisplay}，区间 ${prediction.rangeDisplay}`,
     lines
   }
-}
-
-function buildDayMeanings(day = {}) {
-  const meanings = []
-  if (day.isToday) {
-    meanings.push({
-      key: 'today',
-      title: '今天',
-      text: '这是今天，所以日历会重点高亮。'
-    })
-  }
-  if (day.isPeriod) {
-    meanings.push({
-      key: 'period',
-      title: '经期记录',
-      text: '这一天落在已记录的经期范围内。'
-    })
-  }
-  if (day.isMemory) {
-    meanings.push({
-      key: 'memory',
-      title: '欢乐时光',
-      text: '这一天有一条欢乐时光记录。'
-    })
-  }
-  if (day.isPredict) {
-    meanings.push({
-      key: 'predict',
-      title: '预测区间',
-      text: '这一天落在下次经期的预测范围内。'
-    })
-  }
-  if (day.holidayName) {
-    meanings.push({
-      key: 'holiday',
-      title: '节日',
-      text: `${day.holidayName}。`
-    })
-  } else if (day.isWorkday) {
-    meanings.push({
-      key: 'workday',
-      title: '调休上班',
-      text: '官方调休上班日。'
-    })
-  }
-  return meanings
 }
 
 function buildMonthlyRecap({ year, month, periods = [], memories = [], prediction = null }) {
@@ -194,8 +109,6 @@ function pad2(value) {
 }
 
 module.exports = {
-  CALENDAR_LEGEND_ITEMS,
   buildPredictionExplanation,
-  buildDayMeanings,
   buildMonthlyRecap
 }

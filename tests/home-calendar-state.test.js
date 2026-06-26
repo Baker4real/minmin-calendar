@@ -32,6 +32,13 @@ test('buildHomeCalendarState returns fallback prediction state and explicit day 
   assert.equal(state.predictConfidence, null)
   assert.deepEqual(state.predictionDetail, prediction)
   assert.deepEqual(state.predictionExplanation, insights.buildPredictionExplanation(prediction))
+  assert.deepEqual(
+    state.legendItems.map(item => item.key),
+    ['today', 'period', 'memory', 'predict', 'holiday', 'workday']
+  )
+  assert.equal(new Set(state.legendItems.map(item => item.key)).size, 6)
+  assert.match(state.legendItems.find(item => item.key === 'predict').text, /预测区间/)
+  assert.match(state.legendItems.find(item => item.key === 'memory').text, /欢乐时光/)
   assert.deepEqual(state.cycleReminders, [])
   assert.deepEqual(
     state.monthlyRecap,
@@ -98,6 +105,10 @@ test('buildHomeCalendarState reuses cycle and insight helpers for predictable re
   assert.deepEqual(state.predictionDetail, prediction)
   assert.deepEqual(state.predictionExplanation, insights.buildPredictionExplanation(prediction))
   assert.deepEqual(
+    state.legendItems.map(item => item.key),
+    ['today', 'period', 'memory', 'predict', 'holiday', 'workday']
+  )
+  assert.deepEqual(
     state.cycleReminders,
     cycle.buildCycleReminders(prediction, periods, { today: '2026-08-10' })
   )
@@ -117,6 +128,60 @@ test('buildHomeCalendarState reuses cycle and insight helpers for predictable re
   assert.deepEqual(detail.memories, [
     { note: '庆祝晚餐' }
   ])
+})
+
+test('buildHomeCalendarState explains why a tapped date has markers', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [period('2026-08-10', '2026-08-10')],
+    memories: [{ date: '2026-08-10', note: '庆祝晚餐' }],
+    today: '2026-08-10'
+  })
+
+  const detail = state.dayDetailsByDate['2026-08-10']
+
+  assert.deepEqual(
+    detail.meanings.map(item => [item.key, item.title]),
+    [
+      ['today', '今天'],
+      ['period', '经期记录'],
+      ['memory', '欢乐时光']
+    ]
+  )
+})
+
+test('buildHomeCalendarState applies calendar marker semantics on top of date metadata', () => {
+  const periods = [
+    period('2026-01-01', '2026-01-05'),
+    period('2026-01-29', '2026-02-02'),
+    period('2026-02-26', '2026-03-02'),
+    period('2026-04-20', '2026-04-24'),
+    period('2026-05-18', '2026-05-22'),
+    period('2026-06-15', '2026-06-19'),
+    period('2026-07-13', '2026-07-17')
+  ]
+  const memories = [
+    { date: '2026-08-10', note: '庆祝晚餐' }
+  ]
+
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods,
+    memories,
+    today: '2026-08-10'
+  })
+
+  const predictedDates = state.days.filter(day => day.isPredict).map(day => day.date)
+  assert.deepEqual(predictedDates, ['2026-08-09', '2026-08-10', '2026-08-11'])
+
+  const periodMemoryAndPredict = state.days.find(day => day.date === '2026-08-10')
+  assert.equal(periodMemoryAndPredict.isToday, true)
+  assert.equal(periodMemoryAndPredict.isPeriod, false)
+  assert.equal(periodMemoryAndPredict.isMemory, true)
+  assert.equal(periodMemoryAndPredict.isPredict, true)
+  assert.equal(periodMemoryAndPredict.lunarText, '六月廿八')
 })
 
 function period(startDate, endDate) {

@@ -30,7 +30,6 @@ test('index page onShow consumes RoomDataClient no-room outcomes without legacy 
         }
       },
       'utils/util.js': createUtilStub(),
-      'utils/calendarInsights.js': { CALENDAR_LEGEND_ITEMS: [] },
       'utils/homeCalendarState.js': { buildHomeCalendarState }
     }
   })
@@ -68,7 +67,6 @@ test('index page exposes retry state and can reload after retryable RoomDataClie
         }
       },
       'utils/util.js': createUtilStub(),
-      'utils/calendarInsights.js': { CALENDAR_LEGEND_ITEMS: [] },
       'utils/homeCalendarState.js': { buildHomeCalendarState }
     }
   })

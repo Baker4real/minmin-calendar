@@ -1,6 +1,5 @@
 const util = require('../../utils/util')
 const cloud = require('../../utils/cloud')
-const calendarInsights = require('../../utils/calendarInsights')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const recordEditRoute = require('../../utils/recordEditRoute')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
@@ -39,7 +38,6 @@ Page({
     calendarDensity: 'full',
     periods: [], memories: [],
     ...INITIAL_HOME_STATE,
-    legendItems: calendarInsights.CALENDAR_LEGEND_ITEMS,
     infoSheetVisible: false,
     infoSheetMode: '',
     monthlyRecap: null,
