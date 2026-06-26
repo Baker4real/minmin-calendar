@@ -203,6 +203,22 @@ test('index calendar only shows the heart mark for memories', () => {
   assert.match(wxml, /wx:if="{{item\.isMemory}}"/)
 })
 
+test('index calendar keeps marker and tag semantics explicit for each meaning', () => {
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+
+  assert.match(wxml, /item\.isToday \? 'today' : ''/)
+  assert.match(wxml, /item\.isPeriod \? 'period' : ''/)
+  assert.match(wxml, /item\.isMemory \? 'memory' : ''/)
+  assert.match(wxml, /item\.isPredict \? 'predict' : ''/)
+  assert.match(wxml, /item\.isHoliday \? 'holiday' : ''/)
+  assert.match(wxml, /item\.isWorkday \? 'workday' : ''/)
+  assert.match(wxml, /wx:if="{{item\.isPeriod}}" class="mark period-mark"/)
+  assert.match(wxml, /wx:if="{{item\.isMemory}}" class="mark memory-mark"/)
+  assert.match(wxml, /wx:if="{{item\.isPredict && !item\.isPeriod}}" class="mark predict-mark"/)
+  assert.match(wxml, /wx:if="{{item\.holidayName}}" class="day-tag holiday-tag"/)
+  assert.match(wxml, /wx:elif="{{item\.isWorkday}}" class="day-tag workday-tag"/)
+})
+
 test('index day actions use the themed in-page action sheet', () => {
   const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
@@ -319,10 +335,12 @@ test('period edit chips keep touch targets large enough', () => {
   assert.match(wxss, /\.flow-chip,\s*[\r\n]+\.symptom-chip\s*{[\s\S]*min-height:\s*88rpx/)
 })
 
-test('period list shows a toast when loading records fails', () => {
+test('period list delegates load failure copy to the shared record command helper', () => {
   const js = fs.readFileSync(path.join(__dirname, '..', 'pages/period/period.js'), 'utf8')
 
-  assert.match(js, /catch\(e\)\s*{[\s\S]*wx\.showToast\(\{\s*title:\s*'加载失败，请检查网络'/)
+  assert.match(js, /recordCommands\.runRecordListLoad\(/)
+  assert.match(js, /retryableTitle:\s*'加载失败，请检查网络'/)
+  assert.match(js, /failureTitle:\s*'加载失败'/)
 })
 
 function pickMeta(meta) {
