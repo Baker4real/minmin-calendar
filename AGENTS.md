@@ -17,11 +17,15 @@ Core domain files:
 - `pages/bind/**` - shared-room create/join/recover flow.
 - `pages/settings/**` - room code, export, local cache controls.
 - `utils/room.js` - frontend room-code cache, recovery, create/join, leave, and local clear wrapper.
-- `utils/cloud.js` - frontend cloud-function data access wrapper.
+- `utils/cloud.js` - frontend cloud-function data access wrapper and room-scoped `RoomDataClient`.
+- `utils/recordCommands.js` - shared period/memory save, delete, list feedback, retry, and rebind flow helper.
+- `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
+- `utils/homeCalendarState.js` - pure homepage calendar state composition.
 - `utils/util.js` - date, lunar, holiday, and calendar-grid logic.
 - `utils/cycle.js` - cycle prediction, reminders, and period metadata labels.
 - `utils/calendarInsights.js` - calendar legend, prediction explanation, day marker meaning, and monthly recap text logic.
 - `cloudfunctions/dataOp/index.js` - server-side room-scoped CRUD gateway.
+- `cloudfunctions/dataOp/dataOpHandler.js` - server-side room authorization and dataOp dispatch seam.
 - `cloudfunctions/leaveRoom/**` - server-side room membership revoke and ownership-transfer flow.
 
 ## Durable Workflow
@@ -41,19 +45,25 @@ Before planning or implementation, read `.planning/PROJECT.md`, `.planning/STATE
 Run relevant checks before claiming work is complete. Current lightweight checks:
 
 ```powershell
-node --test tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js
+node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js
 node --check cloudfunctions\leaveRoom\roomLifecycle.js
 node --check cloudfunctions\leaveRoom\index.js
+node --check cloudfunctions\dataOp\dataOpHandler.js
 node --check cloudfunctions\dataOp\roomRecords.js
 node --check cloudfunctions\dataOp\index.js
 node --check utils\room.js
 node --check utils\cloud.js
+node --check utils\recordCommands.js
+node --check utils\settingsFlow.js
+node --check utils\homeCalendarState.js
 node --check utils\util.js
 node --check utils\cycle.js
 node --check utils\calendarInsights.js
 node --check pages\bind\bind.js
 node --check pages\settings\settings.js
 node --check pages\index\index.js
+node --check pages\memory\memory.js
+node --check pages\memory\edit\edit.js
 node --check pages\period\period.js
 node --check pages\period\edit\edit.js
 ```

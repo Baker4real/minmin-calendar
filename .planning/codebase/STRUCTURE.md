@@ -74,11 +74,11 @@ minmin-calendar/
 
 **`tests/`:**
 - Purpose: Automated checks for shared calendar behavior, Room session behavior, Room lifecycle behavior, and Room-scoped record rules.
-- Contains: Test files such as `tests/calendar-display.test.js`, `tests/calendar-insights.test.js`, `tests/cycle-prediction.test.js`, `tests/room-lifecycle.test.js`, `tests/room-records.test.js`, and `tests/room-session.test.js`.
-- Key files: `tests/calendar-display.test.js`, `tests/calendar-insights.test.js`, `tests/cycle-prediction.test.js`, `tests/room-lifecycle.test.js`, `tests/room-records.test.js`, `tests/room-session.test.js`.
+- Contains: Test files such as `tests/page-registration.test.js`, `tests/room-data-client.test.js`, `tests/record-flow.test.js`, `tests/settings-flow.test.js`, `tests/home-calendar-state.test.js`, `tests/data-op-auth.test.js`, `tests/calendar-display.test.js`, `tests/calendar-insights.test.js`, `tests/cycle-prediction.test.js`, `tests/room-lifecycle.test.js`, `tests/room-records.test.js`, and `tests/room-session.test.js`.
+- Key files: `tests/page-registration.test.js`, `tests/room-data-client.test.js`, `tests/record-flow.test.js`, `tests/settings-flow.test.js`, `tests/home-calendar-state.test.js`, `tests/data-op-auth.test.js`, `tests/calendar-display.test.js`, `tests/calendar-insights.test.js`, `tests/cycle-prediction.test.js`, `tests/room-lifecycle.test.js`, `tests/room-records.test.js`, `tests/room-session.test.js`.
 
 **`scripts/`:**
-- Purpose: Maintenance and environment automation scripts.
+- Purpose: Local maintenance and environment automation scripts.
 - Contains: PowerShell scripts with `hermes-` prefixes.
 - Key files: `scripts/hermes-*.ps1`.
 
@@ -102,17 +102,27 @@ minmin-calendar/
 **Core Logic:**
 - `utils/cloud.js`: Shared data-access facade.
 - `utils/room.js`: Room-code cache, recovery, create/join, server-side leave, and local clear Interface.
+- `utils/recordCommands.js`: Shared period/memory save, delete, list, retry, and rebind helper.
+- `utils/settingsFlow.js`: Shared settings copy, export, local-clear, retry, and rebind helper.
+- `utils/homeCalendarState.js`: Homepage prediction, reminder, calendar-day, selected-day detail, and monthly recap composition.
 - `utils/util.js`: Calendar/date calculations.
 - `utils/chinaHolidays.js`: Published China public holiday and adjusted-workday data for 2001-2026.
 - `utils/cycle.js`: Cycle prediction, reminders, flow labels, and symptom labels.
 - `utils/calendarInsights.js`: Calendar legend, prediction explanation, day meaning, and monthly recap display helpers.
 - `pages/index/index.js`: Derived calendar view model.
 - `cloudfunctions/dataOp/index.js`: CRUD gateway for shared records.
+- `cloudfunctions/dataOp/dataOpHandler.js`: Injectable room authorization and action dispatch seam.
 - `cloudfunctions/dataOp/roomRecords.js`: Server-side validation and normalization for Room-scoped records.
 - `cloudfunctions/leaveRoom/index.js`: Cloud adapter for current-user Room membership revoke.
 - `cloudfunctions/leaveRoom/roomLifecycle.js`: Server-side Room leave/unpair and ownership transfer rules.
 
 **Testing:**
+- `tests/page-registration.test.js`: Lightweight fake `Page`/`wx` page-open coverage for index, bind, record, and settings flows.
+- `tests/room-data-client.test.js`: RoomDataClient success, retryable failure, stale-room repair, active-room recovery, and mutation non-replay behavior.
+- `tests/record-flow.test.js`: Shared period/memory list, save, delete, retry, and rebind helper coverage.
+- `tests/settings-flow.test.js`: Settings copy/export/local-clear, retry, rebind, share, and clipboard fallback coverage.
+- `tests/home-calendar-state.test.js`: Homepage calendar view-model composition coverage.
+- `tests/data-op-auth.test.js`: Server-side dataOp authorization seam and collection/action dispatch coverage.
 - `tests/calendar-display.test.js`: Calendar display and template contract coverage.
 - `tests/calendar-insights.test.js`: Calendar insight and monthly recap helper coverage.
 - `tests/cycle-prediction.test.js`: Cycle prediction, reminder, and period metadata coverage.
@@ -164,8 +174,8 @@ minmin-calendar/
 
 **`scripts/`:**
 - Purpose: Maintenance automation and diagnostics.
-- Generated: No.
-- Committed: Yes.
+- Generated: Local/tool-maintained.
+- Committed: No; ignored by `.gitignore`.
 
 **`tests/`:**
 - Purpose: Automated checks.

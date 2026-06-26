@@ -22,12 +22,16 @@
 ## Technical Shape
 
 - `app.js` initializes WeChat Cloud with the active environment.
-- `utils/cloud.js` wraps frontend calls to `cloudfunctions/dataOp/index.js`.
+- `utils/cloud.js` wraps frontend calls to `cloudfunctions/dataOp/index.js` and exposes `RoomDataClient` outcomes for room-scoped reads/writes.
+- `utils/recordCommands.js` owns shared period/memory list, save, delete, retry, and rebind feedback flows.
+- `utils/settingsFlow.js` owns room-code copy, data export, retry/rebind, and local-cache helper flows.
+- `utils/homeCalendarState.js` owns pure homepage state composition for prediction, reminders, day details, and monthly recap.
 - `utils/room.js` owns room-code cache, recovery, create/join, local clear, and server-side leave calls.
 - `utils/util.js` owns date formatting, lunar conversion, official holiday metadata, and calendar-grid construction.
 - `utils/cycle.js` owns cycle prediction, reminder derivation, flow labels, and symptom labels.
 - `utils/calendarInsights.js` owns calendar marker explanations, prediction explanation copy, day marker meanings, and monthly recap text.
-- `cloudfunctions/dataOp/index.js` is the central room-authorized CRUD gateway for `periods` and `memories`.
+- `cloudfunctions/dataOp/index.js` is the cloud runtime adapter for room-authorized CRUD on `periods` and `memories`.
+- `cloudfunctions/dataOp/dataOpHandler.js` owns room membership lookup and action dispatch behind the cloud adapter.
 - `cloudfunctions/leaveRoom/index.js` revokes the current user's Room membership through the `RoomLifecycle` Module.
 
 ## Verification Baseline
@@ -35,19 +39,25 @@
 Use these checks after date, room, calendar, or page behavior changes:
 
 ```powershell
-node --test tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js
+node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js
 node --check cloudfunctions\leaveRoom\roomLifecycle.js
 node --check cloudfunctions\leaveRoom\index.js
+node --check cloudfunctions\dataOp\dataOpHandler.js
 node --check cloudfunctions\dataOp\roomRecords.js
 node --check cloudfunctions\dataOp\index.js
+node --check utils\room.js
+node --check utils\cloud.js
+node --check utils\recordCommands.js
+node --check utils\settingsFlow.js
+node --check utils\homeCalendarState.js
 node --check utils\util.js
 node --check utils\cycle.js
 node --check utils\calendarInsights.js
-node --check utils\room.js
-node --check utils\cloud.js
 node --check pages\index\index.js
 node --check pages\bind\bind.js
 node --check pages\settings\settings.js
+node --check pages\memory\memory.js
+node --check pages\memory\edit\edit.js
 node --check pages\period\period.js
 node --check pages\period\edit\edit.js
 ```
