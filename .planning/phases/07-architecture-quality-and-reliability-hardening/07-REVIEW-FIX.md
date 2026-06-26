@@ -1,74 +1,53 @@
 ---
 phase: 07
-fixed_at: 2026-06-26T18:17:47.8823031+08:00
+fixed_at: 2026-06-26T20:35:00+08:00
 review_path: .planning/phases/07-architecture-quality-and-reliability-hardening/07-REVIEW.md
-iteration: 3
-findings_in_scope: 2
-fixed: 2
+iteration: 4
+findings_in_scope: 1
+fixed: 1
 skipped: 0
 status: all_fixed
-commits:
-  - d7f84d7
-tests:
-  - node --check utils/recordCommands.js
-  - node --check tests/record-flow.test.js
-  - node --check tests/page-registration.test.js
-  - node --check pages/period/period.js
-  - node --check pages/memory/memory.js
-  - node --check pages/period/edit/edit.js
-  - node --check pages/memory/edit/edit.js
-  - node --test tests/record-flow.test.js
-  - node --test tests/page-registration.test.js
-  - node --test tests/page-registration.test.js tests/room-data-client.test.js tests/record-flow.test.js tests/settings-flow.test.js tests/home-calendar-state.test.js tests/data-op-auth.test.js tests/calendar-display.test.js tests/calendar-insights.test.js tests/cycle-prediction.test.js tests/room-lifecycle.test.js tests/room-records.test.js tests/room-session.test.js
 ---
 
 # Phase 07: Code Review Fix Report
 
-**Fixed at:** 2026-06-26T18:17:47.8823031+08:00
+**Fixed at:** 2026-06-26T20:35:00+08:00
 **Source review:** `.planning/phases/07-architecture-quality-and-reliability-hardening/07-REVIEW.md`
-**Iteration:** 3
+**Iteration:** 4
 
 **Summary:**
-- Findings in scope: 2
-- Fixed: 2
+- Findings in scope: 1
+- Fixed: 1
 - Skipped: 0
 
 ## Fixed Issues
 
-### CR-01: [BLOCKER] 记录页对 `room-repair + repair.retryable-failure` 仍然只给 toast，实际把“可重试修复失败”降级成无恢复路径
+### WR-01: [WARNING] `page-registration` harness 没有真正等待页面异步 `onShow()` 完成
 
-**Status:** fixed: requires human verification
-**Files modified:** `utils/recordCommands.js`, `tests/record-flow.test.js`
-**Commit:** `d7f84d7`
-**Applied fix:** `recordCommands` 现在把 `room-repair` 下的修复失败分支升级成可见恢复动作：列表加载保留 `重试` modal；保存和删除不再盲目重放未知非幂等写入，而是显示带修复失败消息和“返回列表刷新确认”建议的确认 modal。
-
-### WR-01: [WARNING] 当前回归没有覆盖 record flows 的 `room-repair.repair.retryable-failure` 分支
-
-**Status:** fixed
-**Files modified:** `tests/record-flow.test.js`, `tests/page-registration.test.js`
-**Commit:** `d7f84d7`
-**Applied fix:** 为 `runRecordSave`、`runRecordDelete`、`runRecordListLoad` 新增 `room-repair.repair.retryable-failure` 回归；同时补了 `period` / `memory` 列表页 harness，确认真实页面适配层也会弹出可见的 `重试` modal。
+**Files modified:** `pages/index/index.js`, `pages/period/period.js`, `pages/memory/memory.js`, `tests/page-registration.test.js`
+**Commit:** `2067e65`
+**Applied fix:** `index` / `period` / `memory` 页面现在都从 `onShow()` 返回可等待的 Promise 链；`page-registration` harness 改为先断言 `onShow()` 返回 thenable 再等待完成，并在 `period` / `memory` 回归里使用延后一拍 resolve 的异步 mock，避免再次依赖“立即 resolve”时序产生假阳性。
 
 ## Verification
 
-**Targeted tests:**
-- `node --check utils/recordCommands.js`
-- `node --check tests/record-flow.test.js`
-- `node --check tests/page-registration.test.js`
-- `node --test tests/record-flow.test.js`
-- `node --test tests/page-registration.test.js`
-- Result: 20 passing `node:test` cases, 0 failures
+**Commands run:**
+- `node --test tests\page-registration.test.js`
+- `node --check tests\page-registration.test.js`
+- `node --check pages\index\index.js`
+- `node --check pages\period\period.js`
+- `node --check pages\memory\memory.js`
+- `node --check pages\settings\settings.js`
 
-**Broad suite:**
-- `node --test tests/page-registration.test.js tests/room-data-client.test.js tests/record-flow.test.js tests/settings-flow.test.js tests/home-calendar-state.test.js tests/data-op-auth.test.js tests/calendar-display.test.js tests/calendar-insights.test.js tests/cycle-prediction.test.js tests/room-lifecycle.test.js tests/room-records.test.js tests/room-session.test.js`
-- Result: 94 passing `node:test` cases, 0 failures
-
-## Skipped Issues
-
-None.
+**Results:**
+- `node --test tests\page-registration.test.js`: 7 passing tests, 0 failures
+- `node --check tests\page-registration.test.js`: passed
+- `node --check pages\index\index.js`: passed
+- `node --check pages\period\period.js`: passed
+- `node --check pages\memory\memory.js`: passed
+- `node --check pages\settings\settings.js`: passed
 
 ---
 
-_Fixed: 2026-06-26T18:17:47.8823031+08:00_
+_Fixed: 2026-06-26T20:35:00+08:00_
 _Fixer: the agent (gsd-code-fixer)_
-_Iteration: 3_
+_Iteration: 4_
