@@ -88,7 +88,7 @@ status: complete
 - **Fix:** Restored active-room recovery in `utils/cloud.js`, moved retry/rebind prompts into `utils/recordCommands.js` and `utils/settingsFlow.js`, and added focused regression tests plus a page registration harness.
 - **Files modified:** `utils/cloud.js`, `utils/recordCommands.js`, `utils/settingsFlow.js`, `tests/room-data-client.test.js`, `tests/record-flow.test.js`, `tests/settings-flow.test.js`, `tests/page-registration.test.js`
 - **Verification:** Full 81-test suite and all listed `node --check` commands passed.
-- **Commit:** Pending final commit
+- **Commit:** `69f5834`
 
 **Total deviations:** 1 auto-fixed blocker  
 **Impact on plan:** 07-06 expanded from pure docs closeout into a narrow code+test fix because the manual DevTools finding exposed a real blocker that had to be resolved before PASS evidence could be honest.
@@ -107,3 +107,4 @@ status: complete
 
 - Verified `07-ARCHITECTURE-AUDIT.md`, `07-VERIFICATION.md`, and `07-06-SUMMARY.md` exist on disk.
 - Verified the 07-06 blocker fix is covered by automated tests before phase closeout.
+- Verified commit `69f5834` exists in git history.
