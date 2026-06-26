@@ -1,6 +1,6 @@
 # Project State: Minmin Calendar
 
-Last activity: 2026-06-26 - Backfilled repository history into formal GSD phase artifacts and completed Phase 2.1 automated verification.
+Last activity: 2026-06-26 - Backfilled repository history into formal GSD phase artifacts, completed Phase 2.1 automated verification, and created handoff state.
 
 ## Project Reference
 
@@ -45,8 +45,8 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 | 5 | Added server-side Room leave/unpair flow with ownership transfer and client unbind wiring | 2026-06-25 | `605adf3` | `cloudfunctions/leaveRoom/`, `utils/`, `pages/bind/`, `tests/`, `docs/adr/` |
 | 6 | Verified `leaveRoom` deployment through WeChat DevTools CLI in `cloud1-d8gyqvcez4e66b3da` | 2026-06-25 | `605adf3` | WeChat Cloud |
 | 7 | Expanded calendar holidays to published 2001-2026 arrangements, replaced system day action/detail dialogs with themed sheets, and added a themed year-month jump sheet | 2026-06-25 | `56fc4d1` | `utils/`, `pages/index/`, `tests/` |
-| 8 | Backfilled all repository history into GSD phase artifacts | 2026-06-26 | uncommitted | `.planning/HISTORY.md`, `.planning/phases/` |
-| 9 | Implemented Phase 2.1 calendar insights/monthly recap with TDD and homepage wiring | 2026-06-26 | uncommitted | `utils/`, `pages/index/`, `tests/`, `.planning/phases/02.1-*` |
+| 8 | Backfilled all repository history into GSD phase artifacts | 2026-06-26 | `4e033b0` | `.planning/HISTORY.md`, `.planning/phases/` |
+| 9 | Implemented Phase 2.1 calendar insights/monthly recap with TDD and homepage wiring | 2026-06-26 | `4e033b0` | `utils/`, `pages/index/`, `tests/`, `.planning/phases/02.1-*` |
 
 ## Research Artifacts
 
@@ -85,4 +85,4 @@ node --check pages\period\edit\edit.js
 
 ## Next Recommended Action
 
-Review and commit the GSD history backfill plus Phase 2.1 implementation, then run manual WeChat DevTools checks for homepage insight sheets and known room/settings flows.
+Resume from `.planning/HANDOFF.json` and `.planning/phases/02.1-calendar-insight-monthly-recap/.continue-here.md`, then run manual WeChat DevTools checks for homepage insight sheets. If continuing feature work, implement the remaining CAL-05 density toggle slice.

@@ -21,6 +21,7 @@ This ledger is a migration index. It does not replace the phase artifacts under 
 | `eb68b6b` | 2026-06-25 | `docs: update project workflow and codebase map` | Phase 05 documentation readiness |
 | `6dd2dc8` | 2026-06-25 | `docs: sync project knowledge after cleanup` | Phase 05 documentation readiness |
 | `808aa30` | 2026-06-26 | `chore: ignore codegraph state` | Phase 01 workflow baseline |
+| `4e033b0` | 2026-06-26 | `feat: add calendar insights and GSD history backfill` | Phase 02.1 calendar insight/monthly recap and Phase 05 documentation readiness |
 
 ## Phase Artifact Map
 
@@ -41,12 +42,8 @@ This ledger is a migration index. It does not replace the phase artifacts under 
 - Manual WeChat DevTools checks are not assumed unless a planning document or commit explicitly records them.
 - Historical phase verification can be `human_needed` when automated checks pass but runtime UI/cloud behavior still requires manual confirmation.
 
-## Current Uncommitted Work
+## Current Working State
 
-Uncommitted work exists as of this backfill:
+The backfilled history and Phase 2.1 implementation were committed in `4e033b0`.
 
-- GSD history backfill: `.planning/HISTORY.md` and `.planning/phases/`
-- Phase 2.1 implementation: `tests/calendar-insights.test.js`, `utils/calendarInsights.js`, `pages/index/index.js`, `pages/index/index.wxml`, `pages/index/index.wxss`
-- Phase 2.1 docs: `02.1-01-SUMMARY.md`, `02.1-VERIFICATION.md`, and updated top-level planning/codebase docs
-
-Automated verification passed on 2026-06-26. Manual WeChat DevTools visual verification remains before release sign-off.
+Automated verification passed on 2026-06-26. Manual WeChat DevTools visual verification remains before release sign-off. The remaining CAL-05 density toggle is tracked as a future v2 calendar requirement, not as completed Phase 2.1 work.
