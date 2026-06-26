@@ -13,6 +13,7 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 - `utils/cloud.js` - frontend cloud-function access wrapper.
 - `utils/util.js` - date, lunar, holiday, and calendar-grid helpers.
 - `utils/cycle.js` - cycle prediction, reminders, and period metadata labels.
+- `utils/calendarInsights.js` - calendar marker explanations, prediction explanation, and monthly recap copy.
 - `cloudfunctions/` - WeChat Cloud Functions for room lifecycle and record persistence.
 - `.planning/` - GSD project state, requirements, roadmap, and codebase map.
 
@@ -33,7 +34,7 @@ Cloud functions live under `cloudfunctions/`; each function has its own `package
 Run the lightweight local checks after changing date, prediction, room, calendar, or page behavior:
 
 ```powershell
-node --test tests\calendar-display.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js
+node --test tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js
 node --check cloudfunctions\leaveRoom\roomLifecycle.js
 node --check cloudfunctions\leaveRoom\index.js
 node --check cloudfunctions\dataOp\roomRecords.js
@@ -42,6 +43,7 @@ node --check utils\room.js
 node --check utils\cloud.js
 node --check utils\util.js
 node --check utils\cycle.js
+node --check utils\calendarInsights.js
 node --check pages\bind\bind.js
 node --check pages\settings\settings.js
 node --check pages\index\index.js

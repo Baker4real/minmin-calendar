@@ -80,5 +80,5 @@
   ],
   "uncommitted_files": [],
   "next_action": "Run manual WeChat DevTools visual checks for Phase 2.1. If continuing feature work instead, create/execute a small CAL-05 density toggle phase controlling lunar/holiday label visibility.",
-  "context_notes": "Repository history has been backfilled into GSD artifacts and committed. Phase 2.1 implementation is committed in 4e033b0. The repository was clean before this handoff update."
+  "context_notes": "Repository history has been backfilled into GSD artifacts and committed. Phase 2.1 implementation is committed in 4e033b0; GSD handoff state is committed in e9f080d."
 }

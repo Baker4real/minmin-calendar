@@ -20,6 +20,7 @@ Core domain files:
 - `utils/cloud.js` - frontend cloud-function data access wrapper.
 - `utils/util.js` - date, lunar, holiday, and calendar-grid logic.
 - `utils/cycle.js` - cycle prediction, reminders, and period metadata labels.
+- `utils/calendarInsights.js` - calendar legend, prediction explanation, day marker meaning, and monthly recap text logic.
 - `cloudfunctions/dataOp/index.js` - server-side room-scoped CRUD gateway.
 - `cloudfunctions/leaveRoom/**` - server-side room membership revoke and ownership-transfer flow.
 
@@ -40,7 +41,7 @@ Before planning or implementation, read `.planning/PROJECT.md`, `.planning/STATE
 Run relevant checks before claiming work is complete. Current lightweight checks:
 
 ```powershell
-node --test tests\calendar-display.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js
+node --test tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js
 node --check cloudfunctions\leaveRoom\roomLifecycle.js
 node --check cloudfunctions\leaveRoom\index.js
 node --check cloudfunctions\dataOp\roomRecords.js
@@ -49,6 +50,7 @@ node --check utils\room.js
 node --check utils\cloud.js
 node --check utils\util.js
 node --check utils\cycle.js
+node --check utils\calendarInsights.js
 node --check pages\bind\bind.js
 node --check pages\settings\settings.js
 node --check pages\index\index.js

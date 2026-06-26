@@ -51,7 +51,7 @@ status: complete
 - Synchronized project knowledge after cycle, room, cleanup, and code-intelligence work.
 - Created `.planning/HISTORY.md` as a commit-to-phase ledger.
 - Backfilled formal GSD artifacts for Phase 00, 01, 02, 03, 04, and 05.
-- Preserved Phase 2.1 as a planned/in-progress current phase.
+- Captured Phase 2.1 as an implemented phase with manual visual verification still pending.
 - Explicitly recorded human/manual verification gaps instead of marking unverified runtime behavior as complete.
 
 ## Task Commits
@@ -59,7 +59,8 @@ status: complete
 1. **Cycle docs sync** - `2f042b9` (`docs: sync project knowledge after cycle updates`)
 2. **Workflow/codebase map update** - `eb68b6b` (`docs: update project workflow and codebase map`)
 3. **Cleanup docs sync** - `6dd2dc8` (`docs: sync project knowledge after cleanup`)
-4. **History backfill** - uncommitted at time of creation, to be committed after verification
+4. **History backfill and Phase 2.1 docs** - `4e033b0` (`feat: add calendar insights and GSD history backfill`)
+5. **GSD handoff state** - `e9f080d` (`wip: phase 2.1 handoff`)
 
 ## Files Created/Modified
 
@@ -72,7 +73,7 @@ status: complete
 
 - Historical phase verification should distinguish automated evidence from manual runtime checks.
 - Phase 4 remains partial/gaps_found, not complete.
-- Phase 2.1 remains in progress until the current implementation and verification complete.
+- Phase 2.1 automated implementation is complete; release sign-off still needs manual WeChat DevTools visual verification.
 
 ## Deviations from Plan
 
@@ -80,7 +81,7 @@ This is a formalization/backfill step requested after some feature implementatio
 
 ## Issues Encountered
 
-Current working tree includes Phase 2.1 WIP alongside history backfill files; final completion should verify both or split commits carefully.
+No code blockers remain. Manual visual verification is still required before release sign-off.
 
 ## User Setup Required
 

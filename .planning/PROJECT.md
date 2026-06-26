@@ -21,16 +21,18 @@ Two people can reliably see the same private calendar state and understand what 
 - Period records support optional flow level and symptom tags through edit/list/detail views.
 - Calendar day metadata now includes tested lunar date and published 2001-2026 China public holiday/adjusted workday labels.
 - Homepage calendar uses themed day action/detail sheets and a themed year-month jump sheet instead of native white system dialogs.
+- Homepage calendar insight surfaces now explain marker meanings, prediction inputs, tapped-day reasons, and copyable monthly recap text.
 - Data access is mediated through `cloudfunctions/dataOp/index.js`, which checks room membership before list/add/update/remove operations.
 - Room-scoped period and memory writes now pass through server-side record validation and normalization in `cloudfunctions/dataOp/roomRecords.js`.
 - Room-code cache, recovery, create/join, and local clear behavior now go through the tested `utils/room.js` RoomSession Module.
 - Server-side room leave/unpair now goes through `cloudfunctions/leaveRoom/index.js`, with `RoomLifecycle` tests covering creator transfer, partner removal, and last-member deletion.
 - Basic Node tests exist for calendar display/date rules in `tests/calendar-display.test.js` and cycle prediction/metadata rules in `tests/cycle-prediction.test.js`.
 - Repository history is now backfilled into formal GSD artifacts under `.planning/phases/`, indexed by `.planning/HISTORY.md`.
+- GSD handoff state exists in `.planning/HANDOFF.json` and `.planning/phases/02.1-calendar-insight-monthly-recap/.continue-here.md`.
 
 ### Active
 
-- [ ] Finish Phase 2.1 calendar insight/monthly recap implementation and verification.
+- [ ] Run manual WeChat DevTools visual verification for Phase 2.1 insight sheets and monthly recap.
 - [ ] Polish homepage calendar density so period, memory, today, prediction, lunar, holiday, and adjusted-workday signals remain readable on small phones.
 - [ ] Harden room and data flows against stale local room codes, partial failures, and unclear user feedback.
 - [ ] Improve record editing and settings flows so saving, deleting, exporting, and clearing state have consistent feedback and error recovery.
@@ -48,7 +50,7 @@ Two people can reliably see the same private calendar state and understand what 
 - Stack: WeChat Mini Program JavaScript/WXML/WXSS plus WeChat Cloud Functions using `wx-server-sdk`.
 - Cloud environment is initialized in `app.js` with env `cloud1-d8gyqvcez4e66b3da`.
 - Main app pages are configured in `app.json`: bind, index, period, period edit, memory, memory edit, settings.
-- Shared frontend data access lives in `utils/cloud.js`; Room session/cache logic lives in `utils/room.js`; date/calendar logic lives in `utils/util.js`; cycle prediction and period metadata logic lives in `utils/cycle.js`.
+- Shared frontend data access lives in `utils/cloud.js`; Room session/cache logic lives in `utils/room.js`; date/calendar logic lives in `utils/util.js`; cycle prediction and period metadata logic lives in `utils/cycle.js`; marker explanation and monthly recap logic lives in `utils/calendarInsights.js`.
 - Room-scoped record write rules live in `cloudfunctions/dataOp/roomRecords.js`, behind the room-authorized `dataOp` cloud-function adapter.
 - Room membership revoke rules live in `cloudfunctions/leaveRoom/roomLifecycle.js`, behind the `leaveRoom` cloud-function adapter.
 - The product visual direction is documented in `DESIGN.md` as Aurora Bloom: dark navy, warm rose, soft lavender, warm gold, and glass surfaces.
@@ -68,11 +70,11 @@ Two people can reliably see the same private calendar state and understand what 
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Use GSD Core as durable workflow | Future changes are intended to be systematic rather than ad hoc | - Pending |
-| Track work locally first | No GitHub/GitLab remote exists yet | - Pending |
-| Use single-context domain docs | This is a small single mini program, not a monorepo | - Pending |
-| Keep planning docs in git | Planning state should survive sessions and explain future changes | - Pending |
-| Treat calendar marker semantics as product-critical | Ambiguous markers directly reduce trust in the calendar | - Pending |
+| Use GSD Core as durable workflow | Future changes are intended to be systematic rather than ad hoc | `.planning/` project state and phase artifacts |
+| Track work locally first | No GitHub/GitLab remote exists yet | `.scratch/` local issue convention |
+| Use single-context domain docs | This is a small single mini program, not a monorepo | `CONTEXT.md` plus `docs/adr/` |
+| Keep planning docs in git | Planning state should survive sessions and explain future changes | `.planning/HISTORY.md`, `.planning/phases/`, `.planning/HANDOFF.json` |
+| Treat calendar marker semantics as product-critical | Ambiguous markers directly reduce trust in the calendar | `utils/calendarInsights.js` and calendar source-contract tests |
 | Transfer Room creator role on server-side leave | A remaining partner should keep access without leaving an ownerless Room document | `docs/adr/0001-room-leave-ownership-transfer.md` |
 
 ## Evolution
@@ -93,4 +95,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state.
 
 ---
-*Last updated: 2026-06-26 after GSD history backfill and Phase 2.1 setup*
+*Last updated: 2026-06-26 after Phase 2.1 completion, handoff, and knowledge sync*

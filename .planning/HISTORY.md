@@ -22,6 +22,7 @@ This ledger is a migration index. It does not replace the phase artifacts under 
 | `6dd2dc8` | 2026-06-25 | `docs: sync project knowledge after cleanup` | Phase 05 documentation readiness |
 | `808aa30` | 2026-06-26 | `chore: ignore codegraph state` | Phase 01 workflow baseline |
 | `4e033b0` | 2026-06-26 | `feat: add calendar insights and GSD history backfill` | Phase 02.1 calendar insight/monthly recap and Phase 05 documentation readiness |
+| `e9f080d` | 2026-06-26 | `wip: phase 2.1 handoff` | Phase 02.1 lifecycle handoff |
 
 ## Phase Artifact Map
 
@@ -30,7 +31,7 @@ This ledger is a migration index. It does not replace the phase artifacts under 
 | 00. Existing Source Baseline | `.planning/phases/00-existing-source-baseline/` | Backfilled from initial source-tracking commit |
 | 01. Workflow Baseline | `.planning/phases/01-workflow-baseline/` | Backfilled from GSD setup, codebase map, hygiene, CodeGraph ignore |
 | 02. Calendar Display Clarity | `.planning/phases/02-calendar-display-clarity/` | Backfilled from prediction, holiday, day-sheet, and month-jump work |
-| 02.1. Calendar Insight and Monthly Recap | `.planning/phases/02.1-calendar-insight-monthly-recap/` | Planned and currently executing |
+| 02.1. Calendar Insight and Monthly Recap | `.planning/phases/02.1-calendar-insight-monthly-recap/` | Implemented with manual visual verification pending |
 | 03. Room and Cloud Data Reliability | `.planning/phases/03-room-cloud-data-reliability/` | Backfilled from room lifecycle and record hardening work |
 | 04. Record and Settings Flow Polish | `.planning/phases/04-record-settings-flow-polish/` | Backfilled as partial phase from period tag and cache/unbind work |
 | 05. Documentation and Release Readiness | `.planning/phases/05-documentation-release-readiness/` | Backfilled from project/codebase documentation sync commits |
@@ -44,6 +45,6 @@ This ledger is a migration index. It does not replace the phase artifacts under 
 
 ## Current Working State
 
-The backfilled history and Phase 2.1 implementation were committed in `4e033b0`.
+The backfilled history and Phase 2.1 implementation were committed in `4e033b0`; the GSD handoff state was committed in `e9f080d`.
 
 Automated verification passed on 2026-06-26. Manual WeChat DevTools visual verification remains before release sign-off. The remaining CAL-05 density toggle is tracked as a future v2 calendar requirement, not as completed Phase 2.1 work.

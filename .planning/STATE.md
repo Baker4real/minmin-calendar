@@ -1,13 +1,13 @@
 # Project State: Minmin Calendar
 
-Last activity: 2026-06-26 - Backfilled repository history into formal GSD phase artifacts, completed Phase 2.1 automated verification, and created handoff state.
+Last activity: 2026-06-26 - Synced project knowledge after Phase 2.1 completion, GSD history backfill, and handoff.
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-06-26)
 
 **Core value:** Two people can reliably see the same private calendar state and understand what each calendar marker means at a glance.  
-**Current focus:** Phase 2.1 - Calendar Insight and Monthly Recap
+**Current focus:** Phase 2.1 manual visual sign-off, then CAL-05 calendar density controls
 
 ## Roadmap Status
 
@@ -47,6 +47,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 | 7 | Expanded calendar holidays to published 2001-2026 arrangements, replaced system day action/detail dialogs with themed sheets, and added a themed year-month jump sheet | 2026-06-25 | `56fc4d1` | `utils/`, `pages/index/`, `tests/` |
 | 8 | Backfilled all repository history into GSD phase artifacts | 2026-06-26 | `4e033b0` | `.planning/HISTORY.md`, `.planning/phases/` |
 | 9 | Implemented Phase 2.1 calendar insights/monthly recap with TDD and homepage wiring | 2026-06-26 | `4e033b0` | `utils/`, `pages/index/`, `tests/`, `.planning/phases/02.1-*` |
+| 10 | Created GSD handoff state for Phase 2.1 continuation | 2026-06-26 | `e9f080d` | `.planning/HANDOFF.json`, `.planning/phases/02.1-*/.continue-here.md` |
 
 ## Research Artifacts
 
