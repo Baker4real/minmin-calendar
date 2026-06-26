@@ -256,6 +256,27 @@ test('period and memory list templates keep the REC-03 visible row contract', ()
   assert.match(memoryWxml, /\{\{item\.note \|\| '我们的欢乐时光'\}\}/)
 })
 
+test('record pages delegate feedback to shared record command helpers', () => {
+  const periodEditJs = readPageFile('pages/period/edit/edit.js')
+  const memoryEditJs = readPageFile('pages/memory/edit/edit.js')
+  const periodListJs = readPageFile('pages/period/period.js')
+  const memoryListJs = readPageFile('pages/memory/memory.js')
+
+  assert.match(periodEditJs, /runRecordSave\(/)
+  assert.match(periodEditJs, /runRecordDelete\(/)
+  assert.doesNotMatch(periodEditJs, /res\.result/)
+
+  assert.match(memoryEditJs, /runRecordSave\(/)
+  assert.match(memoryEditJs, /runRecordDelete\(/)
+  assert.doesNotMatch(memoryEditJs, /res\.result/)
+
+  assert.match(periodListJs, /runRecordListLoad\(/)
+  assert.doesNotMatch(periodListJs, /cloud\.getPeriods\(/)
+
+  assert.match(memoryListJs, /runRecordListLoad\(/)
+  assert.doesNotMatch(memoryListJs, /cloud\.getMemories\(/)
+})
+
 function createFakePage(initialData = {}) {
   return {
     data: { ...initialData },
