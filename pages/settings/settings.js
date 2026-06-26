@@ -6,7 +6,7 @@ Page({
   data: { roomCode: '', roomCodeDisplay: '未绑定' },
 
   async onShow() {
-    const room = await roomSession.getActiveRoom()
+    const room = await roomSession.getVerifiedActiveRoom()
     syncActiveRoom(this, room)
   },
 

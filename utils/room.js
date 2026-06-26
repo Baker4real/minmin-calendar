@@ -34,6 +34,28 @@ function createRoomSession(options = {}) {
       return { kind: 'no-room', bound: false, roomCode: '' }
     },
 
+    async getVerifiedActiveRoom() {
+      const cachedRoomCode = normalizeRoomCode(storage.get(ROOM_CODE_KEY))
+      if (!cachedRoomCode) {
+        return this.getActiveRoom()
+      }
+
+      const repair = await this.repairCachedRoom(cachedRoomCode)
+      if (repair && repair.kind === 'success' && repair.bound && repair.roomCode) {
+        return repair
+      }
+      if (repair && repair.kind === 'success' && !repair.bound) {
+        return { kind: 'no-room', bound: false, roomCode: '' }
+      }
+
+      return {
+        kind: 'retryable-failure',
+        bound: false,
+        roomCode: '',
+        errorMsg: repair && repair.message ? repair.message : '同步房间状态失败，请稍后重试'
+      }
+    },
+
     async repairCachedRoom(expectedRoomCode) {
       try {
         const res = await cloud.callFunction({ name: 'getMyRoom' })
@@ -131,6 +153,10 @@ async function getActiveRoom() {
   return createRoomSession().getActiveRoom()
 }
 
+async function getVerifiedActiveRoom() {
+  return createRoomSession().getVerifiedActiveRoom()
+}
+
 async function repairCachedRoom(roomCode) {
   return createRoomSession().repairCachedRoom(roomCode)
 }
@@ -207,6 +233,7 @@ module.exports = {
   createRoomSession,
   getRoomCode,
   getActiveRoom,
+  getVerifiedActiveRoom,
   repairCachedRoom,
   createRoom,
   joinRoom,

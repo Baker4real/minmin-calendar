@@ -224,13 +224,16 @@ test('period and memory pages keep a visible retry action when room repair sync 
   })
 })
 
-test('settings page keeps retryable room sync failures visible and syncs repaired room codes on export', async () => {
+test('settings page onShow uses verified room lookup, keeps retryable sync failures visible, and syncs repaired room codes on export', async () => {
   let exportCalls = 0
   const harness = loadPageHarness('pages/settings/settings.js', {
     mocks: {
       'utils/cloud.js': {},
       'utils/room.js': {
         async getActiveRoom() {
+          throw new Error('settings onShow should use getVerifiedActiveRoom')
+        },
+        async getVerifiedActiveRoom() {
           return {
             kind: 'retryable-failure',
             bound: false,
@@ -276,13 +279,46 @@ test('settings page keeps retryable room sync failures visible and syncs repaire
   }
 })
 
+test('bind page onShow uses verified room lookup and clears stale bound state when verification says unbound', async () => {
+  const harness = loadPageHarness('pages/bind/bind.js', {
+    mocks: {
+      'utils/room.js': {
+        async getActiveRoom() {
+          throw new Error('bind onShow should use getVerifiedActiveRoom')
+        },
+        async getVerifiedActiveRoom() {
+          return {
+            kind: 'no-room',
+            bound: false,
+            roomCode: ''
+          }
+        }
+      }
+    }
+  })
+
+  try {
+    harness.page.data.bound = true
+    harness.page.data.roomCode = 'ROOM01'
+    harness.page.data.errorMsg = '旧错误'
+
+    await awaitPageOnShow(harness.page)
+
+    assert.equal(harness.page.data.bound, false)
+    assert.equal(harness.page.data.roomCode, '')
+    assert.equal(harness.page.data.errorMsg, '')
+  } finally {
+    harness.teardown()
+  }
+})
+
 test('settings page exportData keeps repair retryable failures visible instead of relabeling as unbound', async () => {
   let exportCalls = 0
   const harness = loadPageHarness('pages/settings/settings.js', {
     mocks: {
       'utils/cloud.js': {},
       'utils/room.js': {
-        async getActiveRoom() {
+        async getVerifiedActiveRoom() {
           return {
             bound: true,
             roomCode: 'ROOM01'

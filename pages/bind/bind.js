@@ -12,18 +12,17 @@ Page({
   },
 
   onShow() {
-    this.checkRoom()
+    return this.checkRoom()
   },
 
   async checkRoom() {
-    const room = await roomSession.getActiveRoom()
+    const room = await roomSession.getVerifiedActiveRoom()
     if (room.bound) {
-      this.setData({ bound: true, roomCode: room.roomCode })
+      this.setData({ bound: true, roomCode: room.roomCode, errorMsg: '' })
       return
     }
 
-    const data = { bound: false, roomCode: '' }
-    if (room.errorMsg) data.errorMsg = room.errorMsg
+    const data = { bound: false, roomCode: '', errorMsg: room.errorMsg || '' }
     this.setData(data)
   },
 
