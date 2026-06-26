@@ -33,6 +33,31 @@ function createRoomSession(options = {}) {
       return { bound: false, roomCode: '' }
     },
 
+    async repairCachedRoom(expectedRoomCode) {
+      const targetRoomCode = normalizeRoomCode(expectedRoomCode)
+
+      try {
+        const res = await cloud.callFunction({ name: 'getMyRoom' })
+        const roomCode = normalizeRoomCode(res.result?.room?.roomCode)
+        if (res.result?.code === 0 && roomCode) {
+          storage.set(ROOM_CODE_KEY, roomCode)
+          return { kind: 'success', bound: true, roomCode }
+        }
+
+        if (shouldClearCachedRoom(res.result, targetRoomCode, storage)) {
+          storage.remove(ROOM_CODE_KEY)
+          return { kind: 'success', bound: false, roomCode: '' }
+        }
+
+        return { kind: 'success', bound: false, roomCode: '' }
+      } catch (error) {
+        return {
+          kind: 'retryable-failure',
+          message: '同步房间状态失败：' + getErrorMessage(error)
+        }
+      }
+    },
+
     async createRoom() {
       try {
         const res = await cloud.callFunction({ name: 'createRoom' })
@@ -104,6 +129,10 @@ async function getActiveRoom() {
   return createRoomSession().getActiveRoom()
 }
 
+async function repairCachedRoom(roomCode) {
+  return createRoomSession().repairCachedRoom(roomCode)
+}
+
 async function createRoom() {
   return createRoomSession().createRoom()
 }
@@ -154,10 +183,26 @@ function getErrorMessage(error) {
   return error && error.message ? error.message : String(error || '未知错误')
 }
 
+function shouldClearCachedRoom(result, expectedRoomCode, storage) {
+  const message = String(result && result.msg ? result.msg : '')
+  const cachedRoomCode = normalizeRoomCode(storage.get(ROOM_CODE_KEY))
+
+  if (result && result.code === 1) {
+    return true
+  }
+
+  if (message.includes('未加入任何房间') || message.includes('无权访问该房间') || message.includes('房间不存在')) {
+    return true
+  }
+
+  return !!expectedRoomCode && cachedRoomCode === expectedRoomCode
+}
+
 module.exports = {
   createRoomSession,
   getRoomCode,
   getActiveRoom,
+  repairCachedRoom,
   createRoom,
   joinRoom,
   clearLocalRoom,
