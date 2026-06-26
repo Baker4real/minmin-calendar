@@ -36,8 +36,8 @@
 
 ### Settings and Data
 
-- [ ] **SET-01**: User can copy the current room code from settings.
-- [ ] **SET-02**: User can export period and memory data as JSON or clipboard fallback.
+- [x] **SET-01**: User can copy the current room code from settings.
+- [x] **SET-02**: User can export period and memory data as JSON or clipboard fallback.
 - [ ] **SET-03**: User can clear local cache without deleting cloud data.
 
 ### Quality
@@ -100,8 +100,8 @@
 | ROOM-02 | Phase 3 | Partial |
 | ROOM-03 | Phase 3 | Satisfied |
 | ROOM-04 | Phase 3 | Satisfied |
-| SET-01 | Phase 4 / Phase 7 | Pending |
-| SET-02 | Phase 4 / Phase 7 | Pending |
+| SET-01 | Phase 4 / Phase 7 | Complete |
+| SET-02 | Phase 4 / Phase 7 | Complete |
 | SET-03 | Phase 4 | Satisfied |
 | QUAL-01 | Phase 1 / Phase 2 / Phase 2.1 | Satisfied for current automated scope |
 | QUAL-02 | All implementation phases | Satisfied for current touched files |
