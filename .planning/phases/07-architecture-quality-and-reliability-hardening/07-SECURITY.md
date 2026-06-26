@@ -1,11 +1,11 @@
 ---
 phase: 07
 slug: architecture-quality-and-reliability-hardening
-status: OPEN_THREATS
-threats_open: 1
+status: verified
+threats_open: 0
 asvs_level: 1
 created: 2026-06-26T19:18:22+08:00
-updated: 2026-06-26T19:18:22+08:00
+updated: 2026-06-26T20:15:26.2217917+08:00
 ---
 
 # Phase 07 Security Audit
@@ -19,17 +19,17 @@ updated: 2026-06-26T19:18:22+08:00
 
 ## Audit Status
 
-- Closed: `25/26`
-- Open: `1/26`
+- Closed: `26/26`
+- Open: `0/26`
 - ASVS Level: `1`
-- Result: `OPEN_THREATS`
+- Result: `SECURED`
 
 ## Threat Register
 
 | Plan | Threat ID | Category | Disposition | Status | Evidence |
 |---|---|---|---|---|---|
 | 07-01 | T-07-01 | Tampering | mitigate | closed | `utils/room.js:59-74,229-237`; `tests/room-session.test.js:86-120,138-155` |
-| 07-01 | T-07-02 | Denial of Service | mitigate | open | Expected explicit retry descriptor on timeout/network outcomes for `createRoomDataClient`, but `utils/cloud.js:247-259` only preserves `retry` when `action === 'list'`. Mutation entry points still call `client.add/update` at `pages/period/edit/edit.js:65-69` and `pages/memory/edit/edit.js:28-32`, and `tests/room-data-client.test.js:162-196` only proves list retry. |
+| 07-01 | T-07-02 | Denial of Service | mitigate | closed | `utils/cloud.js:31-38,65-70,247-276`; `tests/room-data-client.test.js:161-214,237-257` |
 | 07-01 | T-07-03 | Elevation of Privilege | mitigate | closed | `utils/cloud.js:45-49`; `cloudfunctions/dataOp/dataOpHandler.js:8-18,20-36`; `tests/data-op-auth.test.js:35-60,149-193` |
 | 07-01 | T-07-SC | Tampering | accept | closed | `Accepted Risks Log / AR-07-SC` |
 | 07-02 | T-07-04 | Tampering | mitigate | closed | `pages/period/edit/edit.js:60-75`; `cloudfunctions/dataOp/roomRecords.js:71-89`; `tests/record-flow.test.js:13-39` |
@@ -57,9 +57,7 @@ updated: 2026-06-26T19:18:22+08:00
 
 ## OPEN_THREATS
 
-| Threat ID | Gap | Files Searched |
-|---|---|---|
-| T-07-02 | Plan 07-01 declared timeout/network failures in `utils/cloud.js#createRoomDataClient` would expose explicit retry descriptors. The implemented client drops `retry` for non-list actions because `utils/cloud.js:252-259` gates it behind `action === 'list'`. Mutation callers remain at `pages/period/edit/edit.js:65-69` and `pages/memory/edit/edit.js:28-32`, so `add/update/remove` timeout/network failures do not carry the plan-declared retry descriptor. | `utils/cloud.js`, `pages/period/edit/edit.js`, `pages/memory/edit/edit.js`, `utils/recordCommands.js`, `tests/room-data-client.test.js` |
+None. All `26` planned threats are closed in the current implementation and audit artifacts.
 
 ## Accepted Risks Log
 
@@ -71,7 +69,7 @@ updated: 2026-06-26T19:18:22+08:00
 
 ## Unregistered Flags
 
-None. No `## Threat Flags` section was present in `07-01-SUMMARY.md` through `07-07-SUMMARY.md`, so there were no summary-declared unregistered flags to map.
+None. Re-checked `07-01-SUMMARY.md` through `07-07-SUMMARY.md`; none contains a `## Threat Flags` section.
 
 ## Security Audit Trail
 
@@ -80,11 +78,19 @@ None. No `## Threat Flags` section was present in `07-01-SUMMARY.md` through `07
 - Loaded additional mitigation-target files required to verify plan-declared threats: `07-ARCHITECTURE-AUDIT.md`, `07-VERIFICATION.md`, `.planning/codebase/ARCHITECTURE.md`, and `.planning/codebase/TESTING.md`.
 - Extracted `26` threat-register rows from the seven plan-time `<threat_model>` blocks.
 - Verified every threat by declared disposition only: `mitigate` against code/tests/docs actually cited by the mitigation, `accept` against this Accepted Risks Log.
-- Did not modify any implementation file; only this `SECURITY.md` was created.
+- `2026-06-26T20:15:26.2217917+08:00`: re-ran secure-phase after `f57cdc3`.
+- Re-loaded the requested re-audit context: `07-SECURITY.md`, `07-01-PLAN.md`, `07-REVIEW.md`, `utils/cloud.js`, `utils/recordCommands.js`, `pages/period/edit/edit.js`, `pages/memory/edit/edit.js`, `tests/room-data-client.test.js`, `tests/record-flow.test.js`, and `tests/page-registration.test.js`, plus `.planning/PROJECT.md` and `.planning/STATE.md`.
+- Re-verified all `26` Phase 07 plan-time threats by disposition. No transfer threats exist in the Phase 07 register.
+- Confirmed `utils/cloud.js#createRoomDataClient()` now always emits `retryDescriptor` on retryable outcomes. `list` failures keep executable `retry` with `mode: auto-retry`, while `add`/`update`/`remove` failures emit `mode: confirm-before-retry` without executable `retry`, closing `T-07-02` and avoiding automatic mutation replay.
+- Confirmed the shared mutation helpers still avoid auto-replaying unknown writes: `utils/recordCommands.js:184-245` maps non-list retryable failures to acknowledge-only `refresh-check`, and `tests/record-flow.test.js:70-119,167-221,257-354` keeps save/delete retries at one action call.
+- Re-ran the Phase 07 automated suite locally: `node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js` → `99/99` passing.
+- Re-ran the listed syntax checks locally: `node --check` for touched cloud functions, utils, and pages all passed.
+- Re-checked `07-01-SUMMARY.md` through `07-07-SUMMARY.md`: no `## Threat Flags` sections were present, so there are no unregistered summary flags.
+- Did not modify any implementation file; only this `SECURITY.md` was updated.
 
 ## Sign-Off
 
-- Status: `OPEN_THREATS`
-- `threats_open: 1`
-- Ship decision: blocked by `T-07-02`.
-- Required before re-audit: either implement the plan-declared retry descriptor for `createRoomDataClient` mutation timeout/network outcomes, or formally re-author the plan-time threat disposition and mitigation so the implemented confirm-state design is what secure-phase is verifying.
+- Status: `SECURED`
+- `threats_open: 0`
+- Ship decision: no secure-phase blocker remains for the Phase 07 threat register.
+- Note: manual WeChat DevTools release-signoff checks remain separate product verification work and are not open threats in this register.
