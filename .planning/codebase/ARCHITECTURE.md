@@ -16,15 +16,16 @@
          ▼                  ▼                     ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                 Shared client service / utils               │
-│ `utils/room.js`, `utils/cloud.js`, `utils/util.js`,         │
-│ `utils/cycle.js`, `utils/calendarInsights.js`               │
+│ `utils/room.js`, `utils/cloud.js`, `utils/recordCommands.js`,│
+│ `utils/settingsFlow.js`, `utils/homeCalendarState.js`,      │
+│ `utils/util.js`, `utils/cycle.js`, `utils/calendarInsights.js` │
 └────────┬────────────────────────────────────────────────────┘
          │
          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                Cloud Functions / Cloud DB layer             │
 │ `cloudfunctions/createRoom/*`, `joinRoom/*`, `getMyRoom/*`, │
-│ `leaveRoom/*`, `login/*`, `dataOp/*`                        │
+│ `leaveRoom/*`, `login/*`, `dataOp/*`, `dataOpHandler.js`    │
 └────────┬────────────────────────────────────────────────────┘
          │
          ▼
@@ -46,11 +47,15 @@
 | Room binding | Creates or joins shared room, stores room code locally | `pages/bind/bind.js` |
 | Settings | Reads room code, exports data, clears local cache | `pages/settings/settings.js` |
 | Room session | Owns room-code cache, recovery, create/join calls, and local clear behavior | `utils/room.js` |
-| Shared client API | Wraps cloud function calls and local room-code access | `utils/cloud.js` |
+| Shared client API | Wraps cloud function calls, active-room recovery, and room-scoped outcome handling | `utils/cloud.js` |
+| Record flow helpers | Own shared save/delete/list feedback plus retry and rebind prompts for record pages | `utils/recordCommands.js` |
+| Settings flow helper | Owns room-code copy, export branching, retry/rebind prompts, and local-only clear flow | `utils/settingsFlow.js` |
+| Homepage state builder | Composes prediction, reminders, calendar days, day-detail payloads, and monthly recap | `utils/homeCalendarState.js` |
 | Date / calendar logic | Formats dates, computes holiday/lunar metadata, builds calendar grid | `utils/util.js`, `utils/chinaHolidays.js` |
 | Cycle model logic | Predicts cycle ranges, reminders, and period metadata labels | `utils/cycle.js` |
 | Calendar insight logic | Explains calendar markers, prediction math, day meanings, and monthly recap copy | `utils/calendarInsights.js` |
 | Backend CRUD gateway | Validates access and performs CRUD on records | `cloudfunctions/dataOp/index.js` |
+| Backend CRUD authorization seam | Owns room membership lookup and action dispatch behind the deployed adapter | `cloudfunctions/dataOp/dataOpHandler.js` |
 | Room record rules | Validates, normalizes, sorts, and mutates Room-scoped period/memory records | `cloudfunctions/dataOp/roomRecords.js` |
 | Room lifecycle rules | Revokes current-user Room membership, transfers remaining ownership, and deletes empty Rooms | `cloudfunctions/leaveRoom/roomLifecycle.js` |
 
@@ -60,8 +65,11 @@
 
 **Key Characteristics:**
 - Pages own presentation and user interaction; business state stays in page `data` and methods.
-- `utils/room.js` centralizes client-side Room session/cache behavior; `utils/cloud.js` is the only client-side path for record mutations and list reads.
+- `utils/room.js` centralizes client-side Room session/cache behavior; `utils/cloud.js#createRoomDataClient()` is the shared room-scoped data seam for record and export flows.
+- `utils/recordCommands.js` and `utils/settingsFlow.js` keep retry, rebind, and success feedback in shared helpers so record/settings pages stay thin.
+- `utils/homeCalendarState.js` keeps homepage prediction, calendar-grid, day-detail, and monthly recap composition in one pure module.
 - `utils/calendarInsights.js` keeps explanation/monthly recap copy as pure presentation derivation outside the page controller.
+- `cloudfunctions/dataOp/dataOpHandler.js` keeps room authorization and action dispatch separate from cloud runtime wiring in `index.js`.
 - Cloud functions enforce room-level access before touching shared records and own server-side Room membership changes.
 - Calendar rendering is derived from `periods`, `memories`, and computed prediction state rather than stored UI state.
 
@@ -71,20 +79,20 @@
 - Purpose: Render tab pages, forms, lists, and calendar cells.
 - Location: `pages/**`
 - Contains: `Page({ data, onLoad/onShow, event handlers })`, page-specific navigation, modal/toast interactions.
-- Depends on: `utils/cloud.js`, `utils/util.js`, `utils/cycle.js`, `wx.*` APIs.
+- Depends on: `utils/cloud.js`, `utils/recordCommands.js`, `utils/settingsFlow.js`, `utils/homeCalendarState.js`, `utils/util.js`, `utils/cycle.js`, `wx.*` APIs.
 - Used by: Users through `app.json` page routing and tab bar.
 
 **Shared client layer:**
 - Purpose: Normalize data access and shared date logic.
-- Location: `utils/room.js`, `utils/cloud.js`, `utils/util.js`, `utils/cycle.js`
-- Contains: room-code cache/session lookup, cloud-function wrappers, calendar/date helpers, published holiday data, cycle prediction helpers, period metadata helpers.
+- Location: `utils/room.js`, `utils/cloud.js`, `utils/recordCommands.js`, `utils/settingsFlow.js`, `utils/homeCalendarState.js`, `utils/util.js`, `utils/cycle.js`
+- Contains: room-code cache/session lookup, room-scoped data outcomes, shared record/settings feedback flows, homepage view-model composition, calendar/date helpers, published holiday data, cycle prediction helpers, period metadata helpers.
 - Depends on: `wx.cloud`, `wx.getStorageSync`, `wx.setStorageSync`.
 - Used by: `pages/index/index.js`, `pages/period/*`, `pages/memory/*`, `pages/settings/settings.js`, `pages/bind/bind.js`.
 
 **Cloud function layer:**
 - Purpose: Resolve user identity, room membership, and data persistence.
 - Location: `cloudfunctions/*/index.js`
-- Contains: room creation/join/leave lookup, shared record CRUD, identity lookup.
+- Contains: room creation/join/leave lookup, shared record CRUD, identity lookup, and the `dataOp` authorization seam in `cloudfunctions/dataOp/dataOpHandler.js`.
 - Depends on: `wx-server-sdk`, WeChat cloud context, cloud database collections.
 - Used by: `utils/cloud.js` and direct `wx.cloud.callFunction` calls in bind/settings pages.
 
@@ -100,27 +108,28 @@
 ### Primary Request Path
 
 1. User opens a tab page declared in `app.json`, usually `pages/index/index`.
-2. `pages/index/index.js` reads `roomCode` through `utils/cloud.js`, which delegates room-code lookup to `utils/room.js`, and loads `periods` and `memories` with `cloud.getPeriods()` / `cloud.getMemories()`.
-3. `utils/cloud.js` calls `cloudfunctions/dataOp/index.js` with `wx.cloud.callFunction`.
-4. `cloudfunctions/dataOp/index.js` validates that the caller belongs to the room before reading or mutating `rooms`, `periods`, or `memories`.
-5. `cloudfunctions/dataOp/roomRecords.js` validates and normalizes Period record / Memory record payloads before writes.
-6. Returned records are transformed with `utils/util.js`, `utils/chinaHolidays.js`, and `utils/cycle.js` helpers into calendar days, lunar/holiday labels, cycle stats, prediction ranges, reminders, and period labels.
-7. `utils/calendarInsights.js` translates those derived records and prediction objects into legend rows, prediction explanation lines, day marker reasons, and monthly recap text.
+2. `pages/index/index.js` reads the active room through `utils/cloud.js`, which delegates room lookup and repair to `utils/room.js`, then loads `periods` and `memories`.
+3. `utils/cloud.js` legacy wrappers or `createRoomDataClient()` call `cloudfunctions/dataOp/index.js` with `wx.cloud.callFunction`.
+4. `cloudfunctions/dataOp/index.js` delegates room membership lookup and action dispatch to `cloudfunctions/dataOp/dataOpHandler.js`.
+5. `cloudfunctions/dataOp/dataOpHandler.js` validates that the caller belongs to the room before reading or mutating `rooms`, `periods`, or `memories`.
+6. `cloudfunctions/dataOp/roomRecords.js` validates and normalizes Period record / Memory record payloads before writes.
+7. Returned records are transformed with `utils/homeCalendarState.js`, `utils/util.js`, `utils/chinaHolidays.js`, `utils/cycle.js`, and `utils/calendarInsights.js` into calendar days, lunar/holiday labels, cycle stats, prediction ranges, reminders, day meanings, and monthly recap text.
 
 ### Room Binding Flow
 
 1. User enters `pages/bind/bind` when no local room code exists or when pairing is needed.
-2. `pages/bind/bind.js` calls the `utils/room.js` RoomSession Interface for `createRoom`, `joinRoom`, `getActiveRoom`, and `leaveRoom`.
-3. Successful create/join/recovery results are cached in local storage under `roomCode` by the RoomSession Module.
+2. `pages/bind/bind.js` calls the `utils/room.js` RoomSession Interface for `createRoom`, `joinRoom`, `getActiveRoom`, `repairCachedRoom`, and `leaveRoom`.
+3. Successful create/join/recovery results are cached in local storage under `roomCode` by the RoomSession Module, and stale-room checks can refresh or clear that cache through `repairCachedRoom()`.
 4. Successful leave results revoke the server-side membership first, then clear local storage.
 5. `utils/cloud.js` later reuses that cached code through the same RoomSession Interface to scope all record access.
 
 ### Record Editing Flow
 
-1. List pages navigate to `pages/period/edit/edit` or `pages/memory/edit/edit` with query parameters.
-2. Edit pages hydrate from `onLoad(options)` and keep edit/create mode in page `data`.
-3. Save actions calculate derived values locally, then call `cloud.addPeriod`, `cloud.updatePeriod`, `cloud.addMemory`, or `cloud.updateMemory`.
-4. Delete actions call the matching remove helper and navigate back on success.
+1. Period and memory list pages load shared room-scoped data through `createRoomDataClient()` and `utils/recordCommands.js#runRecordListLoad()`.
+2. List pages navigate to `pages/period/edit/edit` or `pages/memory/edit/edit` with query parameters.
+3. Edit pages hydrate from `onLoad(options)` and keep edit/create mode in page `data`.
+4. Save actions calculate derived values locally, then delegate shared loading, retry, and rebind behavior to `runRecordSave()` while calling `cloud.addPeriod`, `cloud.updatePeriod`, `cloud.addMemory`, or `cloud.updateMemory`.
+5. Delete actions go through `runRecordDelete()` so confirmation, retry, and navigation behavior stay consistent.
 
 **State Management:**
 - Shared state is stored either in local storage (`roomCode`, mediated by `utils/room.js`) or in cloud database collections.
@@ -149,10 +158,35 @@
 - Examples: `utils/cloud.js`, `cloudfunctions/dataOp/index.js`
 - Pattern: Action-based API with `list`, `add`, `update`, `remove`.
 
+**RoomDataClient:**
+- Purpose: Normalize room-scoped list/add/update/remove outcomes, including retryable failures and stale-room repair.
+- Examples: `utils/cloud.js`, `tests/room-data-client.test.js`, `pages/period/period.js`, `pages/memory/memory.js`, `pages/settings/settings.js`
+- Pattern: `createRoomDataClient()` returns `success`, `retryable-failure`, `room-repair`, `business-failure`, and `no-room` outcomes while keeping legacy `utils/cloud.js` exports compatible.
+
+**Record command helpers:**
+- Purpose: Share record save/delete/list feedback, loading-state cleanup, retry prompts, and bind navigation across period and memory pages.
+- Examples: `utils/recordCommands.js`, `tests/record-flow.test.js`, `pages/period/edit/edit.js`, `pages/memory/edit/edit.js`, `pages/period/period.js`, `pages/memory/memory.js`
+- Pattern: Pages keep validation, payload building, and list decoration while the helper owns feedback-heavy branches.
+
+**Settings flow helper:**
+- Purpose: Share room-code copy, export, retry/rebind prompts, and local-only clear behavior for the settings page.
+- Examples: `utils/settingsFlow.js`, `tests/settings-flow.test.js`, `pages/settings/settings.js`
+- Pattern: The helper owns clipboard/share/file branching and export failure recovery while the page keeps modal wording and visible room-code sync.
+
+**Home calendar state builder:**
+- Purpose: Keep homepage prediction, reminder, day-grid, day-detail, and monthly recap derivation in one pure seam.
+- Examples: `utils/homeCalendarState.js`, `tests/home-calendar-state.test.js`, `pages/index/index.js`
+- Pattern: `buildHomeCalendarState()` returns serializable view data, including `dayDetailsByDate`, while `pages/index/index.js` stays the WeChat adapter.
+
 **Room-scoped record rules:**
 - Purpose: Keep Period record / Memory record field allowlists, date validation, duration calculation, sorting, and ownership checks behind the cloud-function seam.
 - Examples: `cloudfunctions/dataOp/roomRecords.js`, `tests/room-records.test.js`
 - Pattern: `dataOp` acts as the WeChat adapter; `RoomRecords` is tested through its `list/add/update/remove` interface with a fake database adapter.
+
+**dataOp authorization handler:**
+- Purpose: Keep room membership lookup and action dispatch testable without `wx-server-sdk`.
+- Examples: `cloudfunctions/dataOp/dataOpHandler.js`, `tests/data-op-auth.test.js`, `cloudfunctions/dataOp/index.js`
+- Pattern: `index.js` owns cloud runtime wiring; `createDataOpHandler()` owns room authorization, collection allowlists, and dispatch to `RoomRecords`.
 
 **Calendar derivation helpers:**
 - Purpose: Convert persisted records into day-grid UI state.
@@ -184,12 +218,12 @@
 **Home calendar page:**
 - Location: `pages/index/index.js`
 - Triggers: App tab selection, `onShow`, month navigation, day taps.
-- Responsibilities: Load data, compute stats, render calendar, route to edit/bind flows.
+- Responsibilities: Load data, delegate derived-state composition to `buildHomeCalendarState()`, render calendar, and route to edit/bind flows.
 
 **Cloud CRUD gateway:**
 - Location: `cloudfunctions/dataOp/index.js`
 - Triggers: `wx.cloud.callFunction({ name: 'dataOp' })`.
-- Responsibilities: Validate room membership and execute collection operations.
+- Responsibilities: Initialize `wx-server-sdk`, create `RoomRecords`, and delegate room membership checks plus action dispatch to `createDataOpHandler()`.
 
 **Cloud Room leave gateway:**
 - Location: `cloudfunctions/leaveRoom/index.js`
@@ -223,13 +257,14 @@
 **Strategy:** Fail locally with toast/modal feedback and return structured `{ code, msg }` from cloud functions.
 
 **Patterns:**
-- Page methods catch promise failures and surface `wx.showToast` or `wx.showModal`.
-- Cloud functions return explicit negative codes for auth, validation, and room-state failures.
+- `createRoomDataClient()` returns normalized `success`, `retryable-failure`, `room-repair`, `business-failure`, and `no-room` outcomes instead of flattening everything to thrown errors.
+- `recordCommands` and `settingsFlow` surface retry or rebind prompts inside the shared helper seam so pages do not silently drop recovery actions.
+- Cloud functions return explicit negative codes for auth, validation, unknown-action, and room-state failures.
 
 ## Cross-Cutting Concerns
 
 **Logging:** `console.error` on page load failures and cloud fallback paths.
-**Validation:** Date-order checks in edit pages; room-code normalization and length checks in `utils/room.js`; collection whitelist and membership checks in `cloudfunctions/dataOp/index.js`; server-side Period record / Memory record shape validation in `cloudfunctions/dataOp/roomRecords.js`; server-side Room leave rules in `cloudfunctions/leaveRoom/roomLifecycle.js`.
+**Validation:** Date-order checks in edit pages; room-code normalization and length checks in `utils/room.js`; room-scoped outcome classification in `utils/cloud.js`; collection whitelist and membership checks in `cloudfunctions/dataOp/dataOpHandler.js`; server-side Period record / Memory record shape validation in `cloudfunctions/dataOp/roomRecords.js`; server-side Room leave rules in `cloudfunctions/leaveRoom/roomLifecycle.js`.
 **Authentication:** Identity comes from `cloud.getWXContext().OPENID`; user access is derived from room membership, not from a separate client-side auth layer.
 
 ---
