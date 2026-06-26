@@ -109,7 +109,7 @@
 | QUAL-04 | Phase 1 / Phase 2 | Satisfied |
 | REL-01 | Phase 7 | Complete |
 | REL-02 | Phase 7 | Complete |
-| TEST-01 | Phase 7 | Partial |
+| TEST-01 | Phase 7 | Satisfied |
 | TEST-02 | Future / conditional | Pending until a suitable mini program screenshot runner is selected |
 
 **Coverage:**

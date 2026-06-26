@@ -1,13 +1,13 @@
 # Project State: Minmin Calendar
 
-Last activity: 2026-06-26 - Completed Phase 7 Plan 07-01 RoomDataClient and stale-room repair.
+Last activity: 2026-06-26 - Completed Phase 7 Plan 07-05 dataOp authorization harness.
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-06-26)
 
 **Core value:** Two people can reliably see the same private calendar state and understand what each calendar marker means at a glance.  
-**Current focus:** Phase 7 architecture quality and reliability hardening: Wave 1 shared reliability seams are in progress, with RoomDataClient/stale repair complete and the cloud authorization harness next.
+**Current focus:** Phase 7 architecture quality and reliability hardening: Wave 1 shared reliability seams are complete, and Wave 2 page-flow helpers are next.
 
 ## Roadmap Status
 
@@ -21,7 +21,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 | 4. Record and Settings Flow Polish | Partial / Gaps Found | 35% | Period metadata and local cache behavior are done; broader record/settings polish remains |
 | 5. Documentation and Release Readiness | Backfilled / Human Check Needed | 80% | History ledger and phase artifacts exist; release smoke test remains manual |
 | 6. Calendar Density and Today Jump | Implemented / Automated Checks Passed | 100% | Full density defaults on; compact/full choice persists locally; month picker has return-to-today |
-| 7. Architecture Quality and Reliability Hardening | In Progress | 14% | `07-01` complete: RoomDataClient outcomes and stale-room repair are in place; Wave 1 cloud harness remains |
+| 7. Architecture Quality and Reliability Hardening | In Progress | 29% | `07-01` and `07-05` complete: client reliability seams and cloud auth harness are in place; Wave 2 page-flow helpers are next |
 
 ## GSD History Artifacts
 
@@ -54,6 +54,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 | 10 | Created GSD handoff state for Phase 2.1 continuation | 2026-06-26 | `e9f080d` | `.planning/HANDOFF.json`, `.planning/phases/02.1-*/.continue-here.md` |
 | 11 | Implemented remembered calendar density control and month-picker return-to-today action | 2026-06-26 | `4adf3fc` | `pages/index/`, `tests/`, `.planning/phases/06-*` |
 | 12 | Implemented RoomDataClient outcome classification and stale cached room repair seam | 2026-06-26 | `485edb8` | `utils/`, `tests/`, `.planning/phases/07-*` |
+| 13 | Added a testable dataOp authorization seam and local cloud access-control harness | 2026-06-26 | `4e1c933` | `cloudfunctions/dataOp/`, `tests/`, `.planning/phases/07-*` |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 
 - Keep `createRoomDataClient()` additive while current pages continue using the legacy `utils/cloud.js` exports.
 - Separate stale-room business failures from retryable transport failures and let `RoomSession` own cache repair.
+- Keep room membership lookup and action dispatch in the server-side `createDataOpHandler()` seam while `cloudfunctions/dataOp/index.js` stays responsible for cloud runtime wiring.
+- Lock the extracted `dataOp` handler boundary with a source-contract test so `wx-server-sdk` does not creep into the injectable seam.
 
 ## Research Artifacts
 
@@ -76,7 +79,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 ## Current Verification Commands
 
 ```powershell
-node --test tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js
+node --test tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\data-op-auth.test.js
 node --check cloudfunctions\leaveRoom\roomLifecycle.js
 node --check cloudfunctions\leaveRoom\index.js
 node --check cloudfunctions\dataOp\roomRecords.js
@@ -103,4 +106,4 @@ node --check pages\period\edit\edit.js
 
 ## Next Recommended Action
 
-Execute `07-05-PLAN.md` next to finish Wave 1 with the cloud authorization harness and local access-control coverage before moving to Wave 2 page-flow helpers.
+Execute `07-02-PLAN.md` next to start Wave 2 with period/memory record command helpers and page-flow tests now that Wave 1 is complete.
