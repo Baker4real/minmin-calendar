@@ -1,3 +1,8 @@
+---
+last_mapped_commit: d4bd56de253c41a597431a5f96b93598413dfa83
+last_mapped_at: "2026-06-26T12:30:43.422Z"
+---
+
 # Codebase Structure
 
 **Analysis Date:** 2026-06-26
@@ -6,26 +11,41 @@
 
 ```text
 minmin-calendar/
+├── .gitignore
+├── .scratch/
 ├── README.md
+├── AGENTS.md
+├── CONTEXT.md
+├── DESIGN.md
 ├── app.js
 ├── app.json
 ├── app.wxss
 ├── cloudfunctions/
+├── docs/
 ├── images/
 ├── pages/
 ├── .planning/
 ├── scripts/
 ├── tests/
-├── utils/
-└── DESIGN.md
+└── utils/
 ```
 
 ## Directory Purposes
 
 **Root files:**
-- Purpose: App bootstrap, global routing, and project metadata.
-- Contains: `README.md`, `app.js`, `app.json`, `app.wxss`, `project.config.json`, `sitemap.json`.
-- Key files: `README.md`, `app.js`, `app.json`, `project.config.json`.
+- Purpose: App bootstrap, global routing, repository instructions, and project/domain metadata.
+- Contains: `.gitignore`, `README.md`, `AGENTS.md`, `CONTEXT.md`, `DESIGN.md`, `app.js`, `app.json`, `app.wxss`, `project.config.json`, `sitemap.json`.
+- Key files: `AGENTS.md`, `CONTEXT.md`, `DESIGN.md`, `README.md`, `app.js`, `app.json`, `project.config.json`.
+
+**`docs/`:**
+- Purpose: Durable domain/process documentation outside GSD phase state.
+- Contains: ADRs under `docs/adr/` and agent workflow references under `docs/agents/`.
+- Key files: `docs/adr/0001-room-leave-ownership-transfer.md`, `docs/agents/issue-tracker.md`, `docs/agents/triage-labels.md`, `docs/agents/domain.md`.
+
+**`.scratch/`:**
+- Purpose: Local markdown issue-tracker workspace until a remote repository is configured.
+- Contains: `.scratch/README.md` and local issue artifacts when needed.
+- Key files: `.scratch/README.md`.
 
 **`.planning/`:**
 - Purpose: Durable GSD project workflow, history, requirements, roadmap, state, phase artifacts, and codebase maps.
@@ -66,6 +86,9 @@ minmin-calendar/
 
 **Entry Points:**
 - `README.md`: Human-facing setup, verification, and repository hygiene entry point.
+- `AGENTS.md`: Agent instructions, GSD policy, domain file map, and verification commands.
+- `CONTEXT.md`: Current domain context and shared language.
+- `DESIGN.md`: Product/UI design direction for the Mini Program.
 - `app.js`: App startup and cloud initialization.
 - `app.json`: Page registry and tab bar configuration.
 - `pages/index/index.js`: Main calendar home page.

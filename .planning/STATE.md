@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready-for-closeout
-stopped_at: Completed Phase 07 security/code-review closeout
-last_updated: "2026-06-26T12:20:00.000Z"
+status: Milestone complete
+stopped_at: Completed 07-07-PLAN.md
+last_updated: "2026-06-26T12:37:19.621Z"
 last_activity: 2026-06-26
-last_activity_desc: Completed Phase 7 post-security review and secure-phase verification.
+last_activity_desc: Phase 07 complete
 progress:
   total_phases: 8
   completed_phases: 8
@@ -17,14 +17,14 @@ progress:
 
 # Project State: Minmin Calendar
 
-Last activity: 2026-06-26 - Completed Phase 7 post-security review and secure-phase verification.
+Last activity: 2026-06-26 — Phase 07 complete
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-06-26)
 
 **Core value:** Two people can reliably see the same private calendar state and understand what each calendar marker means at a glance.  
-**Current focus:** Phase 7 architecture quality and reliability hardening is complete in automated scope; code review is clean, secure-phase is verified with `threats_open: 0`, and the remaining work is manual WeChat DevTools confirmation plus milestone closeout.
+**Current focus:** Phase 7 architecture quality and reliability hardening is complete in automated scope; code review is clean, secure-phase is verified with `threats_open: 0`, the codebase map is refreshed, and the remaining work is manual WeChat DevTools release sign-off only.
 
 ## Roadmap Status
 
@@ -118,7 +118,7 @@ node --check pages\period\edit\edit.js
 
 ## Next Recommended Action
 
-Run WeChat DevTools manual verification for the Phase 2.1 insight/recap surfaces plus the fixed `period`, `memory`, and `settings` page-open flows, then close out the milestone or start the next planning cycle from a fresh state.
+Run WeChat DevTools manual verification for the Phase 2.1 insight/recap surfaces plus the fixed `period`, `memory`, and `settings` page-open flows when release sign-off is needed; otherwise start the next planning cycle from this clean milestone-complete state.
 
 ## Performance Metrics
 

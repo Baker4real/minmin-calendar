@@ -44,7 +44,7 @@
 
 - [x] **QUAL-01**: Date and calendar metadata logic has automated tests for prediction display, lunar dates, official holidays, and marker semantics.
 - [x] **QUAL-02**: JavaScript files touched by behavior changes pass syntax checks.
-- [ ] **QUAL-03**: Codebase map and project context stay updated after significant structure or domain changes.
+- [x] **QUAL-03**: Codebase map and project context stay updated after significant structure or domain changes.
 - [ ] **QUAL-04**: Cycle prediction and period metadata helpers have automated tests for outliers, fallbacks, reminders, and tag normalization.
 
 ## v2 Requirements
@@ -120,4 +120,4 @@
 
 ---
 *Requirements defined: 2026-06-24*  
-*Last updated: 2026-06-26 after Phase 6 calendar density and today-jump completion*  
+*Last updated: 2026-06-26 after Phase 7 architecture quality and reliability hardening closeout*  

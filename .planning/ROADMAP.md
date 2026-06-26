@@ -121,7 +121,7 @@
 | 4 | Record and Settings Flow Polish | Consistent daily management flows | REC-01, REC-02, REC-03, REC-04, SET-01, SET-02, SET-03 |
 | 5 | Documentation and Release Readiness | Current project knowledge and next-step readiness | QUAL-03 |
 | 6 | Calendar Density and Today Jump | Configurable calendar density and faster date navigation | CAL-05, CAL-08, QUAL-01, QUAL-02 |
-| 7 | 5/7 | In Progress|  |
+| 7 | 7/7 | Complete    | 2026-06-26 |
 
 ## Coverage
 
@@ -137,7 +137,7 @@
 
 **Requirements:** REL-01, REL-02, REC-01, REC-02, REC-03, SET-01, SET-02, TEST-01, QUAL-01, QUAL-02, QUAL-03
 **Depends on:** Phase 6
-**Plans:** 5/7 plans executed
+**Plans:** 7/7 plans complete
 
 **Success Criteria:**
 
@@ -164,11 +164,11 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 07-06-PLAN.md — Final architecture audit and verification evidence
+- [x] 07-06-PLAN.md — Final architecture audit and verification evidence
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 07-07-PLAN.md — Codebase map and durable project-state refresh
+- [x] 07-07-PLAN.md — Codebase map and durable project-state refresh
 
 ---
-*Last updated: 2026-06-26 after Phase 6 calendar density and today-jump completion*
+*Last updated: 2026-06-26 after Phase 7 architecture quality and reliability hardening closeout*

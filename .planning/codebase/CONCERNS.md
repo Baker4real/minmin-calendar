@@ -1,6 +1,11 @@
+---
+last_mapped_commit: d4bd56de253c41a597431a5f96b93598413dfa83
+last_mapped_at: "2026-06-26T12:30:43.422Z"
+---
+
 # Codebase Concerns
 
-**Analysis Date:** 2026-06-25
+**Analysis Date:** 2026-06-26
 
 ## Tech Debt
 
@@ -25,6 +30,12 @@
 - Files: `pages/index/index.js`, `pages/index/index.wxml`, `pages/index/index.wxss`
 - Trigger: days with multiple overlapping records or verbose notes.
 - Workaround: verify in WeChat DevTools on small-phone widths; consider row truncation or a dedicated detail page if real data becomes too dense.
+
+**Release signoff still depends on WeChat DevTools for runtime-only UI behavior:**
+- Status: Manual check remains outside automated Node coverage.
+- Files: `AGENTS.md`, `pages/index/index.wxml`, `pages/index/index.wxss`, `pages/settings/settings.js`, `pages/period/period.js`
+- Impact: Node tests validate helper and view-model contracts, but they do not render Mini Program pages or exercise native tab/page lifecycle in WeChat DevTools.
+- Fix approach: keep the documented manual visual pass for small-phone widths and room-bound Settings/Record page loading before release.
 
 ## Security Considerations
 
@@ -79,4 +90,4 @@
 
 ---
 
-*Concerns audit: 2026-06-25*
+*Concerns audit: 2026-06-26*

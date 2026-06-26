@@ -1,6 +1,11 @@
+---
+last_mapped_commit: d4bd56de253c41a597431a5f96b93598413dfa83
+last_mapped_at: "2026-06-26T12:30:43.422Z"
+---
+
 # Coding Conventions
 
-**Analysis Date:** 2026-06-24
+**Analysis Date:** 2026-06-26
 
 ## Naming Patterns
 
@@ -89,6 +94,20 @@
 **Barrel Files:**
 - Not used.
 
+## Agent and Planning Conventions
+
+**Durable workflow:**
+- Use GSD Core for non-trivial project work; project state lives in `.planning/PROJECT.md`, `.planning/REQUIREMENTS.md`, `.planning/ROADMAP.md`, `.planning/STATE.md`, and `.planning/phases/`.
+- Refresh `.planning/codebase/*.md` after structural or domain documentation changes, including root docs such as `AGENTS.md`, `CONTEXT.md`, `DESIGN.md`, and process docs under `docs/`.
+
+**Local issue tracking:**
+- Until a remote tracker is configured, use `.scratch/` according to `docs/agents/issue-tracker.md`.
+- Triage labels follow `docs/agents/triage-labels.md`: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`.
+
+**Domain documentation:**
+- Root `CONTEXT.md` is the single-context domain entry point.
+- ADRs live under `docs/adr/`; the current ADR documents Room leave and ownership-transfer behavior.
+
 ## UI Style Conventions
 
 **Visual Language:**
@@ -109,4 +128,4 @@
 
 ---
 
-*Convention analysis: 2026-06-24*
+*Convention analysis: 2026-06-26*
