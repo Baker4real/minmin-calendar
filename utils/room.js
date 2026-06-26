@@ -34,8 +34,6 @@ function createRoomSession(options = {}) {
     },
 
     async repairCachedRoom(expectedRoomCode) {
-      const targetRoomCode = normalizeRoomCode(expectedRoomCode)
-
       try {
         const res = await cloud.callFunction({ name: 'getMyRoom' })
         const roomCode = normalizeRoomCode(res.result?.room?.roomCode)
@@ -44,12 +42,15 @@ function createRoomSession(options = {}) {
           return { kind: 'success', bound: true, roomCode }
         }
 
-        if (shouldClearCachedRoom(res.result, targetRoomCode, storage)) {
+        if (shouldClearCachedRoom(res.result, roomCode)) {
           storage.remove(ROOM_CODE_KEY)
           return { kind: 'success', bound: false, roomCode: '' }
         }
 
-        return { kind: 'success', bound: false, roomCode: '' }
+        return {
+          kind: 'retryable-failure',
+          message: '同步房间状态失败：' + getFailureMessage(res.result)
+        }
       } catch (error) {
         return {
           kind: 'retryable-failure',
@@ -183,9 +184,12 @@ function getErrorMessage(error) {
   return error && error.message ? error.message : String(error || '未知错误')
 }
 
-function shouldClearCachedRoom(result, expectedRoomCode, storage) {
+function getFailureMessage(result) {
+  return result && result.msg ? result.msg : '未知错误'
+}
+
+function shouldClearCachedRoom(result, roomCode) {
   const message = String(result && result.msg ? result.msg : '')
-  const cachedRoomCode = normalizeRoomCode(storage.get(ROOM_CODE_KEY))
 
   if (result && result.code === 1) {
     return true
@@ -195,7 +199,7 @@ function shouldClearCachedRoom(result, expectedRoomCode, storage) {
     return true
   }
 
-  return !!expectedRoomCode && cachedRoomCode === expectedRoomCode
+  return result && result.code === 0 && !roomCode
 }
 
 module.exports = {

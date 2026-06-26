@@ -81,44 +81,36 @@ function createRoomDataClient(options = {}) {
 
 // ======== 经期 ========
 async function getPeriods() {
-  const outcome = await createRoomDataClient().list('periods')
-  return unwrapListOutcome(outcome)
+  return runLegacyList('periods')
 }
 
 async function addPeriod(data) {
-  const outcome = await createRoomDataClient().add('periods', data)
-  return unwrapMutationOutcome(outcome)
+  return runLegacyMutation('add', 'periods', data)
 }
 
 async function updatePeriod(id, data) {
-  const outcome = await createRoomDataClient().update('periods', id, data)
-  return unwrapMutationOutcome(outcome)
+  return runLegacyMutation('update', 'periods', data, id)
 }
 
 async function deletePeriod(id) {
-  const outcome = await createRoomDataClient().remove('periods', id)
-  return unwrapMutationOutcome(outcome)
+  return runLegacyMutation('remove', 'periods', {}, id)
 }
 
 // ======== 纪念日 ========
 async function getMemories() {
-  const outcome = await createRoomDataClient().list('memories')
-  return unwrapListOutcome(outcome)
+  return runLegacyList('memories')
 }
 
 async function addMemory(data) {
-  const outcome = await createRoomDataClient().add('memories', data)
-  return unwrapMutationOutcome(outcome)
+  return runLegacyMutation('add', 'memories', data)
 }
 
 async function updateMemory(id, data) {
-  const outcome = await createRoomDataClient().update('memories', id, data)
-  return unwrapMutationOutcome(outcome)
+  return runLegacyMutation('update', 'memories', data, id)
 }
 
 async function deleteMemory(id) {
-  const outcome = await createRoomDataClient().remove('memories', id)
-  return unwrapMutationOutcome(outcome)
+  return runLegacyMutation('remove', 'memories', {}, id)
 }
 
 function createWxCloud() {
@@ -156,6 +148,22 @@ function isStaleRoomFailure(result) {
   return STALE_ROOM_MESSAGES.some(text => message.includes(text))
 }
 
+async function runLegacyList(collection) {
+  const outcome = await createRoomDataClient().list(collection)
+  return unwrapListOutcome(outcome)
+}
+
+async function runLegacyMutation(action, collection, data, id = '') {
+  const client = createRoomDataClient()
+  if (action === 'add') {
+    return unwrapMutationOutcome(await client.add(collection, data))
+  }
+  if (action === 'update') {
+    return unwrapMutationOutcome(await client.update(collection, id, data))
+  }
+  return unwrapMutationOutcome(await client.remove(collection, id))
+}
+
 function unwrapListOutcome(outcome) {
   if (outcome.kind === 'success') {
     return outcome.data
@@ -177,13 +185,17 @@ function unwrapMutationOutcome(outcome) {
     return { result: { code: -1, msg: '缺少房间码' } }
   }
   if (outcome.kind === 'room-repair') {
-    return { result: { code: -1, msg: '房间状态已变化，请重新绑定' } }
+    return { result: buildLegacyFailure('房间状态已变化，请重新绑定') }
   }
   return {
-    result: {
-      code: -1,
-      msg: outcome.message || '操作失败'
-    }
+    result: buildLegacyFailure(outcome.message || '操作失败')
+  }
+}
+
+function buildLegacyFailure(message) {
+  return {
+    code: -1,
+    msg: message
   }
 }
 
