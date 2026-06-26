@@ -224,8 +224,26 @@ async function handleFailureOutcome({
         fallback: normalized
       })
     }
-    wxApi.showToast({ title: normalized.message, icon: 'none' })
-    return normalized
+    if (retryableMode === 'retry') {
+      return promptRetry({
+        wxApi,
+        title: failureTitle,
+        content: normalized.message,
+        retryAction,
+        fallback: normalized
+      })
+    }
+    const acknowledged = {
+      ...normalized,
+      action: 'refresh-check',
+      message: buildRecoveryAdviceMessage(normalized.message, retryableAdvice)
+    }
+    return promptAcknowledge({
+      wxApi,
+      title: failureTitle,
+      content: acknowledged.message,
+      fallback: acknowledged
+    })
   }
 
   if (outcome.kind === 'no-room') {
@@ -273,6 +291,19 @@ function normalizeRoomRepairOutcome(outcome, roomRepairTitle) {
     action: 'repair-retry',
     message: repair.message || '同步房间状态失败，请稍后重试'
   }
+}
+
+function buildRecoveryAdviceMessage(message, advice) {
+  if (!advice) {
+    return message
+  }
+  if (!message) {
+    return advice
+  }
+  if (message === advice) {
+    return message
+  }
+  return `${message}\n\n${advice}`
 }
 
 function updatePage(page, update) {

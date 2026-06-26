@@ -172,6 +172,56 @@ test('memory page onShow executes loadData and populates sorted memories through
   }
 })
 
+test('period and memory pages keep a visible retry action when room repair sync fails during list load', async () => {
+  await assertListPageRepairRetry('pages/period/period.js', {
+    'utils/cloud.js': {
+      createRoomDataClient() {
+        return {
+          async list() {
+            return {
+              kind: 'room-repair',
+              roomCode: 'ROOM01',
+              repair: {
+                kind: 'retryable-failure',
+                message: '同步房间状态失败：network down'
+              }
+            }
+          }
+        }
+      }
+    },
+    'utils/util.js': createUtilStub(),
+    'utils/cycle.js': {
+      decoratePeriod(period) {
+        return period
+      },
+      predictNextPeriod() {
+        return { canPredict: false, avgCycle: null, avgDuration: null }
+      }
+    }
+  })
+
+  await assertListPageRepairRetry('pages/memory/memory.js', {
+    'utils/cloud.js': {
+      createRoomDataClient() {
+        return {
+          async list() {
+            return {
+              kind: 'room-repair',
+              roomCode: 'ROOM01',
+              repair: {
+                kind: 'retryable-failure',
+                message: '同步房间状态失败：network down'
+              }
+            }
+          }
+        }
+      }
+    },
+    'utils/util.js': createUtilStub()
+  })
+})
+
 test('settings page keeps retryable room sync failures visible and syncs repaired room codes on export', async () => {
   let exportCalls = 0
   const harness = loadPageHarness('pages/settings/settings.js', {
@@ -316,6 +366,36 @@ function loadPageHarness(relativePath, { mocks = {}, wxOverrides = {} } = {}) {
       global.wx = originalWx
       delete require.cache[require.resolve(absolutePagePath)]
     }
+  }
+}
+
+async function assertListPageRepairRetry(relativePath, mocks) {
+  const modals = []
+  const harness = loadPageHarness(relativePath, {
+    mocks,
+    wxOverrides: {
+      showModal(options) {
+        modals.push(options)
+      }
+    }
+  })
+
+  try {
+    const promise = harness.page.onShow()
+    await Promise.resolve()
+
+    assert.equal(modals.length, 1)
+    assert.equal(modals[0].title, '加载失败')
+    assert.equal(modals[0].content, '同步房间状态失败：network down')
+    assert.equal(modals[0].confirmText, '重试')
+    assert.equal(modals[0].cancelText, '取消')
+
+    await modals[0].success({ confirm: false, cancel: true })
+    await promise
+
+    assert.equal(harness.page.data.loading, false)
+  } finally {
+    harness.teardown()
   }
 }
 

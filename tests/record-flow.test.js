@@ -164,6 +164,63 @@ test('runRecordSave offers to rebind when room repair cannot restore membership'
   assert.equal(env.timer.calls.length, 0)
 })
 
+test('runRecordSave keeps room repair sync failures visible without replaying the mutation', async () => {
+  assert.equal(typeof recordCommands.runRecordSave, 'function')
+
+  const page = createFakePage({ saving: false })
+  const env = createFakeCommandEnv()
+  let actionCalls = 0
+
+  const promise = recordCommands.runRecordSave({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => {
+      actionCalls += 1
+      return {
+        kind: 'room-repair',
+        roomCode: 'ROOM01',
+        repair: {
+          kind: 'retryable-failure',
+          message: '同步房间状态失败：network down'
+        }
+      }
+    },
+    validate: null,
+    successTitle: '保存成功',
+    failureTitle: '保存失败'
+  })
+
+  await Promise.resolve()
+  assert.equal(env.wx.modals.length, 1)
+  const modal = env.wx.modals[0]
+
+  const result = await env.wx.resolveModal(true, promise)
+
+  assert.deepEqual(result, {
+    kind: 'room-repair',
+    action: 'refresh-check',
+    message: '同步房间状态失败：network down\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
+    roomCode: 'ROOM01',
+    repair: {
+      kind: 'retryable-failure',
+      message: '同步房间状态失败：network down'
+    }
+  })
+  assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
+  assert.deepEqual(modal, {
+    title: '保存失败',
+    content: '同步房间状态失败：network down\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
+    confirmText: '知道了',
+    showCancel: false,
+    success: modal.success
+  })
+  assert.deepEqual(env.wx.toasts, [])
+  assert.equal(env.timer.calls.length, 0)
+  assert.equal(env.navigateBackCalls.length, 0)
+  assert.equal(actionCalls, 1)
+})
+
 test('runRecordDelete keeps modal confirmation and success feedback behavior', async () => {
   assert.equal(typeof recordCommands.runRecordDelete, 'function')
 
@@ -235,6 +292,65 @@ test('runRecordDelete does not replay unknown delete mutations after retryable f
   })
   assert.equal(actionCalls, 1)
   assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
+  assert.deepEqual(env.wx.toasts, [])
+  assert.equal(env.timer.calls.length, 0)
+})
+
+test('runRecordDelete keeps room repair sync failures visible without replaying the mutation', async () => {
+  assert.equal(typeof recordCommands.runRecordDelete, 'function')
+
+  const page = createFakePage()
+  const env = createFakeCommandEnv()
+  let actionCalls = 0
+
+  const promise = recordCommands.runRecordDelete({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => {
+      actionCalls += 1
+      return {
+        kind: 'room-repair',
+        roomCode: 'ROOM01',
+        repair: {
+          kind: 'retryable-failure',
+          message: '同步房间状态失败：network down'
+        }
+      }
+    },
+    confirmTitle: '确认删除',
+    successTitle: '已删除',
+    failureTitle: '删除失败'
+  })
+
+  assert.equal(env.wx.modals.length, 1)
+
+  await env.wx.resolveModal(true)
+  await Promise.resolve()
+  assert.equal(env.wx.modals.length, 1)
+  const modal = env.wx.modals[0]
+
+  const result = await env.wx.resolveModal(true, promise)
+
+  assert.deepEqual(result, {
+    kind: 'room-repair',
+    action: 'refresh-check',
+    message: '同步房间状态失败：network down\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
+    roomCode: 'ROOM01',
+    repair: {
+      kind: 'retryable-failure',
+      message: '同步房间状态失败：network down'
+    }
+  })
+  assert.equal(actionCalls, 1)
+  assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
+  assert.deepEqual(modal, {
+    title: '删除失败',
+    content: '同步房间状态失败：network down\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
+    confirmText: '知道了',
+    showCancel: false,
+    success: modal.success
+  })
   assert.deepEqual(env.wx.toasts, [])
   assert.equal(env.timer.calls.length, 0)
 })
@@ -315,6 +431,65 @@ test('runRecordListLoad surfaces a retry action and reloads memories when the us
   const result = await env.wx.resolveModal(true, promise)
 
   assert.deepEqual(result, { kind: 'success', data: [] })
+  assert.deepEqual(page.setDataCalls, [
+    { loading: true },
+    { loading: false },
+    { loading: true },
+    { memories: [] },
+    { loading: false }
+  ])
+  assert.deepEqual(env.wx.toasts, [])
+  assert.equal(retried, true)
+  assert.equal(actionCalls, 2)
+})
+
+test('runRecordListLoad keeps room repair sync failures retryable when the user confirms', async () => {
+  assert.equal(typeof recordCommands.runRecordListLoad, 'function')
+
+  const page = createFakePage({ loading: false })
+  const env = createFakeCommandEnv()
+  let retried = false
+  let actionCalls = 0
+
+  const promise = recordCommands.runRecordListLoad({
+    page,
+    wx: env.wx,
+    loadingKey: 'loading',
+    itemsKey: 'memories',
+    action: async () => {
+      actionCalls += 1
+      if (actionCalls === 1) {
+        return {
+          kind: 'room-repair',
+          roomCode: 'ROOM01',
+          repair: {
+            kind: 'retryable-failure',
+            message: '同步房间状态失败：network down'
+          }
+        }
+      }
+      retried = true
+      return { kind: 'success', data: [] }
+    },
+    mapRecords: records => [...records].sort((a, b) => b.date.localeCompare(a.date)),
+    retryableTitle: '加载失败，请检查网络',
+    roomRepairTitle: '房间状态已变化，请重新绑定'
+  })
+
+  await Promise.resolve()
+  assert.equal(env.wx.modals.length, 1)
+  const modal = env.wx.modals[0]
+
+  const result = await env.wx.resolveModal(true, promise)
+
+  assert.deepEqual(result, { kind: 'success', data: [] })
+  assert.deepEqual(modal, {
+    title: '加载失败',
+    content: '同步房间状态失败：network down',
+    confirmText: '重试',
+    cancelText: '取消',
+    success: modal.success
+  })
   assert.deepEqual(page.setDataCalls, [
     { loading: true },
     { loading: false },
