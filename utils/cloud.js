@@ -29,7 +29,7 @@ function createRoomDataClient(options = {}) {
   const timeoutMs = options.timeoutMs || QUERY_TIMEOUT
 
   async function runAction(action, collection, data, id) {
-    const roomCode = getNormalizedRoomCode(session)
+    const roomCode = await getActiveRoomCode(session)
     if (!roomCode) {
       return { kind: 'no-room' }
     }
@@ -127,6 +127,24 @@ function getWx() {
 function getNormalizedRoomCode(session) {
   if (!session || typeof session.getRoomCode !== 'function') return ''
   return String(session.getRoomCode() || '').trim().toUpperCase()
+}
+
+async function getActiveRoomCode(session) {
+  const cachedRoomCode = getNormalizedRoomCode(session)
+  if (cachedRoomCode) return cachedRoomCode
+
+  if (!session || typeof session.getActiveRoom !== 'function') {
+    return ''
+  }
+
+  try {
+    const room = await session.getActiveRoom()
+    if (room && room.bound && room.roomCode) {
+      return String(room.roomCode).trim().toUpperCase()
+    }
+  } catch (error) {}
+
+  return ''
 }
 
 function buildSuccessOutcome(action, result) {

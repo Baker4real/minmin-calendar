@@ -100,6 +100,35 @@ test('RoomDataClient returns no-room without calling dataOp when no cached room 
   assert.deepEqual(cloud.calls, [])
 })
 
+test('RoomDataClient recovers the active room from RoomSession before loading records', async () => {
+  const cloud = createFakeCloud([
+    { result: { code: 0, data: [{ _id: 'p1', startDate: '2026-06-01' }] } }
+  ])
+  const roomSession = createFakeRoomSession({
+    roomCode: '',
+    activeRoom: { bound: true, roomCode: 'ROOM02' }
+  })
+  const client = createRoomDataClient({ cloud, roomSession })
+
+  const outcome = await client.list('periods')
+
+  assert.deepEqual(outcome, {
+    kind: 'success',
+    data: [{ _id: 'p1', startDate: '2026-06-01' }]
+  })
+  assert.deepEqual(roomSession.activeRoomCalls, ['getActiveRoom'])
+  assert.deepEqual(cloud.calls, [{
+    name: 'dataOp',
+    data: {
+      action: 'list',
+      collection: 'periods',
+      data: {},
+      id: '',
+      roomCode: 'ROOM02'
+    }
+  }])
+})
+
 test('RoomDataClient classifies rejected cloud calls as retryable failures and keeps room state', async () => {
   const cloud = createFakeCloud([
     new Error('network down'),
@@ -242,10 +271,16 @@ test('Legacy cloud list wrappers still throw on retryable transport failures', a
 function createFakeRoomSession(options = {}) {
   const session = {
     roomCode: options.roomCode || '',
+    activeRoom: options.activeRoom || null,
     repairCalls: [],
+    activeRoomCalls: [],
     repairResult: options.repairResult || { kind: 'success', bound: true, roomCode: options.roomCode || '' },
     getRoomCode() {
       return session.roomCode
+    },
+    async getActiveRoom() {
+      session.activeRoomCalls.push('getActiveRoom')
+      return session.activeRoom || { bound: false, roomCode: '' }
     },
     async repairCachedRoom(expectedRoomCode) {
       session.repairCalls.push(expectedRoomCode)

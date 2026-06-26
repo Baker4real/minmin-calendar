@@ -9,6 +9,7 @@ function runRecordSave(options) {
     successTitle = '保存成功',
     failureTitle = '保存失败',
     navigateBack = createNavigateBack(wxApi),
+    navigateToBind = createNavigateToBind(wxApi),
     successDelay = 1000
   } = options || {}
 
@@ -22,6 +23,7 @@ function runRecordSave(options) {
     successTitle,
     failureTitle,
     navigateBack,
+    navigateToBind,
     successDelay
   })
 }
@@ -64,7 +66,8 @@ async function runRecordListLoad(options) {
     loadingKey = 'loading',
     retryableTitle = '加载失败，请检查网络',
     failureTitle = '加载失败',
-    roomRepairTitle = '房间状态已变化，请重新绑定'
+    roomRepairTitle = '房间状态已变化，请重新绑定',
+    navigateToBind = createNavigateToBind(wxApi)
   } = options || {}
 
   updatePage(page, { [loadingKey]: true })
@@ -91,15 +94,16 @@ async function runRecordListLoad(options) {
     return outcome
   }
 
-  const handled = handleFailureOutcome({
+  updatePage(page, { [loadingKey]: false })
+  return handleFailureOutcome({
     outcome,
     wxApi,
     retryableTitle,
     failureTitle,
-    roomRepairTitle
+    roomRepairTitle,
+    retryAction: () => runRecordListLoad(options),
+    navigateToBind
   })
-  updatePage(page, { [loadingKey]: false })
-  return handled
 }
 
 async function runCommand(options) {
@@ -113,6 +117,7 @@ async function runCommand(options) {
     successTitle,
     failureTitle,
     navigateBack,
+    navigateToBind,
     successDelay
   } = options
 
@@ -144,25 +149,57 @@ async function runCommand(options) {
     return outcome
   }
 
-  const handled = handleFailureOutcome({
+  updatePage(page, { [loadingKey]: false })
+  return handleFailureOutcome({
     outcome,
     wxApi,
     retryableTitle: `${failureTitle}，请重试`,
     failureTitle,
-    roomRepairTitle: '房间状态已变化，请重新绑定'
+    roomRepairTitle: '房间状态已变化，请重新绑定',
+    retryAction: () => runCommand(options),
+    navigateToBind
   })
-  updatePage(page, { [loadingKey]: false })
-  return handled
 }
 
-function handleFailureOutcome({ outcome, wxApi, retryableTitle, failureTitle, roomRepairTitle }) {
+async function handleFailureOutcome({
+  outcome,
+  wxApi,
+  retryableTitle,
+  failureTitle,
+  roomRepairTitle,
+  retryAction,
+  navigateToBind
+}) {
   if (outcome.kind === 'retryable-failure') {
-    wxApi.showToast({ title: retryableTitle, icon: 'none' })
-    return outcome
+    return promptRetry({
+      wxApi,
+      title: failureTitle,
+      content: retryableTitle,
+      retryAction,
+      fallback: outcome
+    })
   }
 
   if (outcome.kind === 'room-repair') {
     const normalized = normalizeRoomRepairOutcome(outcome, roomRepairTitle)
+    if (normalized.action === 'retry') {
+      return promptRetry({
+        wxApi,
+        title: '房间状态已同步',
+        content: normalized.message,
+        retryAction,
+        fallback: normalized
+      })
+    }
+    if (normalized.action === 'rebind') {
+      return promptNavigateToBind({
+        wxApi,
+        title: '房间状态已变化',
+        content: normalized.message,
+        navigateToBind,
+        fallback: normalized
+      })
+    }
     wxApi.showToast({ title: normalized.message, icon: 'none' })
     return normalized
   }
@@ -172,8 +209,13 @@ function handleFailureOutcome({ outcome, wxApi, retryableTitle, failureTitle, ro
       kind: 'no-room',
       message: '请先绑定房间'
     }
-    wxApi.showToast({ title: normalized.message, icon: 'none' })
-    return normalized
+    return promptNavigateToBind({
+      wxApi,
+      title: '请先绑定房间',
+      content: '当前操作需要先绑定房间',
+      navigateToBind,
+      fallback: normalized
+    })
   }
 
   const message = outcome.message || failureTitle
@@ -228,6 +270,58 @@ function createNavigateBack(wxApi) {
     return () => wxApi.navigateBack()
   }
   return () => {}
+}
+
+function createNavigateToBind(wxApi) {
+  if (wxApi && typeof wxApi.navigateTo === 'function') {
+    return () => wxApi.navigateTo({ url: '/pages/bind/bind' })
+  }
+  return () => {}
+}
+
+function promptRetry({ wxApi, title, content, retryAction, fallback }) {
+  if (!wxApi || typeof wxApi.showModal !== 'function' || typeof retryAction !== 'function') {
+    wxApi.showToast({ title: content, icon: 'none' })
+    return Promise.resolve(fallback)
+  }
+
+  return new Promise(resolve => {
+    wxApi.showModal({
+      title,
+      content,
+      confirmText: '重试',
+      cancelText: '取消',
+      success: async (result) => {
+        if (!result.confirm) {
+          resolve(fallback)
+          return
+        }
+        resolve(retryAction())
+      }
+    })
+  })
+}
+
+function promptNavigateToBind({ wxApi, title, content, navigateToBind, fallback }) {
+  if (!wxApi || typeof wxApi.showModal !== 'function' || typeof navigateToBind !== 'function') {
+    wxApi.showToast({ title: content, icon: 'none' })
+    return Promise.resolve(fallback)
+  }
+
+  return new Promise(resolve => {
+    wxApi.showModal({
+      title,
+      content,
+      confirmText: '去绑定',
+      cancelText: '取消',
+      success: async (result) => {
+        if (result.confirm) {
+          navigateToBind()
+        }
+        resolve(fallback)
+      }
+    })
+  })
 }
 
 function getWx() {

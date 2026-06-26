@@ -114,43 +114,57 @@ test('exportRecordsAsJson falls back to the clipboard when file sharing fails', 
   assert.deepEqual(env.wx.toasts, [{ title: '已复制到剪贴板' }])
 })
 
-test('exportRecordsAsJson hides loading and returns a retryable outcome when export data loading fails', async () => {
+test('exportRecordsAsJson surfaces a retry action and retries the export when the user confirms', async () => {
   assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
 
   const env = createFakeSettingsEnv()
-  const retryCalls = []
-  const retryToken = async () => {
-    retryCalls.push('retry')
-    return { kind: 'success', data: [] }
-  }
+  let periodsCalls = 0
+  let memoriesCalls = 0
   const client = createFakeRoomDataClient({
-    periods: {
-      kind: 'retryable-failure',
-      message: '云数据库查询超时 (15000ms)',
-      retry: retryToken
+    periods: () => {
+      periodsCalls += 1
+      if (periodsCalls === 1) {
+        return {
+          kind: 'retryable-failure',
+          message: '云数据库查询超时 (15000ms)',
+          retry: async () => ({ kind: 'success', data: [] })
+        }
+      }
+      return {
+        kind: 'success',
+        data: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05' }]
+      }
     },
-    memories: []
+    memories: () => {
+      memoriesCalls += 1
+      return {
+        kind: 'success',
+        data: [{ _id: 'm1', date: '2026-06-03', note: 'movie' }]
+      }
+    }
   })
 
-  const result = await settingsFlow.exportRecordsAsJson({
+  const promise = settingsFlow.exportRecordsAsJson({
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
     userDataPath: '/tmp/user-data'
   })
 
-  assert.equal(result.kind, 'retryable-failure')
-  assert.equal(result.message, '云数据库查询超时 (15000ms)')
-  assert.equal(typeof result.retry, 'function')
-  assert.equal(env.wx.hideLoadingCalls, 1)
-  assert.deepEqual(env.wx.toasts, [{ title: '导出失败，请检查网络', icon: 'none' }])
-  assert.equal(env.fs.writes.length, 0)
+  await waitForAsyncTurn()
+  assert.equal(env.wx.modals.length, 1)
 
-  await result.retry()
-  assert.deepEqual(retryCalls, ['retry'])
+  const result = await env.wx.resolveModal(true, promise)
+
+  assert.equal(result.kind, 'shared')
+  assert.equal(env.wx.hideLoadingCalls, 2)
+  assert.deepEqual(env.wx.toasts, [{ title: '导出成功' }])
+  assert.equal(env.fs.writes.length, 1)
+  assert.equal(periodsCalls, 2)
+  assert.equal(memoriesCalls, 1)
 })
 
-test('exportRecordsAsJson hides loading and returns a room-repair outcome when the room cache is stale', async () => {
+test('exportRecordsAsJson offers to rebind when the room cache is stale and cannot be repaired', async () => {
   assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
 
   const env = createFakeSettingsEnv()
@@ -167,12 +181,17 @@ test('exportRecordsAsJson hides loading and returns a room-repair outcome when t
     memories: []
   })
 
-  const result = await settingsFlow.exportRecordsAsJson({
+  const promise = settingsFlow.exportRecordsAsJson({
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
     userDataPath: '/tmp/user-data'
   })
+
+  await waitForAsyncTurn()
+  assert.equal(env.wx.modals.length, 1)
+
+  const result = await env.wx.resolveModal(true, promise)
 
   assert.deepEqual(result, {
     kind: 'room-repair',
@@ -184,7 +203,8 @@ test('exportRecordsAsJson hides loading and returns a room-repair outcome when t
     }
   })
   assert.equal(env.wx.hideLoadingCalls, 1)
-  assert.deepEqual(env.wx.toasts, [{ title: '房间状态已变化，请重新绑定', icon: 'none' }])
+  assert.deepEqual(env.wx.navigateToCalls, [{ url: '/pages/bind/bind' }])
+  assert.deepEqual(env.wx.toasts, [])
   assert.equal(env.fs.writes.length, 0)
 })
 
@@ -276,6 +296,8 @@ function createFakeSettingsEnv(options = {}) {
     shareCalls: [],
     toasts: [],
     loadingCalls: [],
+    modals: [],
+    navigateToCalls: [],
     hideLoadingCalls: 0,
     setClipboardData({ data, success }) {
       wx.clipboardCalls.push(data)
@@ -286,6 +308,9 @@ function createFakeSettingsEnv(options = {}) {
     },
     showLoading(options) {
       wx.loadingCalls.push(options)
+    },
+    showModal(options) {
+      wx.modals.push(options)
     },
     hideLoading() {
       wx.hideLoadingCalls += 1
@@ -300,6 +325,15 @@ function createFakeSettingsEnv(options = {}) {
         return
       }
       if (success) success()
+    },
+    navigateTo(options) {
+      wx.navigateToCalls.push(options)
+    },
+    async resolveModal(confirm, promise) {
+      const modal = wx.modals[0]
+      assert.ok(modal, 'expected a pending modal')
+      await modal.success({ confirm, cancel: !confirm })
+      return promise
     }
   }
 
@@ -311,7 +345,9 @@ function createFakeRoomDataClient(results = {}) {
     calls: [],
     async list(collection) {
       this.calls.push({ action: 'list', collection })
-      const result = results[collection]
+      const result = typeof results[collection] === 'function'
+        ? results[collection]()
+        : results[collection]
       if (result && result.kind) {
         return result
       }
@@ -325,4 +361,8 @@ function createFakeRoomDataClient(results = {}) {
 
 function readPageFile(relativePath) {
   return fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8')
+}
+
+function waitForAsyncTurn() {
+  return new Promise(resolve => setImmediate(resolve))
 }

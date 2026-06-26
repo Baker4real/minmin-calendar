@@ -30,6 +30,7 @@ async function exportRecordsAsJson(options = {}) {
   const roomSession = options.roomSession || roomSessionApi
   const now = options.now || (() => new Date().toISOString())
   const userDataPath = options.userDataPath || getUserDataPath(wxApi)
+  const navigateToBind = options.navigateToBind || createNavigateToBind(wxApi)
   const hideLoading = createLoadingGuard(wxApi)
 
   wxApi.showLoading({ title: '导出中...' })
@@ -38,13 +39,13 @@ async function exportRecordsAsJson(options = {}) {
     const periodsOutcome = await listRecords({ cloud, client, collection: 'periods' })
     if (periodsOutcome.kind !== 'success') {
       hideLoading()
-      return handleExportLoadFailure(wxApi, periodsOutcome)
+      return handleExportLoadFailure(wxApi, periodsOutcome, () => exportRecordsAsJson(options), navigateToBind)
     }
 
     const memoriesOutcome = await listRecords({ cloud, client, collection: 'memories' })
     if (memoriesOutcome.kind !== 'success') {
       hideLoading()
-      return handleExportLoadFailure(wxApi, memoriesOutcome)
+      return handleExportLoadFailure(wxApi, memoriesOutcome, () => exportRecordsAsJson(options), navigateToBind)
     }
 
     const payload = {
@@ -108,23 +109,44 @@ async function listRecords({ cloud, client, collection }) {
   }
 }
 
-function handleExportLoadFailure(wxApi, outcome) {
+function handleExportLoadFailure(wxApi, outcome, retryExport, navigateToBind) {
   if (outcome.kind === 'retryable-failure') {
-    showToast(wxApi, { title: '导出失败，请检查网络', icon: 'none' })
-    return outcome
+    return promptRetry({
+      wxApi,
+      title: '导出失败',
+      content: '导出失败，请检查网络',
+      retryAction: retryExport,
+      fallback: outcome
+    })
   }
 
   if (outcome.kind === 'room-repair') {
-    showToast(wxApi, {
-      title: getRoomRepairMessage(outcome.repair),
-      icon: 'none'
+    if (outcome.repair && outcome.repair.kind === 'success' && outcome.repair.bound && outcome.repair.roomCode) {
+      return promptRetry({
+        wxApi,
+        title: '房间状态已更新',
+        content: getRoomRepairMessage(outcome.repair),
+        retryAction: retryExport,
+        fallback: outcome
+      })
+    }
+    return promptNavigateToBind({
+      wxApi,
+      title: '房间状态已变化',
+      content: getRoomRepairMessage(outcome.repair),
+      navigateToBind,
+      fallback: outcome
     })
-    return outcome
   }
 
   if (outcome.kind === 'no-room') {
-    showToast(wxApi, { title: '请先绑定房间', icon: 'none' })
-    return outcome
+    return promptNavigateToBind({
+      wxApi,
+      title: '请先绑定房间',
+      content: '导出前需要先绑定房间',
+      navigateToBind,
+      fallback: outcome
+    })
   }
 
   showToast(wxApi, { title: outcome.message || '导出失败', icon: 'none' })
@@ -204,6 +226,58 @@ function getUserDataPath(wxApi) {
 
 function showToast(wxApi, options) {
   wxApi.showToast(options)
+}
+
+function createNavigateToBind(wxApi) {
+  if (wxApi && typeof wxApi.navigateTo === 'function') {
+    return () => wxApi.navigateTo({ url: '/pages/bind/bind' })
+  }
+  return () => {}
+}
+
+function promptRetry({ wxApi, title, content, retryAction, fallback }) {
+  if (!wxApi || typeof wxApi.showModal !== 'function' || typeof retryAction !== 'function') {
+    showToast(wxApi, { title: content, icon: 'none' })
+    return Promise.resolve(fallback)
+  }
+
+  return new Promise(resolve => {
+    wxApi.showModal({
+      title,
+      content,
+      confirmText: '重试',
+      cancelText: '取消',
+      success: async (result) => {
+        if (!result.confirm) {
+          resolve(fallback)
+          return
+        }
+        resolve(retryAction())
+      }
+    })
+  })
+}
+
+function promptNavigateToBind({ wxApi, title, content, navigateToBind, fallback }) {
+  if (!wxApi || typeof wxApi.showModal !== 'function' || typeof navigateToBind !== 'function') {
+    showToast(wxApi, { title: content, icon: 'none' })
+    return Promise.resolve(fallback)
+  }
+
+  return new Promise(resolve => {
+    wxApi.showModal({
+      title,
+      content,
+      confirmText: '去绑定',
+      cancelText: '取消',
+      success: async (result) => {
+        if (result.confirm) {
+          navigateToBind()
+        }
+        resolve(fallback)
+      }
+    })
+  })
 }
 
 function getWx() {

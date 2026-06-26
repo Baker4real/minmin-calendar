@@ -67,50 +67,69 @@ test('runRecordSave clears saving state, shows success toast, and schedules one 
   assert.equal(env.navigateBackCalls.length, 1)
 })
 
-test('runRecordSave preserves retryable failures as retry actions and keeps the page on screen', async () => {
+test('runRecordSave surfaces a retry action and re-runs the save when the user confirms', async () => {
   assert.equal(typeof recordCommands.runRecordSave, 'function')
 
   const page = createFakePage({ saving: false })
   const env = createFakeCommandEnv()
   let retried = false
-  const retry = async () => {
-    retried = true
-    return { kind: 'success', result: { code: 0 } }
-  }
+  let actionCalls = 0
+  const retry = async () => ({ kind: 'success', result: { code: 0 } })
 
-  const result = await recordCommands.runRecordSave({
+  const promise = recordCommands.runRecordSave({
     page,
     wx: env.wx,
     timer: env.timer,
-    action: async () => ({
-      kind: 'retryable-failure',
-      message: '云数据库查询超时 (15000ms)',
-      retry
-    }),
+    action: async () => {
+      actionCalls += 1
+      if (actionCalls === 1) {
+        return {
+          kind: 'retryable-failure',
+          message: '云数据库查询超时 (15000ms)',
+          retry
+        }
+      }
+      retried = true
+      return { kind: 'success', result: { code: 0 } }
+    },
     validate: null,
     successTitle: '保存成功',
     failureTitle: '保存失败'
   })
 
-  assert.equal(result.kind, 'retryable-failure')
-  assert.equal(typeof result.retry, 'function')
-  assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
-  assert.deepEqual(env.wx.toasts, [{ title: '保存失败，请重试', icon: 'none' }])
-  assert.equal(env.timer.calls.length, 0)
-  assert.equal(env.navigateBackCalls.length, 0)
+  await Promise.resolve()
+  assert.equal(env.wx.modals.length, 1)
 
-  const retryResult = await result.retry()
-  assert.deepEqual(retryResult, { kind: 'success', result: { code: 0 } })
+  const result = await env.wx.resolveModal(true, promise)
+
+  assert.deepEqual(result, { kind: 'success', result: { code: 0 } })
+  assert.deepEqual(page.setDataCalls, [
+    { saving: true },
+    { saving: false },
+    { saving: true },
+    { saving: false }
+  ])
+  assert.deepEqual(env.wx.modals[0], {
+    title: '保存失败',
+    content: '保存失败，请重试',
+    confirmText: '重试',
+    cancelText: '取消',
+    success: env.wx.modals[0].success
+  })
+  assert.deepEqual(env.wx.toasts, [{ title: '保存成功' }])
+  assert.equal(env.timer.calls.length, 1)
+  assert.equal(env.navigateBackCalls.length, 0)
   assert.equal(retried, true)
+  assert.equal(actionCalls, 2)
 })
 
-test('runRecordSave keeps room-repair failures distinct from generic save failures', async () => {
+test('runRecordSave offers to rebind when room repair cannot restore membership', async () => {
   assert.equal(typeof recordCommands.runRecordSave, 'function')
 
   const page = createFakePage({ saving: false })
   const env = createFakeCommandEnv()
 
-  const result = await recordCommands.runRecordSave({
+  const promise = recordCommands.runRecordSave({
     page,
     wx: env.wx,
     timer: env.timer,
@@ -128,6 +147,11 @@ test('runRecordSave keeps room-repair failures distinct from generic save failur
     failureTitle: '保存失败'
   })
 
+  await Promise.resolve()
+  assert.equal(env.wx.modals.length, 1)
+
+  const result = await env.wx.resolveModal(true, promise)
+
   assert.deepEqual(result, {
     kind: 'room-repair',
     action: 'rebind',
@@ -140,7 +164,8 @@ test('runRecordSave keeps room-repair failures distinct from generic save failur
     }
   })
   assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
-  assert.deepEqual(env.wx.toasts, [{ title: '房间状态已变化，请重新绑定', icon: 'none' }])
+  assert.deepEqual(env.navigateToCalls, [{ url: '/pages/bind/bind' }])
+  assert.deepEqual(env.wx.toasts, [])
   assert.equal(env.timer.calls.length, 0)
 })
 
@@ -217,31 +242,52 @@ test('runRecordListLoad sorts and decorates periods while preserving stats input
   assert.deepEqual(env.wx.toasts, [])
 })
 
-test('runRecordListLoad keeps retryable list failures user-visible and retryable for memories', async () => {
+test('runRecordListLoad surfaces a retry action and reloads memories when the user confirms', async () => {
   assert.equal(typeof recordCommands.runRecordListLoad, 'function')
 
   const page = createFakePage({ loading: false })
   const env = createFakeCommandEnv()
+  let retried = false
+  let actionCalls = 0
 
-  const result = await recordCommands.runRecordListLoad({
+  const promise = recordCommands.runRecordListLoad({
     page,
     wx: env.wx,
     loadingKey: 'loading',
     itemsKey: 'memories',
-    action: async () => ({
-      kind: 'retryable-failure',
-      message: 'network down',
-      retry: async () => ({ kind: 'success', data: [] })
-    }),
+    action: async () => {
+      actionCalls += 1
+      if (actionCalls === 1) {
+        return {
+          kind: 'retryable-failure',
+          message: 'network down',
+          retry: async () => ({ kind: 'success', data: [] })
+        }
+      }
+      retried = true
+      return { kind: 'success', data: [] }
+    },
     mapRecords: records => [...records].sort((a, b) => b.date.localeCompare(a.date)),
     retryableTitle: '加载失败，请检查网络',
     roomRepairTitle: '房间状态已变化，请重新绑定'
   })
 
-  assert.equal(result.kind, 'retryable-failure')
-  assert.equal(typeof result.retry, 'function')
-  assert.deepEqual(page.setDataCalls, [{ loading: true }, { loading: false }])
-  assert.deepEqual(env.wx.toasts, [{ title: '加载失败，请检查网络', icon: 'none' }])
+  await Promise.resolve()
+  assert.equal(env.wx.modals.length, 1)
+
+  const result = await env.wx.resolveModal(true, promise)
+
+  assert.deepEqual(result, { kind: 'success', data: [] })
+  assert.deepEqual(page.setDataCalls, [
+    { loading: true },
+    { loading: false },
+    { loading: true },
+    { memories: [] },
+    { loading: false }
+  ])
+  assert.deepEqual(env.wx.toasts, [])
+  assert.equal(retried, true)
+  assert.equal(actionCalls, 2)
 })
 
 test('period and memory list templates keep the REC-03 visible row contract', () => {
@@ -292,10 +338,12 @@ function createFakeCommandEnv() {
   const toasts = []
   const modals = []
   const navigateBackCalls = []
+  const navigateToCalls = []
   const timerCalls = []
 
   return {
     navigateBackCalls,
+    navigateToCalls,
     timer: {
       calls: timerCalls,
       setTimeout(fn, delay) {
@@ -313,13 +361,16 @@ function createFakeCommandEnv() {
         modals.push(options)
       },
       async resolveModal(confirm, promise) {
-        const modal = modals.shift()
+        const modal = modals[0]
         assert.ok(modal, 'expected a pending modal')
         await modal.success({ confirm, cancel: !confirm })
         return promise
       },
       navigateBack() {
         navigateBackCalls.push({ at: navigateBackCalls.length })
+      },
+      navigateTo(options) {
+        navigateToCalls.push(options)
       }
     }
   }
