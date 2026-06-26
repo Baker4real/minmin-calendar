@@ -33,7 +33,8 @@ Two people can reliably see the same private calendar state and understand what 
 - Room-code cache, recovery, create/join, and local clear behavior now go through the tested `utils/room.js` RoomSession Module.
 - Server-side room leave/unpair now goes through `cloudfunctions/leaveRoom/index.js`, with `RoomLifecycle` tests covering creator transfer, partner removal, and last-member deletion.
 - Phase 07 final audit passed after fixing a real DevTools blocker: record/settings pages now recover active room state before load and surface retry/rebind actions through shared helpers.
-- Broad automated verification now includes 81 passing `node:test` cases plus `node --check` on touched utils, pages, and cloud functions.
+- Phase 07 secure-phase is verified: all 26 planned threats are closed, including retry descriptors for retryable room-data failures without automatic mutation replay.
+- Broad automated verification now includes 99 passing `node:test` cases plus `node --check` on touched utils, pages, and cloud functions.
 - Repository history is now backfilled into formal GSD artifacts under `.planning/phases/`, indexed by `.planning/HISTORY.md`.
 - GSD handoff state exists in `.planning/HANDOFF.json` and `.planning/phases/02.1-calendar-insight-monthly-recap/.continue-here.md`.
 
@@ -41,7 +42,7 @@ Two people can reliably see the same private calendar state and understand what 
 
 - [ ] Run manual WeChat DevTools visual verification for Phase 2.1 insight sheets and monthly recap.
 - [ ] Re-run the WeChat DevTools page-open check for `pages/period/period`, `pages/memory/memory`, and `pages/settings/settings` on the fixed Phase 07 build.
-- [ ] Expand tests around `pages/bind/bind.js`, deployed cloud adapters, and future screenshot/device-level regression coverage where practical.
+- [ ] Expand tests around full `pages/bind/bind.js` interactions, deployed cloud adapters, and future screenshot/device-level regression coverage where practical.
 
 ### Out of Scope
 
@@ -82,6 +83,7 @@ Two people can reliably see the same private calendar state and understand what 
 | Treat calendar marker semantics as product-critical | Ambiguous markers directly reduce trust in the calendar | `utils/calendarInsights.js` and calendar source-contract tests |
 | Transfer Room creator role on server-side leave | A remaining partner should keep access without leaving an ownerless Room document | `docs/adr/0001-room-leave-ownership-transfer.md` |
 | Keep retry/rebind UX inside shared helpers | Record and settings pages mostly await helper outcomes, so recovery actions should not depend on repeated page-local branching | `utils/recordCommands.js`, `utils/settingsFlow.js` |
+| Keep retry descriptors explicit but mutation-safe | Reads can auto-retry, but save/delete failures must ask the user to confirm record state before retrying | `utils/cloud.js`, `tests/room-data-client.test.js` |
 | Keep homepage derived state pure and serializable | Future UI work needs one source of truth for prediction, day detail, and recap composition without re-running page-local logic | `utils/homeCalendarState.js` |
 | Keep room authorization behind an injectable server seam | Access-control tests should not depend on `wx-server-sdk` runtime wiring | `cloudfunctions/dataOp/dataOpHandler.js`, `tests/data-op-auth.test.js` |
 

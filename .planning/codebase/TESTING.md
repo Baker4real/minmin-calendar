@@ -106,7 +106,7 @@ node --test --experimental-test-coverage
 - `tests/calendar-display.test.js` covers date formatting, lunar/holiday metadata, published 2001-2026 holiday arrangements, themed day sheets, month-jump UI contracts, calendar density controls, and calendar grid assembly via `utils/util.js`.
 - `tests/calendar-insights.test.js` covers calendar legend items, prediction explanation copy, day marker meanings, and monthly recap/share text via `utils/calendarInsights.js`.
 - `tests/cycle-prediction.test.js` covers robust cycle prediction, manual fallback settings, reminder state derivation, and optional flow/symptom metadata normalization via `utils/cycle.js`.
-- `tests/room-data-client.test.js` covers `utils/cloud.js#createRoomDataClient()`, including success, retryable failures, active-room recovery, stale-room repair, and legacy wrapper compatibility.
+- `tests/room-data-client.test.js` covers `utils/cloud.js#createRoomDataClient()`, including success, retryable failures with explicit retry descriptors, active-room recovery, stale-room repair, mutation non-replay, and legacy wrapper compatibility.
 - `tests/record-flow.test.js` covers `utils/recordCommands.js` save/delete/list behavior, modal retry/rebind prompts, and record-page helper delegation contracts.
 - `tests/settings-flow.test.js` covers `utils/settingsFlow.js` copy/export/local-clear branches, JSON export payloads, share/clipboard fallback, and retry/rebind behavior.
 - `tests/home-calendar-state.test.js` covers `utils/homeCalendarState.js` fallback and prediction-capable calendar state composition, including `dayDetailsByDate`.
@@ -125,7 +125,7 @@ node --test --experimental-test-coverage
 ## Common Patterns
 
 **Async Testing:**
-- Not currently used in the visible suite.
+- Used heavily for RoomSession, RoomDataClient, record/settings flows, and the lightweight page-registration harness. Async page lifecycle tests now require `onShow()` to return an awaitable Promise so page-load assertions cannot pass early.
 
 **Error Testing:**
 - Use direct assertions on fallback values and absence of bad template patterns, for example `assert.deepEqual(..., { date: '--', weekday: '' })` and `assert.doesNotMatch(...)`.
@@ -138,6 +138,7 @@ node --test --experimental-test-coverage
 - `utils/homeCalendarState.js` has direct Node coverage for homepage prediction fields, reminder composition, calendar-day output, and precomputed selected-day detail payloads.
 - `pages/index/index.wxml` has a regression test to ensure the heart mark only appears for memories.
 - `pages/index/index.js`, `pages/index/index.wxml`, and `pages/index/index.wxss` have source-level regression checks for themed day sheets, year-month jump controls, return-to-today navigation, remembered compact/full calendar density, calendar insight sheets, day meanings, monthly recap controls, and the `buildHomeCalendarState()` delegation seam.
+- `pages/bind/bind.js` has lightweight page-registration coverage for verified room-state lookup on open, including stale-cache clearing.
 - `pages/period/edit/edit.wxml` has a regression test to ensure flow and symptom controls stay present.
 - `pages/period/edit/edit.wxss` has a regression test to keep interactive chips at the 88rpx touch-target floor.
 - `pages/period/period.js`, `pages/memory/memory.js`, and `pages/settings/settings.js` have helper-delegation coverage plus a lightweight page-registration harness so shared helper rewrites do not silently break runtime page registration.
@@ -147,11 +148,11 @@ node --test --experimental-test-coverage
 - `cloudfunctions/dataOp/index.js` and `cloudfunctions/dataOp/dataOpHandler.js` have direct coverage for room membership lookup, unsupported collection rejection, unknown action handling, and the boundary that keeps `wx-server-sdk` inside `index.js`.
 - `cloudfunctions/leaveRoom/roomLifecycle.js` has direct Node coverage for creator ownership transfer, partner removal, empty-room deletion, and no-op leave.
 - `cloudfunctions/dataOp/roomRecords.js` has direct Node coverage for malformed payloads, reserved field stripping, duration calculation, symptom normalization, and cross-Room mutation blocking.
-- The broad automated regression command now exercises 81 `node:test` cases across Phase 2.1, 6, and 7 seams before manual WeChat verification.
+- The broad automated regression command now exercises 99 `node:test` cases across Phase 2.1, 6, and 7 seams before manual WeChat verification.
 
 ## Verification Gaps
 
-- No automated tests were found for `pages/bind/bind.js`, and there are still no true WeChat DevTools screenshot or device-level regression checks.
+- `pages/bind/bind.js` now has Node harness coverage for open-state verification, but full create/join interaction behavior still relies on utility tests and manual WeChat DevTools confirmation.
 - Record and settings pages now have Node harness coverage, but their final page-open behavior in WeChat DevTools still relies on manual confirmation.
 - Deployed cloud-function adapters (`createRoom`, `joinRoom`, `getMyRoom`, `leaveRoom`, `dataOp`) still rely on local harnesses and manual runtime checks instead of end-to-end cloud automation.
 - No lint or CI config was detected, so test execution appears to be manual unless an external runner is configured elsewhere.

@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: ready-for-closeout
-stopped_at: Completed 07-07-PLAN.md
-last_updated: "2026-06-26T09:23:22.492Z"
+stopped_at: Completed Phase 07 security/code-review closeout
+last_updated: "2026-06-26T12:20:00.000Z"
 last_activity: 2026-06-26
-last_activity_desc: Completed Phase 7 durable doc refresh after final architecture audit and verification.
+last_activity_desc: Completed Phase 7 post-security review and secure-phase verification.
 progress:
   total_phases: 8
   completed_phases: 8
@@ -17,14 +17,14 @@ progress:
 
 # Project State: Minmin Calendar
 
-Last activity: 2026-06-26 - Completed Phase 7 durable doc refresh after final architecture audit and verification.
+Last activity: 2026-06-26 - Completed Phase 7 post-security review and secure-phase verification.
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-06-26)
 
 **Core value:** Two people can reliably see the same private calendar state and understand what each calendar marker means at a glance.  
-**Current focus:** Phase 7 architecture quality and reliability hardening is complete in automated scope; the remaining work is manual WeChat DevTools confirmation and milestone closeout, not more implementation.
+**Current focus:** Phase 7 architecture quality and reliability hardening is complete in automated scope; code review is clean, secure-phase is verified with `threats_open: 0`, and the remaining work is manual WeChat DevTools confirmation plus milestone closeout.
 
 ## Roadmap Status
 
@@ -38,7 +38,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 | 4. Record and Settings Flow Polish | Partial / Gaps Found | 35% | Period metadata and local cache behavior are done; broader record/settings polish remains |
 | 5. Documentation and Release Readiness | Backfilled / Human Check Needed | 80% | History ledger and phase artifacts exist; release smoke test remains manual |
 | 6. Calendar Density and Today Jump | Implemented / Automated Checks Passed | 100% | Full density defaults on; compact/full choice persists locally; month picker has return-to-today |
-| 7. Architecture Quality and Reliability Hardening | Implemented / Automated Checks Passed | 100% | All seven plans are complete: RoomDataClient, record/settings helpers, homepage view-model seam, dataOp auth harness, final audit blocker fix, and durable docs refresh are in place; remaining WeChat DevTools checks are release-signoff only |
+| 7. Architecture Quality and Reliability Hardening | Implemented / Automated Checks Passed | 100% | All seven plans are complete; RoomDataClient, record/settings helpers, homepage view-model seam, dataOp auth harness, final audit blocker fixes, post-security code review, and secure-phase verification are in place; remaining WeChat DevTools checks are release-signoff only |
 
 ## Quick Tasks Completed
 
@@ -59,6 +59,8 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 | 13 | Added a testable dataOp authorization seam and local cloud access-control harness | 2026-06-26 | `4e1c933` | `cloudfunctions/dataOp/`, `tests/`, `.planning/phases/07-*` |
 | 14 | Extracted homepage calendar state into a pure view-model seam with marker regression coverage | 2026-06-26 | `343be4f` | `utils/`, `pages/index/`, `tests/`, `.planning/phases/07-*` |
 | 15 | Fixed the Phase 7 DevTools record/settings blocker with active-room recovery plus helper-owned retry/rebind flows | 2026-06-26 | `69f5834` | `utils/`, `tests/`, `.planning/phases/07-*` |
+| 16 | Closed final Phase 07 room-state review warnings with verified room pages and stale repair race protection | 2026-06-26 | `791bc93`, `8a0cd22` | `utils/`, `pages/`, `tests/`, `.planning/phases/07-*` |
+| 17 | Verified Phase 07 security after adding retry descriptors that avoid automatic mutation replay | 2026-06-26 | `f57cdc3`, `06e67ea` | `utils/`, `tests/`, `.planning/phases/07-*` |
 
 ## Accumulated Context
 
@@ -76,6 +78,8 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 - Precompute `dayDetailsByDate` in the pure homepage builder so selected-day meanings and detail rows stay aligned with calendar marker semantics.
 - Recover the active room through `RoomSession.getActiveRoom()` before `createRoomDataClient()` returns `no-room`, so missing local cache does not blank record/settings pages.
 - Keep retry and rebind prompts inside `recordCommands` and `settingsFlow`, because pages mostly await the helper and should not have to rediscover recovery actions.
+- Keep retryable room-data failures explicitly described through `retryDescriptor`, while only list/read actions expose executable retry functions; save/delete failures stay confirm-before-retry to avoid automatic mutation replay.
+- Verify room-state pages through `RoomSession.getVerifiedActiveRoom()` so bind/settings do not present stale cached room codes as membership truth.
 - Keep manual WeChat DevTools confirmation as release-signoff evidence only; automated Phase 07 PASS does not imply visual signoff happened.
 
 ## Current Verification Commands
@@ -136,7 +140,7 @@ Run WeChat DevTools manual verification for the Phase 2.1 insight/recap surfaces
 - [Phase 07]: Precomputed dayDetailsByDate in the pure homepage builder — Selected-day meanings and detail rows now stay aligned with calendar marker semantics.
 - [Phase 07]: RoomDataClient must recover the active room before returning `no-room`, so missing local cache does not strand record/settings pages that can still recover from cloud state.
 - [Phase 07]: Retry and rebind prompts belong in shared record/settings helpers, not page-local ad hoc code, because the pages mostly await helper outcomes and should stay thin.
-- [Phase 07]: Final WeChat DevTools checks remain manual release-signoff evidence even after the 81-test automated PASS; durable docs must not overstate visual verification.
+- [Phase 07]: Final WeChat DevTools checks remain manual release-signoff evidence even after the 99-test automated PASS; durable docs must not overstate visual verification.
 
 ## Session
 

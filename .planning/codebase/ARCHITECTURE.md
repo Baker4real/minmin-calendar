@@ -44,7 +44,7 @@
 | Calendar home | Loads periods/memories, computes cycle stats, renders monthly calendar | `pages/index/index.js` |
 | Period records | Lists, adds, edits, deletes period entries | `pages/period/period.js`, `pages/period/edit/edit.js` |
 | Memory records | Lists, adds, edits, deletes memory entries | `pages/memory/memory.js`, `pages/memory/edit/edit.js` |
-| Room binding | Creates or joins shared room, stores room code locally | `pages/bind/bind.js` |
+| Room binding | Verifies, creates, or joins shared room state, then stores room code locally | `pages/bind/bind.js` |
 | Settings | Reads room code, exports data, clears local cache | `pages/settings/settings.js` |
 | Room session | Owns room-code cache, recovery, create/join calls, and local clear behavior | `utils/room.js` |
 | Shared client API | Wraps cloud function calls, active-room recovery, and room-scoped outcome handling | `utils/cloud.js` |
@@ -118,7 +118,7 @@
 ### Room Binding Flow
 
 1. User enters `pages/bind/bind` when no local room code exists or when pairing is needed.
-2. `pages/bind/bind.js` calls the `utils/room.js` RoomSession Interface for `createRoom`, `joinRoom`, `getActiveRoom`, `repairCachedRoom`, and `leaveRoom`.
+2. `pages/bind/bind.js` calls the `utils/room.js` RoomSession Interface for `getVerifiedActiveRoom`, `createRoom`, and `joinRoom`; settings uses the same verified path for visible room state.
 3. Successful create/join/recovery results are cached in local storage under `roomCode` by the RoomSession Module, and stale-room checks can refresh or clear that cache through `repairCachedRoom()`.
 4. Successful leave results revoke the server-side membership first, then clear local storage.
 5. `utils/cloud.js` later reuses that cached code through the same RoomSession Interface to scope all record access.
@@ -128,8 +128,8 @@
 1. Period and memory list pages load shared room-scoped data through `createRoomDataClient()` and `utils/recordCommands.js#runRecordListLoad()`.
 2. List pages navigate to `pages/period/edit/edit` or `pages/memory/edit/edit` with query parameters.
 3. Edit pages hydrate from `onLoad(options)` and keep edit/create mode in page `data`.
-4. Save actions calculate derived values locally, then delegate shared loading, retry, and rebind behavior to `runRecordSave()` while calling `cloud.addPeriod`, `cloud.updatePeriod`, `cloud.addMemory`, or `cloud.updateMemory`.
-5. Delete actions go through `runRecordDelete()` so confirmation, retry, and navigation behavior stay consistent.
+4. Save actions calculate derived values locally, then delegate shared loading, retry, and rebind behavior to `runRecordSave()` while calling `RoomDataClient` `add` or `update`.
+5. Delete actions go through `runRecordDelete()` while calling `RoomDataClient.remove()` so confirmation, retry, and navigation behavior stay consistent.
 
 **State Management:**
 - Shared state is stored either in local storage (`roomCode`, mediated by `utils/room.js`) or in cloud database collections.
@@ -144,7 +144,7 @@
 - Pattern: Stored locally in `wx` storage through the RoomSession Module and verified against cloud `rooms` documents on the server.
 
 **Room session:**
-- Purpose: Keep room-code cache, cloud recovery, create/join, server-side leave, and local clear operations behind one client-side Interface.
+- Purpose: Keep room-code cache, verified cloud recovery, create/join, server-side leave, and local clear operations behind one client-side Interface.
 - Examples: `utils/room.js`, `tests/room-session.test.js`
 - Pattern: Pages call RoomSession; tests inject storage and cloud adapters; production uses `wx` storage and `wx.cloud`.
 
@@ -159,7 +159,7 @@
 - Pattern: Action-based API with `list`, `add`, `update`, `remove`.
 
 **RoomDataClient:**
-- Purpose: Normalize room-scoped list/add/update/remove outcomes, including retryable failures and stale-room repair.
+- Purpose: Normalize room-scoped list/add/update/remove outcomes, including retry descriptors, retryable failures, stale-room repair, and mutation-safe confirm-before-retry semantics.
 - Examples: `utils/cloud.js`, `tests/room-data-client.test.js`, `pages/period/period.js`, `pages/memory/memory.js`, `pages/settings/settings.js`
 - Pattern: `createRoomDataClient()` returns `success`, `retryable-failure`, `room-repair`, `business-failure`, and `no-room` outcomes while keeping legacy `utils/cloud.js` exports compatible.
 
