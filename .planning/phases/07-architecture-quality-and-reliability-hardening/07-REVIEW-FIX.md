@@ -1,28 +1,32 @@
 ---
 phase: 07
-fixed_at: 2026-06-26T18:05:25.8130158+08:00
+fixed_at: 2026-06-26T18:17:47.8823031+08:00
 review_path: .planning/phases/07-architecture-quality-and-reliability-hardening/07-REVIEW.md
-iteration: 2
+iteration: 3
 findings_in_scope: 2
 fixed: 2
 skipped: 0
 status: all_fixed
 commits:
-  - 228e216
+  - d7f84d7
 tests:
-  - node --check utils/settingsFlow.js
-  - node --check pages/settings/settings.js
-  - node --check tests/settings-flow.test.js
+  - node --check utils/recordCommands.js
+  - node --check tests/record-flow.test.js
   - node --check tests/page-registration.test.js
-  - node --test tests/settings-flow.test.js tests/page-registration.test.js
+  - node --check pages/period/period.js
+  - node --check pages/memory/memory.js
+  - node --check pages/period/edit/edit.js
+  - node --check pages/memory/edit/edit.js
+  - node --test tests/record-flow.test.js
+  - node --test tests/page-registration.test.js
   - node --test tests/page-registration.test.js tests/room-data-client.test.js tests/record-flow.test.js tests/settings-flow.test.js tests/home-calendar-state.test.js tests/data-op-auth.test.js tests/calendar-display.test.js tests/calendar-insights.test.js tests/cycle-prediction.test.js tests/room-lifecycle.test.js tests/room-records.test.js tests/room-session.test.js
 ---
 
 # Phase 07: Code Review Fix Report
 
-**Fixed at:** 2026-06-26T18:05:25.8130158+08:00
+**Fixed at:** 2026-06-26T18:17:47.8823031+08:00
 **Source review:** `.planning/phases/07-architecture-quality-and-reliability-hardening/07-REVIEW.md`
-**Iteration:** 2
+**Iteration:** 3
 
 **Summary:**
 - Findings in scope: 2
@@ -31,36 +35,40 @@ tests:
 
 ## Fixed Issues
 
-### CR-01: [BLOCKER] 设置页仍把房间修复失败的可重试状态误导成“去绑定/未绑定”
+### CR-01: [BLOCKER] 记录页对 `room-repair + repair.retryable-failure` 仍然只给 toast，实际把“可重试修复失败”降级成无恢复路径
 
 **Status:** fixed: requires human verification
-**Files modified:** `utils/settingsFlow.js`, `pages/settings/settings.js`, `tests/settings-flow.test.js`, `tests/page-registration.test.js`
-**Commit:** `228e216`
-**Applied fix:** 设置导出失败链路改成三态处理：`repair.success + bound` 继续提示重试导出，`repair.success + !bound` 才提示重新绑定，`repair.retryable-failure` 或缺失修复信息时保持可重试并沿用修复消息；settings 页仅在修复成功时同步房间显示，避免把失败状态误降级成 `未绑定`。
+**Files modified:** `utils/recordCommands.js`, `tests/record-flow.test.js`
+**Commit:** `d7f84d7`
+**Applied fix:** `recordCommands` 现在把 `room-repair` 下的修复失败分支升级成可见恢复动作：列表加载保留 `重试` modal；保存和删除不再盲目重放未知非幂等写入，而是显示带修复失败消息和“返回列表刷新确认”建议的确认 modal。
 
-### WR-01: [WARNING] 现有回归没有覆盖“room-repair 里的 repair 再次失败”分支
+### WR-01: [WARNING] 当前回归没有覆盖 record flows 的 `room-repair.repair.retryable-failure` 分支
 
 **Status:** fixed
-**Files modified:** `tests/settings-flow.test.js`, `tests/page-registration.test.js`
-**Commit:** `228e216`
-**Applied fix:** 新增 helper 级回归，断言 `room-repair.repair.retryable-failure` 会弹出“房间同步失败/重试”；新增 settings 页 harness 回归，断言导出遇到该分支时保留已有 `roomCodeDisplay`，不会被重写成 `未绑定`。
+**Files modified:** `tests/record-flow.test.js`, `tests/page-registration.test.js`
+**Commit:** `d7f84d7`
+**Applied fix:** 为 `runRecordSave`、`runRecordDelete`、`runRecordListLoad` 新增 `room-repair.repair.retryable-failure` 回归；同时补了 `period` / `memory` 列表页 harness，确认真实页面适配层也会弹出可见的 `重试` modal。
 
 ## Verification
 
 **Targeted tests:**
-- `node --check utils/settingsFlow.js`
-- `node --check pages/settings/settings.js`
-- `node --check tests/settings-flow.test.js`
+- `node --check utils/recordCommands.js`
+- `node --check tests/record-flow.test.js`
 - `node --check tests/page-registration.test.js`
-- `node --test tests/settings-flow.test.js tests/page-registration.test.js`
-- Result: 16 passing `node:test` cases, 0 failures
+- `node --test tests/record-flow.test.js`
+- `node --test tests/page-registration.test.js`
+- Result: 20 passing `node:test` cases, 0 failures
 
 **Broad suite:**
 - `node --test tests/page-registration.test.js tests/room-data-client.test.js tests/record-flow.test.js tests/settings-flow.test.js tests/home-calendar-state.test.js tests/data-op-auth.test.js tests/calendar-display.test.js tests/calendar-insights.test.js tests/cycle-prediction.test.js tests/room-lifecycle.test.js tests/room-records.test.js tests/room-session.test.js`
-- Result: 90 passing `node:test` cases, 0 failures
+- Result: 94 passing `node:test` cases, 0 failures
+
+## Skipped Issues
+
+None.
 
 ---
 
-_Fixed: 2026-06-26T18:05:25.8130158+08:00_
+_Fixed: 2026-06-26T18:17:47.8823031+08:00_
 _Fixer: the agent (gsd-code-fixer)_
-_Iteration: 2_
+_Iteration: 3_
