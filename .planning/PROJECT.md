@@ -22,6 +22,7 @@ Two people can reliably see the same private calendar state and understand what 
 - Calendar day metadata now includes tested lunar date and published 2001-2026 China public holiday/adjusted workday labels.
 - Homepage calendar uses themed day action/detail sheets and a themed year-month jump sheet instead of native white system dialogs.
 - Homepage calendar insight surfaces now explain marker meanings, prediction inputs, tapped-day reasons, and copyable monthly recap text.
+- Homepage calendar density can switch between full and compact modes, defaults to full, remembers the user's choice locally, and the year-month picker can return to today's month.
 - Data access is mediated through `cloudfunctions/dataOp/index.js`, which checks room membership before list/add/update/remove operations.
 - Room-scoped period and memory writes now pass through server-side record validation and normalization in `cloudfunctions/dataOp/roomRecords.js`.
 - Room-code cache, recovery, create/join, and local clear behavior now go through the tested `utils/room.js` RoomSession Module.
@@ -33,7 +34,6 @@ Two people can reliably see the same private calendar state and understand what 
 ### Active
 
 - [ ] Run manual WeChat DevTools visual verification for Phase 2.1 insight sheets and monthly recap.
-- [ ] Polish homepage calendar density so period, memory, today, prediction, lunar, holiday, and adjusted-workday signals remain readable on small phones.
 - [ ] Harden room and data flows against stale local room codes, partial failures, and unclear user feedback.
 - [ ] Improve record editing and settings flows so saving, deleting, exporting, and clearing state have consistent feedback and error recovery.
 - [ ] Expand tests around date calculation, prediction, cloud utility behavior, and access-control edge cases where practical.
@@ -95,4 +95,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state.
 
 ---
-*Last updated: 2026-06-26 after Phase 2.1 completion, handoff, and knowledge sync*
+*Last updated: 2026-06-26 after Phase 6 calendar density and today-jump completion*

@@ -39,11 +39,6 @@
       "id": 5,
       "name": "Manual WeChat DevTools visual verification for Phase 2.1",
       "status": "human_needed"
-    },
-    {
-      "id": 6,
-      "name": "Implement CAL-05 density toggle slice if selected next",
-      "status": "not_started"
     }
   ],
   "blockers": [
@@ -73,12 +68,12 @@
       "phase": "02.1"
     },
     {
-      "decision": "Treat density toggle as still incomplete.",
-      "rationale": "The implemented Calendar Meaning Pack includes legend and explanation surfaces, but no density-mode UI state or interaction exists yet.",
-      "phase": "next"
+      "decision": "CAL-05 density control is complete in Phase 6.",
+      "rationale": "Homepage now defaults to full density, supports compact/full switching, persists the user's choice locally, and keeps compact mode available for crowded calendars.",
+      "phase": "06"
     }
   ],
   "uncommitted_files": [],
-  "next_action": "Run manual WeChat DevTools visual checks for Phase 2.1. If continuing feature work instead, create/execute a small CAL-05 density toggle phase controlling lunar/holiday label visibility.",
-  "context_notes": "Repository history has been backfilled into GSD artifacts and committed. Phase 2.1 implementation is committed in 4e033b0; GSD handoff state is committed in e9f080d."
+  "next_action": "If ignoring manual visual checks, continue with Phase 4 record/settings polish, REL-01 retry actions, or REL-02 stale room-code repair.",
+  "context_notes": "Repository history has been backfilled into GSD artifacts and committed. Phase 2.1 implementation is committed in 4e033b0; GSD handoff state is committed in e9f080d. Phase 6 CAL-05 density and today-jump work is currently uncommitted."
 }

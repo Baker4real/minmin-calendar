@@ -231,20 +231,49 @@ test('index month title opens a themed year-month jump sheet', () => {
   assert.match(js, /selectJumpYear\(e\)\s*{[\s\S]*dataset\.year/)
   assert.match(js, /selectJumpMonth\(e\)\s*{[\s\S]*dataset\.month/)
   assert.match(js, /confirmMonthJump\(\)\s*{[\s\S]*year:\s*this\.data\.jumpYear[\s\S]*month:\s*this\.data\.jumpMonth/)
+  assert.match(js, /jumpToToday\(\)\s*{[\s\S]*new Date\(\)[\s\S]*monthPickerVisible:\s*false[\s\S]*renderCalendar/)
   assert.match(js, /closeMonthPicker\(\)\s*{[\s\S]*monthPickerVisible:\s*false/)
 
   assert.match(wxml, /month-title-trigger/)
   assert.match(wxml, /bindtap="openMonthPicker"/)
   assert.match(wxml, /aria-label="选择年份和月份"/)
   assert.match(wxml, /calendar-jump-sheet/)
+  assert.match(wxml, /jump-today/)
+  assert.match(wxml, /bindtap="jumpToToday"/)
+  assert.match(wxml, /aria-label="回到今天所在月份"/)
   assert.match(wxml, /jump-year-grid/)
   assert.match(wxml, /jump-month-grid/)
   assert.match(wxml, /bindtap="confirmMonthJump"/)
 
   assert.match(wxss, /\.month-title-trigger\s*{[\s\S]*min-height:\s*88rpx/)
   assert.match(wxss, /\.calendar-jump-sheet/)
+  assert.match(wxss, /\.jump-today\s*{[\s\S]*min-height:\s*88rpx/)
   assert.match(wxss, /\.jump-option\s*{[\s\S]*min-height:\s*88rpx/)
   assert.match(wxss, /\.jump-confirm\s*{[\s\S]*min-height:\s*88rpx/)
+})
+
+test('index calendar density control defaults to full and remembers user preference', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
+
+  assert.match(js, /CALENDAR_DENSITY_STORAGE_KEY\s*=\s*'calendarDensity'/)
+  assert.match(js, /calendarDensity:\s*'full'/)
+  assert.match(js, /getSavedCalendarDensity\(\)\s*{[\s\S]*getStorageSync\(CALENDAR_DENSITY_STORAGE_KEY\)[\s\S]*return 'full'/)
+  assert.match(js, /setCalendarDensity\(e\)\s*{[\s\S]*dataset\.density[\s\S]*calendarDensity/)
+  assert.match(js, /setStorageSync\(CALENDAR_DENSITY_STORAGE_KEY,\s*density\)/)
+  assert.match(js, /density !== 'compact' && density !== 'full'/)
+
+  assert.match(wxml, /density-control/)
+  assert.match(wxml, /data-density="compact"[\s\S]*清爽/)
+  assert.match(wxml, /data-density="full"[\s\S]*完整/)
+  assert.match(wxml, /class="calendar-grid calendar-density-{{calendarDensity}}"/)
+  assert.match(wxml, /wx:if="{{!item\.isEmpty && calendarDensity == 'full'}}" class="day-lunar"/)
+  assert.match(wxml, /wx:if="{{!item\.isEmpty && calendarDensity == 'full'}}" class="day-tag-line"/)
+
+  assert.match(wxss, /\.density-control\s*{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
+  assert.match(wxss, /\.density-option\s*{[\s\S]*min-height:\s*88rpx/)
+  assert.match(wxss, /\.calendar-density-compact\s+\.day-cell\s*{[\s\S]*height:\s*104rpx/)
 })
 
 test('index exposes calendar meaning and monthly recap sheets', () => {

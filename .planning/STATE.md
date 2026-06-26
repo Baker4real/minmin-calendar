@@ -1,13 +1,13 @@
 # Project State: Minmin Calendar
 
-Last activity: 2026-06-26 - Synced project knowledge after Phase 2.1 completion, GSD history backfill, and handoff.
+Last activity: 2026-06-26 - Implemented Phase 6 calendar density preference and month-picker return-to-today shortcut.
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-06-26)
 
 **Core value:** Two people can reliably see the same private calendar state and understand what each calendar marker means at a glance.  
-**Current focus:** Phase 2.1 manual visual sign-off, then CAL-05 calendar density controls
+**Current focus:** Phase 6 automated work complete; next feature work can continue with Phase 4 record/settings polish or reliability follow-ups.
 
 ## Roadmap Status
 
@@ -20,6 +20,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 | 3. Room and Cloud Data Reliability | Backfilled / Human Check Needed | 85% | RoomRecords, RoomSession, and RoomLifecycle have Node tests; deployed unbind flow remains manual |
 | 4. Record and Settings Flow Polish | Partial / Gaps Found | 35% | Period metadata and local cache behavior are done; broader record/settings polish remains |
 | 5. Documentation and Release Readiness | Backfilled / Human Check Needed | 80% | History ledger and phase artifacts exist; release smoke test remains manual |
+| 6. Calendar Density and Today Jump | Implemented / Automated Checks Passed | 100% | Full density defaults on; compact/full choice persists locally; month picker has return-to-today |
 
 ## GSD History Artifacts
 
@@ -33,6 +34,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 | `.planning/phases/03-room-cloud-data-reliability/` | Room/cloud reliability backfill |
 | `.planning/phases/04-record-settings-flow-polish/` | Partial record/settings polish backfill |
 | `.planning/phases/05-documentation-release-readiness/` | Documentation/history backfill |
+| `.planning/phases/06-calendar-density-today-jump/` | CAL-05 density preference and month-picker today shortcut |
 
 ## Quick Tasks Completed
 
@@ -48,6 +50,7 @@ See: `.planning/PROJECT.md` (updated 2026-06-26)
 | 8 | Backfilled all repository history into GSD phase artifacts | 2026-06-26 | `4e033b0` | `.planning/HISTORY.md`, `.planning/phases/` |
 | 9 | Implemented Phase 2.1 calendar insights/monthly recap with TDD and homepage wiring | 2026-06-26 | `4e033b0` | `utils/`, `pages/index/`, `tests/`, `.planning/phases/02.1-*` |
 | 10 | Created GSD handoff state for Phase 2.1 continuation | 2026-06-26 | `e9f080d` | `.planning/HANDOFF.json`, `.planning/phases/02.1-*/.continue-here.md` |
+| 11 | Implemented remembered calendar density control and month-picker return-to-today action | 2026-06-26 | uncommitted | `pages/index/`, `tests/`, `.planning/phases/06-*` |
 
 ## Research Artifacts
 
@@ -86,4 +89,4 @@ node --check pages\period\edit\edit.js
 
 ## Next Recommended Action
 
-Resume from `.planning/HANDOFF.json` and `.planning/phases/02.1-calendar-insight-monthly-recap/.continue-here.md`, then run manual WeChat DevTools checks for homepage insight sheets. If continuing feature work, implement the remaining CAL-05 density toggle slice.
+If continuing feature work while ignoring manual visual checks, the clearest next slices are Phase 4 record/settings polish, REL-01 retry actions for cloud failures, or REL-02 stale room-code repair.

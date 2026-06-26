@@ -3,6 +3,8 @@ const cloud = require('../../utils/cloud')
 const cycle = require('../../utils/cycle')
 const calendarInsights = require('../../utils/calendarInsights')
 
+const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
+
 Page({
   data: {
     year: 0, month: 0, days: [],
@@ -25,6 +27,7 @@ Page({
     jumpYear: 0,
     jumpMonth: 0,
     monthPickerVisible: false,
+    calendarDensity: 'full',
     periods: [], memories: [],
     avgCycle: null,
     avgDuration: null,
@@ -51,7 +54,11 @@ Page({
 
   onLoad() {
     const now = new Date()
-    this.setData({ year: now.getFullYear(), month: now.getMonth() })
+    this.setData({
+      year: now.getFullYear(),
+      month: now.getMonth(),
+      calendarDensity: this.getSavedCalendarDensity()
+    })
   },
 
   onShow() {
@@ -158,6 +165,25 @@ Page({
     this.setData({ monthPickerVisible: false })
   },
 
+  getSavedCalendarDensity() {
+    try {
+      const density = wx.getStorageSync(CALENDAR_DENSITY_STORAGE_KEY)
+      if (density === 'compact' || density === 'full') return density
+    } catch (e) {
+      return 'full'
+    }
+    return 'full'
+  },
+
+  setCalendarDensity(e) {
+    const density = e.currentTarget.dataset.density
+    if (density !== 'compact' && density !== 'full') return
+    this.setData({ calendarDensity: density })
+    try {
+      wx.setStorageSync(CALENDAR_DENSITY_STORAGE_KEY, density)
+    } catch (e) {}
+  },
+
   shiftJumpYears(e) {
     const delta = Number(e.currentTarget.dataset.delta)
     if (Number.isNaN(delta)) return
@@ -184,6 +210,20 @@ Page({
     this.setData({
       year: this.data.jumpYear,
       month: this.data.jumpMonth,
+      monthPickerVisible: false
+    }, () => this.renderCalendar())
+  },
+
+  jumpToToday() {
+    const today = new Date()
+    const year = today.getFullYear()
+    const month = today.getMonth()
+    this.setData({
+      year,
+      month,
+      jumpYear: year,
+      jumpMonth: month,
+      jumpYears: this.buildMonthJumpYears(year),
       monthPickerVisible: false
     }, () => this.renderCalendar())
   },

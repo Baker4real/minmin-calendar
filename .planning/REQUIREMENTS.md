@@ -88,6 +88,7 @@
 | CAL-04 | Phase 2 / Phase 2.1 | In Progress |
 | CAL-07 | Phase 2 | Satisfied |
 | CAL-08 | Phase 2 | Satisfied |
+| CAL-05 | Phase 6 | Satisfied |
 | CAL-06 | Phase 2.1 | Satisfied (manual visual check pending) |
 | CAL-09 | Phase 2.1 | Satisfied (manual visual check pending) |
 | CAL-10 | Phase 2.1 | Satisfied (manual visual check pending) |
@@ -114,4 +115,4 @@
 
 ---
 *Requirements defined: 2026-06-24*  
-*Last updated: 2026-06-26 after GSD history backfill*
+*Last updated: 2026-06-26 after Phase 6 calendar density and today-jump completion*  

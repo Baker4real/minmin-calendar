@@ -82,6 +82,20 @@
 3. Known concerns are either resolved, deferred with rationale, or promoted to local issues.
 4. The next milestone can start from `$gsd-discuss-phase 1` or a selected later phase without reconstructing context from chat.
 
+### Phase 6: Calendar Density and Today Jump
+**Goal:** Keep the homepage calendar configurable when density is high and make date navigation faster.  
+**Mode:** mvp
+
+**Requirements:** CAL-05, CAL-08, QUAL-01, QUAL-02
+
+**Success Criteria:**
+1. User can switch the homepage calendar between compact and full density.
+2. Full density is the default when no previous preference exists.
+3. The selected density is remembered locally and restored when the mini program loads again.
+4. Compact density hides crowded lunar/holiday text while keeping marker semantics visible.
+5. The year-month picker includes a quick action to return to today's month.
+6. New UI wiring is covered by automated source-contract tests and touched JavaScript passes syntax checks.
+
 ## Phase Summary
 
 | # | Phase | Goal | Requirements |
@@ -92,13 +106,14 @@
 | 3 | Room and Cloud Data Reliability | Trustworthy shared-room access | ROOM-01, ROOM-02, ROOM-03, ROOM-04 |
 | 4 | Record and Settings Flow Polish | Consistent daily management flows | REC-01, REC-02, REC-03, REC-04, SET-01, SET-02, SET-03 |
 | 5 | Documentation and Release Readiness | Current project knowledge and next-step readiness | QUAL-03 |
+| 6 | Calendar Density and Today Jump | Configurable calendar density and faster date navigation | CAL-05, CAL-08, QUAL-01, QUAL-02 |
 
 ## Coverage
 
 - v1 requirements mapped: 24/24
-- v2 requirements mapped: 3 active calendar insight requirements
+- v2 requirements mapped: 4 active calendar insight/display requirements
 - Unmapped requirements: 0
 - Historical GSD artifacts: `.planning/HISTORY.md` and `.planning/phases/`
 
 ---
-*Last updated: 2026-06-26 after GSD history backfill and Phase 2.1 capture*
+*Last updated: 2026-06-26 after Phase 6 calendar density and today-jump completion*
