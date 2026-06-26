@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
 const test = require('node:test')
 
 let settingsFlow = {}
@@ -244,6 +246,19 @@ test('clearLocalCache only clears the local room cache and never leaves the shar
   assert.deepEqual(env.wx.toasts, [{ title: '已清除' }])
 })
 
+test('settings page delegates copy/export/clear flows to settingsFlow and keeps local clear local-only', () => {
+  const source = readPageFile('pages/settings/settings.js')
+
+  assert.match(source, /require\('\.\.\/\.\.\/utils\/settingsFlow'\)/)
+  assert.match(source, /settingsFlow\.copyRoomCode\(/)
+  assert.match(source, /settingsFlow\.exportRecordsAsJson\(/)
+  assert.match(source, /settingsFlow\.clearLocalCache\(/)
+  assert.match(source, /roomCode:\s*result\.roomCode\s*\|\|\s*'未绑定'/)
+  assert.doesNotMatch(source, /leaveRoom\(/)
+  assert.doesNotMatch(source, /deletePeriod\(/)
+  assert.doesNotMatch(source, /deleteMemory\(/)
+})
+
 function createFakeSettingsEnv(options = {}) {
   const fs = {
     writes: [],
@@ -306,4 +321,8 @@ function createFakeRoomDataClient(results = {}) {
       }
     }
   }
+}
+
+function readPageFile(relativePath) {
+  return fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8')
 }
