@@ -1,14 +1,14 @@
 ---
 phase: 07
-status: issues_found
-reviewed_at: 2026-06-26T18:59:02.8875599+08:00
+status: clean
+reviewed_at: 2026-06-26T19:11:05.0976294+08:00
 depth: deep
-files_reviewed: 37
+files_reviewed: 38
 findings:
   critical: 0
-  warning: 2
+  warning: 0
   info: 0
-  total: 2
+  total: 0
 files_reviewed_list:
   - pages/index/index.js
   - pages/index/index.wxml
@@ -20,6 +20,7 @@ files_reviewed_list:
   - pages/settings/settings.js
   - pages/settings/settings.wxml
   - pages/bind/bind.js
+  - pages/bind/bind.wxml
   - pages/period/edit/edit.js
   - pages/memory/edit/edit.js
   - utils/cloud.js
@@ -51,86 +52,32 @@ files_reviewed_list:
 
 # Phase 07: Code Review Report
 
-**Reviewed:** 2026-06-26T18:59:02.8875599+08:00  
+**Reviewed:** 2026-06-26T19:11:05.0976294+08:00  
 **Depth:** deep  
-**Files Reviewed:** 37  
-**Status:** issues_found
+**Files Reviewed:** 38  
+**Status:** clean
 
 ## Summary
 
-This deep final review covered the full Phase 07 source scope plus the recent CAL-05/CAL-06 homepage density, small-screen readability, and month-jump "回到今天" changes. I also re-checked the Phase 07 plan set (`07-01-PLAN.md` through `07-07-PLAN.md`) because the requested singular `07-PLAN.md` is not present on disk.
+This re-review covered the full Phase 07 source and test scope listed in the request, with explicit deep tracing of the two prior warnings.
 
-Automated verification is green: the full requested `node --test` suite passed with 94/94 tests, and the requested `node --check` set passed for all touched utils, pages, and cloud functions. I did not find a server-side room-isolation break in `dataOp` / `roomRecords` / `leaveRoom`, and I did not find a remaining path that turns retryable record-page loads into silent "no data" states. Two client-side stale-room defects still remain, both in `RoomSession` semantics rather than in the page helpers.
+- WR-01 is closed. `pages/settings/settings.js` and `pages/bind/bind.js` now load room state through `roomSession.getVerifiedActiveRoom()`, so those pages no longer trust cached `roomCode` on open. Retryable room-sync failures remain visible instead of being flattened to an unbound state.
+- WR-02 is closed. `utils/room.js#repairCachedRoom(expectedRoomCode)` now normalizes and honors `expectedRoomCode`, and only clears the cache when the current cached room still matches the stale room being repaired. The rebinding race is covered by regression tests.
+- Cross-file review did not find additional correctness, security, or maintainability defects in the requested Phase 07 scope.
+
+Relevant verification observed during this review:
+
+- Orchestrator context reported the full Phase 07 suite passed: `98/98`.
+- I re-ran the most relevant regression set locally:
+  `node --test tests\room-session.test.js tests\room-data-client.test.js tests\settings-flow.test.js tests\page-registration.test.js`
+  Result: `44/44` passing.
 
 ## Narrative Findings (AI reviewer)
 
-## Warnings
-
-### WR-01: [WARNING] `bind` / `settings` still trust stale cached room codes and can show a bound state after membership is already gone
-
-**File:** `utils/room.js:12-16`, `pages/settings/settings.js:8-11`, `pages/bind/bind.js:18-27`
-
-**Issue:** `RoomSession.getActiveRoom()` returns `{ kind: 'success', bound: true, roomCode }` immediately when local storage already has a `roomCode`, and never calls `getMyRoom` to verify that cache. Both `pages/settings/settings.js` and `pages/bind/bind.js` use that method directly on page open, so a user who was removed from the room elsewhere can still see a valid-looking bound state indefinitely instead of being prompted to rebind.
-
-This is reproducible with the current code: a cached `ROOM01` plus a cloud response of `未加入任何房间` still returns `success/bound=true` without making any cloud call. That leaves stale room state visible on the two pages that are supposed to represent current binding state most directly.
-
-**Fix:**
-
-Use an authoritative verification path when these pages open. One safe pattern is to keep `getActiveRoom()` as the cheap cache-first helper for normal data actions, but add a verified path for room-state pages:
-
-```javascript
-// utils/room.js
-async function getVerifiedActiveRoom() {
-  const cachedRoomCode = normalizeRoomCode(storage.get(ROOM_CODE_KEY))
-  if (!cachedRoomCode) {
-    return getActiveRoom()
-  }
-  const repair = await this.repairCachedRoom(cachedRoomCode)
-  if (repair.kind === 'success' && repair.bound && repair.roomCode) return repair
-  if (repair.kind === 'success' && !repair.bound) return { kind: 'no-room', bound: false, roomCode: '' }
-  return { kind: 'retryable-failure', bound: false, roomCode: '', errorMsg: repair.message }
-}
-```
-
-Then use the verified path from `pages/settings/settings.js` and `pages/bind/bind.js`, and add regression tests for "cached room exists but cloud says no room".
-
-### WR-02: [WARNING] stale-room repair can erase a newer room cache because `expectedRoomCode` is ignored
-
-**File:** `utils/cloud.js:57-59`, `utils/room.js:37-49`
-
-**Issue:** `createRoomDataClient()` passes the failing room code into `session.repairCachedRoom(roomCode)`, but `repairCachedRoom(expectedRoomCode)` never reads `expectedRoomCode`. When cloud later reports `未加入任何房间` / `房间不存在`, it unconditionally removes the current cached room code.
-
-That creates a real race: an old request that started under `ROOM01` can finish after the user has already rebound to `ROOM02`, and the old repair result will still clear local storage. I verified this against the current code by starting `repairCachedRoom('ROOM01')`, changing storage to `ROOM02` before the cloud call resolved, then returning `未加入任何房间`; the final cached room code became empty.
-
-**Fix:**
-
-Guard the clear against the room code that originally failed, and keep newer local state intact if the cache changed while the repair was in flight:
-
-```javascript
-// utils/room.js
-async repairCachedRoom(expectedRoomCode) {
-  const expected = normalizeRoomCode(expectedRoomCode)
-  // ... call getMyRoom ...
-  if (shouldClearCachedRoom(res.result, roomCode)) {
-    const currentCached = normalizeRoomCode(storage.get(ROOM_CODE_KEY))
-    if (!expected || currentCached === expected) {
-      storage.remove(ROOM_CODE_KEY)
-      return { kind: 'success', bound: false, roomCode: '' }
-    }
-    return { kind: 'success', bound: true, roomCode: currentCached }
-  }
-}
-```
-
-Add a `tests/room-session.test.js` case that changes storage mid-flight so this race cannot regress silently.
-
-## Verification Notes
-
-- `node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js`
-- Result: 94 passing tests, 0 failures.
-- `node --check` passed for all requested touched files under `pages/`, `utils/`, and `cloudfunctions/`.
+No Critical, Warning, or Info findings were identified in the reviewed scope.
 
 ---
-_Reviewed: 2026-06-26T18:59:02.8875599+08:00_  
+
+_Reviewed: 2026-06-26T19:11:05.0976294+08:00_  
 _Reviewer: the agent (gsd-code-reviewer)_  
 _Depth: deep_
