@@ -7,6 +7,7 @@ project.private.config.json
 .eslintrc.local
 
 # Local agent/editor state
+.codegraph/
 .serena/
 .tdd/
 
