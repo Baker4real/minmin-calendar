@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
 const test = require('node:test')
 
 const { createDataOpHandler } = require('../cloudfunctions/dataOp/dataOpHandler')
@@ -174,6 +176,21 @@ test('dataOp handler rejects unknown action after successful room authorization'
     roomCode: 'ROOM01',
     createdBy: 'creator-openid'
   })
+})
+
+test('dataOp adapter keeps cloud runtime wiring in index and wx-server-sdk out of handler', () => {
+  const handlerSource = fs.readFileSync(
+    path.join(__dirname, '..', 'cloudfunctions', 'dataOp', 'dataOpHandler.js'),
+    'utf8'
+  )
+  const indexSource = fs.readFileSync(
+    path.join(__dirname, '..', 'cloudfunctions', 'dataOp', 'index.js'),
+    'utf8'
+  )
+
+  assert.doesNotMatch(handlerSource, /wx-server-sdk/)
+  assert.match(indexSource, /cloud\.init/)
+  assert.match(indexSource, /exports\.main\s*=\s*createDataOpHandler/)
 })
 
 function createHandlerHarness(options = {}) {
