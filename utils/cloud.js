@@ -247,7 +247,8 @@ function buildLegacyFailure(message) {
 function buildRetryableFailure({ action, message, retry }) {
   const outcome = {
     kind: 'retryable-failure',
-    message
+    message,
+    retryDescriptor: buildRetryDescriptor(action)
   }
   if (isRetryableAction(action) && typeof retry === 'function') {
     outcome.retry = retry
@@ -257,6 +258,22 @@ function buildRetryableFailure({ action, message, retry }) {
 
 function isRetryableAction(action) {
   return action === 'list'
+}
+
+function buildRetryDescriptor(action) {
+  if (isRetryableAction(action)) {
+    return {
+      action,
+      mode: 'auto-retry',
+      message: '读取失败，可以直接重试'
+    }
+  }
+
+  return {
+    action,
+    mode: 'confirm-before-retry',
+    message: '保存结果未知，请先确认记录状态后再重试'
+  }
 }
 
 function getErrorMessage(error) {

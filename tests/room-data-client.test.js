@@ -118,6 +118,11 @@ test('RoomDataClient keeps active-room recovery failures retryable instead of fl
   assert.deepEqual(outcome, {
     kind: 'retryable-failure',
     message: '同步房间状态失败：network down',
+    retryDescriptor: {
+      action: 'list',
+      mode: 'auto-retry',
+      message: '读取失败，可以直接重试'
+    },
     retry: outcome.retry
   })
   assert.equal(typeof outcome.retry, 'function')
@@ -165,6 +170,11 @@ test('RoomDataClient classifies rejected cloud calls as retryable failures and k
 
   assert.equal(outcome.kind, 'retryable-failure')
   assert.equal(outcome.message, 'network down')
+  assert.deepEqual(outcome.retryDescriptor, {
+    action: 'list',
+    mode: 'auto-retry',
+    message: '读取失败，可以直接重试'
+  })
   assert.equal(typeof outcome.retry, 'function')
   assert.equal(roomSession.roomCode, 'ROOM01')
   assert.deepEqual(roomSession.repairCalls, [])
@@ -189,6 +199,11 @@ test('RoomDataClient classifies cloud timeouts as retryable failures', async () 
 
   assert.equal(outcome.kind, 'retryable-failure')
   assert.match(outcome.message, /云数据库查询超时/)
+  assert.deepEqual(outcome.retryDescriptor, {
+    action: 'list',
+    mode: 'auto-retry',
+    message: '读取失败，可以直接重试'
+  })
   assert.equal(typeof outcome.retry, 'function')
 
   const retryOutcome = await outcome.retry()
@@ -217,6 +232,29 @@ test('RoomDataClient requests room repair for stale-room business failures', asy
     repair: { kind: 'success', bound: false, roomCode: '' }
   })
   assert.deepEqual(roomSession.repairCalls, ['ROOM01'])
+})
+
+test('RoomDataClient mutation transport failures expose a manual retry descriptor without replaying automatically', async () => {
+  const cloud = createFakeCloud([
+    new Error('network down')
+  ])
+  const roomSession = createFakeRoomSession({ roomCode: 'ROOM01' })
+  const client = createRoomDataClient({ cloud, roomSession })
+
+  const outcome = await client.add('periods', { startDate: '2026-06-01' })
+
+  assert.deepEqual(outcome, {
+    kind: 'retryable-failure',
+    message: 'network down',
+    retryDescriptor: {
+      action: 'add',
+      mode: 'confirm-before-retry',
+      message: '保存结果未知，请先确认记录状态后再重试'
+    }
+  })
+  assert.equal(outcome.retry, undefined)
+  assert.equal(cloud.calls.length, 1)
+  assert.deepEqual(roomSession.repairCalls, [])
 })
 
 test('RoomDataClient keeps non-room business failures distinct from retryable failures', async () => {
