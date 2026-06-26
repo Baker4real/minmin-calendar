@@ -1,6 +1,6 @@
 ---
 phase: 07-architecture-quality-and-reliability-hardening
-reviewed: 2026-06-26T11:01:00Z
+reviewed: 2026-06-26T10:23:03.7307675Z
 depth: deep
 files_reviewed: 24
 files_reviewed_list:
@@ -29,139 +29,97 @@ files_reviewed_list:
   - tests/data-op-auth.test.js
   - tests/calendar-display.test.js
 findings:
-  critical: 1
+  critical: 0
   warning: 1
   info: 0
-  total: 2
+  total: 1
 status: issues_found
 ---
 
 # Phase 07: Code Review Report
 
-**Reviewed:** 2026-06-26T11:01:00Z
+**Reviewed:** 2026-06-26T10:23:03.7307675Z
 **Depth:** deep
 **Files Reviewed:** 24
 **Status:** issues_found
 
 ## Summary
 
-这是 Phase 07 第二轮修复后的第三次 deep re-review。我按指定范围复核了 RoomDataClient、record/settings helper、首页状态构建、`dataOp` 服务端授权边界、相关页面适配层和测试 harness，并重新执行了用户点名的 8 个测试文件及语法检查。
+这是 Phase 07 第三轮修复后的最终 deep re-review。我重新核对了 `RoomDataClient`、`RoomSession`、`recordCommands`、`settingsFlow`、首页状态层、`dataOp` 服务端授权边界、相关页面适配层，以及指定的 8 个测试文件，并重新执行了 review scope 内的 `node --test` 与 `node --check`。
 
-本轮确认已经修好的点：
-- `settings` 导出链路现在能正确区分 `repair.success + bound`、`repair.success + !bound`、`repair.retryable-failure` 三态，不再把可重试修复失败改写成 `未绑定`。
-- 首页仍直接消费 `RoomDataClient` outcome，`no-room` / `retryable-failure` / `room-repair` 都保留为显式页面状态。
-- `RoomDataClient` 仍会先尝试 `getActiveRoom()`，并把恢复失败保留成 `retryable-failure`。
-- `save/delete` 的普通传输失败仍不会重放非幂等写操作。
-- `dataOp` 的房间授权仍留在服务端 `createDataOpHandler()` / `roomRecords` 边界里。
+本轮确认已经闭合的关键点：
 
-但 record 页面共用的 `recordCommands` 仍残留 1 个运行时回退：当 stale-room 修复本身再次失败时，它只弹瞬时 toast，不给 period/memory 列表或编辑页留下任何可见的重试/重绑路径。对应分支也没有被当前回归覆盖。
+- `recordCommands` 现在把 `room-repair.repair.retryable-failure` 保留为可见恢复动作：列表加载走 `重试` modal，保存/删除走不重放未知写入的确认 modal。
+- `settings` 导出链路对 `room-repair.repair.retryable-failure` 仍保持可重试语义，不会把房间状态错误地改写成 `未绑定`。
+- 首页已经直接消费 `RoomDataClient` outcome，`no-room`、`retryable-failure`、`room-repair` 都保留为显式页面状态。
+- `createRoomDataClient()` 仍会先做 `getActiveRoom()` 恢复，并把恢复失败保留成 `retryable-failure`。
+- 非幂等重试行为仍然安全：普通传输失败不会重放 `add/update/remove`；`room-repair + repair.success + bound` 的重试只发生在服务端因 stale-room 在授权前拒绝原请求之后，原写操作并未落库。
+- `dataOp` 的房间授权仍在服务端 `createDataOpHandler()` / `roomRecords` 边界内，未退化到客户端判断。
+
+剩余问题不在实现逻辑本身，而在回归 harness：`page-registration` 这组测试并没有真正等待页面异步 `onShow()` 流程完成，因此当前“页面运行时分支已被执行”的结论仍然偏乐观。
 
 ## Narrative Findings (AI reviewer)
 
-## Critical Issues
-
-### CR-01: [BLOCKER] 记录页对 `room-repair + repair.retryable-failure` 仍然只给 toast，实际把“可重试修复失败”降级成无恢复路径
-
-**File:** `utils/recordCommands.js:207-228`, `utils/recordCommands.js:253-275`, `pages/period/period.js:12-24`, `pages/memory/memory.js:11-20`, `pages/period/edit/edit.js:59-89`, `pages/memory/edit/edit.js:23-48`
-**Issue:** `createRoomDataClient()` 已经把“缓存房间过期，随后 `repairCachedRoom()` 又因网络/云函数失败而未能确认房间状态”的情况保留成：
-
-```js
-{
-  kind: 'room-repair',
-  repair: { kind: 'retryable-failure', message: '同步房间状态失败：...' }
-}
-```
-
-但 `recordCommands.handleFailureOutcome()` 对这条分支仍然只是：
-- `normalizeRoomRepairOutcome()` 产出 `action: 'repair-retry'`
-- 然后直接 `wxApi.showToast(...)` 并返回结果
-
-它不会像 `settingsFlow` 或首页那样弹出可继续操作的 `重试` / `去绑定` 交互。问题在于 period/memory 页面对 helper 的返回值没有后续处理，只是 `await` 后结束，所以用户最终看到的是：
-- 列表页：`loading` 结束，列表保持空或旧状态，只闪过一条 toast，没有任何可点击恢复路径。
-- 编辑页：保存/删除失败只闪过一条 toast，没有“稍后重试/重新绑定/刷新确认”的持久引导。
-
-我做了最小复现：对 `runRecordListLoad()` 注入 `{ kind: 'room-repair', repair: { kind: 'retryable-failure', message: '同步房间状态失败：network down' } }`，当前结果是仅产生 1 次 `showToast`，`showModal` 和 `navigateTo` 都不会发生。也就是说，本轮你要求复查的“active-room recovery failures stay retryable”在 record flows 这条分支上仍然不成立。
-
-**Fix:** 把 `recordCommands` 的 `repair-retry` 分支升级成真正的用户恢复动作，而不是瞬时 toast。由于这里的原始失败是服务端先返回 stale-room 授权失败，写操作并没有成功落库，所以在修复失败分支继续给“重试当前操作”是安全的；至少也要给出和 `retryable-failure` 一样不会被页面吞掉的 modal。
-
-```javascript
-if (outcome.kind === 'room-repair') {
-  const normalized = normalizeRoomRepairOutcome(outcome, roomRepairTitle)
-
-  if (normalized.action === 'retry') {
-    return promptRetry({
-      wxApi,
-      title: '房间状态已同步',
-      content: normalized.message,
-      retryAction,
-      fallback: normalized
-    })
-  }
-
-  if (normalized.action === 'rebind') {
-    return promptNavigateToBind({
-      wxApi,
-      title: '房间状态已变化',
-      content: normalized.message,
-      navigateToBind,
-      fallback: normalized
-    })
-  }
-
-  return promptRetry({
-    wxApi,
-    title: failureTitle,
-    content: normalized.message,
-    retryAction,
-    fallback: normalized
-  })
-}
-```
-
-如果你不想立即重放编辑页的保存/删除，也至少应改成 `promptAcknowledge(...)` 并给出“请稍后重试/返回列表刷新确认”的持久提示，不能继续只靠 toast。
-
 ## Warnings
 
-### WR-01: [WARNING] 当前回归没有覆盖 record flows 的 `room-repair.repair.retryable-failure` 分支，所以这个回退可以一路漏过到第三次复审
+### WR-01: [WARNING] `page-registration` harness 没有真正等待页面异步 `onShow()` 完成，当前分支覆盖依赖“立即 resolve”的巧合
 
-**File:** `tests/record-flow.test.js:121-165`, `tests/record-flow.test.js:282-328`, `tests/page-registration.test.js:97-173`
-**Issue:** 现有测试只覆盖了：
-- 普通 `retryable-failure` 的 modal retry / acknowledge。
-- `room-repair` 且 `repair.success + !bound` 的 rebind。
-- period/memory 页面 harness 的成功加载路径。
+**File:** `D:\wechat\minmin-calendar\tests\page-registration.test.js:39-45`, `D:\wechat\minmin-calendar\tests\page-registration.test.js:77-91`, `D:\wechat\minmin-calendar\tests\page-registration.test.js:128-135`, `D:\wechat\minmin-calendar\tests\page-registration.test.js:164-169`, `D:\wechat\minmin-calendar\tests\page-registration.test.js:263-271`, `D:\wechat\minmin-calendar\tests\page-registration.test.js:312-320`, `D:\wechat\minmin-calendar\tests\page-registration.test.js:384-396`, `D:\wechat\minmin-calendar\pages\index\index.js:67-71`, `D:\wechat\minmin-calendar\pages\period\period.js:10-24`, `D:\wechat\minmin-calendar\pages\memory\memory.js:9-20`, `D:\wechat\minmin-calendar\pages\settings\settings.js:8-11`
 
-缺的正是这次仍有问题的分支：
-- `runRecordListLoad()` / `runRecordSave()` / `runRecordDelete()` 收到 `room-repair + repair.retryable-failure`
-- period/memory 页面在该分支下是否还能给用户保留可见恢复动作
+**Issue:** 这组 harness 大量使用 `await harness.page.onShow()`，但这些页面的 `onShow()` 当前都不返回 Promise：
 
-因此 72/72 测试全部通过，但 record flows 依然会把这类故障降级成 toast-only dead end。
+- `pages/period/period.js` 和 `pages/memory/memory.js` 只是调用 `this.loadData()`
+- `pages/index/index.js` 只是设置 `this._loadingPromise = this.loadData()`
+- `pages/settings/settings.js` 只是启动 `roomSession.getActiveRoom()` 并在回调里 `setData`
 
-**Fix:** 至少补两类回归：
+因此测试并没有真正等待页面加载链路结束，而是依赖 mock 恰好“同步创建 Promise 并在下一次微任务内 resolve”的时序才能碰巧通过。这个假设很脆弱，已经足以让当前回归对真实运行时分支产生假阳性。
+
+我做了最小运行时探针：把 `pages/period/period.js` 的 `client.list()` mock 改成 `await new Promise(resolve => setTimeout(resolve, 0))` 后，`page.onShow()` 的返回值仍是 `undefined`；`await page.onShow()` 之后 `page.data.periods` 还是空数组，只有再过一个 timer tick 才会被填充。这说明当前 harness 并不能证明“页面 onShow 路径在真实异步时序下已完成执行”，而只能证明“在当前超快 mock 下大多能撞上正确时机”。
+
+这正好影响你本轮特别要求复查的“page harness coverage meaningfully executes runtime branches”。目前它还没有达到“meaningfully”。
+
+**Fix:**
+
+让页面生命周期在测试中可等待，而不是靠微任务碰运气。两种安全做法里，优先推荐第一种：
 
 ```javascript
-test('runRecordListLoad keeps room repair sync failures retryable', async () => {
-  const promise = recordCommands.runRecordListLoad({
-    page,
-    wx,
-    itemsKey: 'periods',
-    action: async () => ({
-      kind: 'room-repair',
-      roomCode: 'ROOM01',
-      repair: { kind: 'retryable-failure', message: '同步房间状态失败：network down' }
-    })
-  })
+// pages/period/period.js
+onShow() {
+  return this.loadData()
+}
 
-  await Promise.resolve()
-  assert.equal(wx.modals[0].confirmText, '重试')
-})
+// pages/memory/memory.js
+onShow() {
+  return this.loadData()
+}
 
-test('period page keeps a visible recovery path when room repair sync fails', async () => {
-  // harness page -> client.list() returns room-repair + repair.retryable-failure
-  // assert the page path now surfaces the helper-owned modal or equivalent durable action
-})
+// pages/index/index.js
+onShow() {
+  if (!this._loadingPromise) {
+    this._loadingPromise = this.loadData()
+  }
+  return this._loadingPromise
+}
 ```
 
+`pages/settings/settings.js` 也应返回它的异步链路 Promise。这样 `tests/page-registration.test.js` 里的 `await harness.page.onShow()` 才真正等到页面状态稳定。
+
+如果不想改页面代码，就把 harness 显式改为等待页面自己暴露的稳定信号，而不是 `await onShow()` / `await Promise.resolve()`：
+
+```javascript
+const result = harness.page.onShow()
+if (result && typeof result.then === 'function') {
+  await result
+} else if (harness.page._loadingPromise) {
+  await harness.page._loadingPromise
+} else {
+  throw new Error('page onShow did not expose an awaitable completion signal')
+}
+```
+
+在修好等待语义之前，不应把这组 harness 当成“已经可靠覆盖页面运行时分支”的证据。
+
 ---
-_Reviewed: 2026-06-26T11:01:00Z_
+_Reviewed: 2026-06-26T10:23:03.7307675Z_
 _Reviewer: the agent (gsd-code-reviewer)_
 _Depth: deep_
