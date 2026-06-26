@@ -1,125 +1,136 @@
 ---
-phase: 07-architecture-quality-and-reliability-hardening
-reviewed: 2026-06-26T10:23:03.7307675Z
+phase: 07
+status: issues_found
+reviewed_at: 2026-06-26T18:59:02.8875599+08:00
 depth: deep
-files_reviewed: 24
+files_reviewed: 37
+findings:
+  critical: 0
+  warning: 2
+  info: 0
+  total: 2
 files_reviewed_list:
+  - pages/index/index.js
+  - pages/index/index.wxml
+  - pages/index/index.wxss
+  - pages/period/period.js
+  - pages/period/period.wxml
+  - pages/memory/memory.js
+  - pages/memory/memory.wxml
+  - pages/settings/settings.js
+  - pages/settings/settings.wxml
+  - pages/bind/bind.js
+  - pages/period/edit/edit.js
+  - pages/memory/edit/edit.js
   - utils/cloud.js
   - utils/room.js
   - utils/recordCommands.js
   - utils/settingsFlow.js
   - utils/homeCalendarState.js
+  - utils/calendarInsights.js
+  - utils/util.js
+  - utils/cycle.js
   - cloudfunctions/dataOp/index.js
   - cloudfunctions/dataOp/dataOpHandler.js
   - cloudfunctions/dataOp/roomRecords.js
-  - pages/index/index.js
-  - pages/index/index.wxml
-  - pages/period/period.js
-  - pages/period/edit/edit.js
-  - pages/memory/memory.js
-  - pages/memory/edit/edit.js
-  - pages/settings/settings.js
-  - pages/settings/settings.wxml
+  - cloudfunctions/leaveRoom/index.js
+  - cloudfunctions/leaveRoom/roomLifecycle.js
   - tests/page-registration.test.js
   - tests/room-data-client.test.js
-  - tests/room-session.test.js
   - tests/record-flow.test.js
   - tests/settings-flow.test.js
   - tests/home-calendar-state.test.js
   - tests/data-op-auth.test.js
   - tests/calendar-display.test.js
-findings:
-  critical: 0
-  warning: 1
-  info: 0
-  total: 1
-status: issues_found
+  - tests/calendar-insights.test.js
+  - tests/cycle-prediction.test.js
+  - tests/room-lifecycle.test.js
+  - tests/room-records.test.js
+  - tests/room-session.test.js
 ---
 
 # Phase 07: Code Review Report
 
-**Reviewed:** 2026-06-26T10:23:03.7307675Z
-**Depth:** deep
-**Files Reviewed:** 24
+**Reviewed:** 2026-06-26T18:59:02.8875599+08:00  
+**Depth:** deep  
+**Files Reviewed:** 37  
 **Status:** issues_found
 
 ## Summary
 
-这是 Phase 07 第三轮修复后的最终 deep re-review。我重新核对了 `RoomDataClient`、`RoomSession`、`recordCommands`、`settingsFlow`、首页状态层、`dataOp` 服务端授权边界、相关页面适配层，以及指定的 8 个测试文件，并重新执行了 review scope 内的 `node --test` 与 `node --check`。
+This deep final review covered the full Phase 07 source scope plus the recent CAL-05/CAL-06 homepage density, small-screen readability, and month-jump "回到今天" changes. I also re-checked the Phase 07 plan set (`07-01-PLAN.md` through `07-07-PLAN.md`) because the requested singular `07-PLAN.md` is not present on disk.
 
-本轮确认已经闭合的关键点：
-
-- `recordCommands` 现在把 `room-repair.repair.retryable-failure` 保留为可见恢复动作：列表加载走 `重试` modal，保存/删除走不重放未知写入的确认 modal。
-- `settings` 导出链路对 `room-repair.repair.retryable-failure` 仍保持可重试语义，不会把房间状态错误地改写成 `未绑定`。
-- 首页已经直接消费 `RoomDataClient` outcome，`no-room`、`retryable-failure`、`room-repair` 都保留为显式页面状态。
-- `createRoomDataClient()` 仍会先做 `getActiveRoom()` 恢复，并把恢复失败保留成 `retryable-failure`。
-- 非幂等重试行为仍然安全：普通传输失败不会重放 `add/update/remove`；`room-repair + repair.success + bound` 的重试只发生在服务端因 stale-room 在授权前拒绝原请求之后，原写操作并未落库。
-- `dataOp` 的房间授权仍在服务端 `createDataOpHandler()` / `roomRecords` 边界内，未退化到客户端判断。
-
-剩余问题不在实现逻辑本身，而在回归 harness：`page-registration` 这组测试并没有真正等待页面异步 `onShow()` 流程完成，因此当前“页面运行时分支已被执行”的结论仍然偏乐观。
+Automated verification is green: the full requested `node --test` suite passed with 94/94 tests, and the requested `node --check` set passed for all touched utils, pages, and cloud functions. I did not find a server-side room-isolation break in `dataOp` / `roomRecords` / `leaveRoom`, and I did not find a remaining path that turns retryable record-page loads into silent "no data" states. Two client-side stale-room defects still remain, both in `RoomSession` semantics rather than in the page helpers.
 
 ## Narrative Findings (AI reviewer)
 
 ## Warnings
 
-### WR-01: [WARNING] `page-registration` harness 没有真正等待页面异步 `onShow()` 完成，当前分支覆盖依赖“立即 resolve”的巧合
+### WR-01: [WARNING] `bind` / `settings` still trust stale cached room codes and can show a bound state after membership is already gone
 
-**File:** `D:\wechat\minmin-calendar\tests\page-registration.test.js:39-45`, `D:\wechat\minmin-calendar\tests\page-registration.test.js:77-91`, `D:\wechat\minmin-calendar\tests\page-registration.test.js:128-135`, `D:\wechat\minmin-calendar\tests\page-registration.test.js:164-169`, `D:\wechat\minmin-calendar\tests\page-registration.test.js:263-271`, `D:\wechat\minmin-calendar\tests\page-registration.test.js:312-320`, `D:\wechat\minmin-calendar\tests\page-registration.test.js:384-396`, `D:\wechat\minmin-calendar\pages\index\index.js:67-71`, `D:\wechat\minmin-calendar\pages\period\period.js:10-24`, `D:\wechat\minmin-calendar\pages\memory\memory.js:9-20`, `D:\wechat\minmin-calendar\pages\settings\settings.js:8-11`
+**File:** `utils/room.js:12-16`, `pages/settings/settings.js:8-11`, `pages/bind/bind.js:18-27`
 
-**Issue:** 这组 harness 大量使用 `await harness.page.onShow()`，但这些页面的 `onShow()` 当前都不返回 Promise：
+**Issue:** `RoomSession.getActiveRoom()` returns `{ kind: 'success', bound: true, roomCode }` immediately when local storage already has a `roomCode`, and never calls `getMyRoom` to verify that cache. Both `pages/settings/settings.js` and `pages/bind/bind.js` use that method directly on page open, so a user who was removed from the room elsewhere can still see a valid-looking bound state indefinitely instead of being prompted to rebind.
 
-- `pages/period/period.js` 和 `pages/memory/memory.js` 只是调用 `this.loadData()`
-- `pages/index/index.js` 只是设置 `this._loadingPromise = this.loadData()`
-- `pages/settings/settings.js` 只是启动 `roomSession.getActiveRoom()` 并在回调里 `setData`
-
-因此测试并没有真正等待页面加载链路结束，而是依赖 mock 恰好“同步创建 Promise 并在下一次微任务内 resolve”的时序才能碰巧通过。这个假设很脆弱，已经足以让当前回归对真实运行时分支产生假阳性。
-
-我做了最小运行时探针：把 `pages/period/period.js` 的 `client.list()` mock 改成 `await new Promise(resolve => setTimeout(resolve, 0))` 后，`page.onShow()` 的返回值仍是 `undefined`；`await page.onShow()` 之后 `page.data.periods` 还是空数组，只有再过一个 timer tick 才会被填充。这说明当前 harness 并不能证明“页面 onShow 路径在真实异步时序下已完成执行”，而只能证明“在当前超快 mock 下大多能撞上正确时机”。
-
-这正好影响你本轮特别要求复查的“page harness coverage meaningfully executes runtime branches”。目前它还没有达到“meaningfully”。
+This is reproducible with the current code: a cached `ROOM01` plus a cloud response of `未加入任何房间` still returns `success/bound=true` without making any cloud call. That leaves stale room state visible on the two pages that are supposed to represent current binding state most directly.
 
 **Fix:**
 
-让页面生命周期在测试中可等待，而不是靠微任务碰运气。两种安全做法里，优先推荐第一种：
+Use an authoritative verification path when these pages open. One safe pattern is to keep `getActiveRoom()` as the cheap cache-first helper for normal data actions, but add a verified path for room-state pages:
 
 ```javascript
-// pages/period/period.js
-onShow() {
-  return this.loadData()
-}
-
-// pages/memory/memory.js
-onShow() {
-  return this.loadData()
-}
-
-// pages/index/index.js
-onShow() {
-  if (!this._loadingPromise) {
-    this._loadingPromise = this.loadData()
+// utils/room.js
+async function getVerifiedActiveRoom() {
+  const cachedRoomCode = normalizeRoomCode(storage.get(ROOM_CODE_KEY))
+  if (!cachedRoomCode) {
+    return getActiveRoom()
   }
-  return this._loadingPromise
+  const repair = await this.repairCachedRoom(cachedRoomCode)
+  if (repair.kind === 'success' && repair.bound && repair.roomCode) return repair
+  if (repair.kind === 'success' && !repair.bound) return { kind: 'no-room', bound: false, roomCode: '' }
+  return { kind: 'retryable-failure', bound: false, roomCode: '', errorMsg: repair.message }
 }
 ```
 
-`pages/settings/settings.js` 也应返回它的异步链路 Promise。这样 `tests/page-registration.test.js` 里的 `await harness.page.onShow()` 才真正等到页面状态稳定。
+Then use the verified path from `pages/settings/settings.js` and `pages/bind/bind.js`, and add regression tests for "cached room exists but cloud says no room".
 
-如果不想改页面代码，就把 harness 显式改为等待页面自己暴露的稳定信号，而不是 `await onShow()` / `await Promise.resolve()`：
+### WR-02: [WARNING] stale-room repair can erase a newer room cache because `expectedRoomCode` is ignored
+
+**File:** `utils/cloud.js:57-59`, `utils/room.js:37-49`
+
+**Issue:** `createRoomDataClient()` passes the failing room code into `session.repairCachedRoom(roomCode)`, but `repairCachedRoom(expectedRoomCode)` never reads `expectedRoomCode`. When cloud later reports `未加入任何房间` / `房间不存在`, it unconditionally removes the current cached room code.
+
+That creates a real race: an old request that started under `ROOM01` can finish after the user has already rebound to `ROOM02`, and the old repair result will still clear local storage. I verified this against the current code by starting `repairCachedRoom('ROOM01')`, changing storage to `ROOM02` before the cloud call resolved, then returning `未加入任何房间`; the final cached room code became empty.
+
+**Fix:**
+
+Guard the clear against the room code that originally failed, and keep newer local state intact if the cache changed while the repair was in flight:
 
 ```javascript
-const result = harness.page.onShow()
-if (result && typeof result.then === 'function') {
-  await result
-} else if (harness.page._loadingPromise) {
-  await harness.page._loadingPromise
-} else {
-  throw new Error('page onShow did not expose an awaitable completion signal')
+// utils/room.js
+async repairCachedRoom(expectedRoomCode) {
+  const expected = normalizeRoomCode(expectedRoomCode)
+  // ... call getMyRoom ...
+  if (shouldClearCachedRoom(res.result, roomCode)) {
+    const currentCached = normalizeRoomCode(storage.get(ROOM_CODE_KEY))
+    if (!expected || currentCached === expected) {
+      storage.remove(ROOM_CODE_KEY)
+      return { kind: 'success', bound: false, roomCode: '' }
+    }
+    return { kind: 'success', bound: true, roomCode: currentCached }
+  }
 }
 ```
 
-在修好等待语义之前，不应把这组 harness 当成“已经可靠覆盖页面运行时分支”的证据。
+Add a `tests/room-session.test.js` case that changes storage mid-flight so this race cannot regress silently.
+
+## Verification Notes
+
+- `node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js`
+- Result: 94 passing tests, 0 failures.
+- `node --check` passed for all requested touched files under `pages/`, `utils/`, and `cloudfunctions/`.
 
 ---
-_Reviewed: 2026-06-26T10:23:03.7307675Z_
-_Reviewer: the agent (gsd-code-reviewer)_
+_Reviewed: 2026-06-26T18:59:02.8875599+08:00_  
+_Reviewer: the agent (gsd-code-reviewer)_  
 _Depth: deep_
