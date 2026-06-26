@@ -12,7 +12,7 @@ function createRoomSession(options = {}) {
     async getActiveRoom() {
       const cachedRoomCode = normalizeRoomCode(storage.get(ROOM_CODE_KEY))
       if (cachedRoomCode) {
-        return { bound: true, roomCode: cachedRoomCode }
+        return { kind: 'success', bound: true, roomCode: cachedRoomCode }
       }
 
       try {
@@ -20,17 +20,18 @@ function createRoomSession(options = {}) {
         const roomCode = normalizeRoomCode(res.result?.room?.roomCode)
         if (res.result?.code === 0 && roomCode) {
           storage.set(ROOM_CODE_KEY, roomCode)
-          return { bound: true, roomCode }
+          return { kind: 'success', bound: true, roomCode }
         }
       } catch (error) {
         return {
+          kind: 'retryable-failure',
           bound: false,
           roomCode: '',
           errorMsg: '同步房间状态失败：' + getErrorMessage(error)
         }
       }
 
-      return { bound: false, roomCode: '' }
+      return { kind: 'no-room', bound: false, roomCode: '' }
     },
 
     async repairCachedRoom(expectedRoomCode) {

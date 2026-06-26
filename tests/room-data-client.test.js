@@ -100,6 +100,30 @@ test('RoomDataClient returns no-room without calling dataOp when no cached room 
   assert.deepEqual(cloud.calls, [])
 })
 
+test('RoomDataClient keeps active-room recovery failures retryable instead of flattening them to no-room', async () => {
+  const cloud = createFakeCloud()
+  const roomSession = createFakeRoomSession({
+    roomCode: '',
+    activeRoom: {
+      kind: 'retryable-failure',
+      bound: false,
+      roomCode: '',
+      errorMsg: '同步房间状态失败：network down'
+    }
+  })
+  const client = createRoomDataClient({ cloud, roomSession })
+
+  const outcome = await client.list('memories')
+
+  assert.deepEqual(outcome, {
+    kind: 'retryable-failure',
+    message: '同步房间状态失败：network down',
+    retry: outcome.retry
+  })
+  assert.equal(typeof outcome.retry, 'function')
+  assert.deepEqual(cloud.calls, [])
+})
+
 test('RoomDataClient recovers the active room from RoomSession before loading records', async () => {
   const cloud = createFakeCloud([
     { result: { code: 0, data: [{ _id: 'p1', startDate: '2026-06-01' }] } }
@@ -280,7 +304,7 @@ function createFakeRoomSession(options = {}) {
     },
     async getActiveRoom() {
       session.activeRoomCalls.push('getActiveRoom')
-      return session.activeRoom || { bound: false, roomCode: '' }
+      return session.activeRoom || { kind: 'no-room', bound: false, roomCode: '' }
     },
     async repairCachedRoom(expectedRoomCode) {
       session.repairCalls.push(expectedRoomCode)

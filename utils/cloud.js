@@ -29,10 +29,18 @@ function createRoomDataClient(options = {}) {
   const timeoutMs = options.timeoutMs || QUERY_TIMEOUT
 
   async function runAction(action, collection, data, id) {
-    const roomCode = await getActiveRoomCode(session)
-    if (!roomCode) {
+    const activeRoom = await resolveActiveRoom(session)
+    if (activeRoom.kind === 'retryable-failure') {
+      return buildRetryableFailure({
+        action,
+        message: activeRoom.message,
+        retry: () => runAction(action, collection, data, id)
+      })
+    }
+    if (activeRoom.kind !== 'success') {
       return { kind: 'no-room' }
     }
+    const roomCode = activeRoom.roomCode
 
     try {
       const res = await withTimeout(
@@ -55,11 +63,11 @@ function createRoomDataClient(options = {}) {
         message: result.msg || '操作失败'
       }
     } catch (error) {
-      return {
-        kind: 'retryable-failure',
+      return buildRetryableFailure({
+        action,
         message: getErrorMessage(error),
         retry: () => runAction(action, collection, data, id)
-      }
+      })
     }
   }
 
@@ -129,22 +137,41 @@ function getNormalizedRoomCode(session) {
   return String(session.getRoomCode() || '').trim().toUpperCase()
 }
 
-async function getActiveRoomCode(session) {
+async function resolveActiveRoom(session) {
   const cachedRoomCode = getNormalizedRoomCode(session)
-  if (cachedRoomCode) return cachedRoomCode
+  if (cachedRoomCode) {
+    return {
+      kind: 'success',
+      roomCode: cachedRoomCode
+    }
+  }
 
   if (!session || typeof session.getActiveRoom !== 'function') {
-    return ''
+    return { kind: 'no-room' }
   }
 
   try {
     const room = await session.getActiveRoom()
     if (room && room.bound && room.roomCode) {
-      return String(room.roomCode).trim().toUpperCase()
+      return {
+        kind: 'success',
+        roomCode: String(room.roomCode).trim().toUpperCase()
+      }
     }
-  } catch (error) {}
+    if (room && (room.kind === 'retryable-failure' || room.errorMsg)) {
+      return {
+        kind: 'retryable-failure',
+        message: room.errorMsg || '同步房间状态失败，请稍后重试'
+      }
+    }
+  } catch (error) {
+    return {
+      kind: 'retryable-failure',
+      message: getErrorMessage(error)
+    }
+  }
 
-  return ''
+  return { kind: 'no-room' }
 }
 
 function buildSuccessOutcome(action, result) {
@@ -215,6 +242,21 @@ function buildLegacyFailure(message) {
     code: -1,
     msg: message
   }
+}
+
+function buildRetryableFailure({ action, message, retry }) {
+  const outcome = {
+    kind: 'retryable-failure',
+    message
+  }
+  if (isRetryableAction(action) && typeof retry === 'function') {
+    outcome.retry = retry
+  }
+  return outcome
+}
+
+function isRetryableAction(action) {
+  return action === 'list'
 }
 
 function getErrorMessage(error) {

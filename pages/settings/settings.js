@@ -3,16 +3,11 @@ const roomSession = require('../../utils/room')
 const settingsFlow = require('../../utils/settingsFlow')
 
 Page({
-  data: { roomCode: '' },
+  data: { roomCode: '', roomCodeDisplay: '未绑定' },
 
   async onShow() {
     const room = await roomSession.getActiveRoom()
-    if (room.bound) {
-      this.setData({ roomCode: room.roomCode })
-      return
-    }
-
-    this.setData({ roomCode: '未绑定' })
+    syncActiveRoom(this, room)
   },
 
   async copyRoomCode() {
@@ -33,7 +28,7 @@ Page({
       return
     }
     if (result.kind === 'no-room') {
-      this.setData({ roomCode: '未绑定' })
+      this.setData({ roomCode: '', roomCodeDisplay: '未绑定' })
     }
   },
 
@@ -44,7 +39,10 @@ Page({
       success: async (res) => {
         if (res.confirm) {
           const result = await settingsFlow.clearLocalCache({ roomSession })
-          this.setData({ roomCode: result.roomCode || '未绑定' })
+          this.setData({
+            roomCode: '',
+            roomCodeDisplay: result.roomCode || '未绑定'
+          })
         }
       }
     })
@@ -59,10 +57,22 @@ Page({
   }
 })
 
-function syncRoomCode(page, repair) {
-  if (repair && repair.kind === 'success' && repair.bound && repair.roomCode) {
-    page.setData({ roomCode: repair.roomCode })
+function syncActiveRoom(page, room) {
+  if (room && room.bound && room.roomCode) {
+    page.setData({ roomCode: room.roomCode, roomCodeDisplay: room.roomCode })
     return
   }
-  page.setData({ roomCode: '未绑定' })
+  if (room && (room.kind === 'retryable-failure' || room.errorMsg)) {
+    page.setData({ roomCode: '', roomCodeDisplay: '同步失败，请重试' })
+    return
+  }
+  page.setData({ roomCode: '', roomCodeDisplay: '未绑定' })
+}
+
+function syncRoomCode(page, repair) {
+  if (repair && repair.kind === 'success' && repair.bound && repair.roomCode) {
+    page.setData({ roomCode: repair.roomCode, roomCodeDisplay: repair.roomCode })
+    return
+  }
+  page.setData({ roomCode: '', roomCodeDisplay: '未绑定' })
 }

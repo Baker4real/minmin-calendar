@@ -10,7 +10,7 @@ test('RoomSession uses cached room code without calling recovery cloud function'
 
   const result = await session.getActiveRoom()
 
-  assert.deepEqual(result, { bound: true, roomCode: 'ROOM01' })
+  assert.deepEqual(result, { kind: 'success', bound: true, roomCode: 'ROOM01' })
   assert.deepEqual(cloud.calls, [])
 })
 
@@ -23,7 +23,7 @@ test('RoomSession recovers the current room from cloud and caches it locally', a
 
   const result = await session.getActiveRoom()
 
-  assert.deepEqual(result, { bound: true, roomCode: 'ROOM02' })
+  assert.deepEqual(result, { kind: 'success', bound: true, roomCode: 'ROOM02' })
   assert.equal(storage.get('roomCode'), 'ROOM02')
   assert.deepEqual(cloud.calls, [{ name: 'getMyRoom' }])
 })
@@ -38,6 +38,7 @@ test('RoomSession returns a recoverable error when cloud room sync fails', async
   const result = await session.getActiveRoom()
 
   assert.deepEqual(result, {
+    kind: 'retryable-failure',
     bound: false,
     roomCode: '',
     errorMsg: '同步房间状态失败：network down'
