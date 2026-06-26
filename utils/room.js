@@ -57,6 +57,8 @@ function createRoomSession(options = {}) {
     },
 
     async repairCachedRoom(expectedRoomCode) {
+      const expectedRoom = normalizeRoomCode(expectedRoomCode)
+
       try {
         const res = await cloud.callFunction({ name: 'getMyRoom' })
         const roomCode = normalizeRoomCode(res.result?.room?.roomCode)
@@ -66,8 +68,17 @@ function createRoomSession(options = {}) {
         }
 
         if (shouldClearCachedRoom(res.result, roomCode)) {
-          storage.remove(ROOM_CODE_KEY)
-          return { kind: 'success', bound: false, roomCode: '' }
+          const currentRoomCode = normalizeRoomCode(storage.get(ROOM_CODE_KEY))
+          if (!expectedRoom || currentRoomCode === expectedRoom) {
+            storage.remove(ROOM_CODE_KEY)
+            return { kind: 'success', bound: false, roomCode: '' }
+          }
+
+          return {
+            kind: 'success',
+            bound: !!currentRoomCode,
+            roomCode: currentRoomCode
+          }
         }
 
         return {

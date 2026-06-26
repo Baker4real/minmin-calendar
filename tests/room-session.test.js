@@ -108,7 +108,7 @@ test('RoomSession repairCachedRoom clears stale local room state when cloud repo
   })
   const session = createRoomSession({ storage, cloud })
 
-  const result = await session.repairCachedRoom('ROOM01')
+  const result = await session.repairCachedRoom(' room01 ')
 
   assert.deepEqual(result, {
     kind: 'success',
@@ -133,6 +133,29 @@ test('RoomSession repairCachedRoom returns a retryable failure when cloud room s
     message: '同步房间状态失败：network down'
   })
   assert.equal(storage.get('roomCode'), 'ROOM01')
+})
+
+test('RoomSession repairCachedRoom keeps a newer cached room when a stale repair resolves after rebinding', async () => {
+  const storage = createMemoryStorage({ roomCode: 'ROOM01' })
+  const cloud = {
+    calls: [],
+    async callFunction(options) {
+      cloud.calls.push(options)
+      storage.set('roomCode', 'ROOM02')
+      return { result: { code: 1, msg: '未加入任何房间' } }
+    }
+  }
+  const session = createRoomSession({ storage, cloud })
+
+  const result = await session.repairCachedRoom('ROOM01')
+
+  assert.deepEqual(result, {
+    kind: 'success',
+    bound: true,
+    roomCode: 'ROOM02'
+  })
+  assert.equal(storage.get('roomCode'), 'ROOM02')
+  assert.deepEqual(cloud.calls, [{ name: 'getMyRoom' }])
 })
 
 test('RoomSession createRoom caches the created room code', async () => {
