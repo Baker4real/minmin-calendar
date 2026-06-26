@@ -94,12 +94,9 @@ function getChineseDateMeta(dateStr) {
   }
 }
 
-function buildCalendarDays({ year, month, periods = [], memories = [], nextPredict = null, predictionWindow = null, today = formatDate(new Date()) }) {
+function buildCalendarDays({ year, month }) {
   const daysInMonth = getDaysInMonth(year, month)
   const firstDay = getFirstDayOfMonth(year, month)
-  const periodDates = collectPeriodDates(periods)
-  const memoryDates = new Set(memories.map(m => m.date))
-  const predictDates = collectPredictDates(nextPredict, year, month, predictionWindow)
 
   const days = []
   for (let i = 0; i < firstDay; i++) days.push({ isEmpty: true })
@@ -108,60 +105,12 @@ function buildCalendarDays({ year, month, periods = [], memories = [], nextPredi
     days.push({
       day: d,
       date: dateStr,
-      isToday: dateStr === today,
-      isPeriod: periodDates.has(dateStr),
-      isMemory: memoryDates.has(dateStr),
-      isPredict: predictDates.has(dateStr),
       isEmpty: false,
       ...getChineseDateMeta(dateStr)
     })
   }
 
   return days
-}
-
-function collectPeriodDates(periods) {
-  const periodDates = new Set()
-  periods.forEach(p => {
-    if (!isDateString(p.startDate)) return
-    const endDate = isDateString(p.endDate) ? p.endDate : p.startDate
-    let d = parseDate(p.startDate)
-    const end = parseDate(endDate)
-    while (d <= end) {
-      periodDates.add(formatDate(d))
-      d.setDate(d.getDate() + 1)
-    }
-  })
-  return periodDates
-}
-
-function collectPredictDates(nextPredict, year, month, predictionWindow) {
-  const predictDates = new Set()
-  const startDate = predictionWindow && (predictionWindow.rangeStart || predictionWindow.startDate)
-  const endDate = predictionWindow && (predictionWindow.rangeEnd || predictionWindow.endDate)
-
-  if (isDateString(startDate) && isDateString(endDate)) {
-    let d = parseDate(startDate)
-    const end = parseDate(endDate)
-    while (d <= end) {
-      if (d.getMonth() === month && d.getFullYear() === year) predictDates.add(formatDate(d))
-      d.setDate(d.getDate() + 1)
-    }
-    return predictDates
-  }
-
-  if (!isDateString(nextPredict)) return predictDates
-
-  const pStart = parseDate(nextPredict)
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(pStart)
-    d.setDate(d.getDate() + i)
-    if (d.getMonth() === month && d.getFullYear() === year) {
-      predictDates.add(formatDate(d))
-    }
-  }
-
-  return predictDates
 }
 
 function getOfficialHolidayName(dateStr, lunar) {

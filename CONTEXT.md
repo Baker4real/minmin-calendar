@@ -27,9 +27,10 @@
 - `utils/recordCommands.js` owns shared period/memory list, save, delete, retry, and rebind feedback flows.
 - `utils/settingsFlow.js` owns room-code copy, data export, retry/rebind, and local-cache helper flows.
 - `utils/homeCalendarState.js` owns pure homepage state composition for prediction, reminders, day details, and monthly recap.
+- `utils/calendarCells.js` owns Calendar cell marker composition for today, period, memory, and prediction states on top of base date metadata.
 - `utils/recordEditRoute.js` owns Period record and Memory record edit URL construction plus edit-page route option hydration.
 - `utils/room.js` owns room-code cache, recovery, create/join, local clear, and server-side leave calls.
-- `utils/util.js` owns date formatting, lunar conversion, official holiday metadata, and calendar-grid construction.
+- `utils/util.js` owns date formatting, lunar conversion, official holiday metadata, and base calendar-grid construction.
 - `utils/cycle.js` owns cycle prediction, reminder derivation, flow labels, and symptom labels.
 - `utils/calendarInsights.js` owns calendar marker explanations, prediction explanation copy, day marker meanings, and monthly recap text.
 - `cloudfunctions/dataOp/index.js` is the cloud runtime adapter for room-authorized CRUD on `periods` and `memories`.
@@ -52,6 +53,7 @@ node --check utils\cloud.js
 node --check utils\recordCommands.js
 node --check utils\settingsFlow.js
 node --check utils\homeCalendarState.js
+node --check utils\calendarCells.js
 node --check utils\util.js
 node --check utils\cycle.js
 node --check utils\calendarInsights.js

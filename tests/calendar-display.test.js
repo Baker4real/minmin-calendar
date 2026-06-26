@@ -4,6 +4,7 @@ const path = require('node:path')
 const test = require('node:test')
 
 const util = require('../utils/util')
+const calendarCells = require('../utils/calendarCells')
 
 test('formatPredictDisplay returns a compact date with weekday', () => {
   assert.deepEqual(util.formatPredictDisplay('2026-06-24'), {
@@ -161,7 +162,7 @@ test('getChineseDateMeta uses all published State Council holiday arrangements',
   )
 })
 
-test('buildCalendarDays includes lunar and holiday metadata without conflating today and memories', () => {
+test('buildCalendarDays returns base date cells without app marker semantics', () => {
   const days = util.buildCalendarDays({
     year: 2026,
     month: 1,
@@ -172,28 +173,42 @@ test('buildCalendarDays includes lunar and holiday metadata without conflating t
   })
   const springFestival = days.find(day => day.date === '2026-02-17')
 
-  assert.equal(springFestival.isToday, true)
-  assert.equal(springFestival.isMemory, true)
   assert.equal(springFestival.holidayName, '春节')
   assert.equal(springFestival.lunarText, '正月初一')
+  assert.equal('isToday' in springFestival, false)
+  assert.equal('isPeriod' in springFestival, false)
+  assert.equal('isMemory' in springFestival, false)
+  assert.equal('isPredict' in springFestival, false)
 })
 
-test('buildCalendarDays marks the prediction range exactly when provided', () => {
-  const days = util.buildCalendarDays({
+test('buildCalendarCells applies calendar marker semantics on top of date metadata', () => {
+  const days = calendarCells.buildCalendarCells({
     year: 2026,
     month: 7,
-    periods: [],
-    memories: [],
+    periods: [{ startDate: '2026-08-08', endDate: '2026-08-09' }],
+    memories: [{ date: '2026-08-10' }],
     nextPredict: '2026-08-10',
     predictionWindow: {
       rangeStart: '2026-08-09',
       rangeEnd: '2026-08-11'
     },
-    today: '2026-08-01'
+    today: '2026-08-10'
   })
 
   const predictedDates = days.filter(day => day.isPredict).map(day => day.date)
   assert.deepEqual(predictedDates, ['2026-08-09', '2026-08-10', '2026-08-11'])
+
+  const periodMemoryAndPredict = days.find(day => day.date === '2026-08-10')
+  assert.equal(periodMemoryAndPredict.isToday, true)
+  assert.equal(periodMemoryAndPredict.isPeriod, false)
+  assert.equal(periodMemoryAndPredict.isMemory, true)
+  assert.equal(periodMemoryAndPredict.isPredict, true)
+  assert.equal(periodMemoryAndPredict.lunarText, '六月廿八')
+
+  const periodAndPredict = days.find(day => day.date === '2026-08-09')
+  assert.equal(periodAndPredict.isPeriod, true)
+  assert.equal(periodAndPredict.isMemory, false)
+  assert.equal(periodAndPredict.isPredict, true)
 })
 
 test('index calendar only shows the heart mark for memories', () => {

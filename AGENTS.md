@@ -21,7 +21,8 @@ Core domain files:
 - `utils/recordCommands.js` - shared period/memory save, delete, list feedback, retry, and rebind flow helper.
 - `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
 - `utils/homeCalendarState.js` - pure homepage calendar state composition.
-- `utils/util.js` - date, lunar, holiday, and calendar-grid logic.
+- `utils/calendarCells.js` - homepage calendar cell marker composition.
+- `utils/util.js` - date, lunar, holiday, and base calendar-grid logic.
 - `utils/cycle.js` - cycle prediction, reminders, and period metadata labels.
 - `utils/calendarInsights.js` - calendar legend, prediction explanation, day marker meaning, and monthly recap text logic.
 - `cloudfunctions/dataOp/index.js` - server-side room-scoped CRUD gateway.
@@ -54,6 +55,7 @@ node --check utils\cloud.js
 node --check utils\recordCommands.js
 node --check utils\settingsFlow.js
 node --check utils\homeCalendarState.js
+node --check utils\calendarCells.js
 node --check utils\util.js
 node --check utils\cycle.js
 node --check utils\calendarInsights.js

@@ -1,6 +1,7 @@
 const util = require('./util')
 const cycle = require('./cycle')
 const calendarInsights = require('./calendarInsights')
+const calendarCells = require('./calendarCells')
 
 function buildHomeCalendarState({ year, month, periods = [], memories = [], today = util.formatDate(new Date()) }) {
   const prediction = cycle.predictNextPeriod(periods)
@@ -10,7 +11,7 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
         rangeEnd: prediction.rangeEnd
       }
     : null
-  const days = util.buildCalendarDays({
+  const days = calendarCells.buildCalendarCells({
     year,
     month,
     periods,
