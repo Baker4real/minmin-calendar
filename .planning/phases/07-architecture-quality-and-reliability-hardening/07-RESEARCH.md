@@ -67,7 +67,7 @@ The most important planning move is to treat `utils/cloud.js` as the first harde
 
 Homepage work should come third, not first. `pages/index/index.js` already has pure dependencies for prediction and marker explanation; the remaining problem is that `loadData()`, `calcStats()`, and `renderCalendar()` still spread the view-model contract across page state mutations. Extracting a pure home-calendar state builder after reliability and record/settings helpers are in place gives the planner a smaller blast radius and better preservation checks for CAL-01/CAL-05/CAL-06/CAL-09/CAL-10 behavior. [VERIFIED: codebase grep]
 
-**Primary recommendation:** Plan Phase 7 as four waves in the order already preferred by context: `RoomDataClient` plus stale repair, record/settings command helpers, homepage view-model extraction, then harness expansion plus final architecture audit. [VERIFIED: codebase grep]
+**Primary recommendation:** Plan Phase 7 around the order already preferred by context: `RoomDataClient` plus stale repair, record/settings command helpers, homepage view-model extraction, cloud authorization harness coverage, then final architecture audit and durable docs refresh. Split the final harness/audit/docs work into separate plan files so each execution scope stays small. [VERIFIED: codebase grep]
 
 ## Architectural Responsibility Map
 
@@ -122,10 +122,9 @@ Homepage work should come third, not first. `pages/index/index.js` already has p
 
 **Installation:**
 ```bash
-# No new runtime packages are recommended for Phase 07.
-# If a cloud-function dependency refresh is intentionally planned,
-# gate it with human verification before reinstalling the existing SDK:
-npm install wx-server-sdk@3.0.4
+# No package-manager command is planned for Phase 07.
+# Do not repin, reinstall, or audit-refresh cloud-function dependencies unless
+# implementation work directly touches package metadata and a human gate approves it.
 ```
 
 **Version verification:** `node --version` returned `v24.15.0`, `npm --version` returned `11.12.1`, `project.config.json` reports base library `3.16.1`, `npm view wx-server-sdk version time --json` reports registry version `3.0.4` with publish date `2026-02-06`, and repo lockfiles already resolve `wx-server-sdk` to `3.0.4`. [VERIFIED: local command] [VERIFIED: codebase grep]
@@ -372,22 +371,21 @@ async function exportJson(filePath, jsonText) {
 | A1 | WeChat does not publish stronger official guidance specifically telling developers to extract `Page` logic into pure modules for testability, so the recommendation is based on repo precedent plus general platform constraints. [ASSUMED] | Architecture Patterns | Low-to-medium: planner might overstate ecosystem consensus, but the implementation recommendation would still fit the current codebase. |
 | A2 | A dedicated screenshot runner is still not practical enough to justify Phase 7-first adoption, so lightweight harnesses should come first. [ASSUMED] | Alternatives Considered / Deprecated | Medium: if a suitable runner already exists in team workflow, the planner may under-plan UI regression automation. |
 
-## Open Questions
+## Resolved Planning Decisions
 
-1. **Should Phase 7 include dependency hygiene for cloud functions, or explicitly defer it?**
-- What we know: cloud functions currently declare `wx-server-sdk: "latest"`, lockfiles resolve `3.0.4`, and legitimacy tooling flags the package `SUS` because registry metadata exposes no repository. [VERIFIED: codebase grep] [VERIFIED: gsd-tools package-legitimacy]
-- What's unclear: whether the team wants this phase to touch lockfiles at all. [VERIFIED: codebase grep]
-- Recommendation: default to “defer dependency churn” unless a separate human-verified task is added. [VERIFIED: gsd-tools package-legitimacy]
+All previously open questions for Phase 07 are resolved before execution.
 
-2. **What exact stale-room signals should trigger silent repair before user-visible failure?**
-- What we know: server-side access denial currently returns messages like `无权访问该房间`, and client pages do not normalize this separately today. [VERIFIED: codebase grep]
-- What's unclear: whether only membership-denial messages should trigger repair, or whether missing-room/leave-race variants should also do so. [VERIFIED: codebase grep]
-- Recommendation: the plan should include one early design checkpoint that enumerates stale-room signals before implementation starts. [VERIFIED: codebase grep]
+1. **Cloud-function dependency hygiene is out of scope for this phase.**
+- Decision: do not include dependency hygiene, lockfile refresh, package repinning, or package-manager install tasks in Phase 07. If implementation work directly touches package metadata, pause for the existing package-legitimacy human gate before any install or repin. [VERIFIED: user revision instruction] [VERIFIED: gsd-tools package-legitimacy]
+- Planning impact: plans must keep `cloudfunctions/*/package.json` and lockfiles untouched unless a separate implementation necessity proves otherwise. [VERIFIED: codebase grep]
 
-3. **How far should the homepage view-model extraction go in one phase?**
-- What we know: `calcStats()` and `renderCalendar()` are already mostly pure in intent, but `loadData()` still coordinates page state imperatively. [VERIFIED: codebase grep]
-- What's unclear: whether to extract only derived state composition, or also data-loading orchestration for the homepage. [VERIFIED: codebase grep]
-- Recommendation: extract derived state first; only lift orchestration if the new client seam has stabilized. [VERIFIED: codebase grep]
+2. **Stale-room repair candidates include missing room, no permission, and not-a-member business responses.**
+- Decision: server/business codes or messages indicating missing room, no permission, or not-a-member must be classified as stale-room candidates. The client must trigger RoomSession verify/repair before routing to bind; bind routing happens only when repair cannot recover a valid room. [VERIFIED: user revision instruction]
+- Planning impact: RoomDataClient tests must cover missing-room, no-permission, and not-a-member variants, not only the existing `无权访问该房间` message. [VERIFIED: codebase grep]
+
+3. **Homepage extraction boundary is derived state composition only.**
+- Decision: extract prediction/stat/day/recap view-model construction from `pages/index/index.js`; do not move homepage data loading, cloud orchestration, storage, navigation, modal, or `setData` adapter responsibilities out of the page in Phase 07. [VERIFIED: user revision instruction]
+- Planning impact: `utils/homeCalendarState.js` remains pure and consumes already loaded `periods` and `memories`; `loadData()` stays in `pages/index/index.js`. [VERIFIED: codebase grep]
 
 ## Environment Availability
 
@@ -447,7 +445,7 @@ async function exportJson(filePath, jsonText) {
 **Confidence breakdown:**
 - Standard stack: MEDIUM — platform/runtime facts are verified, but the existing cloud SDK package is flagged `SUS` by legitimacy tooling and should not trigger automatic dependency churn. [VERIFIED: gsd-tools package-legitimacy]
 - Architecture: MEDIUM — repo structure and phase constraints strongly support the recommendation, but WeChat does not appear to publish equally explicit official guidance for page-to-pure-module extraction. [VERIFIED: codebase grep] [ASSUMED]
-- Pitfalls: MEDIUM — duplication and shallow seams are directly visible in current code, while the exact stale-room repair trigger set still needs one design checkpoint. [VERIFIED: codebase grep]
+- Pitfalls: MEDIUM — duplication and shallow seams are directly visible in current code, and stale-room repair triggers are resolved to missing-room, no-permission, and not-a-member business responses before execution. [VERIFIED: codebase grep]
 
 **Research date:** 2026-06-26
 **Valid until:** 2026-07-26 for planning assumptions, unless WeChat cloud/runtime docs or repo dependency state changes earlier. [CITED: https://developers.weixin.qq.com/miniprogram/dev/wxcloudservice/wxcloud/reference-sdk-api/functions/Cloud.callFunction.html] [VERIFIED: codebase grep]
