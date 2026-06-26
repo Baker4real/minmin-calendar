@@ -347,6 +347,23 @@ test('period list delegates load failure copy to the shared record command helpe
   assert.match(js, /failureTitle:\s*'加载失败'/)
 })
 
+test('home page consumes RoomDataClient outcomes instead of legacy room-code and list wrappers', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+
+  assert.match(js, /cloud\.createRoomDataClient\(\)/)
+  assert.match(js, /client\.list\('periods'\)/)
+  assert.match(js, /client\.list\('memories'\)/)
+  assert.match(js, /applyRoomStatusOutcome\(/)
+  assert.match(js, /handleRoomStatusAction\(\)/)
+  assert.doesNotMatch(js, /cloud\.getRoomCode\(\)/)
+  assert.doesNotMatch(js, /cloud\.getPeriods\(\)/)
+  assert.doesNotMatch(js, /cloud\.getMemories\(\)/)
+  assert.match(wxml, /roomStatusTitle/)
+  assert.match(wxml, /roomStatusDesc/)
+  assert.match(wxml, /handleRoomStatusAction/)
+})
+
 function pickMeta(meta) {
   return {
     weekday: meta.weekday,

@@ -47,7 +47,12 @@ Page({
     selectedDateSubtitle: '',
     selectedDayDetail: null,
     dayDetailsByDate: {},
-    loading: true, noRoom: false
+    loading: true,
+    noRoom: false,
+    roomStatusTitle: '',
+    roomStatusDesc: '',
+    roomStatusActionText: '',
+    roomStatusAction: ''
   },
 
   onLoad() {
@@ -60,32 +65,50 @@ Page({
   },
 
   onShow() {
-    const roomCode = cloud.getRoomCode()
-    if (!roomCode) {
-      this.setData({ noRoom: true, loading: false })
-      return
-    }
-    this.setData({ noRoom: false })
-    // 并发防护：如果已有加载中的请求，复用其 Promise
     if (!this._loadingPromise) {
       this._loadingPromise = this.loadData()
     }
   },
 
   async loadData() {
-    this.setData({ loading: true })
+    this.setData({
+      loading: true,
+      noRoom: false,
+      roomStatusTitle: '',
+      roomStatusDesc: '',
+      roomStatusActionText: '',
+      roomStatusAction: ''
+    })
     try {
-      const [periods, memories] = await Promise.all([
-        cloud.getPeriods(),
-        cloud.getMemories()
-      ])
-      this.applyHomeCalendarState({ periods, memories })
+      const client = cloud.createRoomDataClient()
+      const periodsOutcome = await client.list('periods')
+      if (periodsOutcome.kind !== 'success') {
+        this.applyRoomStatusOutcome(periodsOutcome)
+        return periodsOutcome
+      }
+
+      const memoriesOutcome = await client.list('memories')
+      if (memoriesOutcome.kind !== 'success') {
+        this.applyRoomStatusOutcome(memoriesOutcome)
+        return memoriesOutcome
+      }
+
+      this.applyHomeCalendarState({
+        periods: periodsOutcome.data,
+        memories: memoriesOutcome.data
+      })
     } catch (e) {
       console.error('load error', e)
-      wx.showToast({ title: '数据加载失败，请检查网络', icon: 'none' })
+      this.showRoomStatus({
+        title: '日历加载失败',
+        desc: '请检查网络后重试',
+        actionText: '重试',
+        action: 'retry'
+      })
+    } finally {
+      this.setData({ loading: false })
+      this._loadingPromise = null
     }
-    this.setData({ loading: false })
-    this._loadingPromise = null
   },
 
   calcStats(periods) {
@@ -210,6 +233,16 @@ Page({
     return years
   },
 
+  handleRoomStatusAction() {
+    if (this.data.roomStatusAction === 'bind') {
+      this.goBind()
+      return
+    }
+    if (!this._loadingPromise) {
+      this._loadingPromise = this.loadData()
+    }
+  },
+
   goBind() { wx.redirectTo({ url: '/pages/bind/bind' }) },
 
   openLegendSheet() {
@@ -330,5 +363,65 @@ Page({
   quickMemory() {
     const now = util.formatDate(new Date())
     wx.navigateTo({ url: `/pages/memory/edit/edit?date=${now}` })
+  },
+
+  applyRoomStatusOutcome(outcome) {
+    if (outcome.kind === 'no-room') {
+      this.showRoomStatus({
+        title: '还没绑定房间',
+        desc: '需要先创建或加入一个共享房间\n才能和对方一起使用',
+        actionText: '去绑定',
+        action: 'bind'
+      })
+      return
+    }
+
+    if (outcome.kind === 'room-repair') {
+      const repair = outcome.repair || {}
+      if (repair.kind === 'success' && repair.bound && repair.roomCode) {
+        this.showRoomStatus({
+          title: '房间状态已更新',
+          desc: '房间状态已同步，请重新加载日历',
+          actionText: '重新加载',
+          action: 'retry'
+        })
+        return
+      }
+
+      if (repair.kind === 'success' && !repair.bound) {
+        this.showRoomStatus({
+          title: '房间状态已变化',
+          desc: '当前共享房间已不可用，请重新绑定后再查看日历',
+          actionText: '去绑定',
+          action: 'bind'
+        })
+        return
+      }
+
+      this.showRoomStatus({
+        title: '房间同步失败',
+        desc: repair.message || '同步房间状态失败，请稍后重试',
+        actionText: '重试',
+        action: 'retry'
+      })
+      return
+    }
+
+    this.showRoomStatus({
+      title: '日历加载失败',
+      desc: outcome.message || '请检查网络后重试',
+      actionText: '重试',
+      action: 'retry'
+    })
+  },
+
+  showRoomStatus({ title, desc, actionText, action }) {
+    this.setData({
+      noRoom: true,
+      roomStatusTitle: title,
+      roomStatusDesc: desc,
+      roomStatusActionText: actionText,
+      roomStatusAction: action
+    })
   }
 })

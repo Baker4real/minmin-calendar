@@ -11,9 +11,9 @@
 
   <view wx:if="{{noRoom}}" class="no-room fade-in">
     <view class="no-room-icon">❤️</view>
-    <text class="no-room-title">还没绑定房间</text>
-    <text class="no-room-desc">需要先创建或加入一个共享房间\n才能和对方一起使用</text>
-    <view class="btn-premium" bindtap="goBind">去绑定</view>
+    <text class="no-room-title">{{roomStatusTitle}}</text>
+    <text class="no-room-desc">{{roomStatusDesc}}</text>
+    <view class="btn-premium" bindtap="handleRoomStatusAction">{{roomStatusActionText}}</view>
   </view>
 
   <view wx:elif="{{loading}}" class="loading-view">
