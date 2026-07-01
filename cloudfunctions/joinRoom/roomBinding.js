@@ -11,30 +11,51 @@ function createRoomBinding({ db, serverDate, generateRoomCode = createRandomRoom
       const existing = await findRoomByMember(openid)
       if (existing) return { code: 0, room: existing }
 
-      const roomCode = await generateUniqueRoomCode()
-      if (!roomCode) return { code: -1, msg: '房间码生成失败，请重试' }
+      for (let attempt = 0; attempt < MAX_ROOM_CODE_ATTEMPTS; attempt++) {
+        const roomCode = normalizeRoomCode(generateRoomCode())
+        if (!roomCode) continue
 
-      const result = await rooms.add({
-        data: {
-          roomCode,
-          createdBy: openid,
-          createdByName: nickName || 'TA',
-          partnerOpenid: '',
-          partnerName: '',
-          createdAt: serverDate(),
-          status: 'waiting'
-        }
-      })
+        const duplicate = await findRoomByCode(roomCode)
+        if (duplicate) continue
 
-      return {
-        code: 0,
-        room: {
-          _id: result._id,
-          roomCode,
-          createdBy: openid,
-          status: 'waiting'
+        try {
+          const result = await rooms.add({
+            data: {
+              roomCode,
+              createdBy: openid,
+              createdByName: nickName || 'TA',
+              partnerOpenid: '',
+              partnerName: '',
+              createdAt: serverDate(),
+              status: 'waiting'
+            }
+          })
+          const createdRoomId = getCreatedRoomId(result)
+          const createdRoom = createdRoomId ? await findRoomById(createdRoomId) : null
+          const recoverableRoom = isExpectedCreatedRoom(createdRoom, { openid, roomCode })
+            ? createdRoom
+            : await findCreatedRoomFallback({ openid, roomCode, createdRoomId })
+
+          if (!isExpectedCreatedRoom(recoverableRoom, { openid, roomCode })) {
+            return { code: -1, msg: '房间创建确认失败，请重试' }
+          }
+
+          return {
+            code: 0,
+            room: {
+              _id: recoverableRoom._id,
+              roomCode: recoverableRoom.roomCode,
+              createdBy: recoverableRoom.createdBy,
+              status: recoverableRoom.status
+            }
+          }
+        } catch (error) {
+          if (isDuplicateRoomCodeError(error)) continue
+          throw error
         }
       }
+
+      return { code: -1, msg: '房间码生成失败，请重试' }
     },
 
     async join({ openid, roomCode, nickName }) {
@@ -90,15 +111,56 @@ function createRoomBinding({ db, serverDate, generateRoomCode = createRandomRoom
     return roomRes.data[0] || null
   }
 
-  async function generateUniqueRoomCode() {
-    for (let attempt = 0; attempt < MAX_ROOM_CODE_ATTEMPTS; attempt++) {
-      const roomCode = normalizeRoomCode(generateRoomCode())
-      if (!roomCode) continue
+  async function findRoomById(id) {
+    const roomRes = await rooms.where({ _id: id }).limit(1).get()
+    return roomRes.data[0] || null
+  }
 
-      const duplicate = await findRoomByCode(roomCode)
-      if (!duplicate) return roomCode
-    }
-    return ''
+  async function findCreatedRoomFallback({ openid, roomCode, createdRoomId }) {
+    const room = await findRoomByMember(openid)
+    if (!isExpectedCreatedRoom(room, { openid, roomCode })) return null
+    if (createdRoomId && room._id !== createdRoomId) return null
+    return room
+  }
+}
+
+function isExpectedCreatedRoom(room, { openid, roomCode }) {
+  return Boolean(
+    room &&
+    room._id &&
+    room.roomCode === roomCode &&
+    room.createdBy === openid &&
+    room.status === 'waiting'
+  )
+}
+
+function getCreatedRoomId(result) {
+  return result && (result._id || result.id)
+}
+
+function isDuplicateRoomCodeError(error) {
+  const text = [
+    error && error.errCode,
+    error && error.code,
+    error && error.errMsg,
+    error && error.message,
+    error && error.index,
+    error && error.indexName,
+    error && error.keyPattern,
+    error && error.keyValue
+  ].map(stringifyErrorValue).join(' ')
+
+  return /duplicate|duplicated|E11000|dup key|唯一|重复/i.test(text) &&
+    /roomCode|room_code|room\s*code|房间码/i.test(text)
+}
+
+function stringifyErrorValue(value) {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  try {
+    return JSON.stringify(value)
+  } catch (error) {
+    return String(value)
   }
 }
 
@@ -117,5 +179,7 @@ function normalizeRoomCode(value) {
 module.exports = {
   createRoomBinding,
   createRandomRoomCode,
+  getCreatedRoomId,
+  isDuplicateRoomCodeError,
   normalizeRoomCode
 }

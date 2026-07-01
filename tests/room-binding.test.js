@@ -64,6 +64,103 @@ test('RoomBinding create stores a new waiting room with a unique code', async ()
   })
 })
 
+test('RoomBinding create retries when a unique room code index rejects a raced insert', async () => {
+  const db = createFakeDb({
+    addErrorsByRoomCode: {
+      RACE01: duplicateRoomCodeError()
+    }
+  })
+  const codes = ['RACE01', 'FRESH1']
+  const binding = createRoomBinding({
+    db,
+    serverDate: () => SERVER_DATE,
+    generateRoomCode: () => codes.shift()
+  })
+
+  const result = await binding.create({ openid: 'user-a', nickName: 'Min' })
+
+  assert.deepEqual(result, {
+    code: 0,
+    room: {
+      _id: 'room-1',
+      roomCode: 'FRESH1',
+      createdBy: 'user-a',
+      status: 'waiting'
+    }
+  })
+  assert.deepEqual(db.data.rooms.map(room => room.roomCode), ['FRESH1'])
+})
+
+test('RoomBinding create fails without storing a room when all generated codes conflict', async () => {
+  const db = createFakeDb({
+    addErrorsByRoomCode: {
+      RACE01: duplicateRoomCodeError(),
+      RACE02: duplicateRoomCodeError(),
+      RACE03: duplicateRoomCodeError(),
+      RACE04: duplicateRoomCodeError(),
+      RACE05: duplicateRoomCodeError()
+    }
+  })
+  const codes = ['RACE01', 'RACE02', 'RACE03', 'RACE04', 'RACE05']
+  const binding = createRoomBinding({
+    db,
+    serverDate: () => SERVER_DATE,
+    generateRoomCode: () => codes.shift()
+  })
+
+  const result = await binding.create({ openid: 'user-a', nickName: 'Min' })
+
+  assert.deepEqual(result, { code: -1, msg: '房间码生成失败，请重试' })
+  assert.deepEqual(db.data.rooms, [])
+})
+
+test('RoomBinding create recovers the inserted room when the add result omits an id', async () => {
+  const db = createFakeDb({
+    addResultsByRoomCode: {
+      GHOST1: {}
+    }
+  })
+  const binding = createRoomBinding({
+    db,
+    serverDate: () => SERVER_DATE,
+    generateRoomCode: () => 'GHOST1'
+  })
+
+  const result = await binding.create({ openid: 'user-a', nickName: 'Min' })
+
+  assert.deepEqual(result, {
+    code: 0,
+    room: {
+      _id: 'room-1',
+      roomCode: 'GHOST1',
+      createdBy: 'user-a',
+      status: 'waiting'
+    }
+  })
+  assert.equal(db.data.rooms.length, 1)
+})
+
+test('RoomBinding create does not retry duplicate errors for other unique indexes', async () => {
+  const db = createFakeDb({
+    addErrorsByRoomCode: {
+      RACE01: duplicateOtherIndexError()
+    }
+  })
+  const codes = ['RACE01', 'FRESH1']
+  const binding = createRoomBinding({
+    db,
+    serverDate: () => SERVER_DATE,
+    generateRoomCode: () => codes.shift()
+  })
+
+  await assert.rejects(
+    () => binding.create({ openid: 'user-a', nickName: 'Min' }),
+    /createdBy/
+  )
+  assert.deepEqual(db.data.rooms, [])
+  assert.deepEqual(codes, ['FRESH1'])
+})
+
 test('RoomBinding join normalizes room code and pairs an available room', async () => {
   const db = createFakeDb({
     rooms: [{
@@ -156,23 +253,37 @@ function createFakeDb(initial = {}) {
     rooms: clone(initial.rooms || [])
   }
   let nextId = data.rooms.length + 1
+  const addErrorsByRoomCode = new Map(Object.entries(initial.addErrorsByRoomCode || {}))
+  const addResultsByRoomCode = new Map(Object.entries(initial.addResultsByRoomCode || {}))
 
   return {
     data,
     collection(name) {
-      return createCollection(data, name, () => `room-${nextId++}`)
+      return createCollection(data, name, () => `room-${nextId++}`, {
+        addErrorsByRoomCode,
+        addResultsByRoomCode
+      })
     }
   }
 }
 
-function createCollection(allData, name, nextId) {
+function createCollection(allData, name, nextId, options = {}) {
   return {
     where(query) {
       return createQuery(allData[name], query)
     },
     async add({ data }) {
+      const addError = options.addErrorsByRoomCode && options.addErrorsByRoomCode.get(data.roomCode)
+      if (addError) {
+        options.addErrorsByRoomCode.delete(data.roomCode)
+        throw addError
+      }
+
       const record = { _id: nextId(), ...clone(data) }
       allData[name].push(record)
+      if (options.addResultsByRoomCode && options.addResultsByRoomCode.has(record.roomCode)) {
+        return clone(options.addResultsByRoomCode.get(record.roomCode))
+      }
       return { _id: record._id }
     },
     doc(id) {
@@ -209,4 +320,16 @@ function createQuery(records, query) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value))
+}
+
+function duplicateRoomCodeError() {
+  const error = new Error('duplicate key error collection: rooms index: roomCode dup key')
+  error.code = 'E11000'
+  return error
+}
+
+function duplicateOtherIndexError() {
+  const error = new Error('duplicate key error collection: rooms index: createdBy dup key')
+  error.code = 'E11000'
+  return error
 }
