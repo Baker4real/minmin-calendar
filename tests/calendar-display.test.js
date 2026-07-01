@@ -311,6 +311,28 @@ test('index exposes calendar meaning and monthly recap sheets', () => {
   assert.match(wxss, /\.detail-meaning/)
 })
 
+test('index background sync feedback is visible without blocking calendar interaction', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
+
+  assert.match(js, /refreshing:\s*false/)
+  assert.match(js, /hasLoadedHomeData:\s*false/)
+  assert.match(js, /syncStatusVisible:\s*false/)
+  assert.match(js, /canRefreshInBackground\(\)/)
+  assert.match(js, /showSyncStatus\('正在同步'|syncStatusText:\s*'正在同步'/)
+  assert.match(js, /applyRecordChange\(change = \{\}\)/)
+
+  assert.match(wxml, /loading && !hasLoadedHomeData/)
+  assert.match(wxml, /sync-pill/)
+  assert.match(wxml, /content-refreshing/)
+
+  assert.match(wxss, /\.sync-pill\s*{[\s\S]*position:\s*fixed/)
+  assert.match(wxss, /\.sync-pill\s*{[\s\S]*z-index:\s*50/)
+  assert.match(wxss, /\.sync-pill\s*{[\s\S]*pointer-events:\s*none/)
+  assert.match(wxss, /prefers-reduced-motion:\s*reduce[\s\S]*\.sync-pill/)
+})
+
 test('home calendar state is the only public seam for calendar markers', () => {
   const root = path.join(__dirname, '..')
   const homeState = fs.readFileSync(path.join(root, 'utils/homeCalendarState.js'), 'utf8')

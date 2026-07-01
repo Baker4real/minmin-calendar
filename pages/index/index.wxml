@@ -16,11 +16,16 @@
     <view class="btn-premium" bindtap="handleRoomStatusAction">{{roomStatusActionText}}</view>
   </view>
 
-  <view wx:elif="{{loading}}" class="loading-view">
+  <view wx:elif="{{loading && !hasLoadedHomeData}}" class="loading-view">
     <view class="loading-spinner"></view>
   </view>
 
-  <view wx:else class="content fade-in">
+  <view wx:else class="content fade-in {{refreshing ? 'content-refreshing' : ''}}">
+    <view wx:if="{{syncStatusVisible}}" class="sync-pill {{refreshing ? 'syncing' : ''}}">
+      <view class="sync-dot"></view>
+      <text class="sync-text">{{syncStatusText}}</text>
+    </view>
+
     <view class="month-nav">
       <view class="nav-btn" bindtap="prevMonth">‹</view>
       <view

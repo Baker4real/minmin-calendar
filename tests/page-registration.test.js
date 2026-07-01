@@ -92,6 +92,134 @@ test('index page exposes retry state and can reload after retryable RoomDataClie
   }
 })
 
+test('index page keeps loaded calendar visible while refreshing on later onShow', async () => {
+  const outcomes = [
+    { kind: 'success', data: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03', duration: 3 }] },
+    { kind: 'success', data: [{ _id: 'm1', date: '2026-06-02', note: 'first' }] },
+    { kind: 'success', data: [{ _id: 'p2', startDate: '2026-07-01', endDate: '2026-07-02', duration: 2 }] },
+    { kind: 'success', data: [{ _id: 'm2', date: '2026-07-03', note: 'second' }] }
+  ]
+  const calls = []
+  const client = {
+    async list(collection) {
+      calls.push(collection)
+      await waitForTimerTick()
+      return outcomes.shift()
+    }
+  }
+  const harness = loadPageHarness('pages/index/index.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return client
+        }
+      },
+      'utils/util.js': createUtilStub(),
+      'utils/homeCalendarState.js': { buildHomeCalendarState }
+    }
+  })
+
+  try {
+    await awaitPageOnShow(harness.page)
+
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(harness.page.data.hasLoadedHomeData, true)
+
+    harness.page.setDataCalls = []
+    await awaitPageOnShow(harness.page)
+
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(harness.page.data.refreshing, false)
+    assert.equal(harness.page.data.hasLoadedHomeData, true)
+    assert.deepEqual(harness.page.data.periods, [{ _id: 'p2', startDate: '2026-07-01', endDate: '2026-07-02', duration: 2 }])
+    assert.deepEqual(harness.page.data.memories, [{ _id: 'm2', date: '2026-07-03', note: 'second' }])
+    assert.deepEqual(calls, ['periods', 'memories', 'periods', 'memories'])
+    assert.equal(harness.page.setDataCalls.some(update => update.loading === true), false)
+    assert.equal(harness.page.setDataCalls.some(update => update.refreshing === true && update.syncStatusText === '正在同步'), true)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('index page keeps existing calendar content on background retryable load failures', async () => {
+  const outcomes = [
+    { kind: 'success', data: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03', duration: 3 }] },
+    { kind: 'success', data: [{ _id: 'm1', date: '2026-06-02', note: 'first' }] },
+    { kind: 'retryable-failure', message: 'network down' }
+  ]
+  const calls = []
+  const client = {
+    async list(collection) {
+      calls.push(collection)
+      return outcomes.shift()
+    }
+  }
+  const harness = loadPageHarness('pages/index/index.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return client
+        }
+      },
+      'utils/util.js': createUtilStub(),
+      'utils/homeCalendarState.js': { buildHomeCalendarState }
+    }
+  })
+
+  try {
+    await awaitPageOnShow(harness.page)
+
+    harness.page.setDataCalls = []
+    await awaitPageOnShow(harness.page)
+
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(harness.page.data.refreshing, false)
+    assert.equal(harness.page.data.noRoom, false)
+    assert.equal(harness.page.data.syncStatusText, '同步失败，稍后重试')
+    assert.equal(harness.page.data.syncStatusVisible, true)
+    assert.deepEqual(harness.page.data.periods, [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03', duration: 3 }])
+    assert.deepEqual(harness.page.data.memories, [{ _id: 'm1', date: '2026-06-02', note: 'first' }])
+    assert.deepEqual(calls, ['periods', 'memories', 'periods'])
+    assert.equal(harness.page.setDataCalls.some(update => update.loading === true), false)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('index page merges a saved record locally before background sync completes', async () => {
+  const harness = loadPageHarness('pages/index/index.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list() {
+              return { kind: 'success', data: [] }
+            }
+          }
+        }
+      },
+      'utils/util.js': createUtilStub(),
+      'utils/homeCalendarState.js': { buildHomeCalendarState }
+    }
+  })
+
+  try {
+    await awaitPageOnShow(harness.page)
+
+    harness.page.applyRecordChange({
+      collection: 'memories',
+      mode: 'add',
+      record: { _id: 'm2', date: '2026-07-03', note: 'second' }
+    })
+
+    assert.deepEqual(harness.page.data.memories, [{ _id: 'm2', date: '2026-07-03', note: 'second' }])
+    assert.equal(harness.page.data.syncStatusText, '已更新，正在同步')
+    assert.equal(harness.page.data.syncStatusVisible, true)
+  } finally {
+    harness.teardown()
+  }
+})
+
 test('period page onShow executes loadData and updates derived stats through the page harness', async () => {
   const harness = loadPageHarness('pages/period/period.js', {
     mocks: {

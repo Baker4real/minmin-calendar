@@ -5,6 +5,7 @@ const recordEditRoute = require('../../utils/recordEditRoute')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
+const SYNC_STATUS_CLEAR_DELAY = 1600
 const INITIAL_VIEW_DATE = new Date()
 const INITIAL_HOME_STATE = buildHomeCalendarState({
   year: INITIAL_VIEW_DATE.getFullYear(),
@@ -48,6 +49,10 @@ Page({
     selectedDayDetail: null,
     dayDetailsByDate: {},
     loading: true,
+    refreshing: false,
+    hasLoadedHomeData: false,
+    syncStatusVisible: false,
+    syncStatusText: '',
     noRoom: false,
     roomStatusTitle: '',
     roomStatusDesc: '',
@@ -66,50 +71,109 @@ Page({
 
   onShow() {
     if (!this._loadingPromise) {
-      this._loadingPromise = this.loadData()
+      this._loadingPromise = this.loadData({ background: this.canRefreshInBackground() })
     }
     return this._loadingPromise
   },
 
-  async loadData() {
-    this.setData({
-      loading: true,
-      noRoom: false,
-      roomStatusTitle: '',
-      roomStatusDesc: '',
-      roomStatusActionText: '',
-      roomStatusAction: ''
-    })
+  async loadData(options = {}) {
+    const background = Boolean(options.background)
+    this.prepareLoadState(background)
+
     try {
       const client = cloud.createRoomDataClient()
       const periodsOutcome = await client.list('periods')
       if (periodsOutcome.kind !== 'success') {
-        this.applyRoomStatusOutcome(periodsOutcome)
-        return periodsOutcome
+        return this.handleLoadOutcome(periodsOutcome, { background })
       }
 
       const memoriesOutcome = await client.list('memories')
       if (memoriesOutcome.kind !== 'success') {
-        this.applyRoomStatusOutcome(memoriesOutcome)
-        return memoriesOutcome
+        return this.handleLoadOutcome(memoriesOutcome, { background })
       }
 
       this.applyHomeCalendarState({
         periods: periodsOutcome.data,
         memories: memoriesOutcome.data
       })
+      this.setData({
+        hasLoadedHomeData: true,
+        noRoom: false,
+        roomStatusTitle: '',
+        roomStatusDesc: '',
+        roomStatusActionText: '',
+        roomStatusAction: ''
+      })
+      if (background) {
+        this.showSyncStatus('已同步')
+      }
     } catch (e) {
       console.error('load error', e)
+      const outcome = {
+        kind: 'retryable-failure',
+        message: getErrorMessage(e)
+      }
+      if (background) {
+        this.showSyncStatus('同步失败，稍后重试')
+        return outcome
+      }
       this.showRoomStatus({
         title: '日历加载失败',
         desc: '请检查网络后重试',
         actionText: '重试',
         action: 'retry'
       })
+      return outcome
     } finally {
-      this.setData({ loading: false })
+      this.finishLoadState(background)
       this._loadingPromise = null
     }
+  },
+
+  canRefreshInBackground() {
+    return this.data.hasLoadedHomeData && !this.data.noRoom
+  },
+
+  prepareLoadState(background) {
+    this.clearSyncStatusTimer()
+    if (background) {
+      this.setData({
+        refreshing: true,
+        syncStatusVisible: true,
+        syncStatusText: '正在同步'
+      })
+      return
+    }
+
+    this.setData({
+      loading: true,
+      refreshing: false,
+      syncStatusVisible: false,
+      syncStatusText: '',
+      noRoom: false,
+      roomStatusTitle: '',
+      roomStatusDesc: '',
+      roomStatusActionText: '',
+      roomStatusAction: ''
+    })
+  },
+
+  finishLoadState(background) {
+    if (background) {
+      this.setData({ refreshing: false })
+      return
+    }
+    this.setData({ loading: false, refreshing: false })
+  },
+
+  handleLoadOutcome(outcome, { background }) {
+    if (background && outcome && outcome.kind === 'retryable-failure') {
+      this.showSyncStatus('同步失败，稍后重试')
+      return outcome
+    }
+
+    this.applyRoomStatusOutcome(outcome)
+    return outcome
   },
 
   calcStats(periods) {
@@ -133,6 +197,38 @@ Page({
       memories,
       ...buildHomeCalendarState({ year, month, periods, memories, today })
     })
+  },
+
+  applyRecordChange(change = {}) {
+    const { collection, record, mode } = change
+    if (collection !== 'periods' && collection !== 'memories') return
+    if (!record || typeof record !== 'object') return
+
+    const records = this.mergeRecordChange(this.data[collection], record, mode)
+    this.applyHomeCalendarState({ [collection]: records })
+    if (this.data.hasLoadedHomeData) {
+      this.showSyncStatus('已更新，正在同步', { autoHide: false })
+    }
+  },
+
+  mergeRecordChange(records = [], record = {}, mode = 'upsert') {
+    const current = Array.isArray(records) ? [...records] : []
+    const recordId = record._id || record.id || ''
+    const normalized = recordId && !record._id ? { ...record, _id: recordId } : { ...record }
+    const index = recordId
+      ? current.findIndex(item => (item._id || item.id || '') === recordId)
+      : -1
+
+    if (mode === 'remove') {
+      return index >= 0 ? current.filter((_, itemIndex) => itemIndex !== index) : current
+    }
+
+    if (index >= 0) {
+      current[index] = { ...current[index], ...normalized }
+      return current
+    }
+
+    return [normalized, ...current]
   },
 
   prevMonth() {
@@ -240,7 +336,7 @@ Page({
       return
     }
     if (!this._loadingPromise) {
-      this._loadingPromise = this.loadData()
+      this._loadingPromise = this.loadData({ background: false })
     }
   },
 
@@ -376,12 +472,47 @@ Page({
   },
 
   showRoomStatus({ title, desc, actionText, action }) {
+    this.clearSyncStatusTimer()
     this.setData({
+      hasLoadedHomeData: false,
+      refreshing: false,
+      syncStatusVisible: false,
+      syncStatusText: '',
       noRoom: true,
       roomStatusTitle: title,
       roomStatusDesc: desc,
       roomStatusActionText: actionText,
       roomStatusAction: action
     })
+  },
+
+  showSyncStatus(text, options = {}) {
+    this.clearSyncStatusTimer()
+    this.setData({
+      syncStatusVisible: true,
+      syncStatusText: text
+    })
+
+    if (options.autoHide === false) return
+
+    const timer = setTimeout(() => {
+      this.setData({
+        syncStatusVisible: false,
+        syncStatusText: ''
+      })
+      this._syncStatusTimer = null
+    }, SYNC_STATUS_CLEAR_DELAY)
+    if (timer && typeof timer.unref === 'function') timer.unref()
+    this._syncStatusTimer = timer
+  },
+
+  clearSyncStatusTimer() {
+    if (!this._syncStatusTimer) return
+    clearTimeout(this._syncStatusTimer)
+    this._syncStatusTimer = null
   }
 })
+
+function getErrorMessage(error) {
+  return error && error.message ? error.message : String(error || '未知错误')
+}

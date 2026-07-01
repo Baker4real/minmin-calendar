@@ -9,6 +9,12 @@ try {
 } catch (error) {
   recordCommands = {}
 }
+let recordPageSync = {}
+try {
+  recordPageSync = require('../utils/recordPageSync')
+} catch (error) {
+  recordPageSync = {}
+}
 
 test('runRecordSave returns a validation outcome without calling cloud when validation fails', async () => {
   assert.equal(typeof recordCommands.runRecordSave, 'function')
@@ -65,6 +71,39 @@ test('runRecordSave clears saving state, shows success toast, and schedules one 
 
   env.timer.calls[0].fn()
   assert.equal(env.navigateBackCalls.length, 1)
+})
+
+test('record page sync notifies the previous page without requiring a reload', () => {
+  assert.equal(typeof recordPageSync.notifyPreviousPageRecordChange, 'function')
+  assert.equal(typeof recordPageSync.getSavedRecordId, 'function')
+
+  const changes = []
+  const notified = recordPageSync.notifyPreviousPageRecordChange(
+    {
+      collection: 'memories',
+      mode: 'add',
+      record: { _id: 'm1', date: '2026-07-03', note: 'second' }
+    },
+    {
+      getCurrentPages: () => [
+        { route: 'pages/index/index' },
+        { route: 'pages/memory/edit/edit' }
+      ].map((page, index) => index === 0
+        ? { ...page, applyRecordChange: change => changes.push(change) }
+        : page)
+    }
+  )
+
+  assert.equal(notified, true)
+  assert.deepEqual(changes, [
+    {
+      collection: 'memories',
+      mode: 'add',
+      record: { _id: 'm1', date: '2026-07-03', note: 'second' }
+    }
+  ])
+  assert.equal(recordPageSync.getSavedRecordId({ kind: 'success', result: { id: 'm2' } }), 'm2')
+  assert.equal(recordPageSync.getSavedRecordId({ kind: 'success', result: { id: 'm2' } }, 'existing'), 'existing')
 })
 
 test('runRecordSave does not replay unknown save mutations after retryable failures', async () => {
