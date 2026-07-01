@@ -12,6 +12,21 @@ test('formatPredictDisplay returns a compact date with weekday', () => {
   })
   assert.deepEqual(util.formatPredictDisplay(null), { date: '--', weekday: '' })
   assert.deepEqual(util.formatPredictDisplay('--'), { date: '--', weekday: '' })
+  assert.deepEqual(util.formatPredictDisplay('2026-02-31'), { date: '--', weekday: '' })
+})
+
+test('isValidDateString rejects dates that only look valid', () => {
+  assert.equal(util.isValidDateString('2026-02-28'), true)
+  assert.equal(util.isValidDateString('2026-02-31'), false)
+  assert.equal(util.isValidDateString(''), false)
+  assert.equal(util.isValidDateString(null), false)
+  assert.deepEqual(util.normalizeDateRange({ startDate: '2026-02-28', endDate: '2026-03-01' }), {
+    startDate: '2026-02-28',
+    endDate: '2026-03-01',
+    hasEndDate: true
+  })
+  assert.equal(util.normalizeDateRange({ startDate: '2026-02-28', endDate: '2026-02-31' }), null)
+  assert.equal(util.normalizeDateRange(null), null)
 })
 
 test('getChineseDateMeta marks lunar text and official holidays across years', () => {

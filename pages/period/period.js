@@ -28,14 +28,7 @@ Page({
   calcStats(periods) {
     const prediction = cycle.predictNextPeriod(periods)
     this.setData({ avgCycle: prediction.canPredict ? prediction.avgCycle : null })
-    if (periods.length === 0) {
-      this.setData({ avgDuration: null })
-      return
-    }
-    if (periods.length > 0) {
-      const total = periods.reduce((s, p) => s + (p.duration || 0), 0)
-      this.setData({ avgDuration: prediction.avgDuration || Math.round(total / periods.length) })
-    }
+    this.setData({ avgDuration: prediction.avgDuration || calculateAverageDuration(periods) })
   },
 
   addPeriod() {
@@ -48,3 +41,22 @@ Page({
     wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(p) })
   }
 })
+
+function calculateAverageDuration(periods = []) {
+  const durations = periods
+    .map(getValidPeriodDuration)
+    .filter(duration => duration > 0)
+
+  if (!durations.length) return null
+  const total = durations.reduce((sum, duration) => sum + duration, 0)
+  return Math.round(total / durations.length)
+}
+
+function getValidPeriodDuration(period) {
+  const range = util.normalizeDateRange(period)
+  if (!range) return null
+
+  const duration = Number(period.duration)
+  if (range.hasEndDate && Number.isFinite(duration) && duration > 0) return Math.round(duration)
+  return util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
+}

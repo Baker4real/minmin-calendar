@@ -87,6 +87,25 @@ test('RoomRecords rejects invalid Period record date ranges before updating', as
   assert.equal(db.data.periods[0].startDate, '2026-06-10')
 })
 
+test('RoomRecords rejects impossible Period dates before writing', async () => {
+  const db = createFakeDb()
+  const records = createRoomRecords({ db, serverDate: () => SERVER_DATE })
+
+  const result = await records.add({
+    collection: 'periods',
+    roomCode: 'ROOM01',
+    openid: 'user-a',
+    data: {
+      startDate: '2026-02-31',
+      endDate: '2026-03-03'
+    }
+  })
+
+  assert.equal(result.code, -1)
+  assert.equal(result.msg, '经期开始日期格式不正确')
+  assert.deepEqual(db.data.periods, [])
+})
+
 test('RoomRecords add stores a normalized Memory record for the active Room', async () => {
   const db = createFakeDb()
   const records = createRoomRecords({ db, serverDate: () => SERVER_DATE })

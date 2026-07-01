@@ -57,11 +57,13 @@ Page({
 
   async save() {
     const { id, startDate, endDate, note, flow, symptoms, isEdit } = this.data
-    const payload = cycle.buildPeriodPayload({ startDate, endDate, note, flow, symptoms })
     const client = cloud.createRoomDataClient()
+    let savedPayload = null
     const outcome = await recordCommands.runRecordSave({
       page: this,
       action: () => {
+        const payload = cycle.buildPeriodPayload({ startDate, endDate, note, flow, symptoms })
+        savedPayload = payload
         if (isEdit) {
           return client.update('periods', id, payload)
         }
@@ -69,22 +71,24 @@ Page({
       },
       validate: () => {
         if (!startDate || !endDate) return '请选择日期'
+        if (!util.isValidDateString(startDate) || !util.isValidDateString(endDate)) return '请选择有效日期'
         if (startDate > endDate) return '结束日期不能早于开始'
         return ''
       },
       successTitle: '保存成功',
       failureTitle: '保存失败'
     })
-    if (outcome.kind === 'success') {
+    if (outcome.kind === 'success' && savedPayload) {
       recordPageSync.notifyPreviousPageRecordChange({
         collection: 'periods',
         mode: isEdit ? 'update' : 'add',
         record: {
           _id: recordPageSync.getSavedRecordId(outcome, id),
-          ...payload
+          ...savedPayload
         }
       })
     }
+    return outcome
   },
 
   async delete() {

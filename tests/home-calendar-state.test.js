@@ -184,6 +184,46 @@ test('buildHomeCalendarState applies calendar marker semantics on top of date me
   assert.equal(periodMemoryAndPredict.lunarText, '六月廿八')
 })
 
+test('buildHomeCalendarState ignores impossible dates in markers and details', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 2,
+    periods: [
+      { startDate: '2026-02-31', endDate: '2026-03-02', duration: 3, note: 'invalid' },
+      { startDate: '2026-03-04', endDate: '2026-03-32', duration: 29, note: 'invalid end' },
+      { startDate: '2026-03-03', endDate: '2026-03-03', duration: 1, note: 'valid' }
+    ],
+    memories: [
+      { date: '2026-02-31', note: 'invalid memory' },
+      { date: '2026-03-03', note: 'valid memory' }
+    ],
+    today: '2026-03-03'
+  })
+
+  const invalidRolledDay = state.days.find(day => day.date === '2026-03-02')
+  assert.equal(invalidRolledDay.isPeriod, false)
+  assert.equal(invalidRolledDay.isMemory, false)
+  assert.deepEqual(state.dayDetailsByDate['2026-03-02'].periods, [])
+  assert.deepEqual(state.dayDetailsByDate['2026-03-02'].memories, [])
+
+  const invalidEndDay = state.days.find(day => day.date === '2026-03-04')
+  assert.equal(invalidEndDay.isPeriod, false)
+  assert.deepEqual(state.dayDetailsByDate['2026-03-04'].periods, [])
+
+  const validDay = state.days.find(day => day.date === '2026-03-03')
+  assert.equal(validDay.isPeriod, true)
+  assert.equal(validDay.isMemory, true)
+  assert.deepEqual(state.dayDetailsByDate['2026-03-03'].periods, [
+    {
+      range: '2026-03-03 ~ 2026-03-03',
+      metaText: ''
+    }
+  ])
+  assert.deepEqual(state.dayDetailsByDate['2026-03-03'].memories, [
+    { note: 'valid memory' }
+  ])
+})
+
 function period(startDate, endDate) {
   return {
     startDate,

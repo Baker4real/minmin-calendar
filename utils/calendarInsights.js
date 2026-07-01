@@ -37,12 +37,13 @@ function buildMonthlyRecap({ year, month, periods = [], memories = [], predictio
   const monthStart = `${year}-${pad2(month + 1)}-01`
   const monthEnd = `${year}-${pad2(month + 1)}-${pad2(new Date(year, month + 1, 0).getDate())}`
   const monthPeriods = periods.filter(period => overlapsMonth(period, monthStart, monthEnd))
-  const monthMemories = memories.filter(memory => memory.date >= monthStart && memory.date <= monthEnd)
+  const monthMemories = memories.filter(memory => isDateString(memory.date) && memory.date >= monthStart && memory.date <= monthEnd)
   const periodDays = monthPeriods.reduce((sum, period) => sum + getPeriodDaysInMonth(period, monthStart, monthEnd), 0)
   const highlights = []
 
   monthPeriods.forEach(period => {
-    highlights.push(formatPeriodHighlight(period))
+    const highlight = formatPeriodHighlight(period)
+    if (highlight) highlights.push(highlight)
   })
 
   if (monthMemories.length) {
@@ -75,29 +76,45 @@ function formatPredictionSummary(prediction) {
 }
 
 function formatPeriodHighlight(period) {
-  const detail = cycle.decoratePeriod(period)
-  const parts = [`经期：${formatMonthDay(detail.startDate)}-${formatMonthDay(detail.endDate)}`, `${getPeriodDuration(detail)}天`]
+  const range = normalizePeriodRange(period)
+  if (!range) return ''
+
+  const duration = getPeriodDuration(period)
+  const detail = cycle.decoratePeriod({
+    ...period,
+    startDate: range.startDate,
+    endDate: range.endDate,
+    duration
+  })
+  const parts = [`经期：${formatMonthDay(detail.startDate)}-${formatMonthDay(detail.endDate)}`, `${duration}天`]
   if (detail.flowLabel) parts.push(`经量 ${detail.flowLabel}`)
   if (detail.symptomText) parts.push(detail.symptomText)
   return parts.join('，')
 }
 
 function overlapsMonth(period, monthStart, monthEnd) {
-  if (!period || !period.startDate) return false
-  const endDate = period.endDate || period.startDate
-  return endDate >= monthStart && period.startDate <= monthEnd
+  const range = normalizePeriodRange(period)
+  if (!range) return false
+  return range.endDate >= monthStart && range.startDate <= monthEnd
 }
 
 function getPeriodDaysInMonth(period, monthStart, monthEnd) {
-  const startDate = period.startDate > monthStart ? period.startDate : monthStart
-  const endDate = (period.endDate || period.startDate) < monthEnd ? (period.endDate || period.startDate) : monthEnd
+  const range = normalizePeriodRange(period)
+  if (!range) return 0
+
+  const startDate = range.startDate > monthStart ? range.startDate : monthStart
+  const endDate = range.endDate < monthEnd ? range.endDate : monthEnd
+  if (startDate > endDate) return 0
   return util.daysBetween(util.parseDate(startDate), util.parseDate(endDate)) + 1
 }
 
 function getPeriodDuration(period) {
+  const range = normalizePeriodRange(period)
+  if (!range) return 0
+
   const duration = Number(period.duration)
-  if (Number.isFinite(duration) && duration > 0) return Math.round(duration)
-  return util.daysBetween(util.parseDate(period.startDate), util.parseDate(period.endDate || period.startDate)) + 1
+  if (range.hasEndDate && Number.isFinite(duration) && duration > 0) return Math.round(duration)
+  return util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
 }
 
 function formatMonthDay(dateStr) {
@@ -106,6 +123,14 @@ function formatMonthDay(dateStr) {
 
 function pad2(value) {
   return String(value).padStart(2, '0')
+}
+
+function normalizePeriodRange(period) {
+  return util.normalizeDateRange(period)
+}
+
+function isDateString(value) {
+  return util.isValidDateString(value)
 }
 
 module.exports = {

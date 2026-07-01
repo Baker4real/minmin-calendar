@@ -265,6 +265,163 @@ test('period page onShow executes loadData and updates derived stats through the
   }
 })
 
+test('period page fallback average ignores impossible dates', async () => {
+  const harness = loadPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list() {
+              return {
+                kind: 'success',
+                data: [
+                  { _id: 'p1', startDate: '2026-08-01', endDate: '2026-08-05', duration: 5 },
+                  { _id: 'p2', startDate: '2026-08-32', endDate: '2026-09-02', duration: 9 },
+                  { _id: 'p3', startDate: '2026-08-10', endDate: '2026-08-32', duration: 7 }
+                ]
+              }
+            }
+          }
+        }
+      },
+      'utils/util.js': createUtilStub(),
+      'utils/cycle.js': {
+        decoratePeriod(period) {
+          return period
+        },
+        predictNextPeriod() {
+          return { canPredict: false, avgCycle: null, avgDuration: null }
+        }
+      }
+    }
+  })
+
+  try {
+    await awaitPageOnShow(harness.page)
+
+    assert.equal(harness.page.data.avgCycle, null)
+    assert.equal(harness.page.data.avgDuration, 5)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('period edit save validates real calendar dates before building a payload', async () => {
+  let payloadBuilds = 0
+  let mutationCalls = 0
+  const harness = loadPageHarness('pages/period/edit/edit.js', {
+    mocks: {
+      'utils/util.js': {
+        formatDate() {
+          return '2026-06-26'
+        },
+        isValidDateString(value) {
+          if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+          const [year, month, day] = value.split('-').map(Number)
+          const date = new Date(year, month - 1, day)
+          return date.getFullYear() === year &&
+            date.getMonth() === month - 1 &&
+            date.getDate() === day
+        }
+      },
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async add() {
+              mutationCalls += 1
+              return { kind: 'success', result: { id: 'p1' } }
+            },
+            async update() {
+              mutationCalls += 1
+              return { kind: 'success', result: { id: 'p1' } }
+            }
+          }
+        }
+      },
+      'utils/cycle.js': {
+        FLOW_OPTIONS: [],
+        buildSymptomOptions() {
+          return []
+        },
+        buildPeriodPayload() {
+          payloadBuilds += 1
+          return { startDate: '2026-02-31', endDate: '2026-03-02', duration: 1 }
+        }
+      },
+      'utils/recordCommands.js': {
+        async runRecordSave(options) {
+          const message = options.validate()
+          if (message) return { kind: 'validation', message }
+          return options.action()
+        }
+      },
+      'utils/recordEditRoute.js': {
+        parsePeriodEditOptions() {
+          return {
+            id: '',
+            startDate: '2026-02-31',
+            endDate: '2026-03-02',
+            note: '',
+            flow: '',
+            symptoms: [],
+            isEdit: false
+          }
+        }
+      },
+      'utils/recordPageSync.js': {
+        notifyPreviousPageRecordChange() {},
+        getSavedRecordId() {
+          return 'p1'
+        }
+      }
+    }
+  })
+
+  try {
+    harness.page.onLoad({})
+    const outcome = await harness.page.save()
+
+    assert.deepEqual(outcome, {
+      kind: 'validation',
+      message: '请选择有效日期'
+    })
+    assert.equal(payloadBuilds, 0)
+    assert.equal(mutationCalls, 0)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('period edit save rejects missing dates before building a payload', async () => {
+  const result = await runPeriodEditSaveValidationCase({
+    startDate: '',
+    endDate: '2026-03-02'
+  })
+
+  assert.deepEqual(result.outcome, {
+    kind: 'validation',
+    message: '请选择日期'
+  })
+  assert.equal(result.payloadBuilds, 0)
+  assert.equal(result.mutationCalls, 0)
+  assert.equal(result.notifyCalls, 0)
+})
+
+test('period edit save rejects reversed ranges before building a payload', async () => {
+  const result = await runPeriodEditSaveValidationCase({
+    startDate: '2026-03-03',
+    endDate: '2026-03-02'
+  })
+
+  assert.deepEqual(result.outcome, {
+    kind: 'validation',
+    message: '结束日期不能早于开始'
+  })
+  assert.equal(result.payloadBuilds, 0)
+  assert.equal(result.mutationCalls, 0)
+  assert.equal(result.notifyCalls, 0)
+})
+
 test('memory page onShow executes loadData and populates sorted memories through the page harness', async () => {
   const harness = loadPageHarness('pages/memory/memory.js', {
     mocks: {
@@ -487,6 +644,78 @@ test('settings page exportData keeps repair retryable failures visible instead o
   }
 })
 
+async function runPeriodEditSaveValidationCase(overrides = {}) {
+  let payloadBuilds = 0
+  let mutationCalls = 0
+  let notifyCalls = 0
+  const harness = loadPageHarness('pages/period/edit/edit.js', {
+    mocks: {
+      'utils/util.js': createUtilStub(),
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async add() {
+              mutationCalls += 1
+              return { kind: 'success', result: { id: 'p1' } }
+            },
+            async update() {
+              mutationCalls += 1
+              return { kind: 'success', result: { id: 'p1' } }
+            }
+          }
+        }
+      },
+      'utils/cycle.js': {
+        FLOW_OPTIONS: [],
+        buildSymptomOptions() {
+          return []
+        },
+        buildPeriodPayload() {
+          payloadBuilds += 1
+          return { startDate: '2026-03-03', endDate: '2026-03-03', duration: 1 }
+        }
+      },
+      'utils/recordCommands.js': {
+        async runRecordSave(options) {
+          const message = options.validate()
+          if (message) return { kind: 'validation', message }
+          return options.action()
+        }
+      },
+      'utils/recordEditRoute.js': {
+        parsePeriodEditOptions() {
+          return {
+            id: '',
+            startDate: '2026-03-03',
+            endDate: '2026-03-03',
+            note: '',
+            flow: '',
+            symptoms: [],
+            isEdit: false,
+            ...overrides
+          }
+        }
+      },
+      'utils/recordPageSync.js': {
+        notifyPreviousPageRecordChange() {
+          notifyCalls += 1
+        },
+        getSavedRecordId() {
+          return 'p1'
+        }
+      }
+    }
+  })
+
+  try {
+    harness.page.onLoad({})
+    const outcome = await harness.page.save()
+    return { outcome, payloadBuilds, mutationCalls, notifyCalls }
+  } finally {
+    harness.teardown()
+  }
+}
+
 function loadPageHarness(relativePath, { mocks = {}, wxOverrides = {} } = {}) {
   const absolutePagePath = path.join(repoRoot, relativePath)
   const absoluteMocks = Object.fromEntries(
@@ -643,6 +872,29 @@ function createUtilStub() {
     formatDate(value) {
       if (typeof value === 'string') return value
       return '2026-06-26'
+    },
+    parseDate(dateStr) {
+      const [year, month, day] = dateStr.split('-').map(Number)
+      return new Date(year, month - 1, day)
+    },
+    daysBetween(start, end) {
+      return Math.round((end - start) / (24 * 60 * 60 * 1000))
+    },
+    isValidDateString(value) {
+      if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+      const [year, month, day] = value.split('-').map(Number)
+      const date = new Date(year, month - 1, day)
+      return date.getFullYear() === year &&
+        date.getMonth() === month - 1 &&
+        date.getDate() === day
+    },
+    normalizeDateRange({ startDate, endDate } = {}) {
+      if (!this.isValidDateString(startDate)) return null
+      const hasEndDate = typeof endDate === 'string' && endDate.length > 0
+      if (hasEndDate && !this.isValidDateString(endDate)) return null
+      const normalizedEndDate = hasEndDate ? endDate : startDate
+      if (startDate > normalizedEndDate) return null
+      return { startDate, endDate: normalizedEndDate, hasEndDate }
     }
   }
 }

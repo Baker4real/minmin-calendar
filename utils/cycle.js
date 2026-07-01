@@ -130,12 +130,14 @@ function buildCycleReminders(prediction, periods, options = {}) {
 }
 
 function buildPeriodPayload({ startDate, endDate, note = '', flow = '', symptoms = [] }) {
-  const safeEndDate = isDateString(endDate) ? endDate : startDate
+  const range = util.normalizeDateRange({ startDate, endDate })
   return {
     startDate,
-    endDate: safeEndDate,
+    endDate: range ? range.endDate : (endDate || startDate),
     note,
-    duration: util.daysBetween(util.parseDate(startDate), util.parseDate(safeEndDate)) + 1,
+    duration: range
+      ? util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
+      : 0,
     flow: FLOW_LABELS[flow] ? flow : '',
     symptoms: normalizeSymptoms(symptoms)
   }
@@ -226,12 +228,15 @@ function emptyPrediction() {
 
 function normalizePeriods(periods = []) {
   return periods
-    .filter(item => item && isDateString(item.startDate))
     .map(item => {
-      const endDate = isDateString(item.endDate) ? item.endDate : item.startDate
-      const duration = toPositiveInt(item.duration) || util.daysBetween(util.parseDate(item.startDate), util.parseDate(endDate)) + 1
-      return { ...item, endDate, duration }
+      const range = util.normalizeDateRange(item)
+      if (!range) return null
+      const duration = range.hasEndDate
+        ? toPositiveInt(item.duration) || util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
+        : util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
+      return { ...item, startDate: range.startDate, endDate: range.endDate, duration }
     })
+    .filter(Boolean)
     .filter(item => item.duration > 0)
     .sort((a, b) => a.startDate.localeCompare(b.startDate))
 }
@@ -332,7 +337,7 @@ function isPositiveNumber(value) {
 }
 
 function isDateString(value) {
-  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+  return util.isValidDateString(value)
 }
 
 module.exports = {

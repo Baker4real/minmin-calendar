@@ -80,7 +80,9 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
 
 function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextPredict = null, predictionWindow = null, today = util.formatDate(new Date()) }) {
   const periodDates = collectPeriodDates(periods)
-  const memoryDates = new Set(memories.map(memory => memory.date))
+  const memoryDates = new Set(memories
+    .map(memory => memory.date)
+    .filter(isDateString))
   const predictDates = collectPredictDates(nextPredict, year, month, predictionWindow)
 
   return util.buildCalendarDays({ year, month }).map(day => {
@@ -98,10 +100,10 @@ function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextP
 function collectPeriodDates(periods) {
   const periodDates = new Set()
   periods.forEach(period => {
-    if (!isDateString(period.startDate)) return
-    const endDate = isDateString(period.endDate) ? period.endDate : period.startDate
-    let date = util.parseDate(period.startDate)
-    const end = util.parseDate(endDate)
+    const range = util.normalizeDateRange(period)
+    if (!range) return
+    let date = util.parseDate(range.startDate)
+    const end = util.parseDate(range.endDate)
     while (date <= end) {
       periodDates.add(util.formatDate(date))
       date.setDate(date.getDate() + 1)
@@ -115,7 +117,7 @@ function collectPredictDates(nextPredict, year, month, predictionWindow) {
   const startDate = predictionWindow && (predictionWindow.rangeStart || predictionWindow.startDate)
   const endDate = predictionWindow && (predictionWindow.rangeEnd || predictionWindow.endDate)
 
-  if (isDateString(startDate) && isDateString(endDate)) {
+  if (isDateString(startDate) && isDateString(endDate) && startDate <= endDate) {
     let date = util.parseDate(startDate)
     const end = util.parseDate(endDate)
     while (date <= end) {
@@ -140,7 +142,7 @@ function collectPredictDates(nextPredict, year, month, predictionWindow) {
 }
 
 function isDateString(value) {
-  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+  return util.isValidDateString(value)
 }
 
 function buildDayDetailsByDate(days, periods, memories) {
@@ -150,20 +152,25 @@ function buildDayDetailsByDate(days, periods, memories) {
     if (!day || day.isEmpty || !day.date) return
 
     const periodDetails = periods
-      .filter(period => day.date >= period.startDate && day.date <= period.endDate)
-      .map(period => {
-        const detail = cycle.decoratePeriod(period)
+      .map(period => ({ period, range: util.normalizeDateRange(period) }))
+      .filter(item => isPeriodActiveOnDate(item.range, day.date))
+      .map(({ period, range }) => {
+        const detail = cycle.decoratePeriod({
+          ...period,
+          startDate: range.startDate,
+          endDate: range.endDate
+        })
         const meta = []
         if (detail.flowLabel) meta.push(`经量 ${detail.flowLabel}`)
         if (detail.symptomText) meta.push(detail.symptomText)
         return {
-          range: `${period.startDate} ~ ${period.endDate}`,
+          range: `${range.startDate} ~ ${range.endDate}`,
           metaText: meta.join(' · ')
         }
       })
 
     const memoryDetails = memories
-      .filter(memory => memory.date === day.date)
+      .filter(memory => isDateString(memory.date) && memory.date === day.date)
       .map(memory => ({ note: memory.note || '特别日子' }))
 
     details[day.date] = {
@@ -175,6 +182,11 @@ function buildDayDetailsByDate(days, periods, memories) {
   })
 
   return details
+}
+
+function isPeriodActiveOnDate(range, date) {
+  if (!range) return false
+  return date >= range.startDate && date <= range.endDate
 }
 
 function buildDayMeanings(day = {}) {

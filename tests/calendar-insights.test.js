@@ -69,6 +69,40 @@ test('buildMonthlyRecap creates a gentle shareable recap for the selected month'
   assert.match(recap.shareText, /留下 2 条欢乐时光/)
 })
 
+test('buildMonthlyRecap ignores impossible dates before deriving counts and highlights', () => {
+  const recap = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 7,
+    periods: [
+      {
+        startDate: '2026-08-32',
+        endDate: '2026-09-02',
+        duration: 2,
+        flow: 'heavy'
+      },
+      {
+        startDate: '2026-08-09',
+        endDate: '2026-08-32',
+        duration: 5,
+        flow: 'normal'
+      },
+      period('2026-08-20', '2026-08-22')
+    ],
+    memories: [
+      { date: '2026-08-32', note: '错误日期' },
+      { date: '2026-08-21', note: '有效记忆' }
+    ]
+  })
+
+  assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 3 天')
+  assert.equal(recap.memorySummary, '留下 1 条欢乐时光')
+  assert.deepEqual(recap.highlights, [
+    '经期：08月20日-08月22日，3天',
+    '欢乐时光：有效记忆'
+  ])
+  assert.doesNotMatch(recap.shareText, /错误日期/)
+})
+
 test('calendarInsights does not expose marker semantics outside home calendar state', () => {
   assert.equal('CALENDAR_LEGEND_ITEMS' in insights, false)
   assert.equal('buildDayMeanings' in insights, false)

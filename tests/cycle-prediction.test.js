@@ -82,6 +82,33 @@ test('predictNextPeriod can fall back to a single observed cycle with low confid
   })
 })
 
+test('predictNextPeriod ignores records with impossible calendar dates', () => {
+  assert.equal(typeof cycle.predictNextPeriod, 'function')
+
+  const prediction = cycle.predictNextPeriod(
+    [
+      period('2026-01-01', '2026-01-05'),
+      period('2026-02-31', '2026-03-03'),
+      { startDate: '2026-01-29', endDate: '2026-01-32', duration: 4 }
+    ],
+    { typicalCycleLength: 28, typicalPeriodLength: 5 }
+  )
+
+  assert.deepEqual(pickPrediction(prediction), {
+    canPredict: true,
+    avgCycle: 28,
+    avgDuration: 5,
+    nextStart: '2026-01-29',
+    nextEnd: '2026-02-02',
+    rangeStart: '2026-01-26',
+    rangeEnd: '2026-02-01',
+    confidence: 'low',
+    confidenceText: '低',
+    usedCycleCount: 0,
+    ignoredCycleCount: 0
+  })
+})
+
 test('buildCycleReminders returns upcoming and overdue reminder states', () => {
   assert.equal(typeof cycle.predictNextPeriod, 'function')
   assert.equal(typeof cycle.buildCycleReminders, 'function')
