@@ -46,6 +46,30 @@ test('runRecordSave returns a validation outcome without calling cloud when vali
   assert.equal(env.navigateBackCalls.length, 0)
 })
 
+test('runRecordSave returns validation fallback when wx is null', async () => {
+  assert.equal(typeof recordCommands.runRecordSave, 'function')
+
+  let actionCalls = 0
+  const result = await recordCommands.runRecordSave({
+    page: createFakePage(),
+    wx: null,
+    timer: createFakeCommandEnv().timer,
+    action: async () => {
+      actionCalls += 1
+      return { kind: 'success', result: { code: 0 } }
+    },
+    validate: () => '结束日期不能早于开始',
+    successTitle: '保存成功',
+    failureTitle: '保存失败'
+  })
+
+  assert.deepEqual(result, {
+    kind: 'validation',
+    message: '结束日期不能早于开始'
+  })
+  assert.equal(actionCalls, 0)
+})
+
 test('runRecordSave clears saving state, shows success toast, and schedules one navigateBack on success', async () => {
   assert.equal(typeof recordCommands.runRecordSave, 'function')
 
@@ -154,6 +178,37 @@ test('runRecordSave does not replay unknown save mutations after retryable failu
   assert.deepEqual(env.wx.toasts, [])
   assert.equal(env.timer.calls.length, 0)
   assert.equal(env.navigateBackCalls.length, 0)
+  assert.equal(actionCalls, 1)
+})
+
+test('runRecordSave returns acknowledge fallback when modal and toast are unavailable', async () => {
+  assert.equal(typeof recordCommands.runRecordSave, 'function')
+
+  const page = createFakePage({ saving: false })
+  let actionCalls = 0
+
+  const result = await recordCommands.runRecordSave({
+    page,
+    wx: {},
+    timer: createFakeCommandEnv().timer,
+    action: async () => {
+      actionCalls += 1
+      return {
+        kind: 'retryable-failure',
+        message: 'network down'
+      }
+    },
+    validate: null,
+    successTitle: '保存成功',
+    failureTitle: '保存失败'
+  })
+
+  assert.deepEqual(result, {
+    kind: 'retryable-failure',
+    action: 'refresh-check',
+    message: '保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交'
+  })
+  assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
   assert.equal(actionCalls, 1)
 })
 
@@ -291,6 +346,27 @@ test('runRecordDelete keeps modal confirmation and success feedback behavior', a
   assert.equal(env.timer.calls.length, 1)
   env.timer.calls[0].fn()
   assert.equal(env.navigateBackCalls.length, 1)
+})
+
+test('runRecordDelete cancels safely when modal is unavailable', async () => {
+  assert.equal(typeof recordCommands.runRecordDelete, 'function')
+
+  let actionCalls = 0
+  const result = await recordCommands.runRecordDelete({
+    page: createFakePage(),
+    wx: {},
+    timer: createFakeCommandEnv().timer,
+    action: async () => {
+      actionCalls += 1
+      return { kind: 'success', result: { code: 0 } }
+    },
+    confirmTitle: '确认删除',
+    successTitle: '已删除',
+    failureTitle: '删除失败'
+  })
+
+  assert.deepEqual(result, { kind: 'cancelled' })
+  assert.equal(actionCalls, 0)
 })
 
 test('runRecordDelete does not replay unknown delete mutations after retryable failures', async () => {
@@ -480,6 +556,55 @@ test('runRecordListLoad surfaces a retry action and reloads memories when the us
   assert.deepEqual(env.wx.toasts, [])
   assert.equal(retried, true)
   assert.equal(actionCalls, 2)
+})
+
+test('runRecordListLoad returns retry fallback when modal and toast are unavailable', async () => {
+  assert.equal(typeof recordCommands.runRecordListLoad, 'function')
+
+  const page = createFakePage({ loading: false })
+
+  const result = await recordCommands.runRecordListLoad({
+    page,
+    wx: {},
+    loadingKey: 'loading',
+    itemsKey: 'memories',
+    action: async () => ({
+      kind: 'retryable-failure',
+      message: 'network down'
+    }),
+    mapRecords: records => records,
+    retryableTitle: '加载失败，请检查网络',
+    roomRepairTitle: '房间状态已变化，请重新绑定'
+  })
+
+  assert.deepEqual(result, {
+    kind: 'retryable-failure',
+    message: 'network down'
+  })
+  assert.deepEqual(page.setDataCalls, [{ loading: true }, { loading: false }])
+})
+
+test('runRecordListLoad returns bind fallback when wx is null', async () => {
+  assert.equal(typeof recordCommands.runRecordListLoad, 'function')
+
+  const page = createFakePage({ loading: false })
+
+  const result = await recordCommands.runRecordListLoad({
+    page,
+    wx: null,
+    loadingKey: 'loading',
+    itemsKey: 'memories',
+    action: async () => ({ kind: 'no-room' }),
+    mapRecords: records => records,
+    retryableTitle: '加载失败，请检查网络',
+    roomRepairTitle: '房间状态已变化，请重新绑定'
+  })
+
+  assert.deepEqual(result, {
+    kind: 'no-room',
+    message: '请先绑定房间'
+  })
+  assert.deepEqual(page.setDataCalls, [{ loading: true }, { loading: false }])
 })
 
 test('runRecordListLoad keeps room repair sync failures retryable when the user confirms', async () => {

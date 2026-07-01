@@ -48,6 +48,19 @@ test('copyRoomCode leaves unbound states untouched and returns an explicit outco
   ])
 })
 
+test('copyRoomCode returns copy-failed when clipboard api is unavailable', async () => {
+  assert.equal(typeof settingsFlow.copyRoomCode, 'function')
+
+  assert.deepEqual(
+    await settingsFlow.copyRoomCode({ roomCode: 'ROOM01', wx: {} }),
+    { kind: 'copy-failed', message: '剪贴板不可用' }
+  )
+  assert.deepEqual(
+    await settingsFlow.copyRoomCode({ roomCode: 'ROOM01', wx: null }),
+    { kind: 'copy-failed', message: '剪贴板不可用' }
+  )
+})
+
 test('exportRecordsAsJson keeps the JSON shape, writes the backup file, and shares it first', async () => {
   assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
 
@@ -162,6 +175,52 @@ test('exportRecordsAsJson surfaces a retry action and retries the export when th
   assert.equal(env.fs.writes.length, 1)
   assert.equal(periodsCalls, 2)
   assert.equal(memoriesCalls, 1)
+})
+
+test('exportRecordsAsJson returns retry fallback when wx is null', async () => {
+  assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
+
+  const fallback = {
+    kind: 'retryable-failure',
+    message: 'network down'
+  }
+  const client = createFakeRoomDataClient({
+    periods: fallback,
+    memories: []
+  })
+
+  const result = await settingsFlow.exportRecordsAsJson({
+    wx: null,
+    cloud: { createRoomDataClient: () => client },
+    now: () => '2026-06-26T08:00:00.000Z',
+    userDataPath: '/tmp/user-data'
+  })
+
+  assert.deepEqual(result, fallback)
+  assert.deepEqual(client.calls, [{ action: 'list', collection: 'periods' }])
+})
+
+test('exportRecordsAsJson returns retry fallback when modal and toast are unavailable', async () => {
+  assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
+
+  const fallback = {
+    kind: 'retryable-failure',
+    message: 'network down'
+  }
+  const client = createFakeRoomDataClient({
+    periods: fallback,
+    memories: []
+  })
+
+  const result = await settingsFlow.exportRecordsAsJson({
+    wx: {},
+    cloud: { createRoomDataClient: () => client },
+    now: () => '2026-06-26T08:00:00.000Z',
+    userDataPath: '/tmp/user-data'
+  })
+
+  assert.deepEqual(result, fallback)
+  assert.deepEqual(client.calls, [{ action: 'list', collection: 'periods' }])
 })
 
 test('exportRecordsAsJson keeps repaired room export failures on the export retry copy', async () => {
@@ -320,6 +379,47 @@ test('exportRecordsAsJson hides loading and reports export failure when file wri
   assert.deepEqual(env.wx.toasts, [{ title: '导出失败', icon: 'error' }])
   assert.deepEqual(env.wx.shareCalls, [])
   assert.deepEqual(env.wx.clipboardCalls, [])
+})
+
+test('exportRecordsAsJson reports export failure when toast is unavailable', async () => {
+  assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
+
+  const fs = {
+    writeFileSync() {
+      throw new Error('disk full')
+    }
+  }
+  const wxApi = {
+    loadingCalls: [],
+    hideLoadingCalls: 0,
+    showLoading(options) {
+      this.loadingCalls.push(options)
+    },
+    hideLoading() {
+      this.hideLoadingCalls += 1
+    },
+    getFileSystemManager() {
+      return fs
+    }
+  }
+  const client = createFakeRoomDataClient({
+    periods: [{ _id: 'p1' }],
+    memories: []
+  })
+
+  const result = await settingsFlow.exportRecordsAsJson({
+    wx: wxApi,
+    cloud: { createRoomDataClient: () => client },
+    now: () => '2026-06-26T08:00:00.000Z',
+    userDataPath: '/tmp/user-data'
+  })
+
+  assert.deepEqual(result, {
+    kind: 'export-failed',
+    message: 'disk full'
+  })
+  assert.deepEqual(wxApi.loadingCalls, [{ title: '导出中...' }])
+  assert.equal(wxApi.hideLoadingCalls, 1)
 })
 
 test('clearLocalCache only clears the local room cache and never leaves the shared room', async () => {

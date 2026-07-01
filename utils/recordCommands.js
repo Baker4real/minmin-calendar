@@ -1,19 +1,24 @@
 const roomAccessOutcome = require('./roomAccessOutcome')
 
 function runRecordSave(options) {
+  const opts = options || {}
+  const wxApi = resolveWxApi(opts)
   const {
     page,
-    wx: wxApi = getWx(),
     timer = createDefaultTimer(),
     action,
     validate,
     loadingKey = 'saving',
     successTitle = '保存成功',
     failureTitle = '保存失败',
-    navigateBack = createNavigateBack(wxApi),
-    navigateToBind = createNavigateToBind(wxApi),
     successDelay = 1000
-  } = options || {}
+  } = opts
+  const navigateBack = typeof opts.navigateBack === 'function'
+    ? opts.navigateBack
+    : createNavigateBack(wxApi)
+  const navigateToBind = typeof opts.navigateToBind === 'function'
+    ? opts.navigateToBind
+    : createNavigateToBind(wxApi)
 
   return runCommand({
     page,
@@ -33,11 +38,18 @@ function runRecordSave(options) {
 }
 
 function runRecordDelete(options) {
+  const opts = options || {}
+  const wxApi = resolveWxApi(opts)
   const {
-    wx: wxApi = getWx(),
-    confirmTitle = '确认删除',
-    navigateBack = createNavigateBack(wxApi)
-  } = options || {}
+    confirmTitle = '确认删除'
+  } = opts
+  const navigateBack = typeof opts.navigateBack === 'function'
+    ? opts.navigateBack
+    : createNavigateBack(wxApi)
+
+  if (!wxApi || typeof wxApi.showModal !== 'function') {
+    return Promise.resolve({ kind: 'cancelled' })
+  }
 
   return new Promise(resolve => {
     wxApi.showModal({
@@ -62,9 +74,10 @@ function runRecordDelete(options) {
 }
 
 async function runRecordListLoad(options) {
+  const opts = options || {}
+  const wxApi = resolveWxApi(opts)
   const {
     page,
-    wx: wxApi = getWx(),
     action,
     mapRecords,
     onLoaded,
@@ -72,9 +85,11 @@ async function runRecordListLoad(options) {
     loadingKey = 'loading',
     retryableTitle = '加载失败，请检查网络',
     failureTitle = '加载失败',
-    roomRepairTitle = '房间状态已变化，请重新绑定',
-    navigateToBind = createNavigateToBind(wxApi)
-  } = options || {}
+    roomRepairTitle = '房间状态已变化，请重新绑定'
+  } = opts
+  const navigateToBind = typeof opts.navigateToBind === 'function'
+    ? opts.navigateToBind
+    : createNavigateToBind(wxApi)
 
   updatePage(page, { [loadingKey]: true })
 
@@ -132,7 +147,7 @@ async function runCommand(options) {
 
   const validationMessage = typeof validate === 'function' ? validate() : ''
   if (validationMessage) {
-    wxApi.showToast({ title: validationMessage, icon: 'none' })
+    safeShowToast(wxApi, { title: validationMessage, icon: 'none' })
     return { kind: 'validation', message: validationMessage }
   }
 
@@ -150,7 +165,7 @@ async function runCommand(options) {
   }
 
   if (outcome.kind === 'success') {
-    wxApi.showToast({ title: successTitle })
+    safeShowToast(wxApi, { title: successTitle })
     timer.setTimeout(() => {
       navigateBack()
     }, successDelay)
@@ -263,7 +278,7 @@ async function handleFailureOutcome({
   }
 
   const message = outcome.message || failureTitle
-  wxApi.showToast({ title: message, icon: 'none' })
+  safeShowToast(wxApi, { title: message, icon: 'none' })
   return {
     ...outcome,
     message
@@ -322,7 +337,7 @@ function createNavigateToBind(wxApi) {
 
 function promptAcknowledge({ wxApi, title, content, fallback }) {
   if (!wxApi || typeof wxApi.showModal !== 'function') {
-    wxApi.showToast({ title: content, icon: 'none' })
+    safeShowToast(wxApi, { title: content, icon: 'none' })
     return Promise.resolve(fallback)
   }
 
@@ -339,7 +354,7 @@ function promptAcknowledge({ wxApi, title, content, fallback }) {
 
 function promptRetry({ wxApi, title, content, retryAction, fallback }) {
   if (!wxApi || typeof wxApi.showModal !== 'function' || typeof retryAction !== 'function') {
-    wxApi.showToast({ title: content, icon: 'none' })
+    safeShowToast(wxApi, { title: content, icon: 'none' })
     return Promise.resolve(fallback)
   }
 
@@ -362,7 +377,7 @@ function promptRetry({ wxApi, title, content, retryAction, fallback }) {
 
 function promptNavigateToBind({ wxApi, title, content, navigateToBind, fallback }) {
   if (!wxApi || typeof wxApi.showModal !== 'function' || typeof navigateToBind !== 'function') {
-    wxApi.showToast({ title: content, icon: 'none' })
+    safeShowToast(wxApi, { title: content, icon: 'none' })
     return Promise.resolve(fallback)
   }
 
@@ -387,6 +402,19 @@ function getWx() {
     throw new Error('wx is unavailable outside the WeChat runtime')
   }
   return wx
+}
+
+function resolveWxApi(options) {
+  if (options && Object.prototype.hasOwnProperty.call(options, 'wx')) {
+    return options.wx
+  }
+  return getWx()
+}
+
+function safeShowToast(wxApi, options) {
+  if (wxApi && typeof wxApi.showToast === 'function') {
+    wxApi.showToast(options)
+  }
 }
 
 function getErrorMessage(error) {

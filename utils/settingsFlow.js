@@ -3,7 +3,7 @@ const roomSessionApi = require('./room')
 const roomAccessOutcome = require('./roomAccessOutcome')
 
 function copyRoomCode(options = {}) {
-  const wxApi = options.wx || getWx()
+  const wxApi = resolveWxApi(options)
   const roomCode = normalizeRoomCode(options.roomCode)
   if (!roomCode) {
     showToast(wxApi, { title: '请先绑定房间', icon: 'none' })
@@ -11,6 +11,12 @@ function copyRoomCode(options = {}) {
   }
 
   return new Promise(resolve => {
+    if (!wxApi || typeof wxApi.setClipboardData !== 'function') {
+      showToast(wxApi, { title: '复制失败', icon: 'error' })
+      resolve({ kind: 'copy-failed', message: '剪贴板不可用' })
+      return
+    }
+
     wxApi.setClipboardData({
       data: roomCode,
       success: () => {
@@ -26,7 +32,7 @@ function copyRoomCode(options = {}) {
 }
 
 async function exportRecordsAsJson(options = {}) {
-  const wxApi = options.wx || getWx()
+  const wxApi = resolveWxApi(options)
   const cloud = options.cloud || cloudApi
   const roomSession = options.roomSession || roomSessionApi
   const now = options.now || (() => new Date().toISOString())
@@ -34,7 +40,7 @@ async function exportRecordsAsJson(options = {}) {
   const navigateToBind = options.navigateToBind || createNavigateToBind(wxApi)
   const hideLoading = createLoadingGuard(wxApi)
 
-  wxApi.showLoading({ title: '导出中...' })
+  showLoading(wxApi, { title: '导出中...' })
   try {
     const client = createRoomDataClient(cloud, roomSession)
     const periodsOutcome = await listRecords({ cloud, client, collection: 'periods' })
@@ -77,7 +83,7 @@ async function exportRecordsAsJson(options = {}) {
 }
 
 function clearLocalCache(options = {}) {
-  const wxApi = options.wx || getWx()
+  const wxApi = resolveWxApi(options)
   const roomSession = options.roomSession || roomSessionApi
 
   roomSession.clearLocalRoom()
@@ -160,7 +166,9 @@ function createLoadingGuard(wxApi) {
   return function hideLoading() {
     if (hidden) return
     hidden = true
-    wxApi.hideLoading()
+    if (wxApi && typeof wxApi.hideLoading === 'function') {
+      wxApi.hideLoading()
+    }
   }
 }
 
@@ -213,11 +221,19 @@ function normalizeExportTime(value) {
 }
 
 function getUserDataPath(wxApi) {
-  return wxApi.env && wxApi.env.USER_DATA_PATH ? wxApi.env.USER_DATA_PATH : ''
+  return wxApi && wxApi.env && wxApi.env.USER_DATA_PATH ? wxApi.env.USER_DATA_PATH : ''
 }
 
 function showToast(wxApi, options) {
-  wxApi.showToast(options)
+  if (wxApi && typeof wxApi.showToast === 'function') {
+    wxApi.showToast(options)
+  }
+}
+
+function showLoading(wxApi, options) {
+  if (wxApi && typeof wxApi.showLoading === 'function') {
+    wxApi.showLoading(options)
+  }
 }
 
 function createNavigateToBind(wxApi) {
@@ -277,6 +293,13 @@ function getWx() {
     throw new Error('wx is unavailable outside the WeChat runtime')
   }
   return wx
+}
+
+function resolveWxApi(options) {
+  if (options && Object.prototype.hasOwnProperty.call(options, 'wx')) {
+    return options.wx
+  }
+  return getWx()
 }
 
 function getErrorMessage(error) {
