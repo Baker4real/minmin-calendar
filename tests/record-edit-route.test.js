@@ -50,6 +50,27 @@ test('parsePeriodEditOptions hydrates period edit page state from route options'
   })
 })
 
+test('parsePeriodEditOptions tolerates malformed encoded route options', () => {
+  const state = route.parsePeriodEditOptions({
+    id: 'p1',
+    startDate: '2026-06-01',
+    endDate: '2026-06-05',
+    note: '%',
+    flow: 'heavy',
+    symptoms: '%E0%A4%A'
+  }, { today: '2026-06-26' })
+
+  assert.deepEqual(state, {
+    id: 'p1',
+    startDate: '2026-06-01',
+    endDate: '2026-06-05',
+    note: '%',
+    flow: 'heavy',
+    symptoms: [],
+    isEdit: true
+  })
+})
+
 test('buildMemoryEditUrl builds add and edit routes with encoded notes', () => {
   assert.equal(route.buildMemoryEditUrl({
     date: '2026-06-03'
@@ -78,6 +99,18 @@ test('parseMemoryEditOptions hydrates memory edit page state from route options'
     id: '',
     date: '2026-06-26',
     note: '',
+    isEdit: false
+  })
+})
+
+test('parseMemoryEditOptions tolerates truncated UTF-8 in note', () => {
+  assert.deepEqual(route.parseMemoryEditOptions({
+    date: '2026-06-03',
+    note: '%E0%A4%A'
+  }, { today: '2026-06-26' }), {
+    id: '',
+    date: '2026-06-03',
+    note: '%E0%A4%A',
     isEdit: false
   })
 })

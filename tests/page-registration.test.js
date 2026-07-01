@@ -422,6 +422,66 @@ test('period edit save rejects reversed ranges before building a payload', async
   assert.equal(result.notifyCalls, 0)
 })
 
+test('period edit onLoad tolerates malformed route encoding', () => {
+  const harness = loadPageHarness('pages/period/edit/edit.js', {
+    mocks: {
+      'utils/util.js': createUtilStub(),
+      'utils/cloud.js': {},
+      'utils/cycle.js': {
+        FLOW_OPTIONS: [{ value: 'heavy', label: '量多' }],
+        buildSymptomOptions(symptoms = []) {
+          return symptoms.map(value => ({ value, label: value, selected: true }))
+        }
+      },
+      'utils/recordCommands.js': {},
+      'utils/recordPageSync.js': {}
+    }
+  })
+
+  try {
+    assert.doesNotThrow(() => {
+      harness.page.onLoad({
+        startDate: '2026-06-01',
+        endDate: '2026-06-05',
+        note: '%',
+        symptoms: '%E0%A4%A'
+      })
+    })
+
+    assert.equal(harness.page.data.note, '%')
+    assert.deepEqual(harness.page.data.symptoms, [])
+    assert.equal(harness.page.data.startDate, '2026-06-01')
+    assert.equal(harness.page.data.endDate, '2026-06-05')
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('memory edit onLoad tolerates malformed route encoding', () => {
+  const harness = loadPageHarness('pages/memory/edit/edit.js', {
+    mocks: {
+      'utils/util.js': createUtilStub(),
+      'utils/cloud.js': {},
+      'utils/recordCommands.js': {},
+      'utils/recordPageSync.js': {}
+    }
+  })
+
+  try {
+    assert.doesNotThrow(() => {
+      harness.page.onLoad({
+        date: '2026-06-03',
+        note: '%E0%A4%A'
+      })
+    })
+
+    assert.equal(harness.page.data.date, '2026-06-03')
+    assert.equal(harness.page.data.note, '%E0%A4%A')
+  } finally {
+    harness.teardown()
+  }
+})
+
 test('memory page onShow executes loadData and populates sorted memories through the page harness', async () => {
   const harness = loadPageHarness('pages/memory/memory.js', {
     mocks: {

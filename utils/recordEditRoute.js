@@ -19,7 +19,7 @@ function parsePeriodEditOptions(options = {}, context = {}) {
     id: options.id || '',
     startDate: options.startDate || today,
     endDate: options.endDate || options.startDate || today,
-    note: decodeOption(options.note),
+    note: decodeOption(options.note, { fallback: 'raw' }),
     flow: options.flow || '',
     symptoms,
     isEdit: !!options.id
@@ -39,7 +39,7 @@ function parseMemoryEditOptions(options = {}, context = {}) {
   return {
     id: options.id || '',
     date: options.date || today,
-    note: decodeOption(options.note),
+    note: decodeOption(options.note, { fallback: 'raw' }),
     isEdit: !!options.id
   }
 }
@@ -57,9 +57,14 @@ function parseSymptoms(value) {
   return decoded.split(',').filter(Boolean)
 }
 
-function decodeOption(value) {
+function decodeOption(value, { fallback = '' } = {}) {
   if (!value) return ''
-  return decodeURIComponent(value)
+  const stringValue = String(value)
+  try {
+    return decodeURIComponent(stringValue)
+  } catch (error) {
+    return fallback === 'raw' ? stringValue : fallback
+  }
 }
 
 module.exports = {
