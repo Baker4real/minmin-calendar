@@ -37,6 +37,13 @@
 - `cloudfunctions/dataOp/dataOpHandler.js` owns room membership lookup and action dispatch behind the cloud adapter.
 - `cloudfunctions/leaveRoom/index.js` revokes the current user's Room membership through the `RoomLifecycle` Module.
 
+## Holiday Data Boundary
+
+- `utils/chinaHolidays.js` currently contains official China holiday and adjusted-workday ranges for 2001-2026.
+- Years inside that published range may show official off-day and adjusted-workday facts from the data table.
+- Years beyond 2026 may still show static festival names such as Spring Festival, Qingming, Labor Day, Dragon Boat Festival, Mid-Autumn Festival, National Day, and New Year's Day, but must not infer adjusted workdays.
+- Before the app enters a year beyond `PUBLISHED_HOLIDAY_END_YEAR`, update the published ranges from State Council holiday notices and keep the maintenance test green.
+
 ## Verification Baseline
 
 Use these checks after date, room, calendar, or page behavior changes:

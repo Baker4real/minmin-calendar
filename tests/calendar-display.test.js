@@ -3,6 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
+const chinaHolidays = require('../utils/chinaHolidays')
 const util = require('../utils/util')
 
 test('formatPredictDisplay returns a compact date with weekday', () => {
@@ -83,6 +84,43 @@ test('getChineseDateMeta marks lunar text and official holidays across years', (
       isHoliday: true,
       isWorkday: false
     }
+  )
+})
+
+test('getChineseDateMeta does not infer adjusted workdays beyond published holiday data', () => {
+  assert.equal(chinaHolidays.PUBLISHED_HOLIDAY_START_YEAR, 2001)
+  assert.equal(chinaHolidays.PUBLISHED_HOLIDAY_END_YEAR, 2026)
+  assert.equal(chinaHolidays.hasPublishedHolidayYear(2026), true)
+  assert.equal(chinaHolidays.hasPublishedHolidayYear(2027), false)
+
+  assert.deepEqual(
+    pickMeta(util.getChineseDateMeta('2027-01-03')),
+    {
+      weekday: '周日',
+      lunarText: '冬月廿六',
+      holidayName: '',
+      isHoliday: false,
+      isWorkday: false
+    }
+  )
+
+  assert.deepEqual(
+    pickMeta(util.getChineseDateMeta('2027-05-01')),
+    {
+      weekday: '周六',
+      lunarText: '三月廿五',
+      holidayName: '劳动节',
+      isHoliday: true,
+      isWorkday: false
+    }
+  )
+})
+
+test('published holiday data covers the current runtime year', () => {
+  const currentYear = new Date().getFullYear()
+  assert.ok(
+    chinaHolidays.PUBLISHED_HOLIDAY_END_YEAR >= currentYear,
+    `China holiday data ends at ${chinaHolidays.PUBLISHED_HOLIDAY_END_YEAR}; update published ranges for ${currentYear}`
   )
 })
 
