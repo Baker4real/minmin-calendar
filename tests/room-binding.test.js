@@ -62,6 +62,14 @@ test('RoomBinding create stores a new waiting room with a unique code', async ()
     createdAt: SERVER_DATE,
     status: 'waiting'
   })
+  assert.deepEqual(db.data.roomMembers, [{
+    _id: 'user-a',
+    openid: 'user-a',
+    roomId: 'room-2',
+    roomCode: 'FRESH1',
+    role: 'creator',
+    updatedAt: SERVER_DATE
+  }])
 })
 
 test('RoomBinding create retries when a unique room code index rejects a raced insert', async () => {
@@ -89,6 +97,7 @@ test('RoomBinding create retries when a unique room code index rejects a raced i
     }
   })
   assert.deepEqual(db.data.rooms.map(room => room.roomCode), ['FRESH1'])
+  assert.deepEqual(db.data.roomMembers.map(member => [member._id, member.roomCode]), [['user-a', 'FRESH1']])
 })
 
 test('RoomBinding create fails without storing a room when all generated codes conflict', async () => {
@@ -112,6 +121,7 @@ test('RoomBinding create fails without storing a room when all generated codes c
 
   assert.deepEqual(result, { code: -1, msg: '房间码生成失败，请重试' })
   assert.deepEqual(db.data.rooms, [])
+  assert.deepEqual(db.data.roomMembers, [])
 })
 
 test('RoomBinding create recovers the inserted room when the add result omits an id', async () => {
@@ -138,6 +148,7 @@ test('RoomBinding create recovers the inserted room when the add result omits an
     }
   })
   assert.equal(db.data.rooms.length, 1)
+  assert.deepEqual(db.data.roomMembers.map(member => [member._id, member.roomCode]), [['user-a', 'GHOST1']])
 })
 
 test('RoomBinding create does not retry duplicate errors for other unique indexes', async () => {
@@ -158,6 +169,7 @@ test('RoomBinding create does not retry duplicate errors for other unique indexe
     /createdBy/
   )
   assert.deepEqual(db.data.rooms, [])
+  assert.deepEqual(db.data.roomMembers, [])
   assert.deepEqual(codes, ['FRESH1'])
 })
 
@@ -192,6 +204,110 @@ test('RoomBinding join normalizes room code and pairs an available room', async 
     status: 'paired',
     pairedAt: SERVER_DATE
   })
+  assert.deepEqual(db.data.roomMembers, [{
+    _id: 'user-b',
+    openid: 'user-b',
+    roomId: 'room-1',
+    roomCode: 'ROOM01',
+    role: 'partner',
+    updatedAt: SERVER_DATE
+  }])
+})
+
+test('RoomBinding join normalizes a waiting room with a missing partner field', async () => {
+  const db = createFakeDb({
+    rooms: [{
+      _id: 'room-1',
+      roomCode: 'ROOM01',
+      createdBy: 'user-a',
+      createdByName: 'A',
+      partnerName: '',
+      status: 'waiting'
+    }]
+  })
+  const binding = createRoomBinding({ db, serverDate: () => SERVER_DATE })
+
+  const result = await binding.join({
+    openid: 'user-b',
+    roomCode: 'ROOM01',
+    nickName: 'B'
+  })
+
+  assert.deepEqual(result, { code: 0, msg: '加入成功', roomCode: 'ROOM01' })
+  assert.equal(db.data.rooms[0].partnerOpenid, 'user-b')
+  assert.deepEqual(db.data.roomMembers.map(member => [member._id, member.roomCode]), [['user-b', 'ROOM01']])
+})
+
+test('RoomBinding join does not overwrite when another user claims the room before update', async () => {
+  const db = createFakeDb({
+    rooms: [{
+      _id: 'room-1',
+      roomCode: 'ROOM01',
+      createdBy: 'user-a',
+      createdByName: 'A',
+      partnerOpenid: '',
+      partnerName: '',
+      status: 'waiting'
+    }],
+    beforeWhereUpdate({ allData }) {
+      Object.assign(allData.rooms[0], {
+        partnerOpenid: 'user-c',
+        partnerName: 'C',
+        status: 'paired'
+      })
+    }
+  })
+  const binding = createRoomBinding({ db, serverDate: () => SERVER_DATE })
+
+  const result = await binding.join({
+    openid: 'user-b',
+    roomCode: 'ROOM01',
+    nickName: 'B'
+  })
+
+  assert.deepEqual(result, { code: -4, msg: '房间已满' })
+  assert.equal(db.data.rooms[0].partnerOpenid, 'user-c')
+  assert.equal(db.data.rooms[0].partnerName, 'C')
+  assert.deepEqual(db.data.roomMembers, [])
+})
+
+test('RoomBinding join keeps the member lock when update confirmation is inconclusive', async () => {
+  const db = createFakeDb({
+    rooms: [{
+      _id: 'room-1',
+      roomCode: 'ROOM01',
+      createdBy: 'user-a',
+      createdByName: 'A',
+      partnerOpenid: '',
+      partnerName: '',
+      status: 'waiting'
+    }],
+    afterWhereUpdate({ allData, query }) {
+      if (query._id !== 'room-1' || query.partnerOpenid !== '') return
+      Object.assign(allData.rooms[0], {
+        partnerOpenid: '',
+        partnerName: '',
+        status: 'waiting'
+      })
+    }
+  })
+  const binding = createRoomBinding({ db, serverDate: () => SERVER_DATE })
+
+  const result = await binding.join({
+    openid: 'user-b',
+    roomCode: 'ROOM01',
+    nickName: 'B'
+  })
+
+  assert.deepEqual(result, { code: -1, msg: '加入确认失败，请重试' })
+  assert.deepEqual(db.data.roomMembers, [{
+    _id: 'user-b',
+    openid: 'user-b',
+    roomId: 'room-1',
+    roomCode: 'ROOM01',
+    role: 'partner',
+    updatedAt: SERVER_DATE
+  }])
 })
 
 test('RoomBinding join restores binding when the user is already the partner', async () => {
@@ -210,6 +326,117 @@ test('RoomBinding join restores binding when the user is already the partner', a
 
   assert.deepEqual(result, { code: 0, msg: '已在房间中', roomCode: 'ROOM01' })
   assert.equal(db.data.rooms[0].pairedAt, undefined)
+})
+
+test('RoomBinding join rejects users who already belong to a different room', async () => {
+  const db = createFakeDb({
+    rooms: [
+      {
+        _id: 'room-1',
+        roomCode: 'ROOM01',
+        createdBy: 'user-a',
+        partnerOpenid: '',
+        status: 'waiting'
+      },
+      {
+        _id: 'room-2',
+        roomCode: 'ROOM02',
+        createdBy: 'user-c',
+        partnerOpenid: 'user-b',
+        status: 'paired'
+      }
+    ]
+  })
+  const binding = createRoomBinding({ db, serverDate: () => SERVER_DATE })
+
+  const result = await binding.join({ openid: 'user-b', roomCode: 'ROOM01' })
+
+  assert.deepEqual(result, {
+    code: -5,
+    msg: '你已加入其他房间，请先解除绑定后再加入新房间',
+    roomCode: 'ROOM02'
+  })
+  assert.equal(db.data.rooms[0].partnerOpenid, '')
+})
+
+test('RoomBinding join rejects concurrent joins for a user with an active member lock', async () => {
+  const db = createFakeDb({
+    rooms: [
+      {
+        _id: 'room-1',
+        roomCode: 'ROOM01',
+        createdBy: 'user-a',
+        partnerOpenid: '',
+        status: 'waiting'
+      },
+      {
+        _id: 'room-2',
+        roomCode: 'ROOM02',
+        createdBy: 'user-c',
+        partnerOpenid: '',
+        status: 'waiting'
+      }
+    ],
+    roomMembers: [{
+      _id: 'user-b',
+      openid: 'user-b',
+      roomId: 'room-2',
+      roomCode: 'ROOM02',
+      role: 'partner'
+    }]
+  })
+  const binding = createRoomBinding({ db, serverDate: () => SERVER_DATE })
+
+  const result = await binding.join({ openid: 'user-b', roomCode: 'ROOM01' })
+
+  assert.deepEqual(result, {
+    code: -5,
+    msg: '你已加入其他房间，请先解除绑定后再加入新房间',
+    roomCode: 'ROOM02'
+  })
+  assert.equal(db.data.rooms[0].partnerOpenid, '')
+})
+
+test('RoomBinding join allows only one concurrent room claim for the same user', async () => {
+  const db = createFakeDb({
+    rooms: [
+      {
+        _id: 'room-1',
+        roomCode: 'ROOM01',
+        createdBy: 'user-a',
+        partnerOpenid: '',
+        status: 'waiting'
+      },
+      {
+        _id: 'room-2',
+        roomCode: 'ROOM02',
+        createdBy: 'user-c',
+        partnerOpenid: '',
+        status: 'waiting'
+      }
+    ]
+  })
+  const binding = createRoomBinding({ db, serverDate: () => SERVER_DATE })
+
+  const results = await Promise.all([
+    binding.join({ openid: 'user-b', roomCode: 'ROOM01', nickName: 'B' }),
+    binding.join({ openid: 'user-b', roomCode: 'ROOM02', nickName: 'B' })
+  ])
+  const successResults = results.filter(result => result.code === 0)
+  const rejectedResults = results.filter(result => result.code === -5)
+  const claimedRooms = db.data.rooms.filter(room => room.partnerOpenid === 'user-b')
+
+  assert.equal(successResults.length, 1)
+  assert.equal(rejectedResults.length, 1)
+  assert.equal(claimedRooms.length, 1)
+  assert.deepEqual(db.data.roomMembers, [{
+    _id: 'user-b',
+    openid: 'user-b',
+    roomId: claimedRooms[0]._id,
+    roomCode: claimedRooms[0].roomCode,
+    role: 'partner',
+    updatedAt: SERVER_DATE
+  }])
 })
 
 test('RoomBinding getActive returns the current member room or a no-room result', async () => {
@@ -250,18 +477,23 @@ test('RoomBinding module stays deployable in each room cloud function directory'
 
 function createFakeDb(initial = {}) {
   const data = {
-    rooms: clone(initial.rooms || [])
+    rooms: clone(initial.rooms || []),
+    roomMembers: clone(initial.roomMembers || [])
   }
   let nextId = data.rooms.length + 1
   const addErrorsByRoomCode = new Map(Object.entries(initial.addErrorsByRoomCode || {}))
   const addResultsByRoomCode = new Map(Object.entries(initial.addResultsByRoomCode || {}))
+  const beforeWhereUpdate = createOneShotCallback(initial.beforeWhereUpdate)
+  const afterWhereUpdate = createOneShotCallback(initial.afterWhereUpdate)
 
   return {
     data,
     collection(name) {
       return createCollection(data, name, () => `room-${nextId++}`, {
         addErrorsByRoomCode,
-        addResultsByRoomCode
+        addResultsByRoomCode,
+        beforeWhereUpdate,
+        afterWhereUpdate
       })
     }
   }
@@ -270,7 +502,7 @@ function createFakeDb(initial = {}) {
 function createCollection(allData, name, nextId, options = {}) {
   return {
     where(query) {
-      return createQuery(allData[name], query)
+      return createQuery(allData, name, query, options)
     },
     async add({ data }) {
       const addError = options.addErrorsByRoomCode && options.addErrorsByRoomCode.get(data.roomCode)
@@ -279,7 +511,12 @@ function createCollection(allData, name, nextId, options = {}) {
         throw addError
       }
 
-      const record = { _id: nextId(), ...clone(data) }
+      if (name === 'roomMembers' && allData[name].some(item => item._id === data._id)) {
+        throw duplicateMemberLockError()
+      }
+
+      const payload = clone(data)
+      const record = { _id: payload._id || nextId(), ...payload }
       allData[name].push(record)
       if (options.addResultsByRoomCode && options.addResultsByRoomCode.has(record.roomCode)) {
         return clone(options.addResultsByRoomCode.get(record.roomCode))
@@ -298,7 +535,7 @@ function createCollection(allData, name, nextId, options = {}) {
   }
 }
 
-function createQuery(records, query) {
+function createQuery(allData, name, query, options = {}) {
   let limitCount = null
 
   const chain = {
@@ -307,15 +544,39 @@ function createQuery(records, query) {
       return chain
     },
     async get() {
-      let result = records.filter(record =>
-        Object.keys(query).every(key => record[key] === query[key])
-      )
+      let result = allData[name].filter(record => matchesQuery(record, query))
       if (limitCount !== null) result = result.slice(0, limitCount)
       return { data: clone(result) }
+    },
+    async update({ data }) {
+      if (options.beforeWhereUpdate) options.beforeWhereUpdate({ allData, query, data })
+      const records = allData[name].filter(record => matchesQuery(record, query))
+      records.forEach(record => Object.assign(record, clone(data)))
+      if (options.afterWhereUpdate) options.afterWhereUpdate({ allData, query, data })
+      return { stats: { updated: records.length } }
+    },
+    async remove() {
+      const before = allData[name].length
+      allData[name] = allData[name].filter(record => !matchesQuery(record, query))
+      return { stats: { removed: before - allData[name].length } }
     }
   }
 
   return chain
+}
+
+function matchesQuery(record, query) {
+  return Object.keys(query).every(key => record[key] === query[key])
+}
+
+function createOneShotCallback(callback) {
+  if (typeof callback !== 'function') return null
+  let called = false
+  return args => {
+    if (called) return
+    called = true
+    callback(args)
+  }
 }
 
 function clone(value) {
@@ -330,6 +591,12 @@ function duplicateRoomCodeError() {
 
 function duplicateOtherIndexError() {
   const error = new Error('duplicate key error collection: rooms index: createdBy dup key')
+  error.code = 'E11000'
+  return error
+}
+
+function duplicateMemberLockError() {
+  const error = new Error('duplicate key error collection: roomMembers index: _id_ dup key')
   error.code = 'E11000'
   return error
 }

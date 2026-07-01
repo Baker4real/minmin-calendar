@@ -19,6 +19,10 @@ test('RoomLifecycle transfers creator ownership to the partner when the creator 
         createdAt: 'old',
         pairedAt: 'old'
       }
+    ],
+    roomMembers: [
+      { _id: 'user-a', openid: 'user-a', roomId: 'room-1', roomCode: 'ROOM01', role: 'creator' },
+      { _id: 'user-b', openid: 'user-b', roomId: 'room-1', roomCode: 'ROOM01', role: 'partner' }
     ]
   })
   const lifecycle = createRoomLifecycle({ db, serverDate: () => SERVER_DATE })
@@ -40,6 +44,16 @@ test('RoomLifecycle transfers creator ownership to the partner when the creator 
       updatedAt: SERVER_DATE
     }
   ])
+  assert.deepEqual(db.data.roomMembers, [
+    {
+      _id: 'user-b',
+      openid: 'user-b',
+      roomId: 'room-1',
+      roomCode: 'ROOM01',
+      role: 'creator',
+      updatedAt: SERVER_DATE
+    }
+  ])
 })
 
 test('RoomLifecycle removes the partner from a paired room and leaves the creator waiting', async () => {
@@ -56,6 +70,10 @@ test('RoomLifecycle removes the partner from a paired room and leaves the creato
         createdAt: 'old',
         pairedAt: 'old'
       }
+    ],
+    roomMembers: [
+      { _id: 'user-a', openid: 'user-a', roomId: 'room-1', roomCode: 'ROOM01', role: 'creator' },
+      { _id: 'user-b', openid: 'user-b', roomId: 'room-1', roomCode: 'ROOM01', role: 'partner' }
     ]
   })
   const lifecycle = createRoomLifecycle({ db, serverDate: () => SERVER_DATE })
@@ -77,6 +95,9 @@ test('RoomLifecycle removes the partner from a paired room and leaves the creato
       updatedAt: SERVER_DATE
     }
   ])
+  assert.deepEqual(db.data.roomMembers, [
+    { _id: 'user-a', openid: 'user-a', roomId: 'room-1', roomCode: 'ROOM01', role: 'creator' }
+  ])
 })
 
 test('RoomLifecycle deletes a room when the last member leaves', async () => {
@@ -92,6 +113,9 @@ test('RoomLifecycle deletes a room when the last member leaves', async () => {
         status: 'waiting',
         createdAt: 'old'
       }
+    ],
+    roomMembers: [
+      { _id: 'user-a', openid: 'user-a', roomId: 'room-1', roomCode: 'ROOM01', role: 'creator' }
     ]
   })
   const lifecycle = createRoomLifecycle({ db, serverDate: () => SERVER_DATE })
@@ -100,21 +124,54 @@ test('RoomLifecycle deletes a room when the last member leaves', async () => {
 
   assert.deepEqual(result, { code: 0, removedCount: 1, deletedCount: 1 })
   assert.deepEqual(db.data.rooms, [])
+  assert.deepEqual(db.data.roomMembers, [])
+})
+
+test('RoomLifecycle clears a blank member lock when the active room is removed', async () => {
+  const db = createFakeDb({
+    rooms: [
+      {
+        _id: 'room-1',
+        roomCode: 'ROOM01',
+        createdBy: 'user-a',
+        createdByName: 'A',
+        partnerOpenid: '',
+        partnerName: '',
+        status: 'waiting'
+      }
+    ],
+    roomMembers: [
+      { _id: 'user-a', openid: 'user-a', roomId: '', roomCode: '', role: 'creator' }
+    ]
+  })
+  const lifecycle = createRoomLifecycle({ db, serverDate: () => SERVER_DATE })
+
+  const result = await lifecycle.leave({ openid: 'user-a' })
+
+  assert.deepEqual(result, { code: 0, removedCount: 1, deletedCount: 1 })
+  assert.deepEqual(db.data.rooms, [])
+  assert.deepEqual(db.data.roomMembers, [])
 })
 
 test('RoomLifecycle leave is idempotent when the user is not in any room', async () => {
-  const db = createFakeDb()
+  const db = createFakeDb({
+    roomMembers: [
+      { _id: 'user-a', openid: 'user-a', roomId: 'stale-room', roomCode: 'STALE1', role: 'partner' }
+    ]
+  })
   const lifecycle = createRoomLifecycle({ db, serverDate: () => SERVER_DATE })
 
   const result = await lifecycle.leave({ openid: 'user-a' })
 
   assert.deepEqual(result, { code: 0, removedCount: 0, deletedCount: 0 })
   assert.deepEqual(db.data.rooms, [])
+  assert.deepEqual(db.data.roomMembers, [])
 })
 
 function createFakeDb(initial = {}) {
   const data = {
-    rooms: clone(initial.rooms || [])
+    rooms: clone(initial.rooms || []),
+    roomMembers: clone(initial.roomMembers || [])
   }
 
   return {
@@ -161,6 +218,13 @@ function createQuery(records, query) {
       )
       if (limitCount !== null) result = result.slice(0, limitCount)
       return { data: clone(result) }
+    },
+    async remove() {
+      const before = records.length
+      for (let index = records.length - 1; index >= 0; index--) {
+        if (Object.keys(query).every(key => records[index][key] === query[key])) records.splice(index, 1)
+      }
+      return { stats: { removed: before - records.length } }
     }
   }
 

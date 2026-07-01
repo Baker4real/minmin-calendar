@@ -1,12 +1,16 @@
 function createRoomLifecycle({ db, serverDate }) {
   const rooms = db.collection('rooms')
+  const roomMembers = db.collection('roomMembers')
 
   return {
     async leave({ openid }) {
       if (!openid) return { code: -1, msg: '获取用户信息失败' }
 
       const room = await findRoomByMember(openid)
-      if (!room) return { code: 0, removedCount: 0, deletedCount: 0 }
+      if (!room) {
+        await releaseMemberLock({ openid })
+        return { code: 0, removedCount: 0, deletedCount: 0 }
+      }
 
       if (room.createdBy === openid) {
         return leaveCreator(room, openid)
@@ -35,6 +39,7 @@ function createRoomLifecycle({ db, serverDate }) {
 
     if (!partnerOpenid) {
       await rooms.doc(room._id).remove()
+      await releaseMemberLock({ openid })
       return { code: 0, removedCount: 1, deletedCount: 1 }
     }
 
@@ -49,12 +54,19 @@ function createRoomLifecycle({ db, serverDate }) {
         updatedAt: serverDate()
       }
     })
+    await releaseMemberLock({ openid })
+    await updateMemberLock({
+      openid: partnerOpenid,
+      room,
+      role: 'creator'
+    })
     return { code: 0, removedCount: 1, deletedCount: 0 }
   }
 
   async function leavePartner(room) {
     if (!room.createdBy) {
       await rooms.doc(room._id).remove()
+      await releaseMemberLock({ openid: room.partnerOpenid })
       return { code: 0, removedCount: 1, deletedCount: 1 }
     }
 
@@ -67,7 +79,25 @@ function createRoomLifecycle({ db, serverDate }) {
         updatedAt: serverDate()
       }
     })
+    await releaseMemberLock({ openid: room.partnerOpenid })
     return { code: 0, removedCount: 1, deletedCount: 0 }
+  }
+
+  async function releaseMemberLock({ openid }) {
+    if (!openid) return
+    await roomMembers.where({ _id: openid }).remove()
+  }
+
+  async function updateMemberLock({ openid, room, role }) {
+    if (!openid) return
+    await roomMembers.doc(openid).update({
+      data: {
+        roomId: room._id,
+        roomCode: room.roomCode,
+        role,
+        updatedAt: serverDate()
+      }
+    })
   }
 }
 
