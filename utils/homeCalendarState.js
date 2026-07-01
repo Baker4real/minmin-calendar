@@ -152,9 +152,9 @@ function buildDayDetailsByDate(days, periods, memories) {
     if (!day || day.isEmpty || !day.date) return
 
     const periodDetails = periods
-      .map(period => ({ period, range: util.normalizeDateRange(period) }))
+      .map((period, index) => ({ period, range: util.normalizeDateRange(period), index }))
       .filter(item => isPeriodActiveOnDate(item.range, day.date))
-      .map(({ period, range }) => {
+      .map(({ period, range, index }) => {
         const detail = cycle.decoratePeriod({
           ...period,
           startDate: range.startDate,
@@ -164,20 +164,26 @@ function buildDayDetailsByDate(days, periods, memories) {
         if (detail.flowLabel) meta.push(`经量 ${detail.flowLabel}`)
         if (detail.symptomText) meta.push(detail.symptomText)
         return {
+          key: buildPeriodDetailKey(period, range, index),
           range: `${range.startDate} ~ ${range.endDate}`,
           metaText: meta.join(' · ')
         }
       })
 
     const memoryDetails = memories
-      .filter(memory => isDateString(memory.date) && memory.date === day.date)
-      .map(memory => ({ note: memory.note || '特别日子' }))
+      .map((memory, index) => ({ memory, index }))
+      .filter(({ memory }) => isDateString(memory.date) && memory.date === day.date)
+      .map(({ memory, index }) => ({
+        key: buildMemoryDetailKey(memory, index),
+        note: memory.note || '特别日子'
+      }))
+    const meanings = buildDayMeanings(day)
 
     details[day.date] = {
-      meanings: buildDayMeanings(day),
+      meanings,
       periods: periodDetails,
       memories: memoryDetails,
-      empty: !periodDetails.length && !memoryDetails.length
+      empty: !meanings.length && !periodDetails.length && !memoryDetails.length
     }
   })
 
@@ -187,6 +193,16 @@ function buildDayDetailsByDate(days, periods, memories) {
 function isPeriodActiveOnDate(range, date) {
   if (!range) return false
   return date >= range.startDate && date <= range.endDate
+}
+
+function buildPeriodDetailKey(period, range, index) {
+  if (period && period._id) return `period:${period._id}`
+  return `period:${range.startDate}:${range.endDate}:${index}`
+}
+
+function buildMemoryDetailKey(memory, index) {
+  if (memory && memory._id) return `memory:${memory._id}`
+  return `memory:${memory.date}:${index}`
 }
 
 function buildDayMeanings(day = {}) {

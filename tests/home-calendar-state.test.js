@@ -58,12 +58,13 @@ test('buildHomeCalendarState returns fallback prediction state and explicit day 
   )
   assert.deepEqual(detail.periods, [
     {
+      key: 'period:2026-08-01:2026-08-05:0',
       range: '2026-08-01 ~ 2026-08-05',
       metaText: ''
     }
   ])
   assert.deepEqual(detail.memories, [
-    { note: '一起散步' }
+    { key: 'memory:2026-08-03:0', note: '一起散步' }
   ])
   assert.equal(detail.empty, false)
 })
@@ -126,7 +127,7 @@ test('buildHomeCalendarState reuses cycle and insight helpers for predictable re
     ['today', 'memory', 'predict']
   )
   assert.deepEqual(detail.memories, [
-    { note: '庆祝晚餐' }
+    { key: 'memory:2026-08-10:0', note: '庆祝晚餐' }
   ])
 })
 
@@ -184,6 +185,61 @@ test('buildHomeCalendarState applies calendar marker semantics on top of date me
   assert.equal(periodMemoryAndPredict.lunarText, '六月廿八')
 })
 
+test('buildHomeCalendarState aligns missing endDate period markers with detail rows', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [
+      {
+        _id: 'p-missing-end',
+        startDate: '2026-08-12',
+        duration: 5,
+        flow: 'light'
+      }
+    ],
+    memories: [],
+    today: '2026-08-01'
+  })
+
+  const day = state.days.find(item => item.date === '2026-08-12')
+  assert.equal(day.isPeriod, true)
+
+  const detail = state.dayDetailsByDate['2026-08-12']
+  assert.deepEqual(
+    detail.meanings.map(item => item.key),
+    ['period']
+  )
+  assert.deepEqual(detail.periods, [
+    {
+      key: 'period:p-missing-end',
+      range: '2026-08-12 ~ 2026-08-12',
+      metaText: '经量 量少'
+    }
+  ])
+  assert.deepEqual(detail.memories, [])
+  assert.equal(detail.empty, false)
+})
+
+test('buildHomeCalendarState does not show an empty state when a date only has meanings', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [],
+    memories: [],
+    today: '2026-08-10'
+  })
+
+  const todayDetail = state.dayDetailsByDate['2026-08-10']
+  assert.deepEqual(todayDetail.meanings.map(item => item.key), ['today'])
+  assert.deepEqual(todayDetail.periods, [])
+  assert.deepEqual(todayDetail.memories, [])
+  assert.equal(todayDetail.empty, false)
+
+  const plainDetail = state.dayDetailsByDate['2026-08-11']
+  assert.deepEqual(plainDetail.meanings, [])
+  assert.equal(plainDetail.empty, true)
+})
+
 test('buildHomeCalendarState ignores impossible dates in markers and details', () => {
   const state = buildHomeCalendarState({
     year: 2026,
@@ -215,12 +271,13 @@ test('buildHomeCalendarState ignores impossible dates in markers and details', (
   assert.equal(validDay.isMemory, true)
   assert.deepEqual(state.dayDetailsByDate['2026-03-03'].periods, [
     {
+      key: 'period:2026-03-03:2026-03-03:2',
       range: '2026-03-03 ~ 2026-03-03',
       metaText: ''
     }
   ])
   assert.deepEqual(state.dayDetailsByDate['2026-03-03'].memories, [
-    { note: 'valid memory' }
+    { key: 'memory:2026-03-03:1', note: 'valid memory' }
   ])
 })
 
