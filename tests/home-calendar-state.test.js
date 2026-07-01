@@ -240,6 +240,33 @@ test('buildHomeCalendarState does not show an empty state when a date only has m
   assert.equal(plainDetail.empty, true)
 })
 
+test('buildHomeCalendarState gives duplicate detail rows unique render keys', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [
+      { startDate: '2026-08-12', endDate: '2026-08-12', duration: 1 },
+      { startDate: '2026-08-12', endDate: '2026-08-12', duration: 1 }
+    ],
+    memories: [
+      { date: '2026-08-12', note: '同一天' },
+      { date: '2026-08-12', note: '同一天' }
+    ],
+    today: '2026-08-01'
+  })
+
+  const detail = state.dayDetailsByDate['2026-08-12']
+
+  assert.deepEqual(detail.periods.map(item => item.key), [
+    'period:2026-08-12:2026-08-12:0',
+    'period:2026-08-12:2026-08-12:1'
+  ])
+  assert.deepEqual(detail.memories.map(item => item.key), [
+    'memory:2026-08-12:0',
+    'memory:2026-08-12:1'
+  ])
+})
+
 test('buildHomeCalendarState ignores impossible dates in markers and details', () => {
   const state = buildHomeCalendarState({
     year: 2026,

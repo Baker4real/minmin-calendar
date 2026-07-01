@@ -24,6 +24,12 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
       '平均周期 28 天，平均持续 5 天',
       '置信度：高',
       '已忽略 1 次波动较大的记录'
+    ],
+    lineItems: [
+      { key: 'prediction:0', text: '参考最近 5 次有效周期' },
+      { key: 'prediction:1', text: '平均周期 28 天，平均持续 5 天' },
+      { key: 'prediction:2', text: '置信度：高' },
+      { key: 'prediction:3', text: '已忽略 1 次波动较大的记录' }
     ]
   })
 })
@@ -64,6 +70,10 @@ test('buildMonthlyRecap creates a gentle shareable recap for the selected month'
     '经期：08月09日-08月13日，5天，经量 量多，痛经',
     '欢乐时光：七夕晚餐；一起看电影'
   ])
+  assert.deepEqual(recap.highlightItems, [
+    { key: 'recap:0', text: '经期：08月09日-08月13日，5天，经量 量多，痛经' },
+    { key: 'recap:1', text: '欢乐时光：七夕晚餐；一起看电影' }
+  ])
   assert.match(recap.shareText, /2026年8月小结/)
   assert.match(recap.shareText, /本月记录了 1 次经期，共 5 天/)
   assert.match(recap.shareText, /留下 2 条欢乐时光/)
@@ -101,6 +111,27 @@ test('buildMonthlyRecap ignores impossible dates before deriving counts and high
     '欢乐时光：有效记忆'
   ])
   assert.doesNotMatch(recap.shareText, /错误日期/)
+})
+
+test('buildMonthlyRecap gives duplicate highlight text unique render keys', () => {
+  const recap = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 7,
+    periods: [
+      period('2026-08-09', '2026-08-09'),
+      period('2026-08-09', '2026-08-09')
+    ],
+    memories: []
+  })
+
+  assert.deepEqual(recap.highlights, [
+    '经期：08月09日-08月09日，1天',
+    '经期：08月09日-08月09日，1天'
+  ])
+  assert.deepEqual(recap.highlightItems, [
+    { key: 'recap:0', text: '经期：08月09日-08月09日，1天' },
+    { key: 'recap:1', text: '经期：08月09日-08月09日，1天' }
+  ])
 })
 
 test('calendarInsights does not expose marker semantics outside home calendar state', () => {

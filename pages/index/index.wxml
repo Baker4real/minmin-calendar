@@ -339,22 +339,22 @@
       <view wx:elif="{{infoSheetMode == 'prediction'}}" class="prediction-explanation">
         <text class="prediction-summary">{{predictionExplanation.summary}}</text>
         <view
-          wx:for="{{predictionExplanation.lines}}"
-          wx:key="*this"
+          wx:for="{{predictionExplanation.lineItems}}"
+          wx:key="key"
           class="explain-line"
-        >{{item}}</view>
+        >{{item.text}}</view>
       </view>
 
       <view wx:elif="{{infoSheetMode == 'recap' && monthlyRecap}}" class="monthly-recap">
         <text class="recap-summary">{{monthlyRecap.periodSummary}}</text>
         <text class="recap-summary">{{monthlyRecap.memorySummary}}</text>
         <text class="recap-summary">{{monthlyRecap.predictionSummary}}</text>
-        <view wx:if="{{monthlyRecap.highlights.length}}" class="recap-highlights">
+        <view wx:if="{{monthlyRecap.highlightItems.length}}" class="recap-highlights">
           <view
-            wx:for="{{monthlyRecap.highlights}}"
-            wx:key="*this"
+            wx:for="{{monthlyRecap.highlightItems}}"
+            wx:key="key"
             class="recap-highlight"
-          >{{item}}</view>
+          >{{item.text}}</view>
         </view>
         <view class="copy-recap" bindtap="copyMonthlyRecap">复制小结</view>
       </view>

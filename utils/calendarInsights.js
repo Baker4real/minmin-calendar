@@ -3,11 +3,13 @@ const util = require('./util')
 
 function buildPredictionExplanation(prediction) {
   if (!prediction || !prediction.canPredict) {
+    const lines = ['至少需要连续的经期记录，预测才会更稳定']
     return {
       available: false,
       title: '预测说明',
       summary: '记录足够后会显示下次预测',
-      lines: ['至少需要连续的经期记录，预测才会更稳定']
+      lines,
+      lineItems: buildTextItems(lines, 'prediction')
     }
   }
 
@@ -29,7 +31,8 @@ function buildPredictionExplanation(prediction) {
     available: true,
     title: '预测说明',
     summary: `预计 ${prediction.nextDisplay}，区间 ${prediction.rangeDisplay}`,
-    lines
+    lines,
+    lineItems: buildTextItems(lines, 'prediction')
   }
 }
 
@@ -66,6 +69,7 @@ function buildMonthlyRecap({ year, month, periods = [], memories = [], predictio
     memorySummary,
     predictionSummary,
     highlights,
+    highlightItems: buildTextItems(highlights, 'recap'),
     shareText: shareLines.filter(Boolean).join('\n')
   }
 }
@@ -123,6 +127,13 @@ function formatMonthDay(dateStr) {
 
 function pad2(value) {
   return String(value).padStart(2, '0')
+}
+
+function buildTextItems(lines, prefix) {
+  return lines.map((text, index) => ({
+    key: `${prefix}:${index}`,
+    text
+  }))
 }
 
 function normalizePeriodRange(period) {
