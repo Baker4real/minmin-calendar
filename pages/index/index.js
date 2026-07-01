@@ -82,31 +82,16 @@ Page({
 
     try {
       const client = cloud.createRoomDataClient()
-      const periodsOutcome = await client.list('periods')
-      if (periodsOutcome.kind !== 'success') {
-        return this.handleLoadOutcome(periodsOutcome, { background })
-      }
+      const [periodsOutcome, memoriesOutcome] = await Promise.all([
+        client.list('periods'),
+        client.list('memories')
+      ])
 
-      const memoriesOutcome = await client.list('memories')
-      if (memoriesOutcome.kind !== 'success') {
-        return this.handleLoadOutcome(memoriesOutcome, { background })
-      }
-
-      this.applyHomeCalendarState({
-        periods: periodsOutcome.data,
-        memories: memoriesOutcome.data
+      return this.handleCollectionLoadOutcomes({
+        periodsOutcome,
+        memoriesOutcome,
+        background
       })
-      this.setData({
-        hasLoadedHomeData: true,
-        noRoom: false,
-        roomStatusTitle: '',
-        roomStatusDesc: '',
-        roomStatusActionText: '',
-        roomStatusAction: ''
-      })
-      if (background) {
-        this.showSyncStatus('已同步')
-      }
     } catch (e) {
       console.error('load error', e)
       const outcome = {
@@ -128,6 +113,88 @@ Page({
       this.finishLoadState(background)
       this._loadingPromise = null
     }
+  },
+
+  handleCollectionLoadOutcomes({ periodsOutcome, memoriesOutcome, background }) {
+    const blockingOutcome = [periodsOutcome, memoriesOutcome]
+      .find(outcome => this.isBlockingCollectionOutcome(outcome))
+    if (blockingOutcome) {
+      return this.handleLoadOutcome(blockingOutcome, { background })
+    }
+
+    const periodsSucceeded = this.isSuccessfulCollectionOutcome(periodsOutcome)
+    const memoriesSucceeded = this.isSuccessfulCollectionOutcome(memoriesOutcome)
+
+    if (periodsSucceeded || memoriesSucceeded) {
+      const periods = periodsSucceeded ? periodsOutcome.data : this.data.periods
+      const memories = memoriesSucceeded ? memoriesOutcome.data : this.data.memories
+
+      this.applyHomeCalendarState({ periods, memories })
+      this.setData({
+        hasLoadedHomeData: true,
+        noRoom: false,
+        roomStatusTitle: '',
+        roomStatusDesc: '',
+        roomStatusActionText: '',
+        roomStatusAction: ''
+      })
+
+      if (periodsSucceeded && memoriesSucceeded) {
+        if (background) {
+          this.showSyncStatus('已同步')
+        }
+        return {
+          kind: 'success',
+          periods: periodsOutcome.data,
+          memories: memoriesOutcome.data
+        }
+      }
+
+      this.showSyncStatus(this.buildPartialSyncStatus({
+        periodsOutcome,
+        memoriesOutcome,
+        background
+      }), { autoHide: false })
+      return {
+        kind: 'partial-success',
+        periodsOutcome,
+        memoriesOutcome
+      }
+    }
+
+    const retryableOutcome = [periodsOutcome, memoriesOutcome]
+      .find(outcome => this.isRetryableCollectionFailure(outcome))
+    return this.handleLoadOutcome(retryableOutcome || {
+      kind: 'retryable-failure',
+      message: '日历加载失败'
+    }, { background })
+  },
+
+  isSuccessfulCollectionOutcome(outcome) {
+    return outcome && outcome.kind === 'success'
+  },
+
+  isRetryableCollectionFailure(outcome) {
+    return outcome && outcome.kind === 'retryable-failure'
+  },
+
+  isBlockingCollectionOutcome(outcome) {
+    return outcome && outcome.kind !== 'success' && outcome.kind !== 'retryable-failure'
+  },
+
+  buildPartialSyncStatus({ periodsOutcome, memoriesOutcome, background }) {
+    const periodsFailed = this.isRetryableCollectionFailure(periodsOutcome)
+    const memoriesFailed = this.isRetryableCollectionFailure(memoriesOutcome)
+    const periodsSucceeded = this.isSuccessfulCollectionOutcome(periodsOutcome)
+    const memoriesSucceeded = this.isSuccessfulCollectionOutcome(memoriesOutcome)
+
+    if (periodsFailed && memoriesSucceeded) {
+      return background ? '经期同步失败，已保留旧经期数据' : '经期同步失败，已显示记忆数据'
+    }
+    if (memoriesFailed && periodsSucceeded) {
+      return background ? '记忆同步失败，已保留旧记忆数据' : '记忆同步失败，已显示经期数据'
+    }
+    return background ? '部分数据同步失败，已保留旧数据' : '部分数据同步失败'
   },
 
   canRefreshInBackground() {

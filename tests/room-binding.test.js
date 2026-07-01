@@ -30,6 +30,102 @@ test('RoomBinding create returns an existing room for an already bound member', 
   assert.deepEqual(db.data.rooms, [existingRoom])
 })
 
+test('RoomBinding create restores the creator archived room instead of creating a new room code', async () => {
+  const db = createFakeDb({
+    rooms: [{
+      _id: 'room-1',
+      roomCode: 'ROOM01',
+      createdBy: 'user-a',
+      createdByName: 'Old Name',
+      partnerOpenid: '',
+      partnerName: '',
+      status: 'archived',
+      archivedAt: 'old-archive',
+      createdAt: 'old'
+    }]
+  })
+  const binding = createRoomBinding({
+    db,
+    serverDate: () => SERVER_DATE,
+    generateRoomCode: () => 'NEW001'
+  })
+
+  const result = await binding.create({ openid: 'user-a', nickName: 'New Name' })
+
+  assert.equal(result.code, 0)
+  assert.deepEqual(result.room, {
+    _id: 'room-1',
+    roomCode: 'ROOM01',
+    createdBy: 'user-a',
+    status: 'waiting'
+  })
+  assert.deepEqual(db.data.rooms, [{
+    _id: 'room-1',
+    roomCode: 'ROOM01',
+    createdBy: 'user-a',
+    createdByName: 'New Name',
+    partnerOpenid: '',
+    partnerName: '',
+    status: 'waiting',
+    archivedAt: null,
+    createdAt: 'old',
+    pairedAt: null,
+    restoredAt: SERVER_DATE,
+    updatedAt: SERVER_DATE
+  }])
+  assert.deepEqual(db.data.roomMembers, [{
+    _id: 'user-a',
+    openid: 'user-a',
+    roomId: 'room-1',
+    roomCode: 'ROOM01',
+    role: 'creator',
+    updatedAt: SERVER_DATE
+  }])
+})
+
+test('RoomBinding create restores an archived room when a same-room member lock is stale', async () => {
+  const db = createFakeDb({
+    rooms: [{
+      _id: 'room-1',
+      roomCode: 'ROOM01',
+      createdBy: 'user-a',
+      createdByName: 'Old Name',
+      partnerOpenid: '',
+      partnerName: '',
+      status: 'archived',
+      archivedAt: 'old-archive',
+      createdAt: 'old'
+    }],
+    roomMembers: [{
+      _id: 'user-a',
+      openid: 'user-a',
+      roomId: 'room-1',
+      roomCode: 'ROOM01',
+      role: 'creator',
+      updatedAt: 'old-lock'
+    }]
+  })
+  const binding = createRoomBinding({
+    db,
+    serverDate: () => SERVER_DATE,
+    generateRoomCode: () => 'NEW001'
+  })
+
+  const result = await binding.create({ openid: 'user-a', nickName: 'New Name' })
+
+  assert.equal(result.code, 0)
+  assert.equal(result.room.roomCode, 'ROOM01')
+  assert.equal(result.room.status, 'waiting')
+  assert.deepEqual(db.data.roomMembers, [{
+    _id: 'user-a',
+    openid: 'user-a',
+    roomId: 'room-1',
+    roomCode: 'ROOM01',
+    role: 'creator',
+    updatedAt: SERVER_DATE
+  }])
+})
+
 test('RoomBinding create stores a new waiting room with a unique code', async () => {
   const db = createFakeDb({
     rooms: [{ _id: 'room-existing', roomCode: 'TAKEN1', createdBy: 'other' }]
@@ -328,6 +424,29 @@ test('RoomBinding join restores binding when the user is already the partner', a
   assert.equal(db.data.rooms[0].pairedAt, undefined)
 })
 
+test('RoomBinding join hides archived room codes until the creator restores the room', async () => {
+  const db = createFakeDb({
+    rooms: [{
+      _id: 'room-1',
+      roomCode: 'ROOM01',
+      createdBy: 'user-a',
+      partnerOpenid: '',
+      status: 'archived'
+    }]
+  })
+  const binding = createRoomBinding({ db, serverDate: () => SERVER_DATE })
+
+  const result = await binding.join({
+    openid: 'user-b',
+    roomCode: 'ROOM01',
+    nickName: 'B'
+  })
+
+  assert.deepEqual(result, { code: -2, msg: '房间不存在，请检查房间码' })
+  assert.deepEqual(db.data.roomMembers, [])
+  assert.equal(db.data.rooms[0].status, 'archived')
+})
+
 test('RoomBinding join rejects users who already belong to a different room', async () => {
   const db = createFakeDb({
     rooms: [
@@ -456,6 +575,25 @@ test('RoomBinding getActive returns the current member room or a no-room result'
     room: db.data.rooms[0]
   })
   assert.deepEqual(await binding.getActive({ openid: 'user-c' }), {
+    code: 1,
+    msg: '未加入任何房间',
+    errorCode: 'NO_ACTIVE_ROOM'
+  })
+})
+
+test('RoomBinding getActive does not treat archived rooms as active bindings', async () => {
+  const db = createFakeDb({
+    rooms: [{
+      _id: 'room-1',
+      roomCode: 'ROOM01',
+      createdBy: 'user-a',
+      partnerOpenid: '',
+      status: 'archived'
+    }]
+  })
+  const binding = createRoomBinding({ db, serverDate: () => SERVER_DATE })
+
+  assert.deepEqual(await binding.getActive({ openid: 'user-a' }), {
     code: 1,
     msg: '未加入任何房间',
     errorCode: 'NO_ACTIVE_ROOM'

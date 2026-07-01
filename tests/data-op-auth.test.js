@@ -212,6 +212,34 @@ test('dataOp handler rejects non-members without calling record operations', asy
   assert.deepEqual(harness.records.calls, [])
 })
 
+test('dataOp handler rejects archived rooms even when the old creator still matches', async () => {
+  const harness = createHandlerHarness({
+    openid: 'creator-openid',
+    rooms: [
+      {
+        _id: 'room-1',
+        roomCode: 'ROOM01',
+        createdBy: 'creator-openid',
+        partnerOpenid: '',
+        status: 'archived'
+      }
+    ]
+  })
+
+  const result = await harness.handler({
+    action: 'list',
+    collection: 'periods',
+    roomCode: 'room01'
+  })
+
+  assert.deepEqual(result, {
+    code: -1,
+    msg: '房间已解除绑定，请先恢复房间',
+    errorCode: 'ROOM_ACCESS_DENIED'
+  })
+  assert.deepEqual(harness.records.calls, [])
+})
+
 test('dataOp handler rejects unknown action after successful room authorization', async () => {
   const harness = createHandlerHarness({
     openid: 'creator-openid',

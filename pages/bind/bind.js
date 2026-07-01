@@ -67,7 +67,7 @@ Page({
   unbind() {
     wx.showModal({
       title: '解除绑定',
-      content: '解除后需要重新扫码加入房间，数据不会丢失。确定解除？',
+      content: '解除后将退出当前房间；若你是最后一人，数据会归档，可在本页重新创建恢复。确定解除？',
       success: async (res) => {
         if (res.confirm) {
           const result = await roomSession.leaveRoom()

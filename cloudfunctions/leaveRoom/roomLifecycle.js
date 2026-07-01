@@ -25,11 +25,12 @@ function createRoomLifecycle({ db, serverDate }) {
   }
 
   async function findRoomByMember(openid) {
-    const created = await rooms.where({ createdBy: openid }).limit(1).get()
-    if (created.data.length > 0) return created.data[0]
+    const created = await rooms.where({ createdBy: openid }).limit(100).get()
+    const activeCreated = created.data.find(isActiveRoom)
+    if (activeCreated) return activeCreated
 
-    const joined = await rooms.where({ partnerOpenid: openid }).limit(1).get()
-    return joined.data[0] || null
+    const joined = await rooms.where({ partnerOpenid: openid }).limit(100).get()
+    return joined.data.find(isActiveRoom) || null
   }
 
   async function leaveCreator(room, openid) {
@@ -38,9 +39,20 @@ function createRoomLifecycle({ db, serverDate }) {
       : ''
 
     if (!partnerOpenid) {
-      await rooms.doc(room._id).remove()
+      const archiveResult = await archiveRoomIfStillEmpty(room, {
+        createdBy: openid,
+        createdByName: room.createdByName || 'TA'
+      })
+      if (getUpdatedCount(archiveResult) === 0) {
+        const latestRoom = await findRoomById(room._id)
+        if (latestRoom && latestRoom.createdBy === openid && latestRoom.partnerOpenid && latestRoom.partnerOpenid !== openid && isActiveRoom(latestRoom)) {
+          return leaveCreator(latestRoom, openid)
+        }
+        await releaseMemberLock({ openid })
+        return { code: 0, removedCount: 1, deletedCount: 0 }
+      }
       await releaseMemberLock({ openid })
-      return { code: 0, removedCount: 1, deletedCount: 1 }
+      return { code: 0, removedCount: 1, deletedCount: 0, archivedCount: 1 }
     }
 
     await rooms.doc(room._id).update({
@@ -65,9 +77,14 @@ function createRoomLifecycle({ db, serverDate }) {
 
   async function leavePartner(room) {
     if (!room.createdBy) {
-      await rooms.doc(room._id).remove()
+      const archiveResult = await archivePartnerOnlyRoom(room)
       await releaseMemberLock({ openid: room.partnerOpenid })
-      return { code: 0, removedCount: 1, deletedCount: 1 }
+      return {
+        code: 0,
+        removedCount: 1,
+        deletedCount: 0,
+        archivedCount: getUpdatedCount(archiveResult) > 0 ? 1 : 0
+      }
     }
 
     await rooms.doc(room._id).update({
@@ -81,6 +98,74 @@ function createRoomLifecycle({ db, serverDate }) {
     })
     await releaseMemberLock({ openid: room.partnerOpenid })
     return { code: 0, removedCount: 1, deletedCount: 0 }
+  }
+
+  async function archivePartnerOnlyRoom(room) {
+    const data = buildArchivedRoomData({
+      createdBy: room.partnerOpenid,
+      createdByName: room.partnerName || 'TA'
+    })
+    const result = await rooms.where({
+      _id: room._id,
+      createdBy: '',
+      partnerOpenid: room.partnerOpenid
+    }).update({
+      data
+    })
+    if (getUpdatedCount(result) > 0 || typeof room.createdBy !== 'undefined') {
+      return result
+    }
+    return rooms.where({
+      _id: room._id,
+      partnerOpenid: room.partnerOpenid
+    }).update({
+      data
+    })
+  }
+
+  async function findRoomById(id) {
+    const roomRes = await rooms.where({ _id: id }).limit(1).get()
+    return roomRes.data[0] || null
+  }
+
+  async function archiveRoomIfStillEmpty(room, owner) {
+    const data = buildArchivedRoomData(owner)
+
+    const result = await rooms.where({
+      _id: room._id,
+      createdBy: owner.createdBy || '',
+      status: 'waiting',
+      partnerOpenid: ''
+    }).update({
+      data
+    })
+    if (getUpdatedCount(result) > 0 || typeof room.partnerOpenid !== 'undefined') {
+      return result
+    }
+
+    return rooms.where({
+      _id: room._id,
+      createdBy: owner.createdBy || '',
+      status: 'waiting'
+    }).update({
+      data: {
+        ...data,
+        partnerOpenid: ''
+      }
+    })
+  }
+
+  function buildArchivedRoomData(owner) {
+    return {
+      createdBy: owner.createdBy || '',
+      createdByName: owner.createdByName || 'TA',
+      partnerOpenid: '',
+      partnerName: '',
+      status: 'archived',
+      pairedAt: null,
+      archivedAt: serverDate(),
+      updatedAt: serverDate()
+    }
   }
 
   async function releaseMemberLock({ openid }) {
@@ -98,6 +183,18 @@ function createRoomLifecycle({ db, serverDate }) {
         updatedAt: serverDate()
       }
     })
+  }
+
+  function isActiveRoom(room) {
+    return room && room.status !== 'archived'
+  }
+
+  function getUpdatedCount(result) {
+    if (!result) return 0
+    if (typeof result.updated === 'number') return result.updated
+    if (typeof result.modified === 'number') return result.modified
+    if (result.stats && typeof result.stats.updated === 'number') return result.stats.updated
+    return 0
   }
 }
 

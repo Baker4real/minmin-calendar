@@ -40,7 +40,7 @@ test('index page onShow consumes RoomDataClient no-room outcomes without legacy 
     assert.equal(harness.page.data.noRoom, true)
     assert.equal(harness.page.data.roomStatusTitle, '还没绑定房间')
     assert.equal(harness.page.data.roomStatusAction, 'bind')
-    assert.deepEqual(calls, ['periods'])
+    assert.deepEqual([...calls], ['periods', 'memories'])
   } finally {
     harness.teardown()
   }
@@ -48,6 +48,7 @@ test('index page onShow consumes RoomDataClient no-room outcomes without legacy 
 
 test('index page exposes retry state and can reload after retryable RoomDataClient failures', async () => {
   const outcomes = [
+    { kind: 'retryable-failure', message: '同步房间状态失败：network down' },
     { kind: 'retryable-failure', message: '同步房间状态失败：network down' },
     { kind: 'success', data: [{ _id: 'p1', startDate: '2026-06-01' }] },
     { kind: 'success', data: [{ _id: 'm1', date: '2026-06-03' }] }
@@ -86,8 +87,91 @@ test('index page exposes retry state and can reload after retryable RoomDataClie
     assert.equal(harness.page.data.noRoom, false)
     assert.deepEqual(harness.page.data.periods, [{ _id: 'p1', startDate: '2026-06-01' }])
     assert.deepEqual(harness.page.data.memories, [{ _id: 'm1', date: '2026-06-03' }])
-    assert.deepEqual(calls, ['periods', 'periods', 'memories'])
+    assert.deepEqual(calls, ['periods', 'memories', 'periods', 'memories'])
   } finally {
+    harness.teardown()
+  }
+})
+
+test('index page shows available memories when periods fail on the first load', async () => {
+  const outcomes = [
+    { kind: 'retryable-failure', message: 'period network down' },
+    { kind: 'success', data: [{ _id: 'm1', date: '2026-06-03' }] }
+  ]
+  const calls = []
+  const client = {
+    async list(collection) {
+      calls.push(collection)
+      return outcomes.shift()
+    }
+  }
+  const harness = loadPageHarness('pages/index/index.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return client
+        }
+      },
+      'utils/util.js': createUtilStub(),
+      'utils/homeCalendarState.js': { buildHomeCalendarState }
+    }
+  })
+
+  try {
+    await awaitPageOnShow(harness.page)
+
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(harness.page.data.hasLoadedHomeData, true)
+    assert.equal(harness.page.data.noRoom, false)
+    assert.equal(harness.page.data.syncStatusVisible, true)
+    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已显示记忆数据')
+    assert.deepEqual(harness.page.data.periods, [])
+    assert.deepEqual(harness.page.data.memories, [{ _id: 'm1', date: '2026-06-03' }])
+    assert.deepEqual(calls, ['periods', 'memories'])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('index page starts period and memory loads together so one timeout does not block the other', async () => {
+  const calls = []
+  let resolvePeriods
+  let loadPromise
+  const client = {
+    list(collection) {
+      calls.push(collection)
+      if (collection === 'periods') {
+        return new Promise(resolve => {
+          resolvePeriods = () => resolve({ kind: 'retryable-failure', message: 'period timeout' })
+        })
+      }
+      return Promise.resolve({ kind: 'success', data: [{ _id: 'm1', date: '2026-06-03' }] })
+    }
+  }
+  const harness = loadPageHarness('pages/index/index.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return client
+        }
+      },
+      'utils/util.js': createUtilStub(),
+      'utils/homeCalendarState.js': { buildHomeCalendarState }
+    }
+  })
+
+  try {
+    loadPromise = startPageOnShow(harness.page)
+    await Promise.resolve()
+
+    assert.deepEqual(calls, ['periods', 'memories'])
+
+    resolvePeriods()
+    await loadPromise
+    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已显示记忆数据')
+  } finally {
+    if (resolvePeriods) resolvePeriods()
+    if (loadPromise) await loadPromise.catch(() => {})
     harness.teardown()
   }
 })
@@ -145,6 +229,7 @@ test('index page keeps existing calendar content on background retryable load fa
   const outcomes = [
     { kind: 'success', data: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03', duration: 3 }] },
     { kind: 'success', data: [{ _id: 'm1', date: '2026-06-02', note: 'first' }] },
+    { kind: 'retryable-failure', message: 'network down' },
     { kind: 'retryable-failure', message: 'network down' }
   ]
   const calls = []
@@ -179,7 +264,54 @@ test('index page keeps existing calendar content on background retryable load fa
     assert.equal(harness.page.data.syncStatusVisible, true)
     assert.deepEqual(harness.page.data.periods, [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03', duration: 3 }])
     assert.deepEqual(harness.page.data.memories, [{ _id: 'm1', date: '2026-06-02', note: 'first' }])
-    assert.deepEqual(calls, ['periods', 'memories', 'periods'])
+    assert.deepEqual(calls, ['periods', 'memories', 'periods', 'memories'])
+    assert.equal(harness.page.setDataCalls.some(update => update.loading === true), false)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('index page updates successful collections and preserves failed ones during background refresh', async () => {
+  const outcomes = [
+    { kind: 'success', data: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03', duration: 3 }] },
+    { kind: 'success', data: [{ _id: 'm1', date: '2026-06-02', note: 'first' }] },
+    { kind: 'success', data: [{ _id: 'p2', startDate: '2026-07-01', endDate: '2026-07-02', duration: 2 }] },
+    { kind: 'retryable-failure', message: 'memory network down' }
+  ]
+  const calls = []
+  const client = {
+    async list(collection) {
+      calls.push(collection)
+      return outcomes.shift()
+    }
+  }
+  const harness = loadPageHarness('pages/index/index.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return client
+        }
+      },
+      'utils/util.js': createUtilStub(),
+      'utils/homeCalendarState.js': { buildHomeCalendarState }
+    }
+  })
+
+  try {
+    await awaitPageOnShow(harness.page)
+
+    harness.page.setDataCalls = []
+    await awaitPageOnShow(harness.page)
+
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(harness.page.data.refreshing, false)
+    assert.equal(harness.page.data.hasLoadedHomeData, true)
+    assert.equal(harness.page.data.noRoom, false)
+    assert.equal(harness.page.data.syncStatusText, '记忆同步失败，已保留旧记忆数据')
+    assert.equal(harness.page.data.syncStatusVisible, true)
+    assert.deepEqual(harness.page.data.periods, [{ _id: 'p2', startDate: '2026-07-01', endDate: '2026-07-02', duration: 2 }])
+    assert.deepEqual(harness.page.data.memories, [{ _id: 'm1', date: '2026-06-02', note: 'first' }])
+    assert.deepEqual(calls, ['periods', 'memories', 'periods', 'memories'])
     assert.equal(harness.page.setDataCalls.some(update => update.loading === true), false)
   } finally {
     harness.teardown()

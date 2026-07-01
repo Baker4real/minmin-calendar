@@ -76,6 +76,12 @@ function createDataOpHandler({ getWXContext, db, records }) {
         failure: buildFailure('房间码状态异常，请联系维护者', ROOM_ERROR_CODES.ROOM_CODE_CONFLICT)
       }
     }
+    if (roomResult.data[0].status === 'archived') {
+      return {
+        allowed: false,
+        failure: buildFailure('房间已解除绑定，请先恢复房间', ROOM_ERROR_CODES.ROOM_ACCESS_DENIED)
+      }
+    }
     const room = roomResult.data.find(item =>
       item.createdBy === openid || item.partnerOpenid === openid
     )

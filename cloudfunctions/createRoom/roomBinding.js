@@ -12,8 +12,15 @@ function createRoomBinding({ db, serverDate, generateRoomCode = createRandomRoom
       const existing = await findRoomByMember(openid)
       if (existing) return { code: 0, room: existing }
 
+      const archived = await findArchivedRoomByCreator(openid)
       const memberLock = await acquireMemberLock({ openid, role: 'creator' })
-      if (!memberLock.acquired) return buildCreateOutcomeForMemberLock({ lock: memberLock.lock })
+      if (!memberLock.acquired && !isRecoverableArchivedMemberLock(memberLock.lock, archived)) {
+        return buildCreateOutcomeForMemberLock({ lock: memberLock.lock })
+      }
+
+      if (archived) {
+        return restoreArchivedRoom({ room: archived, openid, nickName })
+      }
 
       for (let attempt = 0; attempt < MAX_ROOM_CODE_ATTEMPTS; attempt++) {
         const roomCode = normalizeRoomCode(generateRoomCode())
@@ -76,6 +83,7 @@ function createRoomBinding({ db, serverDate, generateRoomCode = createRandomRoom
 
       let room = await findRoomByCode(normalizedRoomCode)
       if (!room) return { code: -2, msg: '房间不存在，请检查房间码' }
+      if (room.status === 'archived') return { code: -2, msg: '房间不存在，请检查房间码' }
 
       if (room.createdBy === openid) return { code: -3, msg: '这是你自己的房间' }
 
@@ -154,11 +162,17 @@ function createRoomBinding({ db, serverDate, generateRoomCode = createRandomRoom
   }
 
   async function findRoomByMember(openid) {
-    const created = await rooms.where({ createdBy: openid }).limit(1).get()
-    if (created.data.length > 0) return created.data[0]
+    const created = await rooms.where({ createdBy: openid }).limit(100).get()
+    const activeCreated = created.data.find(isActiveRoom)
+    if (activeCreated) return activeCreated
 
-    const joined = await rooms.where({ partnerOpenid: openid }).limit(1).get()
-    return joined.data[0] || null
+    const joined = await rooms.where({ partnerOpenid: openid }).limit(100).get()
+    return joined.data.find(isActiveRoom) || null
+  }
+
+  async function findArchivedRoomByCreator(openid) {
+    const archived = await rooms.where({ createdBy: openid, status: 'archived' }).limit(1).get()
+    return archived.data[0] || null
   }
 
   async function findRoomByCode(roomCode) {
@@ -182,6 +196,45 @@ function createRoomBinding({ db, serverDate, generateRoomCode = createRandomRoom
     const room = await findRoomByMember(openid)
     if (!isExpectedJoinedRoom(room, { openid, roomCode, roomId })) return null
     return room
+  }
+
+  async function restoreArchivedRoom({ room, openid, nickName }) {
+    const updateResult = await rooms.where({
+      _id: room._id,
+      createdBy: openid,
+      status: 'archived'
+    }).update({
+      data: {
+        createdByName: nickName || room.createdByName || 'TA',
+        partnerOpenid: '',
+        partnerName: '',
+        status: 'waiting',
+        pairedAt: null,
+        archivedAt: null,
+        restoredAt: serverDate(),
+        updatedAt: serverDate()
+      }
+    })
+    const restoredRoom = await findRoomById(room._id)
+
+    if (getUpdatedCount(updateResult) === 0 || !isExpectedCreatedRoom(restoredRoom, {
+      openid,
+      roomCode: room.roomCode
+    })) {
+      await releaseMemberLock({ openid })
+      return { code: -1, msg: '房间恢复失败，请重试' }
+    }
+
+    await updateMemberLock({ openid, room: restoredRoom, role: 'creator' })
+    return {
+      code: 0,
+      room: {
+        _id: restoredRoom._id,
+        roomCode: restoredRoom.roomCode,
+        createdBy: restoredRoom.createdBy,
+        status: restoredRoom.status
+      }
+    }
   }
 
   async function normalizeWaitingPartnerSlot(room) {
@@ -237,6 +290,19 @@ function createRoomBinding({ db, serverDate, generateRoomCode = createRandomRoom
   async function releaseMemberLock({ openid, roomId = '' }) {
     const query = roomId ? { _id: openid, roomId } : { _id: openid }
     await roomMembers.where(query).remove()
+  }
+
+  function isActiveRoom(room) {
+    return room && room.status !== 'archived'
+  }
+
+  function isRecoverableArchivedMemberLock(lock, room) {
+    if (!lock || !room) return false
+    const lockRoomId = lock.roomId || ''
+    const lockRoomCode = normalizeRoomCode(lock.roomCode)
+    const roomCode = normalizeRoomCode(room.roomCode)
+    return (!lockRoomId || lockRoomId === room._id) &&
+      (!lockRoomCode || lockRoomCode === roomCode)
   }
 }
 
