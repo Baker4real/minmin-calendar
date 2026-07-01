@@ -2,15 +2,15 @@
 
 ## Tracker
 
-This project currently uses local markdown issues because no GitHub or GitLab remote is configured.
-
-Issue files live under:
+This project now uses GitHub Issues in the private repository:
 
 ```text
-.scratch/<feature-or-topic>/
+https://github.com/Baker4real/minmin-calendar
 ```
 
-Recommended issue shape:
+Use GitHub Issues for new tracked work, bugs, feature requests, and agent-ready implementation briefs. Keep issue titles short, label them with the triage vocabulary in `docs/agents/triage-labels.md`, and link related ADRs, source files, or tests when useful.
+
+## Recommended Issue Shape
 
 ```markdown
 # <Short Title>
@@ -30,13 +30,9 @@ What should be true when this is done?
 
 ## Notes
 
-Links to screenshots, ADRs, or code paths.
+Links to screenshots, ADRs, code paths, or prior commits.
 ```
 
-## External PRs
+## Local Scratch Notes
 
-External PRs are not a triage surface for this project yet.
-
-## Migration
-
-If this repository later gets a GitHub or GitLab remote, replace this file with the remote issue workflow and update the `AGENTS.md` Agent skills block.
+`.scratch/` is retained only for temporary local notes or drafts that are not ready for the private GitHub tracker. Do not treat `.scratch/` as the durable issue source once work is ready to track.

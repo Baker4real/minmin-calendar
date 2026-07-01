@@ -19,6 +19,7 @@ Core domain files:
 - `utils/room.js` - frontend room-code cache, recovery, create/join, leave, and local clear wrapper.
 - `utils/cloud.js` - frontend cloud-function data access wrapper and room-scoped `RoomDataClient`.
 - `utils/recordCommands.js` - shared period/memory save, delete, list feedback, retry, and rebind flow helper.
+- `utils/recordPageSync.js` - edit-page-to-homepage record sync helper for optimistic homepage refresh.
 - `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
 - `utils/homeCalendarState.js` - pure homepage calendar state, marker meanings, and marker composition.
 - `utils/util.js` - date, lunar, holiday, and base calendar-grid logic.
@@ -52,6 +53,7 @@ node --check cloudfunctions\dataOp\index.js
 node --check utils\room.js
 node --check utils\cloud.js
 node --check utils\recordCommands.js
+node --check utils\recordPageSync.js
 node --check utils\settingsFlow.js
 node --check utils\homeCalendarState.js
 node --check utils\util.js
@@ -80,7 +82,7 @@ For UI changes, also perform manual visual verification in WeChat DevTools when 
 
 ### Issue tracker
 
-Issues are tracked as local markdown files under `.scratch/` until a remote repository is configured. See `docs/agents/issue-tracker.md`.
+Use GitHub Issues in the private repository for new tracked work. Local markdown issues under `.scratch/` are legacy scratch notes only. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

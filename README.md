@@ -12,6 +12,7 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 - `utils/room.js` - room-code cache, recovery, create/join, leave, and local clear wrapper.
 - `utils/cloud.js` - frontend cloud-function access wrapper and room-scoped `RoomDataClient`.
 - `utils/recordCommands.js` - shared period/memory save, delete, list feedback, retry, and rebind flow helper.
+- `utils/recordPageSync.js` - edit-page-to-homepage record sync helper for optimistic homepage refresh.
 - `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
 - `utils/homeCalendarState.js` - pure homepage calendar state, marker meanings, and marker composition.
 - `utils/util.js` - date, lunar, holiday, and base calendar-grid helpers.
@@ -45,6 +46,7 @@ node --check cloudfunctions\dataOp\index.js
 node --check utils\room.js
 node --check utils\cloud.js
 node --check utils\recordCommands.js
+node --check utils\recordPageSync.js
 node --check utils\settingsFlow.js
 node --check utils\homeCalendarState.js
 node --check utils\util.js
