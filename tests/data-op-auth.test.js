@@ -13,7 +13,11 @@ test('dataOp handler rejects missing roomCode before record operations run', asy
     collection: 'periods'
   })
 
-  assert.deepEqual(result, { code: -1, msg: '缺少房间码' })
+  assert.deepEqual(result, {
+    code: -1,
+    msg: '缺少房间码',
+    errorCode: 'ROOM_CODE_REQUIRED'
+  })
   assert.deepEqual(harness.records.calls, [])
   assert.deepEqual(harness.db.roomQueries, [])
 })
@@ -55,7 +59,7 @@ test('dataOp handler allows creator and partner membership to dispatch record op
     await creatorHarness.handler({
       action: 'list',
       collection: 'periods',
-      roomCode: 'room01'
+      roomCode: ' room01 '
     }),
     { code: 0, action: 'list' }
   )
@@ -126,6 +130,60 @@ test('dataOp handler allows creator and partner membership to dispatch record op
   assert.equal(partnerHarness.db.roomQueries[0].roomCode, 'ROOM01')
 })
 
+test('dataOp handler returns a structured error when the room does not exist', async () => {
+  const harness = createHandlerHarness({
+    openid: 'creator-openid',
+    rooms: []
+  })
+
+  const result = await harness.handler({
+    action: 'list',
+    collection: 'periods',
+    roomCode: 'missing'
+  })
+
+  assert.deepEqual(result, {
+    code: -1,
+    msg: '房间不存在',
+    errorCode: 'ROOM_NOT_FOUND'
+  })
+  assert.deepEqual(harness.records.calls, [])
+  assert.deepEqual(harness.db.roomQueries, [{ roomCode: 'MISSING' }])
+})
+
+test('dataOp handler fails closed when duplicate room codes exist', async () => {
+  const harness = createHandlerHarness({
+    openid: 'partner-openid',
+    rooms: [
+      {
+        _id: 'room-1',
+        roomCode: 'ROOM01',
+        createdBy: 'other-creator',
+        partnerOpenid: 'other-partner'
+      },
+      {
+        _id: 'room-2',
+        roomCode: 'ROOM01',
+        createdBy: 'creator-openid',
+        partnerOpenid: 'partner-openid'
+      }
+    ]
+  })
+
+  const result = await harness.handler({
+    action: 'list',
+    collection: 'periods',
+    roomCode: 'ROOM01'
+  })
+
+  assert.deepEqual(result, {
+    code: -1,
+    msg: '房间码状态异常，请联系维护者',
+    errorCode: 'ROOM_CODE_CONFLICT'
+  })
+  assert.deepEqual(harness.records.calls, [])
+})
+
 test('dataOp handler rejects non-members without calling record operations', async () => {
   const harness = createHandlerHarness({
     openid: 'outsider-openid',
@@ -146,7 +204,11 @@ test('dataOp handler rejects non-members without calling record operations', asy
     data: { startDate: '2026-06-10', endDate: '2026-06-12' }
   })
 
-  assert.deepEqual(result, { code: -1, msg: '无权访问该房间' })
+  assert.deepEqual(result, {
+    code: -1,
+    msg: '无权访问该房间',
+    errorCode: 'ROOM_ACCESS_DENIED'
+  })
   assert.deepEqual(harness.records.calls, [])
 })
 
@@ -173,8 +235,7 @@ test('dataOp handler rejects unknown action after successful room authorization'
   assert.deepEqual(harness.records.calls, [])
   assert.equal(harness.db.roomQueries.length, 1)
   assert.deepEqual(harness.db.roomQueries[0], {
-    roomCode: 'ROOM01',
-    createdBy: 'creator-openid'
+    roomCode: 'ROOM01'
   })
 })
 

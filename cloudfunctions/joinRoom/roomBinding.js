@@ -147,7 +147,7 @@ function createRoomBinding({ db, serverDate, generateRoomCode = createRandomRoom
       if (!openid) return { code: -1, msg: '获取用户信息失败' }
 
       const room = await findRoomByMember(openid)
-      if (!room) return { code: 1, msg: '未加入任何房间' }
+      if (!room) return { code: 1, msg: '未加入任何房间', errorCode: 'NO_ACTIVE_ROOM' }
 
       return { code: 0, room }
     }

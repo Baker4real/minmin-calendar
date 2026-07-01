@@ -214,7 +214,27 @@ test('RoomDataClient classifies cloud timeouts as retryable failures', async () 
   })
 })
 
-test('RoomDataClient requests room repair for stale-room business failures', async () => {
+test('RoomDataClient requests room repair for structured stale-room failures', async () => {
+  const cloud = createFakeCloud([
+    { result: { code: -1, errorCode: 'ROOM_ACCESS_DENIED', msg: '访问状态已变化' } }
+  ])
+  const roomSession = createFakeRoomSession({
+    roomCode: 'ROOM01',
+    repairResult: { kind: 'success', bound: false, roomCode: '' }
+  })
+  const client = createRoomDataClient({ cloud, roomSession })
+
+  const outcome = await client.list('periods')
+
+  assert.deepEqual(outcome, {
+    kind: 'room-repair',
+    roomCode: 'ROOM01',
+    repair: { kind: 'success', bound: false, roomCode: '' }
+  })
+  assert.deepEqual(roomSession.repairCalls, ['ROOM01'])
+})
+
+test('RoomDataClient still repairs stale-room failures from legacy Chinese messages', async () => {
   const cloud = createFakeCloud([
     { result: { code: -1, msg: '无权访问该房间' } }
   ])
@@ -269,6 +289,22 @@ test('RoomDataClient keeps non-room business failures distinct from retryable fa
   assert.deepEqual(outcome, {
     kind: 'business-failure',
     message: '参数错误'
+  })
+  assert.deepEqual(roomSession.repairCalls, [])
+})
+
+test('RoomDataClient does not repair non-room failures when a structured error code is present', async () => {
+  const cloud = createFakeCloud([
+    { result: { code: -1, errorCode: 'VALIDATION_ERROR', msg: '备注里不能填写“无权访问该房间”' } }
+  ])
+  const roomSession = createFakeRoomSession({ roomCode: 'ROOM01' })
+  const client = createRoomDataClient({ cloud, roomSession })
+
+  const outcome = await client.add('memories', { note: '无权访问该房间' })
+
+  assert.deepEqual(outcome, {
+    kind: 'business-failure',
+    message: '备注里不能填写“无权访问该房间”'
   })
   assert.deepEqual(roomSession.repairCalls, [])
 })

@@ -9,6 +9,11 @@ const STALE_ROOM_MESSAGES = [
   '未加入该房间',
   '房间不存在'
 ]
+const STALE_ROOM_ERROR_CODES = [
+  'ROOM_ACCESS_DENIED',
+  'ROOM_NOT_FOUND',
+  'NO_ACTIVE_ROOM'
+]
 
 function withTimeout(promise, ms = QUERY_TIMEOUT) {
   return Promise.race([
@@ -189,6 +194,9 @@ function buildSuccessOutcome(action, result) {
 }
 
 function isStaleRoomFailure(result) {
+  const errorCode = String(result && result.errorCode ? result.errorCode : '')
+  if (errorCode) return STALE_ROOM_ERROR_CODES.includes(errorCode)
+
   const message = String(result && result.msg ? result.msg : '')
   return STALE_ROOM_MESSAGES.some(text => message.includes(text))
 }

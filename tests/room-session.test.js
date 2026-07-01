@@ -119,6 +119,24 @@ test('RoomSession repairCachedRoom clears stale local room state when cloud repo
   assert.deepEqual(cloud.calls, [{ name: 'getMyRoom' }])
 })
 
+test('RoomSession repairCachedRoom clears stale local room state from a structured no-room code', async () => {
+  const storage = createMemoryStorage({ roomCode: 'ROOM01' })
+  const cloud = createFakeCloud({
+    getMyRoom: { code: 1, errorCode: 'NO_ACTIVE_ROOM', msg: '当前没有绑定房间' }
+  })
+  const session = createRoomSession({ storage, cloud })
+
+  const result = await session.repairCachedRoom('ROOM01')
+
+  assert.deepEqual(result, {
+    kind: 'success',
+    bound: false,
+    roomCode: ''
+  })
+  assert.equal(storage.get('roomCode'), '')
+  assert.deepEqual(cloud.calls, [{ name: 'getMyRoom' }])
+})
+
 test('RoomSession repairCachedRoom returns a retryable failure when cloud room sync fails', async () => {
   const storage = createMemoryStorage({ roomCode: 'ROOM01' })
   const cloud = createFakeCloud({

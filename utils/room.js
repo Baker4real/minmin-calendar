@@ -1,4 +1,9 @@
 const ROOM_CODE_KEY = 'roomCode'
+const STALE_ROOM_ERROR_CODES = [
+  'ROOM_ACCESS_DENIED',
+  'ROOM_NOT_FOUND',
+  'NO_ACTIVE_ROOM'
+]
 
 function createRoomSession(options = {}) {
   const storage = options.storage || createWxStorage()
@@ -227,13 +232,22 @@ function getFailureMessage(result) {
 }
 
 function shouldClearCachedRoom(result, roomCode) {
+  const errorCode = String(result && result.errorCode ? result.errorCode : '')
   const message = String(result && result.msg ? result.msg : '')
+
+  if (STALE_ROOM_ERROR_CODES.includes(errorCode)) {
+    return true
+  }
 
   if (result && result.code === 1) {
     return true
   }
 
-  if (message.includes('未加入任何房间') || message.includes('无权访问该房间') || message.includes('房间不存在')) {
+  if (!errorCode && (
+    message.includes('未加入任何房间') ||
+    message.includes('无权访问该房间') ||
+    message.includes('房间不存在')
+  )) {
     return true
   }
 

@@ -457,7 +457,8 @@ test('RoomBinding getActive returns the current member room or a no-room result'
   })
   assert.deepEqual(await binding.getActive({ openid: 'user-c' }), {
     code: 1,
-    msg: '未加入任何房间'
+    msg: '未加入任何房间',
+    errorCode: 'NO_ACTIVE_ROOM'
   })
 })
 
