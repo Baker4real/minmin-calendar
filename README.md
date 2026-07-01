@@ -33,7 +33,7 @@ env: 'cloud1-d8gyqvcez4e66b3da'
 Cloud functions live under `cloudfunctions/`; each function has its own `package.json` and committed `package-lock.json`.
 云函数依赖必须固定到精确版本，尤其是 `wx-server-sdk`，避免部署时解析到浮动的 `latest` 版本。
 所有云函数应共享同一个已固定的 `wx-server-sdk` 版本；升级时要一起更新各函数的 `package.json`、`package-lock.json` 和依赖护栏测试。
-当前锁定的 `wx-server-sdk@3.0.4` 解析到 `@cloudbase/node-sdk@2.10.0` 和 `@cloudbase/database@1.4.1`；随包接口包含 `db.startTransaction()`、`db.runTransaction()` 和 `collection.where(...).update(...)`，足够支撑后续房间并发修复先评估事务或条件更新方案。唯一索引重复键的真实错误形态仍需在 `createRoom` 唯一性修复中用云端部署 smoke 验证后再映射。
+当前锁定的 `wx-server-sdk@3.0.4` 解析到 `@cloudbase/node-sdk@2.10.0` 和 `@cloudbase/database@1.4.1`；随包接口包含 `db.startTransaction()`、`db.runTransaction()` 和 `collection.where(...).update(...)`。当前房间生命周期并发保护主要依赖成员锁、条件更新和更新后确认；唯一索引重复键的真实错误形态仍需用云端部署 smoke 验证。
 提交 lockfile 只保证仓库输入可复现；云函数上传后仍要验证部署产物实际解析的 SDK 版本。
 
 ## Verification
@@ -41,7 +41,7 @@ Cloud functions live under `cloudfunctions/`; each function has its own `package
 Run the lightweight local checks after changing date, prediction, room, calendar, or page behavior:
 
 ```powershell
-node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\cloudfunction-dependencies.test.js
+node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
 node --check cloudfunctions\leaveRoom\roomLifecycle.js
 node --check cloudfunctions\leaveRoom\index.js
 node --check cloudfunctions\dataOp\dataOpHandler.js

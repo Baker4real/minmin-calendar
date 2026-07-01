@@ -45,4 +45,5 @@
 
 - 没有 `roomMembers` 回填时，历史成员仍能通过 `rooms` 授权访问数据，但并发锁不能完整表达历史状态。
 - 如果 `createRoom` 或 `joinRoom` 在拿锁后异常退出，可能留下 stale lock；`leaveRoom` 在找不到 room 时会清理当前用户 stale lock，成功解绑 active room 后也会按当前 `OPENID` 兜底清理成员锁。
+- 如果 archived room 存在同房间或空白 stale lock，`createRoom` 可以复用该锁完成显式恢复；指向其他房间的锁仍必须阻止创建。
 - 后续任何修改房间成员生命周期的云函数，都必须同步维护 `roomMembers`。

@@ -4,6 +4,7 @@
 
 - **Room**: A private two-person sharing space identified by a six-character `roomCode`.
 - **Room leave**: A server-side membership revoke flow that removes the current user from a Room while preserving the remaining member when present.
+- **Archived room**: A room with no active members. Its `roomCode` and records are retained for explicit creator recovery, but normal record CRUD is closed until recovery.
 - **Period record**: A date range with optional note, calculated duration, flow level, and symptom tags.
 - **Memory record / happy time**: A dated note shown as a heart marker on the calendar.
 - **Calendar cell**: A homepage day tile that may show date number, lunar text, holiday/workday tag, and markers.
@@ -34,8 +35,16 @@
 - `utils/cycle.js` owns cycle prediction, reminder derivation, flow labels, and symptom labels.
 - `utils/calendarInsights.js` owns prediction explanation copy and monthly recap text.
 - `cloudfunctions/dataOp/index.js` is the cloud runtime adapter for room-authorized CRUD on `periods` and `memories`.
-- `cloudfunctions/dataOp/dataOpHandler.js` owns room membership lookup and action dispatch behind the cloud adapter.
-- `cloudfunctions/leaveRoom/index.js` revokes the current user's Room membership through the `RoomLifecycle` Module.
+- `cloudfunctions/dataOp/dataOpHandler.js` owns active-room membership lookup and rejects archived rooms before record dispatch.
+- `cloudfunctions/leaveRoom/index.js` revokes the current user's Room membership through the `RoomLifecycle` Module, transfers paired-room ownership, and archives empty rooms.
+- `cloudfunctions/createRoom|joinRoom|getMyRoom/roomBinding.js` share the same room binding module for active-room lookup, creation, join, and archived-room recovery.
+
+## Room Lifecycle Boundary
+
+- Active room access is authorized through `rooms.createdBy` / `rooms.partnerOpenid`; `roomMembers` is a concurrency lock, not the record authorization source.
+- Last-member leave archives the room instead of deleting it. Archived rooms reserve their original `roomCode`, are not returned by `getMyRoom`, cannot be joined directly, and cannot access records through `dataOp`.
+- The original creator can recover an archived room by creating again. Recovery keeps the same `roomCode`, so existing `periods` and `memories` become accessible without migration.
+- Homepage loading may show partial `periods` / `memories` data when one collection has a retryable failure, but Settings export still requires both collections to load successfully.
 
 ## Holiday Data Boundary
 
@@ -49,7 +58,7 @@
 Use these checks after date, room, calendar, or page behavior changes:
 
 ```powershell
-node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\cloudfunction-dependencies.test.js
+node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
 node --check cloudfunctions\leaveRoom\roomLifecycle.js
 node --check cloudfunctions\leaveRoom\index.js
 node --check cloudfunctions\dataOp\dataOpHandler.js
