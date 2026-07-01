@@ -3,32 +3,32 @@
   "packOptions": {
     "ignore": [
       {
-        "type": "folder",
-        "value": "cloudfunctions"
+        "value": "cloudfunctions",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": "_external"
+        "value": "_external",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": "scripts"
+        "value": "scripts",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": ".serena"
+        "value": ".serena",
+        "type": "folder"
       },
       {
-        "type": "folder",
-        "value": ".tdd"
+        "value": ".tdd",
+        "type": "folder"
       },
       {
-        "type": "prefix",
-        "value": "hermes-"
+        "value": "hermes-",
+        "type": "prefix"
       },
       {
-        "type": "file",
-        "value": "DESIGN.md"
+        "value": "DESIGN.md",
+        "type": "file"
       }
     ],
     "include": []
