@@ -99,7 +99,7 @@ Page({
         message: getErrorMessage(e)
       }
       if (background) {
-        this.showSyncStatus('同步失败，稍后重试')
+        this.showBackgroundSyncFailure()
         return outcome
       }
       this.showRoomStatus({
@@ -128,6 +128,10 @@ Page({
     if (periodsSucceeded || memoriesSucceeded) {
       const periods = periodsSucceeded ? periodsOutcome.data : this.data.periods
       const memories = memoriesSucceeded ? memoriesOutcome.data : this.data.memories
+      const backgroundDataChanged = background && (
+        (periodsSucceeded && !this.areRecordListsEqual(this.data.periods, periods)) ||
+        (memoriesSucceeded && !this.areRecordListsEqual(this.data.memories, memories))
+      )
 
       this.applyHomeCalendarState({ periods, memories })
       this.setData({
@@ -141,7 +145,11 @@ Page({
 
       if (periodsSucceeded && memoriesSucceeded) {
         if (background) {
-          this.showSyncStatus('已同步')
+          if (this.consumePendingRecordChangeSync() || backgroundDataChanged) {
+            this.showSyncStatus('已同步')
+          } else {
+            this.hideSyncStatus()
+          }
         }
         return {
           kind: 'success',
@@ -150,11 +158,15 @@ Page({
         }
       }
 
-      this.showSyncStatus(this.buildPartialSyncStatus({
-        periodsOutcome,
-        memoriesOutcome,
-        background
-      }), { autoHide: false })
+      if (!background || this._hasPendingRecordChangeSync || backgroundDataChanged) {
+        this.showSyncStatus(this.buildPartialSyncStatus({
+          periodsOutcome,
+          memoriesOutcome,
+          background
+        }), { autoHide: false })
+      } else {
+        this.hideSyncStatus()
+      }
       return {
         kind: 'partial-success',
         periodsOutcome,
@@ -204,11 +216,12 @@ Page({
   prepareLoadState(background) {
     this.clearSyncStatusTimer()
     if (background) {
-      this.setData({
-        refreshing: true,
-        syncStatusVisible: true,
-        syncStatusText: '正在同步'
-      })
+      const update = { refreshing: true }
+      if (!this._hasPendingRecordChangeSync) {
+        update.syncStatusVisible = false
+        update.syncStatusText = ''
+      }
+      this.setData(update)
       return
     }
 
@@ -235,7 +248,7 @@ Page({
 
   handleLoadOutcome(outcome, { background }) {
     if (background && outcome && outcome.kind === 'retryable-failure') {
-      this.showSyncStatus('同步失败，稍后重试')
+      this.showBackgroundSyncFailure()
       return outcome
     }
 
@@ -274,6 +287,7 @@ Page({
     const records = this.mergeRecordChange(this.data[collection], record, mode)
     this.applyHomeCalendarState({ [collection]: records })
     if (this.data.hasLoadedHomeData) {
+      this._hasPendingRecordChangeSync = true
       this.showSyncStatus('已更新，正在同步', { autoHide: false })
     }
   },
@@ -296,6 +310,16 @@ Page({
     }
 
     return [normalized, ...current]
+  },
+
+  consumePendingRecordChangeSync() {
+    const pending = Boolean(this._hasPendingRecordChangeSync)
+    this._hasPendingRecordChangeSync = false
+    return pending
+  },
+
+  areRecordListsEqual(left, right) {
+    return stableRecordListKey(left) === stableRecordListKey(right)
   },
 
   prevMonth() {
@@ -573,6 +597,23 @@ Page({
     this._syncStatusTimer = timer
   },
 
+  showBackgroundSyncFailure() {
+    if (this._hasPendingRecordChangeSync) {
+      this.showSyncStatus('同步失败，稍后重试')
+      return
+    }
+    this.hideSyncStatus()
+  },
+
+  hideSyncStatus() {
+    this.clearSyncStatusTimer()
+    if (!this.data.syncStatusVisible && !this.data.syncStatusText) return
+    this.setData({
+      syncStatusVisible: false,
+      syncStatusText: ''
+    })
+  },
+
   clearSyncStatusTimer() {
     if (!this._syncStatusTimer) return
     clearTimeout(this._syncStatusTimer)
@@ -582,4 +623,40 @@ Page({
 
 function getErrorMessage(error) {
   return error && error.message ? error.message : String(error || '未知错误')
+}
+
+function stableRecordListKey(records) {
+  if (!Array.isArray(records)) return '[]'
+  return JSON.stringify(records.map(stableValue).sort(compareStableRecordValues))
+}
+
+function stableValue(value) {
+  if (Array.isArray(value)) {
+    return value.map(stableValue)
+  }
+  if (!value || typeof value !== 'object') {
+    return value
+  }
+  return Object.keys(value).sort().reduce((result, key) => {
+    result[key] = stableValue(value[key])
+    return result
+  }, {})
+}
+
+function compareStableRecordValues(left, right) {
+  const leftId = getStableRecordIdentity(left)
+  const rightId = getStableRecordIdentity(right)
+  if (leftId < rightId) return -1
+  if (leftId > rightId) return 1
+
+  const leftJson = JSON.stringify(left)
+  const rightJson = JSON.stringify(right)
+  if (leftJson < rightJson) return -1
+  if (leftJson > rightJson) return 1
+  return 0
+}
+
+function getStableRecordIdentity(record) {
+  if (!record || typeof record !== 'object') return ''
+  return record._id || record.id || record.date || record.startDate || ''
 }

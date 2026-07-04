@@ -372,7 +372,7 @@ test('index exposes calendar meaning and monthly recap sheets', () => {
   assert.match(wxss, /\.detail-meaning/)
 })
 
-test('index background sync feedback is visible without blocking calendar interaction', () => {
+test('index sync feedback stays tied to real record changes without blocking calendar interaction', () => {
   const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
@@ -381,7 +381,10 @@ test('index background sync feedback is visible without blocking calendar intera
   assert.match(js, /hasLoadedHomeData:\s*false/)
   assert.match(js, /syncStatusVisible:\s*false/)
   assert.match(js, /canRefreshInBackground\(\)/)
-  assert.match(js, /showSyncStatus\('正在同步'|syncStatusText:\s*'正在同步'/)
+  assert.doesNotMatch(js, /showSyncStatus\('正在同步'\)|syncStatusText:\s*'正在同步'/)
+  assert.match(js, /showSyncStatus\('已更新，正在同步'/)
+  assert.match(js, /showSyncStatus\('已同步'/)
+  assert.match(js, /hideSyncStatus\(\)/)
   assert.match(js, /applyRecordChange\(change = \{\}\)/)
 
   assert.match(wxml, /loading && !hasLoadedHomeData/)
