@@ -1,6 +1,9 @@
 <view class="page safe-top">
   <view class="nav-bar header-gradient">
-    <view class="nav-back" bindtap="goBack">‹</view>
+    <view class="nav-back" bindtap="goBack">
+      <view class="nav-back-surface"></view>
+      <text class="nav-back-icon">‹</text>
+    </view>
     <view wx:if="{{isEdit}}" class="nav-title">编辑经期</view>
     <view wx:else class="nav-title">新增经期</view>
     <view class="nav-placeholder"></view>

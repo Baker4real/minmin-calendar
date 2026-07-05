@@ -12,7 +12,7 @@
 .nav-back {
   position: relative;
   z-index: 11;
-  padding: 20rpx;
+  padding: 0;
 }
 
 .content {

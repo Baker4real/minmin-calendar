@@ -1,6 +1,9 @@
 <view class="page safe-top">
   <view class="nav-bar header-gradient">
-    <view class="nav-back" bindtap="goBack">‹</view>
+    <view class="nav-back" bindtap="goBack">
+      <view class="nav-back-surface"></view>
+      <text class="nav-back-icon">‹</text>
+    </view>
     <view class="nav-title">欢乐时光</view>
     <view class="nav-placeholder"></view>
   </view>
