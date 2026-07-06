@@ -43,6 +43,8 @@ Before non-trivial implementation, read `CONTEXT.md` plus the relevant source an
 
 Run relevant checks before claiming work is complete. Current lightweight checks:
 
+When running these checks through Codex Desktop shell, pass absolute file paths to `node --test` / `node --check`; the shell wrapper may not resolve relative test paths reliably.
+
 ```powershell
 node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
 node --check cloudfunctions\leaveRoom\roomLifecycle.js
