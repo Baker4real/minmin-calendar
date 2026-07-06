@@ -84,3 +84,9 @@ Do not commit:
 ## Project Notes
 
 This is a regular non-GSD repository. For non-trivial work, start with `CONTEXT.md`, the relevant files under `docs/`, and the source/test files for the area being changed.
+
+## Git Branch Policy
+
+- This repository is a standalone private project, not a third-party upstream local patch stack.
+- Do not maintain `patch-stack/*` remote branches here. Use normal `master` history, focused commits, and temporary rollback branches when needed.
+- Reserve `patch-stack/*` for repositories whose name or responsibility is explicitly `*-local-patches`.
