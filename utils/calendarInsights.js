@@ -49,9 +49,8 @@ function buildMonthlyRecap({ year, month, periods = [], memories = [], predictio
     if (highlight) highlights.push(highlight)
   })
 
-  if (monthMemories.length) {
-    highlights.push(`欢乐时光：${monthMemories.map(memory => memory.note || '特别日子').join('；')}`)
-  }
+  const memoryHighlight = formatMemoryHighlight(monthMemories)
+  if (memoryHighlight) highlights.push(memoryHighlight)
 
   const title = `${year}年${month + 1}月小结`
   const periodSummary = monthPeriods.length
@@ -94,6 +93,41 @@ function formatPeriodHighlight(period) {
   if (detail.flowLabel) parts.push(`经量 ${detail.flowLabel}`)
   if (detail.symptomText) parts.push(detail.symptomText)
   return parts.join('，')
+}
+
+function formatMemoryHighlight(memories) {
+  if (!memories.length) return ''
+
+  const parts = []
+  let defaultNotePartIndex = -1
+  let defaultNoteCount = 0
+
+  memories.forEach(memory => {
+    const note = normalizeMemoryNote(memory)
+    if (note.isDefault) {
+      defaultNoteCount += 1
+      if (defaultNotePartIndex === -1) {
+        defaultNotePartIndex = parts.length
+        parts.push('')
+      }
+      return
+    }
+
+    parts.push(note.text)
+  })
+
+  if (defaultNotePartIndex !== -1) {
+    parts[defaultNotePartIndex] = defaultNoteCount === 1 ? '特别日子' : `${defaultNoteCount} 个特别日子`
+  }
+
+  return `欢乐时光：${parts.join('；')}`
+}
+
+function normalizeMemoryNote(memory) {
+  const note = typeof memory.note === 'string' ? memory.note.trim() : ''
+  return note
+    ? { text: note, isDefault: false }
+    : { text: '特别日子', isDefault: true }
 }
 
 function overlapsMonth(period, monthStart, monthEnd) {

@@ -113,6 +113,46 @@ test('buildMonthlyRecap ignores impossible dates before deriving counts and high
   assert.doesNotMatch(recap.shareText, /错误日期/)
 })
 
+test('buildMonthlyRecap collapses repeated default memory labels in highlights', () => {
+  const recap = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 5,
+    periods: [],
+    memories: [
+      { date: '2026-06-01' },
+      { date: '2026-06-07', note: '' },
+      { date: '2026-06-13', note: '   ' },
+      { date: '2026-06-20' },
+      { date: '2026-06-28' }
+    ]
+  })
+
+  assert.equal(recap.memorySummary, '留下 5 条欢乐时光')
+  assert.deepEqual(recap.highlights, [
+    '欢乐时光：5 个特别日子'
+  ])
+  assert.equal(recap.shareText.includes('特别日子；特别日子'), false)
+})
+
+test('buildMonthlyRecap keeps real memory notes in order while collapsing defaults', () => {
+  const recap = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 5,
+    periods: [],
+    memories: [
+      { date: '2026-06-01', note: '散步' },
+      { date: '2026-06-07' },
+      { date: '2026-06-13', note: '看电影' },
+      { date: '2026-06-20', note: '散步' },
+      { date: '2026-06-28', note: '   ' }
+    ]
+  })
+
+  assert.deepEqual(recap.highlights, [
+    '欢乐时光：散步；2 个特别日子；看电影；散步'
+  ])
+})
+
 test('buildMonthlyRecap gives duplicate highlight text unique render keys', () => {
   const recap = insights.buildMonthlyRecap({
     year: 2026,
