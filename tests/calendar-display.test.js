@@ -432,8 +432,9 @@ test('home page consumes RoomDataClient outcomes instead of legacy room-code and
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
 
   assert.match(js, /cloud\.createRoomDataClient\(\)/)
-  assert.match(js, /client\.list\('periods'\)/)
-  assert.match(js, /client\.list\('memories'\)/)
+  assert.match(js, /roomRecordsSnapshot\.loadHomeRecordsSnapshot\(\{\s*client\s*\}\)/)
+  assert.match(js, /roomRecordsSnapshot\.getHomeRecordsForSnapshot\(/)
+  assert.match(js, /roomRecordsSnapshot\.buildHomePartialSyncStatus\(/)
   assert.match(js, /applyRoomStatusOutcome\(/)
   assert.match(js, /handleRoomStatusAction\(\)/)
   assert.doesNotMatch(js, /cloud\.getRoomCode\(\)/)

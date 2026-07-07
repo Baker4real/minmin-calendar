@@ -137,6 +137,23 @@ test('RoomSession repairCachedRoom clears stale local room state from a structur
   assert.deepEqual(cloud.calls, [{ name: 'getMyRoom' }])
 })
 
+test('RoomSession repairCachedRoom keeps cache when code 1 carries a non-room errorCode', async () => {
+  const storage = createMemoryStorage({ roomCode: 'ROOM01' })
+  const cloud = createFakeCloud({
+    getMyRoom: { code: 1, errorCode: 'VALIDATION_ERROR', msg: '临时业务失败' }
+  })
+  const session = createRoomSession({ storage, cloud })
+
+  const result = await session.repairCachedRoom('ROOM01')
+
+  assert.deepEqual(result, {
+    kind: 'retryable-failure',
+    message: '同步房间状态失败：临时业务失败'
+  })
+  assert.equal(storage.get('roomCode'), 'ROOM01')
+  assert.deepEqual(cloud.calls, [{ name: 'getMyRoom' }])
+})
+
 test('RoomSession repairCachedRoom returns a retryable failure when cloud room sync fails', async () => {
   const storage = createMemoryStorage({ roomCode: 'ROOM01' })
   const cloud = createFakeCloud({

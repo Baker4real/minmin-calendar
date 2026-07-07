@@ -24,6 +24,8 @@
 
 - `app.js` initializes WeChat Cloud with the active environment.
 - `utils/cloud.js` wraps frontend calls to `cloudfunctions/dataOp/index.js` and exposes `RoomDataClient` outcomes for room-scoped reads/writes.
+- `utils/roomRecordsSnapshot.js` owns room-scoped `periods` + `memories` snapshot loading for homepage partial sync and Settings all-or-nothing export.
+- `utils/roomAccessProtocol.js` owns client-side classification of structured and legacy room access failures that mean local room cache is stale.
 - `utils/roomAccessOutcome.js` owns client-side room access outcome presentation mapping for inline status, modal prompts, repair actions, and settings room-code display state.
 - `utils/recordCommands.js` owns shared period/memory list, save, delete, retry, and rebind feedback flows.
 - `utils/recordPageSync.js` owns optional edit-page-to-homepage record change notifications for optimistic homepage refresh after saves and deletes.
@@ -60,7 +62,7 @@ Use these checks after date, room, calendar, or page behavior changes:
 When running through Codex Desktop shell, pass absolute file paths to `node --test` / `node --check`; the shell wrapper may not resolve relative test paths reliably.
 
 ```powershell
-node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
+node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-protocol.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
 node --check cloudfunctions\leaveRoom\roomLifecycle.js
 node --check cloudfunctions\leaveRoom\index.js
 node --check cloudfunctions\dataOp\dataOpHandler.js
@@ -68,9 +70,11 @@ node --check cloudfunctions\dataOp\roomRecords.js
 node --check cloudfunctions\dataOp\index.js
 node --check utils\room.js
 node --check utils\cloud.js
+node --check utils\roomAccessProtocol.js
 node --check utils\recordCommands.js
 node --check utils\recordPageSync.js
 node --check utils\settingsFlow.js
+node --check utils\roomRecordsSnapshot.js
 node --check utils\homeCalendarState.js
 node --check utils\util.js
 node --check utils\cycle.js

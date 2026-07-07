@@ -223,6 +223,79 @@ test('exportRecordsAsJson returns retry fallback when modal and toast are unavai
   assert.deepEqual(client.calls, [{ action: 'list', collection: 'periods' }])
 })
 
+test('exportRecordsAsJson stops before writing when memories fail after periods load', async () => {
+  assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
+
+  const env = createFakeSettingsEnv()
+  let periodsCalls = 0
+  let memoriesCalls = 0
+  const client = createFakeRoomDataClient({
+    periods: () => {
+      periodsCalls += 1
+      return [{ _id: 'p1', startDate: '2026-06-01' }]
+    },
+    memories: () => {
+      memoriesCalls += 1
+      if (memoriesCalls === 1) {
+        return {
+          kind: 'retryable-failure',
+          message: 'network down'
+        }
+      }
+      return [{ _id: 'm1', date: '2026-06-03' }]
+    }
+  })
+
+  const promise = settingsFlow.exportRecordsAsJson({
+    wx: env.wx,
+    cloud: { createRoomDataClient: () => client },
+    now: () => '2026-06-26T08:00:00.000Z',
+    userDataPath: '/tmp/user-data'
+  })
+
+  await waitForAsyncTurn()
+  assert.equal(env.wx.modals.length, 1)
+  assert.equal(env.wx.modals[0].title, '导出失败')
+  assert.equal(env.wx.modals[0].content, '导出失败，请检查网络')
+  assert.deepEqual(env.fs.writes, [])
+  assert.deepEqual(env.wx.shareCalls, [])
+  assert.deepEqual(env.wx.clipboardCalls, [])
+
+  const result = await env.wx.resolveModal(true, promise)
+
+  assert.equal(result.kind, 'shared')
+  assert.equal(periodsCalls, 2)
+  assert.equal(memoriesCalls, 2)
+  assert.deepEqual(env.wx.toasts, [{ title: '导出成功' }])
+  assert.equal(env.fs.writes.length, 1)
+})
+
+test('exportRecordsAsJson treats malformed collection outcomes as export failures', async () => {
+  assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
+
+  const env = createFakeSettingsEnv()
+  const client = {
+    async list() {
+      return null
+    }
+  }
+
+  const result = await settingsFlow.exportRecordsAsJson({
+    wx: env.wx,
+    cloud: { createRoomDataClient: () => client },
+    now: () => '2026-06-26T08:00:00.000Z',
+    userDataPath: '/tmp/user-data'
+  })
+
+  assert.deepEqual(result, {
+    kind: 'export-failed',
+    message: '导出失败'
+  })
+  assert.equal(env.wx.hideLoadingCalls, 1)
+  assert.deepEqual(env.fs.writes, [])
+  assert.deepEqual(env.wx.toasts, [{ title: '导出失败', icon: 'none' }])
+})
+
 test('exportRecordsAsJson keeps repaired room export failures on the export retry copy', async () => {
   assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
 

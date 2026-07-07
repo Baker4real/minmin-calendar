@@ -41,7 +41,7 @@ Cloud functions live under `cloudfunctions/`; each function has its own `package
 Run the lightweight local checks after changing date, prediction, room, calendar, or page behavior:
 
 ```powershell
-node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
+node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-protocol.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
 node --check cloudfunctions\leaveRoom\roomLifecycle.js
 node --check cloudfunctions\leaveRoom\index.js
 node --check cloudfunctions\dataOp\dataOpHandler.js
@@ -49,9 +49,11 @@ node --check cloudfunctions\dataOp\roomRecords.js
 node --check cloudfunctions\dataOp\index.js
 node --check utils\room.js
 node --check utils\cloud.js
+node --check utils\roomAccessProtocol.js
 node --check utils\recordCommands.js
 node --check utils\recordPageSync.js
 node --check utils\settingsFlow.js
+node --check utils\roomRecordsSnapshot.js
 node --check utils\homeCalendarState.js
 node --check utils\util.js
 node --check utils\cycle.js

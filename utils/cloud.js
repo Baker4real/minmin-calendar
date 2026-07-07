@@ -1,19 +1,9 @@
 // 云数据库工具层 — 统一通过云函数操作，避免小程序端数据库权限影响共享读写。
 const roomSession = require('./room')
+const roomAccessProtocol = require('./roomAccessProtocol')
 
 // ===== 查询超时包装 =====
 const QUERY_TIMEOUT = 15000 // 15 秒超时
-const STALE_ROOM_MESSAGES = [
-  '无权访问该房间',
-  '未加入任何房间',
-  '未加入该房间',
-  '房间不存在'
-]
-const STALE_ROOM_ERROR_CODES = [
-  'ROOM_ACCESS_DENIED',
-  'ROOM_NOT_FOUND',
-  'NO_ACTIVE_ROOM'
-]
 
 function withTimeout(promise, ms = QUERY_TIMEOUT) {
   return Promise.race([
@@ -59,7 +49,7 @@ function createRoomDataClient(options = {}) {
       if (result.code === 0) {
         return buildSuccessOutcome(action, result)
       }
-      if (isStaleRoomFailure(result)) {
+      if (roomAccessProtocol.isStaleRoomFailure(result)) {
         const repair = await session.repairCachedRoom(roomCode)
         return { kind: 'room-repair', roomCode, repair }
       }
@@ -191,14 +181,6 @@ function buildSuccessOutcome(action, result) {
     kind: 'success',
     result
   }
-}
-
-function isStaleRoomFailure(result) {
-  const errorCode = String(result && result.errorCode ? result.errorCode : '')
-  if (errorCode) return STALE_ROOM_ERROR_CODES.includes(errorCode)
-
-  const message = String(result && result.msg ? result.msg : '')
-  return STALE_ROOM_MESSAGES.some(text => message.includes(text))
 }
 
 async function runLegacyList(collection) {

@@ -1,9 +1,5 @@
 const ROOM_CODE_KEY = 'roomCode'
-const STALE_ROOM_ERROR_CODES = [
-  'ROOM_ACCESS_DENIED',
-  'ROOM_NOT_FOUND',
-  'NO_ACTIVE_ROOM'
-]
+const roomAccessProtocol = require('./roomAccessProtocol')
 
 function createRoomSession(options = {}) {
   const storage = options.storage || createWxStorage()
@@ -72,7 +68,7 @@ function createRoomSession(options = {}) {
           return { kind: 'success', bound: true, roomCode }
         }
 
-        if (shouldClearCachedRoom(res.result, roomCode)) {
+        if (roomAccessProtocol.shouldClearCachedRoom(res.result, roomCode)) {
           const currentRoomCode = normalizeRoomCode(storage.get(ROOM_CODE_KEY))
           if (!expectedRoom || currentRoomCode === expectedRoom) {
             storage.remove(ROOM_CODE_KEY)
@@ -229,29 +225,6 @@ function getErrorMessage(error) {
 
 function getFailureMessage(result) {
   return result && result.msg ? result.msg : '未知错误'
-}
-
-function shouldClearCachedRoom(result, roomCode) {
-  const errorCode = String(result && result.errorCode ? result.errorCode : '')
-  const message = String(result && result.msg ? result.msg : '')
-
-  if (STALE_ROOM_ERROR_CODES.includes(errorCode)) {
-    return true
-  }
-
-  if (result && result.code === 1) {
-    return true
-  }
-
-  if (!errorCode && (
-    message.includes('未加入任何房间') ||
-    message.includes('无权访问该房间') ||
-    message.includes('房间不存在')
-  )) {
-    return true
-  }
-
-  return result && result.code === 0 && !roomCode
 }
 
 module.exports = {

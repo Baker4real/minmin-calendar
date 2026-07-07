@@ -2,6 +2,7 @@ const util = require('../../utils/util')
 const cloud = require('../../utils/cloud')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const recordEditRoute = require('../../utils/recordEditRoute')
+const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
@@ -82,16 +83,9 @@ Page({
 
     try {
       const client = cloud.createRoomDataClient()
-      const [periodsOutcome, memoriesOutcome] = await Promise.all([
-        client.list('periods'),
-        client.list('memories')
-      ])
+      const snapshot = await roomRecordsSnapshot.loadHomeRecordsSnapshot({ client })
 
-      return this.handleCollectionLoadOutcomes({
-        periodsOutcome,
-        memoriesOutcome,
-        background
-      })
+      return this.handleRecordsSnapshot({ snapshot, background })
     } catch (e) {
       console.error('load error', e)
       const outcome = {
@@ -115,25 +109,22 @@ Page({
     }
   },
 
-  handleCollectionLoadOutcomes({ periodsOutcome, memoriesOutcome, background }) {
-    const blockingOutcome = [periodsOutcome, memoriesOutcome]
-      .find(outcome => this.isBlockingCollectionOutcome(outcome))
-    if (blockingOutcome) {
-      return this.handleLoadOutcome(blockingOutcome, { background })
+  handleRecordsSnapshot({ snapshot, background }) {
+    if (snapshot.kind === 'blocked') {
+      return this.handleLoadOutcome(snapshot.outcome, { background })
     }
 
-    const periodsSucceeded = this.isSuccessfulCollectionOutcome(periodsOutcome)
-    const memoriesSucceeded = this.isSuccessfulCollectionOutcome(memoriesOutcome)
+    if (snapshot.kind === 'success' || snapshot.kind === 'partial-success') {
+      const records = roomRecordsSnapshot.getHomeRecordsForSnapshot(snapshot, {
+        periods: this.data.periods,
+        memories: this.data.memories
+      })
+      const backgroundDataChanged = background && roomRecordsSnapshot.hasHomeSnapshotRecordChanges(snapshot, {
+        periods: this.data.periods,
+        memories: this.data.memories
+      })
 
-    if (periodsSucceeded || memoriesSucceeded) {
-      const periods = periodsSucceeded ? periodsOutcome.data : this.data.periods
-      const memories = memoriesSucceeded ? memoriesOutcome.data : this.data.memories
-      const backgroundDataChanged = background && (
-        (periodsSucceeded && !this.areRecordListsEqual(this.data.periods, periods)) ||
-        (memoriesSucceeded && !this.areRecordListsEqual(this.data.memories, memories))
-      )
-
-      this.applyHomeCalendarState({ periods, memories })
+      this.applyHomeCalendarState(records)
       this.setData({
         hasLoadedHomeData: true,
         noRoom: false,
@@ -143,7 +134,7 @@ Page({
         roomStatusAction: ''
       })
 
-      if (periodsSucceeded && memoriesSucceeded) {
+      if (snapshot.kind === 'success') {
         if (background) {
           if (this.consumePendingRecordChangeSync() || backgroundDataChanged) {
             this.showSyncStatus('已同步')
@@ -153,60 +144,27 @@ Page({
         }
         return {
           kind: 'success',
-          periods: periodsOutcome.data,
-          memories: memoriesOutcome.data
+          periods: snapshot.periods,
+          memories: snapshot.memories
         }
       }
 
       if (!background || this._hasPendingRecordChangeSync || backgroundDataChanged) {
-        this.showSyncStatus(this.buildPartialSyncStatus({
-          periodsOutcome,
-          memoriesOutcome,
-          background
-        }), { autoHide: false })
+        this.showSyncStatus(roomRecordsSnapshot.buildHomePartialSyncStatus(snapshot, { background }), { autoHide: false })
       } else {
         this.hideSyncStatus()
       }
       return {
         kind: 'partial-success',
-        periodsOutcome,
-        memoriesOutcome
+        periodsOutcome: snapshot.periodsOutcome,
+        memoriesOutcome: snapshot.memoriesOutcome
       }
     }
 
-    const retryableOutcome = [periodsOutcome, memoriesOutcome]
-      .find(outcome => this.isRetryableCollectionFailure(outcome))
-    return this.handleLoadOutcome(retryableOutcome || {
+    return this.handleLoadOutcome(snapshot.outcome || {
       kind: 'retryable-failure',
       message: '日历加载失败'
     }, { background })
-  },
-
-  isSuccessfulCollectionOutcome(outcome) {
-    return outcome && outcome.kind === 'success'
-  },
-
-  isRetryableCollectionFailure(outcome) {
-    return outcome && outcome.kind === 'retryable-failure'
-  },
-
-  isBlockingCollectionOutcome(outcome) {
-    return outcome && outcome.kind !== 'success' && outcome.kind !== 'retryable-failure'
-  },
-
-  buildPartialSyncStatus({ periodsOutcome, memoriesOutcome, background }) {
-    const periodsFailed = this.isRetryableCollectionFailure(periodsOutcome)
-    const memoriesFailed = this.isRetryableCollectionFailure(memoriesOutcome)
-    const periodsSucceeded = this.isSuccessfulCollectionOutcome(periodsOutcome)
-    const memoriesSucceeded = this.isSuccessfulCollectionOutcome(memoriesOutcome)
-
-    if (periodsFailed && memoriesSucceeded) {
-      return background ? '经期同步失败，已保留旧经期数据' : '经期同步失败，已显示记忆数据'
-    }
-    if (memoriesFailed && periodsSucceeded) {
-      return background ? '记忆同步失败，已保留旧记忆数据' : '记忆同步失败，已显示经期数据'
-    }
-    return background ? '部分数据同步失败，已保留旧数据' : '部分数据同步失败'
   },
 
   canRefreshInBackground() {
@@ -316,10 +274,6 @@ Page({
     const pending = Boolean(this._hasPendingRecordChangeSync)
     this._hasPendingRecordChangeSync = false
     return pending
-  },
-
-  areRecordListsEqual(left, right) {
-    return stableRecordListKey(left) === stableRecordListKey(right)
   },
 
   prevMonth() {
@@ -623,40 +577,4 @@ Page({
 
 function getErrorMessage(error) {
   return error && error.message ? error.message : String(error || '未知错误')
-}
-
-function stableRecordListKey(records) {
-  if (!Array.isArray(records)) return '[]'
-  return JSON.stringify(records.map(stableValue).sort(compareStableRecordValues))
-}
-
-function stableValue(value) {
-  if (Array.isArray(value)) {
-    return value.map(stableValue)
-  }
-  if (!value || typeof value !== 'object') {
-    return value
-  }
-  return Object.keys(value).sort().reduce((result, key) => {
-    result[key] = stableValue(value[key])
-    return result
-  }, {})
-}
-
-function compareStableRecordValues(left, right) {
-  const leftId = getStableRecordIdentity(left)
-  const rightId = getStableRecordIdentity(right)
-  if (leftId < rightId) return -1
-  if (leftId > rightId) return 1
-
-  const leftJson = JSON.stringify(left)
-  const rightJson = JSON.stringify(right)
-  if (leftJson < rightJson) return -1
-  if (leftJson > rightJson) return 1
-  return 0
-}
-
-function getStableRecordIdentity(record) {
-  if (!record || typeof record !== 'object') return ''
-  return record._id || record.id || record.date || record.startDate || ''
 }

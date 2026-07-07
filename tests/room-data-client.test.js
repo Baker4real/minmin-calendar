@@ -254,6 +254,22 @@ test('RoomDataClient still repairs stale-room failures from legacy Chinese messa
   assert.deepEqual(roomSession.repairCalls, ['ROOM01'])
 })
 
+test('RoomDataClient does not repair business failures that only contain stale-room words', async () => {
+  const cloud = createFakeCloud([
+    { result: { code: -1, msg: '不支持的字段: 无权访问该房间' } }
+  ])
+  const roomSession = createFakeRoomSession({ roomCode: 'ROOM01' })
+  const client = createRoomDataClient({ cloud, roomSession })
+
+  const outcome = await client.add('memories', { note: 'movie' })
+
+  assert.deepEqual(outcome, {
+    kind: 'business-failure',
+    message: '不支持的字段: 无权访问该房间'
+  })
+  assert.deepEqual(roomSession.repairCalls, [])
+})
+
 test('RoomDataClient mutation transport failures expose a manual retry descriptor without replaying automatically', async () => {
   const cloud = createFakeCloud([
     new Error('network down')
@@ -305,6 +321,22 @@ test('RoomDataClient does not repair non-room failures when a structured error c
   assert.deepEqual(outcome, {
     kind: 'business-failure',
     message: '备注里不能填写“无权访问该房间”'
+  })
+  assert.deepEqual(roomSession.repairCalls, [])
+})
+
+test('RoomDataClient keeps room-code conflicts as business failures', async () => {
+  const cloud = createFakeCloud([
+    { result: { code: -1, errorCode: 'ROOM_CODE_CONFLICT', msg: '房间码状态异常，请联系维护者' } }
+  ])
+  const roomSession = createFakeRoomSession({ roomCode: 'ROOM01' })
+  const client = createRoomDataClient({ cloud, roomSession })
+
+  const outcome = await client.list('periods')
+
+  assert.deepEqual(outcome, {
+    kind: 'business-failure',
+    message: '房间码状态异常，请联系维护者'
   })
   assert.deepEqual(roomSession.repairCalls, [])
 })

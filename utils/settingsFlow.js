@@ -1,6 +1,7 @@
 const cloudApi = require('./cloud')
 const roomSessionApi = require('./room')
 const roomAccessOutcome = require('./roomAccessOutcome')
+const roomRecordsSnapshot = require('./roomRecordsSnapshot')
 
 function copyRoomCode(options = {}) {
   const wxApi = resolveWxApi(options)
@@ -43,22 +44,16 @@ async function exportRecordsAsJson(options = {}) {
   showLoading(wxApi, { title: '导出中...' })
   try {
     const client = createRoomDataClient(cloud, roomSession)
-    const periodsOutcome = await listRecords({ cloud, client, collection: 'periods' })
-    if (periodsOutcome.kind !== 'success') {
+    const snapshot = await roomRecordsSnapshot.loadExportRecordsSnapshot({ cloud, client })
+    if (snapshot.kind !== 'success') {
       hideLoading()
-      return handleExportLoadFailure(wxApi, periodsOutcome, () => exportRecordsAsJson(options), navigateToBind)
-    }
-
-    const memoriesOutcome = await listRecords({ cloud, client, collection: 'memories' })
-    if (memoriesOutcome.kind !== 'success') {
-      hideLoading()
-      return handleExportLoadFailure(wxApi, memoriesOutcome, () => exportRecordsAsJson(options), navigateToBind)
+      return handleExportLoadFailure(wxApi, snapshot.outcome, () => exportRecordsAsJson(options), navigateToBind)
     }
 
     const payload = {
       exportTime: normalizeExportTime(now()),
-      periods: periodsOutcome.data,
-      memories: memoriesOutcome.data
+      periods: snapshot.periods,
+      memories: snapshot.memories
     }
     const json = JSON.stringify(payload, null, 2)
     const filePath = `${userDataPath}/minmin-calendar-backup.json`
@@ -96,24 +91,6 @@ function createRoomDataClient(cloud, roomSession) {
     return null
   }
   return cloud.createRoomDataClient({ roomSession })
-}
-
-async function listRecords({ cloud, client, collection }) {
-  if (client && typeof client.list === 'function') {
-    return client.list(collection)
-  }
-
-  try {
-    const getter = collection === 'periods' ? cloud.getPeriods : cloud.getMemories
-    const data = await getter()
-    return { kind: 'success', data }
-  } catch (error) {
-    return {
-      kind: 'retryable-failure',
-      message: getErrorMessage(error),
-      retry: () => listRecords({ cloud, client, collection })
-    }
-  }
 }
 
 function handleExportLoadFailure(wxApi, outcome, retryExport, navigateToBind) {
