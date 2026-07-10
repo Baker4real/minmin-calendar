@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-01
+**Updated:** 2026-07-10
 
 ## Context
 
@@ -44,6 +45,8 @@
 7. 扫描 stale lock：`roomMembers.roomId` 为空、指向不存在 room、或 `roomMembers` 成员不在对应 room 的 `createdBy` / `partnerOpenid` 中时，先人工确认，再清理或重建锁。
 8. smoke 验证：同一个测试用户同时加入两个不同 waiting room，最多一个成功；失败请求不能改写另一个房间。
 9. 回滚按反向顺序：先恢复 `leaveRoom`，再把 `createRoom` / `joinRoom` / `getMyRoom` 作为同版一组恢复。`membershipId` 可选且旧代码可忽略，无需数据回滚。
+
+2026-07-10 迁移记录：目标环境 `cloud1-d8gyqvcez4e66b3da` 已创建 `roomMembers` 集合，并为 5 个 active room 回填 6 个 legacy-compatible 基础锁；复核结果为 expected members 6、actual members 6、锁与 Room 字段不一致 0，6 个 `updatedAt` 均已规范化为数据库服务端 Date。集合保留 `_id` 默认唯一索引。四个 lifecycle 云函数已按函数维护窗口顺序部署，但本次实际在函数更新后才完成集合创建与回填，偏离本 ADR 的上线前迁移顺序；后验双向一致性检查没有发现持久异常，未来部署必须先迁移再发代码。同一用户并发加入两个 waiting room 的 smoke 仍需要真实微信 `OPENID` 上下文。
 
 ## Consequences
 

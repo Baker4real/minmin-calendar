@@ -2,6 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-01
+**Updated:** 2026-07-10
 
 ## Context
 
@@ -26,7 +27,7 @@
 1. 在云开发控制台或一次性只读脚本里扫描 `rooms` 集合，按 `roomCode` 分组检查重复值。最低验收标准是：每个非空 `roomCode` 只对应一个 room 文档。
 2. 如果发现重复 `roomCode`，先暂停部署本修复；由人工根据 `createdBy`、`partnerOpenid`、`createdAt` 和对应 records 使用情况决定保留、合并、归档或删除哪一个 room。本 ADR 不允许自动清理这些数据。
 3. 在 `rooms` 集合创建唯一索引：
-   - 索引名：`roomCode_unique`
+   - 索引名：`roomCode_1_unique`
    - 字段：`roomCode`
    - 排序：升序
    - 唯一：开启
@@ -37,6 +38,8 @@
    - 用测试环境或受控数据制造相同候选 `roomCode` 的并发创建，核对云端唯一索引返回的真实错误形态能被识别为可重试冲突，且候选码最多尝试 5 次。
    - 确认成功路径原子写入 Room/member，失败或冲突路径不会留下单边文档。
    - 确认并发创建最终不会产生重复 `roomCode`，也不会把一个用户绑定到多个活动房间。
+
+2026-07-10 迁移记录：目标环境 `cloud1-d8gyqvcez4e66b3da` 的 5 个 active room 不存在重复 `roomCode`；已创建 `roomCode_1_unique`（`roomCode: 1`、`unique: true`）并复读确认。`createRoom`、`joinRoom`、`getMyRoom`、`leaveRoom` 已按函数维护窗口顺序部署，云端下载产物与仓库顶层部署输入 hash 一致，实际依赖为 `wx-server-sdk@3.0.4`、`@cloudbase/node-sdk@2.10.0`、`@cloudbase/database@1.4.1`。本次实际在函数更新后才发现并补建唯一索引，偏离本 ADR 的“先建索引、后发代码”顺序；后验扫描和索引创建没有发现持久重复，但未来部署不得复用该顺序。CLI invoke 不提供微信 `OPENID`，因此重复键错误形态、并发创建和成功/冲突事务原子性仍保留为真实小程序上下文 smoke。
 
 ## Consequences
 
