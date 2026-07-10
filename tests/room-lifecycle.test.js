@@ -387,6 +387,128 @@ test('Room membership transaction falls back from a stale member pointer to the 
   assert.deepEqual(db.data.roomMembers, [])
 })
 
+test('Room membership leave does not follow a membership created after an empty snapshot', async () => {
+  const db = createFakeDb({
+    beforeTransactionAttempt({ data, attempts }) {
+      if (attempts !== 1) return
+      data.rooms.push({
+        _id: 'room-b',
+        roomCode: 'ROOMB1',
+        createdBy: 'user-a',
+        createdByName: 'A',
+        partnerOpenid: '',
+        status: 'waiting'
+      })
+      data.roomMembers.push({
+        _id: 'user-a',
+        openid: 'user-a',
+        roomId: 'room-b',
+        roomCode: 'ROOMB1',
+        role: 'creator',
+        updatedAt: 'new-membership'
+      })
+    }
+  })
+  const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
+
+  const result = await lifecycle.leave({ openid: 'user-a' })
+
+  assert.deepEqual(result, { code: 0, removedCount: 0, deletedCount: 0 })
+  assert.equal(db.data.rooms[0].status, 'waiting')
+  assert.equal(db.data.rooms[0].createdBy, 'user-a')
+  assert.equal(db.data.roomMembers[0].roomId, 'room-b')
+})
+
+test('Room membership leave retry stays pinned when the membership changes after a conflict', async () => {
+  const db = createFakeDb({
+    transactionConflicts: 1,
+    rooms: [{
+      _id: 'room-a',
+      roomCode: 'ROOMA1',
+      createdBy: 'user-a',
+      createdByName: 'A',
+      partnerOpenid: '',
+      status: 'waiting'
+    }],
+    roomMembers: [{
+      _id: 'user-a',
+      openid: 'user-a',
+      roomId: 'room-a',
+      roomCode: 'ROOMA1',
+      role: 'creator',
+      updatedAt: 'old-membership'
+    }],
+    onTransactionConflict({ data }) {
+      data.rooms = [{
+        _id: 'room-a',
+        roomCode: 'ROOMA1',
+        createdBy: 'former-owner',
+        partnerOpenid: '',
+        status: 'waiting'
+      }, {
+        _id: 'room-b',
+        roomCode: 'ROOMB1',
+        createdBy: 'user-a',
+        createdByName: 'A',
+        partnerOpenid: '',
+        status: 'waiting'
+      }]
+      data.roomMembers = [{
+        _id: 'user-a',
+        openid: 'user-a',
+        roomId: 'room-b',
+        roomCode: 'ROOMB1',
+        role: 'creator',
+        updatedAt: 'new-membership'
+      }]
+    }
+  })
+  const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
+
+  const result = await lifecycle.leave({ openid: 'user-a' })
+
+  assert.deepEqual(result, { code: 0, removedCount: 0, deletedCount: 0 })
+  assert.equal(db.transactionAttempts, 2)
+  assert.equal(db.data.rooms.find(room => room._id === 'room-b').status, 'waiting')
+  assert.equal(db.data.roomMembers[0].roomId, 'room-b')
+})
+
+test('Room membership leave only clears the candidate room when the member points elsewhere', async () => {
+  const db = createFakeDb({
+    rooms: [{
+      _id: 'room-a',
+      roomCode: 'ROOMA1',
+      createdBy: 'user-a',
+      createdByName: 'A',
+      partnerOpenid: '',
+      status: 'waiting'
+    }, {
+      _id: 'room-b',
+      roomCode: 'ROOMB1',
+      createdBy: 'user-c',
+      partnerOpenid: 'user-a',
+      partnerName: 'A',
+      status: 'paired'
+    }],
+    roomMembers: [{
+      _id: 'user-a',
+      openid: 'user-a',
+      roomId: 'room-b',
+      roomCode: 'ROOMB1',
+      role: 'partner',
+      updatedAt: 'new-membership'
+    }]
+  })
+  const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
+
+  const result = await lifecycle.leave({ openid: 'user-a' })
+
+  assert.deepEqual(result, { code: 0, removedCount: 1, deletedCount: 0, archivedCount: 1 })
+  assert.equal(db.data.rooms.find(room => room._id === 'room-a').status, 'archived')
+  assert.equal(db.data.rooms.find(room => room._id === 'room-b').status, 'paired')
+  assert.equal(db.data.roomMembers[0].roomId, 'room-b')
+})
+
 function createFakeDb(initial = {}) {
   const data = {
     rooms: clone(initial.rooms || []),
@@ -418,6 +540,9 @@ function createCollection(allData, name, options = {}) {
     },
     doc(id) {
       return {
+        async get() {
+          return { data: clone(allData[name].find(record => record._id === id) || null) }
+        },
         async update({ data }) {
           const record = allData[name].find(item => item._id === id)
           if (record) Object.assign(record, clone(data))
@@ -498,6 +623,7 @@ function createTransactionRunner(data, options = {}) {
         while (true) {
           attempts += 1
           runAttempts += 1
+          if (options.beforeTransactionAttempt) options.beforeTransactionAttempt({ data, attempts })
           const snapshot = clone(data)
           try {
             const result = await callback(createTransaction(snapshot))

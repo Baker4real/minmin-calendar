@@ -12,6 +12,7 @@ function createRoomMembershipLifecycle({
   runTransaction = (callback, times) => db.runTransaction(callback, times)
 }) {
   const rooms = db.collection('rooms')
+  const roomMembers = db.collection('roomMembers')
 
   return {
     async create({ openid, nickName }) {
@@ -110,10 +111,12 @@ function createRoomMembershipLifecycle({
       if (!openid) return { code: -1, msg: '获取用户信息失败' }
 
       const candidate = await findRoomByMember(openid)
+      const memberSnapshot = await readDocument(roomMembers, openid)
       const changedAt = serverDate()
       return runTransaction(transaction => leaveRoomInTransaction(transaction, {
         openid,
         candidateRoomId: candidate && candidate._id || '',
+        memberSnapshot,
         changedAt
       }), TRANSACTION_ATTEMPTS)
     }
@@ -246,24 +249,21 @@ function createRoomMembershipLifecycle({
     return { type: 'joined', room: pairedRoom }
   }
 
-  async function leaveRoomInTransaction(transaction, { openid, candidateRoomId, changedAt }) {
+  async function leaveRoomInTransaction(transaction, { openid, candidateRoomId, memberSnapshot, changedAt }) {
     const roomMembers = transaction.collection('roomMembers')
     const txRooms = transaction.collection('rooms')
     const member = await readDocument(roomMembers, openid)
-    let room = member && member.roomId
-      ? await readDocument(txRooms, member.roomId)
+    const candidateRoom = candidateRoomId
+      ? await readDocument(txRooms, candidateRoomId)
       : null
-    if (!isActiveRoom(room) || !isRoomMember(room, openid)) room = null
-
-    if (!room && candidateRoomId && candidateRoomId !== (member && member.roomId)) {
-      const candidateRoom = await readDocument(txRooms, candidateRoomId)
-      if (isActiveRoom(candidateRoom) && isRoomMember(candidateRoom, openid)) {
-        room = candidateRoom
-      }
-    }
+    const room = isActiveRoom(candidateRoom) && isRoomMember(candidateRoom, openid)
+      ? candidateRoom
+      : null
 
     if (!room) {
-      if (member) await roomMembers.doc(openid).remove()
+      if (await isSameStaleMember({ member, memberSnapshot, txRooms, openid })) {
+        await roomMembers.doc(openid).remove()
+      }
       return { code: 0, removedCount: 0, deletedCount: 0 }
     }
 
@@ -287,7 +287,7 @@ function createRoomMembershipLifecycle({
           updatedAt: changedAt
         }
         await txRooms.doc(room._id).update({ data: withoutId(transferredRoom) })
-        await roomMembers.doc(openid).remove()
+        await removeTargetMember({ roomMembers, txRooms, member, memberSnapshot, roomId: room._id, openid })
         await roomMembers.doc(partnerOpenid).set({
           data: withoutId(buildMember({
             openid: partnerOpenid,
@@ -305,7 +305,7 @@ function createRoomMembershipLifecycle({
         createdByName: room.createdByName || 'TA'
       }, changedAt)
       await txRooms.doc(room._id).update({ data: withoutId(archivedRoom) })
-      await roomMembers.doc(openid).remove()
+      await removeTargetMember({ roomMembers, txRooms, member, memberSnapshot, roomId: room._id, openid })
       return { code: 0, removedCount: 1, deletedCount: 0, archivedCount: 1 }
     }
 
@@ -316,7 +316,7 @@ function createRoomMembershipLifecycle({
           createdByName: room.partnerName || 'TA'
         }, changedAt)
         await txRooms.doc(room._id).update({ data: withoutId(archivedRoom) })
-        await roomMembers.doc(openid).remove()
+        await removeTargetMember({ roomMembers, txRooms, member, memberSnapshot, roomId: room._id, openid })
         return { code: 0, removedCount: 1, deletedCount: 0, archivedCount: 1 }
       }
 
@@ -329,11 +329,11 @@ function createRoomMembershipLifecycle({
         updatedAt: changedAt
       }
       await txRooms.doc(room._id).update({ data: withoutId(waitingRoom) })
-      await roomMembers.doc(openid).remove()
+      await removeTargetMember({ roomMembers, txRooms, member, memberSnapshot, roomId: room._id, openid })
       return { code: 0, removedCount: 1, deletedCount: 0 }
     }
 
-    if (member) await roomMembers.doc(openid).remove()
+    await removeTargetMember({ roomMembers, txRooms, member, memberSnapshot, roomId: room._id, openid })
     return { code: 0, removedCount: 0, deletedCount: 0 }
   }
 
@@ -365,6 +365,33 @@ async function readDocument(collection, id) {
     if (isDocumentNotFoundError(error)) return null
     throw error
   }
+}
+
+async function removeTargetMember({ roomMembers, txRooms, member, memberSnapshot, roomId, openid }) {
+  if (!member) return
+  if (member.roomId === roomId || await isSameStaleMember({ member, memberSnapshot, txRooms, openid })) {
+    await roomMembers.doc(openid).remove()
+  }
+}
+
+async function isSameStaleMember({ member, memberSnapshot, txRooms, openid }) {
+  if (!isSameMemberSnapshot(member, memberSnapshot)) return false
+  const memberRoom = member && member.roomId
+    ? await readDocument(txRooms, member.roomId)
+    : null
+  return !isActiveRoom(memberRoom) || !isRoomMember(memberRoom, openid)
+}
+
+function isSameMemberSnapshot(left, right) {
+  if (!left || !right) return left === right
+  return ['_id', 'openid', 'roomId', 'roomCode', 'role', 'updatedAt']
+    .every(field => isSameIdentityValue(left[field], right[field]))
+}
+
+function isSameIdentityValue(left, right) {
+  if (left === right) return true
+  if (left instanceof Date && right instanceof Date) return left.getTime() === right.getTime()
+  return false
 }
 
 function isDocumentNotFoundError(error) {

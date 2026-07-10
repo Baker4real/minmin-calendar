@@ -951,6 +951,9 @@ function createCollection(allData, name, nextId, options = {}) {
     },
     doc(id) {
       return {
+        async get() {
+          return { data: clone(allData[name].find(record => record._id === id) || null) }
+        },
         async update({ data }) {
           const record = allData[name].find(item => item._id === id)
           if (record) Object.assign(record, clone(data))
