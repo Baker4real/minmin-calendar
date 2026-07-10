@@ -131,7 +131,7 @@ function resolveLoad(state, event) {
       loading: false,
       refreshing: false,
       recordsChanged,
-      hasLoaded: state.hasLoaded,
+      hasLoaded: true,
       syncStatus: buildResolvedSyncStatus({
         snapshot,
         mode: request.mode,

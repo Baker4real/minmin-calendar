@@ -239,7 +239,7 @@ test('initial success publishes both collections and marks the state loaded', ()
     loading: false,
     refreshing: false,
     recordsChanged: true,
-    hasLoaded: false,
+    hasLoaded: true,
     syncStatus: null
   })
 })
@@ -262,6 +262,7 @@ test('initial partial success publishes memories and explains the period failure
   })
 
   assert.equal(resolved.state.hasLoaded, true)
+  assert.equal(resolved.decision.hasLoaded, true)
   assert.deepEqual(resolved.state.records.periods, [])
   assert.deepEqual(resolved.state.records.memories, memories)
   assert.deepEqual(resolved.decision.syncStatus, {
