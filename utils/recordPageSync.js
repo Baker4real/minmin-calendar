@@ -17,10 +17,12 @@ function notifyPreviousPageRecordChange(change, options = {}) {
   }
 }
 
-function getSavedRecordId(outcome, fallbackId = '') {
-  if (fallbackId) return fallbackId
+function getSavedRecord(outcome) {
+  if (!outcome || outcome.kind !== 'success') return null
   const result = outcome && outcome.result ? outcome.result : {}
-  return result.id || result._id || ''
+  const record = result.record
+  if (!record || typeof record !== 'object' || !record._id) return null
+  return { ...record }
 }
 
 function getCurrentPagesProvider() {
@@ -30,5 +32,5 @@ function getCurrentPagesProvider() {
 
 module.exports = {
   notifyPreviousPageRecordChange,
-  getSavedRecordId
+  getSavedRecord
 }

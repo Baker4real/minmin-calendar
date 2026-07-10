@@ -31,21 +31,23 @@ Page({
         }
         return client.add('memories', { date, note })
       },
-      validate: () => (!date ? '请选择日期' : ''),
+      validate: () => {
+        if (!date) return '请选择日期'
+        if (!util.isValidDateString(date)) return '请选择有效日期'
+        return ''
+      },
       successTitle: '保存成功',
       failureTitle: '保存失败'
     })
-    if (outcome.kind === 'success') {
+    const savedRecord = recordPageSync.getSavedRecord(outcome)
+    if (savedRecord) {
       recordPageSync.notifyPreviousPageRecordChange({
         collection: 'memories',
         mode: isEdit ? 'update' : 'add',
-        record: {
-          _id: recordPageSync.getSavedRecordId(outcome, id),
-          date,
-          note
-        }
+        record: savedRecord
       })
     }
+    return outcome
   },
 
   async delete() {

@@ -4,6 +4,7 @@ const path = require('node:path')
 const test = require('node:test')
 
 const repoRoot = path.join(__dirname, '..')
+const recordPageSync = require('../utils/recordPageSync')
 
 test('index page onShow consumes RoomDataClient no-room outcomes without legacy getters', async () => {
   const calls = []
@@ -599,9 +600,7 @@ test('period edit save validates real calendar dates before building a payload',
       },
       'utils/recordPageSync.js': {
         notifyPreviousPageRecordChange() {},
-        getSavedRecordId() {
-          return 'p1'
-        }
+        getSavedRecord: recordPageSync.getSavedRecord
       }
     }
   })
@@ -649,6 +648,156 @@ test('period edit save rejects reversed ranges before building a payload', async
   assert.equal(result.payloadBuilds, 0)
   assert.equal(result.mutationCalls, 0)
   assert.equal(result.notifyCalls, 0)
+})
+
+test('period edit save notifies the previous page with the canonical saved record', async () => {
+  const canonicalPeriod = {
+    _id: 'p9',
+    startDate: '2026-06-10',
+    endDate: '2026-06-12',
+    note: 'x'.repeat(500),
+    duration: 3,
+    flow: 'heavy',
+    symptoms: ['cramps']
+  }
+  const clientPayload = {
+    startDate: '2026-06-10',
+    endDate: '2026-06-12',
+    note: 'x'.repeat(503),
+    duration: 99,
+    flow: 'heavy',
+    symptoms: ['unknown']
+  }
+  const mutationPayloads = []
+  const notifications = []
+  const harness = loadPageHarness('pages/period/edit/edit.js', {
+    mocks: {
+      'utils/util.js': createUtilStub(),
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async add(collection, payload) {
+              assert.equal(collection, 'periods')
+              mutationPayloads.push(payload)
+              return {
+                kind: 'success',
+                result: { id: canonicalPeriod._id, record: canonicalPeriod }
+              }
+            }
+          }
+        }
+      },
+      'utils/cycle.js': {
+        FLOW_OPTIONS: [],
+        buildSymptomOptions() {
+          return []
+        },
+        buildPeriodPayload() {
+          return clientPayload
+        }
+      },
+      'utils/recordCommands.js': createRecordSaveCommandStub(),
+      'utils/recordEditRoute.js': {
+        parsePeriodEditOptions() {
+          return {
+            id: '',
+            startDate: clientPayload.startDate,
+            endDate: clientPayload.endDate,
+            note: clientPayload.note,
+            flow: clientPayload.flow,
+            symptoms: clientPayload.symptoms,
+            isEdit: false
+          }
+        }
+      },
+      'utils/recordPageSync.js': createRecordPageSyncStub(notifications)
+    }
+  })
+
+  try {
+    harness.page.onLoad({})
+    const outcome = await harness.page.save()
+
+    assert.equal(outcome.kind, 'success')
+    assert.deepEqual(mutationPayloads, [clientPayload])
+    assert.deepEqual(notifications, [{
+      collection: 'periods',
+      mode: 'add',
+      record: canonicalPeriod
+    }])
+    assert.notEqual(notifications[0].record.duration, 99)
+    assert.deepEqual(notifications[0].record.symptoms, ['cramps'])
+    assert.equal(notifications[0].record.note.length, 500)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('memory edit save notifies the previous page with the canonical saved record', async () => {
+  const canonicalMemory = {
+    _id: 'm9',
+    date: '2026-06-24',
+    note: 'n'.repeat(500)
+  }
+  const result = await runMemoryEditSaveCase({
+    routeState: {
+      id: '',
+      date: '2026-06-23',
+      note: 'n'.repeat(503),
+      isEdit: false
+    },
+    mutationOutcome: {
+      kind: 'success',
+      result: { id: canonicalMemory._id, record: canonicalMemory }
+    }
+  })
+
+  assert.equal(result.outcome.kind, 'success')
+  assert.deepEqual(result.mutationInputs, [{
+    collection: 'memories',
+    payload: { date: '2026-06-23', note: 'n'.repeat(503) }
+  }])
+  assert.deepEqual(result.notifications, [{
+    collection: 'memories',
+    mode: 'add',
+    record: canonicalMemory
+  }])
+  assert.equal(result.notifications[0].record.note.length, 500)
+})
+
+test('memory edit save keeps legacy success without an optimistic notification', async () => {
+  const result = await runMemoryEditSaveCase({
+    routeState: {
+      id: '',
+      date: '2026-06-24',
+      note: 'legacy',
+      isEdit: false
+    },
+    mutationOutcome: { kind: 'success', result: { id: 'm9' } }
+  })
+
+  assert.deepEqual(result.outcome, { kind: 'success', result: { id: 'm9' } })
+  assert.equal(result.mutationInputs.length, 1)
+  assert.equal(result.notifications.length, 0)
+})
+
+test('memory edit save rejects invalid calendar dates before mutation', async () => {
+  const result = await runMemoryEditSaveCase({
+    routeState: {
+      id: '',
+      date: '2026-02-31',
+      note: 'invalid date',
+      isEdit: false
+    },
+    mutationOutcome: { kind: 'success', result: { id: 'm9' } }
+  })
+
+  assert.deepEqual(result.outcome, {
+    kind: 'validation',
+    message: '请选择有效日期'
+  })
+  assert.equal(result.mutationInputs.length, 0)
+  assert.equal(result.notifications.length, 0)
 })
 
 test('period edit onLoad tolerates malformed route encoding', () => {
@@ -989,9 +1138,7 @@ async function runPeriodEditSaveValidationCase(overrides = {}) {
         notifyPreviousPageRecordChange() {
           notifyCalls += 1
         },
-        getSavedRecordId() {
-          return 'p1'
-        }
+        getSavedRecord: recordPageSync.getSavedRecord
       }
     }
   })
@@ -1002,6 +1149,65 @@ async function runPeriodEditSaveValidationCase(overrides = {}) {
     return { outcome, payloadBuilds, mutationCalls, notifyCalls }
   } finally {
     harness.teardown()
+  }
+}
+
+async function runMemoryEditSaveCase({ routeState, mutationOutcome }) {
+  const mutationInputs = []
+  const notifications = []
+  const client = {
+    async add(collection, payload) {
+      mutationInputs.push({ collection, payload })
+      return mutationOutcome
+    },
+    async update(collection, id, payload) {
+      mutationInputs.push({ collection, id, payload })
+      return mutationOutcome
+    }
+  }
+  const harness = loadPageHarness('pages/memory/edit/edit.js', {
+    mocks: {
+      'utils/util.js': createUtilStub(),
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return client
+        }
+      },
+      'utils/recordCommands.js': createRecordSaveCommandStub(),
+      'utils/recordEditRoute.js': {
+        parseMemoryEditOptions() {
+          return routeState
+        }
+      },
+      'utils/recordPageSync.js': createRecordPageSyncStub(notifications)
+    }
+  })
+
+  try {
+    harness.page.onLoad({})
+    const outcome = await harness.page.save()
+    return { outcome, mutationInputs, notifications }
+  } finally {
+    harness.teardown()
+  }
+}
+
+function createRecordSaveCommandStub() {
+  return {
+    async runRecordSave(options) {
+      const message = options.validate()
+      if (message) return { kind: 'validation', message }
+      return options.action()
+    }
+  }
+}
+
+function createRecordPageSyncStub(notifications) {
+  return {
+    getSavedRecord: recordPageSync.getSavedRecord,
+    notifyPreviousPageRecordChange(change) {
+      notifications.push(change)
+    }
   }
 }
 

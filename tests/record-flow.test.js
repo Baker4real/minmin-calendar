@@ -99,7 +99,7 @@ test('runRecordSave clears saving state, shows success toast, and schedules one 
 
 test('record page sync notifies the previous page without requiring a reload', () => {
   assert.equal(typeof recordPageSync.notifyPreviousPageRecordChange, 'function')
-  assert.equal(typeof recordPageSync.getSavedRecordId, 'function')
+  assert.equal(typeof recordPageSync.getSavedRecord, 'function')
 
   const changes = []
   const notified = recordPageSync.notifyPreviousPageRecordChange(
@@ -126,8 +126,21 @@ test('record page sync notifies the previous page without requiring a reload', (
       record: { _id: 'm1', date: '2026-07-03', note: 'second' }
     }
   ])
-  assert.equal(recordPageSync.getSavedRecordId({ kind: 'success', result: { id: 'm2' } }), 'm2')
-  assert.equal(recordPageSync.getSavedRecordId({ kind: 'success', result: { id: 'm2' } }, 'existing'), 'existing')
+  assert.deepEqual(
+    recordPageSync.getSavedRecord({
+      kind: 'success',
+      result: { record: { _id: 'm2', date: '2026-06-24', note: 'canonical' } }
+    }),
+    { _id: 'm2', date: '2026-06-24', note: 'canonical' }
+  )
+  assert.equal(
+    recordPageSync.getSavedRecord({ kind: 'success', result: { id: 'm2' } }),
+    null
+  )
+  assert.equal(
+    recordPageSync.getSavedRecord({ kind: 'business-failure' }),
+    null
+  )
 })
 
 test('runRecordSave does not replay unknown save mutations after retryable failures', async () => {

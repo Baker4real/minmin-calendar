@@ -58,12 +58,10 @@ Page({
   async save() {
     const { id, startDate, endDate, note, flow, symptoms, isEdit } = this.data
     const client = cloud.createRoomDataClient()
-    let savedPayload = null
     const outcome = await recordCommands.runRecordSave({
       page: this,
       action: () => {
         const payload = cycle.buildPeriodPayload({ startDate, endDate, note, flow, symptoms })
-        savedPayload = payload
         if (isEdit) {
           return client.update('periods', id, payload)
         }
@@ -78,14 +76,12 @@ Page({
       successTitle: '保存成功',
       failureTitle: '保存失败'
     })
-    if (outcome.kind === 'success' && savedPayload) {
+    const savedRecord = recordPageSync.getSavedRecord(outcome)
+    if (savedRecord) {
       recordPageSync.notifyPreviousPageRecordChange({
         collection: 'periods',
         mode: isEdit ? 'update' : 'add',
-        record: {
-          _id: recordPageSync.getSavedRecordId(outcome, id),
-          ...savedPayload
-        }
+        record: savedRecord
       })
     }
     return outcome
