@@ -1,5 +1,4 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
@@ -895,18 +894,20 @@ test('Room membership lifecycle preserves records through transfer archive and r
   assert.equal(db.data.rooms[0].status, 'waiting')
 })
 
-test('RoomBinding module stays deployable in each room cloud function directory', () => {
+test('Room membership lifecycle artifact stays deployable in each room cloud function directory', () => {
   const root = path.join(__dirname, '..')
-  const canonical = fs.readFileSync(path.join(root, 'cloudfunctions/createRoom/roomBinding.js'), 'utf8')
+  const functionNames = ['createRoom', 'joinRoom', 'getMyRoom', 'leaveRoom']
 
-  assert.equal(
-    fs.readFileSync(path.join(root, 'cloudfunctions/joinRoom/roomBinding.js'), 'utf8'),
-    canonical
-  )
-  assert.equal(
-    fs.readFileSync(path.join(root, 'cloudfunctions/getMyRoom/roomBinding.js'), 'utf8'),
-    canonical
-  )
+  functionNames.forEach(functionName => {
+    const artifact = require(path.join(
+      root,
+      'cloudfunctions',
+      functionName,
+      'roomMembershipLifecycle.js'
+    ))
+
+    assert.equal(typeof artifact.createRoomMembershipLifecycle, 'function')
+  })
 })
 
 function createFakeDb(initial = {}) {

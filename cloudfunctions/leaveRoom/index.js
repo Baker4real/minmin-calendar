@@ -1,9 +1,9 @@
 const cloud = require('wx-server-sdk')
-const { createRoomLifecycle } = require('./roomLifecycle')
+const { createRoomMembershipLifecycle } = require('./roomMembershipLifecycle')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
-const lifecycle = createRoomLifecycle({ db, serverDate: () => db.serverDate() })
+const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => db.serverDate() })
 
 exports.main = async (event, context) => {
   const { OPENID } = cloud.getWXContext()

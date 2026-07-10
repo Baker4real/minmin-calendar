@@ -46,8 +46,16 @@ Run relevant checks before claiming work is complete. Current lightweight checks
 When running these checks through Codex Desktop shell, pass absolute file paths to `node --test` / `node --check`; the shell wrapper may not resolve relative test paths reliably.
 
 ```powershell
-node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-protocol.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
-node --check cloudfunctions\leaveRoom\roomLifecycle.js
+node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\room-access-protocol.test.js tests\home-calendar-state.test.js tests\home-records-sync.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
+node --check cloudfunctions\_shared\roomMembershipLifecycle.js
+node --check cloudfunctions\_shared\syncRoomMembershipLifecycle.js
+node --check cloudfunctions\createRoom\roomMembershipLifecycle.js
+node --check cloudfunctions\createRoom\index.js
+node --check cloudfunctions\joinRoom\roomMembershipLifecycle.js
+node --check cloudfunctions\joinRoom\index.js
+node --check cloudfunctions\getMyRoom\roomMembershipLifecycle.js
+node --check cloudfunctions\getMyRoom\index.js
+node --check cloudfunctions\leaveRoom\roomMembershipLifecycle.js
 node --check cloudfunctions\leaveRoom\index.js
 node --check cloudfunctions\dataOp\dataOpHandler.js
 node --check cloudfunctions\dataOp\roomRecords.js
@@ -55,10 +63,13 @@ node --check cloudfunctions\dataOp\index.js
 node --check utils\room.js
 node --check utils\cloud.js
 node --check utils\roomAccessProtocol.js
+node --check utils\roomAccessOutcome.js
 node --check utils\recordCommands.js
 node --check utils\recordPageSync.js
+node --check utils\recordEditRoute.js
 node --check utils\settingsFlow.js
 node --check utils\roomRecordsSnapshot.js
+node --check utils\homeRecordsSync.js
 node --check utils\homeCalendarState.js
 node --check utils\util.js
 node --check utils\cycle.js
@@ -70,6 +81,7 @@ node --check pages\memory\memory.js
 node --check pages\memory\edit\edit.js
 node --check pages\period\period.js
 node --check pages\period\edit\edit.js
+node cloudfunctions\_shared\syncRoomMembershipLifecycle.js --check
 ```
 
 For UI changes, also perform manual visual verification in WeChat DevTools when available, especially at small-phone widths.

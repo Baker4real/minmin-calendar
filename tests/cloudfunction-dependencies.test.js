@@ -53,6 +53,51 @@ test('cloud functions pin wx-server-sdk and commit matching lockfiles', () => {
   assert.deepEqual([...pinnedVersions], [pinnedWxServerSdkVersion])
 })
 
+test('room membership lifecycle deployment artifacts match the canonical source', () => {
+  const canonical = fs.readFileSync(
+    path.join(cloudfunctionsRoot, '_shared', 'roomMembershipLifecycle.js'),
+    'utf8'
+  )
+  const functionNames = ['createRoom', 'joinRoom', 'getMyRoom', 'leaveRoom']
+
+  functionNames.forEach(functionName => {
+    const artifact = fs.readFileSync(
+      path.join(cloudfunctionsRoot, functionName, 'roomMembershipLifecycle.js'),
+      'utf8'
+    )
+    assert.equal(artifact, canonical)
+  })
+})
+
+test('room membership lifecycle adapters use only their local artifact and operation', () => {
+  const adapters = {
+    createRoom: 'create',
+    joinRoom: 'join',
+    getMyRoom: 'getActive',
+    leaveRoom: 'leave'
+  }
+
+  Object.entries(adapters).forEach(([functionName, operation]) => {
+    const source = fs.readFileSync(path.join(cloudfunctionsRoot, functionName, 'index.js'), 'utf8')
+
+    assert.match(
+      source,
+      /require\(['"]\.\/roomMembershipLifecycle['"]\)/,
+      `${functionName} must require its local room membership lifecycle artifact`
+    )
+    assert.doesNotMatch(
+      source,
+      /require\(['"][^'"]*_shared[^'"]*['"]\)/,
+      `${functionName} must not require the canonical source at runtime`
+    )
+    assert.match(
+      source,
+      new RegExp(`lifecycle\\.${operation}\\(`),
+      `${functionName} must call lifecycle.${operation}`
+    )
+  })
+})
+
 function listCloudFunctions() {
   return fs.readdirSync(cloudfunctionsRoot, { withFileTypes: true })
     .filter(entry => entry.isDirectory())
