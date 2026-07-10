@@ -8,9 +8,11 @@ const {
 } = require('../cloudfunctions/_shared/roomMembershipLifecycle')
 
 function createRoomMembershipLifecycle(options) {
+  let membershipSequence = 0
   return createCanonicalRoomMembershipLifecycle({
     ...options,
-    generateRoomId: options.generateRoomId || (() => `room-${options.db.data.rooms.length + 1}`)
+    generateRoomId: options.generateRoomId || (() => `room-${options.db.data.rooms.length + 1}`),
+    generateMembershipId: options.generateMembershipId || (() => `membership-${++membershipSequence}`)
   })
 }
 
@@ -53,7 +55,8 @@ test('RoomBinding create does not trust a stale member pointer as room authoriza
       openid: 'user-a',
       roomId: 'room-private',
       roomCode: 'SECRET',
-      role: 'creator'
+      role: 'creator',
+      membershipId: 'private-membership'
     }]
   })
   const lifecycle = createRoomMembershipLifecycle({
@@ -67,6 +70,7 @@ test('RoomBinding create does not trust a stale member pointer as room authoriza
   assert.equal(result.code, -5)
   assert.equal(result.roomCode, '')
   assert.equal(Object.prototype.hasOwnProperty.call(result, 'room'), false)
+  assert.equal(Object.prototype.hasOwnProperty.call(result, 'membershipId'), false)
 })
 
 test('RoomBinding create restores the creator archived room instead of creating a new room code', async () => {
@@ -118,6 +122,7 @@ test('RoomBinding create restores the creator archived room instead of creating 
     roomId: 'room-1',
     roomCode: 'ROOM01',
     role: 'creator',
+    membershipId: 'membership-1',
     updatedAt: SERVER_DATE
   }])
 })
@@ -161,6 +166,7 @@ test('RoomBinding create restores an archived room when a same-room member lock 
     roomId: 'room-1',
     roomCode: 'ROOM01',
     role: 'creator',
+    membershipId: 'membership-1',
     updatedAt: SERVER_DATE
   }])
 })
@@ -204,6 +210,7 @@ test('RoomBinding create restores the creator archived room from a legacy blank 
     roomId: 'room-1',
     roomCode: 'ROOM01',
     role: 'creator',
+    membershipId: 'membership-1',
     updatedAt: SERVER_DATE
   }])
 })
@@ -296,6 +303,7 @@ test('RoomBinding create stores a new waiting room with a unique code', async ()
     roomId: 'room-2',
     roomCode: 'FRESH1',
     role: 'creator',
+    membershipId: 'membership-1',
     updatedAt: SERVER_DATE
   }])
 })
@@ -411,6 +419,7 @@ test('RoomBinding join normalizes room code and pairs an available room', async 
     roomId: 'room-1',
     roomCode: 'ROOM01',
     role: 'partner',
+    membershipId: 'membership-1',
     updatedAt: SERVER_DATE
   }])
 })
@@ -575,7 +584,8 @@ test('RoomBinding join rejects concurrent joins for a user with an active member
       openid: 'user-b',
       roomId: 'room-2',
       roomCode: 'ROOM02',
-      role: 'partner'
+      role: 'partner',
+      membershipId: 'private-membership'
     }]
   })
   const binding = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
@@ -587,6 +597,7 @@ test('RoomBinding join rejects concurrent joins for a user with an active member
     msg: '你已加入其他房间，请先解除绑定后再加入新房间',
     roomCode: 'ROOM01'
   })
+  assert.equal(Object.prototype.hasOwnProperty.call(result, 'membershipId'), false)
   assert.equal(db.data.rooms[0].partnerOpenid, '')
 })
 
@@ -765,6 +776,7 @@ test('RoomBinding join allows only one concurrent room claim for the same user',
     roomId: claimedRooms[0]._id,
     roomCode: claimedRooms[0].roomCode,
     role: 'partner',
+    membershipId: 'membership-1',
     updatedAt: SERVER_DATE
   }])
 })

@@ -9,6 +9,7 @@ function createRoomMembershipLifecycle({
   serverDate,
   generateRoomCode = createRandomRoomCode,
   generateRoomId = createRandomRoomId,
+  generateMembershipId = createRandomRoomId,
   runTransaction = (callback, times) => db.runTransaction(callback, times)
 }) {
   const rooms = db.collection('rooms')
@@ -24,11 +25,13 @@ function createRoomMembershipLifecycle({
       const archived = await findArchivedRoomByCreator(openid)
       if (archived) {
         const restoredAt = serverDate()
+        const membershipId = createMembershipId(generateMembershipId)
         const outcome = await runTransaction(transaction => createRoomInTransaction(transaction, {
           openid,
           nickName,
           archivedRoomId: archived._id,
-          restoredAt
+          restoredAt,
+          membershipId
         }), TRANSACTION_ATTEMPTS)
         return buildCreateTransactionOutcome(outcome)
       }
@@ -41,6 +44,7 @@ function createRoomMembershipLifecycle({
         const roomId = String(generateRoomId() || '')
         if (!roomId) continue
         const createdAt = serverDate()
+        const membershipId = createMembershipId(generateMembershipId)
 
         try {
           const outcome = await runTransaction(transaction => createRoomInTransaction(transaction, {
@@ -48,7 +52,8 @@ function createRoomMembershipLifecycle({
             nickName,
             roomId,
             roomCode,
-            createdAt
+            createdAt,
+            membershipId
           }), TRANSACTION_ATTEMPTS)
           return buildCreateTransactionOutcome(outcome)
         } catch (error) {
@@ -77,12 +82,14 @@ function createRoomMembershipLifecycle({
       }
 
       const pairedAt = serverDate()
+      const membershipId = createMembershipId(generateMembershipId)
       const outcome = await runTransaction(transaction => joinRoomInTransaction(transaction, {
         openid,
         nickName,
         roomId: candidate._id,
         roomCode: normalizedRoomCode,
-        pairedAt
+        pairedAt,
+        membershipId
       }), TRANSACTION_ATTEMPTS)
 
       if (outcome.type === 'existing') {
@@ -110,8 +117,8 @@ function createRoomMembershipLifecycle({
     async leave({ openid }) {
       if (!openid) return { code: -1, msg: '获取用户信息失败' }
 
-      const candidate = await findRoomByMember(openid)
       const memberSnapshot = await readDocument(roomMembers, openid)
+      const candidate = await findRoomByMember(openid)
       const changedAt = serverDate()
       return runTransaction(transaction => leaveRoomInTransaction(transaction, {
         openid,
@@ -151,7 +158,8 @@ function createRoomMembershipLifecycle({
         memberRoom: archivedRoom,
         openid: options.openid,
         nickName: options.nickName,
-        restoredAt: options.restoredAt
+        restoredAt: options.restoredAt,
+        membershipId: options.membershipId
       })
     }
 
@@ -176,13 +184,14 @@ function createRoomMembershipLifecycle({
         openid: options.openid,
         room,
         role: 'creator',
-        updatedAt: options.createdAt
+        updatedAt: options.createdAt,
+        membershipId: options.membershipId
       }))
     })
     return { type: 'created', room }
   }
 
-  async function restoreRoomDocuments({ roomMembers, txRooms, memberRoom, openid, nickName, restoredAt }) {
+  async function restoreRoomDocuments({ roomMembers, txRooms, memberRoom, openid, nickName, restoredAt, membershipId }) {
     const room = {
       ...memberRoom,
       createdByName: nickName || memberRoom.createdByName || 'TA',
@@ -196,7 +205,7 @@ function createRoomMembershipLifecycle({
     }
     await txRooms.doc(room._id).update({ data: withoutId(room) })
     await roomMembers.doc(openid).set({
-      data: withoutId(buildMember({ openid, room, role: 'creator', updatedAt: restoredAt }))
+      data: withoutId(buildMember({ openid, room, role: 'creator', updatedAt: restoredAt, membershipId }))
     })
     return { type: 'created', room }
   }
@@ -243,7 +252,8 @@ function createRoomMembershipLifecycle({
         openid: options.openid,
         room: pairedRoom,
         role: 'partner',
-        updatedAt: options.pairedAt
+        updatedAt: options.pairedAt,
+        membershipId: options.membershipId
       }))
     })
     return { type: 'joined', room: pairedRoom }
@@ -253,6 +263,11 @@ function createRoomMembershipLifecycle({
     const roomMembers = transaction.collection('roomMembers')
     const txRooms = transaction.collection('rooms')
     const member = await readDocument(roomMembers, openid)
+
+    if (!isSameMemberSnapshot(member, memberSnapshot)) {
+      return { code: 0, removedCount: 0, deletedCount: 0 }
+    }
+
     const candidateRoom = candidateRoomId
       ? await readDocument(txRooms, candidateRoomId)
       : null
@@ -369,6 +384,7 @@ async function readDocument(collection, id) {
 
 async function removeTargetMember({ roomMembers, txRooms, member, memberSnapshot, roomId, openid }) {
   if (!member) return
+  if (!isSameMemberSnapshot(member, memberSnapshot)) return
   if (member.roomId === roomId || await isSameStaleMember({ member, memberSnapshot, txRooms, openid })) {
     await roomMembers.doc(openid).remove()
   }
@@ -384,6 +400,10 @@ async function isSameStaleMember({ member, memberSnapshot, txRooms, openid }) {
 
 function isSameMemberSnapshot(left, right) {
   if (!left || !right) return left === right
+  const leftHasMembershipId = Object.prototype.hasOwnProperty.call(left, 'membershipId')
+  const rightHasMembershipId = Object.prototype.hasOwnProperty.call(right, 'membershipId')
+  if (leftHasMembershipId !== rightHasMembershipId) return false
+  if (leftHasMembershipId) return isSameIdentityValue(left.membershipId, right.membershipId)
   return ['_id', 'openid', 'roomId', 'roomCode', 'role', 'updatedAt']
     .every(field => isSameIdentityValue(left[field], right[field]))
 }
@@ -417,8 +437,8 @@ function buildCreateTransactionOutcome(outcome) {
   }
 }
 
-function buildMember({ openid, room, role, updatedAt, previous = {} }) {
-  return {
+function buildMember({ openid, room, role, updatedAt, membershipId, previous = {} }) {
+  const member = {
     ...previous,
     _id: openid,
     openid,
@@ -427,6 +447,12 @@ function buildMember({ openid, room, role, updatedAt, previous = {} }) {
     role,
     updatedAt
   }
+  if (membershipId) member.membershipId = membershipId
+  return member
+}
+
+function createMembershipId(generateMembershipId) {
+  return String(generateMembershipId() || createRandomRoomId())
 }
 
 function sanitizeMemberConflict(member) {

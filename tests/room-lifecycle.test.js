@@ -6,9 +6,11 @@ const {
 } = require('../cloudfunctions/_shared/roomMembershipLifecycle')
 
 function createRoomMembershipLifecycle(options) {
+  let membershipSequence = 0
   return createCanonicalRoomMembershipLifecycle({
     ...options,
-    generateRoomId: options.generateRoomId || (() => `room-${options.db.data.rooms.length + 1}`)
+    generateRoomId: options.generateRoomId || (() => `room-${options.db.data.rooms.length + 1}`),
+    generateMembershipId: options.generateMembershipId || (() => `membership-${++membershipSequence}`)
   })
 }
 
@@ -30,8 +32,8 @@ test('RoomLifecycle transfers creator ownership to the partner when the creator 
       }
     ],
     roomMembers: [
-      { _id: 'user-a', openid: 'user-a', roomId: 'room-1', roomCode: 'ROOM01', role: 'creator' },
-      { _id: 'user-b', openid: 'user-b', roomId: 'room-1', roomCode: 'ROOM01', role: 'partner' }
+      { _id: 'user-a', openid: 'user-a', roomId: 'room-1', roomCode: 'ROOM01', role: 'creator', membershipId: 'member-a' },
+      { _id: 'user-b', openid: 'user-b', roomId: 'room-1', roomCode: 'ROOM01', role: 'partner', membershipId: 'member-b' }
     ]
   })
   const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
@@ -60,6 +62,7 @@ test('RoomLifecycle transfers creator ownership to the partner when the creator 
       roomId: 'room-1',
       roomCode: 'ROOM01',
       role: 'creator',
+      membershipId: 'member-b',
       updatedAt: SERVER_DATE
     }
   ])
@@ -472,6 +475,66 @@ test('Room membership leave retry stays pinned when the membership changes after
   assert.equal(db.data.rooms.find(room => room._id === 'room-b').status, 'waiting')
   assert.equal(db.data.roomMembers[0].roomId, 'room-b')
 })
+
+test('Room membership leave does not remove a recovered same-room membership with reused fields', async () => {
+  await assertSameRoomMembershipAbaIsIgnored({ membershipId: 'old-membership' })
+})
+
+test('Room membership leave does not remove a recovered same-room membership after a legacy snapshot', async () => {
+  await assertSameRoomMembershipAbaIsIgnored({})
+})
+
+async function assertSameRoomMembershipAbaIsIgnored(previousMembership) {
+  const db = createFakeDb({
+    rooms: [{
+      _id: 'room-a',
+      roomCode: 'ROOMA1',
+      createdBy: 'user-a',
+      createdByName: 'A',
+      partnerOpenid: '',
+      status: 'waiting'
+    }],
+    roomMembers: [{
+      _id: 'user-a',
+      openid: 'user-a',
+      roomId: 'room-a',
+      roomCode: 'ROOMA1',
+      role: 'creator',
+      ...previousMembership,
+      updatedAt: SERVER_DATE
+    }],
+    beforeTransactionAttempt({ data, attempts }) {
+      if (attempts !== 1) return
+      data.rooms = [{
+        _id: 'room-a',
+        roomCode: 'ROOMA1',
+        createdBy: 'user-a',
+        createdByName: 'A',
+        partnerOpenid: '',
+        status: 'waiting',
+        restoredAt: SERVER_DATE,
+        updatedAt: SERVER_DATE
+      }]
+      data.roomMembers = [{
+        _id: 'user-a',
+        openid: 'user-a',
+        roomId: 'room-a',
+        roomCode: 'ROOMA1',
+        role: 'creator',
+        membershipId: 'new-membership',
+        updatedAt: SERVER_DATE
+      }]
+    }
+  })
+  const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
+
+  const result = await lifecycle.leave({ openid: 'user-a' })
+
+  assert.deepEqual(result, { code: 0, removedCount: 0, deletedCount: 0 })
+  assert.equal(db.data.rooms[0].status, 'waiting')
+  assert.equal(db.data.rooms[0].createdBy, 'user-a')
+  assert.equal(db.data.roomMembers[0].membershipId, 'new-membership')
+}
 
 test('Room membership leave only clears the candidate room when the member points elsewhere', async () => {
   const db = createFakeDb({
