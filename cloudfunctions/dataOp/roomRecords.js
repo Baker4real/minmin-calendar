@@ -45,7 +45,7 @@ function createRoomRecords({ db, serverDate }) {
       if (normalized.code !== 0) return normalized
 
       const updateResult = await db.collection(collection).doc(id).update({ data: normalized.data })
-      if (getUpdatedCount(updateResult) === 0) {
+      if (getUpdatedCount(updateResult) === 0 && !(await findRecord(collection, roomCode, id))) {
         return { code: -1, msg: '记录不存在或无权修改' }
       }
       return {

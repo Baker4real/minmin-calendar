@@ -157,6 +157,33 @@ test('RoomRecords update returns the canonical Memory record that was persisted'
   assert.equal(db.data.memories[0].note.length, 500)
 })
 
+test('RoomRecords update treats unchanged canonical data as a successful no-op', async () => {
+  const db = createFakeDb({
+    memories: [{ _id: 'm1', roomCode: 'ROOM01', date: '2026-06-24', note: 'same' }]
+  })
+  const records = createRoomRecords({ db, serverDate: () => SERVER_DATE })
+
+  const result = await records.update({
+    collection: 'memories',
+    roomCode: 'ROOM01',
+    id: 'm1',
+    data: { date: '2026-06-24', note: 'same' }
+  })
+
+  assert.deepEqual(result, {
+    code: 0,
+    id: 'm1',
+    record: {
+      _id: 'm1',
+      date: '2026-06-24',
+      note: 'same'
+    }
+  })
+  assert.deepEqual(db.data.memories, [
+    { _id: 'm1', roomCode: 'ROOM01', date: '2026-06-24', note: 'same' }
+  ])
+})
+
 test('RoomRecords update rejects a record deleted after the authorization lookup', async () => {
   const db = createFakeDb({
     memories: [{ _id: 'm1', roomCode: 'ROOM01', date: '2026-06-20', note: 'old' }],
@@ -291,8 +318,11 @@ function createCollection(allData, name, { beforeUpdate } = {}) {
         async update({ data }) {
           if (beforeUpdate) beforeUpdate({ records: allData[name], id })
           const record = allData[name].find(item => item._id === id)
+          const changed = record && Object.keys(data).some(key =>
+            JSON.stringify(record[key]) !== JSON.stringify(data[key])
+          )
           if (record) Object.assign(record, clone(data))
-          return { stats: { updated: record ? 1 : 0 } }
+          return { stats: { updated: changed ? 1 : 0 } }
         },
         async remove() {
           const index = allData[name].findIndex(item => item._id === id)
