@@ -4,6 +4,10 @@ const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const recordEditRoute = require('../../utils/recordEditRoute')
 const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
+const {
+  createHomeRecordsSyncState,
+  transitionHomeRecordsSync
+} = require('../../utils/homeRecordsSync')
 
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
 const SYNC_STATUS_CLEAR_DELAY = 1600
@@ -68,6 +72,11 @@ Page({
       month: now.getMonth(),
       calendarDensity: this.getSavedCalendarDensity()
     })
+    this._homeRecordsSyncState = createHomeRecordsSyncState({
+      periods: this.data.periods,
+      memories: this.data.memories,
+      hasLoaded: this.data.hasLoadedHomeData
+    })
   },
 
   onShow() {
@@ -79,52 +88,75 @@ Page({
 
   async loadData(options = {}) {
     const background = Boolean(options.background)
-    this.prepareLoadState(background)
+    const started = this.transitionRecordsSync({
+      type: 'load-start',
+      mode: background ? 'background' : 'initial'
+    })
+    const requestId = started.decision.requestId
+    this.applyRecordsSyncDecision(started, { background })
 
     try {
       const client = cloud.createRoomDataClient()
       const snapshot = await roomRecordsSnapshot.loadHomeRecordsSnapshot({ client })
-
-      return this.handleRecordsSnapshot({ snapshot, background })
+      const transition = this.transitionRecordsSync({
+        type: 'load-resolved',
+        requestId,
+        snapshot
+      })
+      this.applyRecordsSyncDecision(transition, { background })
+      return snapshot.kind === 'blocked' ? snapshot.outcome : snapshot
     } catch (e) {
       console.error('load error', e)
       const outcome = {
         kind: 'retryable-failure',
         message: getErrorMessage(e)
       }
-      if (background) {
-        this.showBackgroundSyncFailure()
-        return outcome
-      }
-      this.showRoomStatus({
-        title: '日历加载失败',
-        desc: '请检查网络后重试',
-        actionText: '重试',
-        action: 'retry'
+      const transition = this.transitionRecordsSync({
+        type: 'load-failed',
+        requestId,
+        outcome
       })
+      this.applyRecordsSyncDecision(transition, { background })
       return outcome
     } finally {
-      this.finishLoadState(background)
       this._loadingPromise = null
     }
   },
 
-  handleRecordsSnapshot({ snapshot, background }) {
-    if (snapshot.kind === 'blocked') {
-      return this.handleLoadOutcome(snapshot.outcome, { background })
+  canRefreshInBackground() {
+    return this.data.hasLoadedHomeData && !this.data.noRoom
+  },
+
+  transitionRecordsSync(event) {
+    const transition = transitionHomeRecordsSync(
+      this._homeRecordsSyncState || createHomeRecordsSyncState(),
+      event
+    )
+    this._homeRecordsSyncState = transition.state
+    return transition
+  },
+
+  applyRecordsSyncDecision(transition, { background } = {}) {
+    const { state, decision } = transition
+    if (decision.ignored) return
+
+    const loadingState = {}
+    if (typeof decision.loading === 'boolean') loadingState.loading = decision.loading
+    if (typeof decision.refreshing === 'boolean') loadingState.refreshing = decision.refreshing
+    if (Object.keys(loadingState).length) this.setData(loadingState)
+
+    const roomStatusOutcome = decision.blockingOutcome ||
+      (!background && decision.outcome)
+    if (roomStatusOutcome) {
+      this.applyRoomStatusOutcome(roomStatusOutcome)
+      return
     }
 
-    if (snapshot.kind === 'success' || snapshot.kind === 'partial-success') {
-      const records = roomRecordsSnapshot.getHomeRecordsForSnapshot(snapshot, {
-        periods: this.data.periods,
-        memories: this.data.memories
-      })
-      const backgroundDataChanged = background && roomRecordsSnapshot.hasHomeSnapshotRecordChanges(snapshot, {
-        periods: this.data.periods,
-        memories: this.data.memories
-      })
-
-      this.applyHomeCalendarState(records)
+    const firstSuccess = state.hasLoaded && !this.data.hasLoadedHomeData
+    if (decision.recordsChanged || firstSuccess) {
+      this.applyHomeCalendarState(state.records)
+    }
+    if (state.hasLoaded) {
       this.setData({
         hasLoadedHomeData: true,
         noRoom: false,
@@ -133,85 +165,15 @@ Page({
         roomStatusActionText: '',
         roomStatusAction: ''
       })
-
-      if (snapshot.kind === 'success') {
-        if (background) {
-          if (this.consumePendingRecordChangeSync() || backgroundDataChanged) {
-            this.showSyncStatus('已同步')
-          } else {
-            this.hideSyncStatus()
-          }
-        }
-        return {
-          kind: 'success',
-          periods: snapshot.periods,
-          memories: snapshot.memories
-        }
-      }
-
-      if (!background || this._hasPendingRecordChangeSync || backgroundDataChanged) {
-        this.showSyncStatus(roomRecordsSnapshot.buildHomePartialSyncStatus(snapshot, { background }), { autoHide: false })
-      } else {
-        this.hideSyncStatus()
-      }
-      return {
-        kind: 'partial-success',
-        periodsOutcome: snapshot.periodsOutcome,
-        memoriesOutcome: snapshot.memoriesOutcome
-      }
     }
 
-    return this.handleLoadOutcome(snapshot.outcome || {
-      kind: 'retryable-failure',
-      message: '日历加载失败'
-    }, { background })
-  },
-
-  canRefreshInBackground() {
-    return this.data.hasLoadedHomeData && !this.data.noRoom
-  },
-
-  prepareLoadState(background) {
-    this.clearSyncStatusTimer()
-    if (background) {
-      const update = { refreshing: true }
-      if (!this._hasPendingRecordChangeSync) {
-        update.syncStatusVisible = false
-        update.syncStatusText = ''
-      }
-      this.setData(update)
-      return
+    if (decision.syncStatus) {
+      this.showSyncStatus(decision.syncStatus.text, {
+        autoHide: decision.syncStatus.autoHide
+      })
+    } else if (background) {
+      this.hideSyncStatus()
     }
-
-    this.setData({
-      loading: true,
-      refreshing: false,
-      syncStatusVisible: false,
-      syncStatusText: '',
-      noRoom: false,
-      roomStatusTitle: '',
-      roomStatusDesc: '',
-      roomStatusActionText: '',
-      roomStatusAction: ''
-    })
-  },
-
-  finishLoadState(background) {
-    if (background) {
-      this.setData({ refreshing: false })
-      return
-    }
-    this.setData({ loading: false, refreshing: false })
-  },
-
-  handleLoadOutcome(outcome, { background }) {
-    if (background && outcome && outcome.kind === 'retryable-failure') {
-      this.showBackgroundSyncFailure()
-      return outcome
-    }
-
-    this.applyRoomStatusOutcome(outcome)
-    return outcome
   },
 
   calcStats(periods) {
@@ -238,42 +200,19 @@ Page({
   },
 
   applyRecordChange(change = {}) {
-    const { collection, record, mode } = change
-    if (collection !== 'periods' && collection !== 'memories') return
-    if (!record || typeof record !== 'object') return
-
-    const records = this.mergeRecordChange(this.data[collection], record, mode)
-    this.applyHomeCalendarState({ [collection]: records })
-    if (this.data.hasLoadedHomeData) {
-      this._hasPendingRecordChangeSync = true
-      this.showSyncStatus('已更新，正在同步', { autoHide: false })
+    const transition = this.transitionRecordsSync({
+      type: 'record-change',
+      change
+    })
+    if (transition.decision.recordsChanged) {
+      this.applyHomeCalendarState(transition.state.records)
     }
-  },
-
-  mergeRecordChange(records = [], record = {}, mode = 'upsert') {
-    const current = Array.isArray(records) ? [...records] : []
-    const recordId = record._id || record.id || ''
-    const normalized = recordId && !record._id ? { ...record, _id: recordId } : { ...record }
-    const index = recordId
-      ? current.findIndex(item => (item._id || item.id || '') === recordId)
-      : -1
-
-    if (mode === 'remove') {
-      return index >= 0 ? current.filter((_, itemIndex) => itemIndex !== index) : current
+    if (transition.decision.syncStatus) {
+      this.showSyncStatus(
+        transition.decision.syncStatus.text,
+        { autoHide: transition.decision.syncStatus.autoHide }
+      )
     }
-
-    if (index >= 0) {
-      current[index] = { ...current[index], ...normalized }
-      return current
-    }
-
-    return [normalized, ...current]
-  },
-
-  consumePendingRecordChangeSync() {
-    const pending = Boolean(this._hasPendingRecordChangeSync)
-    this._hasPendingRecordChangeSync = false
-    return pending
   },
 
   prevMonth() {
@@ -549,14 +488,6 @@ Page({
     }, SYNC_STATUS_CLEAR_DELAY)
     if (timer && typeof timer.unref === 'function') timer.unref()
     this._syncStatusTimer = timer
-  },
-
-  showBackgroundSyncFailure() {
-    if (this._hasPendingRecordChangeSync) {
-      this.showSyncStatus('同步失败，稍后重试')
-      return
-    }
-    this.hideSyncStatus()
   },
 
   hideSyncStatus() {

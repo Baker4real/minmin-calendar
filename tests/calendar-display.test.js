@@ -382,8 +382,10 @@ test('index sync feedback stays tied to real record changes without blocking cal
   assert.match(js, /syncStatusVisible:\s*false/)
   assert.match(js, /canRefreshInBackground\(\)/)
   assert.doesNotMatch(js, /showSyncStatus\('正在同步'\)|syncStatusText:\s*'正在同步'/)
-  assert.match(js, /showSyncStatus\('已更新，正在同步'/)
-  assert.match(js, /showSyncStatus\('已同步'/)
+  assert.match(js, /require\('\.\.\/\.\.\/utils\/homeRecordsSync'\)/)
+  assert.match(js, /transitionHomeRecordsSync/)
+  assert.doesNotMatch(js, /_hasPendingRecordChangeSync/)
+  assert.doesNotMatch(js, /mergeRecordChange\(/)
   assert.match(js, /hideSyncStatus\(\)/)
   assert.match(js, /applyRecordChange\(change = \{\}\)/)
 
@@ -433,8 +435,8 @@ test('home page consumes RoomDataClient outcomes instead of legacy room-code and
 
   assert.match(js, /cloud\.createRoomDataClient\(\)/)
   assert.match(js, /roomRecordsSnapshot\.loadHomeRecordsSnapshot\(\{\s*client\s*\}\)/)
-  assert.match(js, /roomRecordsSnapshot\.getHomeRecordsForSnapshot\(/)
-  assert.match(js, /roomRecordsSnapshot\.buildHomePartialSyncStatus\(/)
+  assert.match(js, /transitionRecordsSync\(/)
+  assert.match(js, /applyRecordsSyncDecision\(/)
   assert.match(js, /applyRoomStatusOutcome\(/)
   assert.match(js, /handleRoomStatusAction\(\)/)
   assert.doesNotMatch(js, /cloud\.getRoomCode\(\)/)

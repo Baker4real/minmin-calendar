@@ -369,6 +369,41 @@ test('index page keeps existing calendar content and stays quiet on background r
   }
 })
 
+test('index page keeps a blocking room outcome visible after background refresh', async () => {
+  const outcomes = [
+    { kind: 'success', data: [{ _id: 'p1', startDate: '2026-06-01' }] },
+    { kind: 'success', data: [] },
+    { kind: 'no-room' },
+    { kind: 'no-room' }
+  ]
+  const harness = loadPageHarness('pages/index/index.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list() {
+              return outcomes.shift()
+            }
+          }
+        }
+      },
+      'utils/util.js': createUtilStub(),
+      'utils/homeCalendarState.js': { buildHomeCalendarState }
+    }
+  })
+
+  try {
+    await awaitPageOnShow(harness.page)
+    await awaitPageOnShow(harness.page)
+
+    assert.equal(harness.page.data.noRoom, true)
+    assert.equal(harness.page.data.hasLoadedHomeData, false)
+    assert.equal(harness.page.data.roomStatusAction, 'bind')
+  } finally {
+    harness.teardown()
+  }
+})
+
 test('index page updates successful collections and preserves failed ones during background refresh', async () => {
   const outcomes = [
     { kind: 'success', data: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03', duration: 3 }] },
@@ -446,6 +481,82 @@ test('index page merges a saved record locally before background sync completes'
     assert.equal(harness.page.data.syncStatusText, '已更新，正在同步')
     assert.equal(harness.page.data.syncStatusVisible, true)
   } finally {
+    harness.teardown()
+  }
+})
+
+test('index page keeps a canonical record change when an older background snapshot resolves', async () => {
+  const initialPeriod = {
+    _id: 'p1',
+    startDate: '2026-06-01',
+    endDate: '2026-06-03',
+    duration: 3
+  }
+  let loadCount = 0
+  let resolveBackgroundPeriods
+  let resolveBackgroundMemories
+  const client = {
+    list(collection) {
+      loadCount += 1
+      if (loadCount <= 2) {
+        return Promise.resolve({
+          kind: 'success',
+          data: collection === 'periods' ? [initialPeriod] : []
+        })
+      }
+      return new Promise(resolve => {
+        const finish = () => resolve({
+          kind: 'success',
+          data: collection === 'periods' ? [initialPeriod] : []
+        })
+        if (collection === 'periods') resolveBackgroundPeriods = finish
+        else resolveBackgroundMemories = finish
+      })
+    }
+  }
+  const harness = loadPageHarness('pages/index/index.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return client
+        }
+      },
+      'utils/util.js': createUtilStub(),
+      'utils/homeCalendarState.js': { buildHomeCalendarState }
+    }
+  })
+  let backgroundLoad
+
+  try {
+    await awaitPageOnShow(harness.page)
+    backgroundLoad = startPageOnShow(harness.page)
+    await Promise.resolve()
+
+    harness.page.applyRecordChange({
+      collection: 'periods',
+      mode: 'add',
+      record: {
+        _id: 'p2',
+        startDate: '2026-06-29',
+        endDate: '2026-07-02',
+        duration: 4
+      }
+    })
+
+    resolveBackgroundPeriods()
+    resolveBackgroundMemories()
+    await backgroundLoad
+
+    assert.deepEqual(
+      harness.page.data.periods.map(item => item._id),
+      ['p2', 'p1']
+    )
+    assert.equal(harness.page.data.syncStatusText, '已更新，正在同步')
+    assert.equal(harness.page.data.syncStatusVisible, true)
+  } finally {
+    if (resolveBackgroundPeriods) resolveBackgroundPeriods()
+    if (resolveBackgroundMemories) resolveBackgroundMemories()
+    if (backgroundLoad) await backgroundLoad.catch(() => {})
     harness.teardown()
   }
 })
