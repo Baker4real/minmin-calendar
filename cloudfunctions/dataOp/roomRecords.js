@@ -30,7 +30,11 @@ function createRoomRecords({ db, serverDate }) {
         createdAt: serverDate()
       }
       const res = await db.collection(collection).add({ data: payload })
-      return { code: 0, id: res._id }
+      return {
+        code: 0,
+        id: res._id,
+        record: buildClientRecord(res._id, normalized.data)
+      }
     },
 
     async update({ collection, roomCode, id, data }) {
@@ -41,7 +45,11 @@ function createRoomRecords({ db, serverDate }) {
       if (normalized.code !== 0) return normalized
 
       await db.collection(collection).doc(id).update({ data: normalized.data })
-      return { code: 0 }
+      return {
+        code: 0,
+        id,
+        record: buildClientRecord(id, normalized.data)
+      }
     },
 
     async remove({ collection, roomCode, id }) {
@@ -60,6 +68,13 @@ function createRoomRecords({ db, serverDate }) {
       .limit(1)
       .get()
     return existing.data[0] || null
+  }
+}
+
+function buildClientRecord(id, data) {
+  return {
+    _id: id,
+    ...data
   }
 }
 

@@ -27,7 +27,19 @@ test('RoomRecords add stores a normalized Period record for the active Room', as
     }
   })
 
-  assert.deepEqual(result, { code: 0, id: 'periods-1' })
+  assert.deepEqual(result, {
+    code: 0,
+    id: 'periods-1',
+    record: {
+      _id: 'periods-1',
+      startDate: '2026-06-10',
+      endDate: '2026-06-12',
+      note: 'need rest',
+      duration: 3,
+      flow: 'heavy',
+      symptoms: ['cramps', 'headache']
+    }
+  })
   assert.deepEqual(db.data.periods, [
     {
       _id: 'periods-1',
@@ -42,6 +54,39 @@ test('RoomRecords add stores a normalized Period record for the active Room', as
       symptoms: ['cramps', 'headache']
     }
   ])
+})
+
+test('RoomRecords add returns the canonical Period record that was persisted', async () => {
+  const db = createFakeDb()
+  const records = createRoomRecords({ db, serverDate: () => SERVER_DATE })
+  const longNote = 'x'.repeat(505)
+
+  const result = await records.add({
+    collection: 'periods',
+    roomCode: 'ROOM01',
+    openid: 'user-a',
+    data: {
+      startDate: '2026-06-10',
+      endDate: '2026-06-12',
+      note: longNote,
+      duration: 99,
+      flow: 'heavy',
+      symptoms: ['cramps', 'cramps', 'unknown']
+    }
+  })
+
+  assert.equal(result.code, 0)
+  assert.equal(result.id, 'periods-1')
+  assert.deepEqual(result.record, {
+    _id: 'periods-1',
+    startDate: '2026-06-10',
+    endDate: '2026-06-12',
+    note: 'x'.repeat(500),
+    duration: 3,
+    flow: 'heavy',
+    symptoms: ['cramps']
+  })
+  assert.deepEqual(pickClientRecord(db.data.periods[0]), result.record)
 })
 
 test('RoomRecords rejects unknown Period record fields before writing', async () => {
@@ -87,6 +132,31 @@ test('RoomRecords rejects invalid Period record date ranges before updating', as
   assert.equal(db.data.periods[0].startDate, '2026-06-10')
 })
 
+test('RoomRecords update returns the canonical Memory record that was persisted', async () => {
+  const db = createFakeDb({
+    memories: [{ _id: 'm1', roomCode: 'ROOM01', date: '2026-06-20', note: 'old' }]
+  })
+  const records = createRoomRecords({ db, serverDate: () => SERVER_DATE })
+
+  const result = await records.update({
+    collection: 'memories',
+    roomCode: 'ROOM01',
+    id: 'm1',
+    data: { date: '2026-06-24', note: 'n'.repeat(503) }
+  })
+
+  assert.deepEqual(result, {
+    code: 0,
+    id: 'm1',
+    record: {
+      _id: 'm1',
+      date: '2026-06-24',
+      note: 'n'.repeat(500)
+    }
+  })
+  assert.equal(db.data.memories[0].note.length, 500)
+})
+
 test('RoomRecords rejects impossible Period dates before writing', async () => {
   const db = createFakeDb()
   const records = createRoomRecords({ db, serverDate: () => SERVER_DATE })
@@ -122,7 +192,15 @@ test('RoomRecords add stores a normalized Memory record for the active Room', as
     }
   })
 
-  assert.deepEqual(result, { code: 0, id: 'memories-1' })
+  assert.deepEqual(result, {
+    code: 0,
+    id: 'memories-1',
+    record: {
+      _id: 'memories-1',
+      date: '2026-06-24',
+      note: 'anniversary'
+    }
+  })
   assert.deepEqual(db.data.memories, [
     {
       _id: 'memories-1',
@@ -236,4 +314,9 @@ function createQuery(records, query) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value))
+}
+
+function pickClientRecord(record) {
+  const { _id, startDate, endDate, note, duration, flow, symptoms } = record
+  return { _id, startDate, endDate, note, duration, flow, symptoms }
 }

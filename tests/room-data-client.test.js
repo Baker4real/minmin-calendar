@@ -32,7 +32,21 @@ test('RoomDataClient list returns success data for the active room', async () =>
 
 test('RoomDataClient add, update, and remove return success outcomes with the server result', async () => {
   const cloud = createFakeCloud([
-    { result: { code: 0, id: 'p1' } },
+    {
+      result: {
+        code: 0,
+        id: 'p1',
+        record: {
+          _id: 'p1',
+          startDate: '2026-06-10',
+          endDate: '2026-06-12',
+          note: '',
+          duration: 3,
+          flow: '',
+          symptoms: []
+        }
+      }
+    },
     { result: { code: 0, updated: 1 } },
     { result: { code: 0, removed: 1 } }
   ])
@@ -45,7 +59,28 @@ test('RoomDataClient add, update, and remove return success outcomes with the se
 
   assert.deepEqual(addOutcome, {
     kind: 'success',
-    result: { code: 0, id: 'p1' }
+    result: {
+      code: 0,
+      id: 'p1',
+      record: {
+        _id: 'p1',
+        startDate: '2026-06-10',
+        endDate: '2026-06-12',
+        note: '',
+        duration: 3,
+        flow: '',
+        symptoms: []
+      }
+    }
+  })
+  assert.deepEqual(addOutcome.result.record, {
+    _id: 'p1',
+    startDate: '2026-06-10',
+    endDate: '2026-06-12',
+    note: '',
+    duration: 3,
+    flow: '',
+    symptoms: []
   })
   assert.deepEqual(updateOutcome, {
     kind: 'success',
