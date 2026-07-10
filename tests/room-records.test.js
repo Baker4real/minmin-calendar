@@ -157,6 +157,28 @@ test('RoomRecords update returns the canonical Memory record that was persisted'
   assert.equal(db.data.memories[0].note.length, 500)
 })
 
+test('RoomRecords update rejects a record deleted after the authorization lookup', async () => {
+  const db = createFakeDb({
+    memories: [{ _id: 'm1', roomCode: 'ROOM01', date: '2026-06-20', note: 'old' }],
+    beforeUpdate({ records, id }) {
+      const index = records.findIndex(record => record._id === id)
+      if (index >= 0) records.splice(index, 1)
+    }
+  })
+  const records = createRoomRecords({ db, serverDate: () => SERVER_DATE })
+
+  const result = await records.update({
+    collection: 'memories',
+    roomCode: 'ROOM01',
+    id: 'm1',
+    data: { date: '2026-06-24', note: 'new' }
+  })
+
+  assert.deepEqual(result, { code: -1, msg: '记录不存在或无权修改' })
+  assert.equal(Object.hasOwn(result, 'record'), false)
+  assert.deepEqual(db.data.memories, [])
+})
+
 test('RoomRecords rejects impossible Period dates before writing', async () => {
   const db = createFakeDb()
   const records = createRoomRecords({ db, serverDate: () => SERVER_DATE })
@@ -249,12 +271,12 @@ function createFakeDb(initial = {}) {
   return {
     data,
     collection(name) {
-      return createCollection(data, name)
+      return createCollection(data, name, { beforeUpdate: initial.beforeUpdate })
     }
   }
 }
 
-function createCollection(allData, name) {
+function createCollection(allData, name, { beforeUpdate } = {}) {
   return {
     where(query) {
       return createQuery(allData[name], query)
@@ -267,9 +289,10 @@ function createCollection(allData, name) {
     doc(id) {
       return {
         async update({ data }) {
+          if (beforeUpdate) beforeUpdate({ records: allData[name], id })
           const record = allData[name].find(item => item._id === id)
           if (record) Object.assign(record, clone(data))
-          return {}
+          return { stats: { updated: record ? 1 : 0 } }
         },
         async remove() {
           const index = allData[name].findIndex(item => item._id === id)
