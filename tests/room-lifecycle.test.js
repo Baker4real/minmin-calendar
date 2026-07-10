@@ -68,6 +68,81 @@ test('RoomLifecycle transfers creator ownership to the partner when the creator 
   ])
 })
 
+test('RoomLifecycle creates an internal membership version when transfer repairs a missing partner lock', async () => {
+  let generatedMemberships = 0
+  const db = createFakeDb({
+    rooms: [{
+      _id: 'room-1',
+      roomCode: 'ROOM01',
+      createdBy: 'user-a',
+      createdByName: 'A',
+      partnerOpenid: 'user-b',
+      partnerName: 'B',
+      status: 'paired'
+    }],
+    roomMembers: [
+      { _id: 'user-a', openid: 'user-a', roomId: 'room-1', roomCode: 'ROOM01', role: 'creator', membershipId: 'member-a' }
+    ]
+  })
+  const lifecycle = createRoomMembershipLifecycle({
+    db,
+    serverDate: () => SERVER_DATE,
+    generateMembershipId: () => `transfer-membership-${++generatedMemberships}`
+  })
+
+  const result = await lifecycle.leave({ openid: 'user-a' })
+
+  assert.deepEqual(result, { code: 0, removedCount: 1, deletedCount: 0 })
+  assert.equal(Object.prototype.hasOwnProperty.call(result, 'membershipId'), false)
+  assert.equal(generatedMemberships, 1)
+  assert.deepEqual(db.data.roomMembers, [{
+    _id: 'user-b',
+    openid: 'user-b',
+    roomId: 'room-1',
+    roomCode: 'ROOM01',
+    role: 'creator',
+    updatedAt: SERVER_DATE,
+    membershipId: 'transfer-membership-1'
+  }])
+})
+
+test('RoomLifecycle reuses the same fallback membership version across transfer retries', async () => {
+  let generatedMemberships = 0
+  let conflictedMembershipId = ''
+  const db = createFakeDb({
+    transactionConflicts: 1,
+    onTransactionConflict({ snapshot }) {
+      conflictedMembershipId = snapshot.roomMembers.find(member => member._id === 'user-b').membershipId
+    },
+    rooms: [{
+      _id: 'room-1',
+      roomCode: 'ROOM01',
+      createdBy: 'user-a',
+      createdByName: 'A',
+      partnerOpenid: 'user-b',
+      partnerName: 'B',
+      status: 'paired'
+    }],
+    roomMembers: [
+      { _id: 'user-a', openid: 'user-a', roomId: 'room-1', roomCode: 'ROOM01', role: 'creator', membershipId: 'member-a' }
+    ]
+  })
+  const lifecycle = createRoomMembershipLifecycle({
+    db,
+    serverDate: () => SERVER_DATE,
+    generateMembershipId: () => `transfer-membership-${++generatedMemberships}`
+  })
+
+  const result = await lifecycle.leave({ openid: 'user-a' })
+
+  assert.deepEqual(result, { code: 0, removedCount: 1, deletedCount: 0 })
+  assert.equal(Object.prototype.hasOwnProperty.call(result, 'membershipId'), false)
+  assert.equal(db.transactionAttempts, 2)
+  assert.equal(generatedMemberships, 1)
+  assert.equal(conflictedMembershipId, 'transfer-membership-1')
+  assert.equal(db.data.roomMembers[0].membershipId, conflictedMembershipId)
+})
+
 test('RoomLifecycle removes the partner from a paired room and leaves the creator waiting', async () => {
   const db = createFakeDb({
     rooms: [
@@ -326,6 +401,7 @@ test('Room membership transaction retries ownership transfer conflicts without p
   assert.equal(db.transactionAttempts, 2)
   assert.equal(db.data.rooms[0].createdBy, 'user-b')
   assert.deepEqual(db.data.roomMembers.map(member => [member._id, member.role]), [['user-b', 'creator']])
+  assert.equal(Object.prototype.hasOwnProperty.call(db.data.roomMembers[0], 'membershipId'), false)
 })
 
 test('Room membership transaction does not overwrite a partner membership in another active room', async () => {
@@ -692,7 +768,7 @@ function createTransactionRunner(data, options = {}) {
             const result = await callback(createTransaction(snapshot))
             if (conflictsRemaining > 0) {
               conflictsRemaining -= 1
-              if (options.onTransactionConflict) options.onTransactionConflict({ data, attempts })
+              if (options.onTransactionConflict) options.onTransactionConflict({ data, snapshot, attempts })
               const error = new Error('transaction conflict')
               error.code = 'TRANSACTION_CONFLICT'
               throw error

@@ -120,11 +120,13 @@ function createRoomMembershipLifecycle({
       const memberSnapshot = await readDocument(roomMembers, openid)
       const candidate = await findRoomByMember(openid)
       const changedAt = serverDate()
+      const fallbackMembershipId = createMembershipId(generateMembershipId)
       return runTransaction(transaction => leaveRoomInTransaction(transaction, {
         openid,
         candidateRoomId: candidate && candidate._id || '',
         memberSnapshot,
-        changedAt
+        changedAt,
+        fallbackMembershipId
       }), TRANSACTION_ATTEMPTS)
     }
   }
@@ -259,7 +261,13 @@ function createRoomMembershipLifecycle({
     return { type: 'joined', room: pairedRoom }
   }
 
-  async function leaveRoomInTransaction(transaction, { openid, candidateRoomId, memberSnapshot, changedAt }) {
+  async function leaveRoomInTransaction(transaction, {
+    openid,
+    candidateRoomId,
+    memberSnapshot,
+    changedAt,
+    fallbackMembershipId
+  }) {
     const roomMembers = transaction.collection('roomMembers')
     const txRooms = transaction.collection('rooms')
     const member = await readDocument(roomMembers, openid)
@@ -309,6 +317,7 @@ function createRoomMembershipLifecycle({
             room: transferredRoom,
             role: 'creator',
             updatedAt: changedAt,
+            membershipId: partnerMember ? undefined : fallbackMembershipId,
             previous: partnerMember
           }))
         })

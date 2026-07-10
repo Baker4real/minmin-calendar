@@ -2,7 +2,7 @@
 
 > **For agentic workers:** 按任务顺序逐项实施。独立任务优先使用 subagent-driven-development；每个任务都必须完成自己的红灯、绿灯、复核与提交，不能把失败留给后续任务。
 
-**Goal:** 在不改变现有远程协议、数据库 schema 与产品语义的前提下，让服务端 canonical Record、首页同步状态机和 Room membership lifecycle 分别形成可验证的 deep module。
+**Goal:** 在不改变现有远程协议、Room / Record schema 与产品语义的前提下，让服务端 canonical Record、首页同步状态机和 Room membership lifecycle 分别形成可验证的 deep module；成员锁只允许增加可选内部版本字段 `roomMembers.membershipId`。
 
 **Architecture:** RoomRecords mutation 直接返回服务端规范化后的 Record projection，客户端只用该事实做乐观更新。新增纯 homeRecordsSync 状态机处理 collection revision、partial snapshot 与 stale request。Room create/join/getActive/leave 合并进一个 canonical module，再通过确定性 assembly 生成四个自包含云函数 artifact。
 
@@ -13,7 +13,7 @@
 - 服务端是 Record normalization 与持久化事实的唯一权威；客户端校验只提供即时反馈。
 - 不使用 mutation 后二次读取，不把旧后端缺少 record 误判为保存失败，也不回退到客户端 payload 猜测 canonical Record。
 - 首页 partial loading 与 Settings 全量导出语义保持不变。
-- 云函数名、event shape、既有错误码、数据库 schema、collection 名与客户端调用入口不变。
+- 云函数名、event shape、既有错误码、collection 名与客户端调用入口不变；Room / Record schema 不变，唯一 schema 演进是可选、内部、非授权且向后兼容的 `roomMembers.membershipId`。
 - rooms 继续作为 records 授权来源；roomMembers 只作为并发锁。
 - ADR-0001 至 ADR-0004 的所有权、唯一 roomCode、单用户单 active Room、archive/recovery 与发布顺序全部保留。
 - 云函数目录必须自包含；禁止父目录 runtime require、symlink、junction 和云函数间网络调用。
@@ -818,6 +818,8 @@ Commit:
 
 **2026-07-10 对抗性审查修订：** 原计划中的条件删除只能防正常交错，无法封住云函数在两次跨集合写入之间崩溃所产生的半提交。微信云函数 `wx-server-sdk` 官方支持 [`db.runTransaction`](https://developers.weixin.qq.com/miniprogram/dev/wxcloudservice/wxcloud/reference-sdk-api/database/Database.runTransaction.html)，并对多集合单文档读写提供自动提交、回滚与冲突重试；因此本节后续“条件 lock helper”实现细节由事务化实现取代。原有 characterization、完整生命周期与竞态测试仍保留，并新增事务 rollback / conflict retry 测试。Task 5 仍不切换 runtime adapter，Task 6 才原子发布四份自包含 artifact。
 
+**2026-07-10 membership versioning 修订：** 为封住 same-room ABA，只给 `roomMembers` 增加可选内部字段 `membershipId`。新 create、join、recover 在事务 callback 外生成一次；ownership transfer 保留已有 partner ID，legacy partner lock 无 ID 时继续保持 legacy，只有 partner lock 缺失时才使用 `leave()` 在事务外生成且 retry-stable 的 fallback ID。该字段不参与 records 授权、不进入远程响应，legacy lock 无需强制 backfill。正向发布在维护窗口内先把 createRoom、joinRoom、getMyRoom 作为同版一组发布，再发布 leaveRoom；回滚反向执行，先 leaveRoom、再前三者同版恢复。无需数据回滚。
+
 - [ ] **Step 1: 把现有测试切到统一 public seam 并保持红灯**
 
 room-binding.test.js 和 room-lifecycle.test.js 都改为：
@@ -1109,7 +1111,7 @@ README Verification 在既有完整 node --test 命令中加入：
     node --check cloudfunctions\_shared\syncRoomMembershipLifecycle.js
     node cloudfunctions\_shared\syncRoomMembershipLifecycle.js --check
 
-部署说明明确 createRoom、joinRoom、getMyRoom 同版发布，再发布 leaveRoom；云端 smoke 仍不能由本地测试替代。
+部署说明明确在维护窗口内 createRoom、joinRoom、getMyRoom 同版发布，再发布 leaveRoom；回滚反向执行，先 leaveRoom 再前三者同版恢复，避免混跑。`membershipId` 可选且向后兼容，不做强制 backfill 或数据回滚；云端 smoke 仍不能由本地测试替代。
 
 - [ ] **Step 6: 运行完整本地验证**
 

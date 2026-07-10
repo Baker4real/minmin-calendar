@@ -20,7 +20,7 @@
 - mutation 不能通过“写后再读”取得 canonical Record，避免写成功但读取失败形成未知结果并诱发重复提交。
 - 首页 partial loading 与 Settings 全量导出语义保持不变。
 - Calendar marker、Prediction、Today、Lunar date 与 Public holiday 语义不变。
-- 云函数名、event shape、既有错误码、数据库 schema 和客户端调用入口不变。
+- 云函数名、event shape、既有错误码和客户端调用入口不变；Room / Record schema 不变。唯一允许的内部 schema 演进是 `roomMembers.membershipId`：可选、非授权字段，并兼容没有该字段的 legacy lock。
 - rooms 仍是 records 授权来源；roomMembers 仍只是并发锁。
 - ADR-0001 至 ADR-0004 的所有权转移、唯一 roomCode、单用户单 active Room、archive/recovery 与发布顺序保持有效。
 - 每个微信云函数目录继续自包含；不得依赖父目录 runtime require、symlink、junction 或云函数间网络调用。
@@ -50,7 +50,7 @@
 
 ### 方案 A：渐进式 deepening（采用）
 
-分别深化三个 in-process module，保留所有远程 seam 与数据库形状。每项可独立完成红绿测试、提交和回滚。
+分别深化三个 in-process module，保留所有远程 seam 与 Room / Record 数据库形状；成员锁只增加内部可选版本字段。每项可独立完成红绿测试、提交和回滚。
 
 - Record mutation 直接携带 canonical Record projection。
 - 首页使用纯状态机处理 snapshot 与本地变更。
@@ -250,15 +250,15 @@ module 吸收现有 RoomBinding 与 RoomLifecycle implementation，集中：
 
 ### 5.2 member lock 安全
 
-统一后的 lock helper 保留较强的条件：
+统一后的 lifecycle 用事务维护 Room 与 member lock，并用 `roomMembers.membershipId` 区分同一用户、同一房间字段被复用后的不同成员资格：
 
-- 已知 Room 时，释放旧 lock 必须匹配 openid + roomId。
-- 清理疑似 stale lock 时，先读取当前 lock 和对应 Room，再以读取到的 lock identity 做条件删除。
-- 条件删除返回 0 视为并发状态已变化，不得升级为“删除该用户全部 lock”。
-- partner 转为 creator 时，角色更新必须限定同一 roomId。
-- 不把多步 Room/lock 更新描述为原子事务；继续保留条件更新、确认读与失败暴露。
+- `membershipId` 只属于 `roomMembers` 内部 lock identity，不进入 Room、Record、远程响应或 records 授权判断。
+- 新 create、join、recover 生成新的 `membershipId`，且在事务 callback 外生成，使自动重试复用同一个值。
+- ownership transfer 保留 partner lock 已有的 `membershipId`；partner lock 存在但没有该字段时继续保持 legacy；只有 partner lock 缺失、需要补建时才使用本次 `leave()` 在事务外生成的 fallback ID。
+- `leave()` 以事务外捕获的 member snapshot 固定目标；事务内 ID 不同、字段出现或消失均视为另一段成员资格并安全 no-op。双方都是 legacy 时使用既有 identity 字段兼容比较。
+- legacy lock 不要求强制 backfill；`rooms` 始终是 records 授权来源。
 
-本次不引入数据库 transaction，因为真实 SDK 和云端 transaction 语义尚未完成 smoke 证明。
+真实 SDK 的 transaction retry 与部署产物仍需云端 smoke 证明，本地 fake DB 测试不能替代。
 
 ### 5.3 自包含部署 adapter
 
@@ -289,7 +289,7 @@ canonical source 通过确定性 assembly 复制到：
 
 ### 5.4 发布与回滚
 
-无数据库 migration。
+无需数据迁移或强制 backfill；既有 legacy `roomMembers` 可继续无 `membershipId` 运行。Room / Record schema 与远程协议不变。
 
 发布前：
 
@@ -300,12 +300,12 @@ canonical source 通过确定性 assembly 复制到：
 
 测试环境与生产环境均按以下顺序：
 
-1. 同版发布 createRoom、joinRoom、getMyRoom。
-2. 发布 leaveRoom。
+1. 在维护窗口内同版发布 createRoom、joinRoom、getMyRoom，避免新旧 lifecycle 混跑。
+2. 随后发布 leaveRoom。
 3. 验证 create、join、creator leave、partner leave、archive、recover 与 dataOp 授权。
 4. 验证真实唯一索引错误、并发 join/leave 和云端实际 SDK 版本。
 
-回滚时前三个 binding 云函数作为一组恢复，再恢复 leaveRoom。因 schema 未变化，不执行数据回滚。
+回滚采用反向顺序：先恢复 leaveRoom，再把 createRoom、joinRoom、getMyRoom 作为同版一组恢复；同样在维护窗口内避免混跑。`membershipId` 是可选且向后兼容的内部字段，无需数据回滚。
 
 ## 6. Public test seams
 
@@ -368,6 +368,6 @@ fake DB 测试不能替代云端唯一索引、并发与 SDK smoke；无法执�
 - 不实现报告中“值得探索”的 Record command 全面深化或 Room access outcome 收敛。
 - 不删除 RoomDataClient legacy wrappers。
 - 不改变 WXML/WXSS、Calendar 视觉或用户文案，除 Memory 无效日期提示外。
-- 不修改 Room schema、Record schema、collection 名或云函数名。
+- 不修改 Room schema、Record schema、collection 名或云函数名；只允许新增可选、内部、非授权的 `roomMembers.membershipId`。
 - 不引入第三方依赖、数据库 migration 或自动数据清理。
 - 不以本地 fake DB 测试声称云端并发和唯一索引已经通过。

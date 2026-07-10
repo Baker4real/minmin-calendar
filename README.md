@@ -36,6 +36,10 @@ Cloud functions live under `cloudfunctions/`; each function has its own `package
 当前锁定的 `wx-server-sdk@3.0.4` 解析到 `@cloudbase/node-sdk@2.10.0` 和 `@cloudbase/database@1.4.1`；随包接口包含 `db.startTransaction()`、`db.runTransaction()` 和 `collection.where(...).update(...)`。当前房间生命周期并发保护主要依赖成员锁、条件更新和更新后确认；唯一索引重复键的真实错误形态仍需用云端部署 smoke 验证。
 提交 lockfile 只保证仓库输入可复现；云函数上传后仍要验证部署产物实际解析的 SDK 版本。
 
+房间成员锁允许一个向后兼容的内部版本字段 `roomMembers.membershipId`，用于识别同一房间字段被复用后的不同成员资格。它是可选、非授权字段，不进入 Room / Record schema 或云函数远程响应；records 授权仍只看 `rooms`。新 create、join、recover 生成新 ID；ownership transfer 保留已有 partner ID，legacy partner lock 无 ID 时保持 legacy，只有 partner lock 缺失时才补建 fallback ID。既有 lock 无需强制 backfill。
+
+部署 Room lifecycle 时应进入维护窗口，先把 `createRoom`、`joinRoom`、`getMyRoom` 作为同版一组发布，再发布 `leaveRoom`，避免新旧版本混跑。回滚按反向顺序：先恢复 `leaveRoom`，再同版恢复前三个云函数。`membershipId` 可选且旧版本可忽略，无需数据回滚；云端 transaction retry、并发和唯一索引仍需部署 smoke 验证。
+
 ## Verification
 
 Run the lightweight local checks after changing date, prediction, room, calendar, or page behavior:
