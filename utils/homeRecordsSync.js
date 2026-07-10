@@ -40,7 +40,9 @@ function startLoad(state, event) {
       loading: mode === 'initial',
       refreshing: mode === 'background',
       recordsChanged: false,
-      syncStatus: null
+      syncStatus: mode === 'background' && hasPending(state.pendingRevisions)
+        ? { text: '已更新，正在同步', autoHide: false }
+        : null
     }
   }
 }
@@ -180,6 +182,10 @@ function buildResolvedSyncStatus({
     const periodsFailed = isRetryableFailure(snapshot.periodsOutcome)
     const memoriesFailed = isRetryableFailure(snapshot.memoriesOutcome)
     const background = mode === 'background'
+    const shouldShowBackgroundPartial = hasPending(pendingRevisions) ||
+      confirmedPending ||
+      recordsChanged
+    if (background && !shouldShowBackgroundPartial) return null
     if (periodsFailed && !memoriesFailed) {
       return {
         text: background

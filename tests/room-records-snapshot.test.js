@@ -2,9 +2,6 @@ const assert = require('node:assert/strict')
 const test = require('node:test')
 
 const {
-  buildHomePartialSyncStatus,
-  getHomeRecordsForSnapshot,
-  hasHomeSnapshotRecordChanges,
   loadExportRecordsSnapshot,
   loadHomeRecordsSnapshot
 } = require('../utils/roomRecordsSnapshot')
@@ -35,24 +32,10 @@ test('loadHomeRecordsSnapshot keeps partial-success semantics for retryable coll
   })
 
   assert.equal(snapshot.kind, 'partial-success')
-  assert.deepEqual(
-    getHomeRecordsForSnapshot(snapshot, {
-      periods: [{ _id: 'old-period' }],
-      memories: [{ _id: 'old-memory' }]
-    }),
-    {
-      periods: [{ _id: 'old-period' }],
-      memories: [{ _id: 'm1', date: '2026-07-02' }]
-    }
-  )
-  assert.equal(
-    buildHomePartialSyncStatus(snapshot, { background: false }),
-    '经期同步失败，已显示记忆数据'
-  )
-  assert.equal(
-    buildHomePartialSyncStatus(snapshot, { background: true }),
-    '经期同步失败，已保留旧经期数据'
-  )
+  assert.deepEqual(snapshot.periods, [])
+  assert.deepEqual(snapshot.memories, [{ _id: 'm1', date: '2026-07-02' }])
+  assert.equal(snapshot.periodsOutcome.kind, 'retryable-failure')
+  assert.equal(snapshot.memoriesOutcome.kind, 'success')
 })
 
 test('loadHomeRecordsSnapshot returns blocking room outcomes without hiding the cause', async () => {
@@ -66,24 +49,6 @@ test('loadHomeRecordsSnapshot returns blocking room outcomes without hiding the 
 
   assert.equal(snapshot.kind, 'blocked')
   assert.equal(snapshot.outcome, noRoom)
-})
-
-test('hasHomeSnapshotRecordChanges compares only successful collections', () => {
-  const snapshot = {
-    kind: 'partial-success',
-    periodsOutcome: { kind: 'retryable-failure', message: 'network down' },
-    memoriesOutcome: { kind: 'success', data: [{ _id: 'm1', date: '2026-07-02' }] },
-    memories: [{ _id: 'm1', date: '2026-07-02' }]
-  }
-
-  assert.equal(hasHomeSnapshotRecordChanges(snapshot, {
-    periods: [{ _id: 'changed-but-failed' }],
-    memories: [{ _id: 'm1', date: '2026-07-02' }]
-  }), false)
-  assert.equal(hasHomeSnapshotRecordChanges(snapshot, {
-    periods: [{ _id: 'changed-but-failed' }],
-    memories: [{ _id: 'm2', date: '2026-07-03' }]
-  }), true)
 })
 
 test('loadExportRecordsSnapshot requires both collections and stops after the first failure', async () => {

@@ -561,6 +561,129 @@ test('index page keeps a canonical record change when an older background snapsh
   }
 })
 
+test('index page keeps pending sync feedback visible when background loading starts', async () => {
+  let callCount = 0
+  let resolveBackgroundPeriods
+  let resolveBackgroundMemories
+  const client = {
+    list(collection) {
+      callCount += 1
+      if (callCount <= 2) return Promise.resolve({ kind: 'success', data: [] })
+      return new Promise(resolve => {
+        const finish = () => resolve({ kind: 'success', data: [] })
+        if (collection === 'periods') resolveBackgroundPeriods = finish
+        else resolveBackgroundMemories = finish
+      })
+    }
+  }
+  const harness = loadPageHarness('pages/index/index.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return client
+        }
+      },
+      'utils/util.js': createUtilStub(),
+      'utils/homeCalendarState.js': { buildHomeCalendarState }
+    }
+  })
+  let backgroundLoad
+
+  try {
+    await awaitPageOnShow(harness.page)
+    harness.page.applyRecordChange({
+      collection: 'periods',
+      mode: 'add',
+      record: { _id: 'p1', startDate: '2026-06-01' }
+    })
+
+    backgroundLoad = startPageOnShow(harness.page)
+    await Promise.resolve()
+
+    assert.equal(harness.page.data.syncStatusVisible, true)
+    assert.equal(harness.page.data.syncStatusText, '已更新，正在同步')
+
+    resolveBackgroundPeriods()
+    resolveBackgroundMemories()
+    await backgroundLoad
+  } finally {
+    if (resolveBackgroundPeriods) resolveBackgroundPeriods()
+    if (resolveBackgroundMemories) resolveBackgroundMemories()
+    if (backgroundLoad) await backgroundLoad.catch(() => {})
+    harness.teardown()
+  }
+})
+
+test('index page initial retry start clears stale room and sync status without restoring old loaded state', async () => {
+  let callCount = 0
+  let resolveRetryPeriods
+  let resolveRetryMemories
+  const client = {
+    list(collection) {
+      callCount += 1
+      if (callCount <= 2) {
+        return Promise.resolve({
+          kind: 'success',
+          data: collection === 'periods'
+            ? [{ _id: 'p1', startDate: '2026-06-01' }]
+            : []
+        })
+      }
+      if (callCount <= 4) return Promise.resolve({ kind: 'no-room' })
+      return new Promise(resolve => {
+        const finish = () => resolve({ kind: 'success', data: [] })
+        if (collection === 'periods') resolveRetryPeriods = finish
+        else resolveRetryMemories = finish
+      })
+    }
+  }
+  const harness = loadPageHarness('pages/index/index.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return client
+        }
+      },
+      'utils/util.js': createUtilStub(),
+      'utils/homeCalendarState.js': { buildHomeCalendarState }
+    }
+  })
+  let retryLoad
+
+  try {
+    await awaitPageOnShow(harness.page)
+    await awaitPageOnShow(harness.page)
+    assert.equal(harness.page.data.noRoom, true)
+    assert.equal(harness.page.data.hasLoadedHomeData, false)
+
+    harness.page.setData({
+      syncStatusVisible: true,
+      syncStatusText: '旧同步状态'
+    })
+    retryLoad = harness.page.loadData({ background: false })
+    await Promise.resolve()
+
+    assert.equal(harness.page.data.loading, true)
+    assert.equal(harness.page.data.hasLoadedHomeData, false)
+    assert.equal(harness.page.data.noRoom, false)
+    assert.equal(harness.page.data.roomStatusTitle, '')
+    assert.equal(harness.page.data.roomStatusDesc, '')
+    assert.equal(harness.page.data.roomStatusActionText, '')
+    assert.equal(harness.page.data.roomStatusAction, '')
+    assert.equal(harness.page.data.syncStatusVisible, false)
+    assert.equal(harness.page.data.syncStatusText, '')
+
+    resolveRetryPeriods()
+    resolveRetryMemories()
+    await retryLoad
+  } finally {
+    if (resolveRetryPeriods) resolveRetryPeriods()
+    if (resolveRetryMemories) resolveRetryMemories()
+    if (retryLoad) await retryLoad.catch(() => {})
+    harness.teardown()
+  }
+})
+
 test('period page onShow executes loadData and updates derived stats through the page harness', async () => {
   const harness = loadPageHarness('pages/period/period.js', {
     mocks: {

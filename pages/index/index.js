@@ -143,6 +143,18 @@ Page({
     const loadingState = {}
     if (typeof decision.loading === 'boolean') loadingState.loading = decision.loading
     if (typeof decision.refreshing === 'boolean') loadingState.refreshing = decision.refreshing
+    if (decision.loading === true) {
+      this.clearSyncStatusTimer()
+      Object.assign(loadingState, {
+        syncStatusVisible: false,
+        syncStatusText: '',
+        noRoom: false,
+        roomStatusTitle: '',
+        roomStatusDesc: '',
+        roomStatusActionText: '',
+        roomStatusAction: ''
+      })
+    }
     if (Object.keys(loadingState).length) this.setData(loadingState)
 
     const roomStatusOutcome = decision.blockingOutcome ||
@@ -152,11 +164,11 @@ Page({
       return
     }
 
-    const firstSuccess = state.hasLoaded && !this.data.hasLoadedHomeData
+    const firstSuccess = decision.hasLoaded === true && !this.data.hasLoadedHomeData
     if (decision.recordsChanged || firstSuccess) {
       this.applyHomeCalendarState(state.records)
     }
-    if (state.hasLoaded) {
+    if (decision.hasLoaded === true) {
       this.setData({
         hasLoadedHomeData: true,
         noRoom: false,

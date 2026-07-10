@@ -88,6 +88,53 @@ test('a partial snapshot confirms pending revisions independently by collection'
   })
 })
 
+test('background load start keeps pending sync work visible', () => {
+  let state = createHomeRecordsSyncState({ hasLoaded: true })
+  state = transitionHomeRecordsSync(state, {
+    type: 'record-change',
+    change: {
+      collection: 'periods',
+      mode: 'add',
+      record: period('p1', '2026-06-01')
+    }
+  }).state
+
+  const started = transitionHomeRecordsSync(state, {
+    type: 'load-start',
+    mode: 'background'
+  })
+
+  assert.deepEqual(started.decision.syncStatus, {
+    text: '已更新，正在同步',
+    autoHide: false
+  })
+})
+
+test('unchanged background partial success stays quiet without pending work', () => {
+  const existingPeriod = period('p1', '2026-06-01')
+  const state = createHomeRecordsSyncState({
+    periods: [existingPeriod],
+    memories: [],
+    hasLoaded: true
+  })
+  const started = transitionHomeRecordsSync(state, {
+    type: 'load-start',
+    mode: 'background'
+  })
+  const resolved = transitionHomeRecordsSync(started.state, {
+    type: 'load-resolved',
+    requestId: started.decision.requestId,
+    snapshot: partialSnapshot({
+      periodsOutcome: { kind: 'success', data: [{ ...existingPeriod }] },
+      memoriesOutcome: retryable('memory network down'),
+      periods: [{ ...existingPeriod }]
+    })
+  })
+
+  assert.equal(resolved.decision.recordsChanged, false)
+  assert.equal(resolved.decision.syncStatus, null)
+})
+
 test('a reordered semantic match preserves the existing array reference', () => {
   const p1 = period('p1', '2026-06-01')
   const p2 = period('p2', '2026-06-29')
