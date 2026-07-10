@@ -392,7 +392,6 @@ function createFakeDb(initial = {}) {
     rooms: clone(initial.rooms || []),
     roomMembers: clone(initial.roomMembers || [])
   }
-  const beforeWhereUpdate = createOneShotCallback(initial.beforeWhereUpdate)
   const transactionRunner = createTransactionRunner(data, initial)
 
   return {
@@ -407,7 +406,7 @@ function createFakeDb(initial = {}) {
     },
     runTransaction: transactionRunner.run,
     collection(name) {
-      return createCollection(data, name, { beforeWhereUpdate })
+      return createCollection(data, name)
     }
   }
 }
@@ -451,7 +450,6 @@ function createQuery(allData, name, query, options = {}) {
       return { data: clone(result) }
     },
     async update({ data }) {
-      if (options.beforeWhereUpdate) options.beforeWhereUpdate({ allData, query, data })
       const matching = records.filter(record =>
         Object.keys(query).every(key => record[key] === query[key])
       )
@@ -477,16 +475,6 @@ function matchesCondition(value, condition) {
   return value === condition
 }
 
-function createOneShotCallback(callback) {
-  if (typeof callback !== 'function') return null
-  let called = false
-  return args => {
-    if (called) return
-    called = true
-    callback(args)
-  }
-}
-
 function clone(value) {
   return JSON.parse(JSON.stringify(value))
 }
@@ -503,30 +491,32 @@ function createTransactionRunner(data, options = {}) {
     async run(callback, times = 3) {
       const previous = transactionQueue
       let releaseQueue
+      let runAttempts = 0
       transactionQueue = new Promise(resolve => { releaseQueue = resolve })
       await previous
       try {
-      while (true) {
-        attempts += 1
-        const snapshot = clone(data)
-        try {
-          const result = await callback(createTransaction(snapshot))
-          if (conflictsRemaining > 0) {
-            conflictsRemaining -= 1
-            if (options.onTransactionConflict) options.onTransactionConflict({ data, attempts })
-            const error = new Error('transaction conflict')
-            error.code = 'TRANSACTION_CONFLICT'
+        while (true) {
+          attempts += 1
+          runAttempts += 1
+          const snapshot = clone(data)
+          try {
+            const result = await callback(createTransaction(snapshot))
+            if (conflictsRemaining > 0) {
+              conflictsRemaining -= 1
+              if (options.onTransactionConflict) options.onTransactionConflict({ data, attempts })
+              const error = new Error('transaction conflict')
+              error.code = 'TRANSACTION_CONFLICT'
+              throw error
+            }
+            if (options.beforeTransactionCommit) options.beforeTransactionCommit({ snapshot, attempts })
+            data.rooms = snapshot.rooms
+            data.roomMembers = snapshot.roomMembers
+            return result
+          } catch (error) {
+            if (error.code === 'TRANSACTION_CONFLICT' && runAttempts < times) continue
             throw error
           }
-          if (options.beforeTransactionCommit) options.beforeTransactionCommit({ snapshot, attempts })
-          data.rooms = snapshot.rooms
-          data.roomMembers = snapshot.roomMembers
-          return result
-        } catch (error) {
-          if (error.code === 'TRANSACTION_CONFLICT' && attempts < times) continue
-          throw error
         }
-      }
       } finally {
         releaseQueue()
       }

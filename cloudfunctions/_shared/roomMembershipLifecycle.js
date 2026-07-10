@@ -132,25 +132,15 @@ function createRoomMembershipLifecycle({
         return { type: 'existing', room: memberRoom }
       }
       if (isActiveRoom(memberRoom)) return { type: 'member-conflict', member: sanitizeMemberConflict(member) }
-      if (!isRecoverableArchivedMemberLock(member, memberRoom)) {
-        return { type: 'member-conflict', member }
-      }
-      if (memberRoom && memberRoom.status === 'archived' && memberRoom.createdBy === options.openid) {
-        return restoreRoomDocuments({
-          roomMembers,
-          txRooms,
-          memberRoom,
-          openid: options.openid,
-          nickName: options.nickName,
-          restoredAt: options.restoredAt || options.createdAt
-        })
-      }
     }
 
     if (options.archivedRoomId) {
       const archivedRoom = await readDocument(txRooms, options.archivedRoomId)
       if (!archivedRoom || archivedRoom.status !== 'archived' || archivedRoom.createdBy !== options.openid) {
         return { type: 'restore-failed' }
+      }
+      if (member && !isRecoverableArchivedMemberLock(member, archivedRoom, options.openid)) {
+        return { type: 'member-conflict', member: sanitizeMemberConflict(member) }
       }
       return restoreRoomDocuments({
         roomMembers,
@@ -161,6 +151,8 @@ function createRoomMembershipLifecycle({
         restoredAt: options.restoredAt
       })
     }
+
+    if (member) return { type: 'member-conflict', member: sanitizeMemberConflict(member) }
 
     const occupiedRoom = await readDocument(txRooms, options.roomId)
     if (occupiedRoom) throw new Error('房间标识冲突，请重试')
@@ -218,8 +210,12 @@ function createRoomMembershipLifecycle({
       if (isActiveRoom(memberRoom) && isRoomMember(memberRoom, options.openid)) {
         return { type: 'existing', room: memberRoom }
       }
-      if (isActiveRoom(memberRoom)) return { type: 'member-conflict', member: sanitizeMemberConflict(member) }
-      return { type: 'member-conflict', member }
+      return {
+        type: 'member-conflict',
+        member: isRoomMember(memberRoom, options.openid)
+          ? member
+          : sanitizeMemberConflict(member)
+      }
     }
 
     const room = await readDocument(txRooms, options.roomId)
@@ -441,8 +437,8 @@ function isRoomMember(room, openid) {
   return Boolean(room && (room.createdBy === openid || room.partnerOpenid === openid))
 }
 
-function isRecoverableArchivedMemberLock(lock, room) {
-  if (!lock || !room) return false
+function isRecoverableArchivedMemberLock(lock, room, openid) {
+  if (!lock || !room || room.status !== 'archived' || room.createdBy !== openid) return false
   const lockRoomId = lock.roomId || ''
   const lockRoomCode = normalizeRoomCode(lock.roomCode)
   const roomCode = normalizeRoomCode(room.roomCode)
