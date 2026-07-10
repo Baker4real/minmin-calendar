@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-06-25
-**Updated:** 2026-07-01
+**Updated:** 2026-07-10
 
 ## Context
 
@@ -12,7 +12,9 @@ The app needs an explicit server-side leave path that removes the current `OPENI
 
 ## Decision
 
-Add a `leaveRoom` cloud function backed by a tested `RoomLifecycle` Module.
+Room membership lifecycle is implemented by the canonical `cloudfunctions/_shared/roomMembershipLifecycle.js`. The `createRoom`, `joinRoom`, `getMyRoom`, and `leaveRoom` cloud functions each deploy a local, byte-identical `roomMembershipLifecycle.js` artifact generated from that canonical source.
+
+Membership changes run inside `db.runTransaction`. Leaving and ownership transfer read and validate the current `rooms` and `roomMembers` documents, then update both as one atomic operation; a failed transaction rolls back the complete change.
 
 When a partner leaves, the room keeps the creator and returns to `waiting`.
 
@@ -27,4 +29,4 @@ The client `RoomSession.leaveRoom()` clears local `roomCode` only after the serv
 - Local storage is now treated as cache for the unbind flow, not as the source of membership truth.
 - The remaining member keeps access to existing shared records and can invite a new partner with the same room code.
 - Empty rooms preserve their `roomCode` for explicit recovery instead of relying on local cache or orphan records.
-- WeChat DevTools CLI confirmed `leaveRoom` is deployed with status `Active` in `cloud1-d8gyqvcez4e66b3da`; end-to-end unbind acceptance still requires simulator or device verification.
+- Historical deployment record: WeChat DevTools CLI confirmed a previous `leaveRoom` version was `Active` in `cloud1-d8gyqvcez4e66b3da`. The canonical artifact refactor described by this ADR has not been deployed to the cloud; it still requires the README / ADR 0002 maintenance-window rollout order followed by cloud transaction, unique-index, artifact, and end-to-end smoke verification.

@@ -157,6 +157,34 @@ test('RoomRecords update returns the canonical Memory record that was persisted'
   assert.equal(db.data.memories[0].note.length, 500)
 })
 
+test('RoomRecords update returns canonical success when the SDK update result shape is unknown', async () => {
+  const db = createFakeDb({
+    memories: [{ _id: 'm1', roomCode: 'ROOM01', date: '2026-06-20', note: 'old' }]
+  })
+  db.setNextUpdateResult({})
+  const records = createRoomRecords({ db, serverDate: () => SERVER_DATE })
+
+  const result = await records.update({
+    collection: 'memories',
+    roomCode: 'ROOM01',
+    id: 'm1',
+    data: { date: '2026-06-24', note: 'new' }
+  })
+
+  assert.deepEqual(result, {
+    code: 0,
+    id: 'm1',
+    record: {
+      _id: 'm1',
+      date: '2026-06-24',
+      note: 'new'
+    }
+  })
+  assert.deepEqual(db.data.memories, [
+    { _id: 'm1', roomCode: 'ROOM01', date: '2026-06-24', note: 'new' }
+  ])
+})
+
 test('RoomRecords update treats unchanged canonical data as a successful no-op', async () => {
   const db = createFakeDb({
     memories: [{ _id: 'm1', roomCode: 'ROOM01', date: '2026-06-24', note: 'same' }]
@@ -294,16 +322,29 @@ function createFakeDb(initial = {}) {
     periods: clone(initial.periods || []),
     memories: clone(initial.memories || [])
   }
+  let hasNextUpdateResult = false
+  let nextUpdateResult
 
   return {
     data,
+    setNextUpdateResult(result) {
+      hasNextUpdateResult = true
+      nextUpdateResult = result
+    },
     collection(name) {
-      return createCollection(data, name, { beforeUpdate: initial.beforeUpdate })
+      return createCollection(data, name, {
+        beforeUpdate: initial.beforeUpdate,
+        consumeUpdateResult(defaultResult) {
+          if (!hasNextUpdateResult) return defaultResult
+          hasNextUpdateResult = false
+          return nextUpdateResult
+        }
+      })
     }
   }
 }
 
-function createCollection(allData, name, { beforeUpdate } = {}) {
+function createCollection(allData, name, { beforeUpdate, consumeUpdateResult } = {}) {
   return {
     where(query) {
       return createQuery(allData[name], query)
@@ -322,7 +363,7 @@ function createCollection(allData, name, { beforeUpdate } = {}) {
             JSON.stringify(record[key]) !== JSON.stringify(data[key])
           )
           if (record) Object.assign(record, clone(data))
-          return { stats: { updated: changed ? 1 : 0 } }
+          return consumeUpdateResult({ stats: { updated: changed ? 1 : 0 } })
         },
         async remove() {
           const index = allData[name].findIndex(item => item._id === id)

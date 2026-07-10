@@ -5,7 +5,7 @@
 
 ## Context
 
-房间成员关系保存在 `rooms.createdBy` 和 `rooms.partnerOpenid` 上。`joinRoom` 可以用条件更新保护同一个房间最多只有一个 partner，但这不能阻止同一个 `OPENID` 并发加入两个不同 waiting 房间。
+房间成员关系保存在 `rooms.createdBy` 和 `rooms.partnerOpenid` 上。只保护单个 room 的 partner 槽位，不能阻止同一个 `OPENID` 并发加入两个不同 waiting 房间。
 
 项目的核心不变量是：一个用户最多属于一个 active room。这个不变量不能只靠加入前查询，因为两个并发请求可能同时读到“尚未加入房间”。
 
@@ -23,11 +23,11 @@
 
 `membershipId` 是本 ADR 唯一允许新增的 schema 字段。Room / Record schema 和远程协议保持不变。新 create、join、recover 必须生成新的 ID；ownership transfer 保留 partner lock 已有 ID，已有 legacy lock 无 ID 时继续保持 legacy，只有 partner lock 缺失、需要补建时才使用本次 `leave()` 预生成的 fallback ID。候选 ID 都在对应 lifecycle 操作的 transaction callback 外生成，保证冲突重试使用同一值。
 
-`createRoom` 和 `joinRoom` 在写入 room 前必须先获得 `roomMembers._id = OPENID` 的成员锁。拿不到锁时，直接返回“已加入其他房间”，不能继续写入目标 room。
+`createRoom`、`joinRoom`、recover、`leaveRoom` 和 ownership transfer 都必须在 `db.runTransaction` 内原子读取、校验并写入 `rooms` 与 `roomMembers`。事务内基于最新文档状态判断成员是否已属于其他 active room、目标 room 是否仍可加入或恢复，以及离开时的成员身份；只有全部校验通过，Room 与成员文档才作为一个整体提交。
 
-`joinRoom` 仍然要对目标 room 做条件更新：`_id`、`status: waiting`、`partnerOpenid: ''` 同时匹配才写入 partner。写入后还要读回目标 room，确认最终 `partnerOpenid` 仍然是当前 `OPENID`。
+`roomMembers._id = OPENID` 的数据库唯一约束是“一个用户最多属于一个 active room”的唯一门禁。并发 transaction 读写同一 Room 或成员文档发生冲突时，由 transaction 自动重试；重试后如果状态已不满足业务条件，则返回对应失败结果。transaction 最终失败时整体回滚，不能只提交 Room 或只提交成员文档。
 
-`leaveRoom` 成功解除成员关系后必须释放当前用户成员锁；创建者离开 paired room 时，partner 转为 creator，并同步更新 partner 的成员锁角色。
+`leaveRoom` 成功解除成员关系时，在同一个 transaction 内删除当前用户成员文档；创建者离开 paired room 时，也在该 transaction 内把 partner 转为 creator，并同步更新 partner 的成员角色。
 
 `dataOp` 授权仍以 `rooms` 文档为准。`roomMembers` 是生命周期并发锁，不是记录读写授权来源。
 
@@ -48,7 +48,7 @@
 ## Consequences
 
 - 没有 `roomMembers` 回填时，历史成员仍能通过 `rooms` 授权访问数据，但并发锁不能完整表达历史状态。
-- 如果 `createRoom` 或 `joinRoom` 在拿锁后异常退出，可能留下 stale lock；`leaveRoom` 在找不到 room 时会清理当前用户 stale lock，成功解绑 active room 后也会按当前 `OPENID` 兜底清理成员锁。
-- 如果 archived room 存在同房间或空白 stale lock，`createRoom` 可以复用该锁完成显式恢复；指向其他房间的锁仍必须阻止创建。
+- 新 lifecycle transaction 要么同时提交 Room 与成员文档，要么整体回滚，不会因 transaction 失败留下单边 member lock。stale lock 只可能来自 legacy 版本、迁移前历史数据或人工写入等异常状态；`leaveRoom` 的 stale lock 清理属于兼容性修复路径。
+- 如果 archived room 存在 legacy 或历史异常产生的同房间或空白 stale lock，`createRoom` 可以复用该锁完成显式恢复；指向其他房间的锁仍必须阻止创建。
 - 后续任何修改房间成员生命周期的云函数，都必须同步维护 `roomMembers`。
 - `membershipId` 只防止 member lock identity 的 ABA，不改变 `rooms` 作为 records 授权来源的事实。
