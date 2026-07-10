@@ -688,6 +688,45 @@ test('RoomBinding join preserves the room code for an authorized archived creato
   assert.equal(db.data.rooms[0].partnerOpenid, '')
 })
 
+test('RoomBinding join projects authorized archived conflicts from the room record', async () => {
+  const db = createFakeDb({
+    rooms: [
+      {
+        _id: 'room-target',
+        roomCode: 'ROOM01',
+        createdBy: 'user-a',
+        partnerOpenid: '',
+        status: 'waiting'
+      },
+      {
+        _id: 'room-own',
+        roomCode: 'OWN001',
+        createdBy: 'user-b',
+        partnerOpenid: '',
+        status: 'archived'
+      }
+    ],
+    roomMembers: [{
+      _id: 'user-b',
+      openid: 'user-b',
+      roomId: 'room-own',
+      roomCode: 'TAMPERED',
+      role: 'partner'
+    }]
+  })
+  const before = JSON.parse(JSON.stringify(db.data))
+  const binding = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
+
+  const result = await binding.join({ openid: 'user-b', roomCode: 'ROOM01' })
+
+  assert.deepEqual(result, {
+    code: -5,
+    msg: '你已加入其他房间，请先解除绑定后再加入新房间',
+    roomCode: 'OWN001'
+  })
+  assert.deepEqual(db.data, before)
+})
+
 test('RoomBinding join allows only one concurrent room claim for the same user', async () => {
   const db = createFakeDb({
     rooms: [

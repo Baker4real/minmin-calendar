@@ -213,7 +213,7 @@ function createRoomMembershipLifecycle({
       return {
         type: 'member-conflict',
         member: isRoomMember(memberRoom, options.openid)
-          ? member
+          ? projectAuthorizedMemberConflict(member, memberRoom, options.openid)
           : sanitizeMemberConflict(member)
       }
     }
@@ -404,6 +404,15 @@ function buildMember({ openid, room, role, updatedAt, previous = {} }) {
 
 function sanitizeMemberConflict(member) {
   return { ...member, roomCode: '' }
+}
+
+function projectAuthorizedMemberConflict(member, room, openid) {
+  return {
+    ...member,
+    roomId: room._id,
+    roomCode: room.roomCode || '',
+    role: room.createdBy === openid ? 'creator' : 'partner'
+  }
 }
 
 function buildArchivedRoomData(room, owner, changedAt) {
