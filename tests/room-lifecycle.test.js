@@ -1,7 +1,16 @@
 const assert = require('node:assert/strict')
 const test = require('node:test')
 
-const { createRoomLifecycle } = require('../cloudfunctions/leaveRoom/roomLifecycle')
+const {
+  createRoomMembershipLifecycle: createCanonicalRoomMembershipLifecycle
+} = require('../cloudfunctions/_shared/roomMembershipLifecycle')
+
+function createRoomMembershipLifecycle(options) {
+  return createCanonicalRoomMembershipLifecycle({
+    ...options,
+    generateRoomId: options.generateRoomId || (() => `room-${options.db.data.rooms.length + 1}`)
+  })
+}
 
 const SERVER_DATE = { serverDate: true }
 
@@ -25,7 +34,7 @@ test('RoomLifecycle transfers creator ownership to the partner when the creator 
       { _id: 'user-b', openid: 'user-b', roomId: 'room-1', roomCode: 'ROOM01', role: 'partner' }
     ]
   })
-  const lifecycle = createRoomLifecycle({ db, serverDate: () => SERVER_DATE })
+  const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
 
   const result = await lifecycle.leave({ openid: 'user-a' })
 
@@ -76,7 +85,7 @@ test('RoomLifecycle removes the partner from a paired room and leaves the creato
       { _id: 'user-b', openid: 'user-b', roomId: 'room-1', roomCode: 'ROOM01', role: 'partner' }
     ]
   })
-  const lifecycle = createRoomLifecycle({ db, serverDate: () => SERVER_DATE })
+  const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
 
   const result = await lifecycle.leave({ openid: 'user-b' })
 
@@ -118,7 +127,7 @@ test('RoomLifecycle archives a room when the last creator leaves', async () => {
       { _id: 'user-a', openid: 'user-a', roomId: 'room-1', roomCode: 'ROOM01', role: 'creator' }
     ]
   })
-  const lifecycle = createRoomLifecycle({ db, serverDate: () => SERVER_DATE })
+  const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
 
   const result = await lifecycle.leave({ openid: 'user-a' })
 
@@ -158,12 +167,12 @@ test('RoomLifecycle does not archive a room that is paired by a concurrent join'
     roomMembers: [
       { _id: 'user-a', openid: 'user-a', roomId: 'room-1', roomCode: 'ROOM01', role: 'creator' }
     ],
-    beforeWhereUpdate({ allData, query }) {
-      if (query._id !== 'room-1' || query.status !== 'waiting') return
-      allData.rooms[0].partnerOpenid = 'user-b'
-      allData.rooms[0].partnerName = 'B'
-      allData.rooms[0].status = 'paired'
-      allData.roomMembers.push({
+    transactionConflicts: 1,
+    onTransactionConflict({ data }) {
+      data.rooms[0].partnerOpenid = 'user-b'
+      data.rooms[0].partnerName = 'B'
+      data.rooms[0].status = 'paired'
+      data.roomMembers.push({
         _id: 'user-b',
         openid: 'user-b',
         roomId: 'room-1',
@@ -172,7 +181,7 @@ test('RoomLifecycle does not archive a room that is paired by a concurrent join'
       })
     }
   })
-  const lifecycle = createRoomLifecycle({ db, serverDate: () => SERVER_DATE })
+  const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
 
   const result = await lifecycle.leave({ openid: 'user-a' })
 
@@ -213,7 +222,7 @@ test('RoomLifecycle archives a last-member room while clearing a blank member lo
       { _id: 'user-a', openid: 'user-a', roomId: '', roomCode: '', role: 'creator' }
     ]
   })
-  const lifecycle = createRoomLifecycle({ db, serverDate: () => SERVER_DATE })
+  const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
 
   const result = await lifecycle.leave({ openid: 'user-a' })
 
@@ -251,7 +260,7 @@ test('RoomLifecycle archives a partner-only room even when the creator field is 
       { _id: 'user-b', openid: 'user-b', roomId: 'room-1', roomCode: 'ROOM01', role: 'partner' }
     ]
   })
-  const lifecycle = createRoomLifecycle({ db, serverDate: () => SERVER_DATE })
+  const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
 
   const result = await lifecycle.leave({ openid: 'user-b' })
 
@@ -280,12 +289,101 @@ test('RoomLifecycle leave is idempotent when the user is not in any room', async
       { _id: 'user-a', openid: 'user-a', roomId: 'stale-room', roomCode: 'STALE1', role: 'partner' }
     ]
   })
-  const lifecycle = createRoomLifecycle({ db, serverDate: () => SERVER_DATE })
+  const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
 
   const result = await lifecycle.leave({ openid: 'user-a' })
 
   assert.deepEqual(result, { code: 0, removedCount: 0, deletedCount: 0 })
   assert.deepEqual(db.data.rooms, [])
+  assert.deepEqual(db.data.roomMembers, [])
+})
+
+test('Room membership transaction retries ownership transfer conflicts without partial commit', async () => {
+  const db = createFakeDb({
+    transactionConflicts: 1,
+    rooms: [{
+      _id: 'room-1',
+      roomCode: 'ROOM01',
+      createdBy: 'user-a',
+      createdByName: 'A',
+      partnerOpenid: 'user-b',
+      partnerName: 'B',
+      status: 'paired'
+    }],
+    roomMembers: [
+      { _id: 'user-a', openid: 'user-a', roomId: 'room-1', roomCode: 'ROOM01', role: 'creator' },
+      { _id: 'user-b', openid: 'user-b', roomId: 'room-1', roomCode: 'ROOM01', role: 'partner' }
+    ]
+  })
+  const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
+
+  const result = await lifecycle.leave({ openid: 'user-a' })
+
+  assert.deepEqual(result, { code: 0, removedCount: 1, deletedCount: 0 })
+  assert.equal(db.transactionAttempts, 2)
+  assert.equal(db.data.rooms[0].createdBy, 'user-b')
+  assert.deepEqual(db.data.roomMembers.map(member => [member._id, member.role]), [['user-b', 'creator']])
+})
+
+test('Room membership transaction does not overwrite a partner membership in another active room', async () => {
+  const db = createFakeDb({
+    rooms: [
+      {
+        _id: 'room-1',
+        roomCode: 'ROOM01',
+        createdBy: 'user-a',
+        partnerOpenid: 'user-b',
+        partnerName: 'B',
+        status: 'paired'
+      },
+      {
+        _id: 'room-2',
+        roomCode: 'ROOM02',
+        createdBy: 'user-c',
+        partnerOpenid: 'user-b',
+        status: 'paired'
+      }
+    ],
+    roomMembers: [
+      { _id: 'user-a', openid: 'user-a', roomId: 'room-1', roomCode: 'ROOM01', role: 'creator' },
+      { _id: 'user-b', openid: 'user-b', roomId: 'room-2', roomCode: 'ROOM02', role: 'partner' }
+    ]
+  })
+  const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
+
+  await assert.rejects(
+    lifecycle.leave({ openid: 'user-a' }),
+    /成员资格冲突/
+  )
+
+  assert.equal(db.data.rooms[0].createdBy, 'user-a')
+  assert.equal(db.data.rooms[0].partnerOpenid, 'user-b')
+  assert.equal(db.data.roomMembers[1].roomId, 'room-2')
+})
+
+test('Room membership transaction falls back from a stale member pointer to the active room', async () => {
+  const db = createFakeDb({
+    rooms: [{
+      _id: 'room-active',
+      roomCode: 'ACTIVE',
+      createdBy: 'user-a',
+      partnerOpenid: '',
+      status: 'waiting'
+    }],
+    roomMembers: [{
+      _id: 'user-a',
+      openid: 'user-a',
+      roomId: 'room-missing',
+      roomCode: 'STALE1',
+      role: 'creator'
+    }]
+  })
+  const lifecycle = createRoomMembershipLifecycle({ db, serverDate: () => SERVER_DATE })
+
+  const result = await lifecycle.leave({ openid: 'user-a' })
+
+  assert.equal(result.archivedCount, 1)
+  assert.equal(db.data.rooms[0].status, 'archived')
   assert.deepEqual(db.data.roomMembers, [])
 })
 
@@ -295,9 +393,19 @@ function createFakeDb(initial = {}) {
     roomMembers: clone(initial.roomMembers || [])
   }
   const beforeWhereUpdate = createOneShotCallback(initial.beforeWhereUpdate)
+  const transactionRunner = createTransactionRunner(data, initial)
 
   return {
     data,
+    command: {
+      neq(value) {
+        return { $neq: value }
+      }
+    },
+    get transactionAttempts() {
+      return transactionRunner.attempts
+    },
+    runTransaction: transactionRunner.run,
     collection(name) {
       return createCollection(data, name, { beforeWhereUpdate })
     }
@@ -337,7 +445,7 @@ function createQuery(allData, name, query, options = {}) {
     },
     async get() {
       let result = records.filter(record =>
-        Object.keys(query).every(key => record[key] === query[key])
+        Object.keys(query).every(key => matchesCondition(record[key], query[key]))
       )
       if (limitCount !== null) result = result.slice(0, limitCount)
       return { data: clone(result) }
@@ -362,6 +470,13 @@ function createQuery(allData, name, query, options = {}) {
   return chain
 }
 
+function matchesCondition(value, condition) {
+  if (condition && Object.prototype.hasOwnProperty.call(condition, '$neq')) {
+    return value !== condition.$neq
+  }
+  return value === condition
+}
+
 function createOneShotCallback(callback) {
   if (typeof callback !== 'function') return null
   let called = false
@@ -374,4 +489,84 @@ function createOneShotCallback(callback) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value))
+}
+
+function createTransactionRunner(data, options = {}) {
+  let attempts = 0
+  let conflictsRemaining = options.transactionConflicts || 0
+  let transactionQueue = Promise.resolve()
+
+  return {
+    get attempts() {
+      return attempts
+    },
+    async run(callback, times = 3) {
+      const previous = transactionQueue
+      let releaseQueue
+      transactionQueue = new Promise(resolve => { releaseQueue = resolve })
+      await previous
+      try {
+      while (true) {
+        attempts += 1
+        const snapshot = clone(data)
+        try {
+          const result = await callback(createTransaction(snapshot))
+          if (conflictsRemaining > 0) {
+            conflictsRemaining -= 1
+            if (options.onTransactionConflict) options.onTransactionConflict({ data, attempts })
+            const error = new Error('transaction conflict')
+            error.code = 'TRANSACTION_CONFLICT'
+            throw error
+          }
+          if (options.beforeTransactionCommit) options.beforeTransactionCommit({ snapshot, attempts })
+          data.rooms = snapshot.rooms
+          data.roomMembers = snapshot.roomMembers
+          return result
+        } catch (error) {
+          if (error.code === 'TRANSACTION_CONFLICT' && attempts < times) continue
+          throw error
+        }
+      }
+      } finally {
+        releaseQueue()
+      }
+    }
+  }
+}
+
+function createTransaction(data) {
+  return {
+    collection(name) {
+      return {
+        doc(id) {
+          return createTransactionDoc(data[name], id)
+        }
+      }
+    }
+  }
+}
+
+function createTransactionDoc(records, id) {
+  return {
+    async get() {
+      return { data: clone(records.find(record => record._id === id) || null) }
+    },
+    async set({ data }) {
+      const index = records.findIndex(record => record._id === id)
+      const record = { _id: id, ...clone(data) }
+      if (index >= 0) records[index] = record
+      else records.push(record)
+      return { stats: { created: index < 0 ? 1 : 0, updated: index >= 0 ? 1 : 0 } }
+    },
+    async update({ data }) {
+      const record = records.find(item => item._id === id)
+      if (record) Object.assign(record, clone(data))
+      return { stats: { updated: record ? 1 : 0 } }
+    },
+    async remove() {
+      const index = records.findIndex(record => record._id === id)
+      if (index >= 0) records.splice(index, 1)
+      return { stats: { removed: index >= 0 ? 1 : 0 } }
+    }
+  }
 }

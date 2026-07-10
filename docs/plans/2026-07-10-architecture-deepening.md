@@ -813,7 +813,10 @@ Commit:
 - Produces: createRoomMembershipLifecycle({ db, serverDate, generateRoomCode })。
 - Produces methods: create、join、getActive、leave。
 - Preserves: 现有四个操作的 event-independent return shapes。
-- Internal lock rule: 已知 Room 时 release/update 必须匹配 openid + roomId；stale cleanup 使用读取到的 lock identity 做条件删除。
+- Atomicity rule: create、join、leave 与 ownership transfer 必须通过 `db.runTransaction` 原子修改 `rooms` 与 `roomMembers`；`roomMembers._id = openid` 是“一个用户至多属于一个 active Room”的唯一门。
+- Transaction rule: 事务外 `where` 只用于定位候选 Room；事务内必须用已知 `_id` 重新读取并验证单文档，且只使用 `transaction.collection(...).doc(...)` 与 `add`。
+
+**2026-07-10 对抗性审查修订：** 原计划中的条件删除只能防正常交错，无法封住云函数在两次跨集合写入之间崩溃所产生的半提交。微信云函数 `wx-server-sdk` 官方支持 [`db.runTransaction`](https://developers.weixin.qq.com/miniprogram/dev/wxcloudservice/wxcloud/reference-sdk-api/database/Database.runTransaction.html)，并对多集合单文档读写提供自动提交、回滚与冲突重试；因此本节后续“条件 lock helper”实现细节由事务化实现取代。原有 characterization、完整生命周期与竞态测试仍保留，并新增事务 rollback / conflict retry 测试。Task 5 仍不切换 runtime adapter，Task 6 才原子发布四份自包含 artifact。
 
 - [ ] **Step 1: 把现有测试切到统一 public seam 并保持红灯**
 
