@@ -6,6 +6,11 @@ cloudfunctions/**/node_modules/
 project.private.config.json
 .eslintrc.local
 
+# Local/private overrides
+.env.local
+.local/
+*.local.md
+
 # Local agent/editor state
 .codegraph/
 .serena/
