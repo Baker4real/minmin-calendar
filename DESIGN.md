@@ -115,6 +115,10 @@ components:
     activeBg: "#E8909E"
 ---
 
+## 实现状态
+
+本文件是 Aurora Bloom 的目标视觉稿，不是当前 UI 的逐项实现清单。现有页面只完成了部分色彩与组件方向，运行时事实应以 `app.json`、`app.wxss` 和各页面 WXSS 为准；下文“已移除”的霓虹色、玻璃参数和动画周期均表示目标方向，不代表当前基线已经全部达成。
+
 ## Overview
 
 Aurora Bloom is a premium wellness dark theme for minmin-calendar — a period tracking and diary app. Rose tones on deep navy with soft glassmorphism surfaces and subtle aurora animations.

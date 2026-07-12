@@ -1,6 +1,6 @@
 # 强烈推荐架构深化设计
 
-**状态：** 已批准
+**状态：** 已实现（保留为设计记录）
 **日期：** 2026-07-10
 **范围：** 持久化 Record canonical source、首页 Room records 同步状态机、Room membership lifecycle
 
@@ -26,7 +26,7 @@
 - 每个微信云函数目录继续自包含；不得依赖父目录 runtime require、symlink、junction 或云函数间网络调用。
 - 不自动清理历史重复 Room、records 或无法判定的 stale member lock。
 
-### 已知事实
+### 设计时已知事实（实现前基线）
 
 - RoomRecords 会剥离保留字段、拒绝未知字段、严格验证日期、重算 duration、过滤 flow/symptoms，并把 note 截断到 500 字。
 - 当前 add 只返回 id，update 只返回成功码；编辑页却用客户端 payload 更新首页。

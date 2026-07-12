@@ -20,6 +20,8 @@ Core domain files:
 - `utils/cloud.js` - frontend cloud-function data access wrapper and room-scoped `RoomDataClient`.
 - `utils/recordCommands.js` - shared period/memory save, delete, list feedback, retry, and rebind flow helper.
 - `utils/recordPageSync.js` - edit-page-to-homepage record sync helper for optimistic homepage refresh.
+- `utils/roomRecordsSnapshot.js` - 首页部分成功快照与设置页全量导出的共享加载器。
+- `utils/homeRecordsSync.js` - 首页记录同步、过期请求拒绝与乐观更新协调的纯状态机。
 - `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
 - `utils/homeCalendarState.js` - pure homepage calendar state, marker meanings, and marker composition.
 - `utils/util.js` - date, lunar, holiday, and base calendar-grid logic.
@@ -43,7 +45,7 @@ Before non-trivial implementation, read `CONTEXT.md` plus the relevant source an
 
 Run relevant checks before claiming work is complete. Current lightweight checks:
 
-When running these checks through Codex Desktop shell, pass absolute file paths to `node --test` / `node --check`; the shell wrapper may not resolve relative test paths reliably.
+下列命令以仓库根为当前目录展示，方便人工复制。通过 Codex Desktop shell 执行时，必须把 `node --test` / `node --check` 的路径展开为绝对路径；shell wrapper 可能无法可靠解析相对路径。
 
 ```powershell
 node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\room-access-protocol.test.js tests\home-calendar-state.test.js tests\home-records-sync.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js

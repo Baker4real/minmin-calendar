@@ -7,7 +7,10 @@ This repository uses a single-context documentation layout.
 | Purpose | Path |
 |---------|------|
 | Domain context | `CONTEXT.md` |
+| 视觉方向（目标稿，部分实现） | `DESIGN.md` |
 | Architecture decisions | `docs/adr/` |
+| 已批准的设计记录 | `docs/specs/` |
+| 历史实施分解 | `docs/plans/` |
 | Agent workflow config | `docs/agents/` |
 
 ## Consumer Rules

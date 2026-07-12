@@ -46,6 +46,8 @@ Cloud functions live under `cloudfunctions/`; each function has its own `package
 
 Run the lightweight local checks after changing date, prediction, room, calendar, or page behavior:
 
+下列命令假设当前目录是项目根；通过 Codex Desktop shell 执行时，应把测试和源码路径展开为绝对路径。
+
 ```powershell
 node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\room-access-protocol.test.js tests\home-calendar-state.test.js tests\home-records-sync.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
 node --check cloudfunctions\_shared\roomMembershipLifecycle.js
@@ -95,8 +97,11 @@ Do not commit:
 
 - `cloudfunctions/**/node_modules/`
 - `project.private.config.json`
+- `.codegraph/`
+- `.codex/`
 - `.serena/`
 - `.tdd/`
+- `.scratch/*`（保留已跟踪的 `.scratch/README.md`）
 - `_external/`
 - `scripts/`
 - `hermes-*.csv` / `hermes-*.md`

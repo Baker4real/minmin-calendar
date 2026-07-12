@@ -13,8 +13,13 @@ project.private.config.json
 
 # Local agent/editor state
 .codegraph/
+.codex/
 .serena/
 .tdd/
+
+# 本地草稿（保留已跟踪的使用说明）
+.scratch/*
+!.scratch/README.md
 
 # Imported/reference material not part of this mini program
 _external/
