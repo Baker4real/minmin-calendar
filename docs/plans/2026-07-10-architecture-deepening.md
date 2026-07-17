@@ -1,8 +1,8 @@
 # 架构深化实施计划
 
-**实施状态：** 已完成；实现与部署事实以当前 `README.md`、`CONTEXT.md` 和 ADR 为准。下方 checkbox 保留最初的执行分解，不再作为待办清单。
+**实施状态：** 已完成；实现与部署事实以当前 `README.md`、`CONTEXT.md` 和 ADR 为准。下方 checkbox 保留 2026-07-10 的历史执行分解，不再作为待办清单或现行运行规范。
 
-> **For agentic workers:** 按任务顺序逐项实施。独立任务优先使用 subagent-driven-development；每个任务都必须完成自己的红灯、绿灯、复核与提交，不能把失败留给后续任务。
+> **历史执行说明：** 下方的工具引用、复核顺序和 checkbox 只描述当时的实施过程。新任务应遵循根 `AGENTS.md`、`README.md`、`CONTEXT.md` 和 ADR，而不是复用本计划中的历史 workflow。
 
 **Goal:** 在不改变现有远程协议、Room / Record schema 与产品语义的前提下，让服务端 canonical Record、首页同步状态机和 Room membership lifecycle 分别形成可验证的 deep module；成员锁只允许增加可选内部版本字段 `roomMembers.membershipId`。
 

@@ -13,6 +13,7 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 - `utils/cloud.js` - frontend cloud-function access wrapper and room-scoped `RoomDataClient`.
 - `utils/recordCommands.js` - shared period/memory save, delete, list feedback, retry, and rebind flow helper.
 - `utils/recordPageSync.js` - edit-page-to-homepage record sync helper for optimistic homepage refresh.
+- `utils/roomRecordsSnapshot.js` - room-scoped Period/Memory snapshot loader for homepage partial sync and Settings all-or-nothing export.
 - `utils/homeRecordsSync.js` - homepage record collection sync, request ordering, partial-success, and optimistic reconciliation helper.
 - `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
 - `utils/homeCalendarState.js` - pure homepage calendar state, marker meanings, and marker composition.
@@ -41,6 +42,16 @@ Cloud functions live under `cloudfunctions/`; each function has its own `package
 房间成员锁允许一个向后兼容的内部版本字段 `roomMembers.membershipId`，用于识别同一房间字段被复用后的不同成员资格。它是可选、非授权字段，不进入 Room / Record schema 或云函数远程响应；records 授权仍只看 `rooms`。新 create、join、recover 生成新 ID；ownership transfer 保留已有 partner ID，legacy partner lock 无 ID 时保持 legacy，只有 partner lock 缺失时才补建 fallback ID。既有 lock 无需强制 backfill。
 
 部署 Room lifecycle 前运行 `node cloudfunctions\_shared\syncRoomMembershipLifecycle.js --write` 生成四份本地 artifact，并用 `--check` 阻止 canonical 与部署内容漂移。发布时应进入维护窗口，先把 `createRoom`、`joinRoom`、`getMyRoom` 作为同版一组发布，再发布 `leaveRoom`，避免新旧版本混跑。回滚按反向顺序：先恢复 `leaveRoom`，再同版恢复前三个云函数。`membershipId` 可选且旧版本可忽略，无需强制 backfill 或数据回滚；但旧版本运行期间不会维护成员锁，再次前滚前必须重跑锁一致性检查并补齐缺失锁。2026-07-10 已按该函数顺序部署到 `cloud1-d8gyqvcez4e66b3da`，完成 `roomMembers` 基础锁回填、`rooms.roomCode` 唯一索引、部署产物 hash 和实际 SDK 版本核验；带真实微信 `OPENID` 的 transaction retry、并发冲突和完整业务 E2E 仍需在小程序上下文中验证，本地测试或无用户上下文的 CLI invoke 不能替代这些信号。
+
+### 云数据库索引基线
+
+`rooms` 集合必须保留以下索引：
+
+- `roomCode_1_unique`：`{ roomCode: 1 }`，唯一索引，保护房间码全局唯一性。
+- `createdBy_1_status_1`：`{ createdBy: 1, status: 1 }`，非唯一复合索引，支持创建者的 active Room 和 archived recovery 查询。
+- `partnerOpenid_1_status_1`：`{ partnerOpenid: 1, status: 1 }`，非唯一复合索引，支持已加入成员的 active Room 查询。
+
+后两条索引只优化 Room 身份查询，不改变 `rooms` 作为 records 授权来源或 `roomMembers` 作为并发锁的职责。创建或补齐这些索引是云数据库操作，在线生效后不需要重新部署云函数或上传小程序。
 
 ## Verification
 

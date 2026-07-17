@@ -46,6 +46,7 @@
 ## Room Lifecycle Boundary
 
 - Active room access is authorized through `rooms.createdBy` / `rooms.partnerOpenid`; `roomMembers` is a concurrency lock, not the record authorization source.
+- `rooms` must retain `roomCode_1_unique` plus the non-unique `createdBy_1_status_1` and `partnerOpenid_1_status_1` indexes. The composite indexes support Room identity lookup performance only; they do not change authorization semantics or make `roomMembers` an authorization source.
 - Last-member leave archives the room instead of deleting it. Archived rooms reserve their original `roomCode`, are not returned by `getMyRoom`, cannot be joined directly, and cannot access records through `dataOp`.
 - The original creator can recover an archived room by creating again. Recovery keeps the same `roomCode`, so existing `periods` and `memories` become accessible without migration.
 - Homepage loading may show partial `periods` / `memories` data when one collection has a retryable failure, but Settings export still requires both collections to load successfully.
