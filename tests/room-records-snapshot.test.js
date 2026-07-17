@@ -23,6 +23,22 @@ test('loadHomeRecordsSnapshot returns both room-scoped record collections on suc
   ])
 })
 
+test('loadHomeRecordsSnapshot requires RoomDataClient instead of legacy cloud getters', async () => {
+  await assert.rejects(
+    () => loadHomeRecordsSnapshot({
+      cloud: {
+        async getPeriods() {
+          return [{ _id: 'p1' }]
+        },
+        async getMemories() {
+          return [{ _id: 'm1' }]
+        }
+      }
+    }),
+    /RoomDataClient is required/
+  )
+})
+
 test('loadHomeRecordsSnapshot keeps partial-success semantics for retryable collection failures', async () => {
   const snapshot = await loadHomeRecordsSnapshot({
     client: createFakeRoomDataClient({

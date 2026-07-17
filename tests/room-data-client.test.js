@@ -2,7 +2,6 @@ const assert = require('node:assert/strict')
 const test = require('node:test')
 
 const cloudModule = require('../utils/cloud')
-const roomModule = require('../utils/room')
 const { createRoomDataClient } = cloudModule
 
 test('RoomDataClient list returns success data for the active room', async () => {
@@ -376,61 +375,22 @@ test('RoomDataClient keeps room-code conflicts as business failures', async () =
   assert.deepEqual(roomSession.repairCalls, [])
 })
 
-test('Legacy cloud wrappers keep the existing page-facing return shapes', async () => {
-  const originalWx = global.wx
-  const originalGetRoomCode = roomModule.getRoomCode
-  const originalRepairCachedRoom = roomModule.repairCachedRoom
+test('cloud exposes RoomDataClient as the only records access interface', () => {
+  const legacyRecordMethods = [
+    'getPeriods',
+    'addPeriod',
+    'updatePeriod',
+    'deletePeriod',
+    'getMemories',
+    'addMemory',
+    'updateMemory',
+    'deleteMemory'
+  ]
 
-  roomModule.getRoomCode = () => 'ROOM01'
-  roomModule.repairCachedRoom = async () => ({ kind: 'success', bound: true, roomCode: 'ROOM01' })
-  global.wx = {
-    cloud: {
-      callFunction(options) {
-        if (options.data.action === 'list') {
-          return Promise.resolve({ result: { code: 0, data: [{ _id: 'p1' }] } })
-        }
-        return Promise.resolve({ result: { code: 0, saved: true } })
-      }
-    }
-  }
-
-  try {
-    const periods = await cloudModule.getPeriods()
-    const saveResult = await cloudModule.addPeriod({ startDate: '2026-06-01' })
-
-    assert.deepEqual(periods, [{ _id: 'p1' }])
-    assert.deepEqual(saveResult, {
-      result: { code: 0, saved: true }
-    })
-  } finally {
-    roomModule.getRoomCode = originalGetRoomCode
-    roomModule.repairCachedRoom = originalRepairCachedRoom
-    global.wx = originalWx
-  }
-})
-
-test('Legacy cloud list wrappers still throw on retryable transport failures', async () => {
-  const originalWx = global.wx
-  const originalGetRoomCode = roomModule.getRoomCode
-  const originalRepairCachedRoom = roomModule.repairCachedRoom
-
-  roomModule.getRoomCode = () => 'ROOM01'
-  roomModule.repairCachedRoom = async () => ({ kind: 'success', bound: true, roomCode: 'ROOM01' })
-  global.wx = {
-    cloud: {
-      callFunction() {
-        return Promise.reject(new Error('network down'))
-      }
-    }
-  }
-
-  try {
-    await assert.rejects(() => cloudModule.getPeriods(), /network down/)
-  } finally {
-    roomModule.getRoomCode = originalGetRoomCode
-    roomModule.repairCachedRoom = originalRepairCachedRoom
-    global.wx = originalWx
-  }
+  assert.equal(typeof cloudModule.createRoomDataClient, 'function')
+  legacyRecordMethods.forEach(name => {
+    assert.equal(cloudModule[name], undefined)
+  })
 })
 
 function createFakeRoomSession(options = {}) {

@@ -1,18 +1,20 @@
 async function loadHomeRecordsSnapshot(options = {}) {
+  const client = requireRoomDataClient(options.client)
   const [periodsOutcome, memoriesOutcome] = await Promise.all([
-    listRecordCollection({ ...options, collection: 'periods' }),
-    listRecordCollection({ ...options, collection: 'memories' })
+    listRecordCollection({ client, collection: 'periods' }),
+    listRecordCollection({ client, collection: 'memories' })
   ])
   return buildHomeRecordsSnapshot({ periodsOutcome, memoriesOutcome })
 }
 
 async function loadExportRecordsSnapshot(options = {}) {
-  const periodsOutcome = await listRecordCollection({ ...options, collection: 'periods' })
+  const client = requireRoomDataClient(options.client)
+  const periodsOutcome = await listRecordCollection({ client, collection: 'periods' })
   if (!isSuccessfulCollectionOutcome(periodsOutcome)) {
     return buildExportFailureSnapshot({ periodsOutcome, outcome: periodsOutcome })
   }
 
-  const memoriesOutcome = await listRecordCollection({ ...options, collection: 'memories' })
+  const memoriesOutcome = await listRecordCollection({ client, collection: 'memories' })
   if (!isSuccessfulCollectionOutcome(memoriesOutcome)) {
     return buildExportFailureSnapshot({ periodsOutcome, memoriesOutcome, outcome: memoriesOutcome })
   }
@@ -65,22 +67,15 @@ function buildHomeRecordsSnapshot({ periodsOutcome, memoriesOutcome }) {
   }
 }
 
-async function listRecordCollection({ cloud, client, collection }) {
-  if (client && typeof client.list === 'function') {
-    return normalizeCollectionOutcome(await client.list(collection))
+function requireRoomDataClient(client) {
+  if (!client || typeof client.list !== 'function') {
+    throw new Error('RoomDataClient is required')
   }
+  return client
+}
 
-  try {
-    const getter = collection === 'periods' ? cloud.getPeriods : cloud.getMemories
-    const data = await getter()
-    return { kind: 'success', data }
-  } catch (error) {
-    return {
-      kind: 'retryable-failure',
-      message: getErrorMessage(error),
-      retry: () => listRecordCollection({ cloud, client, collection })
-    }
-  }
+async function listRecordCollection({ client, collection }) {
+  return normalizeCollectionOutcome(await client.list(collection))
 }
 
 function normalizeCollectionOutcome(outcome) {
@@ -114,10 +109,6 @@ function isBlockingCollectionOutcome(outcome) {
 
 function normalizeRecords(records) {
   return Array.isArray(records) ? records : []
-}
-
-function getErrorMessage(error) {
-  return error && error.message ? error.message : String(error || '未知错误')
 }
 
 module.exports = {

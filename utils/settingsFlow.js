@@ -44,7 +44,7 @@ async function exportRecordsAsJson(options = {}) {
   showLoading(wxApi, { title: '导出中...' })
   try {
     const client = createRoomDataClient(cloud, roomSession)
-    const snapshot = await roomRecordsSnapshot.loadExportRecordsSnapshot({ cloud, client })
+    const snapshot = await roomRecordsSnapshot.loadExportRecordsSnapshot({ client })
     if (snapshot.kind !== 'success') {
       hideLoading()
       return handleExportLoadFailure(wxApi, snapshot.outcome, () => exportRecordsAsJson(options), navigateToBind)

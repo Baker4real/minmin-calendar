@@ -23,8 +23,8 @@
 ## Technical Shape
 
 - `app.js` initializes WeChat Cloud with the active environment.
-- `utils/cloud.js` wraps frontend calls to `cloudfunctions/dataOp/index.js` and exposes `RoomDataClient` outcomes for room-scoped reads/writes.
-- `utils/roomRecordsSnapshot.js` owns room-scoped `periods` + `memories` snapshot loading for homepage partial sync and Settings all-or-nothing export.
+- `utils/cloud.js` wraps frontend calls to `cloudfunctions/dataOp/index.js`; `RoomDataClient` is the sole frontend records access interface for room-scoped reads/writes.
+- `utils/roomRecordsSnapshot.js` consumes only `RoomDataClient` and owns room-scoped `periods` + `memories` snapshot loading for homepage partial sync and Settings all-or-nothing export.
 - `utils/roomAccessProtocol.js` owns client-side classification of structured and legacy room access failures that mean local room cache is stale.
 - `utils/roomAccessOutcome.js` owns client-side room access outcome presentation mapping for inline status, modal prompts, repair actions, and settings room-code display state.
 - `utils/recordCommands.js` owns shared period/memory list, save, delete, retry, and rebind feedback flows.

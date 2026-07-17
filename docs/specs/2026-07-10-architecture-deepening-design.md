@@ -4,6 +4,12 @@
 **日期：** 2026-07-10
 **范围：** 持久化 Record canonical source、首页 Room records 同步状态机、Room membership lifecycle
 
+## 变更说明（2026-07-17）
+
+用户已决定执行架构审查的 Strong Candidate 01：删除无生产调用的 RoomDataClient legacy wrappers。删除测试表明，这些浅 module 被移除后不会把复杂度散回调用方；RoomDataClient 现在是 room-scoped Record 读取与写入的唯一前端 interface，roomRecordsSnapshot 也只消费该 interface。
+
+第 8 节“非目标”中“不删除 RoomDataClient legacy wrappers”是 2026-07-10 的历史约束，现由本说明撤销；其余约束保持不变。
+
 ## 1. 第一性原理
 
 ### 目标
