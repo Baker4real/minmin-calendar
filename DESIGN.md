@@ -1,4 +1,8 @@
 ---
+type: reference
+title: "DESIGN"
+tags: [project-docs, reference]
+intent: "DESIGN"
 version: alpha
 name: Aurora Bloom
 description: "Premium wellness dark theme for minmin-calendar — warm rose, soft lavender, gold on deep navy."

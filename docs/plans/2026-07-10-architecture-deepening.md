@@ -1,3 +1,10 @@
+---
+type: report
+title: "架构深化实施计划"
+tags: [project-docs, report]
+intent: "架构深化实施计划"
+---
+
 # 架构深化实施计划
 
 **实施状态：** 已完成；实现与部署事实以当前 `README.md`、`CONTEXT.md` 和 ADR 为准。下方 checkbox 保留 2026-07-10 的历史执行分解，不再作为待办清单或现行运行规范。

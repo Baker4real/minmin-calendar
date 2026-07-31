@@ -1,3 +1,11 @@
+---
+type: adr
+status: accepted
+title: "ADR: rooms 身份查询使用复合索引"
+tags: [project-docs, adr]
+intent: "ADR: rooms 身份查询使用复合索引"
+---
+
 # ADR: rooms 身份查询使用复合索引
 
 **Status:** Accepted

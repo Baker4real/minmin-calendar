@@ -1,3 +1,11 @@
+---
+type: adr
+status: accepted
+title: "ADR: 用成员锁保护单用户单房间"
+tags: [project-docs, adr]
+intent: "ADR: 用成员锁保护单用户单房间"
+---
+
 # ADR: 用成员锁保护单用户单房间
 
 **Status:** Accepted

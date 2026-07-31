@@ -1,3 +1,11 @@
+---
+type: adr
+status: accepted
+title: "ADR: RoomDataClient 作为唯一 records 前端 interface"
+tags: [project-docs, adr]
+intent: "ADR: RoomDataClient 作为唯一 records 前端 interface"
+---
+
 # ADR: RoomDataClient 作为唯一 records 前端 interface
 
 **Status:** Accepted

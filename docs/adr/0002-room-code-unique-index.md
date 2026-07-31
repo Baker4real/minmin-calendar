@@ -1,3 +1,11 @@
+---
+type: adr
+status: accepted
+title: "ADR: 房间码必须使用唯一索引保护"
+tags: [project-docs, adr]
+intent: "ADR: 房间码必须使用唯一索引保护"
+---
+
 # ADR: 房间码必须使用唯一索引保护
 
 **Status:** Accepted

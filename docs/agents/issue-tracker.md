@@ -1,3 +1,10 @@
+---
+type: reference
+title: "Issue Tracker"
+tags: [project-docs, reference]
+intent: "Issue Tracker"
+---
+
 # Issue Tracker
 
 ## Tracker

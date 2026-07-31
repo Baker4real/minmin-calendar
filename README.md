@@ -1,3 +1,10 @@
+---
+type: readme
+title: "Minmin Calendar"
+tags: [project-docs, readme]
+intent: "Minmin Calendar"
+---
+
 # Minmin Calendar
 
 Minmin Calendar is a WeChat Mini Program for a private two-person shared calendar. It records period ranges and "happy time" memories in a shared cloud room, then renders them with period markers, memory hearts, prediction ranges, lunar dates, and China public-holiday context.

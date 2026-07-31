@@ -1,3 +1,11 @@
+---
+type: adr
+status: accepted
+title: "ADR: 空房间归档以支持恢复"
+tags: [project-docs, adr]
+intent: "ADR: 空房间归档以支持恢复"
+---
+
 # ADR: 空房间归档以支持恢复
 
 **Status:** Accepted

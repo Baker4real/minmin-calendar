@@ -1,3 +1,10 @@
+---
+type: reference
+title: Minmin Calendar 领域上下文
+tags: [Minmin Calendar, 微信小程序, Room, 共享日历, 领域模型]
+intent: 查找双人共享日历的领域语言、房间生命周期、技术边界与验证基线。
+---
+
 # Minmin Calendar Context
 
 ## Domain Language

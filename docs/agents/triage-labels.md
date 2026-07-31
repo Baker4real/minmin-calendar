@@ -1,3 +1,10 @@
+---
+type: reference
+title: "Triage Labels"
+tags: [project-docs, reference]
+intent: "Triage Labels"
+---
+
 # Triage Labels
 
 The project uses the default five-role triage vocabulary.

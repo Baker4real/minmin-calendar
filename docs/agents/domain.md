@@ -1,3 +1,10 @@
+---
+type: reference
+title: "Domain Docs"
+tags: [project-docs, reference]
+intent: "Domain Docs"
+---
+
 # Domain Docs
 
 ## Layout

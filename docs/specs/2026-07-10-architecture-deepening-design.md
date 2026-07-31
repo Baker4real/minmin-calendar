@@ -1,3 +1,10 @@
+---
+type: reference
+title: "强烈推荐架构深化设计"
+tags: [project-docs, reference]
+intent: "强烈推荐架构深化设计"
+---
+
 # 强烈推荐架构深化设计
 
 **状态：** 已实现（保留为设计记录）

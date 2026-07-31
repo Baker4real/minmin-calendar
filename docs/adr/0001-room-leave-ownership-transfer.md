@@ -1,3 +1,11 @@
+---
+type: adr
+status: accepted
+title: "ADR: Room Leave Transfers Ownership to the Remaining Member"
+tags: [project-docs, adr]
+intent: "ADR: Room Leave Transfers Ownership to the Remaining Member"
+---
+
 # ADR: Room Leave Transfers Ownership to the Remaining Member
 
 **Status:** Accepted

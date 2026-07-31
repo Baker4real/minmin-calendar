@@ -1,3 +1,10 @@
+---
+type: index
+title: "Architecture Decision Records"
+tags: [project-docs, index]
+intent: "Architecture Decision Records"
+---
+
 # Architecture Decision Records
 
 Record durable architecture decisions here as `NNNN-short-title.md`.
