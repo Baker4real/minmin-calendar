@@ -147,6 +147,8 @@ function isDateString(value) {
 
 function buildDayDetailsByDate(days, periods, memories) {
   const details = {}
+  const periodKeys = buildStableDetailKeys(periods, 'period', buildPeriodDetailFingerprint)
+  const memoryKeys = buildStableDetailKeys(memories, 'memory', buildMemoryDetailFingerprint)
 
   days.forEach(day => {
     if (!day || day.isEmpty || !day.date) return
@@ -164,7 +166,7 @@ function buildDayDetailsByDate(days, periods, memories) {
         if (detail.flowLabel) meta.push(`经量 ${detail.flowLabel}`)
         if (detail.symptomText) meta.push(detail.symptomText)
         return {
-          key: buildPeriodDetailKey(period, range, index),
+          key: periodKeys[index],
           range: `${range.startDate} ~ ${range.endDate}`,
           metaText: meta.join(' · ')
         }
@@ -174,7 +176,7 @@ function buildDayDetailsByDate(days, periods, memories) {
       .map((memory, index) => ({ memory, index }))
       .filter(({ memory }) => isDateString(memory.date) && memory.date === day.date)
       .map(({ memory, index }) => ({
-        key: buildMemoryDetailKey(memory, index),
+        key: memoryKeys[index],
         note: memory.note || '特别日子'
       }))
     const meanings = buildDayMeanings(day)
@@ -195,14 +197,36 @@ function isPeriodActiveOnDate(range, date) {
   return date >= range.startDate && date <= range.endDate
 }
 
-function buildPeriodDetailKey(period, range, index) {
-  if (period && period._id) return `period:${period._id}`
-  return `period:${range.startDate}:${range.endDate}:${index}`
+function buildStableDetailKeys(records, type, buildFingerprint) {
+  const occurrences = new Map()
+  return records.map(record => {
+    if (record && record._id) return `${type}:${record._id}`
+
+    const fingerprint = encodeURIComponent(JSON.stringify(buildFingerprint(record || {})))
+    const occurrence = occurrences.get(fingerprint) || 0
+    occurrences.set(fingerprint, occurrence + 1)
+    return `${type}:fallback:${fingerprint}:${occurrence}`
+  })
 }
 
-function buildMemoryDetailKey(memory, index) {
-  if (memory && memory._id) return `memory:${memory._id}`
-  return `memory:${memory.date}:${index}`
+function buildPeriodDetailFingerprint(period) {
+  const range = util.normalizeDateRange(period) || {}
+  const detail = cycle.decoratePeriod(period)
+  return [
+    range.startDate || '',
+    range.endDate || '',
+    normalizeKeyText(period.note),
+    detail.flow,
+    detail.symptoms
+  ]
+}
+
+function buildMemoryDetailFingerprint(memory) {
+  return [memory.date || '', normalizeKeyText(memory.note)]
+}
+
+function normalizeKeyText(value) {
+  return value === undefined || value === null ? '' : String(value)
 }
 
 function buildDayMeanings(day = {}) {

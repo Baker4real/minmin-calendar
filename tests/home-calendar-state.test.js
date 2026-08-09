@@ -56,16 +56,15 @@ test('buildHomeCalendarState returns fallback prediction state and explicit day 
     detail.meanings.map(item => item.key),
     ['today', 'period', 'memory']
   )
-  assert.deepEqual(detail.periods, [
-    {
-      key: 'period:2026-08-01:2026-08-05:0',
-      range: '2026-08-01 ~ 2026-08-05',
-      metaText: ''
-    }
-  ])
-  assert.deepEqual(detail.memories, [
-    { key: 'memory:2026-08-03:0', note: '一起散步' }
-  ])
+  assert.equal(detail.periods.length, 1)
+  assert.match(detail.periods[0].key, /^period:fallback:/)
+  assert.deepEqual(
+    { range: detail.periods[0].range, metaText: detail.periods[0].metaText },
+    { range: '2026-08-01 ~ 2026-08-05', metaText: '' }
+  )
+  assert.equal(detail.memories.length, 1)
+  assert.match(detail.memories[0].key, /^memory:fallback:/)
+  assert.equal(detail.memories[0].note, '一起散步')
   assert.equal(detail.empty, false)
 })
 
@@ -126,9 +125,9 @@ test('buildHomeCalendarState reuses cycle and insight helpers for predictable re
     detail.meanings.map(item => item.key),
     ['today', 'memory', 'predict']
   )
-  assert.deepEqual(detail.memories, [
-    { key: 'memory:2026-08-10:0', note: '庆祝晚餐' }
-  ])
+  assert.equal(detail.memories.length, 1)
+  assert.match(detail.memories[0].key, /^memory:fallback:/)
+  assert.equal(detail.memories[0].note, '庆祝晚餐')
 })
 
 test('buildHomeCalendarState explains why a tapped date has markers', () => {
@@ -257,14 +256,112 @@ test('buildHomeCalendarState gives duplicate detail rows unique render keys', ()
 
   const detail = state.dayDetailsByDate['2026-08-12']
 
-  assert.deepEqual(detail.periods.map(item => item.key), [
-    'period:2026-08-12:2026-08-12:0',
-    'period:2026-08-12:2026-08-12:1'
-  ])
-  assert.deepEqual(detail.memories.map(item => item.key), [
-    'memory:2026-08-12:0',
-    'memory:2026-08-12:1'
-  ])
+  const periodKeys = detail.periods.map(item => item.key)
+  const memoryKeys = detail.memories.map(item => item.key)
+  assert.equal(new Set(periodKeys).size, 2)
+  assert.equal(new Set(memoryKeys).size, 2)
+  assert.ok(periodKeys.every(key => key.startsWith('period:fallback:')))
+  assert.ok(memoryKeys.every(key => key.startsWith('memory:fallback:')))
+})
+
+test('buildHomeCalendarState prefers record ids for period and memory detail keys', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [
+      { _id: 'period-a', startDate: '2026-08-12', endDate: '2026-08-12', duration: 1 },
+      { _id: 'period-b', startDate: '2026-08-12', endDate: '2026-08-12', duration: 1 }
+    ],
+    memories: [
+      { _id: 'memory-a', date: '2026-08-12', note: '同一天' },
+      { _id: 'memory-b', date: '2026-08-12', note: '同一天' }
+    ],
+    today: '2026-08-01'
+  })
+
+  const detail = state.dayDetailsByDate['2026-08-12']
+  assert.deepEqual(detail.periods.map(item => item.key), ['period:period-a', 'period:period-b'])
+  assert.deepEqual(detail.memories.map(item => item.key), ['memory:memory-a', 'memory:memory-b'])
+})
+
+test('buildHomeCalendarState keeps fallback detail keys stable when records are inserted', () => {
+  const periodA = { startDate: '2026-08-12', endDate: '2026-08-12', duration: 1, flow: 'light' }
+  const periodB = { startDate: '2026-08-12', endDate: '2026-08-12', duration: 1, flow: 'heavy' }
+  const memoryA = { date: '2026-08-12', note: 'A' }
+  const memoryB = { date: '2026-08-12', note: 'B' }
+  const initial = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [periodA, periodB],
+    memories: [memoryA, memoryB],
+    today: '2026-08-01'
+  }).dayDetailsByDate['2026-08-12']
+  const afterInsert = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [
+      { startDate: '2026-08-12', endDate: '2026-08-12', duration: 1, flow: 'medium' },
+      periodA,
+      periodB
+    ],
+    memories: [{ date: '2026-08-12', note: 'new' }, memoryA, memoryB],
+    today: '2026-08-01'
+  }).dayDetailsByDate['2026-08-12']
+
+  const initialPeriodKeys = new Map(initial.periods.map(item => [item.metaText, item.key]))
+  const insertedPeriodKeys = new Map(afterInsert.periods.map(item => [item.metaText, item.key]))
+  assert.equal(insertedPeriodKeys.get('经量 量少'), initialPeriodKeys.get('经量 量少'))
+  assert.equal(insertedPeriodKeys.get('经量 量多'), initialPeriodKeys.get('经量 量多'))
+
+  const initialMemoryKeys = new Map(initial.memories.map(item => [item.note, item.key]))
+  const insertedMemoryKeys = new Map(afterInsert.memories.map(item => [item.note, item.key]))
+  assert.equal(insertedMemoryKeys.get('A'), initialMemoryKeys.get('A'))
+  assert.equal(insertedMemoryKeys.get('B'), initialMemoryKeys.get('B'))
+})
+
+test('buildHomeCalendarState keeps fallback detail keys stable when records are reordered', () => {
+  const crampsFirst = {
+    startDate: '2026-08-12',
+    endDate: '2026-08-12',
+    duration: 1,
+    symptoms: ['cramps', 'headache']
+  }
+  const headacheFirst = {
+    startDate: '2026-08-12',
+    endDate: '2026-08-12',
+    duration: 1,
+    symptoms: ['headache', 'cramps']
+  }
+  const initial = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [crampsFirst, headacheFirst],
+    memories: [
+      { date: '2026-08-12', note: 'A' },
+      { date: '2026-08-12', note: 'B' }
+    ],
+    today: '2026-08-01'
+  }).dayDetailsByDate['2026-08-12']
+  const reordered = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [headacheFirst, crampsFirst],
+    memories: [
+      { date: '2026-08-12', note: 'B' },
+      { date: '2026-08-12', note: 'A' }
+    ],
+    today: '2026-08-01'
+  }).dayDetailsByDate['2026-08-12']
+
+  const initialPeriodKeys = new Map(initial.periods.map(item => [item.metaText, item.key]))
+  const reorderedPeriodKeys = new Map(reordered.periods.map(item => [item.metaText, item.key]))
+  assert.equal(reorderedPeriodKeys.get('痛经、头痛'), initialPeriodKeys.get('痛经、头痛'))
+  assert.equal(reorderedPeriodKeys.get('头痛、痛经'), initialPeriodKeys.get('头痛、痛经'))
+
+  const initialMemoryKeys = new Map(initial.memories.map(item => [item.note, item.key]))
+  const reorderedMemoryKeys = new Map(reordered.memories.map(item => [item.note, item.key]))
+  assert.equal(reorderedMemoryKeys.get('A'), initialMemoryKeys.get('A'))
+  assert.equal(reorderedMemoryKeys.get('B'), initialMemoryKeys.get('B'))
 })
 
 test('buildHomeCalendarState ignores impossible dates in markers and details', () => {
@@ -296,16 +393,16 @@ test('buildHomeCalendarState ignores impossible dates in markers and details', (
   const validDay = state.days.find(day => day.date === '2026-03-03')
   assert.equal(validDay.isPeriod, true)
   assert.equal(validDay.isMemory, true)
-  assert.deepEqual(state.dayDetailsByDate['2026-03-03'].periods, [
-    {
-      key: 'period:2026-03-03:2026-03-03:2',
-      range: '2026-03-03 ~ 2026-03-03',
-      metaText: ''
-    }
-  ])
-  assert.deepEqual(state.dayDetailsByDate['2026-03-03'].memories, [
-    { key: 'memory:2026-03-03:1', note: 'valid memory' }
-  ])
+  const validDetails = state.dayDetailsByDate['2026-03-03']
+  assert.equal(validDetails.periods.length, 1)
+  assert.match(validDetails.periods[0].key, /^period:fallback:/)
+  assert.deepEqual(
+    { range: validDetails.periods[0].range, metaText: validDetails.periods[0].metaText },
+    { range: '2026-03-03 ~ 2026-03-03', metaText: '' }
+  )
+  assert.equal(validDetails.memories.length, 1)
+  assert.match(validDetails.memories[0].key, /^memory:fallback:/)
+  assert.equal(validDetails.memories[0].note, 'valid memory')
 })
 
 function period(startDate, endDate) {

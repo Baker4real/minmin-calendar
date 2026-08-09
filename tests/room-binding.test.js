@@ -5,6 +5,8 @@ const test = require('node:test')
 const {
   createRoomMembershipLifecycle: createCanonicalRoomMembershipLifecycle
 } = require('../cloudfunctions/_shared/roomMembershipLifecycle')
+const { createDataOpHandler } = require('../cloudfunctions/dataOp/dataOpHandler')
+const { createRoomRecords } = require('../cloudfunctions/dataOp/roomRecords')
 
 function createRoomMembershipLifecycle(options) {
   let membershipSequence = 0
@@ -870,28 +872,128 @@ test('Room membership transaction rolls back join when commit fails', async () =
   assert.deepEqual(db.data.roomMembers, [])
 })
 
-test('Room membership lifecycle preserves records through transfer archive and recovery', async () => {
-  const db = createFakeDb()
+test('Room membership lifecycle preserves records for creator recovery and isolates new rooms', async () => {
+  const generatedRoomCodes = ['ROOM01', 'ROOM02']
+  const period = {
+    _id: 'period-old',
+    roomCode: 'ROOM01',
+    createdBy: 'creator',
+    createdAt: 'old',
+    startDate: '2026-06-01',
+    endDate: '2026-06-03',
+    note: 'old period',
+    duration: 3,
+    flow: 'normal',
+    symptoms: ['cramps']
+  }
+  const memory = {
+    _id: 'memory-old',
+    roomCode: 'ROOM01',
+    createdBy: 'creator',
+    createdAt: 'old',
+    date: '2026-06-02',
+    note: 'old memory'
+  }
+  const db = createFakeDb({
+    rooms: [{
+      _id: 'room-1',
+      roomCode: 'ROOM01',
+      createdBy: 'creator',
+      createdByName: 'Creator',
+      partnerOpenid: '',
+      partnerName: '',
+      status: 'waiting',
+      createdAt: 'old'
+    }],
+    roomMembers: [{
+      _id: 'creator',
+      openid: 'creator',
+      roomId: 'room-1',
+      roomCode: 'ROOM01',
+      role: 'creator'
+    }],
+    periods: [period],
+    memories: [memory]
+  })
   const lifecycle = createRoomMembershipLifecycle({
     db,
     serverDate: () => SERVER_DATE,
-    generateRoomCode: () => 'ROOM01'
+    generateRoomCode: () => generatedRoomCodes.shift()
+  })
+  let activeOpenid = 'creator'
+  const dataOp = createDataOpHandler({
+    getWXContext: () => ({ OPENID: activeOpenid }),
+    db,
+    records: createRoomRecords({ db, serverDate: () => SERVER_DATE })
   })
 
-  assert.equal((await lifecycle.create({ openid: 'a', nickName: 'A' })).code, 0)
-  assert.equal((await lifecycle.join({ openid: 'b', roomCode: 'ROOM01', nickName: 'B' })).code, 0)
-  assert.equal((await lifecycle.leave({ openid: 'a' })).code, 0)
-  assert.equal((await lifecycle.join({ openid: 'c', roomCode: 'ROOM01', nickName: 'C' })).code, 0)
-  assert.equal((await lifecycle.leave({ openid: 'c' })).code, 0)
-  assert.equal((await lifecycle.leave({ openid: 'b' })).code, 0)
+  assert.deepEqual(await dataOp({ action: 'list', collection: 'periods', roomCode: 'ROOM01' }), {
+    code: 0,
+    data: [period]
+  })
+  assert.deepEqual(await dataOp({ action: 'list', collection: 'memories', roomCode: 'ROOM01' }), {
+    code: 0,
+    data: [memory]
+  })
 
+  assert.deepEqual(await lifecycle.leave({ openid: 'creator' }), {
+    code: 0,
+    removedCount: 1,
+    deletedCount: 0,
+    archivedCount: 1
+  })
   assert.equal(db.data.rooms[0].status, 'archived')
-  assert.equal((await lifecycle.getActive({ openid: 'b' })).code, 1)
+  assert.deepEqual(db.data.periods, [period])
+  assert.deepEqual(db.data.memories, [memory])
 
-  const recovered = await lifecycle.create({ openid: 'b', nickName: 'B' })
+  for (const attempt of [
+    { action: 'list', collection: 'periods' },
+    { action: 'add', collection: 'memories', data: { date: '2026-06-04', note: 'blocked' } },
+    { action: 'update', collection: 'periods', id: 'period-old', data: { ...period, note: 'blocked' } },
+    { action: 'remove', collection: 'memories', id: 'memory-old' }
+  ]) {
+    assert.deepEqual(await dataOp({ ...attempt, roomCode: 'ROOM01' }), {
+      code: -1,
+      msg: '房间已解除绑定，请先恢复房间',
+      errorCode: 'ROOM_ACCESS_DENIED'
+    })
+  }
+  assert.deepEqual(await lifecycle.join({ openid: 'new-creator', roomCode: 'ROOM01', nickName: 'New' }), {
+    code: -2,
+    msg: '房间不存在，请检查房间码'
+  })
+
+  const newRoom = await lifecycle.create({ openid: 'new-creator', nickName: 'New' })
+  assert.equal(newRoom.code, 0)
+  assert.equal(newRoom.room.roomCode, 'ROOM02')
+  activeOpenid = 'new-creator'
+  assert.deepEqual(await dataOp({ action: 'list', collection: 'periods', roomCode: 'ROOM02' }), {
+    code: 0,
+    data: []
+  })
+  assert.deepEqual(await dataOp({ action: 'list', collection: 'memories', roomCode: 'ROOM02' }), {
+    code: 0,
+    data: []
+  })
+  assert.deepEqual(await dataOp({ action: 'list', collection: 'periods', roomCode: 'ROOM01' }), {
+    code: -1,
+    msg: '房间已解除绑定，请先恢复房间',
+    errorCode: 'ROOM_ACCESS_DENIED'
+  })
+
+  const recovered = await lifecycle.create({ openid: 'creator', nickName: 'Creator' })
   assert.equal(recovered.code, 0)
   assert.equal(recovered.room.roomCode, 'ROOM01')
   assert.equal(db.data.rooms[0].status, 'waiting')
+  activeOpenid = 'creator'
+  assert.deepEqual(await dataOp({ action: 'list', collection: 'periods', roomCode: 'ROOM01' }), {
+    code: 0,
+    data: [period]
+  })
+  assert.deepEqual(await dataOp({ action: 'list', collection: 'memories', roomCode: 'ROOM01' }), {
+    code: 0,
+    data: [memory]
+  })
 })
 
 test('Room membership lifecycle artifact stays deployable in each room cloud function directory', () => {
@@ -915,6 +1017,8 @@ function createFakeDb(initial = {}) {
     rooms: clone(initial.rooms || []),
     roomMembers: clone(initial.roomMembers || [])
   }
+  if (Object.prototype.hasOwnProperty.call(initial, 'periods')) data.periods = clone(initial.periods)
+  if (Object.prototype.hasOwnProperty.call(initial, 'memories')) data.memories = clone(initial.memories)
   let nextId = data.rooms.length + 1
   const addErrorsByRoomCode = new Map(Object.entries(initial.addErrorsByRoomCode || {}))
   const transactionRunner = createTransactionRunner(data, {
@@ -979,14 +1083,26 @@ function createCollection(allData, name, nextId, options = {}) {
 
 function createQuery(allData, name, query, options = {}) {
   let limitCount = null
+  let order = null
 
   const chain = {
     limit(count) {
       limitCount = count
       return chain
     },
+    orderBy(field, direction) {
+      order = [field, direction]
+      return chain
+    },
     async get() {
       let result = allData[name].filter(record => matchesQuery(record, query))
+      if (order) {
+        const [field, direction] = order
+        result.sort((left, right) => {
+          const comparison = String(left[field] || '').localeCompare(String(right[field] || ''))
+          return direction === 'desc' ? -comparison : comparison
+        })
+      }
       if (limitCount !== null) result = result.slice(0, limitCount)
       return { data: clone(result) }
     },
