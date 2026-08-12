@@ -1,6 +1,7 @@
 // 云数据库工具层 — 统一通过云函数操作，避免小程序端数据库权限影响共享读写。
 const roomSession = require('./room')
-const roomAccessProtocol = require('./roomAccessProtocol')
+const roomAccessOutcome = require('./roomAccessOutcome')
+const { createRoomResolver } = require('./roomResolver')
 
 // ===== 查询超时包装 =====
 const QUERY_TIMEOUT = 15000 // 15 秒超时
@@ -21,21 +22,22 @@ function getRoomCode() {
 function createRoomDataClient(options = {}) {
   const cloud = options.cloud || createWxCloud()
   const session = options.roomSession || roomSession
+  const resolver = options.resolver || createRoomResolver({ session })
   const timeoutMs = options.timeoutMs || QUERY_TIMEOUT
 
   async function runAction(action, collection, data, id) {
-    const activeRoom = await resolveActiveRoom(session)
-    if (activeRoom.kind === 'retryable-failure') {
+    const resolution = await resolver.resolveActiveRoom()
+    if (resolution.kind === 'retryable-failure') {
       return buildRetryableFailure({
         action,
-        message: activeRoom.message,
+        message: resolution.message,
         retry: () => runAction(action, collection, data, id)
       })
     }
-    if (activeRoom.kind !== 'success') {
+    if (resolution.kind !== 'resolved') {
       return { kind: 'no-room' }
     }
-    const roomCode = activeRoom.roomCode
+    const roomCode = resolution.roomCode
 
     try {
       const res = await withTimeout(
@@ -49,7 +51,7 @@ function createRoomDataClient(options = {}) {
       if (result.code === 0) {
         return buildSuccessOutcome(action, result)
       }
-      if (roomAccessProtocol.isStaleRoomFailure(result)) {
+      if (roomAccessOutcome.isStaleRoomFailure(result)) {
         const repair = await session.repairCachedRoom(roomCode)
         return { kind: 'room-repair', roomCode, repair }
       }
@@ -91,48 +93,6 @@ function getWx() {
     throw new Error('wx is unavailable outside the WeChat runtime')
   }
   return wx
-}
-
-function getNormalizedRoomCode(session) {
-  if (!session || typeof session.getRoomCode !== 'function') return ''
-  return String(session.getRoomCode() || '').trim().toUpperCase()
-}
-
-async function resolveActiveRoom(session) {
-  const cachedRoomCode = getNormalizedRoomCode(session)
-  if (cachedRoomCode) {
-    return {
-      kind: 'success',
-      roomCode: cachedRoomCode
-    }
-  }
-
-  if (!session || typeof session.getActiveRoom !== 'function') {
-    return { kind: 'no-room' }
-  }
-
-  try {
-    const room = await session.getActiveRoom()
-    if (room && room.bound && room.roomCode) {
-      return {
-        kind: 'success',
-        roomCode: String(room.roomCode).trim().toUpperCase()
-      }
-    }
-    if (room && (room.kind === 'retryable-failure' || room.errorMsg)) {
-      return {
-        kind: 'retryable-failure',
-        message: room.errorMsg || '同步房间状态失败，请稍后重试'
-      }
-    }
-  } catch (error) {
-    return {
-      kind: 'retryable-failure',
-      message: getErrorMessage(error)
-    }
-  }
-
-  return { kind: 'no-room' }
 }
 
 function buildSuccessOutcome(action, result) {

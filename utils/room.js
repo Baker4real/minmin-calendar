@@ -1,5 +1,5 @@
 const ROOM_CODE_KEY = 'roomCode'
-const roomAccessProtocol = require('./roomAccessProtocol')
+const roomAccessOutcome = require('./roomAccessOutcome')
 
 function createRoomSession(options = {}) {
   const storage = options.storage || createWxStorage()
@@ -68,7 +68,7 @@ function createRoomSession(options = {}) {
           return { kind: 'success', bound: true, roomCode }
         }
 
-        if (roomAccessProtocol.shouldClearCachedRoom(res.result, roomCode)) {
+        if (roomAccessOutcome.shouldClearCachedRoom(res.result, roomCode)) {
           const currentRoomCode = normalizeRoomCode(storage.get(ROOM_CODE_KEY))
           if (!expectedRoom || currentRoomCode === expectedRoom) {
             storage.remove(ROOM_CODE_KEY)

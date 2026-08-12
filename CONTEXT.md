@@ -32,11 +32,10 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - `app.js` initializes WeChat Cloud with the active environment.
 - `utils/cloud.js` wraps frontend calls to `cloudfunctions/dataOp/index.js`; `RoomDataClient` is the sole frontend records access interface for room-scoped reads/writes.
 - `utils/roomRecordsSnapshot.js` consumes only `RoomDataClient` and owns room-scoped `periods` + `memories` snapshot loading for homepage partial sync and Settings all-or-nothing export.
-- `utils/roomAccessProtocol.js` owns client-side classification of structured and legacy room access failures that mean local room cache is stale.
-- `utils/roomAccessOutcome.js` owns client-side room access outcome presentation mapping for inline status, modal prompts, repair actions, and settings room-code display state.
+- `utils/roomAccessOutcome.js` owns client-side classification of structured and legacy room access failures plus outcome presentation mapping for inline status, modal prompts, repair actions, and settings room-code display state.
 - `utils/recordCommands.js` owns shared period/memory list, save, delete, retry, and rebind feedback flows.
 - `utils/recordPageSync.js` owns optional edit-page-to-homepage record change notifications for optimistic homepage refresh after saves and deletes.
-- `utils/homeRecordsSync.js` owns homepage record collection synchronization, request ordering, partial-success handling, and optimistic change reconciliation.
+- `pages/index/index.js` owns homepage record collection synchronization, request ordering, partial-success handling, and optimistic change reconciliation.
 - `utils/settingsFlow.js` owns room-code copy, data export, retry/rebind, and local-cache helper flows.
 - `utils/homeCalendarState.js` owns the pure Calendar projection for cell markers, marker meanings, prediction, reminders, day details, and monthly recap.
 - `utils/recordEditRoute.js` owns Period record and Memory record edit URL construction plus edit-page route option hydration.
@@ -72,7 +71,7 @@ Use these checks after date, room, calendar, or page behavior changes:
 下列命令以仓库根为当前目录展示。通过 Codex Desktop shell 执行时，必须把 `node --test` / `node --check` 的路径展开为绝对路径；shell wrapper 可能无法可靠解析相对路径。
 
 ```powershell
-node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\room-access-protocol.test.js tests\home-calendar-state.test.js tests\home-records-sync.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
+node --test tests\page-registration.test.js tests\room-data-client.test.js tests\room-resolver.test.js tests\index-page.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
 node --check cloudfunctions\_shared\roomMembershipLifecycle.js
 node --check cloudfunctions\_shared\syncRoomMembershipLifecycle.js
 node --check cloudfunctions\createRoom\roomMembershipLifecycle.js
@@ -88,14 +87,12 @@ node --check cloudfunctions\dataOp\roomRecords.js
 node --check cloudfunctions\dataOp\index.js
 node --check utils\room.js
 node --check utils\cloud.js
-node --check utils\roomAccessProtocol.js
 node --check utils\roomAccessOutcome.js
 node --check utils\recordCommands.js
 node --check utils\recordPageSync.js
 node --check utils\recordEditRoute.js
 node --check utils\settingsFlow.js
 node --check utils\roomRecordsSnapshot.js
-node --check utils\homeRecordsSync.js
 node --check utils\homeCalendarState.js
 node --check utils\util.js
 node --check utils\cycle.js
