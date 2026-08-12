@@ -1,4 +1,4 @@
-/* ===== UI/UX Pro Max: Memory Edit – Aurora Dark ===== */
+/* ===== Aurora Bloom: Memory Edit ===== */
 .page {
   min-height: 100vh;
   position: relative;
@@ -36,6 +36,9 @@
 .form-item {
   margin-bottom: 36rpx;
 }
+.form-item:last-child {
+  margin-bottom: 0;
+}
 .form-label {
   font-size: 26rpx;
   color: rgba(255,255,255,0.6);
@@ -53,7 +56,7 @@
   backdrop-filter: blur(10px);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.12);
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 .form-picker:active {
   border-color: rgba(232,144,158,0.4);
@@ -67,7 +70,7 @@
   backdrop-filter: blur(10px);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.12);
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 .form-input::placeholder {
   color: rgba(255,255,255,0.3);

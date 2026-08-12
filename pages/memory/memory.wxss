@@ -1,4 +1,4 @@
-/* ===== UI/UX Pro Max: Memory – Aurora Dark ===== */
+/* ===== Aurora Bloom: Memory ===== */
 .page {
   min-height: 100vh;
   position: relative;
@@ -42,7 +42,7 @@
   align-items: center;
   padding: 28rpx 30rpx;
   border-bottom: 1px solid rgba(255,255,255,0.06);
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease, transform 0.3s ease;
   position: relative;
   animation: timelineReveal 0.5s ease-out both;
 }
@@ -52,10 +52,10 @@
 .list-item:nth-child(4) { animation-delay: 0.2s; }
 .list-item:nth-child(5) { animation-delay: 0.25s; }
 @keyframes timelineReveal {
-  from { opacity: 0; transform: translateX(-20rpx); }
+  from { opacity: 0; transform: translateX(20rpx); }
   to { opacity: 1; transform: translateX(0); }
 }
-/* Timeline dot on left */
+/* Timeline dot on left — 静态柔光玫瑰点 */
 .list-item::before {
   content: '';
   position: absolute;
@@ -65,14 +65,8 @@
   height: 8rpx;
   background: #E8909E;
   border-radius: 50%;
-  box-shadow: 0 0 10px rgba(255,20,147,0.6);
+  box-shadow: 0 0 10rpx rgba(232,144,158,0.45);
   transform: translateY(-50%);
-  /* 时间线圆点发光脉冲 */
-  animation: dotPulse 2s ease-in-out infinite;
-}
-@keyframes dotPulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(255,107,129,0.3); }
-  50% { box-shadow: 0 0 16px rgba(255,107,129,0.6); }
 }
 .list-item:last-child {
   border-bottom: none;

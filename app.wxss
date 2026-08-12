@@ -1,16 +1,15 @@
-/* ===== UI/UX Pro Max: Aurora + Glassmorphism ===== */
+/* ===== Aurora Bloom: Rose + Glassmorphism ===== */
 page {
   /* Aurora Dark Theme */
   --aurora-bg: #0A0E27;
   --aurora-bg2: #1A0A2E;
   --aurora-bg3: #2D1B69;
-  
+
   /* Aurora Colors */
   --aurora-pink: #E8909E;
-  --aurora-hotpink: #E8909E;
   --aurora-purple: #C4A0D2;
   --aurora-gold: #D4A574;
-  
+
   /* Glass */
   --glass-bg: rgba(255,255,255,0.08);
   --glass-bg-hover: rgba(255,255,255,0.15);
@@ -18,30 +17,30 @@ page {
   --glass-border-hover: rgba(255,255,255,0.25);
   --glass-glow: rgba(232,144,158,0.15);
   --glass-inset: inset 0 1px 0 rgba(255,255,255,0.15);
-  
+
   /* Text on Dark */
   --text-white: #FFFFFF;
   --text-primary: rgba(255,255,255,0.85);
   --text-secondary: rgba(255,255,255,0.6);
   --text-tertiary: rgba(255,255,255,0.35);
-  
+
   /* Gradients */
-  --gradient-pink: linear-gradient(135deg, #E8909E, #E8909E, #C4A0D2);
+  --gradient-pink: linear-gradient(135deg, #E8909E, #C4A0D2);
   --gradient-gold: linear-gradient(135deg, #D4A574, #E8909E);
-  
+
   /* Sizes */
   --radius-sm: 12rpx;
   --radius-md: 20rpx;
   --radius-lg: 28rpx;
   --radius-xl: 36rpx;
-  
-  /* Transitions */
+
+  /* Transitions — 逐属性声明，禁止 all */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --transition: all 0.35s var(--ease-out);
-  --transition-spring: all 0.5s var(--ease-spring);
-  
-  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  --transition: background-color 0.3s var(--ease-out), border-color 0.3s var(--ease-out), transform 0.3s var(--ease-out);
+  --transition-spring: transform 0.3s var(--ease-spring), background-color 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
+
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -61,7 +60,7 @@ page {
   75% { background-position: 0% 100%; }
 }
 
-/* ===== Aurora Overlay ===== */
+/* ===== Aurora Overlay — 只用玫瑰/薰衣草/柔金三音色 ===== */
 .page {
   position: relative;
   min-height: 100vh;
@@ -77,8 +76,8 @@ page {
   height: 200%;
   background:
     radial-gradient(ellipse at 30% 20%, rgba(232,144,158,0.12) 0%, transparent 50%),
-    radial-gradient(ellipse at 70% 80%, rgba(0,255,255,0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, rgba(191,0,255,0.06) 0%, transparent 50%);
+    radial-gradient(ellipse at 70% 80%, rgba(196,160,210,0.09) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(212,165,116,0.05) 0%, transparent 50%);
   pointer-events: none;
   animation: auroraPulse 8s ease infinite;
   z-index: 0;
@@ -110,7 +109,7 @@ page {
 }
 .glow-orb-2 {
   width: 200rpx; height: 200rpx;
-  background: radial-gradient(circle, rgba(0,255,255,0.15), transparent);
+  background: radial-gradient(circle, rgba(196,160,210,0.13), transparent);
   bottom: 100rpx; left: -60rpx;
   animation: orbFloat 8s ease-in-out infinite reverse, orbRotate 15s linear infinite reverse;
 }
@@ -139,7 +138,7 @@ page {
   font-weight: 700;
   letter-spacing: 2rpx;
   color: #E8909E;
-  text-shadow: 0 0 18rpx rgba(232,144,158,0.35);
+  text-shadow: 0 0 14rpx rgba(232,144,158,0.28);
 }
 .nav-back {
   width: 88rpx;
@@ -205,7 +204,7 @@ page {
   position: relative;
   overflow: hidden;
   color: var(--text-primary);
-  transition: all 0.3s ease;
+  transition: transform 0.2s var(--ease-out);
 }
 .premium-card::after {
   content: '';
@@ -217,32 +216,34 @@ page {
   transform: scale(0.97);
 }
 
-/* ===== Premium Button ===== */
+/* ===== Premium Button — 实色玫瑰，不再常驻发光 ===== */
 .btn-premium {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  background: linear-gradient(135deg, #E8909E, #E8909E);
+  background: #E8909E;
   color: #fff;
   border-radius: var(--radius-md);
   padding: 26rpx 0;
   font-size: 30rpx;
   font-weight: 600;
   letter-spacing: 2rpx;
-  box-shadow:
-    0 4px 15px rgba(232,144,158,0.3);
+  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
   transition: var(--transition-spring);
   position: relative;
-  animation: btnGlow 2s ease-in-out infinite;
 }
 .btn-premium:active {
-  transform: scale(0.92);
+  transform: scale(0.96);
   box-shadow: 0 2px 8px rgba(232,144,158,0.2);
 }
-@keyframes btnGlow {
-  0%, 100% { box-shadow: 0 4px 15px rgba(255,107,129,0.3); }
-  50% { box-shadow: 0 4px 25px rgba(255,107,129,0.6); }
+.btn-premium.loading,
+.btn-premium.disabled {
+  opacity: 0.55;
+}
+.btn-premium.loading:active,
+.btn-premium.disabled:active {
+  transform: none;
 }
 
 /* ===== Primary Button ===== */
@@ -251,20 +252,20 @@ page {
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  background: linear-gradient(135deg, #E8909E, #E8909E);
+  background: #E8909E;
   color: #fff;
   border-radius: var(--radius-md);
   padding: 26rpx 0;
   font-size: 30rpx;
   font-weight: 600;
   letter-spacing: 2rpx;
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.2s var(--ease-spring), box-shadow 0.2s var(--ease-out);
   position: relative;
   overflow: hidden;
 }
 .btn-primary:active {
-  transform: scale(0.92);
-  box-shadow: 0 2px 8px rgba(255,107,129,0.2);
+  transform: scale(0.96);
+  box-shadow: 0 2px 8px rgba(232,144,158,0.2);
 }
 
 /* ===== Glass Button ===== */
@@ -288,21 +289,21 @@ page {
   background: rgba(255,255,255,0.2);
 }
 
-/* ===== Danger Button ===== */
+/* ===== Danger Button — 柔红，与玫瑰体系同族 ===== */
 .btn-danger {
   background: rgba(255,255,255,0.08);
   backdrop-filter: blur(10px);
-  color: #FF3B30;
+  color: #F97373;
   text-align: center;
   padding: 26rpx;
   border-radius: var(--radius-md);
   font-size: 30rpx;
-  border: 1px solid rgba(255,59,48,0.2);
+  border: 1px solid rgba(249,115,115,0.28);
   transition: var(--transition);
 }
 .btn-danger:active {
   transform: scale(0.95);
-  background: rgba(255,59,48,0.1);
+  background: rgba(249,115,115,0.12);
 }
 
 /* ===== Header Gradient ===== */
@@ -333,7 +334,7 @@ page {
   left: -10%;
   width: 200rpx;
   height: 200rpx;
-  background: radial-gradient(circle, rgba(0,255,255,0.12) 0%, transparent 60%);
+  background: radial-gradient(circle, rgba(196,160,210,0.1) 0%, transparent 60%);
   border-radius: 50%;
   animation: float 6s var(--ease-out) infinite alternate-reverse;
 }
@@ -386,10 +387,10 @@ page {
   to { transform: rotate(360deg); }
 }
 
-/* ===== Pulse Animation ===== */
+/* ===== Pulse Animation（仅空态心跳使用） ===== */
 @keyframes pulse {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
+  50% { transform: scale(1.08); }
 }
 
 /* ===== List/Menu Item Press ===== */
@@ -411,10 +412,10 @@ page {
 
 /* ===== Nav Button Spring ===== */
 .nav-btn {
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  transition: transform 0.25s var(--ease-spring), background-color 0.25s var(--ease-out);
 }
 .nav-btn:active {
-  transform: scale(0.85) rotate(-5deg) !important;
+  transform: scale(0.9);
 }
 
 /* ===== Glass Layer Utility ===== */
@@ -428,3 +429,36 @@ page {
 /* Safe Area */
 .safe-top { padding-top: env(safe-area-inset-top, 88rpx); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 20rpx); }
+
+/* ===== Reduced Motion — 全局兜底 ===== */
+@media (prefers-reduced-motion: reduce) {
+  page,
+  .page,
+  .page::before,
+  .glow-orb,
+  .header-gradient::before,
+  .header-gradient::after {
+    animation: none;
+  }
+  .fade-in,
+  .fade-in-d1,
+  .fade-in-d2,
+  .fade-in-d3 {
+    animation: none;
+  }
+  .premium-card,
+  .btn-premium,
+  .btn-primary,
+  .glass-btn,
+  .btn-danger,
+  .nav-btn,
+  .nav-back,
+  .nav-back-surface,
+  .list-item,
+  .menu-item,
+  .timeline-content,
+  .calendar-grid {
+    animation: none;
+    transition: none;
+  }
+}

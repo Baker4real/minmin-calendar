@@ -1,4 +1,4 @@
-/* ===== UI/UX Pro Max: Period Edit – Aurora Dark ===== */
+/* ===== Aurora Bloom: Period Edit ===== */
 .page {
   min-height: 100vh;
   position: relative;
@@ -36,7 +36,7 @@
 .form-item {
   margin-bottom: 36rpx;
 }
-.form-item-last {
+.form-item:last-child {
   margin-bottom: 0;
 }
 .form-label {
@@ -56,7 +56,7 @@
   backdrop-filter: blur(10px);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.12);
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 .form-picker:active {
   border-color: rgba(232,144,158,0.4);
@@ -70,7 +70,7 @@
   backdrop-filter: blur(10px);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.12);
-  transition: all 0.3s ease;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 .form-input::placeholder {
   color: rgba(255,255,255,0.3);
@@ -100,7 +100,7 @@
   color: rgba(255,255,255,0.66);
   background: rgba(255,255,255,0.065);
   border: 1px solid rgba(255,255,255,0.12);
-  transition: all 0.25s ease;
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.25s ease;
 }
 .flow-chip:active,
 .symptom-chip:active {
