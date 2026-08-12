@@ -50,6 +50,8 @@ Cloud functions live under `cloudfunctions/`; each function has its own `package
 
 部署 Room lifecycle 前运行 `node cloudfunctions\_shared\syncRoomMembershipLifecycle.js --write` 生成四份本地 artifact，并用 `--check` 阻止 canonical 与部署内容漂移。发布时应进入维护窗口，先把 `createRoom`、`joinRoom`、`getMyRoom` 作为同版一组发布，再发布 `leaveRoom`，避免新旧版本混跑。回滚按反向顺序：先恢复 `leaveRoom`，再同版恢复前三个云函数。`membershipId` 可选且旧版本可忽略，无需强制 backfill 或数据回滚；但旧版本运行期间不会维护成员锁，再次前滚前必须重跑锁一致性检查并补齐缺失锁。2026-07-10 已按该函数顺序部署到 `cloud1-d8gyqvcez4e66b3da`，完成 `roomMembers` 基础锁回填、`rooms.roomCode` 唯一索引、部署产物 hash 和实际 SDK 版本核验；带真实微信 `OPENID` 的 transaction retry、并发冲突和完整业务 E2E 仍需在小程序上下文中验证，本地测试或无用户上下文的 CLI invoke 不能替代这些信号。
 
+2026-08-12 的架构深化已合并到当前 `main`（`159ed78` 及后续收尾提交）；本地测试和静态检查已验证，但当前仓库没有这批提交对应的新云函数部署或线上 live verification 凭证。需要发布时，仍按上面的维护窗口顺序部署并单独记录远端产物、依赖版本和真实小程序上下文 smoke 结果。
+
 ### 云数据库索引基线
 
 `rooms` 集合必须保留以下索引：
