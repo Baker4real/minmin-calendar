@@ -2,15 +2,15 @@
 type: spec
 title: "Merge Room Access Failure Classification"
 tags: [project-docs, spec, architecture]
-status: ready-for-agent
+status: implemented
 intent: "Merge roomAccessProtocol into roomAccessOutcome to eliminate shallow split"
 ---
 
 # Merge Room Access Failure Classification
 
 **Date:** 2026-08-12  
-**Status:** Ready for agent  
-**Triage:** `ready-for-agent`
+**Status:** Implemented
+**Implementation:** merged into `main` in `159ed78` on 2026-08-12
 
 ## Problem Statement
 
@@ -18,13 +18,13 @@ intent: "Merge roomAccessProtocol into roomAccessOutcome to eliminate shallow sp
 
 The deletion test confirms this is net complexity reduction: deleting `roomAccessProtocol` would push 2 predicates and 2 constant arrays into `roomAccessOutcome` or directly into `cloud.js`/`room.js` (the only real consumers). Fewer files, clearer ownership.
 
-`roomAccessProtocol` exports 3 shallow predicates (`isStaleRoomFailure`, `shouldClearCachedRoom`, `buildRoomRepairAction`) that are conceptually part of outcome classification. The interface complexity rivals the implementation: half the file is constant arrays, the other half is trivial checks.
+`roomAccessProtocol` supplied two shallow predicates (`isStaleRoomFailure`, `shouldClearCachedRoom`) plus stale-room constants; `buildRoomRepairAction` already belonged to `roomAccessOutcome`. These concerns are conceptually part of outcome classification. The interface complexity rivals the implementation: half the file is constant arrays, the other half is trivial checks.
 
 ## Solution
 
 Merge `roomAccessProtocol` into `roomAccessOutcome`. The merged module keeps the `roomAccessOutcome` name since its primary interface is the 5 outcome builders. Predicates become exported functions for `cloud.js` and `room.js` to import, but internally they're recognized as outcome classification helpers.
 
-Constants (`STALE_ROOM_MESSAGES`, `STALE_ROOM_ERROR_CODES`) become internal, not exported. `buildRoomRepairAction` remains an internal helper function (it's already internal to `roomAccessOutcome`).
+Constants (`STALE_ROOM_MESSAGES`, `STALE_ROOM_ERROR_CODES`) become internal, not exported. `buildRoomRepairAction` remains a helper implementation in `roomAccessOutcome` and stays exported for the existing adapter and test seam.
 
 ## User Stories
 
@@ -101,15 +101,15 @@ module.exports = {
 - `room.js` calls `shouldClearCachedRoom` during room lookup result processing
 - Co-location with outcome builders makes the classification → presentation mapping explicit
 
-### 4. buildRoomRepairAction Stays Internal
+### 4. Preserve the buildRoomRepairAction Helper Seam
 
-`buildRoomRepairAction` is already defined at line 1 of `roomAccessOutcome.js`. It remains an internal helper function, not exported.
+`buildRoomRepairAction` remains a helper implementation in `roomAccessOutcome.js`, and is exported for the existing adapter and test seam.
 
 **Rationale:**
-- Only called by other functions within `roomAccessOutcome.js` (`buildInlineRoomStatus`, etc.)
-- It's an internal step in outcome construction, not a public API
+- Used by other outcome builders and by the adapter/test seam that needs the repair action mapping
+- It remains an implementation helper rather than a primary outcome-builder API, while its existing export is retained for adapters and tests
 - Inlining it into outcome builders would make them longer and less readable
-- Keeping it as an internal helper correctly decomposes responsibilities
+- Keeping it as a named helper correctly decomposes responsibilities
 
 ### 5. Caller Migration
 

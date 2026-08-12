@@ -2,15 +2,15 @@
 type: spec
 title: "Inline Home Records Sync State Machine"
 tags: [project-docs, spec, architecture]
-status: ready-for-agent
+status: implemented
 intent: "Eliminate premature abstraction by inlining state machine into sole caller"
 ---
 
 # Inline Home Records Sync State Machine
 
 **Date:** 2026-08-12  
-**Status:** Ready for agent  
-**Triage:** `ready-for-agent`
+**Status:** Implemented
+**Implementation:** merged into `main` in `159ed78` on 2026-08-12
 
 ## Problem Statement
 

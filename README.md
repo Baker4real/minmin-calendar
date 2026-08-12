@@ -11,17 +11,17 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 
 ## Project Shape
 
-- `pages/index/` - homepage calendar, prediction display, reminders, and day details.
+- `pages/index/` - homepage calendar, prediction display, reminders, day details, and page-local record synchronization.
 - `pages/period/` - period list plus create/edit flow with optional flow and symptom tags.
 - `pages/memory/` - memory list plus create/edit flow.
 - `pages/bind/` - shared-room create, join, and recover flow.
 - `pages/settings/` - room code, export, and local cache controls.
 - `utils/room.js` - room-code cache, recovery, create/join, leave, and local clear wrapper.
 - `utils/cloud.js` - frontend cloud-function access wrapper and room-scoped `RoomDataClient`.
-- `utils/recordCommands.js` - shared period/memory save, delete, list feedback, retry, and rebind flow helper.
+- `utils/roomResolver.js` - active-room resolution seam used by `RoomDataClient`, with an in-memory test adapter.
+- `utils/recordCommands.js` - intentionally shallow WeChat page adapter for shared period/memory save, delete, list feedback, retry, and rebind flows.
 - `utils/recordPageSync.js` - edit-page-to-homepage record sync helper for optimistic homepage refresh.
 - `utils/roomRecordsSnapshot.js` - room-scoped Period/Memory snapshot loader for homepage partial sync and Settings all-or-nothing export.
-- `pages/index/index.js` - homepage record collection sync, request ordering, partial-success, and optimistic reconciliation state.
 - `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
 - `utils/homeCalendarState.js` - pure homepage calendar state, marker meanings, and marker composition.
 - `utils/util.js` - date, lunar, holiday, and base calendar-grid helpers.

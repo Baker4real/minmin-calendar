@@ -2,19 +2,19 @@
 type: spec
 title: "Accept recordCommands as Shallow Adapter"
 tags: [project-docs, spec, architecture]
-status: ready-for-agent
+status: accepted
 intent: "Document recordCommands' intentional adapter role; no refactoring needed"
 ---
 
 # Accept recordCommands as Shallow Adapter
 
 **Date:** 2026-08-12  
-**Status:** Ready for agent  
-**Triage:** `ready-for-agent`
+**Status:** Accepted
+**Decision:** keep `recordCommands` as a shallow adapter; no production refactor is required
 
 ## Problem Statement
 
-`recordCommands.js` (428 lines) is the largest utils file. It exports 3 high-level commands (`runRecordSave`, `runRecordDelete`, `runRecordListLoad`) that orchestrate many options: `page`, `wxApi`, `timer`, `action`, `validate`, `loadingKey`, `successTitle`, `failureTitle`, `navigateBack`, `navigateToBind`, `successDelay`, `retryableMode`, `retryableAdvice`.
+`recordCommands.js` (433 lines including its ownership comment) is the largest utils file. It exports 3 high-level commands (`runRecordSave`, `runRecordDelete`, `runRecordListLoad`) that orchestrate many options: `page`, `wxApi`, `timer`, `action`, `validate`, `loadingKey`, `successTitle`, `failureTitle`, `navigateBack`, `navigateToBind`, `successDelay`, `retryableMode`, `retryableAdvice`.
 
 The complexity is **exposed**, not hidden—every caller must understand the wx API surface, loading state keys, retry modes, and navigation callbacks. Testing requires mocking `wx.showModal`, `wx.showToast`, `wx.navigateBack`, `wx.navigateTo`, plus a custom `timer` object and `page.setData`.
 

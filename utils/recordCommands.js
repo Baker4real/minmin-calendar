@@ -1,3 +1,8 @@
+/**
+ * Adapter between record operations and the WeChat page lifecycle.
+ * Business outcome classification stays in roomAccessOutcome; this module
+ * intentionally owns only page state, wx feedback, navigation, and retries.
+ */
 const roomAccessOutcome = require('./roomAccessOutcome')
 
 function runRecordSave(options) {

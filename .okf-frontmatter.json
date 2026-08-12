@@ -25,7 +25,8 @@
     "index",
     "reference",
     "report",
-    "readme"
+    "readme",
+    "spec"
   ],
   "link_validation": "warn"
 }

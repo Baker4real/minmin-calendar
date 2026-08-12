@@ -2,15 +2,15 @@
 type: spec
 title: "Separate Room Resolution from Data Client"
 tags: [project-docs, spec, architecture]
-status: ready-for-agent
+status: implemented
 intent: "Extract Room Resolver module to deepen RoomDataClient"
 ---
 
 # Separate Room Resolution from Data Client
 
 **Date:** 2026-08-12  
-**Status:** Ready for agent  
-**Triage:** `ready-for-agent`
+**Status:** Implemented
+**Implementation:** merged into `main` in `159ed78` on 2026-08-12
 
 ## Problem Statement
 
@@ -20,7 +20,7 @@ Room resolution logic (lines 101-136) is reusable beyond record access—any ope
 
 ## Solution
 
-Extract a **Room Resolver** module that owns the single responsibility of determining the active roomCode from a room session. RoomDataClient becomes a thin adapter over cloud functions that receives an already-resolved roomCode (or uses a resolver internally). Outcome classification remains in RoomDataClient since it operates on cloud function results.
+Extract a **Room Resolver** module that owns the single responsibility of determining the active roomCode from a room session. RoomDataClient becomes a thin adapter over cloud functions that receives an already-resolved roomCode (or uses a resolver internally). Cloud-result classification is centralized in `roomAccessOutcome`, while stale-room repair remains in RoomDataClient because it operates on the resolved cloud result.
 
 The resolver is lightweight and fast: it reads cached roomCode or calls `session.getActiveRoom()`, but does not execute repair. Stale-room detection and repair stay in RoomDataClient's `runAction` because they operate on cloud function outcomes.
 
@@ -34,7 +34,7 @@ The resolver is lightweight and fast: it reads cached roomCode or calls `session
 
 4. As a developer maintaining room session logic, I want room resolution to be testable without cloud function mocks, so that I can verify cached vs. server resolution paths in isolation.
 
-5. As a developer debugging stale-room failures, I want outcome classification and repair to stay together in RoomDataClient, so that I can trace from cloud result to repair in one place.
+5. As a developer debugging stale-room failures, I want `roomAccessOutcome` to classify the cloud result and RoomDataClient to own the repair side effect, so that I can trace the result-to-repair flow without duplicating policy.
 
 6. As a developer writing tests for RoomDataClient, I want the option to inject a resolver while preserving backward compatibility with the existing fake roomSession pattern, so that I can migrate tests incrementally.
 
@@ -139,7 +139,7 @@ function createRoomDataClient(options = {}) {
       }
       
       // Stale-room detection and repair stay here
-      if (roomAccessProtocol.isStaleRoomFailure(result)) {
+      if (roomAccessOutcome.isStaleRoomFailure(result)) {
         const repair = await session.repairCachedRoom(roomCode)
         return { kind: 'room-repair', roomCode, repair }
       }
@@ -200,12 +200,12 @@ const resolver = createInMemoryRoomResolver({ kind: 'resolved', roomCode: 'TEST0
 const client = createRoomDataClient({ cloud: mockCloud, resolver })
 ```
 
-### 4. Outcome Classification Remains in RoomDataClient
+### 4. Stale-room Detection and Repair Remain in RoomDataClient
 
-`roomAccessProtocol.isStaleRoomFailure()` and repair execution stay in `cloud.js` within `runAction`. This is correct because:
+`roomAccessOutcome.isStaleRoomFailure()` and repair execution stay in `cloud.js` within `runAction`. This is correct because:
 - Stale-room detection operates on cloud function results, not room resolution
 - Repair (`session.repairCachedRoom()`) is triggered by a stale result, not by resolution failure
-- If future refactoring merges `roomAccessProtocol` + `roomAccessOutcome` (Candidate 1 from architecture review), the merged module will still be imported by RoomDataClient
+- The classifier is shared with page and settings adapters, while the repair side effect remains local to the data client
 
 ### 5. Existing Callers Zero Migration
 
@@ -255,10 +255,9 @@ ADR-0005 constraint satisfied: RoomDataClient remains the sole records frontend 
 ### Not Changing
 
 - **Stale-room repair execution:** Repair remains a side effect in RoomDataClient's `runAction`, triggered by cloud function outcomes
-- **roomAccessProtocol module:** Not merging or refactoring it as part of this change (that's Candidate 1 from the architecture review)
-- **roomAccessOutcome module:** Not touched by this refactoring
+- **roomAccessOutcome module:** The former `roomAccessProtocol` logic is merged here; this resolver extraction does not add another classifier or change its public contract
 - **Room session interface:** Not changing `roomSession.getRoomCode()`, `getActiveRoom()`, or `repairCachedRoom()`
-- **Outcome shapes:** All outcome kinds (`success`, `retryable-failure`, `business-failure`, `room-repair`, `no-room`) remain unchanged for RoomDataClient callers
+- **Outcome shapes:** All outcome kinds (`success`, `retryable-failure`, `business-failure`, `room-repair`, `no-room`) remain unchanged for RoomDataClient callers; the resolver's internal success result is `resolved`
 
 ### Not Adding
 
@@ -270,17 +269,17 @@ ADR-0005 constraint satisfied: RoomDataClient remains the sole records frontend 
 ### Not Migrating
 
 - **Existing tests:** `tests/room-data-client.test.js` does not require mass migration to in-memory resolver; fake roomSession continues to work
-- **CONTEXT.md updates:** The domain language and technical shape already describe RoomDataClient; resolver is an internal refactoring that doesn't change the conceptual model
+- **CONTEXT.md updates:** The technical shape now records `roomResolver` ownership and its boundary; no additional domain-model migration is required
 
 ## Further Notes
 
 ### Relation to Other Architecture Candidates
 
-This is **Candidate 4** (Strong recommendation) from the 2026-08-12 architecture review. If other candidates are implemented:
+This is **Candidate 4** (Strong recommendation) from the 2026-08-12 architecture review. The related candidates are now implemented in the same merge:
 
-- **Candidate 1** (Merge roomAccessProtocol + roomAccessOutcome): Does not conflict; merged module would still be imported by RoomDataClient
-- **Candidate 2** (Extract pure logic from recordCommands): Independent; recordCommands consumes RoomDataClient, not the resolver
-- **Candidate 3** (Deepen home records sync coordination): Independent; homeRecordsSync operates above RoomDataClient
+- **Candidate 1** (Merge `roomAccessProtocol` + `roomAccessOutcome`): Implemented as the current `roomAccessOutcome` module; RoomDataClient imports it for stale-room classification
+- **Candidate 2** (Extract pure logic from recordCommands): Accepted as an intentionally shallow adapter; no extraction was needed
+- **Candidate 3** (Deepen home records sync coordination): Implemented inline in `pages/index/index.js`; the deleted `homeRecordsSync` helper is historical implementation context
 
 ### Why This Deepens the Module
 
@@ -288,7 +287,7 @@ This is **Candidate 4** (Strong recommendation) from the 2026-08-12 architecture
 
 **After:**
 - **Room Resolver:** Simple interface (`resolveActiveRoom() → outcome`), one concern (roomCode lookup)
-- **RoomDataClient:** Interface unchanged for callers, but internal implementation is thinner (delegates resolution, focuses on cloud dispatch and outcome classification)
+- **RoomDataClient:** Interface unchanged for callers, but internal implementation is thinner (delegates resolution, cloud dispatch, stale-room repair, and shared outcome classification)
 
 **Leverage:** Resolver is reusable for any room operation needing active roomCode (future: room-scoped analytics, room-scoped export timestamps, room-scoped settings sync)
 

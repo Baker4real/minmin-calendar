@@ -31,9 +31,10 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 
 - `app.js` initializes WeChat Cloud with the active environment.
 - `utils/cloud.js` wraps frontend calls to `cloudfunctions/dataOp/index.js`; `RoomDataClient` is the sole frontend records access interface for room-scoped reads/writes.
+- `utils/roomResolver.js` owns cached-or-fresh active-room resolution for `RoomDataClient`; it does not execute stale-room repair or access records directly.
 - `utils/roomRecordsSnapshot.js` consumes only `RoomDataClient` and owns room-scoped `periods` + `memories` snapshot loading for homepage partial sync and Settings all-or-nothing export.
 - `utils/roomAccessOutcome.js` owns client-side classification of structured and legacy room access failures plus outcome presentation mapping for inline status, modal prompts, repair actions, and settings room-code display state.
-- `utils/recordCommands.js` owns shared period/memory list, save, delete, retry, and rebind feedback flows.
+- `utils/recordCommands.js` is an intentionally shallow WeChat page adapter for shared period/memory list, save, delete, retry, and rebind feedback flows; outcome classification remains in `roomAccessOutcome`.
 - `utils/recordPageSync.js` owns optional edit-page-to-homepage record change notifications for optimistic homepage refresh after saves and deletes.
 - `pages/index/index.js` owns homepage record collection synchronization, request ordering, partial-success handling, and optimistic change reconciliation.
 - `utils/settingsFlow.js` owns room-code copy, data export, retry/rebind, and local-cache helper flows.
