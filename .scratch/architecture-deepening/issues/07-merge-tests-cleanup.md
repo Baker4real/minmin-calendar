@@ -4,7 +4,7 @@
 
 **Blocked by:** 05 — Merge roomAccessProtocol into roomAccessOutcome
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Copy all tests from `tests/room-access-protocol.test.js` into `tests/room-access-outcome.test.js`
 - [ ] Group protocol tests under a "Stale room classification" section comment

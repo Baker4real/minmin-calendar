@@ -4,7 +4,7 @@
 
 **Blocked by:** 08 — Inline state machine logic into index page, 09 — Create page behavior tests
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Run all tests in `tests/index-page.test.js` to verify page behavior is correct
 - [ ] Grep codebase for `homeRecordsSync` imports to confirm only `pages/index/index.js` used it

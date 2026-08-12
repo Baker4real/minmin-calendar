@@ -4,7 +4,7 @@
 
 **Blocked by:** 08 — Inline state machine logic into index page
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Create `tests/index-page.test.js`
 - [ ] Test: initial load success → `hasLoadedHomeData: true`, periods and memories populated from snapshot

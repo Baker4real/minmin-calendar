@@ -4,7 +4,7 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Copy `STALE_ROOM_MESSAGES` and `STALE_ROOM_ERROR_CODES` constants to top of `roomAccessOutcome.js` as internal constants (not exported)
 - [ ] Copy `getErrorCode` helper function into `roomAccessOutcome.js` as internal helper

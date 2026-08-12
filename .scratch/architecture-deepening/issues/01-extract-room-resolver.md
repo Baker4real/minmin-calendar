@@ -4,7 +4,7 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Create `utils/roomResolver.js` with `createRoomResolver(options)`
 - [ ] `resolveActiveRoom()` returns `{ kind: 'resolved', roomCode }` when cached or fetched successfully

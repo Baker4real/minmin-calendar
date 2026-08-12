@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 — Extract Room Resolver module
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Add `resolver` to `createRoomDataClient(options)` parameters
 - [ ] Default resolver created as `options.resolver || createRoomResolver({ session })`

@@ -2,6 +2,7 @@ const assert = require('node:assert/strict')
 const test = require('node:test')
 
 const cloudModule = require('../utils/cloud')
+const { createInMemoryRoomResolver } = require('../utils/roomResolver')
 const { createRoomDataClient } = cloudModule
 
 test('RoomDataClient list returns success data for the active room', async () => {
@@ -27,6 +28,68 @@ test('RoomDataClient list returns success data for the active room', async () =>
       roomCode: 'ROOM01'
     }
   }])
+})
+
+test('RoomDataClient lists records with an injected in-memory resolved room', async () => {
+  const cloud = createFakeCloud([
+    { result: { code: 0, data: [{ _id: 'p1', startDate: '2026-06-01' }] } }
+  ])
+  const roomSession = createFakeRoomSession({ roomCode: '' })
+  const resolver = createInMemoryRoomResolver({
+    kind: 'resolved',
+    roomCode: ' test01 '
+  })
+  const client = createRoomDataClient({ cloud, roomSession, resolver })
+
+  const outcome = await client.list('periods')
+
+  assert.deepEqual(outcome, {
+    kind: 'success',
+    data: [{ _id: 'p1', startDate: '2026-06-01' }]
+  })
+  assert.deepEqual(roomSession.activeRoomCalls, [])
+  assert.deepEqual(cloud.calls, [{
+    name: 'dataOp',
+    data: {
+      action: 'list',
+      collection: 'periods',
+      data: {},
+      id: '',
+      roomCode: 'TEST01'
+    }
+  }])
+})
+
+test('RoomDataClient maps an injected in-memory no-room resolution without calling dataOp', async () => {
+  const cloud = createFakeCloud()
+  const resolver = createInMemoryRoomResolver({ kind: 'no-room' })
+  const client = createRoomDataClient({ cloud, resolver })
+
+  const outcome = await client.list('memories')
+
+  assert.deepEqual(outcome, { kind: 'no-room' })
+  assert.deepEqual(cloud.calls, [])
+})
+
+test('RoomDataClient preserves an injected in-memory retryable resolution failure', async () => {
+  const cloud = createFakeCloud()
+  const resolver = createInMemoryRoomResolver({
+    kind: 'retryable-failure',
+    message: '同步房间状态失败：resolver unavailable'
+  })
+  const client = createRoomDataClient({ cloud, resolver })
+
+  const outcome = await client.list('memories')
+
+  assert.equal(outcome.kind, 'retryable-failure')
+  assert.equal(outcome.message, '同步房间状态失败：resolver unavailable')
+  assert.deepEqual(outcome.retryDescriptor, {
+    action: 'list',
+    mode: 'auto-retry',
+    message: '读取失败，可以直接重试'
+  })
+  assert.equal(typeof outcome.retry, 'function')
+  assert.deepEqual(cloud.calls, [])
 })
 
 test('RoomDataClient add, update, and remove return success outcomes with the server result', async () => {

@@ -4,7 +4,7 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** done (includes ticket 10 cleanup work)
 
 - [ ] Replace `_homeRecordsSyncState` with `_syncState` containing `{ revisions, pendingRevisions, nextRequestId, activeRequest }`
 - [ ] Add `_startLoad(background)` method that increments requestId, sets loading/refreshing state, returns requestId

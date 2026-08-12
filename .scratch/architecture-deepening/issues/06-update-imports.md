@@ -4,7 +4,7 @@
 
 **Blocked by:** 05 — Merge roomAccessProtocol into roomAccessOutcome
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] In `utils/cloud.js`: change `require('./roomAccessProtocol')` to `require('./roomAccessOutcome')`
 - [ ] In `utils/cloud.js`: change `roomAccessProtocol.isStaleRoomFailure(result)` to `roomAccessOutcome.isStaleRoomFailure(result)`

@@ -21,7 +21,7 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 - `utils/recordCommands.js` - shared period/memory save, delete, list feedback, retry, and rebind flow helper.
 - `utils/recordPageSync.js` - edit-page-to-homepage record sync helper for optimistic homepage refresh.
 - `utils/roomRecordsSnapshot.js` - room-scoped Period/Memory snapshot loader for homepage partial sync and Settings all-or-nothing export.
-- `utils/homeRecordsSync.js` - homepage record collection sync, request ordering, partial-success, and optimistic reconciliation helper.
+- `pages/index/index.js` - homepage record collection sync, request ordering, partial-success, and optimistic reconciliation state.
 - `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
 - `utils/homeCalendarState.js` - pure homepage calendar state, marker meanings, and marker composition.
 - `utils/util.js` - date, lunar, holiday, and base calendar-grid helpers.
@@ -67,7 +67,7 @@ Run the lightweight local checks after changing date, prediction, room, calendar
 下列命令假设当前目录是项目根；通过 Codex Desktop shell 执行时，应把测试和源码路径展开为绝对路径。
 
 ```powershell
-node --test tests\page-registration.test.js tests\room-data-client.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\room-access-protocol.test.js tests\home-calendar-state.test.js tests\home-records-sync.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
+node --test tests\page-registration.test.js tests\room-data-client.test.js tests\room-resolver.test.js tests\index-page.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
 node --check cloudfunctions\_shared\roomMembershipLifecycle.js
 node --check cloudfunctions\_shared\syncRoomMembershipLifecycle.js
 node --check cloudfunctions\createRoom\roomMembershipLifecycle.js
@@ -83,14 +83,12 @@ node --check cloudfunctions\dataOp\roomRecords.js
 node --check cloudfunctions\dataOp\index.js
 node --check utils\room.js
 node --check utils\cloud.js
-node --check utils\roomAccessProtocol.js
 node --check utils\roomAccessOutcome.js
 node --check utils\recordCommands.js
 node --check utils\recordPageSync.js
 node --check utils\recordEditRoute.js
 node --check utils\settingsFlow.js
 node --check utils\roomRecordsSnapshot.js
-node --check utils\homeRecordsSync.js
 node --check utils\homeCalendarState.js
 node --check utils\util.js
 node --check utils\cycle.js

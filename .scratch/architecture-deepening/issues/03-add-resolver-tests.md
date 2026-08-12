@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 — Extract Room Resolver module
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Create `tests/room-resolver.test.js`
 - [ ] Test: cached roomCode returns `{ kind: 'resolved', roomCode }` without calling `getActiveRoom`

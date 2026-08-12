@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 — Integrate resolver into RoomDataClient, 03 — Add resolver unit tests
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [ ] Add test: in-memory resolver with fixed roomCode → record list operation succeeds
 - [ ] Add test: in-memory resolver returning `no-room` → client returns no-room outcome

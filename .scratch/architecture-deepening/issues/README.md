@@ -35,4 +35,10 @@ Recommended priority: A (highest leverage) → B (net simplification) → C (rem
 
 ## Status
 
-All tickets marked `ready-for-agent` and can be grabbed by agents or developers.
+✅ **All tickets completed (10/10)**
+
+- Track A (Room Resolution): 01-04 done
+- Track B (Merge Room Access): 05-07 done  
+- Track C (Inline Home Sync): 08-10 done
+
+Note: Ticket 08 includes cleanup work originally scoped to ticket 10.
