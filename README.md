@@ -114,6 +114,8 @@ node cloudfunctions\_shared\syncRoomMembershipLifecycle.js --check
 
 For UI changes, also verify in WeChat Developer Tools at a small-phone width.
 
+2026-08-13：本次 `app.wxss` aurora 调整未做真机或微信开发者工具目检。`page` 上的 `auroraFlow` 已删除，理由是全屏 `background-position` 动画会每帧触发整页 repaint，页面动感改由 `.page::before` 的 `auroraPulse` 承担。`tabBar.borderStyle` 经审查保持 `white`。tab 图标 81×81 缺设计源，未做。
+
 ## Repository Hygiene
 
 Generated dependencies, local tool state, imported reference material, and historical `hermes-*` maintenance reports are ignored by `.gitignore`.

@@ -131,6 +131,7 @@ components:
 - 玻璃：`--glass-bg` 为 `rgba(255,255,255,0.08)`；卡片边框常用 `rgba(255,255,255,0.12)`（含 `--glass-border`）。
 - `.premium-card` 圆角为字面值 `24rpx`，未改走 `--radius-*`。
 - `tabBar` 未选中色为 `#6C6E7D`（`app.json` `tabBar.color`）。
+- 各页 0.62–0.94 信息文本透明度是逐元素调校基线，豁免机械归并。
 
 ## Overview
 

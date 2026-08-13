@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const Module = require('node:module')
 const path = require('node:path')
 const test = require('node:test')
@@ -1646,3 +1647,36 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
     selectedDayDetail: null
   }
 }
+
+test('every backdrop-filter in wxss is immediately followed by -webkit-backdrop-filter', () => {
+  const skipDirs = new Set(['node_modules', 'cloudfunctions', '_external'])
+  const files = []
+
+  function walk(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name.startsWith('.') || skipDirs.has(entry.name)) continue
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        walk(full)
+        continue
+      }
+      if (entry.name.endsWith('.wxss')) files.push(full)
+    }
+  }
+
+  walk(repoRoot)
+
+  const unpaired = []
+  for (const file of files) {
+    const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/)
+    lines.forEach((line, index) => {
+      if (!/^\s*backdrop-filter\s*:/.test(line)) return
+      const next = lines[index + 1] || ''
+      if (!/^\s*-webkit-backdrop-filter\s*:/.test(next)) {
+        unpaired.push(`${path.relative(repoRoot, file)}:${index + 1}`)
+      }
+    })
+  }
+
+  assert.deepEqual(unpaired, [])
+})

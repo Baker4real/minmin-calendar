@@ -27,7 +27,7 @@
 
       <view wx:if="{{tab === 'join'}}">
         <text class="info-text">输入对方给你的房间码</text>
-        <input class="code-input" placeholder="输入6位码" value="{{joinCode}}" bindinput="onCodeInput" maxlength="6" confirm-type="done" bindconfirm="joinRoom"/>
+        <input class="code-input" placeholder-class="input-placeholder" placeholder="输入6位码" value="{{joinCode}}" bindinput="onCodeInput" maxlength="6" confirm-type="done" bindconfirm="joinRoom"/>
         <view wx:if="{{joinCode.length < 6 && !loading}}" class="btn-premium disabled">请输入6位房间码</view>
         <view wx:elif="{{loading}}" class="btn-premium loading">加入中...</view>
         <view wx:elif="{{joinCode.length === 6}}" class="btn-premium" bindtap="joinRoom">加入房间</view>

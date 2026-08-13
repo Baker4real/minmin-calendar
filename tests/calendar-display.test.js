@@ -448,6 +448,19 @@ test('home page consumes RoomDataClient outcomes instead of legacy room-code and
   assert.match(wxml, /handleRoomStatusAction/)
 })
 
+test('index stats-card keeps only layout overrides over premium-card glass', () => {
+  const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
+  const match = wxss.match(/(?:^|\r?\n)\.stats-card\s*\{([\s\S]*?)\r?\n\}/m)
+  assert.ok(match, 'expected a top-level .stats-card rule')
+  const block = match[1]
+
+  assert.match(block, /margin-top\s*:/)
+  assert.match(block, /padding\s*:/)
+  assert.doesNotMatch(block, /background/)
+  assert.doesNotMatch(block, /backdrop-filter/)
+  assert.doesNotMatch(block, /border/)
+})
+
 function pickMeta(meta) {
   return {
     weekday: meta.weekday,

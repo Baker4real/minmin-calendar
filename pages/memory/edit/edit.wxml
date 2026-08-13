@@ -22,13 +22,14 @@
       </view>
       <view class="form-item">
         <text class="form-label">备注</text>
-        <input class="form-input" placeholder="记录你们的特别时刻..." value="{{note}}" bindinput="onNoteInput" maxlength="500"/>
+        <input class="form-input" placeholder-class="input-placeholder" placeholder="记录你们的特别时刻..." value="{{note}}" bindinput="onNoteInput" maxlength="500"/>
       </view>
     </view>
 
     <view class="btns fade-in fade-in-d1">
       <view wx:if="{{!saving && !deleting}}" class="btn-premium" bindtap="save">保存</view>
-      <view wx:else class="btn-premium loading">保存中...</view>
+      <view wx:elif="{{saving}}" class="btn-premium loading">保存中...</view>
+      <view wx:else class="btn-premium disabled">保存</view>
       <view wx:if="{{isEdit && !deleting}}" class="btn-danger" bindtap="delete">删除此记录</view>
       <view wx:elif="{{isEdit}}" class="btn-danger" style="opacity: 0.5;">删除中...</view>
     </view>

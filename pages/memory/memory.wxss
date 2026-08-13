@@ -72,7 +72,7 @@
 }
 .memory-arrow {
   font-size: 32rpx;
-  color: rgba(255,255,255,0.3);
+  color: var(--text-tertiary);
 }
 
 /* Empty State */
@@ -84,6 +84,7 @@
   line-height: 1.8;
   background: rgba(255,255,255,0.05);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 24rpx;
 }

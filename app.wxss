@@ -47,17 +47,9 @@ page {
 /* ===== Aurora Background ===== */
 page {
   background: linear-gradient(135deg, #0A0E27, #1A0A2E, #2D1B69, #0A0E27);
-  background-size: 400% 400%;
-  animation: auroraFlow 12s ease infinite;
+  background-position: 0% 50%;
   color: var(--text-primary);
   min-height: 100vh;
-}
-
-@keyframes auroraFlow {
-  0%, 100% { background-position: 0% 50%; }
-  25% { background-position: 100% 0%; }
-  50% { background-position: 100% 100%; }
-  75% { background-position: 0% 100%; }
 }
 
 /* ===== Aurora Overlay — 只用玫瑰/薰衣草/柔金三音色 ===== */
@@ -250,6 +242,7 @@ page {
 .btn-danger {
   background: var(--glass-bg);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   color: #F97373;
   text-align: center;
   padding: 26rpx;
@@ -364,9 +357,13 @@ page {
 .safe-top { padding-top: env(safe-area-inset-top, 88rpx); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 20rpx); }
 
+/* ===== Input Placeholder ===== */
+.input-placeholder {
+  color: var(--text-tertiary);
+}
+
 /* ===== Reduced Motion — 全局兜底 ===== */
 @media (prefers-reduced-motion: reduce) {
-  page,
   .page,
   .page::before,
   .glow-orb,

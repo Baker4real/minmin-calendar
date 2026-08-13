@@ -35,13 +35,14 @@
   padding: 22rpx;
   background: rgba(255,255,255,0.06);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.12);
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 .form-picker-arrow {
   font-size: 32rpx;
-  color: rgba(255,255,255,0.3);
+  color: var(--text-tertiary);
   line-height: 1;
 }
 .form-picker:active {
@@ -54,12 +55,10 @@
   padding: 22rpx;
   background: rgba(255,255,255,0.06);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.12);
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-.form-input::placeholder {
-  color: rgba(255,255,255,0.3);
 }
 .form-input:focus {
   border-color: rgba(232,144,158,0.4);

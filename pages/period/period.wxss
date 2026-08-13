@@ -20,7 +20,7 @@
 }
 .card-label {
   font-size: 24rpx;
-  color: rgba(255,255,255,0.7);
+  color: var(--text-secondary);
   font-weight: 500;
   position: relative;
   letter-spacing: 2rpx;
@@ -105,7 +105,7 @@
   box-sizing: border-box;
   font-size: 22rpx;
   font-weight: 700;
-  color: rgba(255,255,255,0.72);
+  color: var(--text-secondary);
   background: var(--glass-bg);
   border: 1px solid rgba(255,255,255,0.1);
 }
@@ -129,7 +129,7 @@
 }
 .item-arrow {
   font-size: 32rpx;
-  color: rgba(255,255,255,0.3);
+  color: var(--text-tertiary);
 }
 
 /* Empty State */
@@ -141,6 +141,7 @@
   line-height: 1.8;
   background: rgba(255,255,255,0.05);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 24rpx;
 }
