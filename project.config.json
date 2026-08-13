@@ -1,5 +1,21 @@
 {
   "description": "美少女的日历",
+  "watchOptions": {
+    "ignore": [
+      ".git/**/*",
+      "**/.git/**",
+      "**/node_modules/**",
+      ".agents/**/*",
+      ".claude/**/*",
+      ".codegraph/**/*",
+      ".codex/**/*",
+      ".scratch/**/*",
+      ".serena/**/*",
+      ".tdd/**/*",
+      "_external/**/*",
+      "scripts/**/*"
+    ]
+  },
   "packOptions": {
     "ignore": [
       {
