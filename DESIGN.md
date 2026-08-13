@@ -130,7 +130,8 @@ components:
 - 圆角 token（`app.wxss`）：`--radius-sm` / `--radius-md` / `--radius-lg` / `--radius-xl` 分别为 `12rpx` / `20rpx` / `28rpx` / `36rpx`。
 - 玻璃：`--glass-bg` 为 `rgba(255,255,255,0.08)`；卡片边框常用 `rgba(255,255,255,0.12)`（含 `--glass-border`）。
 - `.premium-card` 圆角为字面值 `24rpx`，未改走 `--radius-*`。
-- `tabBar` 未选中色为 `#6C6E7D`（`app.json` `tabBar.color`）。
+- `tabBar` 未选中色为 `#6C6E7D`（`app.json` `tabBar.color`）；`borderStyle` 经审查保持 `white`，不要改成 `black`。
+- `page` 没有 `auroraFlow`；全屏动感只保留 `.page::before` 的 `auroraPulse`（8s）。
 - 各页 0.62–0.94 信息文本透明度是逐元素调校基线，豁免机械归并。
 
 ## Overview

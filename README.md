@@ -41,6 +41,8 @@ Two details make `watchOptions.ignore` easy to get wrong:
 - The IDE reads it only when it initializes the project watcher, so edits require reopening the project — a recompile is not enough. Confirm the loaded list in the IDE log's `new FileUtils instance dirpath = <project root>` block rather than assuming the file on disk is active.
 - The watcher emits events for bare directory paths (`.git`) as well as paths inside them. A `dir/**/*` pattern does not match the bare `dir` event, so each ignored directory needs both its bare name and its subpath glob. This matters for `.git` specifically because a plain `git status` bumps the `.git` directory mtime without modifying any file inside it, so routine git usage alone is enough to trigger the event.
 
+2026-08-14：开发者工具控制台若只有 `WAServiceMainContext.js` 的 `Error: timeout`、堆栈不含本仓库路径，视为工具内部通信噪音，不要当成 `utils/cloud.js` 或云函数超时去改业务代码。本机重新编译后该行未再出现，小程序可正常使用。
+
 The mini program initializes WeChat Cloud in `app.js` with:
 
 ```js
@@ -114,7 +116,8 @@ node cloudfunctions\_shared\syncRoomMembershipLifecycle.js --check
 
 For UI changes, also verify in WeChat Developer Tools at a small-phone width.
 
-2026-08-13：本次 `app.wxss` aurora 调整未做真机或微信开发者工具目检。`page` 上的 `auroraFlow` 已删除，理由是全屏 `background-position` 动画会每帧触发整页 repaint，页面动感改由 `.page::before` 的 `auroraPulse` 承担。`tabBar.borderStyle` 经审查保持 `white`。tab 图标 81×81 缺设计源，未做。
+2026-08-13：`page` 上的 `auroraFlow` 已删除，理由是全屏 `background-position` 动画会每帧触发整页 repaint，页面动感改由 `.page::before` 的 `auroraPulse` 承担。`tabBar.borderStyle` 经审查保持 `white`。tab 图标 81×81 缺设计源，未做。
+2026-08-14：微信开发者工具重新编译通过，启动可用；此前控制台单独出现的 `WAServiceMainContext.js` `Error: timeout` 未再复现。真机小屏目检和 tab 图标重出仍未做。
 
 ## Repository Hygiene
 
