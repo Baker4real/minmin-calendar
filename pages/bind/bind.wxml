@@ -8,9 +8,9 @@
 
     <view wx:if="{{bound}}" class="premium-card fade-in fade-in-d1">
       <view class="bound-status">✅ 已绑定房间</view>
-      <text class="bound-code">房间码：{{roomCode}}</text>
+      <text class="bound-code" bindtap="copyRoomCode">房间码：{{roomCode}}</text>
       <view class="btn-premium" bindtap="goHome">进入应用</view>
-      <view class="btn-text" bindtap="unbind">解除绑定</view>
+      <view class="btn-danger" bindtap="unbind">解除绑定</view>
     </view>
 
     <view wx:else class="premium-card fade-in fade-in-d1">
@@ -22,17 +22,12 @@
       <view wx:if="{{tab === 'create'}}">
         <text class="info-text">生成房间码，把码发给对方加入</text>
         <view wx:if="{{loading}}" class="btn-premium loading">创建中...</view>
-        <view wx:elif="{{!myRoomCode}}" class="btn-premium" bindtap="createRoom">创建我的房间</view>
-        <view wx:if="{{myRoomCode}}" class="room-code-box">
-          <text class="room-code-label">你的房间码</text>
-          <text class="room-code">{{myRoomCode}}</text>
-          <text class="room-code-hint">把上面的码发给对方</text>
-        </view>
+        <view wx:else class="btn-premium" bindtap="createRoom">创建我的房间</view>
       </view>
 
       <view wx:if="{{tab === 'join'}}">
         <text class="info-text">输入对方给你的房间码</text>
-        <input class="code-input" placeholder="输入6位码" value="{{joinCode}}" bindinput="onCodeInput" maxlength="6"/>
+        <input class="code-input" placeholder="输入6位码" value="{{joinCode}}" bindinput="onCodeInput" maxlength="6" confirm-type="done" bindconfirm="joinRoom"/>
         <view wx:if="{{joinCode.length < 6 && !loading}}" class="btn-premium disabled">请输入6位房间码</view>
         <view wx:elif="{{loading}}" class="btn-premium loading">加入中...</view>
         <view wx:elif="{{joinCode.length === 6}}" class="btn-premium" bindtap="joinRoom">加入房间</view>

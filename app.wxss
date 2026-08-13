@@ -167,7 +167,7 @@ page {
   background: rgba(255,255,255,0.09);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1rpx solid rgba(232,144,158,0.28);
+  border: 1px solid rgba(232,144,158,0.28);
   box-shadow:
     0 6rpx 18rpx rgba(10,14,39,0.18),
     inset 0 1rpx 0 rgba(255,255,255,0.18);
@@ -195,10 +195,10 @@ page {
 
 /* ===== Premium Card (Glass) ===== */
 .premium-card {
-  background: rgba(255,255,255,0.08);
+  background: var(--glass-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-radius: var(--radius-lg);
+  border-radius: 24rpx;
   border: 1px solid rgba(255,255,255,0.12);
   box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
   position: relative;
@@ -246,52 +246,9 @@ page {
   transform: none;
 }
 
-/* ===== Primary Button ===== */
-.btn-primary {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  background: #E8909E;
-  color: #fff;
-  border-radius: var(--radius-md);
-  padding: 26rpx 0;
-  font-size: 30rpx;
-  font-weight: 600;
-  letter-spacing: 2rpx;
-  transition: transform 0.2s var(--ease-spring), box-shadow 0.2s var(--ease-out);
-  position: relative;
-  overflow: hidden;
-}
-.btn-primary:active {
-  transform: scale(0.96);
-  box-shadow: 0 2px 8px rgba(232,144,158,0.2);
-}
-
-/* ===== Glass Button ===== */
-.glass-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  background: rgba(255,255,255,0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: #fff;
-  border-radius: var(--radius-md);
-  padding: 26rpx 0;
-  font-size: 28rpx;
-  font-weight: 500;
-  transition: var(--transition-spring);
-}
-.glass-btn:active {
-  transform: scale(0.95);
-  background: rgba(255,255,255,0.2);
-}
-
 /* ===== Danger Button — 柔红，与玫瑰体系同族 ===== */
 .btn-danger {
-  background: rgba(255,255,255,0.08);
+  background: var(--glass-bg);
   backdrop-filter: blur(10px);
   color: #F97373;
   text-align: center;
@@ -355,18 +312,6 @@ page {
 .fade-in-d2 { animation-delay: 0.2s; }
 .fade-in-d3 { animation-delay: 0.3s; }
 
-/* ===== Skeleton ===== */
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-.skeleton {
-  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-  border-radius: var(--radius-sm);
-}
-
 /* ===== Loading Spinner ===== */
 .loading-view {
   display: flex;
@@ -397,9 +342,6 @@ page {
 .list-item:active, .menu-item:active {
   transform: scale(0.97);
 }
-.timeline-content:active {
-  transform: scale(0.97);
-}
 
 /* ===== Calendar Grid Transition ===== */
 .calendar-grid {
@@ -416,14 +358,6 @@ page {
 }
 .nav-btn:active {
   transform: scale(0.9);
-}
-
-/* ===== Glass Layer Utility ===== */
-.glass-layer {
-  background: rgba(255,255,255,0.08);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.12);
 }
 
 /* Safe Area */
@@ -448,16 +382,21 @@ page {
   }
   .premium-card,
   .btn-premium,
-  .btn-primary,
-  .glass-btn,
   .btn-danger,
   .nav-btn,
   .nav-back,
   .nav-back-surface,
   .list-item,
   .menu-item,
-  .timeline-content,
   .calendar-grid {
+    animation: none;
+    transition: none;
+  }
+  .loading-spinner,
+  .cycle-card,
+  .profile-card,
+  .hero-icon,
+  .tab {
     animation: none;
     transition: none;
   }

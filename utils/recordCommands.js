@@ -46,7 +46,9 @@ function runRecordDelete(options) {
   const opts = options || {}
   const wxApi = resolveWxApi(opts)
   const {
-    confirmTitle = '确认删除'
+    page,
+    confirmTitle = '确认删除',
+    loadingKey = 'deleting'
   } = opts
   const navigateBack = typeof opts.navigateBack === 'function'
     ? opts.navigateBack
@@ -56,11 +58,14 @@ function runRecordDelete(options) {
     return Promise.resolve({ kind: 'cancelled' })
   }
 
+  updatePage(page, { [loadingKey]: true })
+
   return new Promise(resolve => {
     wxApi.showModal({
       title: confirmTitle,
       success: async (result) => {
         if (!result.confirm) {
+          updatePage(page, { [loadingKey]: false })
           resolve({ kind: 'cancelled' })
           return
         }
@@ -68,6 +73,7 @@ function runRecordDelete(options) {
         resolve(runCommand({
           ...options,
           wxApi,
+          loadingKey,
           validate: null,
           navigateBack,
           retryableMode: 'confirm-state',
@@ -112,7 +118,7 @@ async function runRecordListLoad(options) {
   if (outcome.kind === 'success') {
     const records = Array.isArray(outcome.data) ? outcome.data : []
     const viewData = typeof mapRecords === 'function' ? mapRecords(records) : records
-    updatePage(page, { [itemsKey]: viewData })
+    updatePage(page, { [itemsKey]: viewData, loadFailed: false })
     if (typeof onLoaded === 'function') {
       onLoaded(records)
     }
@@ -121,7 +127,7 @@ async function runRecordListLoad(options) {
   }
 
   updatePage(page, { [loadingKey]: false })
-  return handleFailureOutcome({
+  const result = await handleFailureOutcome({
     outcome,
     wxApi,
     retryableTitle,
@@ -131,6 +137,10 @@ async function runRecordListLoad(options) {
     navigateToBind,
     retryableMode: 'retry'
   })
+  if (!result || result.kind !== 'success') {
+    updatePage(page, { loadFailed: true })
+  }
+  return result
 }
 
 async function runCommand(options) {

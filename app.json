@@ -9,7 +9,7 @@
     "pages/settings/settings"
   ],
   "tabBar": {
-    "color": "rgba(255,255,255,0.4)",
+    "color": "#6C6E7D",
     "selectedColor": "#E8909E",
     "backgroundColor": "#0A0E27",
     "borderStyle": "white",

@@ -1,11 +1,11 @@
 const roomSession = require('../../utils/room')
+const settingsFlow = require('../../utils/settingsFlow')
 
 Page({
   data: {
     tab: 'create',
     bound: false,
     roomCode: '',
-    myRoomCode: '',
     joinCode: '',
     loading: false,
     errorMsg: ''
@@ -39,7 +39,7 @@ Page({
     this.setData({ loading: true, errorMsg: '' })
     const res = await roomSession.createRoom()
     if (res.code === 0) {
-      this.setData({ myRoomCode: res.roomCode, bound: true, roomCode: res.roomCode })
+      this.setData({ bound: true, roomCode: res.roomCode })
     } else {
       this.setData({ errorMsg: res.msg })
     }
@@ -60,6 +60,12 @@ Page({
     this.setData({ loading: false })
   },
 
+  async copyRoomCode() {
+    await settingsFlow.copyRoomCode({
+      roomCode: this.data.roomCode
+    })
+  },
+
   goHome() {
     wx.switchTab({ url: '/pages/index/index' })
   },
@@ -72,7 +78,7 @@ Page({
         if (res.confirm) {
           const result = await roomSession.leaveRoom()
           if (result.code === 0) {
-            this.setData({ bound: false, roomCode: '', myRoomCode: '', joinCode: '' })
+            this.setData({ bound: false, roomCode: '', joinCode: '' })
             return
           }
 

@@ -4,7 +4,8 @@
       <view class="nav-back-surface"></view>
       <text class="nav-back-icon">‹</text>
     </view>
-    <view class="nav-title">欢乐时光</view>
+    <view wx:if="{{isEdit}}" class="nav-title">编辑欢乐时光</view>
+    <view wx:else class="nav-title">新增欢乐时光</view>
     <view class="nav-placeholder"></view>
   </view>
 
@@ -13,19 +14,23 @@
       <view class="form-item">
         <text class="form-label">日期</text>
         <picker mode="date" value="{{date}}" bindchange="onDateChange">
-          <view class="form-picker">{{date}}</view>
+          <view class="form-picker">
+            <text>{{date}}</text>
+            <text class="form-picker-arrow">›</text>
+          </view>
         </picker>
       </view>
       <view class="form-item">
         <text class="form-label">备注</text>
-        <input class="form-input" placeholder="记录你们的特别时刻..." value="{{note}}" bindinput="onNoteInput"/>
+        <input class="form-input" placeholder="记录你们的特别时刻..." value="{{note}}" bindinput="onNoteInput" maxlength="500"/>
       </view>
     </view>
 
     <view class="btns fade-in fade-in-d1">
-      <view wx:if="{{!saving}}" class="btn-premium" bindtap="save">保存</view>
+      <view wx:if="{{!saving && !deleting}}" class="btn-premium" bindtap="save">保存</view>
       <view wx:else class="btn-premium loading">保存中...</view>
-      <view wx:if="{{isEdit}}" class="btn-danger" bindtap="delete">删除此记录</view>
+      <view wx:if="{{isEdit && !deleting}}" class="btn-danger" bindtap="delete">删除此记录</view>
+      <view wx:elif="{{isEdit}}" class="btn-danger" style="opacity: 0.5;">删除中...</view>
     </view>
   </view>
 </view>

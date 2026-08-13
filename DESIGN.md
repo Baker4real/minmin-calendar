@@ -123,6 +123,15 @@ components:
 
 本文件是 Aurora Bloom 的目标视觉稿，不是当前 UI 的逐项实现清单。现有页面只完成了部分色彩与组件方向，运行时事实应以 `app.json`、`app.wxss` 和各页面 WXSS 为准；下文“已移除”的霓虹色、玻璃参数和动画周期均表示目标方向，不代表当前基线已经全部达成。
 
+## 现行实现基线
+
+下列数值是当前代码里已经落地的实现，后续评审应视为既定基线，不要当成相对上方目标稿的漂移去回改。frontmatter / Components 仍是目标稿（例如玻璃 `0.06`、圆角 `8/16/24/32px`）；不一致时描述“现在是什么”以本节和源码为准，不以目标稿覆盖实现。
+
+- 圆角 token（`app.wxss`）：`--radius-sm` / `--radius-md` / `--radius-lg` / `--radius-xl` 分别为 `12rpx` / `20rpx` / `28rpx` / `36rpx`。
+- 玻璃：`--glass-bg` 为 `rgba(255,255,255,0.08)`；卡片边框常用 `rgba(255,255,255,0.12)`（含 `--glass-border`）。
+- `.premium-card` 圆角为字面值 `24rpx`，未改走 `--radius-*`。
+- `tabBar` 未选中色为 `#6C6E7D`（`app.json` `tabBar.color`）。
+
 ## Overview
 
 Aurora Bloom is a premium wellness dark theme for minmin-calendar — a period tracking and diary app. Rose tones on deep navy with soft glassmorphism surfaces and subtle aurora animations.

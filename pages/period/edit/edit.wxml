@@ -13,22 +13,31 @@
     <view class="premium-card fade-in">
       <view class="form-item">
         <text class="form-label">开始日期</text>
-        <picker mode="date" value="{{startDate}}" bindchange="onStartChange">
-          <view class="form-picker">{{startDate}}</view>
+        <picker mode="date" value="{{startDate}}" end="{{endDate}}" bindchange="onStartChange">
+          <view class="form-picker">
+            <text>{{startDate}}</text>
+            <text class="form-picker-arrow">›</text>
+          </view>
         </picker>
       </view>
       <view class="form-item">
         <text class="form-label">结束日期</text>
-        <picker mode="date" value="{{endDate}}" bindchange="onEndChange">
-          <view class="form-picker">{{endDate}}</view>
+        <picker mode="date" value="{{endDate}}" start="{{startDate}}" bindchange="onEndChange">
+          <view class="form-picker">
+            <text>{{endDate}}</text>
+            <text class="form-picker-arrow">›</text>
+          </view>
         </picker>
       </view>
       <view class="form-item">
         <text class="form-label">备注</text>
-        <input class="form-input" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput"/>
+        <input class="form-input" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput" maxlength="500"/>
       </view>
       <view class="form-item">
-        <text class="form-label">经量</text>
+        <view class="form-label-row">
+          <text class="form-label">经量</text>
+          <text class="form-hint">再点可取消</text>
+        </view>
         <view class="flow-options">
           <view
             wx:for="{{flowOptions}}"
@@ -40,7 +49,10 @@
         </view>
       </view>
       <view class="form-item form-item-last">
-        <text class="form-label">身体状态</text>
+        <view class="form-label-row">
+          <text class="form-label">身体状态</text>
+          <text class="form-hint">可多选</text>
+        </view>
         <view class="symptom-options">
           <view
             wx:for="{{symptomOptions}}"
@@ -54,9 +66,10 @@
     </view>
 
     <view class="btns fade-in fade-in-d1">
-      <view wx:if="{{!saving}}" class="btn-premium" bindtap="save">保存</view>
+      <view wx:if="{{!saving && !deleting}}" class="btn-premium" bindtap="save">保存</view>
       <view wx:else class="btn-premium loading">保存中...</view>
-      <view wx:if="{{isEdit}}" class="btn-danger" bindtap="delete">删除此记录</view>
+      <view wx:if="{{isEdit && !deleting}}" class="btn-danger" bindtap="delete">删除此记录</view>
+      <view wx:elif="{{isEdit}}" class="btn-danger" style="opacity: 0.5;">删除中...</view>
     </view>
   </view>
 </view>

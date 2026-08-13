@@ -5,7 +5,7 @@ const recordEditRoute = require('../../../utils/recordEditRoute')
 const recordPageSync = require('../../../utils/recordPageSync')
 
 Page({
-  data: { id: '', date: '', note: '', isEdit: false, saving: false },
+  data: { id: '', date: '', note: '', isEdit: false, saving: false, deleting: false },
 
   onLoad(options) {
     this.setData(recordEditRoute.parseMemoryEditOptions(options, {
@@ -21,6 +21,7 @@ Page({
   },
 
   async save() {
+    if (this.data.saving || this.data.deleting) return
     const { id, date, note, isEdit } = this.data
     const client = cloud.createRoomDataClient()
     const outcome = await recordCommands.runRecordSave({
@@ -51,6 +52,7 @@ Page({
   },
 
   async delete() {
+    if (this.data.deleting) return
     const client = cloud.createRoomDataClient()
     const outcome = await recordCommands.runRecordDelete({
       page: this,

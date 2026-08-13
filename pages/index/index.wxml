@@ -93,7 +93,7 @@
         </view>
         <view class="day-marks">
           <view wx:if="{{item.isPeriod}}" class="mark period-mark"></view>
-          <view wx:if="{{item.isMemory}}" class="mark memory-mark">❤️</view>
+          <view wx:if="{{item.isMemory}}" class="mark memory-mark">♥</view>
           <view wx:if="{{item.isPredict && !item.isPeriod}}" class="mark predict-mark">预</view>
         </view>
       </view>
@@ -101,17 +101,17 @@
 
     <view class="stats-card premium-card fade-in fade-in-d1">
       <view class="stats-row">
-        <view class="stat-item">
+        <view class="stat-item stat-delay-1">
           <text class="stat-num">{{periods ? periods.length : 0}}</text>
           <text class="stat-label">经期记录</text>
         </view>
         <view class="stat-divider"></view>
-        <view class="stat-item">
+        <view class="stat-item stat-delay-2">
           <text class="stat-num">{{avgCycle || '--'}}</text>
           <text class="stat-label">平均周期</text>
         </view>
         <view class="stat-divider"></view>
-        <view class="stat-item predict-item">
+        <view class="stat-item predict-item stat-delay-3">
           <view class="predict-value">
             <text class="predict-date">{{nextPredictDisplay || '--'}}</text>
             <text wx:if="{{nextPredictWeekday}}" class="predict-weekday">{{nextPredictWeekday}}</text>

@@ -16,7 +16,8 @@ Page({
     flowOptions: cycle.FLOW_OPTIONS,
     symptomOptions: cycle.buildSymptomOptions(),
     isEdit: false,
-    saving: false
+    saving: false,
+    deleting: false
   },
 
   onLoad(options) {
@@ -56,6 +57,7 @@ Page({
   },
 
   async save() {
+    if (this.data.saving || this.data.deleting) return
     const { id, startDate, endDate, note, flow, symptoms, isEdit } = this.data
     const client = cloud.createRoomDataClient()
     const outcome = await recordCommands.runRecordSave({
@@ -88,6 +90,7 @@ Page({
   },
 
   async delete() {
+    if (this.data.deleting) return
     const client = cloud.createRoomDataClient()
     const outcome = await recordCommands.runRecordDelete({
       page: this,

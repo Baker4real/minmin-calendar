@@ -1,20 +1,4 @@
 /* ===== Aurora Bloom: Memory ===== */
-.page {
-  min-height: 100vh;
-  position: relative;
-}
-
-/* Custom Nav Bar */
-.nav-bar {
-  position: relative;
-  z-index: 10;
-}
-.nav-back {
-  position: relative;
-  z-index: 11;
-  padding: 0;
-}
-
 .content {
   padding: 0 24rpx 30rpx;
   position: relative;
@@ -26,16 +10,7 @@
   margin: 24rpx 0 20rpx;
 }
 
-/* List Items – Glass with Timeline */
-.premium-card {
-  background: rgba(255,255,255,0.08);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 24rpx;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
-  overflow: hidden;
-}
+/* List Items – Timeline */
 .list-item {
   display: flex;
   justify-content: space-between;
@@ -92,7 +67,7 @@
 }
 .memory-note {
   font-size: 24rpx;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.5);
   margin-top: 4rpx;
 }
 .memory-arrow {
@@ -104,7 +79,7 @@
 .empty-state {
   padding: 80rpx 40rpx;
   text-align: center;
-  color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.5);
   font-size: 28rpx;
   line-height: 1.8;
   background: rgba(255,255,255,0.05);

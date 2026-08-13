@@ -350,11 +350,13 @@ test('runRecordDelete keeps modal confirmation and success feedback behavior', a
 
   assert.equal(env.wx.modals.length, 1)
   assert.equal(actionCalls, 0)
+  assert.deepEqual(page.setDataCalls, [{ deleting: true }])
 
   const result = await env.wx.resolveModal(true, promise)
 
   assert.equal(result.kind, 'success')
   assert.equal(actionCalls, 1)
+  assert.deepEqual(page.setDataCalls, [{ deleting: true }, { deleting: true }, { deleting: false }])
   assert.deepEqual(env.wx.toasts, [{ title: '已删除' }])
   assert.equal(env.timer.calls.length, 1)
   env.timer.calls[0].fn()
@@ -380,6 +382,34 @@ test('runRecordDelete cancels safely when modal is unavailable', async () => {
 
   assert.deepEqual(result, { kind: 'cancelled' })
   assert.equal(actionCalls, 0)
+})
+
+test('runRecordDelete locks deleting before the confirm modal and releases it on cancel', async () => {
+  const page = createFakePage()
+  const env = createFakeCommandEnv()
+  let actionCalls = 0
+
+  const promise = recordCommands.runRecordDelete({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => {
+      actionCalls += 1
+      return { kind: 'success', result: { code: 0 } }
+    },
+    confirmTitle: '确认删除',
+    successTitle: '已删除',
+    failureTitle: '删除失败'
+  })
+
+  assert.equal(env.wx.modals.length, 1)
+  assert.deepEqual(page.setDataCalls, [{ deleting: true }])
+
+  const result = await env.wx.resolveModal(false, promise)
+
+  assert.deepEqual(result, { kind: 'cancelled' })
+  assert.equal(actionCalls, 0)
+  assert.deepEqual(page.setDataCalls, [{ deleting: true }, { deleting: false }])
 })
 
 test('runRecordDelete does not replay unknown delete mutations after retryable failures', async () => {
@@ -419,7 +449,7 @@ test('runRecordDelete does not replay unknown delete mutations after retryable f
     message: '删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作'
   })
   assert.equal(actionCalls, 1)
-  assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
+  assert.deepEqual(page.setDataCalls, [{ deleting: true }, { deleting: true }, { deleting: false }])
   assert.deepEqual(env.wx.toasts, [])
   assert.equal(env.timer.calls.length, 0)
 })
@@ -471,7 +501,7 @@ test('runRecordDelete keeps room repair sync failures visible without replaying 
     }
   })
   assert.equal(actionCalls, 1)
-  assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
+  assert.deepEqual(page.setDataCalls, [{ deleting: true }, { deleting: true }, { deleting: false }])
   assert.deepEqual(modal, {
     title: '删除失败',
     content: '同步房间状态失败：network down\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
@@ -515,7 +545,8 @@ test('runRecordListLoad sorts and decorates periods while preserving stats input
       periods: [
         { _id: 'p2', startDate: '2026-07-03', endDate: '2026-07-07', duration: 5, note: '', decorated: true },
         { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5, note: '较轻', decorated: true }
-      ]
+      ],
+      loadFailed: false
     },
     { loading: false }
   ])
@@ -563,12 +594,48 @@ test('runRecordListLoad surfaces a retry action and reloads memories when the us
     { loading: true },
     { loading: false },
     { loading: true },
-    { memories: [] },
+    { memories: [], loadFailed: false },
     { loading: false }
   ])
   assert.deepEqual(env.wx.toasts, [])
   assert.equal(retried, true)
   assert.equal(actionCalls, 2)
+})
+
+test('runRecordListLoad marks loadFailed after the user cancels retry', async () => {
+  assert.equal(typeof recordCommands.runRecordListLoad, 'function')
+
+  const page = createFakePage({ loading: false })
+  const env = createFakeCommandEnv()
+
+  const promise = recordCommands.runRecordListLoad({
+    page,
+    wx: env.wx,
+    loadingKey: 'loading',
+    itemsKey: 'memories',
+    action: async () => ({
+      kind: 'retryable-failure',
+      message: 'network down'
+    }),
+    mapRecords: records => records,
+    retryableTitle: '加载失败，请检查网络',
+    roomRepairTitle: '房间状态已变化，请重新绑定'
+  })
+
+  await Promise.resolve()
+  assert.equal(env.wx.modals.length, 1)
+
+  const result = await env.wx.resolveModal(false, promise)
+
+  assert.deepEqual(result, {
+    kind: 'retryable-failure',
+    message: 'network down'
+  })
+  assert.deepEqual(page.setDataCalls, [
+    { loading: true },
+    { loading: false },
+    { loadFailed: true }
+  ])
 })
 
 test('runRecordListLoad returns retry fallback when modal and toast are unavailable', async () => {
@@ -594,7 +661,11 @@ test('runRecordListLoad returns retry fallback when modal and toast are unavaila
     kind: 'retryable-failure',
     message: 'network down'
   })
-  assert.deepEqual(page.setDataCalls, [{ loading: true }, { loading: false }])
+  assert.deepEqual(page.setDataCalls, [
+    { loading: true },
+    { loading: false },
+    { loadFailed: true }
+  ])
 })
 
 test('runRecordListLoad returns bind fallback when wx is null', async () => {
@@ -617,7 +688,11 @@ test('runRecordListLoad returns bind fallback when wx is null', async () => {
     kind: 'no-room',
     message: '请先绑定房间'
   })
-  assert.deepEqual(page.setDataCalls, [{ loading: true }, { loading: false }])
+  assert.deepEqual(page.setDataCalls, [
+    { loading: true },
+    { loading: false },
+    { loadFailed: true }
+  ])
 })
 
 test('runRecordListLoad keeps room repair sync failures retryable when the user confirms', async () => {
@@ -671,7 +746,7 @@ test('runRecordListLoad keeps room repair sync failures retryable when the user 
     { loading: true },
     { loading: false },
     { loading: true },
-    { memories: [] },
+    { memories: [], loadFailed: false },
     { loading: false }
   ])
   assert.deepEqual(env.wx.toasts, [])
@@ -684,11 +759,54 @@ test('period and memory list templates keep the REC-03 visible row contract', ()
   const memoryWxml = readPageFile('pages/memory/memory.wxml')
 
   assert.match(periodWxml, /\{\{item\.startDate\}\}\s*~\s*\{\{item\.endDate\}\}/)
-  assert.match(periodWxml, /\{\{item\.note \|\| '无备注'\}\}/)
+  assert.match(periodWxml, /wx:if="\{\{item\.note\}\}"/)
+  assert.doesNotMatch(periodWxml, /无备注/)
   assert.match(periodWxml, /\{\{item\.duration\}\}天/)
 
   assert.match(memoryWxml, /\{\{item\.date\}\}/)
   assert.match(memoryWxml, /\{\{item\.note \|\| '我们的欢乐时光'\}\}/)
+})
+
+test('record list pages show load-failed retry copy and hide period stats while loading', () => {
+  const periodWxml = readPageFile('pages/period/period.wxml')
+  const memoryWxml = readPageFile('pages/memory/memory.wxml')
+  const periodJs = readPageFile('pages/period/period.js')
+  const memoryJs = readPageFile('pages/memory/memory.js')
+
+  assert.match(periodJs, /loadFailed:\s*false/)
+  assert.match(memoryJs, /loadFailed:\s*false/)
+  assert.match(periodWxml, /loadFailed/)
+  assert.match(memoryWxml, /loadFailed/)
+  assert.match(periodWxml, /加载失败，点按重试/)
+  assert.match(memoryWxml, /加载失败，点按重试/)
+  assert.match(periodWxml, /wx:if="\{\{!loading\}\}"[^>]*>\{\{periods\.length\}\}/)
+  assert.match(periodWxml, /wx:if="\{\{!loading\}\}"[^>]*>\{\{avgCycle \|\| '--'\}\}/)
+  assert.match(periodWxml, /wx:if="\{\{!loading\}\}"[^>]*>\{\{avgDuration \|\| '--'\}\}/)
+})
+
+test('record edit pages isolate delete loading, constrain period dates, and cap notes', () => {
+  const periodEditJs = readPageFile('pages/period/edit/edit.js')
+  const memoryEditJs = readPageFile('pages/memory/edit/edit.js')
+  const periodEditWxml = readPageFile('pages/period/edit/edit.wxml')
+  const memoryEditWxml = readPageFile('pages/memory/edit/edit.wxml')
+
+  assert.match(periodEditJs, /deleting:\s*false/)
+  assert.match(memoryEditJs, /deleting:\s*false/)
+  assert.match(periodEditJs, /if\s*\(\s*this\.data\.deleting\s*\)\s*return/)
+  assert.match(memoryEditJs, /if\s*\(\s*this\.data\.deleting\s*\)\s*return/)
+  assert.match(periodEditJs, /if\s*\(\s*this\.data\.saving\s*\|\|\s*this\.data\.deleting\s*\)\s*return/)
+  assert.match(memoryEditJs, /if\s*\(\s*this\.data\.saving\s*\|\|\s*this\.data\.deleting\s*\)\s*return/)
+
+  assert.match(periodEditWxml, /删除中\.\.\./)
+  assert.match(memoryEditWxml, /删除中\.\.\./)
+  assert.match(periodEditWxml, /wx:if="\{\{!saving && !deleting\}\}"/)
+  assert.match(memoryEditWxml, /wx:if="\{\{!saving && !deleting\}\}"/)
+  assert.match(periodEditWxml, /end="\{\{endDate\}\}"/)
+  assert.match(periodEditWxml, /start="\{\{startDate\}\}"/)
+  assert.match(periodEditWxml, /maxlength="500"/)
+  assert.match(memoryEditWxml, /maxlength="500"/)
+  assert.match(memoryEditWxml, /wx:if="\{\{isEdit\}\}"[\s\S]*编辑欢乐时光/)
+  assert.match(memoryEditWxml, /wx:else[\s\S]*新增欢乐时光/)
 })
 
 test('record pages delegate feedback to shared record command helpers', () => {

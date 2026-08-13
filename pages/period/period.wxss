@@ -1,20 +1,4 @@
 /* ===== Aurora Bloom: Period ===== */
-.page {
-  min-height: 100vh;
-  position: relative;
-}
-
-/* Custom Nav Bar */
-.nav-bar {
-  position: relative;
-  z-index: 10;
-}
-.nav-back {
-  position: relative;
-  z-index: 11;
-  padding: 0;
-}
-
 .content {
   padding: 0 24rpx 30rpx;
   position: relative;
@@ -33,11 +17,6 @@
   box-shadow: 0 8px 32px rgba(232,144,158,0.15);
   position: relative;
   overflow: hidden;
-  animation: cardDropIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-@keyframes cardDropIn {
-  from { opacity: 0; transform: translateY(-20rpx) scale(0.95); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .card-label {
   font-size: 24rpx;
@@ -73,16 +52,7 @@
   margin-bottom: 20rpx;
 }
 
-/* List Items – Glass */
-.premium-card {
-  background: rgba(255,255,255,0.08);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 24rpx;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
-  overflow: hidden;
-}
+/* List Items */
 .list-item {
   display: flex;
   justify-content: space-between;
@@ -118,7 +88,7 @@
 }
 .item-note {
   font-size: 24rpx;
-  color: rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.5);
   margin-top: 6rpx;
 }
 .item-tags {
@@ -128,15 +98,15 @@
   margin-top: 10rpx;
 }
 .item-tag {
-  height: 30rpx;
-  line-height: 30rpx;
+  height: 34rpx;
+  line-height: 34rpx;
   padding: 0 12rpx;
   border-radius: 999rpx;
   box-sizing: border-box;
-  font-size: 19rpx;
+  font-size: 22rpx;
   font-weight: 700;
   color: rgba(255,255,255,0.72);
-  background: rgba(255,255,255,0.08);
+  background: var(--glass-bg);
   border: 1px solid rgba(255,255,255,0.1);
 }
 .item-tag.flow {
@@ -166,7 +136,11 @@
 .empty-state {
   padding: 80rpx 40rpx;
   text-align: center;
-  color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.5);
   font-size: 28rpx;
   line-height: 1.8;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 24rpx;
 }

@@ -19,9 +19,9 @@
         <text class="menu-icon">🔑</text>
         <view class="room-code-content">
           <text class="room-code-label">我的房间码</text>
-          <text class="room-code-value">{{roomCodeDisplay || roomCode || '未绑定'}}</text>
+          <text class="room-code-value {{roomCode ? '' : 'muted'}}">{{roomCodeDisplay || roomCode || '未绑定'}}</text>
         </view>
-        <view class="copy-btn" bindtap="copyRoomCode">复制</view>
+        <view wx:if="{{roomCode}}" class="copy-btn" bindtap="copyRoomCode">复制</view>
       </view>
     </view>
 

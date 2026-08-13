@@ -13,15 +13,15 @@
       <text class="card-label">周期概览</text>
       <view class="cycle-stats">
         <view class="cycle-item">
-          <text class="cycle-num">{{periods.length}}</text>
+          <text wx:if="{{!loading}}" class="cycle-num">{{periods.length}}</text>
           <text class="cycle-label">总记录</text>
         </view>
         <view class="cycle-item">
-          <text class="cycle-num">{{avgCycle || '--'}}</text>
+          <text wx:if="{{!loading}}" class="cycle-num">{{avgCycle || '--'}}</text>
           <text class="cycle-label">平均周期</text>
         </view>
         <view class="cycle-item">
-          <text class="cycle-num">{{avgDuration || '--'}}</text>
+          <text wx:if="{{!loading}}" class="cycle-num">{{avgDuration || '--'}}</text>
           <text class="cycle-label">持续天数</text>
         </view>
       </view>
@@ -29,7 +29,10 @@
 
     <view class="btn-premium fade-in fade-in-d1" bindtap="addPeriod">＋ 新增经期记录</view>
 
-    <view wx:if="{{!loading}}" class="premium-card fade-in fade-in-d2">
+    <view wx:if="{{loadFailed && !loading}}" class="empty-state fade-in" bindtap="loadData">
+      <text>加载失败，点按重试</text>
+    </view>
+    <view wx:elif="{{periods.length > 0 && !loading}}" class="premium-card fade-in fade-in-d2">
       <view class="list-item" wx:for="{{periods}}" wx:key="_id" wx:for-index="i" bindtap="editPeriod" data-index="{{i}}" style="animation-delay:{{(i * 0.05) + 0.3}}s">
         <view class="item-left">
           <view class="item-date">{{item.startDate}} ~ {{item.endDate}}</view>
@@ -42,16 +45,16 @@
               class="item-tag"
             >{{tag}}</text>
           </view>
-          <view class="item-note">{{item.note || '无备注'}}</view>
+          <view wx:if="{{item.note}}" class="item-note">{{item.note}}</view>
         </view>
         <view class="item-right">
           <text class="item-duration">{{item.duration}}天</text>
           <text class="item-arrow">›</text>
         </view>
       </view>
-      <view wx:if="{{periods.length === 0}}" class="empty-state">
-        <text>还没有经期记录\n点上面按钮新增</text>
-      </view>
+    </view>
+    <view wx:elif="{{periods.length === 0 && !loading}}" class="empty-state fade-in">
+      <text>还没有经期记录\n点上面按钮新增</text>
     </view>
 
     <view wx:if="{{loading}}" class="loading-view">

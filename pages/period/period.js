@@ -6,7 +6,7 @@ const recordEditRoute = require('../../utils/recordEditRoute')
 
 Page({
   goBack() { wx.navigateBack() },
-  data: { periods: [], avgCycle: null, avgDuration: null, loading: true },
+  data: { periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false },
 
   onShow() { return this.loadData() },
 
