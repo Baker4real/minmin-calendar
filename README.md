@@ -34,7 +34,12 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 
 Open this folder in WeChat Developer Tools using `project.config.json`.
 
-`project.config.json` carries two independent exclusion lists. `packOptions.ignore` only affects what gets uploaded; `watchOptions.ignore` is what keeps the IDE file watcher off `.git/`, `cloudfunctions/**/node_modules/` and local agent/tool directories. Both are needed: without `watchOptions.ignore` the IDE watches ~11k files, slows cold start, and reports a `.git` change every 15 seconds as a spurious hot reload. The IDE reads `watchOptions.ignore` only when it initializes the project watcher, so changes to it require reopening the project, not just a recompile.
+`project.config.json` carries two independent exclusion lists. `packOptions.ignore` only affects what gets uploaded; `watchOptions.ignore` is what keeps the IDE file watcher off `.git/`, `cloudfunctions/**/node_modules/` and local agent/tool directories. Both are needed: without `watchOptions.ignore` the IDE watches ~11k files, which slows cold start and produces spurious hot-reload activity.
+
+Two details make `watchOptions.ignore` easy to get wrong:
+
+- The IDE reads it only when it initializes the project watcher, so edits require reopening the project — a recompile is not enough. Confirm the loaded list in the IDE log's `new FileUtils instance dirpath = <project root>` block rather than assuming the file on disk is active.
+- The watcher emits events for bare directory paths (`.git`) as well as paths inside them. A `dir/**/*` pattern does not match the bare `dir` event, so each ignored directory needs both its bare name and its subpath glob. This matters for `.git` specifically because a plain `git status` bumps the `.git` directory mtime without modifying any file inside it, so routine git usage alone is enough to trigger the event.
 
 The mini program initializes WeChat Cloud in `app.js` with:
 
