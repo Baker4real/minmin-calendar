@@ -34,6 +34,8 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 
 Open this folder in WeChat Developer Tools using `project.config.json`.
 
+`project.config.json` carries two independent exclusion lists. `packOptions.ignore` only affects what gets uploaded; `watchOptions.ignore` is what keeps the IDE file watcher off `.git/`, `cloudfunctions/**/node_modules/` and local agent/tool directories. Both are needed: without `watchOptions.ignore` the IDE watches ~11k files, slows cold start, and reports a `.git` change every 15 seconds as a spurious hot reload. The IDE reads `watchOptions.ignore` only when it initializes the project watcher, so changes to it require reopening the project, not just a recompile.
+
 The mini program initializes WeChat Cloud in `app.js` with:
 
 ```js
