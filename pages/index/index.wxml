@@ -9,7 +9,7 @@
     <view class="nav-placeholder"></view>
   </view>
 
-  <view wx:if="{{noRoom}}" class="no-room fade-in">
+  <view wx:if="{{noRoom}}" class="no-room">
     <view class="no-room-icon">❤️</view>
     <text class="no-room-title">{{roomStatusTitle}}</text>
     <text class="no-room-desc">{{roomStatusDesc}}</text>
@@ -20,7 +20,7 @@
     <view class="loading-spinner"></view>
   </view>
 
-  <view wx:else class="content fade-in {{refreshing ? 'content-refreshing' : ''}}">
+  <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}">
     <view wx:if="{{syncStatusVisible}}" class="sync-pill {{refreshing ? 'syncing' : ''}}">
       <view class="sync-dot"></view>
       <text class="sync-text">{{syncStatusText}}</text>
@@ -79,7 +79,6 @@
     <view class="calendar-grid calendar-density-{{calendarDensity}}">
       <view
         class="day-cell {{item.isToday ? 'today' : ''}} {{item.isPeriod ? 'period' : ''}} {{item.isMemory ? 'memory' : ''}} {{item.isPredict ? 'predict' : ''}} {{item.isHoliday ? 'holiday' : ''}} {{item.isWorkday ? 'workday' : ''}} {{item.isEmpty ? 'empty' : ''}}"
-        style="{{item.isEmpty ? '' : 'animation-delay:' + (index * 0.03) + 's'}}"
         wx:for="{{days}}"
         wx:key="index"
         bindtap="onDayTap"
@@ -99,19 +98,19 @@
       </view>
     </view>
 
-    <view class="stats-card premium-card fade-in fade-in-d1">
+    <view class="stats-card premium-card">
       <view class="stats-row">
-        <view class="stat-item stat-delay-1">
+        <view class="stat-item">
           <text class="stat-num">{{periods ? periods.length : 0}}</text>
           <text class="stat-label">经期记录</text>
         </view>
         <view class="stat-divider"></view>
-        <view class="stat-item stat-delay-2">
+        <view class="stat-item">
           <text class="stat-num">{{avgCycle || '--'}}</text>
           <text class="stat-label">平均周期</text>
         </view>
         <view class="stat-divider"></view>
-        <view class="stat-item predict-item stat-delay-3">
+        <view class="stat-item predict-item">
           <view class="predict-value">
             <text class="predict-date">{{nextPredictDisplay || '--'}}</text>
             <text wx:if="{{nextPredictWeekday}}" class="predict-weekday">{{nextPredictWeekday}}</text>
@@ -125,7 +124,7 @@
       </view>
     </view>
 
-    <view wx:if="{{cycleReminders.length}}" class="reminder-stack fade-in fade-in-d2">
+    <view wx:if="{{cycleReminders.length}}" class="reminder-stack">
       <view
         class="reminder-card {{item.type}}"
         wx:for="{{cycleReminders}}"
@@ -142,7 +141,7 @@
       </view>
     </view>
 
-    <view class="quick-actions fade-in fade-in-d2">
+    <view class="quick-actions">
       <view class="quick-btn" bindtap="quickPeriod">
         <text class="quick-icon">🩸</text>
         <text class="quick-text">记经期</text>
