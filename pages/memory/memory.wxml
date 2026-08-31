@@ -9,13 +9,13 @@
   </view>
 
   <view class="content">
-    <view class="btn-premium fade-in" bindtap="addMemory">＋ 记录欢乐时光</view>
+    <view class="btn-premium" bindtap="addMemory">＋ 记录欢乐时光</view>
 
-    <view wx:if="{{loadFailed && !loading}}" class="empty-state fade-in" bindtap="loadData">
+    <view wx:if="{{loadFailed && !loading}}" class="empty-state" bindtap="loadData">
       <text>加载失败，点按重试</text>
     </view>
-    <view wx:elif="{{memories.length > 0 && !loading}}" class="premium-card fade-in fade-in-d1">
-      <view class="list-item" wx:for="{{memories}}" wx:key="_id" wx:for-index="i" bindtap="editMemory" data-index="{{i}}" style="animation-delay:{{(i * 0.05) + 0.25}}s">
+    <view wx:elif="{{memories.length > 0 && !loading}}" class="premium-card">
+      <view class="list-item" wx:for="{{memories}}" wx:key="_id" wx:for-index="i" bindtap="editMemory" data-index="{{i}}">
         <view class="memory-left">
           <text class="memory-heart">❤️</text>
           <view class="memory-info">
@@ -27,7 +27,7 @@
       </view>
     </view>
 
-    <view wx:elif="{{memories.length === 0 && !loading}}" class="empty-state fade-in">
+    <view wx:elif="{{memories.length === 0 && !loading}}" class="empty-state">
       <text>还没有记录\n点上面按钮新增</text>
     </view>
 
