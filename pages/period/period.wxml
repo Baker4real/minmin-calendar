@@ -1,4 +1,4 @@
-<view class="page safe-top">
+<view class="page safe-top" style="--safe-top: {{safeTop}}px">
   <view class="nav-bar header-gradient">
     <view class="nav-back" bindtap="goBack">
       <view class="nav-back-surface"></view>

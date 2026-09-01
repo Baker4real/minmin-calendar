@@ -119,6 +119,8 @@ For UI changes, also verify in WeChat Developer Tools at a small-phone width.
 2026-08-13：`page` 上的 `auroraFlow` 已删除，理由是全屏 `background-position` 动画会每帧触发整页 repaint，页面动感改由 `.page::before` 的 `auroraPulse` 承担。`tabBar.borderStyle` 经审查保持 `white`。tab 图标 81×81 缺设计源，未做。
 2026-08-14：微信开发者工具重新编译通过，启动可用；此前控制台单独出现的 `WAServiceMainContext.js` `Error: timeout` 未再复现。真机小屏目检和 tab 图标重出仍未做。
 
+2026-09-01：修复滚动后顶部显示不全与底部色带分层。顶部：`env(safe-area-inset-top)` 在部分 Android 设备解析为 0，自定义导航栏顶进系统状态栏；现由 `utils/safeArea.js` 用 `wx.getWindowInfo()` 计算状态栏高度（px），各页面根节点内联 `--safe-top` CSS 变量注入 `.safe-top` 与 index 的 `.sync-pill`。底部：原 `page` 线性渐变随文档高度拉伸，滚动到底部回到 #0A0E27 形成色带；且 `pageEnter` 位移动画因 fill-mode both 永久保留 transform，使 `position:fixed` 的 `.page::before` 退化为相对文档定位。现 `page` 改为实色 #0A0E27 基底，渐变并入视口固定的 `.page::before` 末层，`pageEnter` 只保留淡入。真机/DevTools 目检仍未做。
+
 ## Repository Hygiene
 
 Generated dependencies, local tool state, imported reference material, and historical `hermes-*` maintenance reports are ignored by `.gitignore`.

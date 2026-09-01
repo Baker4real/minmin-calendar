@@ -3,10 +3,11 @@ const cloud = require('../../utils/cloud')
 const cycle = require('../../utils/cycle')
 const recordCommands = require('../../utils/recordCommands')
 const recordEditRoute = require('../../utils/recordEditRoute')
+const safeArea = require('../../utils/safeArea')
 
 Page({
   goBack() { wx.navigateBack() },
-  data: { periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false },
+  data: { safeTop: safeArea.getSafeTop(), periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false },
 
   onShow() { return this.loadData() },
 

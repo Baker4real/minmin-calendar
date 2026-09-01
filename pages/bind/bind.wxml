@@ -1,4 +1,4 @@
-<view class="page safe-top">
+<view class="page safe-top" style="--safe-top: {{safeTop}}px">
   <view class="content">
     <view class="hero fade-in">
       <view class="hero-icon">❤️</view>

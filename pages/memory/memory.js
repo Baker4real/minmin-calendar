@@ -2,10 +2,11 @@ const cloud = require('../../utils/cloud')
 const util = require('../../utils/util')
 const recordCommands = require('../../utils/recordCommands')
 const recordEditRoute = require('../../utils/recordEditRoute')
+const safeArea = require('../../utils/safeArea')
 
 Page({
   goBack() { wx.navigateBack() },
-  data: { memories: [], loading: true, loadFailed: false },
+  data: { safeTop: safeArea.getSafeTop(), memories: [], loading: true, loadFailed: false },
 
   onShow() { return this.loadData() },
 

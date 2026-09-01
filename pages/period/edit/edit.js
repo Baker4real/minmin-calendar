@@ -4,9 +4,11 @@ const cycle = require('../../../utils/cycle')
 const recordCommands = require('../../../utils/recordCommands')
 const recordEditRoute = require('../../../utils/recordEditRoute')
 const recordPageSync = require('../../../utils/recordPageSync')
+const safeArea = require('../../../utils/safeArea')
 
 Page({
   data: {
+    safeTop: safeArea.getSafeTop(),
     id: '',
     startDate: '',
     endDate: '',

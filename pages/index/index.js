@@ -4,6 +4,7 @@ const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const recordEditRoute = require('../../utils/recordEditRoute')
 const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
+const safeArea = require('../../utils/safeArea')
 
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
 const SYNC_STATUS_CLEAR_DELAY = 1600
@@ -17,6 +18,7 @@ const INITIAL_HOME_STATE = buildHomeCalendarState({
 
 Page({
   data: {
+    safeTop: safeArea.getSafeTop(),
     year: INITIAL_VIEW_DATE.getFullYear(),
     month: INITIAL_VIEW_DATE.getMonth(),
     weekDays: ['日','一','二','三','四','五','六'],

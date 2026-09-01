@@ -1,8 +1,10 @@
 const roomSession = require('../../utils/room')
 const settingsFlow = require('../../utils/settingsFlow')
+const safeArea = require('../../utils/safeArea')
 
 Page({
   data: {
+    safeTop: safeArea.getSafeTop(),
     tab: 'create',
     bound: false,
     roomCode: '',

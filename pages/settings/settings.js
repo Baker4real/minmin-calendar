@@ -2,9 +2,10 @@ const cloud = require('../../utils/cloud')
 const roomSession = require('../../utils/room')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const settingsFlow = require('../../utils/settingsFlow')
+const safeArea = require('../../utils/safeArea')
 
 Page({
-  data: { roomCode: '', roomCodeDisplay: '未绑定' },
+  data: { safeTop: safeArea.getSafeTop(), roomCode: '', roomCodeDisplay: '未绑定' },
 
   async onShow() {
     const room = await roomSession.getVerifiedActiveRoom()

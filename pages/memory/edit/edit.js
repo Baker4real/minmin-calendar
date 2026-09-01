@@ -3,9 +3,10 @@ const cloud = require('../../../utils/cloud')
 const recordCommands = require('../../../utils/recordCommands')
 const recordEditRoute = require('../../../utils/recordEditRoute')
 const recordPageSync = require('../../../utils/recordPageSync')
+const safeArea = require('../../../utils/safeArea')
 
 Page({
-  data: { id: '', date: '', note: '', isEdit: false, saving: false, deleting: false },
+  data: { safeTop: safeArea.getSafeTop(), id: '', date: '', note: '', isEdit: false, saving: false, deleting: false },
 
   onLoad(options) {
     this.setData(recordEditRoute.parseMemoryEditOptions(options, {
