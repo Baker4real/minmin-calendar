@@ -45,7 +45,7 @@ function buildMonthlyRecap({ year, month, periods = [], memories = [], predictio
   const highlights = []
 
   monthPeriods.forEach(period => {
-    const highlight = formatPeriodHighlight(period)
+    const highlight = formatPeriodHighlight(period, monthStart, monthEnd)
     if (highlight) highlights.push(highlight)
   })
 
@@ -53,9 +53,7 @@ function buildMonthlyRecap({ year, month, periods = [], memories = [], predictio
   if (memoryHighlight) highlights.push(memoryHighlight)
 
   const title = `${year}年${month + 1}月小结`
-  const periodSummary = monthPeriods.length
-    ? `本月记录了 ${monthPeriods.length} 次经期，共 ${periodDays} 天`
-    : '本月暂无经期记录'
+  const periodSummary = formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd)
   const memorySummary = monthMemories.length
     ? `留下 ${monthMemories.length} 条欢乐时光`
     : '本月还没有欢乐时光'
@@ -78,7 +76,32 @@ function formatPredictionSummary(prediction) {
   return `下次预测 ${prediction.nextDisplay}，区间 ${prediction.rangeDisplay}（${prediction.confidenceText}）`
 }
 
-function formatPeriodHighlight(period) {
+function formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd) {
+  if (!monthPeriods.length) return '本月暂无经期记录'
+
+  const spanning = monthPeriods.some(period => {
+    const range = normalizePeriodRange(period)
+    return range && !isPeriodFullyInMonth(range, monthStart, monthEnd)
+  })
+  if (!spanning) return `本月记录了 ${monthPeriods.length} 次经期，共 ${periodDays} 天`
+
+  let startedCount = 0
+  let continuedCount = 0
+  monthPeriods.forEach(period => {
+    const range = normalizePeriodRange(period)
+    if (!range) return
+    if (range.startDate >= monthStart && range.startDate <= monthEnd) startedCount += 1
+    else if (range.startDate < monthStart) continuedCount += 1
+  })
+
+  const parts = []
+  if (startedCount) parts.push(`本月开始 ${startedCount} 次`)
+  if (continuedCount) parts.push(`从上月延续 ${continuedCount} 次`)
+  parts.push(`本月 ${periodDays} 天`)
+  return parts.join('，')
+}
+
+function formatPeriodHighlight(period, monthStart, monthEnd) {
   const range = normalizePeriodRange(period)
   if (!range) return ''
 
@@ -89,7 +112,12 @@ function formatPeriodHighlight(period) {
     endDate: range.endDate,
     duration
   })
-  const parts = [`经期：${formatMonthDay(detail.startDate)}-${formatMonthDay(detail.endDate)}`, `${duration}天`]
+  const parts = [`经期：${formatMonthDay(detail.startDate)}-${formatMonthDay(detail.endDate)}`]
+  if (isPeriodFullyInMonth(range, monthStart, monthEnd)) {
+    parts.push(`${duration}天`)
+  } else {
+    parts.push(`整段 ${duration} 天`, `本月 ${getPeriodDaysInMonth(period, monthStart, monthEnd)} 天`)
+  }
   if (detail.flowLabel) parts.push(`经量 ${detail.flowLabel}`)
   if (detail.symptomText) parts.push(detail.symptomText)
   return parts.join('，')
@@ -134,6 +162,10 @@ function overlapsMonth(period, monthStart, monthEnd) {
   const range = normalizePeriodRange(period)
   if (!range) return false
   return range.endDate >= monthStart && range.startDate <= monthEnd
+}
+
+function isPeriodFullyInMonth(range, monthStart, monthEnd) {
+  return range.startDate >= monthStart && range.endDate <= monthEnd
 }
 
 function getPeriodDaysInMonth(period, monthStart, monthEnd) {

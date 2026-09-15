@@ -12,7 +12,10 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - **Room**: A private two-person sharing space identified by a six-character `roomCode`.
 - **Room leave**: A server-side membership revoke flow that removes the current user from a Room while preserving the remaining member when present.
 - **Archived room**: A room with no active members. Its `roomCode` and records are retained for explicit creator recovery, but normal record CRUD is closed until recovery.
-- **Period record**: A date range with optional note, calculated duration, flow level, and symptom tags.
+- **Period record**: A date range with optional note, Period duration, flow level, and symptom tags. A range that overlaps more than one calendar month is still one Period record, not one record per month.
+- **Period duration**: Inclusive day count of one Period record from `startDate` through `endDate`. This is a property of the record, not of a month view.
+- **Monthly recap / 小结**: Homepage summary for one viewed calendar month. It lists Period records and Memory records that overlap that month. It is not a second Period record.
+- **Days in viewed month**: Inclusive day count of the intersection between a Period record's date range and the Monthly recap's calendar month. This is not Period duration.
 - **Memory record / happy time**: A dated note shown as a heart marker on the calendar.
 - **Calendar cell**: A homepage day tile that may show date number, lunar text, holiday/workday tag, and markers.
 - **Prediction**: Estimated next period range derived from previous period gaps, with confidence and reminder states.
@@ -23,6 +26,7 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 ## Product Principles
 
 - Calendar markers must be semantically clear. A visual symbol should not mean two different things.
+- Monthly recap copy must not use unlabeled 「天」 for both Period duration and Days in viewed month. Any viewed month that does not fully contain a Period record states both quantities and that the same record continues across months, including the start month and year boundaries. Recap occurrence counts distinguish records that started this month from records continued from the previous month. Period duration is stated per Period record; the month total is Days in viewed month, never the sum of Period durations.
 - Shared data must stay room-scoped and private.
 - The app should feel soft and personal, but not at the expense of readability.
 - Date behavior should be tested before UI code relies on it.

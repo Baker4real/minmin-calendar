@@ -79,6 +79,124 @@ test('buildMonthlyRecap creates a gentle shareable recap for the selected month'
   assert.match(recap.shareText, /留下 2 条欢乐时光/)
 })
 
+test('buildMonthlyRecap states period duration and days in viewed month separately when a period spans months', () => {
+  const spanning = period('2026-08-28', '2026-09-01')
+
+  const august = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 7,
+    periods: [spanning]
+  })
+  const september = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 8,
+    periods: [spanning]
+  })
+
+  assert.equal(august.periodSummary, '本月开始 1 次，本月 4 天')
+  assert.deepEqual(august.highlights, [
+    '经期：08月28日-09月01日，整段 5 天，本月 4 天'
+  ])
+  assert.equal(september.periodSummary, '从上月延续 1 次，本月 1 天')
+  assert.deepEqual(september.highlights, [
+    '经期：08月28日-09月01日，整段 5 天，本月 1 天'
+  ])
+  assert.match(august.shareText, /本月开始 1 次，本月 4 天/)
+  assert.match(august.shareText, /经期：08月28日-09月01日，整段 5 天，本月 4 天/)
+  assert.match(september.shareText, /从上月延续 1 次，本月 1 天/)
+  assert.doesNotMatch(september.shareText, /本月记录了 1 次经期，共 1 天/)
+})
+
+test('buildMonthlyRecap counts two periods continued from the previous month', () => {
+  const recap = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 8,
+    periods: [
+      period('2026-08-28', '2026-09-01'),
+      period('2026-08-30', '2026-09-03')
+    ]
+  })
+
+  assert.equal(recap.periodSummary, '从上月延续 2 次，本月 4 天')
+  assert.deepEqual(recap.highlights, [
+    '经期：08月28日-09月01日，整段 5 天，本月 1 天',
+    '经期：08月30日-09月03日，整段 5 天，本月 3 天'
+  ])
+})
+
+test('buildMonthlyRecap splits started and continued counts when a month has both', () => {
+  const recap = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 8,
+    periods: [
+      period('2026-08-28', '2026-09-01'),
+      period('2026-09-20', '2026-09-24')
+    ]
+  })
+
+  assert.equal(recap.periodSummary, '本月开始 1 次，从上月延续 1 次，本月 6 天')
+  assert.deepEqual(recap.highlights, [
+    '经期：08月28日-09月01日，整段 5 天，本月 1 天',
+    '经期：09月20日-09月24日，5天'
+  ])
+})
+
+test('buildMonthlyRecap uses the same started and continued copy across a year boundary', () => {
+  const spanning = period('2026-12-28', '2027-01-01')
+
+  const december = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 11,
+    periods: [spanning]
+  })
+  const january = insights.buildMonthlyRecap({
+    year: 2027,
+    month: 0,
+    periods: [spanning]
+  })
+
+  assert.equal(december.periodSummary, '本月开始 1 次，本月 4 天')
+  assert.deepEqual(december.highlights, [
+    '经期：12月28日-01月01日，整段 5 天，本月 4 天'
+  ])
+  assert.equal(january.periodSummary, '从上月延续 1 次，本月 1 天')
+  assert.deepEqual(january.highlights, [
+    '经期：12月28日-01月01日，整段 5 天，本月 1 天'
+  ])
+})
+
+test('buildMonthlyRecap keeps flow and symptoms after spanning duration labels', () => {
+  const recap = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 8,
+    periods: [{
+      startDate: '2026-08-28',
+      endDate: '2026-09-01',
+      duration: 5,
+      flow: 'heavy',
+      symptoms: ['cramps']
+    }]
+  })
+
+  assert.deepEqual(recap.highlights, [
+    '经期：08月28日-09月01日，整段 5 天，本月 1 天，经量 量多，痛经'
+  ])
+})
+
+test('buildMonthlyRecap treats a middle month of a three-month period as continued from last month', () => {
+  const spanning = period('2026-08-28', '2026-10-02')
+  const september = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 8,
+    periods: [spanning]
+  })
+
+  assert.equal(september.periodSummary, '从上月延续 1 次，本月 30 天')
+  assert.deepEqual(september.highlights, [
+    '经期：08月28日-10月02日，整段 36 天，本月 30 天'
+  ])
+})
+
 test('buildMonthlyRecap ignores impossible dates before deriving counts and highlights', () => {
   const recap = insights.buildMonthlyRecap({
     year: 2026,
@@ -127,6 +245,7 @@ test('buildMonthlyRecap collapses repeated default memory labels in highlights',
     ]
   })
 
+  assert.equal(recap.periodSummary, '本月暂无经期记录')
   assert.equal(recap.memorySummary, '留下 5 条欢乐时光')
   assert.deepEqual(recap.highlights, [
     '欢乐时光：5 个特别日子'
