@@ -28,7 +28,7 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - Calendar markers must be semantically clear. A visual symbol should not mean two different things.
 - Monthly recap copy must not use unlabeled 「天」 for both Period duration and Days in viewed month. Any viewed month that does not fully contain a Period record states both quantities and that the same record continues across months, including the start month and year boundaries. Recap occurrence counts distinguish records that started this month from records continued from the previous month. Period duration is stated per Period record; the month total is Days in viewed month, never the sum of Period durations.
 - Shared data must stay room-scoped and private.
-- The app should feel soft and personal, but not at the expense of readability.
+- The app should feel soft and personal, but not at the expense of readability. Color, type size, and calendar-cell treatment live in `DESIGN.md`; this file owns marker meaning.
 - Date behavior should be tested before UI code relies on it.
 
 ## Technical Shape
@@ -71,45 +71,6 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 
 ## Verification Baseline
 
-Use these checks after date, room, calendar, or page behavior changes:
-
-下列命令以仓库根为当前目录展示。通过 Codex Desktop shell 执行时，必须把 `node --test` / `node --check` 的路径展开为绝对路径；shell wrapper 可能无法可靠解析相对路径。
-
-```powershell
-node --test tests\page-registration.test.js tests\room-data-client.test.js tests\room-resolver.test.js tests\index-page.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
-node --check cloudfunctions\_shared\roomMembershipLifecycle.js
-node --check cloudfunctions\_shared\syncRoomMembershipLifecycle.js
-node --check cloudfunctions\createRoom\roomMembershipLifecycle.js
-node --check cloudfunctions\createRoom\index.js
-node --check cloudfunctions\joinRoom\roomMembershipLifecycle.js
-node --check cloudfunctions\joinRoom\index.js
-node --check cloudfunctions\getMyRoom\roomMembershipLifecycle.js
-node --check cloudfunctions\getMyRoom\index.js
-node --check cloudfunctions\leaveRoom\roomMembershipLifecycle.js
-node --check cloudfunctions\leaveRoom\index.js
-node --check cloudfunctions\dataOp\dataOpHandler.js
-node --check cloudfunctions\dataOp\roomRecords.js
-node --check cloudfunctions\dataOp\index.js
-node --check utils\room.js
-node --check utils\cloud.js
-node --check utils\roomAccessOutcome.js
-node --check utils\recordCommands.js
-node --check utils\recordPageSync.js
-node --check utils\recordEditRoute.js
-node --check utils\settingsFlow.js
-node --check utils\roomRecordsSnapshot.js
-node --check utils\homeCalendarState.js
-node --check utils\util.js
-node --check utils\cycle.js
-node --check utils\calendarInsights.js
-node --check pages\index\index.js
-node --check pages\bind\bind.js
-node --check pages\settings\settings.js
-node --check pages\memory\memory.js
-node --check pages\memory\edit\edit.js
-node --check pages\period\period.js
-node --check pages\period\edit\edit.js
-node cloudfunctions\_shared\syncRoomMembershipLifecycle.js --check
-```
+After date, room, calendar, or page behavior changes, run the command set in `README.md` Verification. Expand test and source paths to absolute paths when the shell cannot resolve relatives.
 
 Manual WeChat DevTools verification is still needed for layout and end-to-end room flow behavior.

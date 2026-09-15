@@ -144,7 +144,7 @@ components:
 - 各页 0.62–0.94 信息文本透明度是逐元素调校，不要机械归并。
 - 可点控件只描述 Default 与 Pressed。Pressed 用 `:active` `scale(0.94–0.98)`；主按钮 `.btn-premium` 为 `0.96`。
 - `calendar-cell` 与下文日历状态表对齐 `pages/index` 与 `CALENDAR_LEGEND_ITEMS`。没有「整格选中底 = 经期」。
-- 日历微字 `.day-tag` / `.predict-mark` / `.predict-confidence` 为 `26rpx`（caption 量级）；compact 密度下仍放进格子，不继续缩小。
+- 日历微字 `.day-tag` / `.predict-mark` / `.predict-confidence` 字号为 `26rpx`（caption 量级）。节日/调休 `.day-tag` 与 `.day-tag-line` 盒高 `38rpx`（大于字号，覆盖 caption 行高），避免 CJK 被裁切。compact 密度下仍放进日期与标记，不把微字再缩小。
 
 主填充按钮是玫瑰底 `#E8909E` + 画布海军字 `#0A0E27`。同结构的复制键（`.copy-btn`）和绑定选中块走同一对色。不要把白字叠玫瑰写成规范。
 
@@ -163,7 +163,7 @@ Removed from original: neon green, hot pink, cyan, bright gold. Too aggressive f
 
 ## Typography
 
-System font stack for zero-bloat + excellent CJK rendering. H1 2rem/700 for month titles. Body-lg 1.0625rem/400/1.6 for diary reading. Caption 0.8125rem/500 with letter-spacing for week headers. Calendar holiday tags and 「预」 stay at caption scale: `.day-tag` / `.predict-mark` / `.predict-confidence` are `26rpx`.
+System font stack for zero-bloat + excellent CJK rendering. H1 2rem/700 for month titles. Body-lg 1.0625rem/400/1.6 for diary reading. Caption 0.8125rem/500 with letter-spacing for week headers. Calendar holiday tags and 「预」 stay at caption scale: `.day-tag` / `.predict-mark` / `.predict-confidence` are `26rpx`. The holiday/workday `.day-tag` box is `38rpx` tall so CJK glyphs are not clipped.
 
 ## Components
 

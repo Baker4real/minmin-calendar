@@ -78,7 +78,7 @@ Run the lightweight local checks after changing date, prediction, room, calendar
 下列命令假设当前目录是项目根；通过 Codex Desktop shell 执行时，应把测试和源码路径展开为绝对路径。
 
 ```powershell
-node --test tests\page-registration.test.js tests\room-data-client.test.js tests\room-resolver.test.js tests\index-page.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
+node --test tests\page-registration.test.js tests\room-data-client.test.js tests\room-resolver.test.js tests\index-page.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\calendar-micro-labels.test.js tests\chip-contrast.test.js tests\contrast-guardrail.test.js tests\filled-cta-contrast.test.js tests\glass-fallback.test.js tests\no-hover-tokens.test.js tests\tabbar-contrast.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
 node --check cloudfunctions\_shared\roomMembershipLifecycle.js
 node --check cloudfunctions\_shared\syncRoomMembershipLifecycle.js
 node --check cloudfunctions\createRoom\roomMembershipLifecycle.js
@@ -121,6 +121,8 @@ For UI changes, also verify in WeChat Developer Tools at a small-phone width.
 
 2026-09-01：修复滚动后顶部显示不全与底部色带分层。顶部：`env(safe-area-inset-top)` 在部分 Android 设备解析为 0，自定义导航栏顶进系统状态栏；现由 `utils/safeArea.js` 用 `wx.getWindowInfo()` 计算状态栏高度（px），各页面根节点内联 `--safe-top` CSS 变量注入 `.safe-top` 与 index 的 `.sync-pill`。底部：原 `page` 线性渐变随文档高度拉伸，滚动到底部回到 #0A0E27 形成色带；且 `pageEnter` 位移动画因 fill-mode both 永久保留 transform，使 `position:fixed` 的 `.page::before` 退化为相对文档定位。现 `page` 改为实色 #0A0E27 基底，渐变并入视口固定的 `.page::before` 末层，`pageEnter` 只保留淡入。真机/DevTools 目检仍未做。
 
+2026-09-15：Aurora Bloom 可读性收口已合入 `4bd1b54`：主填充为海军字叠玫瑰、tab 未选中 `#7A7C8C`、玻璃叠层带不透明海军回退、节日标签盒高 `38rpx` 以免 CJK 裁切。`DESIGN.md` 是唯一现行视觉说明。微信开发者工具小屏目视仍未做。
+
 ## Repository Hygiene
 
 Generated dependencies, local tool state, imported reference material, and historical `hermes-*` maintenance reports are ignored by `.gitignore`.
@@ -129,6 +131,7 @@ Do not commit:
 
 - `cloudfunctions/**/node_modules/`
 - `project.private.config.json`
+- IDE-only churn in `project.config.json`. That file stays tracked because DevTools opens the project with it; commit it only when `appid`, `packOptions`, `watchOptions`, or compile settings actually change.
 - `.codegraph/`
 - `.codex/`
 - `.serena/`
