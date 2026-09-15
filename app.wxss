@@ -12,9 +12,7 @@ page {
 
   /* Glass */
   --glass-bg: rgba(255,255,255,0.08);
-  --glass-bg-hover: rgba(255,255,255,0.15);
   --glass-border: rgba(255,255,255,0.12);
-  --glass-border-hover: rgba(255,255,255,0.25);
   --glass-glow: rgba(232,144,158,0.15);
   --glass-inset: inset 0 1px 0 rgba(255,255,255,0.15);
 
@@ -158,7 +156,7 @@ page {
   bottom: 10rpx;
   left: 10rpx;
   border-radius: 24rpx;
-  background: rgba(255,255,255,0.09);
+  background: rgba(255,255,255,0.09), rgba(18,22,61,0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(232,144,158,0.28);
@@ -179,7 +177,7 @@ page {
   transform: scale(0.94);
 }
 .nav-back:active .nav-back-surface {
-  background: rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.14), rgba(18,22,61,0.92);
   border-color: rgba(232,144,158,0.42);
   box-shadow:
     0 4rpx 12rpx rgba(10,14,39,0.16),
@@ -189,7 +187,7 @@ page {
 
 /* ===== Premium Card (Glass) ===== */
 .premium-card {
-  background: var(--glass-bg);
+  background: var(--glass-bg), rgba(18,22,61,0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: 24rpx;
@@ -217,7 +215,7 @@ page {
   justify-content: center;
   gap: 12rpx;
   background: #E8909E;
-  color: #fff;
+  color: #0A0E27;
   border-radius: var(--radius-md);
   padding: 26rpx 0;
   font-size: 30rpx;
@@ -242,7 +240,7 @@ page {
 
 /* ===== Danger Button — 柔红，与玫瑰体系同族 ===== */
 .btn-danger {
-  background: var(--glass-bg);
+  background: var(--glass-bg), rgba(18,22,61,0.92);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   color: #F97373;
@@ -255,12 +253,12 @@ page {
 }
 .btn-danger:active {
   transform: scale(0.95);
-  background: rgba(249,115,115,0.12);
+  background: rgba(249,115,115,0.12), rgba(18,22,61,0.92);
 }
 
 /* ===== Header Gradient ===== */
 .header-gradient {
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.05), rgba(18,22,61,0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255,255,255,0.1);

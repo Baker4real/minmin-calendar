@@ -97,7 +97,7 @@
   justify-content: center;
   box-sizing: border-box;
   background: #E8909E;
-  color: #fff;
+  color: #0A0E27;
   padding: 0 28rpx;
   border-radius: 12rpx;
   font-size: 24rpx;

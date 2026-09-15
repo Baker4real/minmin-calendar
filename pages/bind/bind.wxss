@@ -54,7 +54,7 @@
   overflow: hidden;
   border: 1px solid rgba(255,255,255,0.15);
   margin-bottom: 30rpx;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.05), rgba(18,22,61,0.92);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -74,7 +74,7 @@
 }
 .tab.active {
   background: #E8909E;
-  color: #fff;
+  color: #0A0E27;
   font-weight: 600;
 }
 .info-text {
@@ -95,7 +95,7 @@
   letter-spacing: 12rpx;
   text-indent: 12rpx;
   margin-bottom: 30rpx;
-  background: var(--glass-bg);
+  background: var(--glass-bg), rgba(18,22,61,0.92);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   font-weight: 700;

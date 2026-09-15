@@ -7,7 +7,7 @@
 
 /* Cycle Card – 玫瑰薰衣草渐变 + Glass */
 .cycle-card {
-  background: linear-gradient(135deg, rgba(232,144,158,0.18), rgba(196,160,210,0.12));
+  background: linear-gradient(135deg, rgba(232,144,158,0.18), rgba(196,160,210,0.12)), rgba(18,22,61,0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,0.12);
@@ -128,7 +128,7 @@
   color: rgba(255,255,255,0.5);
   font-size: 28rpx;
   line-height: 1.8;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.05), rgba(18,22,61,0.92);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.08);

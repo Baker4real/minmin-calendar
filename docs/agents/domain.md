@@ -14,7 +14,7 @@ This repository uses a single-context documentation layout.
 | Purpose | Path |
 |---------|------|
 | Domain context | `CONTEXT.md` |
-| 视觉方向（目标稿，部分实现） | `DESIGN.md` |
+| 视觉规则（现行 Aurora Bloom） | `DESIGN.md` |
 | Architecture decisions | `docs/adr/` |
 | 已批准的设计记录 | `docs/specs/` |
 | 历史实施分解 | `docs/plans/` |
@@ -23,6 +23,7 @@ This repository uses a single-context documentation layout.
 ## Consumer Rules
 
 - Read `CONTEXT.md` before making domain or UX decisions.
+- Visual work follows current `DESIGN.md` rules. Do not keep a second target-vs-baseline track.
 - Read relevant source, tests, and ADRs before touching architecture, cloud functions, date logic, or UI conventions.
 - Add ADRs under `docs/adr/` for decisions that affect future implementation choices.
 
