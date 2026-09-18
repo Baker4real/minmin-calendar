@@ -16,6 +16,7 @@ project.private.config.json
 .codex/
 .serena/
 .tdd/
+.impeccable/
 
 # 本地草稿（保留已跟踪的使用说明）
 .scratch/*

@@ -136,6 +136,7 @@ Do not commit:
 - `.codex/`
 - `.serena/`
 - `.tdd/`
+- `.impeccable/`（impeccable critique 快照等本地工具状态）
 - `.scratch/*`（保留已跟踪的 `.scratch/README.md`）
 - `_external/`
 - `scripts/`
