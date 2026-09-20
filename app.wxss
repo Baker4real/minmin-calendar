@@ -31,6 +31,9 @@ page {
   --radius-md: 20rpx;
   --radius-lg: 28rpx;
   --radius-xl: 36rpx;
+  --radius-card: 24rpx;
+  --radius-full: 999rpx;
+  --radius-circle: 50%;
 
   /* Transitions — 逐属性声明，禁止 all */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -130,7 +133,6 @@ page {
   font-weight: 700;
   letter-spacing: 2rpx;
   color: #E8909E;
-  text-shadow: 0 0 14rpx rgba(232,144,158,0.28);
 }
 .nav-back {
   width: 88rpx;
@@ -155,7 +157,7 @@ page {
   right: 10rpx;
   bottom: 10rpx;
   left: 10rpx;
-  border-radius: 24rpx;
+  border-radius: var(--radius-card);
   background: rgba(255,255,255,0.09), rgba(18,22,61,0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -190,7 +192,7 @@ page {
   background: var(--glass-bg), rgba(18,22,61,0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-radius: 24rpx;
+  border-radius: var(--radius-card);
   border: 1px solid rgba(255,255,255,0.12);
   box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
   position: relative;

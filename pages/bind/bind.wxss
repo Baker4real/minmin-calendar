@@ -106,13 +106,13 @@
   box-shadow: 0 0 20px rgba(232,144,158,0.1);
 }
 
-/* Bound Status — 柔和成功绿，不再霓虹 */
+/* Bound Status — 成功态用主色玫瑰，不引入色板外绿色 */
 .bound-status {
   font-size: 32rpx;
   font-weight: 700;
   text-align: center;
   margin-bottom: 20rpx;
-  color: #9ED6AE;
+  color: #E8909E;
 }
 .bound-code {
   font-size: 28rpx;

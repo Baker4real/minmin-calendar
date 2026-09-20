@@ -17,7 +17,7 @@
     <view wx:elif="{{memories.length > 0 && !loading}}" class="premium-card">
       <view class="list-item" wx:for="{{memories}}" wx:key="_id" wx:for-index="i" bindtap="editMemory" data-index="{{i}}">
         <view class="memory-left">
-          <text class="memory-heart">❤️</text>
+          <text class="memory-heart">♥</text>
           <view class="memory-info">
             <view class="memory-date">{{item.date}}</view>
             <view class="memory-note">{{item.note || '我们的欢乐时光'}}</view>
@@ -31,8 +31,14 @@
       <text>还没有记录\n点上面按钮新增</text>
     </view>
 
-    <view wx:if="{{loading}}" class="loading-view">
-      <view class="loading-spinner"></view>
+    <view wx:if="{{loading}}" class="skeleton-card">
+      <view class="skeleton-item" wx:for="{{[0, 1, 2]}}" wx:key="*this">
+        <view class="skeleton-dot"></view>
+        <view class="skeleton-body">
+          <view class="skeleton-line skeleton-line-title"></view>
+          <view class="skeleton-line skeleton-line-sub"></view>
+        </view>
+      </view>
     </view>
   </view>
 </view>

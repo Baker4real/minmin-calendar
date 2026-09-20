@@ -9,8 +9,10 @@
 }
 .content-refreshing .calendar-grid,
 .content-refreshing .stats-card,
+.content-refreshing .empty-guide,
 .content-refreshing .reminder-stack,
-.content-refreshing .quick-actions {
+.content-refreshing .quick-actions,
+.content-refreshing .record-entries {
   opacity: 0.94;
 }
 .sync-pill {
@@ -27,7 +29,7 @@
   justify-content: center;
   gap: 10rpx;
   box-sizing: border-box;
-  border-radius: 999rpx;
+  border-radius: var(--radius-full);
   color: rgba(255,255,255,0.78);
   background: var(--glass-bg), rgba(18,22,61,0.92);
   border: 1px solid rgba(255,255,255,0.13);
@@ -40,7 +42,7 @@
 .sync-dot {
   width: 10rpx;
   height: 10rpx;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   background: #D4A574;
   box-shadow: 0 0 12rpx rgba(212,165,116,0.5);
 }
@@ -50,7 +52,7 @@
 }
 .sync-text {
   min-width: 0;
-  font-size: 22rpx;
+  font-size: 26rpx;
   font-weight: 700;
   line-height: 1.25;
   white-space: nowrap;
@@ -71,7 +73,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 28rpx 24rpx;
+  padding: 12rpx 24rpx;
   background: var(--glass-bg), rgba(18,22,61,0.92);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -79,8 +81,8 @@
   box-shadow:
     0 8px 32px rgba(232,144,158,0.15),
     inset 0 1px 0 rgba(255,255,255,0.2);
-  border-radius: 24rpx;
-  margin: 24rpx 0 20rpx;
+  border-radius: var(--radius-card);
+  margin: 10rpx 0 8rpx;
   position: relative;
   overflow: hidden;
 }
@@ -112,7 +114,7 @@
   justify-content: center;
   gap: 10rpx;
   box-sizing: border-box;
-  border-radius: 999rpx;
+  border-radius: var(--radius-full);
   background: rgba(232,144,158,0.09);
   border: 1px solid rgba(232,144,158,0.22);
   transition: background-color 0.24s ease, border-color 0.24s ease, transform 0.24s ease;
@@ -134,7 +136,7 @@
   text-align: center;
   font-size: 42rpx;
   color: #fff;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   background: rgba(255,255,255,0.1), rgba(18,22,61,0.92);
   border: 1px solid rgba(255,255,255,0.2);
   backdrop-filter: blur(10px);
@@ -151,7 +153,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14rpx;
-  margin: 0 0 16rpx;
+  margin: 0 0 8rpx;
 }
 .meaning-tool {
   min-height: 88rpx;
@@ -161,7 +163,7 @@
   justify-content: center;
   gap: 10rpx;
   box-sizing: border-box;
-  border-radius: 22rpx;
+  border-radius: var(--radius-md);
   background: rgba(255,255,255,0.075);
   border: 1px solid rgba(255,255,255,0.12);
   box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.12);
@@ -177,7 +179,7 @@
   height: 42rpx;
   line-height: 42rpx;
   text-align: center;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   font-size: 22rpx;
   font-weight: 800;
   color: #0A0E27;
@@ -185,7 +187,7 @@
 }
 .meaning-tool-text {
   min-width: 0;
-  font-size: 24rpx;
+  font-size: 26rpx;
   font-weight: 800;
   line-height: 1.2;
   color: rgba(255,255,255,0.82);
@@ -197,10 +199,10 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10rpx;
-  margin: 0 0 16rpx;
-  padding: 8rpx;
+  margin: 0 0 8rpx;
+  padding: 4rpx;
   box-sizing: border-box;
-  border-radius: 24rpx;
+  border-radius: var(--radius-card);
   background: rgba(255,255,255,0.055);
   border: 1px solid rgba(255,255,255,0.11);
   box-shadow: inset 0 1rpx 0 rgba(255,255,255,0.09);
@@ -211,8 +213,8 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  border-radius: 18rpx;
-  font-size: 25rpx;
+  border-radius: var(--radius-md);
+  font-size: 26rpx;
   font-weight: 800;
   color: rgba(255,255,255,0.68);
   border: 1px solid transparent;
@@ -222,28 +224,29 @@
   transform: scale(0.98);
   background: rgba(255,255,255,0.1);
 }
+/* 密度偏好是弱态设置：选中项用玫瑰描边+玫瑰字，渐变填充只留给真正的主操作 */
 .density-option.active {
-  color: #0A0E27;
-  background: linear-gradient(135deg, #E8909E, #D4A574);
-  border-color: rgba(255,255,255,0.16);
-  box-shadow: 0 10rpx 24rpx rgba(232,144,158,0.16);
+  color: #E8909E;
+  background: rgba(232,144,158,0.08);
+  border-color: rgba(232,144,158,0.45);
+  box-shadow: none;
 }
 
 /* ===== Week Header ===== */
 .week-header {
   display: flex;
-  padding: 18rpx 0;
+  padding: 8rpx 0;
   margin-bottom: 0;
   background: rgba(255,255,255,0.05), rgba(18,22,61,0.92);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 16rpx 16rpx 0 0;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
 }
 .week-cell {
   flex: 1;
   text-align: center;
-  font-size: 24rpx;
+  font-size: 26rpx;
   color: rgba(255,255,255,0.7);
   font-weight: 600;
   letter-spacing: 2rpx;
@@ -257,22 +260,22 @@
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 0 0 24rpx 24rpx;
-  padding: 12rpx 0 10rpx;
+  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  padding: 6rpx 0;
   box-shadow: 0 8px 32px rgba(0,0,0,0.2);
 }
 
 /* Day Cells */
 .day-cell {
   width: 14.28%;
-  height: 168rpx;
+  height: 160rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   position: relative;
-  border-radius: 16rpx;
-  padding: 12rpx 0 8rpx;
+  border-radius: var(--radius-md);
+  padding: 10rpx 0 6rpx;
   box-sizing: border-box;
   transition: transform 0.2s var(--ease-out), background-color 0.25s ease;
 }
@@ -313,7 +316,7 @@
   font-size: 28rpx;
   font-weight: 500;
   color: rgba(255,255,255,0.8);
-  line-height: 34rpx;
+  line-height: 32rpx;
   transition: color 0.25s ease;
 }
 
@@ -325,10 +328,10 @@
 
 .day-lunar {
   width: 100%;
-  height: 26rpx;
-  line-height: 26rpx;
+  height: 28rpx;
+  line-height: 28rpx;
   margin-top: 2rpx;
-  font-size: 20rpx;
+  font-size: 24rpx;
   color: rgba(255,255,255,0.6);
   text-align: center;
   white-space: nowrap;
@@ -350,7 +353,7 @@
   height: 38rpx;
   line-height: 38rpx;
   padding: 0 8rpx;
-  border-radius: 999rpx;
+  border-radius: var(--radius-full);
   box-sizing: border-box;
   font-size: 26rpx;
   font-weight: 700;
@@ -372,14 +375,14 @@
 .day-marks {
   display: flex;
   gap: 4rpx;
-  margin-top: 4rpx;
+  margin-top: 2rpx;
   height: 30rpx;
   align-items: center;
 }
 .mark {
   width: 8rpx;
   height: 8rpx;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
 }
 
 /* Period Mark – 静态玫瑰点，柔光 */
@@ -390,7 +393,7 @@
 
 /* Memory Mark */
 .memory-mark {
-  font-size: 18rpx;
+  font-size: 24rpx;
   line-height: 1;
   width: auto;
   height: auto;
@@ -407,7 +410,7 @@
   height: 30rpx;
   line-height: 26rpx;
   padding: 0 8rpx;
-  border-radius: 999rpx;
+  border-radius: var(--radius-full);
   font-size: 26rpx;
   font-weight: 700;
   text-align: center;
@@ -463,40 +466,13 @@
 }
 .predict-weekday {
   flex: 0 0 auto;
-  font-size: 22rpx;
+  font-size: 26rpx;
   font-weight: 700;
   line-height: 1.15;
   color: rgba(255,255,255,0.72);
 }
-.predict-subline {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-  max-width: 100%;
-  min-height: 28rpx;
-  margin-top: 2rpx;
-  white-space: nowrap;
-}
-.predict-range {
-  font-size: 19rpx;
-  color: rgba(255,255,255,0.6);
-  line-height: 1.1;
-}
-.predict-confidence {
-  min-width: 30rpx;
-  height: 28rpx;
-  line-height: 26rpx;
-  padding: 0 8rpx;
-  border-radius: 999rpx;
-  box-sizing: border-box;
-  font-size: 26rpx;
-  font-weight: 700;
-  color: #0A0E27;
-  background: rgba(212,165,116,0.86);
-}
 .stat-label {
-  font-size: 22rpx;
+  font-size: 26rpx;
   color: rgba(255,255,255,0.5);
   margin-top: 6rpx;
 }
@@ -521,7 +497,7 @@
   padding: 18rpx 20rpx;
   background: rgba(255,255,255,0.075);
   border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 20rpx;
+  border-radius: var(--radius-md);
   box-shadow: 0 6px 24px rgba(0,0,0,0.13);
   box-sizing: border-box;
   transition: background-color 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
@@ -534,7 +510,7 @@
   width: 6rpx;
   align-self: stretch;
   min-height: 52rpx;
-  border-radius: 999rpx;
+  border-radius: var(--radius-full);
   background: #D4A574;
   box-shadow: 0 0 14rpx rgba(212,165,116,0.36);
 }
@@ -559,7 +535,7 @@
   color: rgba(255,255,255,0.88);
 }
 .reminder-text {
-  font-size: 22rpx;
+  font-size: 26rpx;
   color: rgba(255,255,255,0.5);
   line-height: 1.35;
 }
@@ -568,18 +544,18 @@
   height: 60rpx;
   line-height: 60rpx;
   text-align: center;
-  border-radius: 999rpx;
-  font-size: 22rpx;
+  border-radius: var(--radius-full);
+  font-size: 26rpx;
   font-weight: 700;
   color: #0A0E27;
   background: rgba(232,144,158,0.88);
 }
 
-/* ===== Quick Actions ===== */
+/* ===== Quick Actions — 首屏主操作：渐变填充 + 画布海军字 ===== */
 .quick-actions {
   display: flex;
   gap: 20rpx;
-  margin-top: 20rpx;
+  margin-top: 10rpx;
 }
 .quick-btn {
   flex: 1;
@@ -587,26 +563,94 @@
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  padding: 24rpx;
-  background: var(--glass-bg), rgba(18,22,61,0.92);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
+  padding: 18rpx 24rpx;
+  background: linear-gradient(135deg, #E8909E, #D4A574);
+  color: #0A0E27;
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-  border: 1px solid rgba(255,255,255,0.12);
-  transition: transform 0.2s var(--ease-out), background-color 0.2s ease;
+  box-shadow: 0 10rpx 26rpx rgba(232,144,158,0.22);
+  border: 1px solid rgba(255,255,255,0.16);
+  transition: transform 0.2s var(--ease-out), box-shadow 0.2s ease;
 }
 .quick-btn:active {
-  transform: scale(0.95);
-  background: rgba(255,255,255,0.15), rgba(18,22,61,0.92);
+  transform: scale(0.96);
+  box-shadow: 0 4rpx 14rpx rgba(232,144,158,0.18);
 }
 .quick-icon {
   font-size: 32rpx;
 }
 .quick-text {
   font-size: 28rpx;
-  font-weight: 600;
-  color: rgba(255,255,255,0.85);
+  font-weight: 700;
+  color: #0A0E27;
+}
+
+/* ===== Empty Room Guidance ===== */
+.empty-guide {
+  margin-top: 20rpx;
+  padding: 36rpx 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: var(--radius-card);
+  background: rgba(255,255,255,0.06);
+  border: 1px dashed rgba(255,255,255,0.16);
+}
+.empty-guide-text {
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 1.4;
+  color: rgba(255,255,255,0.72);
+  text-align: center;
+}
+
+/* ===== Record List Entries ===== */
+.record-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+  margin-top: 18rpx;
+}
+.record-entry {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 16rpx 18rpx;
+  box-sizing: border-box;
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.075);
+  border: 1px solid rgba(255,255,255,0.11);
+  transition: background-color 0.24s ease, border-color 0.24s ease, transform 0.24s ease;
+}
+.record-entry:active {
+  transform: scale(0.98);
+  background: rgba(255,255,255,0.12);
+}
+.record-entry-icon {
+  flex: 0 0 auto;
+  width: 54rpx;
+  height: 54rpx;
+  line-height: 54rpx;
+  text-align: center;
+  border-radius: var(--radius-circle);
+  font-size: 26rpx;
+  font-weight: 800;
+  background: var(--glass-bg);
+}
+.record-entry-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 27rpx;
+  font-weight: 700;
+  line-height: 1.25;
+  color: rgba(255,255,255,0.88);
+}
+.record-entry-arrow {
+  flex: 0 0 auto;
+  font-size: 42rpx;
+  line-height: 1;
+  color: rgba(255,255,255,0.6);
 }
 
 /* ===== No Room State ===== */
@@ -654,7 +698,7 @@
     linear-gradient(160deg, rgba(232,144,158,0.14), rgba(196,160,210,0.08) 45%, rgba(18,22,61,0.96) 100%),
     rgba(18,22,61,0.96);
   border: 1px solid rgba(255,255,255,0.16);
-  border-radius: 34rpx 34rpx 28rpx 28rpx;
+  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-lg) var(--radius-lg);
   box-shadow:
     0 -18rpx 48rpx rgba(0,0,0,0.34),
     inset 0 1rpx 0 rgba(255,255,255,0.18);
@@ -672,7 +716,7 @@
   justify-content: space-between;
   gap: 18rpx;
   box-sizing: border-box;
-  border-radius: 26rpx;
+  border-radius: var(--radius-lg);
   color: rgba(255,255,255,0.86);
   background: rgba(232,144,158,0.12);
   border: 1px solid rgba(232,144,158,0.24);
@@ -687,54 +731,65 @@
   font-weight: 800;
 }
 .jump-today-date {
-  font-size: 23rpx;
+  font-size: 26rpx;
   font-weight: 700;
   color: rgba(255,255,255,0.6);
 }
-.jump-section-head {
+.jump-section-title {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 800;
+  color: rgba(255,255,255,0.68);
+}
+.jump-year-stepper {
+  min-height: 88rpx;
+  margin-top: 14rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16rpx;
-  margin-bottom: 14rpx;
 }
-.jump-section-title {
-  display: block;
-  font-size: 24rpx;
-  font-weight: 800;
-  color: rgba(255,255,255,0.68);
-}
-.jump-year-controls {
-  display: flex;
-  gap: 12rpx;
-}
-.jump-nav-btn {
+.jump-year-step {
+  flex: 0 0 auto;
+  min-width: 96rpx;
   min-height: 88rpx;
-  padding: 0 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  border-radius: 999rpx;
-  font-size: 23rpx;
-  font-weight: 700;
-  color: rgba(255,255,255,0.74);
+  border-radius: var(--radius-full);
+  font-size: 40rpx;
+  font-weight: 800;
+  color: rgba(255,255,255,0.82);
   background: rgba(255,255,255,0.075);
   border: 1px solid rgba(255,255,255,0.11);
+  transition: background-color 0.22s ease, transform 0.22s ease, opacity 0.22s ease;
 }
-.jump-nav-btn:active {
+.jump-year-step:active {
+  transform: scale(0.94);
   background: rgba(255,255,255,0.14);
 }
-.jump-year-grid,
+.jump-year-step.disabled {
+  opacity: 0.35;
+}
+.jump-year-step.disabled:active {
+  transform: none;
+  background: rgba(255,255,255,0.075);
+}
+.jump-year-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 32rpx;
+  font-weight: 800;
+  letter-spacing: 2rpx;
+  text-align: center;
+  color: #E8909E;
+  font-variant-numeric: tabular-nums;
+}
 .jump-month-grid {
   display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12rpx;
-}
-.jump-year-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-.jump-month-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 14rpx;
 }
 .jump-option {
@@ -743,7 +798,7 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  border-radius: 22rpx;
+  border-radius: var(--radius-md);
   font-size: 26rpx;
   font-weight: 800;
   color: rgba(255,255,255,0.78);
@@ -768,7 +823,7 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  border-radius: 999rpx;
+  border-radius: var(--radius-full);
   font-size: 28rpx;
   font-weight: 800;
   color: #0A0E27;
@@ -808,7 +863,7 @@
     linear-gradient(160deg, rgba(232,144,158,0.12), rgba(196,160,210,0.08) 42%, rgba(18,22,61,0.94) 100%),
     rgba(18,22,61,0.94);
   border: 1px solid rgba(255,255,255,0.16);
-  border-radius: 34rpx 34rpx 28rpx 28rpx;
+  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-lg) var(--radius-lg);
   box-shadow:
     0 -18rpx 48rpx rgba(0,0,0,0.34),
     inset 0 1rpx 0 rgba(255,255,255,0.18);
@@ -818,7 +873,7 @@
   width: 70rpx;
   height: 8rpx;
   margin: 0 auto 20rpx;
-  border-radius: 999rpx;
+  border-radius: var(--radius-full);
   background: rgba(255,255,255,0.22);
 }
 .sheet-head {
@@ -842,7 +897,7 @@
   color: rgba(255,255,255,0.92);
 }
 .sheet-subtitle {
-  font-size: 23rpx;
+  font-size: 26rpx;
   line-height: 1.35;
   color: rgba(255,255,255,0.6);
 }
@@ -852,7 +907,7 @@
   height: 88rpx;
   line-height: 84rpx;
   text-align: center;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   font-size: 46rpx;
   color: rgba(255,255,255,0.76);
   background: var(--glass-bg);
@@ -874,7 +929,7 @@
   gap: 18rpx;
   padding: 18rpx 18rpx;
   box-sizing: border-box;
-  border-radius: 22rpx;
+  border-radius: var(--radius-md);
   background: rgba(255,255,255,0.075);
   border: 1px solid rgba(255,255,255,0.11);
   transition: background-color 0.24s ease, border-color 0.24s ease, transform 0.24s ease;
@@ -889,7 +944,7 @@
   height: 54rpx;
   line-height: 54rpx;
   text-align: center;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   font-size: 26rpx;
   font-weight: 800;
   background: var(--glass-bg);
@@ -920,14 +975,14 @@
   line-height: 1.25;
 }
 .sheet-action-desc {
-  font-size: 22rpx;
+  font-size: 26rpx;
   color: rgba(255,255,255,0.5);
   line-height: 1.3;
 }
 .sheet-action-arrow {
   flex: 0 0 auto;
   font-size: 42rpx;
-  color: rgba(255,255,255,0.38);
+  color: rgba(255,255,255,0.6);
   line-height: 1;
 }
 .day-detail-list {
@@ -937,7 +992,7 @@
 }
 .day-detail-empty {
   padding: 32rpx 24rpx;
-  border-radius: 22rpx;
+  border-radius: var(--radius-md);
   background: rgba(255,255,255,0.06);
   border: 1px dashed rgba(255,255,255,0.14);
   display: flex;
@@ -950,14 +1005,14 @@
   color: rgba(255,255,255,0.86);
 }
 .detail-empty-desc {
-  font-size: 23rpx;
+  font-size: 26rpx;
   color: rgba(255,255,255,0.5);
 }
 .day-detail-row {
   display: flex;
   gap: 18rpx;
   padding: 20rpx 18rpx;
-  border-radius: 22rpx;
+  border-radius: var(--radius-md);
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1);
 }
@@ -971,7 +1026,7 @@
   flex-direction: column;
   gap: 4rpx;
   padding: 16rpx 18rpx;
-  border-radius: 20rpx;
+  border-radius: var(--radius-md);
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.1);
 }
@@ -989,20 +1044,20 @@
   border-color: rgba(212,165,116,0.24);
 }
 .detail-meaning-title {
-  font-size: 24rpx;
+  font-size: 26rpx;
   font-weight: 800;
   line-height: 1.25;
   color: rgba(255,255,255,0.86);
 }
 .detail-meaning-text {
-  font-size: 22rpx;
+  font-size: 26rpx;
   line-height: 1.35;
   color: rgba(255,255,255,0.5);
 }
 .detail-rail {
   width: 6rpx;
   min-height: 72rpx;
-  border-radius: 999rpx;
+  border-radius: var(--radius-full);
   background: #E8909E;
   box-shadow: 0 0 16rpx rgba(232,144,158,0.35);
 }
@@ -1018,7 +1073,7 @@
   gap: 6rpx;
 }
 .detail-title {
-  font-size: 22rpx;
+  font-size: 26rpx;
   font-weight: 700;
   color: #D4A574;
 }
@@ -1029,7 +1084,7 @@
   word-break: break-all;
 }
 .detail-meta {
-  font-size: 23rpx;
+  font-size: 26rpx;
   line-height: 1.35;
   color: rgba(255,255,255,0.5);
 }
@@ -1065,7 +1120,7 @@
   gap: 18rpx;
   padding: 18rpx;
   box-sizing: border-box;
-  border-radius: 22rpx;
+  border-radius: var(--radius-md);
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1);
 }
@@ -1075,7 +1130,7 @@
   height: 54rpx;
   line-height: 54rpx;
   text-align: center;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   font-size: 23rpx;
   font-weight: 800;
   color: #0A0E27;
@@ -1084,10 +1139,21 @@
 .legend-row.memory .legend-symbol {
   background: rgba(240,196,192,0.9);
 }
+/* 今天图例 — 与 .day-cell.today 同款玫瑰光圈，不再是日历上不存在的「今」字 */
+.legend-row.today .legend-symbol {
+  color: #E8909E;
+  background: rgba(232,144,158,0.16);
+  box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
+}
 .legend-row.predict .legend-symbol,
 .legend-row.holiday .legend-symbol,
 .legend-row.workday .legend-symbol {
   background: rgba(212,165,116,0.9);
+}
+/* 节日图例 — 金底海军字小标签，对应日历上的真实节日名称标签 */
+.legend-row.holiday .legend-symbol {
+  border-radius: var(--radius-sm);
+  font-size: 22rpx;
 }
 .legend-copy {
   flex: 1;
@@ -1103,13 +1169,13 @@
   line-height: 1.25;
 }
 .legend-text {
-  font-size: 22rpx;
+  font-size: 26rpx;
   line-height: 1.35;
   color: rgba(255,255,255,0.5);
 }
 .prediction-summary {
   padding: 22rpx 20rpx;
-  border-radius: 22rpx;
+  border-radius: var(--radius-md);
   font-size: 30rpx;
   font-weight: 800;
   line-height: 1.35;
@@ -1121,8 +1187,8 @@
   min-height: 64rpx;
   padding: 16rpx 18rpx;
   box-sizing: border-box;
-  border-radius: 18rpx;
-  font-size: 24rpx;
+  border-radius: var(--radius-md);
+  font-size: 26rpx;
   line-height: 1.35;
   color: rgba(255,255,255,0.72);
   background: rgba(255,255,255,0.065);
@@ -1131,8 +1197,8 @@
 .recap-summary {
   display: block;
   padding: 18rpx 20rpx;
-  border-radius: 20rpx;
-  font-size: 25rpx;
+  border-radius: var(--radius-md);
+  font-size: 26rpx;
   font-weight: 700;
   line-height: 1.35;
   color: rgba(255,255,255,0.82);
@@ -1146,8 +1212,8 @@
 }
 .recap-highlight {
   padding: 16rpx 18rpx;
-  border-radius: 18rpx;
-  font-size: 23rpx;
+  border-radius: var(--radius-md);
+  font-size: 26rpx;
   line-height: 1.45;
   color: rgba(255,255,255,0.62);
   background: rgba(255,255,255,0.05);
@@ -1161,7 +1227,7 @@
   justify-content: center;
   margin-top: 4rpx;
   box-sizing: border-box;
-  border-radius: 999rpx;
+  border-radius: var(--radius-full);
   font-size: 28rpx;
   font-weight: 800;
   color: #0A0E27;
@@ -1188,7 +1254,7 @@
   .month-title-trigger,
   .jump-option,
   .jump-confirm,
-  .jump-nav-btn,
+  .jump-year-step,
   .sheet-action,
   .sheet-close,
   .day-cell,
@@ -1197,6 +1263,7 @@
   .density-option,
   .reminder-card,
   .quick-btn,
+  .record-entry,
   .no-room-icon {
     animation: none;
     transition: none;

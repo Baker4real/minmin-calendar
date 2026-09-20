@@ -10,7 +10,7 @@
   </view>
 
   <view class="content">
-    <view class="premium-card fade-in">
+    <view class="premium-card">
       <view class="form-item">
         <text class="form-label">开始日期</text>
         <picker mode="date" value="{{startDate}}" end="{{endDate}}" bindchange="onStartChange">
@@ -50,22 +50,30 @@
       </view>
       <view class="form-item form-item-last">
         <view class="form-label-row">
-          <text class="form-label">身体状态</text>
+          <text class="form-label">症状</text>
           <text class="form-hint">可多选</text>
         </view>
-        <view class="symptom-options">
-          <view
-            wx:for="{{symptomOptions}}"
-            wx:key="value"
-            class="symptom-chip {{item.selected ? 'active' : ''}}"
-            data-value="{{item.value}}"
-            bindtap="toggleSymptom"
-          >{{item.label}}</view>
+        <view
+          wx:for="{{symptomGroups}}"
+          wx:key="key"
+          wx:for-item="group"
+          class="symptom-group"
+        >
+          <text class="symptom-group-label">{{group.label}}</text>
+          <view class="symptom-options">
+            <view
+              wx:for="{{group.options}}"
+              wx:key="value"
+              class="symptom-chip {{item.selected ? 'active' : ''}}"
+              data-value="{{item.value}}"
+              bindtap="toggleSymptom"
+            >{{item.label}}</view>
+          </view>
         </view>
       </view>
     </view>
 
-    <view class="btns fade-in fade-in-d1">
+    <view class="btns">
       <view wx:if="{{!saving && !deleting}}" class="btn-premium" bindtap="save">保存</view>
       <view wx:elif="{{saving}}" class="btn-premium loading">保存中...</view>
       <view wx:else class="btn-premium disabled">保存</view>

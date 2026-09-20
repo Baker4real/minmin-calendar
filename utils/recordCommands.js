@@ -15,6 +15,7 @@ function runRecordSave(options) {
     validate,
     loadingKey = 'saving',
     successTitle = '保存成功',
+    successIcon,
     failureTitle = '保存失败',
     successDelay = 1000
   } = opts
@@ -33,6 +34,7 @@ function runRecordSave(options) {
     validate,
     loadingKey,
     successTitle,
+    successIcon,
     failureTitle,
     navigateBack,
     navigateToBind,
@@ -48,6 +50,7 @@ function runRecordDelete(options) {
   const {
     page,
     confirmTitle = '确认删除',
+    confirmContent,
     loadingKey = 'deleting'
   } = opts
   const navigateBack = typeof opts.navigateBack === 'function'
@@ -63,6 +66,7 @@ function runRecordDelete(options) {
   return new Promise(resolve => {
     wxApi.showModal({
       title: confirmTitle,
+      ...(confirmContent ? { content: confirmContent } : {}),
       success: async (result) => {
         if (!result.confirm) {
           updatePage(page, { [loadingKey]: false })
@@ -152,6 +156,7 @@ async function runCommand(options) {
     validate,
     loadingKey = 'saving',
     successTitle,
+    successIcon,
     failureTitle,
     navigateBack,
     navigateToBind,
@@ -180,7 +185,10 @@ async function runCommand(options) {
   }
 
   if (outcome.kind === 'success') {
-    safeShowToast(wxApi, { title: successTitle })
+    safeShowToast(wxApi, {
+      title: successTitle,
+      ...(successIcon ? { icon: successIcon } : {})
+    })
     timer.setTimeout(() => {
       navigateBack()
     }, successDelay)

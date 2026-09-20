@@ -97,6 +97,28 @@ test('runRecordSave clears saving state, shows success toast, and schedules one 
   assert.equal(env.navigateBackCalls.length, 1)
 })
 
+test('runRecordSave supports warm success feedback without the system checkmark icon', async () => {
+  assert.equal(typeof recordCommands.runRecordSave, 'function')
+
+  const page = createFakePage({ saving: false })
+  const env = createFakeCommandEnv()
+
+  const result = await recordCommands.runRecordSave({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => ({ kind: 'success', result: { code: 0 } }),
+    validate: null,
+    successTitle: '已存进你们的欢乐时光',
+    successIcon: 'none',
+    failureTitle: '保存失败'
+  })
+
+  assert.equal(result.kind, 'success')
+  assert.deepEqual(env.wx.toasts, [{ title: '已存进你们的欢乐时光', icon: 'none' }])
+  assert.equal(env.timer.calls.length, 1)
+})
+
 test('record page sync notifies the previous page without requiring a reload', () => {
   assert.equal(typeof recordPageSync.notifyPreviousPageRecordChange, 'function')
   assert.equal(typeof recordPageSync.getSavedRecord, 'function')
@@ -361,6 +383,54 @@ test('runRecordDelete keeps modal confirmation and success feedback behavior', a
   assert.equal(env.timer.calls.length, 1)
   env.timer.calls[0].fn()
   assert.equal(env.navigateBackCalls.length, 1)
+})
+
+test('runRecordDelete shows the caller-provided shared consequence copy in the confirm modal', async () => {
+  assert.equal(typeof recordCommands.runRecordDelete, 'function')
+
+  const page = createFakePage()
+  const env = createFakeCommandEnv()
+
+  const promise = recordCommands.runRecordDelete({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => ({ kind: 'success', result: { code: 0 } }),
+    confirmTitle: '确认删除',
+    confirmContent: '删除后你们两人的日历都会移除这条经期记录，且不可恢复',
+    successTitle: '已删除',
+    failureTitle: '删除失败'
+  })
+
+  assert.equal(env.wx.modals.length, 1)
+  assert.equal(env.wx.modals[0].title, '确认删除')
+  assert.equal(env.wx.modals[0].content, '删除后你们两人的日历都会移除这条经期记录，且不可恢复')
+
+  const result = await env.wx.resolveModal(false, promise)
+
+  assert.deepEqual(result, { kind: 'cancelled' })
+})
+
+test('runRecordDelete omits modal content when no consequence copy is provided', async () => {
+  assert.equal(typeof recordCommands.runRecordDelete, 'function')
+
+  const page = createFakePage()
+  const env = createFakeCommandEnv()
+
+  const promise = recordCommands.runRecordDelete({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => ({ kind: 'success', result: { code: 0 } }),
+    confirmTitle: '确认删除',
+    successTitle: '已删除',
+    failureTitle: '删除失败'
+  })
+
+  assert.equal(env.wx.modals.length, 1)
+  assert.equal('content' in env.wx.modals[0], false)
+
+  await env.wx.resolveModal(false, promise)
 })
 
 test('runRecordDelete cancels safely when modal is unavailable', async () => {
@@ -811,6 +881,24 @@ test('record edit pages isolate delete loading, constrain period dates, and cap 
   assert.match(memoryEditWxml, /maxlength="500"/)
   assert.match(memoryEditWxml, /wx:if="\{\{isEdit\}\}"[\s\S]*编辑欢乐时光/)
   assert.match(memoryEditWxml, /wx:else[\s\S]*新增欢乐时光/)
+})
+
+test('record edit pages confirm deletes with type-specific shared consequence copy', () => {
+  const periodEditJs = readPageFile('pages/period/edit/edit.js')
+  const memoryEditJs = readPageFile('pages/memory/edit/edit.js')
+
+  assert.match(periodEditJs, /confirmContent:\s*'删除后你们两人的日历都会移除这条经期记录，且不可恢复'/)
+  assert.match(memoryEditJs, /confirmContent:\s*'删除后你们两人的日历都会移除这条欢乐时光，且不可恢复'/)
+})
+
+test('memory edit page greets a saved happy time with warm two-person feedback', () => {
+  const periodEditJs = readPageFile('pages/period/edit/edit.js')
+  const memoryEditJs = readPageFile('pages/memory/edit/edit.js')
+
+  assert.match(memoryEditJs, /successTitle:\s*'已存进你们的欢乐时光'/)
+  assert.match(memoryEditJs, /successIcon:\s*'none'/)
+  assert.doesNotMatch(memoryEditJs, /successTitle:\s*'保存成功'/)
+  assert.match(periodEditJs, /successTitle:\s*'保存成功'/)
 })
 
 test('record pages delegate feedback to shared record command helpers', () => {

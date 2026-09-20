@@ -2,9 +2,12 @@ const util = require('../../../utils/util')
 const cloud = require('../../../utils/cloud')
 const cycle = require('../../../utils/cycle')
 const recordCommands = require('../../../utils/recordCommands')
+const recordDraft = require('../../../utils/recordDraft')
 const recordEditRoute = require('../../../utils/recordEditRoute')
 const recordPageSync = require('../../../utils/recordPageSync')
 const safeArea = require('../../../utils/safeArea')
+
+const DRAFT_FIELDS = ['startDate', 'endDate', 'note', 'flow', 'symptoms']
 
 Page({
   data: {
@@ -16,7 +19,7 @@ Page({
     flow: '',
     symptoms: [],
     flowOptions: cycle.FLOW_OPTIONS,
-    symptomOptions: cycle.buildSymptomOptions(),
+    symptomGroups: cycle.buildSymptomOptions(),
     isEdit: false,
     saving: false,
     deleting: false
@@ -26,10 +29,46 @@ Page({
     const routeState = recordEditRoute.parsePeriodEditOptions(options, {
       today: util.formatDate(new Date())
     })
+    const draftStorage = recordDraft.createWxDraftStorage(wx)
+    const draftKey = recordDraft.buildDraftKey({ collection: 'periods', id: routeState.id })
+    const storedDraft = recordDraft.readDraft(draftStorage, draftKey)
+    const formState = storedDraft
+      ? { ...routeState, ...recordDraft.pickDraftFields(storedDraft, DRAFT_FIELDS) }
+      : routeState
+    this._draftStorage = draftStorage
+    this._draftKey = draftKey
+    this._draftBaseline = recordDraft.pickDraftFields(routeState, DRAFT_FIELDS)
+    this._draftDiscarded = false
     this.setData({
-      ...routeState,
-      symptomOptions: cycle.buildSymptomOptions(routeState.symptoms)
+      ...formState,
+      symptomGroups: cycle.buildSymptomOptions(formState.symptoms)
     })
+    if (storedDraft) {
+      wx.showToast({ title: '已恢复上次未完成的输入', icon: 'none' })
+    }
+  },
+
+  onHide() {
+    this.persistRecordDraft()
+  },
+
+  onUnload() {
+    this.persistRecordDraft()
+  },
+
+  persistRecordDraft() {
+    if (this._draftDiscarded || !this._draftStorage) return
+    recordDraft.syncDraft(
+      this._draftStorage,
+      this._draftKey,
+      recordDraft.pickDraftFields(this.data, DRAFT_FIELDS),
+      this._draftBaseline
+    )
+  },
+
+  discardRecordDraft() {
+    this._draftDiscarded = true
+    if (this._draftStorage) recordDraft.clearDraft(this._draftStorage, this._draftKey)
   },
 
   onStartChange(e) {
@@ -50,7 +89,7 @@ Page({
     const symptoms = Array.from(selected)
     this.setData({
       symptoms,
-      symptomOptions: cycle.buildSymptomOptions(symptoms)
+      symptomGroups: cycle.buildSymptomOptions(symptoms)
     })
   },
 
@@ -80,6 +119,9 @@ Page({
       successTitle: '保存成功',
       failureTitle: '保存失败'
     })
+    if (outcome && outcome.kind === 'success') {
+      this.discardRecordDraft()
+    }
     const savedRecord = recordPageSync.getSavedRecord(outcome)
     if (savedRecord) {
       recordPageSync.notifyPreviousPageRecordChange({
@@ -98,10 +140,12 @@ Page({
       page: this,
       action: () => client.remove('periods', this.data.id),
       confirmTitle: '确认删除',
+      confirmContent: '删除后你们两人的日历都会移除这条经期记录，且不可恢复',
       successTitle: '已删除',
       failureTitle: '删除失败'
     })
     if (outcome.kind === 'success') {
+      this.discardRecordDraft()
       recordPageSync.notifyPreviousPageRecordChange({
         collection: 'periods',
         mode: 'remove',

@@ -6,14 +6,19 @@ const FLOW_OPTIONS = [
   { value: 'heavy', label: '量多' }
 ]
 
+const SYMPTOM_GROUPS = [
+  { key: 'body', label: '身体' },
+  { key: 'emotion', label: '情绪' }
+]
+
 const SYMPTOM_OPTIONS = [
-  { value: 'cramps', label: '痛经' },
-  { value: 'headache', label: '头痛' },
-  { value: 'tired', label: '疲惫' },
-  { value: 'mood', label: '情绪波动' },
-  { value: 'sleep', label: '睡眠差' },
-  { value: 'acne', label: '长痘' },
-  { value: 'cravings', label: '嘴馋' }
+  { value: 'cramps', label: '痛经', group: 'body' },
+  { value: 'headache', label: '头痛', group: 'body' },
+  { value: 'tired', label: '疲惫', group: 'body' },
+  { value: 'acne', label: '长痘', group: 'body' },
+  { value: 'mood', label: '情绪波动', group: 'emotion' },
+  { value: 'sleep', label: '睡眠差', group: 'emotion' },
+  { value: 'cravings', label: '嘴馋', group: 'emotion' }
 ]
 
 const FLOW_LABELS = FLOW_OPTIONS.reduce((map, item) => {
@@ -160,9 +165,15 @@ function decoratePeriod(period) {
 
 function buildSymptomOptions(selectedSymptoms = []) {
   const selected = new Set(normalizeSymptoms(selectedSymptoms))
-  return SYMPTOM_OPTIONS.map(item => ({
-    ...item,
-    selected: selected.has(item.value)
+  return SYMPTOM_GROUPS.map(group => ({
+    ...group,
+    options: SYMPTOM_OPTIONS
+      .filter(item => item.group === group.key)
+      .map(item => ({
+        value: item.value,
+        label: item.label,
+        selected: selected.has(item.value)
+      }))
   }))
 }
 
@@ -342,6 +353,7 @@ function isDateString(value) {
 
 module.exports = {
   FLOW_OPTIONS,
+  SYMPTOM_GROUPS,
   SYMPTOM_OPTIONS,
   predictNextPeriod,
   buildCycleReminders,

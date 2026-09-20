@@ -1,9 +1,25 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const Module = require('node:module')
 const path = require('node:path')
 const test = require('node:test')
 
 const repoRoot = path.join(__dirname, '..')
+
+function readIndexWxml() {
+  return fs.readFileSync(path.join(repoRoot, 'pages/index/index.wxml'), 'utf8')
+}
+
+function readIndexWxss() {
+  return fs.readFileSync(path.join(repoRoot, 'pages/index/index.wxss'), 'utf8')
+}
+
+function ruleBody(wxss, selector) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const match = wxss.match(new RegExp(`(?:^|[\\n}])\\s*${escaped}\\s*\\{([^}]+)\\}`))
+  assert.ok(match, `expected rule for ${selector}`)
+  return match[1]
+}
 
 test('initial load publishes home records and clears loading state', async () => {
   const client = createQueuedClient([
@@ -244,6 +260,7 @@ function loadPageHarness({ client }) {
   global.wx = {
     getStorageSync: () => '',
     setStorageSync() {},
+    switchTab() {},
     redirectTo() {},
     navigateTo() {}
   }
@@ -340,4 +357,272 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
     dayDetailsByDate: {},
     selectedDayDetail: null
   }
+}
+
+test('homepage places quick record actions after the calendar grid and before the stats card', () => {
+  const wxml = readIndexWxml()
+  const gridIndex = wxml.indexOf('class="calendar-grid')
+  const quickIndex = wxml.indexOf('class="quick-actions"')
+  const statsIndex = wxml.indexOf('class="stats-card')
+
+  assert.ok(gridIndex !== -1, 'expected the calendar grid')
+  assert.ok(quickIndex !== -1, 'expected quick record actions')
+  assert.ok(statsIndex !== -1, 'expected the stats card')
+  assert.ok(gridIndex < quickIndex, 'record actions should directly follow the calendar grid')
+  assert.ok(quickIndex < statsIndex, 'record actions should precede the stats card')
+})
+
+test('homepage offers secondary entries into the period and memory record lists', () => {
+  const wxml = readIndexWxml()
+  assert.match(wxml, /class="record-entries"/)
+  assert.match(wxml, /bindtap="goPeriodList"[\s\S]*?经期记录/)
+  assert.match(wxml, /bindtap="goMemoryList"[\s\S]*?欢乐时光/)
+
+  const navigation = []
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    global.wx.switchTab = options => navigation.push({ type: 'switchTab', url: options.url })
+    global.wx.navigateTo = options => navigation.push({ type: 'navigateTo', url: options.url })
+
+    harness.page.goPeriodList()
+    harness.page.goMemoryList()
+  } finally {
+    harness.teardown()
+  }
+
+  assert.deepEqual(navigation, [
+    { type: 'switchTab', url: '/pages/period/period' },
+    { type: 'navigateTo', url: '/pages/memory/memory' }
+  ])
+})
+
+test('homepage shows a first-record guide instead of silent zero stats when the room has no records', () => {
+  const wxml = readIndexWxml()
+
+  assert.match(wxml, /wx:if="{{periods\.length \|\| memories\.length}}" class="stats-card/)
+  assert.match(wxml, /wx:else class="empty-guide"/)
+  assert.match(wxml, /点日历任意一天开始记录/)
+})
+
+test('homepage stats card leaves prediction range, confidence, and average cycle to the prediction sheet', () => {
+  const wxml = readIndexWxml()
+  const statsStart = wxml.indexOf('class="stats-card')
+  const statsEnd = wxml.indexOf('class="reminder-stack"')
+  assert.ok(statsStart !== -1 && statsEnd > statsStart, 'expected a stats card before the reminder stack')
+  const statsBlock = wxml.slice(statsStart, statsEnd)
+
+  assert.doesNotMatch(statsBlock, /avgCycle|predictionRangeDisplay|predictConfidence/)
+  assert.match(statsBlock, /nextPredictDisplay/)
+  assert.match(wxml, /predictionExplanation\.summary/)
+  assert.match(wxml, /predictionExplanation\.lineItems/)
+})
+
+test('density control selected state is a quiet rose outline instead of the gradient fill', () => {
+  const block = ruleBody(readIndexWxss(), '.density-option.active')
+
+  assert.doesNotMatch(block, /linear-gradient/)
+  assert.match(block, /color:\s*#E8909E/i)
+  assert.match(block, /border-color:\s*rgba\(232,\s*144,\s*158,/)
+})
+
+test('quick record buttons are the primary filled action on the first screen', () => {
+  const wxss = readIndexWxss()
+  const block = ruleBody(wxss, '.quick-btn')
+
+  assert.match(block, /background:\s*linear-gradient\(135deg,\s*#E8909E,\s*#D4A574\)/i)
+  assert.match(block, /color:\s*#0A0E27/i)
+  assert.match(ruleBody(wxss, '.quick-text'), /color:\s*#0A0E27/i)
+})
+
+test('compact density keeps the record actions inside the 1334rpx first-screen budget', () => {
+  const wxss = readIndexWxss()
+  // issue #37 验收口径：750rpx 宽 × 667px 高视口 ≈ 1334rpx；状态栏与自定义导航栏为固定值
+  const SAFE_TOP_RPX = 88
+  const NAV_BAR_RPX = 88
+  const MONTH_NAV_CONTENT_RPX = 88
+  const WEEK_TEXT_RPX = 34
+  const QUICK_CONTENT_RPX = 40
+  const SIX_ROWS = 6
+
+  const monthNavBody = ruleBody(wxss, '.month-nav')
+  const monthNav = MONTH_NAV_CONTENT_RPX +
+    shorthandVertical(monthNavBody, 'padding') +
+    shorthandVertical(monthNavBody, 'margin')
+  const toolbarBody = ruleBody(wxss, '.meaning-toolbar')
+  const toolbar = numberDecl(ruleBody(wxss, '.meaning-tool'), 'min-height') +
+    shorthandVertical(toolbarBody, 'margin')
+  const densityBody = ruleBody(wxss, '.density-control')
+  const density = shorthandVertical(densityBody, 'padding') +
+    numberDecl(ruleBody(wxss, '.density-option'), 'min-height') +
+    shorthandVertical(densityBody, 'margin')
+  const weekHeader = shorthandVertical(ruleBody(wxss, '.week-header'), 'padding') + WEEK_TEXT_RPX
+  const gridPadding = shorthandVertical(ruleBody(wxss, '.calendar-grid'), 'padding')
+  const compactCell = numberDecl(ruleBody(wxss, '.calendar-density-compact .day-cell'), 'height')
+  const quickActions = numberDecl(ruleBody(wxss, '.quick-actions'), 'margin-top') +
+    shorthandVertical(ruleBody(wxss, '.quick-btn'), 'padding') +
+    QUICK_CONTENT_RPX
+
+  const stack = SAFE_TOP_RPX + NAV_BAR_RPX + monthNav + toolbar + density +
+    weekHeader + gridPadding + SIX_ROWS * compactCell + quickActions
+
+  assert.ok(
+    stack <= 1334,
+    `compact first-screen stack ${stack}rpx exceeds the 1334rpx (667px) budget`
+  )
+})
+
+function numberDecl(body, property) {
+  const match = body.match(new RegExp(`${property}:\\s*(\\d+(?:\\.\\d+)?)rpx`))
+  return match ? Number(match[1]) : 0
+}
+
+test('month jump sheet steps the year one at a time from the viewed month', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.setData({ year: 2020, month: 5 })
+
+    harness.page.openMonthPicker()
+    assert.equal(harness.page.data.jumpYear, 2020)
+    assert.equal(harness.page.data.jumpMonth, 5)
+
+    harness.page.shiftJumpYear({ currentTarget: { dataset: { delta: '1' } } })
+    assert.equal(harness.page.data.jumpYear, 2021)
+    harness.page.shiftJumpYear({ currentTarget: { dataset: { delta: '-1' } } })
+    harness.page.shiftJumpYear({ currentTarget: { dataset: { delta: '-1' } } })
+    assert.equal(harness.page.data.jumpYear, 2019)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('year stepper clamps at the past and future bounds with disabled state', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.setData({ year: 2020, month: 5 })
+    harness.page.openMonthPicker()
+    assert.equal(harness.page.data.jumpYearAtMin, false)
+    assert.equal(harness.page.data.jumpYearAtMax, false)
+
+    // 过去边界对齐节假日官方数据起点 2001（PUBLISHED_HOLIDAY_START_YEAR）
+    harness.page.setData({ year: 2001, month: 0 })
+    harness.page.openMonthPicker()
+    assert.equal(harness.page.data.jumpYear, 2001)
+    assert.equal(harness.page.data.jumpYearAtMin, true)
+    harness.page.shiftJumpYear({ currentTarget: { dataset: { delta: '-1' } } })
+    assert.equal(harness.page.data.jumpYear, 2001)
+    assert.equal(harness.page.data.jumpYearAtMin, true)
+
+    // 未来边界 2035：覆盖约十年的预测与计划查看
+    harness.page.setData({ year: 2035, month: 0 })
+    harness.page.openMonthPicker()
+    assert.equal(harness.page.data.jumpYear, 2035)
+    assert.equal(harness.page.data.jumpYearAtMax, true)
+    harness.page.shiftJumpYear({ currentTarget: { dataset: { delta: '1' } } })
+    assert.equal(harness.page.data.jumpYear, 2035)
+    assert.equal(harness.page.data.jumpYearAtMax, true)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('month navigation clamps at the jump year bounds so the picker stays in sync', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+
+    // 未来边界：2035 年 12 月之后不回绕、不越界
+    harness.page.setData({ year: 2035, month: 10 })
+    harness.page.nextMonth()
+    assert.equal(harness.page.data.year, 2035)
+    assert.equal(harness.page.data.month, 11)
+    harness.page.nextMonth()
+    assert.equal(harness.page.data.year, 2035)
+    assert.equal(harness.page.data.month, 11)
+
+    // 过去边界：2001 年 1 月之前不回绕、不越界
+    harness.page.setData({ year: 2001, month: 1 })
+    harness.page.prevMonth()
+    assert.equal(harness.page.data.year, 2001)
+    assert.equal(harness.page.data.month, 0)
+    harness.page.prevMonth()
+    assert.equal(harness.page.data.year, 2001)
+    assert.equal(harness.page.data.month, 0)
+
+    // 边界内翻月不受影响，picker 年份始终等于查看年份
+    harness.page.setData({ year: 2020, month: 11 })
+    harness.page.nextMonth()
+    assert.equal(harness.page.data.year, 2021)
+    assert.equal(harness.page.data.month, 0)
+    harness.page.openMonthPicker()
+    assert.equal(harness.page.data.jumpYear, harness.page.data.year)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('month selection, confirm jump, and back-to-today keep their behavior', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.setData({ year: 2020, month: 5 })
+    harness.page.openMonthPicker()
+    harness.page.shiftJumpYear({ currentTarget: { dataset: { delta: '1' } } })
+    harness.page.selectJumpMonth({ currentTarget: { dataset: { month: '11' } } })
+    assert.equal(harness.page.data.jumpMonth, 11)
+
+    harness.page.confirmMonthJump()
+    assert.equal(harness.page.data.year, 2021)
+    assert.equal(harness.page.data.month, 11)
+    assert.equal(harness.page.data.monthPickerVisible, false)
+
+    harness.page.openMonthPicker()
+    harness.page.shiftJumpYear({ currentTarget: { dataset: { delta: '1' } } })
+    harness.page.jumpToToday()
+    const today = new Date()
+    assert.equal(harness.page.data.year, today.getFullYear())
+    assert.equal(harness.page.data.month, today.getMonth())
+    assert.equal(harness.page.data.monthPickerVisible, false)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('month jump sheet uses a bounded year stepper instead of a year grid', () => {
+  const js = fs.readFileSync(path.join(repoRoot, 'pages/index/index.js'), 'utf8')
+  const wxml = readIndexWxml()
+  const wxss = readIndexWxss()
+
+  // 年份只剩「‹ 年份 ›」步进器两个可点项，不再有年份网格与翻页按钮
+  assert.match(wxml, /class="jump-year-stepper"/)
+  assert.match(wxml, /aria-label="上一年"/)
+  assert.match(wxml, /aria-label="下一年"/)
+  assert.match(wxml, /bindtap="shiftJumpYear"/)
+  assert.doesNotMatch(wxml, /jump-year-grid|year-option|jump-nav-btn/)
+  assert.doesNotMatch(wxml, /shiftJumpYears|selectJumpYear/)
+
+  // 月份保持 12 宫格，「回到今天」保留
+  assert.match(wxml, /class="jump-month-grid"/)
+  assert.match(wxml, /wx:for="{{jumpMonths}}"/)
+  assert.match(wxml, /bindtap="selectJumpMonth"/)
+  assert.match(wxml, /bindtap="jumpToToday"/)
+
+  assert.match(js, /shiftJumpYear\(e\)\s*{[\s\S]*dataset\.delta/)
+  assert.doesNotMatch(js, /buildMonthJumpYears|shiftJumpYears|selectJumpYear|jumpYears/)
+
+  // 步进按钮保持 88rpx 触控目标
+  assert.match(ruleBody(wxss, '.jump-year-step'), /min-height:\s*88rpx/)
+  assert.match(ruleBody(wxss, '.jump-year-step.disabled'), /opacity/)
+})
+
+function shorthandVertical(body, property) {
+  const match = body.match(new RegExp(`(?:^|[\\n;])\\s*${property}:\\s*([^;]+);`))
+  if (!match) return 0
+  const parts = match[1].trim().split(/\s+/).map(token => {
+    const value = token.match(/^(\d+(?:\.\d+)?)rpx$/)
+    return value ? Number(value[1]) : 0
+  })
+  if (parts.length <= 2) return parts[0] * 2
+  return parts[0] + parts[2]
 }

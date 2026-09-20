@@ -16,6 +16,8 @@ colors:
   bg-primary: "#0A0E27"
   bg-secondary: "#1A0A2E"
   bg-tertiary: "#12163D"
+  bg-aurora-mid: "#2D1B69"
+  warning-red: "#F97373"
 typography:
   h1:
     fontFamily: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif
@@ -50,7 +52,8 @@ rounded:
   lg: 28rpx
   xl: 36rpx
   card: 24rpx
-  full: 9999px
+  full: 999rpx
+  circle: 50%
 spacing:
   xs: 4px
   sm: 8px
@@ -77,11 +80,19 @@ components:
     textColor: "#E8909E"
     border: "1.5px solid #E8909E"
     canvas: "#0A0E27"
-    rounded: 9999px
+    rounded: 999rpx
     padding: 12px 28px
     pressScale: 0.95
+  button-danger:
+    backgroundColor: "rgba(255,255,255,0.08) + rgba(18,22,61,0.92)"
+    textColor: "#F97373"
+    border: "1px solid rgba(249,115,115,0.28)"
+    pressedBackground: "rgba(249,115,115,0.12) + rgba(18,22,61,0.92)"
+    rounded: 20rpx
+    padding: 26rpx
+    pressScale: 0.95
   calendar-cell:
-    rounded: 16px
+    rounded: 20rpx
     textColor: "rgba(255,255,255,0.85)"
     todayBg: "rgba(232,144,158,0.16)"
     todayRing: "inset 0 0 0 3rpx rgba(196,160,210,0.55)"
@@ -114,11 +125,7 @@ components:
   badge:
     backgroundColor: "#F0C4C0"
     textColor: "#0A0E27"
-    rounded: 9999px
-  prediction-meta:
-    textColor: "rgba(255,255,255,0.58)"
-    confidenceBg: "#D4A574"
-    confidenceText: "#0A0E27"
+    rounded: 999rpx
   reminder-card:
     backgroundColor: "rgba(255,255,255,0.075)"
     railColor: "#D4A574"
@@ -137,14 +144,14 @@ components:
 
 已在屏幕上成立、改 UI 时沿用：
 
-- 圆角 token（`app.wxss`）：`--radius-sm` / `--radius-md` / `--radius-lg` / `--radius-xl` 为 `12rpx` / `20rpx` / `28rpx` / `36rpx`。`.premium-card` 圆角为字面值 `24rpx`。
+- 圆角 token（`app.wxss`）：`--radius-sm` / `--radius-md` / `--radius-lg` / `--radius-xl` 为 `12rpx` / `20rpx` / `28rpx` / `36rpx`，另有 `--radius-card: 24rpx`（卡片与日历块；`.premium-card`、导航返回底、`.month-nav` 等均走此 token）、`--radius-full: 999rpx`（胶囊）、`--radius-circle: 50%`（正圆点/圆钮）。`pages/index/index.wxss` 的 `border-radius` 只允许 token 与 `0` 复位，由 `tests/design-token-guardrail.test.js` 护栏。
 - 玻璃叠层：`--glass-bg` 为 `rgba(255,255,255,0.08)`；卡片边框常用 `rgba(255,255,255,0.12)`（含 `--glass-border`）。共享玻璃卡（`.premium-card` 等）在同一 `background` 里叠不透明海军或玫瑰底（`.premium-card` 现为 `var(--glass-bg), rgba(18,22,61,0.92)`）。`backdrop-filter` 与 `-webkit-backdrop-filter` 成对写；忽略模糊时仍是实色面，不要只留半透明空框。
 - `tabBar.borderStyle` 为 `white`（浅色发丝）。不要改成 `black`。未选中 `tabBar.color` 为 `#7A7C8C`：弱于选中玫瑰 `#E8909E`，在画布 `#0A0E27` 上达到 4.5:1。
 - `page` 没有 `auroraFlow`；全屏动感只保留 `.page::before` 的 `auroraPulse`（8s）。画布底为 `#0A0E27`。
 - 各页 0.62–0.94 信息文本透明度是逐元素调校，不要机械归并。
 - 可点控件只描述 Default 与 Pressed。Pressed 用 `:active` `scale(0.94–0.98)`；主按钮 `.btn-premium` 为 `0.96`。
 - `calendar-cell` 与下文日历状态表对齐 `pages/index` 与 `CALENDAR_LEGEND_ITEMS`。没有「整格选中底 = 经期」。
-- 日历微字 `.day-tag` / `.predict-mark` / `.predict-confidence` 字号为 `26rpx`（caption 量级）。节日/调休 `.day-tag` 与 `.day-tag-line` 盒高 `38rpx`（大于字号，覆盖 caption 行高），避免 CJK 被裁切。compact 密度下仍放进日期与标记，不把微字再缩小。
+- 日历微字 `.day-tag` / `.predict-mark` 字号为 `26rpx`（caption 量级）。节日/调休 `.day-tag` 与 `.day-tag-line` 盒高 `38rpx`（大于字号，覆盖 caption 行高），避免 CJK 被裁切。compact 密度下仍放进日期与标记，不把微字再缩小。
 
 主填充按钮是玫瑰底 `#E8909E` + 画布海军字 `#0A0E27`。同结构的复制键（`.copy-btn`）和绑定选中块走同一对色。不要把白字叠玫瑰写成规范。
 
@@ -158,12 +165,18 @@ Aurora Bloom is a premium wellness dark theme for minmin-calendar — a period t
 
 Primary: warm rose #E8909E. Secondary: soft lavender #C4A0D2. Accent: warm gold #D4A574.
 BG: deep navy #0A0E27 canvas with #1A0A2E and #12163D for surfaces. Canvas navy is also the primary-fill label color.
+Warning red: #F97373 — 唯一警示色，语义与形态见下文「警示红语义」。
+成功/完成态（如绑定成功 `.bound-status`）用主色玫瑰 #E8909E 表达；色板不引入绿色。全部 WXSS 的 hex 颜色必须落在本文件登记的色板内，由 `tests/design-token-guardrail.test.js` 护栏。
+Aurora base gradient (`.page::before` 末层): #0A0E27 → #1A0A2E → #2D1B69 → #0A0E27，中间色 #2D1B69 登记为 `--aurora-bg3`。
+Shadow / overlay 登记：卡片与日历网格投影 `rgba(0,0,0,0.2)`；浮层小投影 `rgba(0,0,0,0.12–0.15)`；底部 sheet 上缘投影 `rgba(0,0,0,0.34)`；海军近景投影与字阴影 `rgba(10,14,39,0.16–0.35)`（自定义导航返回键与标题）；sheet 遮罩 `rgba(10,14,39,0.88)`（画布海军 88% 透明度）；玻璃回退实色 `rgba(18,22,61,0.92)`；底部 sheet 面板为 `linear-gradient(160deg, rgba(232,144,158,0.12–0.14), rgba(196,160,210,0.08) 42–45%, rgba(18,22,61,0.94–0.96))` 叠同透明度海军实底；inset 顶线高光 `rgba(255,255,255,0.09–0.22)`；辉光阴影随主色走——玫瑰 `rgba(232,144,158,0.1–0.45)`、浅粉 `rgba(240,196,192,0.28–0.32)`、金 `rgba(212,165,116,0.3–0.5)`（含 sheet-action 金 inset 0.3）、警示红 `rgba(249,115,115,0.38)`。
 
 Removed from original: neon green, hot pink, cyan, bright gold. Too aggressive for a wellness app.
 
 ## Typography
 
-System font stack for zero-bloat + excellent CJK rendering. H1 2rem/700 for month titles. Body-lg 1.0625rem/400/1.6 for diary reading. Caption 0.8125rem/500 with letter-spacing for week headers. Calendar holiday tags and 「预」 stay at caption scale: `.day-tag` / `.predict-mark` / `.predict-confidence` are `26rpx`. The holiday/workday `.day-tag` box is `38rpx` tall so CJK glyphs are not clipped.
+System font stack for zero-bloat + excellent CJK rendering. H1 2rem/700 for month titles. Body-lg 1.0625rem/400/1.6 for diary reading. Caption 0.8125rem/500 with letter-spacing for week headers. Calendar holiday tags and 「预」 stay at caption scale: `.day-tag` / `.predict-mark` are `26rpx`. The holiday/workday `.day-tag` box is `38rpx` tall so CJK glyphs are not clipped.
+
+信息性文字下限：日历格内微字（农历、经期/记忆标记、预测徽标）不小于 `24rpx`；日历格外 caption（统计标签、同步状态、说明文字）不小于 `26rpx`。低于下限的诉求靠缩短文案或调整布局吸收，不缩小字号。
 
 ## Components
 
@@ -172,6 +185,20 @@ Cards use glassmorphism: `rgba(255,255,255,0.08)` overlay + `blur(20px)` + paire
 Primary fill (`.btn-premium`, `.copy-btn`, bind selected block): rose `#E8909E` fill, label `#0A0E27`. Ghost / outline, if used: transparent on canvas navy `#0A0E27`, rose border and rose label — readable on navy, not white type on rose.
 
 Prediction metadata, reminder cards, and period tag chips stay compact and low-noise. Interactive chips need at least a 44px touch target; active chips use navy type on rose. Calendar cell states are listed under 借入规则; a visual mark still means only one thing.
+
+## 警示红语义
+
+警示红 `#F97373` 是全色板唯一的警示色，一族只表示「需要注意的负面状态」，目前在屏上有三种形态：
+
+| 形态 | 位置 | 表现 |
+|---|---|---|
+| 危险操作按钮 | `.btn-danger`（解除绑定、删除记录） | 红字 + `rgba(249,115,115,0.28)` 描边，不透明海军实底（`var(--glass-bg)` 叠 `rgba(18,22,61,0.92)`）；Pressed 叠 `rgba(249,115,115,0.12)`、`scale(0.95)` |
+| 逾期提醒 | `.reminder-card.overdue .reminder-rail` | 6rpx 细 rail 实色填充 + `rgba(249,115,115,0.38)` 辉光 |
+| 表单错误 | `.error-msg`（绑定页） | 红字 + `rgba(249,115,115,0.1)` 浅底 + `rgba(249,115,115,0.24)` 描边 |
+
+同一含义共享同一红色，组件角色靠形态（按钮 / 细 rail / 文案条）区分，不靠颜色分叉；不引入第二种红。
+
+与「一个符号只表一意」家规的关系：家规约束同一符号不得表二意；警示红一族是反向合规——同一含义（负面状态）复用同一符号（这个红），形态承载角色、颜色不承载区分。若给逾期、危险、错误各配一种红，同一含义裂成多个符号，反而违反家规。
 
 ## Do's and Don'ts
 
@@ -182,6 +209,7 @@ Prediction metadata, reminder cards, and period tag chips stay compact and low-n
 - Do keep animations slow (6-12s cycles)
 - Do document Default and Pressed only; press uses `scale(0.94–0.98)`
 - Don't treat white-on-rose as the button spec
+- Don't fork the warning red into multiple reds; one red, distinguished by form
 - Don't use neon/bright colors
 - Don't use gradient text fills for body content
 - Don't install an external brand design system

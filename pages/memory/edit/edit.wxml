@@ -10,10 +10,10 @@
   </view>
 
   <view class="content">
-    <view class="premium-card fade-in">
+    <view class="premium-card">
       <view class="form-item">
         <text class="form-label">日期</text>
-        <picker mode="date" value="{{date}}" bindchange="onDateChange">
+        <picker mode="date" value="{{date}}" end="{{maxDate}}" bindchange="onDateChange">
           <view class="form-picker">
             <text>{{date}}</text>
             <text class="form-picker-arrow">›</text>
@@ -26,7 +26,7 @@
       </view>
     </view>
 
-    <view class="btns fade-in fade-in-d1">
+    <view class="btns">
       <view wx:if="{{!saving && !deleting}}" class="btn-premium" bindtap="save">保存</view>
       <view wx:elif="{{saving}}" class="btn-premium loading">保存中...</view>
       <view wx:else class="btn-premium disabled">保存</view>

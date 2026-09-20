@@ -18,7 +18,7 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
   assert.deepEqual(insights.buildPredictionExplanation(prediction), {
     available: true,
     title: '预测说明',
-    summary: '预计 08月10日，区间 08月09日-08月11日',
+    summary: '预计区间 08月09日-08月11日',
     lines: [
       '参考最近 5 次有效周期',
       '平均周期 28 天，平均持续 5 天',
@@ -32,6 +32,25 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
       { key: 'prediction:3', text: '已忽略 1 次波动较大的记录' }
     ]
   })
+})
+
+test('prediction explanation leaves the headline date to the stats card (single authority)', () => {
+  const prediction = cycle.predictNextPeriod([
+    period('2026-01-01', '2026-01-05'),
+    period('2026-01-29', '2026-02-02'),
+    period('2026-02-26', '2026-03-02'),
+    period('2026-04-20', '2026-04-24'),
+    period('2026-05-18', '2026-05-22'),
+    period('2026-06-15', '2026-06-19'),
+    period('2026-07-13', '2026-07-17')
+  ])
+
+  const explanation = insights.buildPredictionExplanation(prediction)
+
+  // 统计卡头条是预测日期的唯一权威；说明 sheet 只解释区间与依据，不重复同一日期
+  assert.ok(prediction.canPredict)
+  assert.equal(explanation.summary.includes(prediction.nextDisplay), false)
+  assert.match(explanation.summary, new RegExp(`区间 ${prediction.rangeDisplay}`))
 })
 
 test('buildMonthlyRecap creates a gentle shareable recap for the selected month', () => {

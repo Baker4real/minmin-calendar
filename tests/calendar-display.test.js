@@ -240,6 +240,18 @@ test('index calendar only shows the heart mark for memories', () => {
   assert.match(wxml, /wx:if="{{item\.isMemory}}"/)
 })
 
+test('index calendar day cells speak composed aria labels and keep hidden cells silent', () => {
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const gridStart = wxml.indexOf('class="calendar-grid')
+  const gridEnd = wxml.indexOf('class="quick-actions"')
+  assert.ok(gridStart !== -1 && gridEnd > gridStart, 'expected the calendar grid block')
+  const grid = wxml.slice(gridStart, gridEnd)
+
+  assert.match(grid, /aria-label="\{\{item\.ariaLabel\}\}"/)
+  assert.match(grid, /aria-hidden="\{\{item\.isEmpty\}\}"/)
+  assert.doesNotMatch(grid, /aria-label="[^"{]/)
+})
+
 test('index calendar keeps marker and tag semantics explicit for each meaning', () => {
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
 
@@ -254,6 +266,31 @@ test('index calendar keeps marker and tag semantics explicit for each meaning', 
   assert.match(wxml, /wx:if="{{item\.isPredict && !item\.isPeriod}}" class="mark predict-mark"/)
   assert.match(wxml, /wx:if="{{item\.holidayName}}" class="day-tag holiday-tag"/)
   assert.match(wxml, /wx:elif="{{item\.isWorkday}}" class="day-tag workday-tag"/)
+})
+
+test('legend symbols mirror the real today ring and holiday tag forms', () => {
+  const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
+
+  const todaySymbol = wxss.match(/\.legend-row\.today \.legend-symbol\s*\{([^}]+)\}/)
+  assert.ok(todaySymbol, 'expected a dedicated today legend symbol rule')
+  assert.match(todaySymbol[1], /background:\s*rgba\(232,\s*144,\s*158,\s*0\.16\)/)
+  assert.match(todaySymbol[1], /box-shadow:\s*inset 0 0 0 3rpx rgba\(196,\s*160,\s*210,\s*0\.55\)/)
+
+  const holidaySymbol = wxss.match(/\.legend-row\.holiday \.legend-symbol\s*\{([^}]+)\}/)
+  assert.ok(holidaySymbol, 'expected a dedicated holiday legend symbol rule')
+  assert.match(holidaySymbol[1], /border-radius:\s*var\(--radius-sm\)/)
+  assert.match(holidaySymbol[1], /font-size:\s*22rpx/)
+})
+
+test('memory list heart matches the calendar heart glyph system', () => {
+  const memoryWxml = fs.readFileSync(path.join(__dirname, '..', 'pages/memory/memory.wxml'), 'utf8')
+  const memoryWxss = fs.readFileSync(path.join(__dirname, '..', 'pages/memory/memory.wxss'), 'utf8')
+  const indexWxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+
+  assert.match(indexWxml, /class="mark memory-mark">♥</)
+  assert.match(memoryWxml, /class="memory-heart">♥</)
+  assert.doesNotMatch(memoryWxml, /class="memory-heart">❤/)
+  assert.match(memoryWxss, /\.memory-heart\s*\{[^}]*color:\s*#F0C4C0/i)
 })
 
 test('index day actions use the themed in-page action sheet', () => {
@@ -279,13 +316,16 @@ test('index month title opens a themed year-month jump sheet', () => {
 
   assert.doesNotMatch(js, /wx\.show(?:ActionSheet|Modal|DatePicker|Picker)/)
   assert.match(js, /monthPickerVisible:\s*false/)
-  assert.match(js, /jumpYears:\s*\[\]/)
-  assert.match(js, /openMonthPicker\(\)\s*{[\s\S]*buildMonthJumpYears/)
-  assert.match(js, /selectJumpYear\(e\)\s*{[\s\S]*dataset\.year/)
+  assert.match(js, /JUMP_YEAR_MIN\s*=\s*2001/)
+  assert.match(js, /JUMP_YEAR_MAX\s*=\s*2035/)
+  assert.match(js, /buildJumpYearState\(/)
+  assert.match(js, /openMonthPicker\(\)\s*{[\s\S]*buildJumpYearState/)
+  assert.match(js, /shiftJumpYear\(e\)\s*{[\s\S]*dataset\.delta/)
   assert.match(js, /selectJumpMonth\(e\)\s*{[\s\S]*dataset\.month/)
   assert.match(js, /confirmMonthJump\(\)\s*{[\s\S]*year:\s*this\.data\.jumpYear[\s\S]*month:\s*this\.data\.jumpMonth/)
   assert.match(js, /jumpToToday\(\)\s*{[\s\S]*new Date\(\)[\s\S]*monthPickerVisible:\s*false[\s\S]*renderCalendar/)
   assert.match(js, /closeMonthPicker\(\)\s*{[\s\S]*monthPickerVisible:\s*false/)
+  assert.doesNotMatch(js, /buildMonthJumpYears|shiftJumpYears|selectJumpYear|jumpYears/)
 
   assert.match(wxml, /month-title-trigger/)
   assert.match(wxml, /bindtap="openMonthPicker"/)
@@ -294,13 +334,15 @@ test('index month title opens a themed year-month jump sheet', () => {
   assert.match(wxml, /jump-today/)
   assert.match(wxml, /bindtap="jumpToToday"/)
   assert.match(wxml, /aria-label="回到今天所在月份"/)
-  assert.match(wxml, /jump-year-grid/)
+  assert.match(wxml, /jump-year-stepper/)
   assert.match(wxml, /jump-month-grid/)
   assert.match(wxml, /bindtap="confirmMonthJump"/)
+  assert.doesNotMatch(wxml, /jump-year-grid|year-option|jump-nav-btn/)
 
   assert.match(wxss, /\.month-title-trigger\s*{[\s\S]*min-height:\s*88rpx/)
   assert.match(wxss, /\.calendar-jump-sheet/)
   assert.match(wxss, /\.jump-today\s*{[\s\S]*min-height:\s*88rpx/)
+  assert.match(wxss, /\.jump-year-step\s*{[\s\S]*min-height:\s*88rpx/)
   assert.match(wxss, /\.jump-option\s*{[\s\S]*min-height:\s*88rpx/)
   assert.match(wxss, /\.jump-confirm\s*{[\s\S]*min-height:\s*88rpx/)
 })

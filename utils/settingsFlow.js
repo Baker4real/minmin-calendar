@@ -41,6 +41,13 @@ async function exportRecordsAsJson(options = {}) {
   const navigateToBind = options.navigateToBind || createNavigateToBind(wxApi)
   const hideLoading = createLoadingGuard(wxApi)
 
+  if (options.confirmBeforeExport) {
+    const confirmation = await confirmExport({ wx: wxApi })
+    if (confirmation.kind !== 'confirmed') {
+      return confirmation
+    }
+  }
+
   showLoading(wxApi, { title: '导出中...' })
   try {
     const client = createRoomDataClient(cloud, roomSession)
@@ -84,6 +91,25 @@ function clearLocalCache(options = {}) {
   roomSession.clearLocalRoom()
   showToast(wxApi, { title: '已清除' })
   return Promise.resolve({ kind: 'success', roomCode: '未绑定' })
+}
+
+function confirmExport(options = {}) {
+  const wxApi = resolveWxApi(options)
+  if (!wxApi || typeof wxApi.showModal !== 'function') {
+    return Promise.resolve({ kind: 'confirmed' })
+  }
+
+  return new Promise(resolve => {
+    wxApi.showModal({
+      title: '导出数据',
+      content: '将导出房间里的全部经期记录和欢乐时光，打包成一个 JSON 文件（通用的数据备份格式，手机和电脑都能打开查看）。\n\n你可以把文件转发给微信好友保存，或复制内容自己留存，作为一份数据备份。\n\n导出只是复制一份数据，不会改动或删除云端记录。',
+      confirmText: '开始导出',
+      cancelText: '取消',
+      success: result => {
+        resolve(result && result.confirm ? { kind: 'confirmed' } : { kind: 'cancelled' })
+      }
+    })
+  })
 }
 
 function createRoomDataClient(cloud, roomSession) {
@@ -286,5 +312,6 @@ function getErrorMessage(error) {
 module.exports = {
   copyRoomCode,
   exportRecordsAsJson,
-  clearLocalCache
+  clearLocalCache,
+  confirmExport
 }

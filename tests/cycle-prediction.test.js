@@ -180,6 +180,38 @@ test('buildPeriodPayload and decoratePeriod normalize optional flow and symptom 
   })
 })
 
+test('buildSymptomOptions groups every symptom into exactly one body or emotion group', () => {
+  assert.equal(typeof cycle.buildSymptomOptions, 'function')
+
+  const groups = cycle.buildSymptomOptions(['mood'])
+
+  assert.deepEqual(
+    groups.map(group => ({ key: group.key, label: group.label })),
+    [
+      { key: 'body', label: '身体' },
+      { key: 'emotion', label: '情绪' }
+    ]
+  )
+
+  const flattened = groups.flatMap(group => group.options)
+  assert.deepEqual(
+    flattened.map(option => option.value),
+    cycle.SYMPTOM_OPTIONS.map(option => option.value)
+  )
+
+  assert.deepEqual(
+    groups[0].options.map(option => option.value),
+    ['cramps', 'headache', 'tired', 'acne']
+  )
+  assert.deepEqual(
+    groups[1].options.map(option => option.value),
+    ['mood', 'sleep', 'cravings']
+  )
+
+  assert.equal(flattened.find(option => option.value === 'mood').selected, true)
+  assert.equal(flattened.find(option => option.value === 'cramps').selected, false)
+})
+
 function period(startDate, endDate) {
   return {
     startDate,

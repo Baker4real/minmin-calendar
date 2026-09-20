@@ -30,7 +30,8 @@ function buildPredictionExplanation(prediction) {
   return {
     available: true,
     title: '预测说明',
-    summary: `预计 ${prediction.nextDisplay}，区间 ${prediction.rangeDisplay}`,
+    // 预测日期头条只由统计卡承载，说明 sheet 不再重复同一日期
+    summary: `预计区间 ${prediction.rangeDisplay}`,
     lines,
     lineItems: buildTextItems(lines, 'prediction')
   }

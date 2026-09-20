@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
 const test = require('node:test')
 
 const route = require('../utils/recordEditRoute')
@@ -92,15 +94,42 @@ test('parseMemoryEditOptions hydrates memory edit page state from route options'
     id: 'm1',
     date: '2026-06-03',
     note: '电影 & 夜宵',
-    isEdit: true
+    isEdit: true,
+    maxDate: '2026-06-26'
   })
 
   assert.deepEqual(route.parseMemoryEditOptions({}, { today: '2026-06-26' }), {
     id: '',
     date: '2026-06-26',
     note: '',
-    isEdit: false
+    isEdit: false,
+    maxDate: '2026-06-26'
   })
+})
+
+test('parseMemoryEditOptions keeps the original date when editing while clamping the picker to today', () => {
+  const state = route.parseMemoryEditOptions({
+    id: 'm1',
+    date: '2026-06-03'
+  }, { today: '2026-06-26' })
+
+  assert.equal(state.date, '2026-06-03')
+  assert.equal(state.maxDate, '2026-06-26')
+  assert.equal(state.isEdit, true)
+})
+
+test('memory edit page clamps the date picker to today', () => {
+  const memoryEditWxml = fs.readFileSync(
+    path.join(__dirname, '..', 'pages/memory/edit/edit.wxml'),
+    'utf8'
+  )
+  const memoryEditJs = fs.readFileSync(
+    path.join(__dirname, '..', 'pages/memory/edit/edit.js'),
+    'utf8'
+  )
+
+  assert.match(memoryEditWxml, /<picker mode="date" value="\{\{date\}\}" end="\{\{maxDate\}\}" bindchange="onDateChange">/)
+  assert.match(memoryEditJs, /maxDate:\s*''/)
 })
 
 test('parseMemoryEditOptions tolerates truncated UTF-8 in note', () => {
@@ -111,6 +140,7 @@ test('parseMemoryEditOptions tolerates truncated UTF-8 in note', () => {
     id: '',
     date: '2026-06-03',
     note: '%E0%A4%A',
-    isEdit: false
+    isEdit: false,
+    maxDate: '2026-06-26'
   })
 })

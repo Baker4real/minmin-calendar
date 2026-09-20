@@ -94,8 +94,17 @@ test('active flow chip navy type meets 4.5:1 against rose fill', () => {
   assertReadableChip('flow-chip', 'flow chip')
 })
 
-test('active symptom chip navy type meets 4.5:1 against gold fill', () => {
+test('active symptom chip navy type meets 4.5:1 against rose fill', () => {
   assertReadableChip('symptom-chip', 'symptom chip')
+})
+
+test('active flow and symptom chips share the same rose fill and navy type', () => {
+  const flow = activeChipPair(PERIOD_EDIT_WXSS, 'flow-chip')
+  const symptom = activeChipPair(PERIOD_EDIT_WXSS, 'symptom-chip')
+  assert.equal(flow.fill, '#E8909E')
+  assert.equal(flow.color, '#0A0E27')
+  assert.equal(symptom.fill, '#E8909E')
+  assert.equal(symptom.color, '#0A0E27')
 })
 
 test('period edit chips keep min-height 88rpx', () => {

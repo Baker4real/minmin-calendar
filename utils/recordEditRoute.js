@@ -40,7 +40,8 @@ function parseMemoryEditOptions(options = {}, context = {}) {
     id: options.id || '',
     date: options.date || today,
     note: decodeOption(options.note, { fallback: 'raw' }),
-    isEdit: !!options.id
+    isEdit: !!options.id,
+    maxDate: today
   }
 }
 

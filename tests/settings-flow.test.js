@@ -543,6 +543,130 @@ test('settings page delegates copy/export/clear flows to settingsFlow and keeps 
   assert.doesNotMatch(source, /deleteMemory\(/)
 })
 
+test('settings page clear-local-data confirm explains scope and cloud safety, not a bare title', () => {
+  const source = readPageFile('pages/settings/settings.js')
+
+  assert.match(source, /wx\.showModal\(\{[\s\S]*?title:\s*'⚠️ 确认清除'/)
+  assert.match(source, /wx\.showModal\(\{[\s\S]*?content:\s*'将清除所有本地缓存，不会影响云端数据/)
+})
+
+test('confirmExport explains what will be exported, the JSON format, and how to use it before exporting', async () => {
+  assert.equal(typeof settingsFlow.confirmExport, 'function')
+
+  const env = createFakeSettingsEnv()
+
+  const promise = settingsFlow.confirmExport({ wx: env.wx })
+
+  await waitForAsyncTurn()
+  assert.equal(env.wx.modals.length, 1)
+  const modal = env.wx.modals[0]
+  assert.match(modal.content, /经期记录/)
+  assert.match(modal.content, /欢乐时光/)
+  assert.match(modal.content, /JSON/)
+  assert.match(modal.content, /备份/)
+
+  const result = await env.wx.resolveModal(true, promise)
+
+  assert.deepEqual(result, { kind: 'confirmed' })
+})
+
+test('confirmExport returns cancelled when the user dismisses the export explanation', async () => {
+  assert.equal(typeof settingsFlow.confirmExport, 'function')
+
+  const env = createFakeSettingsEnv()
+
+  const promise = settingsFlow.confirmExport({ wx: env.wx })
+
+  await waitForAsyncTurn()
+  assert.equal(env.wx.modals.length, 1)
+
+  const result = await env.wx.resolveModal(false, promise)
+
+  assert.deepEqual(result, { kind: 'cancelled' })
+})
+
+test('confirmExport proceeds when the modal api is unavailable', async () => {
+  assert.equal(typeof settingsFlow.confirmExport, 'function')
+
+  assert.deepEqual(await settingsFlow.confirmExport({ wx: null }), { kind: 'confirmed' })
+  assert.deepEqual(await settingsFlow.confirmExport({ wx: {} }), { kind: 'confirmed' })
+})
+
+test('settings page shows the version exactly once, owned by the about modal', () => {
+  const pageSource = readPageFile('pages/settings/settings.js')
+  const wxmlSource = readPageFile('pages/settings/settings.wxml')
+
+  const versionMentions = pageSource.match(/1\.0\.0/g) || []
+  assert.equal(versionMentions.length, 1)
+  assert.match(pageSource, /title: '关于'/)
+  assert.doesNotMatch(wxmlSource, /1\.0\.0/)
+  assert.doesNotMatch(wxmlSource, /class="version"/)
+})
+
+test('exportRecordsAsJson explains the export and proceeds after confirmation when confirmBeforeExport is set', async () => {
+  const env = createFakeSettingsEnv()
+  const client = createFakeRoomDataClient({ periods: [], memories: [] })
+
+  const promise = settingsFlow.exportRecordsAsJson({
+    wx: env.wx,
+    cloud: { createRoomDataClient: () => client },
+    now: () => '2026-06-26T08:00:00.000Z',
+    userDataPath: '/tmp/user-data',
+    confirmBeforeExport: true
+  })
+
+  await waitForAsyncTurn()
+  assert.equal(env.wx.modals.length, 1)
+  const modal = env.wx.modals[0]
+  assert.match(modal.content, /经期记录/)
+  assert.match(modal.content, /欢乐时光/)
+  assert.match(modal.content, /JSON/)
+  assert.match(modal.content, /备份/)
+  assert.deepEqual(env.wx.loadingCalls, [])
+  assert.deepEqual(client.calls, [])
+
+  const result = await env.wx.resolveModal(true, promise)
+
+  assert.equal(result.kind, 'shared')
+  assert.deepEqual(env.wx.loadingCalls, [{ title: '导出中...' }])
+  assert.deepEqual(client.calls, [
+    { action: 'list', collection: 'periods' },
+    { action: 'list', collection: 'memories' }
+  ])
+  assert.equal(env.fs.writes.length, 1)
+})
+
+test('exportRecordsAsJson stops without touching data when the export explanation is cancelled', async () => {
+  const env = createFakeSettingsEnv()
+  const client = createFakeRoomDataClient({ periods: [], memories: [] })
+
+  const promise = settingsFlow.exportRecordsAsJson({
+    wx: env.wx,
+    cloud: { createRoomDataClient: () => client },
+    now: () => '2026-06-26T08:00:00.000Z',
+    userDataPath: '/tmp/user-data',
+    confirmBeforeExport: true
+  })
+
+  await waitForAsyncTurn()
+  assert.equal(env.wx.modals.length, 1)
+
+  const result = await env.wx.resolveModal(false, promise)
+
+  assert.deepEqual(result, { kind: 'cancelled' })
+  assert.deepEqual(env.wx.loadingCalls, [])
+  assert.deepEqual(client.calls, [])
+  assert.deepEqual(env.fs.writes, [])
+  assert.deepEqual(env.wx.shareCalls, [])
+  assert.deepEqual(env.wx.clipboardCalls, [])
+})
+
+test('settings page asks for the export explanation before exporting', () => {
+  const source = readPageFile('pages/settings/settings.js')
+
+  assert.match(source, /exportRecordsAsJson\(\{[\s\S]*?confirmBeforeExport:\s*true/)
+})
+
 function createFakeSettingsEnv(options = {}) {
   const fs = {
     writes: [],

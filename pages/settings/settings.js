@@ -23,7 +23,8 @@ Page({
   async exportData() {
     const result = await settingsFlow.exportRecordsAsJson({
       cloud,
-      roomSession
+      roomSession,
+      confirmBeforeExport: true
     })
     const displayState = roomAccessOutcome.buildRoomDisplayStateFromAccessOutcome(result)
     if (displayState) {

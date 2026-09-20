@@ -57,8 +57,14 @@
       <text>还没有经期记录\n点上面按钮新增</text>
     </view>
 
-    <view wx:if="{{loading}}" class="loading-view">
-      <view class="loading-spinner"></view>
+    <view wx:if="{{loading}}" class="skeleton-card">
+      <view class="skeleton-item" wx:for="{{[0, 1, 2]}}" wx:key="*this">
+        <view class="skeleton-body">
+          <view class="skeleton-line skeleton-line-title"></view>
+          <view class="skeleton-line skeleton-line-sub"></view>
+        </view>
+        <view class="skeleton-pill"></view>
+      </view>
     </view>
   </view>
 </view>

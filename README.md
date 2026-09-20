@@ -21,6 +21,7 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 - `utils/roomResolver.js` - active-room resolution seam used by `RoomDataClient`, with an in-memory test adapter.
 - `utils/recordCommands.js` - intentionally shallow WeChat page adapter for shared period/memory save, delete, list feedback, retry, and rebind flows.
 - `utils/recordPageSync.js` - edit-page-to-homepage record sync helper for optimistic homepage refresh.
+- `utils/recordDraft.js` - edit-form draft stash with an injected storage adapter; `createWxDraftStorage` is the only wx local-storage seam.
 - `utils/roomRecordsSnapshot.js` - room-scoped Period/Memory snapshot loader for homepage partial sync and Settings all-or-nothing export.
 - `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
 - `utils/homeCalendarState.js` - pure homepage calendar state, marker meanings, and marker composition.
@@ -78,7 +79,7 @@ Run the lightweight local checks after changing date, prediction, room, calendar
 下列命令假设当前目录是项目根；通过 Codex Desktop shell 执行时，应把测试和源码路径展开为绝对路径。
 
 ```powershell
-node --test tests\page-registration.test.js tests\room-data-client.test.js tests\room-resolver.test.js tests\index-page.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\calendar-micro-labels.test.js tests\chip-contrast.test.js tests\contrast-guardrail.test.js tests\filled-cta-contrast.test.js tests\glass-fallback.test.js tests\no-hover-tokens.test.js tests\tabbar-contrast.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
+node --test tests\page-registration.test.js tests\room-data-client.test.js tests\room-resolver.test.js tests\index-page.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\record-draft.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\calendar-micro-labels.test.js tests\chip-contrast.test.js tests\contrast-guardrail.test.js tests\design-token-guardrail.test.js tests\filled-cta-contrast.test.js tests\glass-fallback.test.js tests\no-hover-tokens.test.js tests\form-entrance-animation.test.js tests\tabbar-contrast.test.js tests\tab-icons.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js
 node --check cloudfunctions\_shared\roomMembershipLifecycle.js
 node --check cloudfunctions\_shared\syncRoomMembershipLifecycle.js
 node --check cloudfunctions\createRoom\roomMembershipLifecycle.js

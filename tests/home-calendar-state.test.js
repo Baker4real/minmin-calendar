@@ -284,6 +284,94 @@ test('buildHomeCalendarState prefers record ids for period and memory detail key
   assert.deepEqual(detail.memories.map(item => item.key), ['memory:memory-a', 'memory:memory-b'])
 })
 
+test('buildHomeCalendarState spells out a complete aria label for stacked markers', () => {
+  const periods = [
+    period('2026-01-01', '2026-01-05'),
+    period('2026-01-29', '2026-02-02'),
+    period('2026-02-26', '2026-03-02'),
+    period('2026-04-20', '2026-04-24'),
+    period('2026-05-18', '2026-05-22'),
+    period('2026-06-15', '2026-06-19'),
+    period('2026-07-13', '2026-07-17')
+  ]
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods,
+    memories: [{ date: '2026-08-10', note: '庆祝晚餐' }],
+    today: '2026-08-10'
+  })
+
+  assert.equal(
+    state.days.find(day => day.date === '2026-08-10').ariaLabel,
+    '8月10日 周一 今天 欢乐时光 预测区间'
+  )
+  assert.equal(
+    state.days.find(day => day.date === '2026-08-11').ariaLabel,
+    '8月11日 周二 预测区间'
+  )
+})
+
+test('buildHomeCalendarState aria labels cover plain days, single markers, holidays and workdays', () => {
+  const august = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [period('2026-08-12', '2026-08-12')],
+    memories: [],
+    today: '2026-08-01'
+  })
+  assert.equal(
+    august.days.find(day => day.date === '2026-08-12').ariaLabel,
+    '8月12日 周三 经期'
+  )
+  assert.equal(
+    august.days.find(day => day.date === '2026-08-13').ariaLabel,
+    '8月13日 周四'
+  )
+
+  const june = buildHomeCalendarState({ year: 2026, month: 5, today: '2026-06-01' })
+  assert.equal(
+    june.days.find(day => day.date === '2026-06-19').ariaLabel,
+    '6月19日 周五 端午'
+  )
+
+  const january = buildHomeCalendarState({ year: 2026, month: 0, today: '2026-01-01' })
+  assert.equal(
+    january.days.find(day => day.date === '2026-01-04').ariaLabel,
+    '1月4日 周日 调休上班'
+  )
+})
+
+test('buildHomeCalendarState keeps hidden non-month cells silent for screen readers', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [period('2026-08-01', '2026-08-02')],
+    memories: [{ date: '2026-08-01', note: '月初记录' }],
+    today: '2026-08-01'
+  })
+
+  const emptyCells = state.days.filter(day => day.isEmpty)
+  assert.ok(emptyCells.length > 0, 'expected leading non-month cells in the grid')
+  emptyCells.forEach(day => assert.equal(day.ariaLabel, ''))
+})
+
+test('legend items describe the real calendar rendering instead of phantom glyphs', () => {
+  const state = buildHomeCalendarState({ year: 2026, month: 7, today: '2026-08-10' })
+  const legend = Object.fromEntries(state.legendItems.map(item => [item.key, item]))
+
+  assert.notEqual(legend.today.marker, '今')
+  assert.match(legend.today.text, /玫瑰色光圈/)
+  assert.notEqual(legend.today.marker, legend.period.marker)
+
+  assert.notEqual(legend.holiday.marker, '节')
+  assert.equal(legend.holiday.marker, '中秋')
+  assert.match(legend.holiday.text, /真实节日名称/)
+
+  assert.equal(legend.period.marker, '●')
+  assert.equal(legend.memory.marker, '♥')
+})
+
 test('buildHomeCalendarState keeps fallback detail keys stable when records are inserted', () => {
   const periodA = { startDate: '2026-08-12', endDate: '2026-08-12', duration: 1, flow: 'light' }
   const periodB = { startDate: '2026-08-12', endDate: '2026-08-12', duration: 1, flow: 'heavy' }

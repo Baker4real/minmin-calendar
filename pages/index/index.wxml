@@ -83,6 +83,8 @@
         wx:key="index"
         bindtap="onDayTap"
         data-date="{{item.date}}"
+        aria-hidden="{{item.isEmpty}}"
+        aria-label="{{item.ariaLabel}}"
       >
         <view class="day-num">{{item.day}}</view>
         <view wx:if="{{!item.isEmpty && calendarDensity == 'full'}}" class="day-lunar">{{item.lunarText}}</view>
@@ -98,16 +100,22 @@
       </view>
     </view>
 
-    <view class="stats-card premium-card">
+    <view class="quick-actions">
+      <view class="quick-btn" bindtap="quickPeriod">
+        <text class="quick-icon">🩸</text>
+        <text class="quick-text">记经期</text>
+      </view>
+      <view class="quick-btn" bindtap="quickMemory">
+        <text class="quick-icon">❤️</text>
+        <text class="quick-text">欢乐时光</text>
+      </view>
+    </view>
+
+    <view wx:if="{{periods.length || memories.length}}" class="stats-card premium-card">
       <view class="stats-row">
         <view class="stat-item">
           <text class="stat-num">{{periods ? periods.length : 0}}</text>
           <text class="stat-label">经期记录</text>
-        </view>
-        <view class="stat-divider"></view>
-        <view class="stat-item">
-          <text class="stat-num">{{avgCycle || '--'}}</text>
-          <text class="stat-label">平均周期</text>
         </view>
         <view class="stat-divider"></view>
         <view class="stat-item predict-item">
@@ -115,13 +123,12 @@
             <text class="predict-date">{{nextPredictDisplay || '--'}}</text>
             <text wx:if="{{nextPredictWeekday}}" class="predict-weekday">{{nextPredictWeekday}}</text>
           </view>
-          <view wx:if="{{predictionRangeDisplay}}" class="predict-subline">
-            <text class="predict-range">{{predictionRangeDisplay}}</text>
-            <text wx:if="{{predictConfidence}}" class="predict-confidence">{{predictConfidence}}</text>
-          </view>
           <text class="stat-label">预测下次</text>
         </view>
       </view>
+    </view>
+    <view wx:else class="empty-guide">
+      <text class="empty-guide-text">点日历任意一天开始记录</text>
     </view>
 
     <view wx:if="{{cycleReminders.length}}" class="reminder-stack">
@@ -141,14 +148,16 @@
       </view>
     </view>
 
-    <view class="quick-actions">
-      <view class="quick-btn" bindtap="quickPeriod">
-        <text class="quick-icon">🩸</text>
-        <text class="quick-text">记经期</text>
+    <view class="record-entries">
+      <view class="record-entry" bindtap="goPeriodList" aria-role="button" aria-label="查看经期记录列表">
+        <text class="record-entry-icon period-tone">●</text>
+        <text class="record-entry-title">经期记录</text>
+        <text class="record-entry-arrow">›</text>
       </view>
-      <view class="quick-btn" bindtap="quickMemory">
-        <text class="quick-icon">❤️</text>
-        <text class="quick-text">欢乐时光</text>
+      <view class="record-entry" bindtap="goMemoryList" aria-role="button" aria-label="查看欢乐时光列表">
+        <text class="record-entry-icon memory-tone">♥</text>
+        <text class="record-entry-title">欢乐时光</text>
+        <text class="record-entry-arrow">›</text>
       </view>
     </view>
   </view>
@@ -175,21 +184,25 @@
       </view>
 
       <view class="jump-section">
-        <view class="jump-section-head">
-          <text class="jump-section-title">年份</text>
-          <view class="jump-year-controls">
-            <view class="jump-nav-btn" data-delta="-12" bindtap="shiftJumpYears">早些</view>
-            <view class="jump-nav-btn" data-delta="12" bindtap="shiftJumpYears">晚些</view>
-          </view>
-        </view>
-        <view class="jump-year-grid">
+        <text class="jump-section-title">年份</text>
+        <view class="jump-year-stepper">
           <view
-            class="jump-option year-option {{item == jumpYear ? 'active' : ''}}"
-            wx:for="{{jumpYears}}"
-            wx:key="*this"
-            data-year="{{item}}"
-            bindtap="selectJumpYear"
-          >{{item}}</view>
+            class="jump-year-step {{jumpYearAtMin ? 'disabled' : ''}}"
+            data-delta="-1"
+            bindtap="shiftJumpYear"
+            aria-role="button"
+            aria-label="上一年"
+            aria-disabled="{{jumpYearAtMin}}"
+          >‹</view>
+          <text class="jump-year-value">{{jumpYear}}年</text>
+          <view
+            class="jump-year-step {{jumpYearAtMax ? 'disabled' : ''}}"
+            data-delta="1"
+            bindtap="shiftJumpYear"
+            aria-role="button"
+            aria-label="下一年"
+            aria-disabled="{{jumpYearAtMax}}"
+          >›</view>
         </view>
       </view>
 

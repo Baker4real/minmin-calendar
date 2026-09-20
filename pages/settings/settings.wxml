@@ -54,7 +54,5 @@
         <text class="menu-arrow">›</text>
       </view>
     </view>
-
-    <text class="version">v1.0.0</text>
   </view>
 </view>

@@ -6,8 +6,8 @@ const CALENDAR_LEGEND_ITEMS = [
   {
     key: 'today',
     title: '今天',
-    marker: '今',
-    text: '今天会用玫瑰色光圈突出。'
+    marker: '',
+    text: '玫瑰色光圈圈出今天，日期数字变成玫瑰色。'
   },
   {
     key: 'period',
@@ -30,8 +30,8 @@ const CALENDAR_LEGEND_ITEMS = [
   {
     key: 'holiday',
     title: '节日',
-    marker: '节',
-    text: '金色标签表示节日或法定假期。'
+    marker: '中秋',
+    text: '金色标签会写出当天的真实节日名称，如「中秋」。'
   },
   {
     key: 'workday',
@@ -86,14 +86,15 @@ function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextP
   const predictDates = collectPredictDates(nextPredict, year, month, predictionWindow)
 
   return util.buildCalendarDays({ year, month }).map(day => {
-    if (!day || day.isEmpty) return day
-    return {
+    if (!day || day.isEmpty) return { ...day, ariaLabel: '' }
+    const marked = {
       ...day,
       isToday: day.date === today,
       isPeriod: periodDates.has(day.date),
       isMemory: memoryDates.has(day.date),
       isPredict: predictDates.has(day.date)
     }
+    return { ...marked, ariaLabel: buildDayAriaLabel(marked) }
   })
 }
 
@@ -273,6 +274,34 @@ function buildDayMeanings(day = {}) {
     })
   }
   return meanings
+}
+
+const DAY_ARIA_MEANING_TEXT = {
+  today: '今天',
+  period: '经期',
+  memory: '欢乐时光',
+  predict: '预测区间',
+  workday: '调休上班'
+}
+
+function buildDayAriaLabel(day) {
+  if (!day || day.isEmpty || !day.date) return ''
+  const parts = [formatAriaDate(day.date)]
+  if (day.weekday) parts.push(day.weekday)
+  buildDayMeanings(day).forEach(meaning => {
+    if (meaning.key === 'holiday') {
+      if (day.holidayName) parts.push(day.holidayName)
+      return
+    }
+    const text = DAY_ARIA_MEANING_TEXT[meaning.key]
+    if (text) parts.push(text)
+  })
+  return parts.join(' ')
+}
+
+function formatAriaDate(date) {
+  const [, month, dayOfMonth] = date.split('-')
+  return `${Number(month)}月${Number(dayOfMonth)}日`
 }
 
 module.exports = {

@@ -108,12 +108,3 @@
 .copy-btn:active {
   transform: scale(0.94);
 }
-
-/* Version */
-.version {
-  text-align: center;
-  display: block;
-  color: rgba(255,255,255,0.25);
-  font-size: 22rpx;
-  margin-top: 40rpx;
-}

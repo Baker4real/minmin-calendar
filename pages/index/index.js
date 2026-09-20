@@ -9,6 +9,8 @@ const safeArea = require('../../utils/safeArea')
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
 const SYNC_STATUS_CLEAR_DELAY = 1600
 const COLLECTIONS = ['periods', 'memories']
+const JUMP_YEAR_MIN = 2001
+const JUMP_YEAR_MAX = 2035
 const INITIAL_VIEW_DATE = new Date()
 const INITIAL_HOME_STATE = buildHomeCalendarState({
   year: INITIAL_VIEW_DATE.getFullYear(),
@@ -36,9 +38,8 @@ Page({
       { value: 10, label: '11月' },
       { value: 11, label: '12月' }
     ],
-    jumpYears: [],
-    jumpYear: 0,
     jumpMonth: 0,
+    ...buildJumpYearState(INITIAL_VIEW_DATE.getFullYear()),
     monthPickerVisible: false,
     calendarDensity: 'full',
     periods: [], memories: [],
@@ -378,6 +379,7 @@ Page({
 
   prevMonth() {
     let { year, month } = this.data
+    if (year < JUMP_YEAR_MIN || (year === JUMP_YEAR_MIN && month === 0)) return
     month--; if (month < 0) { month = 11; year-- }
     this.setData({ year, month, monthPickerVisible: false })
     setTimeout(() => this.renderCalendar(), 200)
@@ -385,6 +387,7 @@ Page({
 
   nextMonth() {
     let { year, month } = this.data
+    if (year > JUMP_YEAR_MAX || (year === JUMP_YEAR_MAX && month === 11)) return
     month++; if (month > 11) { month = 0; year++ }
     this.setData({ year, month, monthPickerVisible: false })
     setTimeout(() => this.renderCalendar(), 200)
@@ -394,9 +397,8 @@ Page({
     const { year, month } = this.data
     this.setData({
       monthPickerVisible: true,
-      jumpYear: year,
       jumpMonth: month,
-      jumpYears: this.buildMonthJumpYears(year)
+      ...buildJumpYearState(year)
     })
   },
 
@@ -423,20 +425,10 @@ Page({
     } catch (e) {}
   },
 
-  shiftJumpYears(e) {
+  shiftJumpYear(e) {
     const delta = Number(e.currentTarget.dataset.delta)
     if (Number.isNaN(delta)) return
-    const jumpYear = this.data.jumpYear + delta
-    this.setData({
-      jumpYear,
-      jumpYears: this.buildMonthJumpYears(jumpYear)
-    })
-  },
-
-  selectJumpYear(e) {
-    const year = Number(e.currentTarget.dataset.year)
-    if (Number.isNaN(year)) return
-    this.setData({ jumpYear: year })
+    this.setData(buildJumpYearState(this.data.jumpYear + delta))
   },
 
   selectJumpMonth(e) {
@@ -460,19 +452,10 @@ Page({
     this.setData({
       year,
       month,
-      jumpYear: year,
       jumpMonth: month,
-      jumpYears: this.buildMonthJumpYears(year),
+      ...buildJumpYearState(year),
       monthPickerVisible: false
     }, () => this.renderCalendar())
-  },
-
-  buildMonthJumpYears(centerYear) {
-    const years = []
-    for (let year = centerYear - 6; year <= centerYear + 6; year++) {
-      years.push(year)
-    }
-    return years
   },
 
   handleRoomStatusAction() {
@@ -607,6 +590,9 @@ Page({
     wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl({ date: now }) })
   },
 
+  goPeriodList() { wx.switchTab({ url: '/pages/period/period' }) },
+  goMemoryList() { wx.navigateTo({ url: '/pages/memory/memory' }) },
+
   applyRoomStatusOutcome(outcome) {
     this.showRoomStatus(roomAccessOutcome.buildInlineRoomStatus(outcome, {
       noRoomTitle: '还没绑定房间',
@@ -666,6 +652,15 @@ Page({
     this._syncStatusTimer = null
   }
 })
+
+function buildJumpYearState(year) {
+  const jumpYear = Math.min(JUMP_YEAR_MAX, Math.max(JUMP_YEAR_MIN, year))
+  return {
+    jumpYear,
+    jumpYearAtMin: jumpYear <= JUMP_YEAR_MIN,
+    jumpYearAtMax: jumpYear >= JUMP_YEAR_MAX
+  }
+}
 
 function stableValue(value) {
   if (Array.isArray(value)) return value.map(stableValue)
