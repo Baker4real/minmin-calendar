@@ -41,7 +41,7 @@ Page({
     jumpMonth: 0,
     ...buildJumpYearState(INITIAL_VIEW_DATE.getFullYear()),
     monthPickerVisible: false,
-    calendarDensity: 'full',
+    calendarDensity: 'compact',
     periods: [], memories: [],
     ...INITIAL_HOME_STATE,
     infoSheetVisible: false,
@@ -411,9 +411,9 @@ Page({
       const density = wx.getStorageSync(CALENDAR_DENSITY_STORAGE_KEY)
       if (density === 'compact' || density === 'full') return density
     } catch (e) {
-      return 'full'
+      return 'compact'
     }
-    return 'full'
+    return 'compact'
   },
 
   setCalendarDensity(e) {

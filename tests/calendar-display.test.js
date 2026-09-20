@@ -347,14 +347,14 @@ test('index month title opens a themed year-month jump sheet', () => {
   assert.match(wxss, /\.jump-confirm\s*{[\s\S]*min-height:\s*88rpx/)
 })
 
-test('index calendar density control defaults to full and remembers user preference', () => {
+test('index calendar density control defaults to compact and remembers user preference', () => {
   const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
 
   assert.match(js, /CALENDAR_DENSITY_STORAGE_KEY\s*=\s*'calendarDensity'/)
-  assert.match(js, /calendarDensity:\s*'full'/)
-  assert.match(js, /getSavedCalendarDensity\(\)\s*{[\s\S]*getStorageSync\(CALENDAR_DENSITY_STORAGE_KEY\)[\s\S]*return 'full'/)
+  assert.match(js, /calendarDensity:\s*'compact'/)
+  assert.match(js, /getSavedCalendarDensity\(\)\s*{[\s\S]*getStorageSync\(CALENDAR_DENSITY_STORAGE_KEY\)[\s\S]*return 'compact'/)
   assert.match(js, /setCalendarDensity\(e\)\s*{[\s\S]*dataset\.density[\s\S]*calendarDensity/)
   assert.match(js, /setStorageSync\(CALENDAR_DENSITY_STORAGE_KEY,\s*density\)/)
   assert.match(js, /density !== 'compact' && density !== 'full'/)
