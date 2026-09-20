@@ -17,6 +17,7 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - **Monthly recap / 小结**: Homepage summary for one viewed calendar month. It lists Period records and Memory records that overlap that month. It is not a second Period record.
 - **Days in viewed month**: Inclusive day count of the intersection between a Period record's date range and the Monthly recap's calendar month. This is not Period duration.
 - **Memory record / happy time**: A dated note shown as a heart marker on the calendar.
+- **Edit draft / 草稿**: Edit-form input stashed in local storage when the Period/Memory edit page is hidden or unloaded, restored with a 「已恢复上次未完成的输入」 notice on return, and cleared after a successful save. Drafts are keyed per record identity (new vs. each existing record) and never leak across records.
 - **Calendar cell**: A homepage day tile that may show date number, lunar text, holiday/workday tag, and markers.
 - **Prediction**: Estimated next period range derived from previous period gaps, with confidence and reminder states.
 - **Today**: Current date highlight; it should not reuse the memory heart marker.
@@ -42,11 +43,12 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - `utils/recordPageSync.js` owns optional edit-page-to-homepage record change notifications for optimistic homepage refresh after saves and deletes.
 - `pages/index/index.js` owns homepage record collection synchronization, request ordering, partial-success handling, and optimistic change reconciliation.
 - `utils/settingsFlow.js` owns room-code copy, data export, retry/rebind, and local-cache helper flows.
-- `utils/homeCalendarState.js` owns the pure Calendar projection for cell markers, marker meanings, prediction, reminders, day details, and monthly recap.
-- `utils/recordEditRoute.js` owns Period record and Memory record edit URL construction plus edit-page route option hydration.
+- `utils/homeCalendarState.js` owns the pure Calendar projection for cell markers, marker meanings, prediction, reminders, day details, monthly recap, day-cell screen-reader aria copy, and legend item definitions.
+- `utils/recordEditRoute.js` owns Period record and Memory record edit URL construction plus edit-page route option hydration, including the Memory date ceiling at today.
+- `utils/recordDraft.js` owns edit-form draft save/restore/clear as pure functions keyed per record identity; `createWxDraftStorage` is the only wx local-storage seam.
 - `utils/room.js` owns room-code cache, recovery, create/join, local clear, and server-side leave calls.
 - `utils/util.js` owns date formatting, lunar conversion, official holiday metadata, and base calendar-grid construction.
-- `utils/cycle.js` owns cycle prediction, reminder derivation, flow labels, and symptom labels.
+- `utils/cycle.js` owns cycle prediction, reminder derivation, flow labels, symptom labels, and the body/emotion symptom grouping metadata.
 - `utils/calendarInsights.js` owns prediction explanation copy and monthly recap text.
 - `cloudfunctions/dataOp/index.js` is the cloud runtime adapter for room-authorized CRUD on `periods` and `memories`.
 - `cloudfunctions/dataOp/dataOpHandler.js` owns active-room membership lookup and rejects archived rooms before record dispatch.
