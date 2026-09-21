@@ -6,7 +6,7 @@ const recordEditRoute = require('../../utils/recordEditRoute')
 const safeArea = require('../../utils/safeArea')
 
 Page({
-  goBack() { wx.navigateBack() },
+  goBack() { wx.switchTab({ url: '/pages/index/index' }) },
   data: { safeTop: safeArea.getSafeTop(), periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false },
 
   onShow() { return this.loadData() },

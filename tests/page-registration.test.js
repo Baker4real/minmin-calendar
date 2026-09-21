@@ -7,6 +7,41 @@ const test = require('node:test')
 const repoRoot = path.join(__dirname, '..')
 const recordPageSync = require('../utils/recordPageSync')
 
+test('period tab back button returns to the home tab without a previous page', () => {
+  const appConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, 'app.json'), 'utf8'))
+  const tabs = appConfig.tabBar.list.map(tab => tab.pagePath)
+  const stack = ['pages/period/period']
+  assert.ok(tabs.includes(stack[0]))
+  const harness = loadPageHarness('pages/period/period.js', {
+    wxOverrides: {
+      navigateBack({ delta = 1, fail } = {}) {
+        if (stack.length <= delta) {
+          if (fail) fail({ errMsg: 'navigateBack:fail cannot navigate back at first page' })
+          return
+        }
+        stack.splice(-delta)
+      },
+      switchTab({ url }) {
+        const route = url.replace(/^\//, '')
+        assert.ok(tabs.includes(route), 'switchTab destination must be a configured tab')
+        stack.splice(0, stack.length, route)
+      }
+    }
+  })
+
+  try {
+    const wxml = fs.readFileSync(path.join(repoRoot, 'pages/period/period.wxml'), 'utf8')
+    const button = wxml.match(/<view\b[^>]*class="nav-back"[^>]*>/)
+    assert.ok(button, 'period page must expose its back button')
+    const binding = button[0].match(/bindtap="([^"]+)"/)
+    assert.ok(binding, 'back button must bind a tap handler')
+    harness.page[binding[1]]()
+    assert.deepEqual(stack, ['pages/index/index'], 'tapping back must leave the period tab for home')
+  } finally {
+    harness.teardown()
+  }
+})
+
 test('index page onShow consumes RoomDataClient no-room outcomes without legacy getters', async () => {
   const calls = []
   const client = {
