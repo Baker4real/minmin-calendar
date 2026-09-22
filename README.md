@@ -22,10 +22,14 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 - `utils/recordCommands.js` - intentionally shallow WeChat page adapter for shared period/memory save, delete, list feedback, retry, and rebind flows.
 - `utils/recordPageSync.js` - edit-page-to-homepage record sync helper for optimistic homepage refresh.
 - `utils/recordDraft.js` - edit-form draft stash with an injected storage adapter; `createWxDraftStorage` is the only wx local-storage seam.
+- `utils/recordEditRoute.js` - Period/Memory edit URL construction and edit-page route option hydration, including the Memory date ceiling at today.
 - `utils/roomRecordsSnapshot.js` - room-scoped Period/Memory snapshot loader for homepage partial sync and Settings all-or-nothing export.
 - `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
+- `utils/roomAccessOutcome.js` - client-side classification of room access failures plus outcome presentation mapping.
 - `utils/homeCalendarState.js` - pure homepage calendar state, marker meanings, and marker composition.
+- `utils/safeArea.js` - runtime safe-area top/bottom computation; every page root injects `--safe-top` and `--safe-bottom`.
 - `utils/util.js` - date, lunar, holiday, and base calendar-grid helpers.
+- `utils/chinaHolidays.js` - official China holiday and adjusted-workday data table (2001-2026).
 - `utils/cycle.js` - cycle prediction, reminders, and period metadata labels.
 - `utils/calendarInsights.js` - prediction explanation and monthly recap copy.
 - `cloudfunctions/` - WeChat Cloud Functions for room lifecycle and record persistence.
@@ -129,6 +133,8 @@ For UI changes, also verify in WeChat Developer Tools at a small-phone width.
 2026-09-01：修复滚动后顶部显示不全与底部色带分层。顶部：`env(safe-area-inset-top)` 在部分 Android 设备解析为 0，自定义导航栏顶进系统状态栏；现由 `utils/safeArea.js` 用 `wx.getWindowInfo()` 计算状态栏高度（px），各页面根节点内联 `--safe-top` CSS 变量注入 `.safe-top` 与 index 的 `.sync-pill`。底部：原 `page` 线性渐变随文档高度拉伸，滚动到底部回到 #0A0E27 形成色带；且 `pageEnter` 位移动画因 fill-mode both 永久保留 transform，使 `position:fixed` 的 `.page::before` 退化为相对文档定位。现 `page` 改为实色 #0A0E27 基底，渐变并入视口固定的 `.page::before` 末层，`pageEnter` 只保留淡入。真机/DevTools 目检仍未做。
 
 2026-09-15：Aurora Bloom 可读性收口已合入 `4bd1b54`：主填充为海军字叠玫瑰、tab 未选中 `#7A7C8C`、玻璃叠层带不透明海军回退、节日标签盒高 `38rpx` 以免 CJK 裁切。`DESIGN.md` 是唯一现行视觉说明。微信开发者工具小屏目视仍未做。
+
+2026-09-22：epic #52（issues #53–#59）已合入 `394cb4c`：共享视觉 token 契约与全页面护栏、全页面字体层级、首页 IA 重排（密度偏好迁入设置页、CTA 玫瑰+海军字、金色白名单）、窄屏几何与底部安全区运行时策略（`utils/safeArea.js` 新增 `getSafeBottom`，七页注入 `--safe-bottom`）、交互语义与次级操作对比度、动效/玻璃/reduced-motion 边界。微信开发者工具三档视口（320/375/430px）七页实渲零横向溢出、无状态栏/底部遮挡、无 CJK 裁切；真机验收（含 reduced-motion 系统态、读屏实听、破坏性路径）仍未做，追踪于 issue #60。
 
 ## Repository Hygiene
 

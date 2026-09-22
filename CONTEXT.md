@@ -50,6 +50,7 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - `utils/util.js` owns date formatting, lunar conversion, official holiday metadata, and base calendar-grid construction.
 - `utils/cycle.js` owns cycle prediction, reminder derivation, flow labels, symptom labels, and the body/emotion symptom grouping metadata.
 - `utils/calendarInsights.js` owns prediction explanation copy and monthly recap text.
+- `utils/safeArea.js` owns runtime safe-area computation for status-bar top and gesture-area bottom; page roots inject `--safe-top` and `--safe-bottom`.
 - `cloudfunctions/dataOp/index.js` is the cloud runtime adapter for room-authorized CRUD on `periods` and `memories`.
 - `cloudfunctions/dataOp/dataOpHandler.js` owns active-room membership lookup and rejects archived rooms before record dispatch.
 - `cloudfunctions/dataOp/roomRecords.js` returns canonical saved Record projections from add/update operations for optimistic homepage synchronization.
