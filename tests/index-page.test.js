@@ -417,26 +417,38 @@ test('homepage stats card leaves prediction range, confidence, and average cycle
   assert.match(wxml, /predictionExplanation\.lineItems/)
 })
 
-test('density control selected state is a quiet rose outline instead of the gradient fill', () => {
-  const block = ruleBody(readIndexWxss(), '.density-option.active')
+test('homepage stacks month navigation, calendar, and record actions ahead of secondary tools', () => {
+  const wxml = readIndexWxml()
+  const monthNavIndex = wxml.indexOf('class="month-nav"')
+  const weekHeaderIndex = wxml.indexOf('class="week-header"')
+  const gridIndex = wxml.indexOf('class="calendar-grid')
+  const quickIndex = wxml.indexOf('class="quick-actions"')
+  const toolbarIndex = wxml.indexOf('class="meaning-toolbar"')
 
-  assert.doesNotMatch(block, /linear-gradient/)
-  assert.match(block, /color:\s*#E8909E/i)
-  assert.match(block, /border-color:\s*rgba\(232,\s*144,\s*158,/)
+  assert.ok(monthNavIndex !== -1 && weekHeaderIndex !== -1 && gridIndex !== -1, 'expected month nav, week header, and calendar grid')
+  assert.ok(quickIndex !== -1 && toolbarIndex !== -1, 'expected quick actions and the meaning toolbar')
+  assert.ok(monthNavIndex < weekHeaderIndex, 'month navigation leads the calendar')
+  assert.ok(weekHeaderIndex < gridIndex, 'week header sits directly above the calendar grid')
+  assert.ok(gridIndex < quickIndex, 'record actions directly follow the calendar grid')
+  assert.ok(quickIndex < toolbarIndex, 'legend/prediction/recap tools stay secondary to the record actions')
 })
 
-test('quick record buttons are the primary filled action on the first screen', () => {
+test('quick record buttons are rose-filled primary actions with canvas-navy labels', () => {
   const wxss = readIndexWxss()
   const block = ruleBody(wxss, '.quick-btn')
 
-  assert.match(block, /background:\s*linear-gradient\(135deg,\s*#E8909E,\s*#D4A574\)/i)
+  // issue #55：主操作统一实色玫瑰填充 + 画布海军字，玫瑰→金渐变只属误用已收敛
+  assert.match(block, /background:\s*var\(--aurora-pink\)/i)
+  assert.doesNotMatch(block, /linear-gradient|gradient-gold/i)
   assert.match(block, /color:\s*#0A0E27/i)
   assert.match(ruleBody(wxss, '.quick-text'), /color:\s*#0A0E27/i)
 })
 
 test('compact density keeps the record actions inside the 1334rpx first-screen budget', () => {
   const wxss = readIndexWxss()
-  // issue #37 验收口径：750rpx 宽 × 667px 高视口 ≈ 1334rpx；状态栏与自定义导航栏为固定值
+  // issue #37 验收口径：750rpx 宽 × 667px 高视口 ≈ 1334rpx；状态栏与自定义导航栏为固定值。
+  // issue #55 起图例/预测/小结工具行与密度偏好退出首屏路径（密度迁入设置页），
+  // 栈深只剩 月份导航 → 日历 → 记录入口。
   const SAFE_TOP_RPX = 88
   const NAV_BAR_RPX = 88
   const MONTH_NAV_CONTENT_RPX = 88
@@ -448,13 +460,6 @@ test('compact density keeps the record actions inside the 1334rpx first-screen b
   const monthNav = MONTH_NAV_CONTENT_RPX +
     shorthandVertical(monthNavBody, 'padding') +
     shorthandVertical(monthNavBody, 'margin')
-  const toolbarBody = ruleBody(wxss, '.meaning-toolbar')
-  const toolbar = numberDecl(ruleBody(wxss, '.meaning-tool'), 'min-height') +
-    shorthandVertical(toolbarBody, 'margin')
-  const densityBody = ruleBody(wxss, '.density-control')
-  const density = shorthandVertical(densityBody, 'padding') +
-    numberDecl(ruleBody(wxss, '.density-option'), 'min-height') +
-    shorthandVertical(densityBody, 'margin')
   const weekHeader = shorthandVertical(ruleBody(wxss, '.week-header'), 'padding') + WEEK_TEXT_RPX
   const gridPadding = shorthandVertical(ruleBody(wxss, '.calendar-grid'), 'padding')
   const compactCell = numberDecl(ruleBody(wxss, '.calendar-density-compact .day-cell'), 'height')
@@ -462,13 +467,36 @@ test('compact density keeps the record actions inside the 1334rpx first-screen b
     shorthandVertical(ruleBody(wxss, '.quick-btn'), 'padding') +
     QUICK_CONTENT_RPX
 
-  const stack = SAFE_TOP_RPX + NAV_BAR_RPX + monthNav + toolbar + density +
+  const stack = SAFE_TOP_RPX + NAV_BAR_RPX + monthNav +
     weekHeader + gridPadding + SIX_ROWS * compactCell + quickActions
 
   assert.ok(
     stack <= 1334,
     `compact first-screen stack ${stack}rpx exceeds the 1334rpx (667px) budget`
   )
+})
+
+test('homepage re-reads the persisted calendar density every time it shows', async () => {
+  let storedDensity = 'full'
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: [] },
+      { kind: 'success', data: [] }
+    ])
+  })
+
+  try {
+    global.wx.getStorageSync = key => (key === 'calendarDensity' ? storedDensity : '')
+    harness.page.onLoad()
+    assert.equal(harness.page.data.calendarDensity, 'full')
+
+    // 密度切换在设置页完成；从设置 tab 返回首页时 onShow 重新读取偏好
+    storedDensity = 'compact'
+    await harness.page.onShow()
+    assert.equal(harness.page.data.calendarDensity, 'compact')
+  } finally {
+    harness.teardown()
+  }
 })
 
 function numberDecl(body, property) {

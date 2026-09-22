@@ -31,7 +31,7 @@
   box-sizing: border-box;
   border-radius: var(--radius-full);
   color: rgba(255,255,255,0.78);
-  background: var(--glass-bg), rgba(18,22,61,0.92);
+  background: var(--glass-bg), var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.13);
   box-shadow: 0 8rpx 26rpx rgba(0,0,0,0.14);
   backdrop-filter: blur(16px);
@@ -43,7 +43,7 @@
   width: 10rpx;
   height: 10rpx;
   border-radius: var(--radius-circle);
-  background: #D4A574;
+  background: var(--aurora-gold);
   box-shadow: 0 0 12rpx rgba(212,165,116,0.5);
 }
 .sync-pill.syncing .sync-dot {
@@ -52,7 +52,7 @@
 }
 .sync-text {
   min-width: 0;
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   line-height: 1.25;
   white-space: nowrap;
@@ -74,7 +74,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 12rpx 24rpx;
-  background: var(--glass-bg), rgba(18,22,61,0.92);
+  background: var(--glass-bg), var(--glass-fallback);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,0.15);
@@ -97,9 +97,11 @@
   pointer-events: none;
 }
 .month-title {
-  font-size: 34rpx;
+  font-size: var(--font-size-month-title);
   font-weight: 800;
+  line-height: 1.2;
   letter-spacing: 4rpx;
+  white-space: nowrap;
   position: relative;
   z-index: 1;
   color: #E8909E;
@@ -126,7 +128,7 @@
 .month-title-caret {
   font-size: 24rpx;
   line-height: 1;
-  color: rgba(212,165,116,0.92);
+  color: rgba(232,144,158,0.85);
   transform: translateY(-2rpx);
 }
 .nav-btn {
@@ -137,7 +139,7 @@
   font-size: 42rpx;
   color: #fff;
   border-radius: var(--radius-circle);
-  background: rgba(255,255,255,0.1), rgba(18,22,61,0.92);
+  background: rgba(255,255,255,0.1), var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.2);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -145,7 +147,7 @@
   z-index: 1;
 }
 .nav-btn:active {
-  background: rgba(255,255,255,0.2), rgba(18,22,61,0.92);
+  background: rgba(255,255,255,0.2), var(--glass-fallback);
 }
 
 /* ===== Meaning Toolbar ===== */
@@ -153,7 +155,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14rpx;
-  margin: 0 0 8rpx;
+  margin: 18rpx 0 0;
 }
 .meaning-tool {
   min-height: 88rpx;
@@ -180,56 +182,19 @@
   line-height: 42rpx;
   text-align: center;
   border-radius: var(--radius-circle);
-  font-size: 22rpx;
+  font-size: var(--font-size-caption);
   font-weight: 800;
-  color: #0A0E27;
-  background: linear-gradient(135deg, #E8909E, #D4A574);
+  color: #E8909E;
+  background: rgba(232,144,158,0.12);
+  box-shadow: inset 0 0 0 1px rgba(232,144,158,0.3);
 }
 .meaning-tool-text {
   min-width: 0;
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   font-weight: 800;
   line-height: 1.2;
   color: rgba(255,255,255,0.82);
   white-space: nowrap;
-}
-
-/* ===== Calendar Density Control ===== */
-.density-control {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10rpx;
-  margin: 0 0 8rpx;
-  padding: 4rpx;
-  box-sizing: border-box;
-  border-radius: var(--radius-card);
-  background: rgba(255,255,255,0.055);
-  border: 1px solid rgba(255,255,255,0.11);
-  box-shadow: inset 0 1rpx 0 rgba(255,255,255,0.09);
-}
-.density-option {
-  min-height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  border-radius: var(--radius-md);
-  font-size: 26rpx;
-  font-weight: 800;
-  color: rgba(255,255,255,0.68);
-  border: 1px solid transparent;
-  transition: background-color 0.22s ease, color 0.22s ease, transform 0.22s ease;
-}
-.density-option:active {
-  transform: scale(0.98);
-  background: rgba(255,255,255,0.1);
-}
-/* 密度偏好是弱态设置：选中项用玫瑰描边+玫瑰字，渐变填充只留给真正的主操作 */
-.density-option.active {
-  color: #E8909E;
-  background: rgba(232,144,158,0.08);
-  border-color: rgba(232,144,158,0.45);
-  box-shadow: none;
 }
 
 /* ===== Week Header ===== */
@@ -237,7 +202,7 @@
   display: flex;
   padding: 8rpx 0;
   margin-bottom: 0;
-  background: rgba(255,255,255,0.05), rgba(18,22,61,0.92);
+  background: rgba(255,255,255,0.05), var(--glass-fallback);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.08);
@@ -246,7 +211,7 @@
 .week-cell {
   flex: 1;
   text-align: center;
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   color: rgba(255,255,255,0.7);
   font-weight: 600;
   letter-spacing: 2rpx;
@@ -256,7 +221,7 @@
 .calendar-grid {
   display: flex;
   flex-wrap: wrap;
-  background: rgba(255,255,255,0.05), rgba(18,22,61,0.92);
+  background: rgba(255,255,255,0.05), var(--glass-fallback);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
   border: 1px solid rgba(255,255,255,0.1);
@@ -291,7 +256,7 @@
   padding: 12rpx 0 10rpx;
 }
 .calendar-density-compact .day-num {
-  font-size: 30rpx;
+  font-size: var(--font-size-calendar-date-compact);
   line-height: 38rpx;
 }
 .calendar-density-compact .day-marks {
@@ -313,7 +278,7 @@
 
 /* Day Number */
 .day-num {
-  font-size: 28rpx;
+  font-size: var(--font-size-calendar-date);
   font-weight: 500;
   color: rgba(255,255,255,0.8);
   line-height: 32rpx;
@@ -331,7 +296,7 @@
   height: 28rpx;
   line-height: 28rpx;
   margin-top: 2rpx;
-  font-size: 24rpx;
+  font-size: var(--font-size-calendar-micro);
   color: rgba(255,255,255,0.6);
   text-align: center;
   white-space: nowrap;
@@ -355,7 +320,7 @@
   padding: 0 8rpx;
   border-radius: var(--radius-full);
   box-sizing: border-box;
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -393,7 +358,7 @@
 
 /* Memory Mark */
 .memory-mark {
-  font-size: 24rpx;
+  font-size: var(--font-size-calendar-micro);
   line-height: 1;
   width: auto;
   height: auto;
@@ -411,10 +376,10 @@
   line-height: 26rpx;
   padding: 0 8rpx;
   border-radius: var(--radius-full);
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   text-align: center;
-  color: #D4A574;
+  color: var(--aurora-gold);
   background: rgba(212,165,116,0.14);
   border: 1px solid rgba(212,165,116,0.22);
 }
@@ -458,21 +423,21 @@
 }
 /* 柔金=预测元数据 */
 .predict-date {
-  font-size: 31rpx;
+  font-size: var(--font-size-body-lg);
   font-weight: 800;
   line-height: 1.15;
-  color: #D4A574;
+  color: var(--aurora-gold);
   font-variant-numeric: tabular-nums;
 }
 .predict-weekday {
   flex: 0 0 auto;
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   line-height: 1.15;
   color: rgba(255,255,255,0.72);
 }
 .stat-label {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   color: rgba(255,255,255,0.5);
   margin-top: 6rpx;
 }
@@ -511,7 +476,7 @@
   align-self: stretch;
   min-height: 52rpx;
   border-radius: var(--radius-full);
-  background: #D4A574;
+  background: var(--aurora-gold);
   box-shadow: 0 0 14rpx rgba(212,165,116,0.36);
 }
 .reminder-card.due .reminder-rail {
@@ -530,12 +495,12 @@
   gap: 4rpx;
 }
 .reminder-title {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   color: rgba(255,255,255,0.88);
 }
 .reminder-text {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   color: rgba(255,255,255,0.5);
   line-height: 1.35;
 }
@@ -545,13 +510,13 @@
   line-height: 60rpx;
   text-align: center;
   border-radius: var(--radius-full);
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   color: #0A0E27;
-  background: rgba(232,144,158,0.88);
+  background: var(--aurora-pink);
 }
 
-/* ===== Quick Actions — 首屏主操作：渐变填充 + 画布海军字 ===== */
+/* ===== Quick Actions — 首屏主操作：实色玫瑰填充 + 画布海军字 ===== */
 .quick-actions {
   display: flex;
   gap: 20rpx;
@@ -564,7 +529,7 @@
   justify-content: center;
   gap: 12rpx;
   padding: 18rpx 24rpx;
-  background: linear-gradient(135deg, #E8909E, #D4A574);
+  background: var(--aurora-pink);
   color: #0A0E27;
   border-radius: var(--radius-md);
   box-shadow: 0 10rpx 26rpx rgba(232,144,158,0.22);
@@ -579,7 +544,7 @@
   font-size: 32rpx;
 }
 .quick-text {
-  font-size: 28rpx;
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: #0A0E27;
 }
@@ -597,7 +562,7 @@
   border: 1px dashed rgba(255,255,255,0.16);
 }
 .empty-guide-text {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   line-height: 1.4;
   color: rgba(255,255,255,0.72);
@@ -641,7 +606,7 @@
 .record-entry-title {
   flex: 1;
   min-width: 0;
-  font-size: 27rpx;
+  font-size: var(--font-size-body);
   font-weight: 700;
   line-height: 1.25;
   color: rgba(255,255,255,0.88);
@@ -671,13 +636,13 @@
   animation: pulse 6s ease-in-out infinite;
 }
 .no-room-title {
-  font-size: 36rpx;
+  font-size: var(--font-size-title);
   font-weight: 700;
   color: #E8909E;
   text-shadow: 0 0 14rpx rgba(232,144,158,0.28);
 }
 .no-room-desc {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   color: rgba(255,255,255,0.5);
   margin-top: 16rpx;
   text-align: center;
@@ -693,6 +658,7 @@
   max-height: 86vh;
   overflow-y: auto;
   padding: 18rpx 22rpx 24rpx;
+  padding-bottom: calc(24rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
   box-sizing: border-box;
   background:
     linear-gradient(160deg, rgba(232,144,158,0.14), rgba(196,160,210,0.08) 45%, rgba(18,22,61,0.96) 100%),
@@ -727,17 +693,17 @@
   background: rgba(232,144,158,0.18);
 }
 .jump-today-label {
-  font-size: 27rpx;
+  font-size: var(--font-size-body);
   font-weight: 800;
 }
 .jump-today-date {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   color: rgba(255,255,255,0.6);
 }
 .jump-section-title {
   display: block;
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   font-weight: 800;
   color: rgba(255,255,255,0.68);
 }
@@ -779,7 +745,7 @@
 .jump-year-value {
   flex: 1;
   min-width: 0;
-  font-size: 32rpx;
+  font-size: var(--font-size-body-lg);
   font-weight: 800;
   letter-spacing: 2rpx;
   text-align: center;
@@ -799,7 +765,7 @@
   justify-content: center;
   box-sizing: border-box;
   border-radius: var(--radius-md);
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   font-weight: 800;
   color: rgba(255,255,255,0.78);
   background: rgba(255,255,255,0.07);
@@ -812,7 +778,7 @@
 }
 .jump-option.active {
   color: #0A0E27;
-  background: linear-gradient(135deg, #E8909E, #D4A574);
+  background: var(--aurora-pink);
   border-color: rgba(255,255,255,0.18);
   box-shadow: 0 12rpx 28rpx rgba(232,144,158,0.18);
 }
@@ -824,10 +790,10 @@
   justify-content: center;
   box-sizing: border-box;
   border-radius: var(--radius-full);
-  font-size: 28rpx;
+  font-size: var(--font-size-body);
   font-weight: 800;
   color: #0A0E27;
-  background: linear-gradient(135deg, #E8909E, #D4A574);
+  background: var(--aurora-pink);
   box-shadow: 0 14rpx 36rpx rgba(232,144,158,0.2);
   transition: transform 0.22s ease, box-shadow 0.22s ease;
 }
@@ -849,8 +815,9 @@
   padding: 0 20rpx 20rpx;
   box-sizing: border-box;
   background: rgba(10,14,39,0.88);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  /* 全屏遮罩 blur 压到 modal-overlay 登记的 8px：88% 不透明底上更大 blur 不可见，纯 GPU 开销（issue #58） */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   animation: sheetFadeIn 0.22s ease-out both;
 }
 .day-action-sheet {
@@ -858,6 +825,7 @@
   max-height: 82vh;
   overflow-y: auto;
   padding: 18rpx 22rpx 22rpx;
+  padding-bottom: calc(22rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
   box-sizing: border-box;
   background:
     linear-gradient(160deg, rgba(232,144,158,0.12), rgba(196,160,210,0.08) 42%, rgba(18,22,61,0.94) 100%),
@@ -891,13 +859,13 @@
   gap: 6rpx;
 }
 .sheet-title {
-  font-size: 34rpx;
+  font-size: var(--font-size-title);
   font-weight: 800;
   line-height: 1.2;
   color: rgba(255,255,255,0.92);
 }
 .sheet-subtitle {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   line-height: 1.35;
   color: rgba(255,255,255,0.6);
 }
@@ -958,8 +926,8 @@
   box-shadow: inset 0 0 0 1px rgba(240,196,192,0.28);
 }
 .detail-tone {
-  color: #D4A574;
-  box-shadow: inset 0 0 0 1px rgba(212,165,116,0.3);
+  color: rgba(255,255,255,0.72);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
 }
 .sheet-action-copy {
   flex: 1;
@@ -969,13 +937,13 @@
   gap: 4rpx;
 }
 .sheet-action-title {
-  font-size: 29rpx;
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: rgba(255,255,255,0.9);
   line-height: 1.25;
 }
 .sheet-action-desc {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   color: rgba(255,255,255,0.5);
   line-height: 1.3;
 }
@@ -1000,12 +968,12 @@
   gap: 8rpx;
 }
 .detail-empty-title {
-  font-size: 28rpx;
+  font-size: var(--font-size-body);
   font-weight: 700;
   color: rgba(255,255,255,0.86);
 }
 .detail-empty-desc {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   color: rgba(255,255,255,0.5);
 }
 .day-detail-row {
@@ -1044,13 +1012,13 @@
   border-color: rgba(212,165,116,0.24);
 }
 .detail-meaning-title {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   font-weight: 800;
   line-height: 1.25;
   color: rgba(255,255,255,0.86);
 }
 .detail-meaning-text {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   line-height: 1.35;
   color: rgba(255,255,255,0.5);
 }
@@ -1073,18 +1041,18 @@
   gap: 6rpx;
 }
 .detail-title {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   font-weight: 700;
-  color: #D4A574;
+  color: var(--aurora-gold);
 }
 .detail-main {
-  font-size: 28rpx;
+  font-size: var(--font-size-body);
   line-height: 1.35;
   color: rgba(255,255,255,0.88);
   word-break: break-all;
 }
 .detail-meta {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   line-height: 1.35;
   color: rgba(255,255,255,0.5);
 }
@@ -1131,7 +1099,7 @@
   line-height: 54rpx;
   text-align: center;
   border-radius: var(--radius-circle);
-  font-size: 23rpx;
+  font-size: var(--font-size-caption);
   font-weight: 800;
   color: #0A0E27;
   background: rgba(232,144,158,0.88);
@@ -1153,7 +1121,6 @@
 /* 节日图例 — 金底海军字小标签，对应日历上的真实节日名称标签 */
 .legend-row.holiday .legend-symbol {
   border-radius: var(--radius-sm);
-  font-size: 22rpx;
 }
 .legend-copy {
   flex: 1;
@@ -1163,20 +1130,20 @@
   gap: 4rpx;
 }
 .legend-title {
-  font-size: 27rpx;
+  font-size: var(--font-size-body);
   font-weight: 800;
   color: rgba(255,255,255,0.88);
   line-height: 1.25;
 }
 .legend-text {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   line-height: 1.35;
   color: rgba(255,255,255,0.5);
 }
 .prediction-summary {
   padding: 22rpx 20rpx;
   border-radius: var(--radius-md);
-  font-size: 30rpx;
+  font-size: var(--font-size-body-lg);
   font-weight: 800;
   line-height: 1.35;
   color: rgba(255,255,255,0.9);
@@ -1188,7 +1155,7 @@
   padding: 16rpx 18rpx;
   box-sizing: border-box;
   border-radius: var(--radius-md);
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   line-height: 1.35;
   color: rgba(255,255,255,0.72);
   background: rgba(255,255,255,0.065);
@@ -1198,7 +1165,7 @@
   display: block;
   padding: 18rpx 20rpx;
   border-radius: var(--radius-md);
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   line-height: 1.35;
   color: rgba(255,255,255,0.82);
@@ -1213,7 +1180,7 @@
 .recap-highlight {
   padding: 16rpx 18rpx;
   border-radius: var(--radius-md);
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   line-height: 1.45;
   color: rgba(255,255,255,0.62);
   background: rgba(255,255,255,0.05);
@@ -1228,10 +1195,10 @@
   margin-top: 4rpx;
   box-sizing: border-box;
   border-radius: var(--radius-full);
-  font-size: 28rpx;
+  font-size: var(--font-size-body);
   font-weight: 800;
   color: #0A0E27;
-  background: linear-gradient(135deg, #E8909E, #D4A574);
+  background: var(--aurora-pink);
   box-shadow: 0 14rpx 34rpx rgba(232,144,158,0.18);
 }
 .copy-recap:active {
@@ -1260,7 +1227,6 @@
   .day-cell,
   .stat-item,
   .meaning-tool,
-  .density-option,
   .reminder-card,
   .quick-btn,
   .record-entry,

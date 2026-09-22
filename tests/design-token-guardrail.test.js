@@ -10,7 +10,8 @@ const {
   findOffPaletteHexesInInlineStyles,
   findOffTokenRadii,
   listWxmlFiles,
-  listWxssFiles
+  listWxssFiles,
+  parseWxssRules
 } = require('./designTokens')
 
 const repoRoot = path.join(__dirname, '..')
@@ -99,11 +100,295 @@ test('radius guardrail flags tokens not defined in app.wxss', () => {
   assert.deepEqual(violations.map((v) => v.component), ['var(--radius-huge)'])
 })
 
-test('homepage WXSS uses only registered radius tokens', () => {
+test('radius guardrail flags a trailing literal radius without a semicolon', () => {
+  const defined = new Set(['radius-md'])
+  // 末位声明可以合法省略分号：border-radius: 18rpx } 同样必须被拦
+  const css = '.a { border-radius: var(--radius-md); border-top-left-radius: 18rpx }'
+  assert.deepEqual(findOffTokenRadii(css, defined).map((v) => v.component), ['18rpx'])
+})
+
+test('every WXSS file uses only registered radius tokens', () => {
   const appTokens = definedRadiusTokens(fs.readFileSync(path.join(repoRoot, 'app.wxss'), 'utf8'))
-  const indexWxss = fs.readFileSync(path.join(repoRoot, 'pages/index/index.wxss'), 'utf8')
-  const violations = findOffTokenRadii(indexWxss, appTokens).map(
-    (violation) => `line ${violation.line}: ${violation.component}`
+  const violations = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    for (const violation of findOffTokenRadii(fs.readFileSync(file, 'utf8'), appTokens)) {
+      violations.push(`${relative}:${violation.line} ${violation.component}`)
+    }
+  }
+  assert.deepEqual(violations, [])
+})
+
+// 间距阶梯：DESIGN.md spacing 节登记的 4/8/16/24/32/48px 名义刻度，token 以 rpx 记（数值 ×2）。
+const SPACING_TOKENS = {
+  '--space-xs': '8rpx',
+  '--space-sm': '16rpx',
+  '--space-md': '32rpx',
+  '--space-lg': '48rpx',
+  '--space-xl': '64rpx',
+  '--space-xxl': '96rpx'
+}
+
+function appCustomProperties() {
+  const tokens = {}
+  for (const rule of parseWxssRules(fs.readFileSync(path.join(repoRoot, 'app.wxss'), 'utf8'))) {
+    for (const [prop, value] of Object.entries(rule.decls)) {
+      if (prop.startsWith('--')) tokens[prop] = value
+    }
+  }
+  return tokens
+}
+
+test('app.wxss defines the shared spacing scale tokens and DESIGN.md registers them', () => {
+  const tokens = appCustomProperties()
+  const design = fs.readFileSync(path.join(repoRoot, 'DESIGN.md'), 'utf8')
+  for (const [name, value] of Object.entries(SPACING_TOKENS)) {
+    assert.equal(tokens[name], value, `${name} should be ${value}, got ${tokens[name]}`)
+    assert.ok(design.includes(name), `DESIGN.md is missing the ${name} registration`)
+  }
+})
+
+test('glass fallback fill has a single token source', () => {
+  const tokens = appCustomProperties()
+  assert.equal(tokens['--glass-fallback'], 'rgba(18,22,61,0.92)')
+
+  const fallbackPattern = /rgba\(\s*18\s*,\s*22\s*,\s*61\s*,\s*0\.92\s*\)/
+  const violations = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    const lines = fs.readFileSync(file, 'utf8').split('\n')
+    lines.forEach((line, index) => {
+      const code = line.replace(/\/\*[\s\S]*?\*\//g, '')
+      if (!fallbackPattern.test(code)) return
+      if (relative === 'app.wxss' && code.includes('--glass-fallback')) return
+      violations.push(`${relative}:${index + 1} hardcodes the glass fallback instead of var(--glass-fallback)`)
+    })
+  }
+  assert.deepEqual(violations, [])
+})
+
+const CTA_FILL_SELECTORS = [
+  ['app.wxss', '.btn-premium'],
+  ['pages/settings/settings.wxss', '.copy-btn'],
+  ['pages/bind/bind.wxss', '.tab.active'],
+  // issue #55：首页主操作同构——快速记录、提醒记录、月份确认、月份选中态、复制小结
+  ['pages/index/index.wxss', '.quick-btn'],
+  ['pages/index/index.wxss', '.reminder-action'],
+  ['pages/index/index.wxss', '.jump-confirm'],
+  ['pages/index/index.wxss', '.jump-option.active'],
+  ['pages/index/index.wxss', '.copy-recap']
+]
+
+test('primary CTA rose fill comes from var(--aurora-pink) only', () => {
+  for (const [relative, selector] of CTA_FILL_SELECTORS) {
+    const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
+    const rule = rules.find((candidate) => candidate.selectors.includes(selector))
+    assert.ok(rule, `expected rule ${selector} in ${relative}`)
+    assert.equal(
+      rule.decls.background,
+      'var(--aurora-pink)',
+      `${relative} ${selector} fill must reference var(--aurora-pink)`
+    )
+  }
+})
+
+// CTA 色义 deny-by-default（issue #59 review）：主操作填充只有 var(--aurora-pink) 一条路。
+// 上面的钉点表只管已登记选择器；这里反向拦截——任何选择器的渐变填充与实色玫瑰字面量填充
+// 都必须落在装饰例外白名单内，新增主操作按钮写字面量玫瑰或渐变会被直接拒绝。
+const GRADIENT_FILL_ALLOWLIST = new Set(
+  [
+    // 极光背景、环境光斑、导航头辉光、卡缘高光、底部 sheet 面板、周期卡：装饰性渐变，非可操作填充
+    ['app.wxss', '.page::before'],
+    ['app.wxss', '.glow-orb-1'],
+    ['app.wxss', '.glow-orb-2'],
+    ['app.wxss', '.header-gradient::before'],
+    ['app.wxss', '.header-gradient::after'],
+    ['app.wxss', '.premium-card::after'],
+    ['pages/index/index.wxss', '.month-nav::before'],
+    ['pages/index/index.wxss', '.calendar-jump-sheet'],
+    ['pages/index/index.wxss', '.day-action-sheet'],
+    ['pages/period/period.wxss', '.cycle-card']
+  ].map(([file, selector]) => `${file}::${selector}`)
+)
+
+const SOLID_ROSE_FILL_ALLOWLIST = new Set(
+  [
+    // 状态点/日历标记/卡片 rail：装饰性玫瑰实色小块，非可操作填充
+    ['pages/index/index.wxss', '.sync-pill.syncing .sync-dot'],
+    ['pages/index/index.wxss', '.period-mark'],
+    ['pages/index/index.wxss', '.reminder-card.due .reminder-rail'],
+    ['pages/index/index.wxss', '.detail-rail'],
+    ['pages/memory/memory.wxss', '.list-item::before']
+  ].map(([file, selector]) => `${file}::${selector}`)
+)
+
+const GRADIENT_FILL = /(?:linear|radial|conic)-gradient\(/i
+const SOLID_ROSE_FILL_LITERAL = /#e8909e\b|rgba?\(\s*232\s*,\s*144\s*,\s*158\s*(?:,\s*1(?:\.0*)?\s*)?\)/i
+
+function scanCtaFillDiscipline(relative, css) {
+  const violations = []
+  for (const rule of parseWxssRules(css)) {
+    const fills = [rule.decls.background, rule.decls['background-image'], rule.decls['background-color']].filter(Boolean)
+    if (fills.length === 0) continue
+    for (const selector of rule.selectors) {
+      const key = `${relative}::${selector}`
+      if (fills.some((fill) => GRADIENT_FILL.test(fill)) && !GRADIENT_FILL_ALLOWLIST.has(key)) {
+        violations.push(`${key} uses a gradient fill outside the decorative allowlist`)
+      }
+      if (fills.some((fill) => SOLID_ROSE_FILL_LITERAL.test(fill)) && !SOLID_ROSE_FILL_ALLOWLIST.has(key)) {
+        violations.push(`${key} uses a literal solid rose fill instead of var(--aurora-pink)`)
+      }
+    }
+  }
+  return violations
+}
+
+test('CTA fill guardrail flags unregistered gradient and literal rose fills', () => {
+  const offenders = [
+    ['pages/index/index.wxss', '.evil-btn { background: linear-gradient(135deg, #C4A0D2, #0A0E27); }'],
+    ['pages/bind/bind.wxss', '.evil-btn { background: #E8909E; }'],
+    ['pages/bind/bind.wxss', '.evil-btn { background-color: rgb(232,144,158); }'],
+    ['pages/bind/bind.wxss', '.evil-btn { background: rgba(232, 144, 158, 1); }'],
+    // 渐变里裹玫瑰字面量会被两条通道同时拦（渐变 + 实色玫瑰）
+    ['pages/bind/bind.wxss', '.evil-btn { background: linear-gradient(135deg, #E8909E, #C4A0D2); }']
+  ]
+  assert.equal(offenders.flatMap(([f, css]) => scanCtaFillDiscipline(f, css)).length, 6)
+
+  // 已登记装饰例外与合规填充不误伤
+  const legit = [
+    ['pages/period/period.wxss', '.cycle-card { background: linear-gradient(135deg, rgba(232,144,158,0.18), rgba(196,160,210,0.12)), var(--glass-fallback); }'],
+    ['pages/bind/bind.wxss', '.tab.active { background: var(--aurora-pink); }'],
+    ['pages/period/edit/edit.wxss', '.flow-chip.active { background: rgba(232,144,158,0.92); }']
+  ]
+  assert.deepEqual(legit.flatMap(([f, css]) => scanCtaFillDiscipline(f, css)), [])
+})
+
+test('every WXSS fill stays inside the gradient and solid-rose deny-by-default allowlists', () => {
+  const violations = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    violations.push(...scanCtaFillDiscipline(relative, fs.readFileSync(file, 'utf8')))
+  }
+  assert.deepEqual(violations, [])
+})
+
+test('metadata gold in pages comes from var(--aurora-gold), never a literal', () => {
+  const goldLiteral = /#D4A574/i
+  const violations = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    if (relative === 'app.wxss') continue
+    const lines = fs.readFileSync(file, 'utf8').split('\n')
+    lines.forEach((line, index) => {
+      const code = line.replace(/\/\*[\s\S]*?\*\//g, '')
+      if (goldLiteral.test(code)) {
+        violations.push(`${relative}:${index + 1} hardcodes #D4A574 instead of the gold token`)
+      }
+    })
+  }
+  assert.deepEqual(violations, [])
+})
+
+// issue #55：玫瑰 → 金渐变曾是 CTA 误用形态，随主操作统一实色玫瑰整体退役。
+// issue #59：玫瑰 → 薰衣草渐变（--gradient-pink）同样无屏上引用，一并退役。
+// 实色金 token --aurora-gold 保留，只服务预测/区间/确定性及日历元数据。
+test('retired gradient tokens stay out of tokens and screens', () => {
+  const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '')
+  const app = stripComments(fs.readFileSync(path.join(repoRoot, 'app.wxss'), 'utf8'))
+  for (const token of ['--gradient-gold', '--gradient-pink']) {
+    assert.equal(app.includes(token), false, `app.wxss should no longer define ${token}`)
+    for (const file of listWxssFiles(repoRoot)) {
+      const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+      if (relative === 'app.wxss') continue
+      assert.equal(
+        stripComments(fs.readFileSync(file, 'utf8')).includes(`var(${token})`),
+        false,
+        `${relative} still references the retired ${token}`
+      )
+    }
+  }
+})
+
+// 首页金语义白名单（issue #55）：实色金 token / 金 rgba tint / 金辉光只允许落在
+// 预测、区间、确定性及日历元数据（节日/调休标签、同步状态点）相关规则上；
+// CTA、导航 affordance 与工具图标不再用金。
+const INDEX_GOLD_ALLOWLIST = new Set([
+  '.sync-dot',
+  '.day-cell.holiday:not(.today)',
+  '.holiday-tag',
+  '.predict-mark',
+  '.predict-date',
+  '.reminder-rail',
+  '.detail-title',
+  '.detail-meaning.predict',
+  '.detail-meaning.holiday',
+  '.legend-row.predict .legend-symbol',
+  '.legend-row.holiday .legend-symbol',
+  '.legend-row.workday .legend-symbol',
+  '.prediction-summary'
+])
+
+test('home page reserves gold for prediction, range, certainty, and calendar metadata', () => {
+  const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, 'pages/index/index.wxss'), 'utf8'))
+  const violations = []
+  for (const rule of rules) {
+    const body = Object.values(rule.decls).join(';')
+    if (!/aurora-gold|212,\s*165,\s*116/.test(body)) continue
+    for (const selector of rule.selectors) {
+      if (!INDEX_GOLD_ALLOWLIST.has(selector)) {
+        violations.push(`${selector} uses gold outside prediction/range/certainty/metadata`)
+      }
+    }
+  }
+  assert.deepEqual(violations, [])
+})
+
+// 阴影登记（区间登记制）：与 DESIGN.md「Shadow / overlay 登记」的区间一致；
+// allow 为闭区间/精确值组合，区间内免逐值登记，区间外或表外颜色拒绝。
+const SHADOW_COLOR_FAMILIES = [
+  { name: 'black elevation', rgb: [0, 0, 0], allow: (a) => (a >= 0.12 && a <= 0.15) || a === 0.2 || a === 0.34 },
+  { name: 'navy near-field', rgb: [10, 14, 39], allow: (a) => a >= 0.16 && a <= 0.35 },
+  { name: 'rose glow', rgb: [232, 144, 158], allow: (a) => a >= 0.1 && a <= 0.45 },
+  { name: 'soft pink glow', rgb: [240, 196, 192], allow: (a) => a >= 0.28 && a <= 0.32 },
+  { name: 'gold glow', rgb: [212, 165, 116], allow: (a) => a >= 0.3 && a <= 0.5 },
+  { name: 'warning glow', rgb: [249, 115, 115], allow: (a) => a === 0.38 },
+  { name: 'inset highlight', rgb: [255, 255, 255], allow: (a) => a >= 0.09 && a <= 0.22 },
+  { name: 'today ring lavender', rgb: [196, 160, 210], allow: (a) => a === 0.55 }
+]
+
+function shadowColorAllowed(r, g, b, a) {
+  return SHADOW_COLOR_FAMILIES.some(
+    (family) => family.rgb[0] === r && family.rgb[1] === g && family.rgb[2] === b && family.allow(a)
   )
+}
+
+test('every box-shadow/text-shadow color stays inside the DESIGN.md shadow registry', () => {
+  const violations = []
+  const rgbaPattern = /rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)/g
+
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    for (const rule of parseWxssRules(fs.readFileSync(file, 'utf8'))) {
+      for (const prop of ['box-shadow', 'text-shadow']) {
+        const value = rule.decls[prop]
+        if (!value || value === 'none') continue
+        const colors = [...value.matchAll(rgbaPattern)]
+        if (colors.length === 0) {
+          violations.push(`${relative} ${rule.selectors.join(', ')} ${prop}: no registered rgba color in ${value}`)
+          continue
+        }
+        for (const color of colors) {
+          const [r, g, b] = [Number(color[1]), Number(color[2]), Number(color[3])]
+          const alpha = Number(color[4])
+          if (!shadowColorAllowed(r, g, b, alpha)) {
+            violations.push(
+              `${relative} ${rule.selectors.join(', ')} ${prop}: rgba(${r},${g},${b},${alpha}) is outside the shadow registry`
+            )
+          }
+        }
+      }
+    }
+  }
+
   assert.deepEqual(violations, [])
 })

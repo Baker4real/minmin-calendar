@@ -1,6 +1,6 @@
 /* ===== Aurora Bloom: Bind Page ===== */
 .content {
-  padding: 60rpx 30rpx;
+  padding: 60rpx 30rpx calc(60rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -18,12 +18,12 @@
 .hero-icon {
   font-size: 120rpx;
   margin-bottom: 20rpx;
-  animation: bounceIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: heroIn 0.6s var(--ease-out) both;
   filter: drop-shadow(0 0 20px rgba(232,144,158,0.3));
 }
-@keyframes bounceIn {
-  from { opacity: 0; transform: scale(0.9); }
-  60% { transform: scale(1.05); }
+/* 入场只做淡入 + 轻微放大，不做 overshoot 回弹（issue #58） */
+@keyframes heroIn {
+  from { opacity: 0; transform: scale(0.92); }
   to { opacity: 1; transform: scale(1); }
 }
 .hero-title {
@@ -34,7 +34,7 @@
   text-shadow: 0 0 24rpx rgba(232,144,158,0.28);
 }
 .hero-desc {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   color: rgba(255,255,255,0.5);
   margin-top: 16rpx;
   text-align: center;
@@ -45,6 +45,7 @@
   width: 100%;
   padding: 40rpx;
   margin-top: 30rpx;
+  box-sizing: border-box;
 }
 
 /* Tab Bar */
@@ -54,7 +55,7 @@
   overflow: hidden;
   border: 1px solid rgba(255,255,255,0.15);
   margin-bottom: 30rpx;
-  background: rgba(255,255,255,0.05), rgba(18,22,61,0.92);
+  background: rgba(255,255,255,0.05), var(--glass-fallback);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -67,18 +68,18 @@
   box-sizing: border-box;
   text-align: center;
   padding: 0 20rpx;
-  font-size: 28rpx;
+  font-size: var(--font-size-body);
   color: rgba(255,255,255,0.6);
   font-weight: 500;
   transition: background-color 0.3s var(--ease-out), color 0.3s var(--ease-out);
 }
 .tab.active {
-  background: #E8909E;
+  background: var(--aurora-pink);
   color: #0A0E27;
   font-weight: 600;
 }
 .info-text {
-  font-size: 26rpx;
+  font-size: var(--font-size-caption);
   color: rgba(255,255,255,0.5);
   margin-bottom: 30rpx;
   text-align: center;
@@ -87,6 +88,7 @@
 /* Code Input – Dark Glass */
 .code-input {
   width: 60%;
+  box-sizing: border-box;
   border: 1px solid rgba(255,255,255,0.15);
   border-radius: var(--radius-sm);
   padding: 20rpx;
@@ -95,7 +97,7 @@
   letter-spacing: 12rpx;
   text-indent: 12rpx;
   margin-bottom: 30rpx;
-  background: var(--glass-bg), rgba(18,22,61,0.92);
+  background: var(--glass-bg), var(--glass-fallback);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   font-weight: 700;
@@ -108,14 +110,14 @@
 
 /* Bound Status — 成功态用主色玫瑰，不引入色板外绿色 */
 .bound-status {
-  font-size: 32rpx;
+  font-size: var(--font-size-body-lg);
   font-weight: 700;
   text-align: center;
   margin-bottom: 20rpx;
   color: #E8909E;
 }
 .bound-code {
-  font-size: 28rpx;
+  font-size: var(--font-size-body);
   color: rgba(255,255,255,0.6);
   text-align: center;
   display: block;
@@ -127,7 +129,7 @@
   margin-top: 16rpx;
 }
 .error-msg {
-  font-size: 24rpx;
+  font-size: var(--font-size-caption);
   color: #F97373;
   margin-top: 20rpx;
   text-align: center;

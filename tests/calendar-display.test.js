@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
+const Module = require('node:module')
 const path = require('node:path')
 const test = require('node:test')
 
@@ -279,7 +280,8 @@ test('legend symbols mirror the real today ring and holiday tag forms', () => {
   const holidaySymbol = wxss.match(/\.legend-row\.holiday \.legend-symbol\s*\{([^}]+)\}/)
   assert.ok(holidaySymbol, 'expected a dedicated holiday legend symbol rule')
   assert.match(holidaySymbol[1], /border-radius:\s*var\(--radius-sm\)/)
-  assert.match(holidaySymbol[1], /font-size:\s*22rpx/)
+  // 字号沿用 .legend-symbol 的 caption 角色（26rpx），节日图例不再缩小
+  assert.doesNotMatch(holidaySymbol[1], /font-size/)
 })
 
 test('memory list heart matches the calendar heart glyph system', () => {
@@ -347,7 +349,7 @@ test('index month title opens a themed year-month jump sheet', () => {
   assert.match(wxss, /\.jump-confirm\s*{[\s\S]*min-height:\s*88rpx/)
 })
 
-test('index calendar density control defaults to compact and remembers user preference', () => {
+test('index calendar applies the persisted density without hosting the control', () => {
   const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
@@ -355,6 +357,27 @@ test('index calendar density control defaults to compact and remembers user pref
   assert.match(js, /CALENDAR_DENSITY_STORAGE_KEY\s*=\s*'calendarDensity'/)
   assert.match(js, /calendarDensity:\s*'compact'/)
   assert.match(js, /getSavedCalendarDensity\(\)\s*{[\s\S]*getStorageSync\(CALENDAR_DENSITY_STORAGE_KEY\)[\s\S]*return 'compact'/)
+  // 从设置 tab 返回时 onShow 重读偏好，切换即刻生效
+  assert.match(js, /onShow\(\)\s*{[\s\S]*calendarDensity:\s*this\.getSavedCalendarDensity\(\)/)
+  // 切换控件已迁往设置页，首页不再持有 setter
+  assert.doesNotMatch(js, /setCalendarDensity/)
+
+  assert.doesNotMatch(wxml, /density-control/)
+  assert.match(wxml, /class="calendar-grid calendar-density-{{calendarDensity}}"/)
+  assert.match(wxml, /wx:if="{{!item\.isEmpty && calendarDensity == 'full'}}" class="day-lunar"/)
+  assert.match(wxml, /wx:if="{{!item\.isEmpty && calendarDensity == 'full'}}" class="day-tag-line"/)
+
+  assert.match(wxss, /\.calendar-density-compact\s+\.day-cell\s*{[\s\S]*height:\s*104rpx/)
+})
+
+test('settings page hosts the calendar density control with a quiet rose selected state', () => {
+  const js = fs.readFileSync(path.join(__dirname, '..', 'pages/settings/settings.js'), 'utf8')
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/settings/settings.wxml'), 'utf8')
+  const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/settings/settings.wxss'), 'utf8')
+
+  assert.match(js, /CALENDAR_DENSITY_STORAGE_KEY\s*=\s*'calendarDensity'/)
+  assert.match(js, /calendarDensity:\s*'compact'/)
+  assert.match(js, /onShow\(\)\s*{[\s\S]*getSavedCalendarDensity/)
   assert.match(js, /setCalendarDensity\(e\)\s*{[\s\S]*dataset\.density[\s\S]*calendarDensity/)
   assert.match(js, /setStorageSync\(CALENDAR_DENSITY_STORAGE_KEY,\s*density\)/)
   assert.match(js, /density !== 'compact' && density !== 'full'/)
@@ -362,13 +385,40 @@ test('index calendar density control defaults to compact and remembers user pref
   assert.match(wxml, /density-control/)
   assert.match(wxml, /data-density="compact"[\s\S]*清爽/)
   assert.match(wxml, /data-density="full"[\s\S]*完整/)
-  assert.match(wxml, /class="calendar-grid calendar-density-{{calendarDensity}}"/)
-  assert.match(wxml, /wx:if="{{!item\.isEmpty && calendarDensity == 'full'}}" class="day-lunar"/)
-  assert.match(wxml, /wx:if="{{!item\.isEmpty && calendarDensity == 'full'}}" class="day-tag-line"/)
+  assert.match(wxml, /bindtap="setCalendarDensity"/)
 
   assert.match(wxss, /\.density-control\s*{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/)
   assert.match(wxss, /\.density-option\s*{[\s\S]*min-height:\s*88rpx/)
-  assert.match(wxss, /\.calendar-density-compact\s+\.day-cell\s*{[\s\S]*height:\s*104rpx/)
+  const selected = wxss.match(/\.density-option\.active\s*\{([^}]+)\}/)
+  assert.ok(selected, 'expected .density-option.active in settings.wxss')
+  assert.doesNotMatch(selected[1], /linear-gradient/)
+  assert.match(selected[1], /color:\s*#E8909E/i)
+  assert.match(selected[1], /border-color:\s*rgba\(232,\s*144,\s*158,/)
+})
+
+test('settings density control validates and persists the preference', async () => {
+  const storage = new Map()
+  const harness = loadSettingsHarness()
+
+  try {
+    global.wx.getStorageSync = key => (storage.has(key) ? storage.get(key) : '')
+    global.wx.setStorageSync = (key, value) => storage.set(key, value)
+
+    harness.page.setCalendarDensity({ currentTarget: { dataset: { density: 'full' } } })
+    assert.equal(harness.page.data.calendarDensity, 'full')
+    assert.equal(storage.get('calendarDensity'), 'full')
+
+    // 非法值不落地、不改状态
+    harness.page.setCalendarDensity({ currentTarget: { dataset: { density: 'huge' } } })
+    assert.equal(harness.page.data.calendarDensity, 'full')
+    assert.equal(storage.size, 1)
+
+    // 重新进入设置页时读出已持久化的偏好
+    await harness.page.onShow()
+    assert.equal(harness.page.data.calendarDensity, 'full')
+  } finally {
+    harness.teardown()
+  }
 })
 
 test('index exposes calendar meaning and monthly recap sheets', () => {
@@ -510,5 +560,60 @@ function pickMeta(meta) {
     holidayName: meta.holidayName,
     isHoliday: meta.isHoliday,
     isWorkday: meta.isWorkday
+  }
+}
+
+function loadSettingsHarness() {
+  const repoRoot = path.join(__dirname, '..')
+  const absolutePagePath = path.join(repoRoot, 'pages/settings/settings.js')
+  const absoluteMocks = new Map([
+    [path.join(repoRoot, 'utils/cloud.js'), {}],
+    [path.join(repoRoot, 'utils/room.js'), { getVerifiedActiveRoom: async () => null }],
+    [
+      path.join(repoRoot, 'utils/roomAccessOutcome.js'),
+      { buildRoomDisplayState: () => ({ roomCode: '', roomCodeDisplay: '未绑定' }) }
+    ],
+    [path.join(repoRoot, 'utils/settingsFlow.js'), {}],
+    [path.join(repoRoot, 'utils/safeArea.js'), { getSafeTop: () => 0, getSafeBottom: () => 0 }]
+  ])
+  const originalPage = global.Page
+  const originalWx = global.wx
+  const originalLoad = Module._load
+  let registered
+
+  delete require.cache[require.resolve(absolutePagePath)]
+  global.wx = {
+    getStorageSync: () => '',
+    setStorageSync() {},
+    navigateTo() {},
+    showModal() {}
+  }
+  global.Page = config => { registered = config }
+  Module._load = function patchedLoad(request, parent, isMain) {
+    const resolved = Module._resolveFilename(request, parent, isMain)
+    if (absoluteMocks.has(resolved)) return absoluteMocks.get(resolved)
+    return originalLoad.apply(this, arguments)
+  }
+  require(absolutePagePath)
+  Module._load = originalLoad
+
+  const page = {
+    data: { ...(registered.data || {}) },
+    setData(update, callback) {
+      this.data = { ...this.data, ...update }
+      if (typeof callback === 'function') callback()
+    }
+  }
+  for (const [key, value] of Object.entries(registered)) {
+    if (key !== 'data') page[key] = typeof value === 'function' ? value.bind(page) : value
+  }
+  return {
+    page,
+    teardown() {
+      Module._load = originalLoad
+      global.Page = originalPage
+      global.wx = originalWx
+      delete require.cache[require.resolve(absolutePagePath)]
+    }
   }
 }

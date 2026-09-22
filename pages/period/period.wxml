@@ -1,6 +1,6 @@
-<view class="page safe-top" style="--safe-top: {{safeTop}}px">
+<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
   <view class="nav-bar header-gradient">
-    <view class="nav-back" bindtap="goBack">
+    <view class="nav-back" bindtap="goBack" aria-role="button" aria-label="返回">
       <view class="nav-back-surface"></view>
       <text class="nav-back-icon">‹</text>
     </view>
@@ -27,13 +27,13 @@
       </view>
     </view>
 
-    <view class="btn-premium" bindtap="addPeriod">＋ 新增经期记录</view>
+    <view class="btn-premium" bindtap="addPeriod" aria-role="button" aria-label="新增经期记录">＋ 新增经期记录</view>
 
-    <view wx:if="{{loadFailed && !loading}}" class="empty-state" bindtap="loadData">
+    <view wx:if="{{loadFailed && !loading}}" class="empty-state" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试">
       <text>加载失败，点按重试</text>
     </view>
     <view wx:elif="{{periods.length > 0 && !loading}}" class="premium-card">
-      <view class="list-item" wx:for="{{periods}}" wx:key="_id" wx:for-index="i" bindtap="editPeriod" data-index="{{i}}">
+      <view class="list-item" wx:for="{{periods}}" wx:key="_id" wx:for-index="i" bindtap="editPeriod" data-index="{{i}}" aria-role="button" aria-label="编辑经期记录 {{item.startDate}} 至 {{item.endDate}}">
         <view class="item-left">
           <view class="item-date">{{item.startDate}} ~ {{item.endDate}}</view>
           <view wx:if="{{item.flowLabel || item.symptomText}}" class="item-tags">

@@ -7,6 +7,10 @@ const WXSS_PATH = path.join(__dirname, '..', 'pages/index/index.wxss')
 const APP_WXSS_PATH = path.join(__dirname, '..', 'app.wxss')
 const PERIOD_WXSS_PATH = path.join(__dirname, '..', 'pages/period/period.wxss')
 const MEMORY_WXSS_PATH = path.join(__dirname, '..', 'pages/memory/memory.wxss')
+const APP_TOKENS = Object.fromEntries(
+  [...fs.readFileSync(APP_WXSS_PATH, 'utf8').matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/gi)]
+    .map((match) => [`--${match[1]}`, match[2].trim()])
+)
 const MIN_CAPTION_RPX = 24
 const DESIGN_CAPTION_RPX = 26
 const CAPTION_LINE_HEIGHT_RATIO = 1.4
@@ -18,7 +22,6 @@ const OUT_CELL_CAPTION_SELECTORS = [
   '.sync-text',
   '.week-cell',
   '.meaning-tool-text',
-  '.density-option',
   '.stat-label',
   '.predict-weekday',
   '.reminder-text',
@@ -51,9 +54,15 @@ function ruleBody(wxss, selector) {
 }
 
 function declarationRpx(body, property) {
-  const match = body.match(new RegExp(`${property}:\\s*(\\d+(?:\\.\\d+)?)rpx`))
-  assert.ok(match, `expected ${property} in rpx`)
-  return Number(match[1])
+  const match = body.match(new RegExp(`${property}:\\s*([^;]+);`))
+  assert.ok(match, `expected ${property}`)
+  const resolved = match[1].trim().replace(/var\((--[a-z0-9-]+)\)/i, (_, name) => {
+    assert.ok(APP_TOKENS[name], `unknown token ${name}`)
+    return APP_TOKENS[name]
+  })
+  const rpx = /^(\d+(?:\.\d+)?)rpx$/.exec(resolved)
+  assert.ok(rpx, `expected ${property} in rpx, got ${resolved}`)
+  return Number(rpx[1])
 }
 
 function optionalRpx(body, property) {
@@ -232,11 +241,11 @@ test('earlier/later month navigation buttons keep 44px touch targets', () => {
 test('full density first-screen stack stays within the ratcheted budget', () => {
   const wxss = readWxss()
   // 与 tests/index-page.test.js 同一推算口径：750rpx 宽 × 667px 高 ≈ 1334rpx。
-  // issue #37 的 1334rpx 目标对完整密度 6 行在当前结构下数学不可达：
-  // 农历行与节日标签行是被 calendar-display 测试钉死的两层堆叠，加上 88rpx 触控行高，
-  // 六行格子至少 6×(32+30+40+32+8+16)=948rpx，再叠加导航/工具栏/密度/周头/记录按钮后超出 1334rpx。
-  // 这里钉住当前达到的值作为棘轮，只允许变小不允许回退。
-  const FULL_STACK_RATCHET_RPX = 1614
+  // issue #55 起图例/预测/小结工具行与密度偏好退出首屏路径（密度迁入设置页），
+  // 栈深只剩 月份导航 → 日历 → 记录入口。完整密度 6 行时记录按钮上缘（1328rpx）
+  // 已落入视口，整体底部略超 1334rpx、只需极短滚动；农历行与节日标签行仍是被
+  // calendar-display 测试钉死的两层堆叠，不缩小微字吸收。钉住当前值作为棘轮，只允许变小。
+  const FULL_STACK_RATCHET_RPX = 1414
   const SAFE_TOP_RPX = 88
   const NAV_BAR_RPX = 88
   const MONTH_NAV_CONTENT_RPX = 88
@@ -248,12 +257,6 @@ test('full density first-screen stack stays within the ratcheted budget', () => 
   const monthNav = MONTH_NAV_CONTENT_RPX +
     verticalBox(monthNavBody, 'padding') +
     verticalBox(monthNavBody, 'margin')
-  const toolbar = declarationRpx(ruleBody(wxss, '.meaning-tool'), 'min-height') +
-    verticalBox(ruleBody(wxss, '.meaning-toolbar'), 'margin')
-  const densityBody = ruleBody(wxss, '.density-control')
-  const density = verticalBox(densityBody, 'padding') +
-    declarationRpx(ruleBody(wxss, '.density-option'), 'min-height') +
-    verticalBox(densityBody, 'margin')
   const weekHeader = verticalBox(ruleBody(wxss, '.week-header'), 'padding') + WEEK_TEXT_RPX
   const gridPadding = verticalBox(ruleBody(wxss, '.calendar-grid'), 'padding')
   const fullCell = declarationRpx(ruleBody(wxss, '.day-cell'), 'height')
@@ -261,7 +264,7 @@ test('full density first-screen stack stays within the ratcheted budget', () => 
     verticalBox(ruleBody(wxss, '.quick-btn'), 'padding') +
     QUICK_CONTENT_RPX
 
-  const stack = SAFE_TOP_RPX + NAV_BAR_RPX + monthNav + toolbar + density +
+  const stack = SAFE_TOP_RPX + NAV_BAR_RPX + monthNav +
     weekHeader + gridPadding + SIX_ROWS * fullCell + quickActions
 
   assert.ok(

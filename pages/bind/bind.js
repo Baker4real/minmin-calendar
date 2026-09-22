@@ -5,6 +5,7 @@ const safeArea = require('../../utils/safeArea')
 Page({
   data: {
     safeTop: safeArea.getSafeTop(),
+    safeBottom: safeArea.getSafeBottom(),
     tab: 'create',
     bound: false,
     roomCode: '',

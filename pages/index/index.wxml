@@ -1,4 +1,4 @@
-<view class="page safe-top" style="--safe-top: {{safeTop}}px">
+<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
   <!-- Aurora Decorative Orbs -->
   <view class="glow-orb glow-orb-1"></view>
   <view class="glow-orb glow-orb-2"></view>
@@ -13,7 +13,7 @@
     <view class="no-room-icon">❤️</view>
     <text class="no-room-title">{{roomStatusTitle}}</text>
     <text class="no-room-desc">{{roomStatusDesc}}</text>
-    <view class="btn-premium" bindtap="handleRoomStatusAction">{{roomStatusActionText}}</view>
+    <view class="btn-premium" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}">{{roomStatusActionText}}</view>
   </view>
 
   <view wx:elif="{{loading && !hasLoadedHomeData}}" class="loading-view">
@@ -27,7 +27,7 @@
     </view>
 
     <view class="month-nav">
-      <view class="nav-btn" bindtap="prevMonth">‹</view>
+      <view class="nav-btn" bindtap="prevMonth" aria-role="button" aria-label="上一个月">‹</view>
       <view
         class="month-title month-title-trigger"
         bindtap="openMonthPicker"
@@ -37,39 +37,7 @@
         <text>{{year}}年{{month + 1}}月</text>
         <text class="month-title-caret">⌄</text>
       </view>
-      <view class="nav-btn" bindtap="nextMonth">›</view>
-    </view>
-
-    <view class="meaning-toolbar">
-      <view class="meaning-tool" bindtap="openLegendSheet">
-        <text class="meaning-tool-icon">?</text>
-        <text class="meaning-tool-text">图例</text>
-      </view>
-      <view class="meaning-tool" bindtap="openPredictionSheet">
-        <text class="meaning-tool-icon">预</text>
-        <text class="meaning-tool-text">预测</text>
-      </view>
-      <view class="meaning-tool" bindtap="openMonthlyRecap">
-        <text class="meaning-tool-icon">月</text>
-        <text class="meaning-tool-text">小结</text>
-      </view>
-    </view>
-
-    <view class="density-control" aria-label="日历信息密度">
-      <view
-        class="density-option {{calendarDensity == 'compact' ? 'active' : ''}}"
-        data-density="compact"
-        bindtap="setCalendarDensity"
-        aria-role="button"
-        aria-label="清爽显示日历"
-      >清爽</view>
-      <view
-        class="density-option {{calendarDensity == 'full' ? 'active' : ''}}"
-        data-density="full"
-        bindtap="setCalendarDensity"
-        aria-role="button"
-        aria-label="完整显示农历和节假日"
-      >完整</view>
+      <view class="nav-btn" bindtap="nextMonth" aria-role="button" aria-label="下一个月">›</view>
     </view>
 
     <view class="week-header">
@@ -83,6 +51,7 @@
         wx:key="index"
         bindtap="onDayTap"
         data-date="{{item.date}}"
+        aria-role="button"
         aria-hidden="{{item.isEmpty}}"
         aria-label="{{item.ariaLabel}}"
       >
@@ -101,13 +70,28 @@
     </view>
 
     <view class="quick-actions">
-      <view class="quick-btn" bindtap="quickPeriod">
+      <view class="quick-btn" bindtap="quickPeriod" aria-role="button" aria-label="记经期">
         <text class="quick-icon">🩸</text>
         <text class="quick-text">记经期</text>
       </view>
-      <view class="quick-btn" bindtap="quickMemory">
+      <view class="quick-btn" bindtap="quickMemory" aria-role="button" aria-label="记录欢乐时光">
         <text class="quick-icon">❤️</text>
         <text class="quick-text">欢乐时光</text>
+      </view>
+    </view>
+
+    <view class="meaning-toolbar">
+      <view class="meaning-tool" bindtap="openLegendSheet" aria-role="button" aria-label="打开日历图例">
+        <text class="meaning-tool-icon">?</text>
+        <text class="meaning-tool-text">图例</text>
+      </view>
+      <view class="meaning-tool" bindtap="openPredictionSheet" aria-role="button" aria-label="查看经期预测">
+        <text class="meaning-tool-icon">预</text>
+        <text class="meaning-tool-text">预测</text>
+      </view>
+      <view class="meaning-tool" bindtap="openMonthlyRecap" aria-role="button" aria-label="查看本月小结">
+        <text class="meaning-tool-icon">月</text>
+        <text class="meaning-tool-text">小结</text>
       </view>
     </view>
 
@@ -138,6 +122,8 @@
         wx:key="type"
         data-index="{{index}}"
         bindtap="onReminderTap"
+        aria-role="button"
+        aria-label="{{item.title}}，{{item.text}}，点按记录"
       >
         <view class="reminder-rail"></view>
         <view class="reminder-copy">
@@ -162,7 +148,7 @@
     </view>
   </view>
 
-  <view wx:if="{{monthPickerVisible}}" class="day-sheet-mask month-jump-mask" bindtap="closeMonthPicker">
+  <view wx:if="{{monthPickerVisible}}" class="day-sheet-mask month-jump-mask" bindtap="closeMonthPicker" aria-role="button" aria-label="关闭月份选择">
     <view class="calendar-jump-sheet safe-bottom" catchtap="noop">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -170,7 +156,7 @@
           <text class="sheet-title">选择月份</text>
           <text class="sheet-subtitle">{{jumpYear}}年{{jumpMonth + 1}}月</text>
         </view>
-        <view class="sheet-close" bindtap="closeMonthPicker">×</view>
+        <view class="sheet-close" bindtap="closeMonthPicker" aria-role="button" aria-label="关闭">×</view>
       </view>
 
       <view
@@ -215,15 +201,18 @@
             wx:key="value"
             data-month="{{item.value}}"
             bindtap="selectJumpMonth"
+            aria-role="radio"
+            aria-label="选择{{item.label}}"
+            aria-checked="{{item.value == jumpMonth}}"
           >{{item.label}}</view>
         </view>
       </view>
 
-      <view class="jump-confirm" bindtap="confirmMonthJump">跳转到 {{jumpYear}}年{{jumpMonth + 1}}月</view>
+      <view class="jump-confirm" bindtap="confirmMonthJump" aria-role="button" aria-label="跳转到 {{jumpYear}}年{{jumpMonth + 1}}月">跳转到 {{jumpYear}}年{{jumpMonth + 1}}月</view>
     </view>
   </view>
 
-  <view wx:if="{{dayActionSheetVisible}}" class="day-sheet-mask" bindtap="closeDayActions">
+  <view wx:if="{{dayActionSheetVisible}}" class="day-sheet-mask" bindtap="closeDayActions" aria-role="button" aria-label="关闭当日操作">
     <view class="day-action-sheet safe-bottom" catchtap="noop">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -231,12 +220,12 @@
           <text class="sheet-title">{{selectedDate}}</text>
           <text class="sheet-subtitle">{{selectedDateSubtitle}}</text>
         </view>
-        <view class="sheet-close" bindtap="closeDayActions">×</view>
+        <view class="sheet-close" bindtap="closeDayActions" aria-role="button" aria-label="关闭">×</view>
       </view>
 
       <block wx:if="{{daySheetMode == 'actions'}}">
         <view class="sheet-actions">
-          <view class="sheet-action" data-action="period" bindtap="onDayActionTap">
+          <view class="sheet-action" data-action="period" bindtap="onDayActionTap" aria-role="button" aria-label="记录经期">
             <text class="sheet-action-icon period-tone">●</text>
             <view class="sheet-action-copy">
               <text class="sheet-action-title">记录经期</text>
@@ -244,7 +233,7 @@
             </view>
             <text class="sheet-action-arrow">›</text>
           </view>
-          <view class="sheet-action" data-action="memory" bindtap="onDayActionTap">
+          <view class="sheet-action" data-action="memory" bindtap="onDayActionTap" aria-role="button" aria-label="记录欢乐时光">
             <text class="sheet-action-icon memory-tone">♥</text>
             <view class="sheet-action-copy">
               <text class="sheet-action-title">欢乐时光</text>
@@ -252,7 +241,7 @@
             </view>
             <text class="sheet-action-arrow">›</text>
           </view>
-          <view class="sheet-action" data-action="detail" bindtap="onDayActionTap">
+          <view class="sheet-action" data-action="detail" bindtap="onDayActionTap" aria-role="button" aria-label="查看详情">
             <text class="sheet-action-icon detail-tone">i</text>
             <view class="sheet-action-copy">
               <text class="sheet-action-title">查看详情</text>
@@ -308,11 +297,11 @@
         </view>
 
         <view class="sheet-actions compact-actions">
-          <view class="sheet-action compact" data-action="period" bindtap="onDayActionTap">
+          <view class="sheet-action compact" data-action="period" bindtap="onDayActionTap" aria-role="button" aria-label="补经期">
             <text class="sheet-action-icon period-tone">●</text>
             <text class="sheet-action-title">补经期</text>
           </view>
-          <view class="sheet-action compact" data-action="memory" bindtap="onDayActionTap">
+          <view class="sheet-action compact" data-action="memory" bindtap="onDayActionTap" aria-role="button" aria-label="补记忆">
             <text class="sheet-action-icon memory-tone">♥</text>
             <text class="sheet-action-title">补记忆</text>
           </view>
@@ -321,7 +310,7 @@
     </view>
   </view>
 
-  <view wx:if="{{infoSheetVisible}}" class="day-sheet-mask calendar-info-sheet" bindtap="closeInfoSheet">
+  <view wx:if="{{infoSheetVisible}}" class="day-sheet-mask calendar-info-sheet" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭面板">
     <view class="day-action-sheet calendar-info-panel safe-bottom" catchtap="noop">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -331,7 +320,7 @@
           <text wx:elif="{{infoSheetMode == 'recap' && monthlyRecap}}" class="sheet-title">{{monthlyRecap.title}}</text>
           <text class="sheet-subtitle">{{year}}年{{month + 1}}月</text>
         </view>
-        <view class="sheet-close" bindtap="closeInfoSheet">×</view>
+        <view class="sheet-close" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭">×</view>
       </view>
 
       <view wx:if="{{infoSheetMode == 'legend'}}" class="legend-list">
@@ -368,7 +357,7 @@
             class="recap-highlight"
           >{{item.text}}</view>
         </view>
-        <view class="copy-recap" bindtap="copyMonthlyRecap">复制小结</view>
+        <view class="copy-recap" bindtap="copyMonthlyRecap" aria-role="button" aria-label="复制小结">复制小结</view>
       </view>
     </view>
   </view>

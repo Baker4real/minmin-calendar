@@ -1,0 +1,327 @@
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+const test = require('node:test')
+const { listWxssFiles, parseWxssRules } = require('./designTokens')
+
+// issue #56：窄屏几何、容器溢出与安全区。
+// 口径：rpx 始终按 750rpx = 视口宽等比换算，px = rpx × viewportPx / 750。
+// 触控目标按 DESIGN.md 借入规则「触控高度至少 44px」；320px 下七列宽度是物理上限
+// （7 × 44px = 308px > 可用宽度），以防重叠平铺保证不误触相邻日期，不缩字号吸收。
+const repoRoot = path.join(__dirname, '..')
+
+const ALL_PAGES = [
+  'pages/bind/bind',
+  'pages/index/index',
+  'pages/memory/memory',
+  'pages/memory/edit/edit',
+  'pages/period/period',
+  'pages/period/edit/edit',
+  'pages/settings/settings'
+]
+const NON_TAB_WXSS = [
+  'pages/bind/bind.wxss',
+  'pages/memory/memory.wxss',
+  'pages/memory/edit/edit.wxss',
+  'pages/period/edit/edit.wxss'
+]
+const TAB_WXSS = [
+  'pages/index/index.wxss',
+  'pages/period/period.wxss',
+  'pages/settings/settings.wxss'
+]
+
+function readRepo(relativePath) {
+  return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
+}
+
+function findDecls(rules, selector) {
+  const rule = rules.find(item => item.selectors.includes(selector))
+  assert.ok(rule, `expected rule for ${selector}`)
+  return rule.decls
+}
+
+function splitCssTokens(value) {
+  const tokens = []
+  let depth = 0
+  let current = ''
+  for (const ch of String(value).trim()) {
+    if (ch === '(') depth += 1
+    else if (ch === ')') depth -= 1
+    if (/\s/.test(ch) && depth === 0) {
+      if (current) tokens.push(current)
+      current = ''
+    } else {
+      current += ch
+    }
+  }
+  if (current) tokens.push(current)
+  return tokens
+}
+
+function isZeroToken(token) {
+  return /^0(a?\.?0*)?(px|rpx)?$/.test(token) && parseFloat(token) === 0
+}
+
+function horizontalPaddingTokens(decls) {
+  const tokens = []
+  for (const key of ['padding-left', 'padding-right']) {
+    if (decls[key] && !isZeroToken(decls[key].trim())) tokens.push(decls[key].trim())
+  }
+  if (decls.padding) {
+    const parts = splitCssTokens(decls.padding)
+    if (parts.length === 1 && !isZeroToken(parts[0])) tokens.push(parts[0])
+    if (parts.length >= 2 && !isZeroToken(parts[1])) tokens.push(parts[1])
+    if (parts.length === 4 && !isZeroToken(parts[3])) tokens.push(parts[3])
+  }
+  return tokens
+}
+
+function verticalPaddingRpx(decls) {
+  if (!decls.padding) return 0
+  const parts = splitCssTokens(decls.padding)
+  const top = parts[0]
+  const bottom = parts.length >= 3 ? parts[2] : parts[0]
+  const toRpx = token => {
+    const match = /^(\d+(?:\.\d+)?)rpx$/.exec(token)
+    return match ? Number(match[1]) : 0
+  }
+  return toRpx(top) + toRpx(bottom)
+}
+
+function rpxNumber(decls, prop) {
+  const match = /^(\d+(?:\.\d+)?)rpx$/.exec(decls[prop] || '')
+  return match ? Number(match[1]) : null
+}
+
+test('rules with explicit width and horizontal padding use border-box (no additive overflow)', () => {
+  const offenders = []
+  for (const file of listWxssFiles(repoRoot)) {
+    for (const rule of parseWxssRules(fs.readFileSync(file, 'utf8'))) {
+      const width = rule.decls.width
+      if (!width || width === 'auto') continue
+      if (horizontalPaddingTokens(rule.decls).length === 0) continue
+      if (rule.decls['box-sizing'] !== 'border-box') {
+        offenders.push(`${path.relative(repoRoot, file)} ${rule.selectors.join(', ')} (width: ${width})`)
+      }
+    }
+  }
+  assert.deepEqual(offenders, [], 'width + horizontal padding without box-sizing: border-box overflows its container')
+})
+
+test('bind card is border-box at width:100% and keeps a usable inner width at 320px', () => {
+  const rules = parseWxssRules(readRepo('pages/bind/bind.wxss'))
+  const content = findDecls(rules, '.content')
+  const card = findDecls(rules, '.premium-card')
+  const codeInput = findDecls(rules, '.code-input')
+
+  // 溢出根因：width:100% + padding 40rpx 在 content-box 下叠加出 82rpx 横向溢出
+  assert.equal(card.width, '100%')
+  assert.equal(card['box-sizing'], 'border-box')
+  assert.equal(codeInput['box-sizing'], 'border-box')
+
+  const contentPadX = horizontalPaddingTokens(content).map(token => Number(/(\d+)rpx/.exec(token)[1]))
+  const cardPadX = horizontalPaddingTokens(card).map(token => Number(/(\d+)rpx/.exec(token)[1]))
+  const innerRpx = 750 - 2 * contentPadX[0] - 2 * cardPadX[0]
+  for (const viewportPx of [320, 375, 390]) {
+    const outerPx = ((750 - 2 * contentPadX[0]) * viewportPx) / 750
+    assert.ok(outerPx <= viewportPx - (2 * contentPadX[0] * viewportPx) / 750 + 0.01,
+      `bind card bleeds outside content padding at ${viewportPx}px`)
+  }
+  assert.ok(innerRpx >= 560, `bind card inner width ${innerRpx}rpx too narrow for the join form`)
+})
+
+test('edit form cards are border-box so width and padding never add up past the viewport', () => {
+  for (const file of ['pages/period/edit/edit.wxss', 'pages/memory/edit/edit.wxss']) {
+    const card = findDecls(parseWxssRules(readRepo(file)), '.premium-card')
+    assert.equal(card['box-sizing'], 'border-box', `${file} .premium-card must be border-box`)
+  }
+})
+
+test('calendar day cells keep the 44px touch height at 320px in both densities', () => {
+  const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+  const cell = findDecls(rules, '.day-cell')
+  const compactCell = findDecls(rules, '.calendar-density-compact .day-cell')
+  const content = findDecls(rules, '.content')
+  const grid = findDecls(rules, '.calendar-grid')
+
+  const widthPct = Number(/(\d+(?:\.\d+)?)%/.exec(cell.width)[1])
+  const fullHeight = rpxNumber(cell, 'height')
+  const compactHeight = rpxNumber(compactCell, 'height')
+  const contentPadRpx = Number(/(\d+)rpx/.exec(horizontalPaddingTokens(content)[0])[1])
+  const gridBorderPx = Number(/(\d+(?:\.\d+)?)px/.exec(grid.border)[1])
+
+  // 高度（DESIGN.md：触控高度至少 44px），三档视口两密度都须满足
+  for (const viewportPx of [320, 375, 390]) {
+    assert.ok((compactHeight * viewportPx) / 750 >= 44, `compact cell height below 44px at ${viewportPx}px`)
+    assert.ok((fullHeight * viewportPx) / 750 >= 44, `full cell height below 44px at ${viewportPx}px`)
+  }
+
+  // 宽度：320px 下 7 列物理上限 ≈42.5px，钉住 40px 下限地板；整列平铺不重叠、不越界换行
+  for (const viewportPx of [320, 375, 390]) {
+    const gridInnerPx = viewportPx - (2 * contentPadRpx * viewportPx) / 750 - 2 * gridBorderPx
+    const columnPx = (gridInnerPx * widthPct) / 100
+    assert.ok(columnPx >= 40, `day column ${columnPx.toFixed(2)}px below the 40px floor at ${viewportPx}px`)
+  }
+  assert.ok(7 * widthPct <= 100, `7 columns at ${widthPct}% exceed one row`)
+  assert.equal(cell['box-sizing'], 'border-box')
+  assert.equal(cell['margin-left'], undefined)
+  assert.equal(cell['margin-right'], undefined)
+})
+
+test('calendar cell content stacks fit inside the cell at both densities (date stays readable)', () => {
+  const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+  const cell = findDecls(rules, '.day-cell')
+  const compactCell = findDecls(rules, '.calendar-density-compact .day-cell')
+
+  const dayNum = findDecls(rules, '.day-num')
+  const lunar = findDecls(rules, '.day-lunar')
+  const tagLine = findDecls(rules, '.day-tag-line')
+  const marks = findDecls(rules, '.day-marks')
+  const compactNum = findDecls(rules, '.calendar-density-compact .day-num')
+  const compactMarks = findDecls(rules, '.calendar-density-compact .day-marks')
+
+  const line = decls => rpxNumber(decls, 'line-height') || 0
+  const box = decls => (rpxNumber(decls, 'height') || 0) + (rpxNumber(decls, 'margin-top') || 0)
+
+  const fullStack = line(dayNum) + box(lunar) + box(tagLine) + box(marks)
+  const fullRoom = rpxNumber(cell, 'height') - verticalPaddingRpx(cell)
+  assert.ok(fullStack <= fullRoom, `full density stack ${fullStack}rpx exceeds cell room ${fullRoom}rpx`)
+
+  const compactStack = line(compactNum) + box(compactMarks)
+  const compactRoom = rpxNumber(compactCell, 'height') - verticalPaddingRpx(compactCell)
+  assert.ok(compactStack <= compactRoom, `compact density stack ${compactStack}rpx exceeds cell room ${compactRoom}rpx`)
+})
+
+test('sheets scroll within a bounded height and are never clipped by the mask', () => {
+  const wxml = readRepo('pages/index/index.wxml')
+  const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+  const jumpSheet = findDecls(rules, '.calendar-jump-sheet')
+  const daySheet = findDecls(rules, '.day-action-sheet')
+  const infoPanel = findDecls(rules, '.calendar-info-panel')
+  const mask = findDecls(rules, '.day-sheet-mask')
+
+  // 月份跳转与日操作 sheet：自有滚动边界
+  for (const [name, decls] of [['.calendar-jump-sheet', jumpSheet], ['.day-action-sheet', daySheet]]) {
+    const maxVh = Number(/(\d+(?:\.\d+)?)vh/.exec(decls['max-height'] || '0')[1])
+    assert.ok(maxVh > 0 && maxVh < 100, `${name} needs a sub-viewport max-height`)
+    assert.equal(decls['overflow-y'], 'auto', `${name} must scroll when content grows`)
+  }
+
+  // 图例/预测/月小结面板复用 .day-action-sheet 的 overflow-y，自身只收紧高度
+  const infoVh = Number(/(\d+(?:\.\d+)?)vh/.exec(infoPanel['max-height'] || '0')[1])
+  assert.ok(infoVh > 0 && infoVh < 100, '.calendar-info-panel needs a sub-viewport max-height')
+  assert.match(wxml, /class="day-action-sheet calendar-info-panel safe-bottom"/)
+
+  // 父级不裁切：遮罩全屏 flex-end，无 overflow 裁切；页面入场只淡入（transform 会把 fixed 弹层拖进裁剪域）
+  assert.ok(!/overflow\s*:\s*hidden/.test(mask.overflow || ''), 'sheet mask must not clip the sheet')
+  const pageEnter = /@keyframes pageEnter\s*\{([\s\S]*?)\n\}/.exec(readRepo('app.wxss'))
+  assert.ok(pageEnter, 'expected pageEnter keyframes')
+  assert.doesNotMatch(pageEnter[1], /transform/)
+})
+
+test('sheets bottom padding carries the runtime bottom safe-area inset', () => {
+  const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+  for (const selector of ['.calendar-jump-sheet', '.day-action-sheet']) {
+    const decls = findDecls(rules, selector)
+    const paddingBottom = `${decls.padding || ''};${decls['padding-bottom'] || ''}`
+    assert.match(
+      paddingBottom,
+      /var\(--safe-bottom,\s*env\(safe-area-inset-bottom/,
+      `${selector} bottom padding must add var(--safe-bottom) with env() fallback`
+    )
+  }
+})
+
+test('safeArea exposes a runtime bottom inset with the same query discipline as the top inset', () => {
+  const safeAreaPath = path.join(repoRoot, 'utils/safeArea.js')
+
+  function loadFresh(wxMock) {
+    delete require.cache[require.resolve(safeAreaPath)]
+    const originalWx = global.wx
+    global.wx = wxMock
+    const loaded = require(safeAreaPath)
+    return {
+      safeArea: loaded,
+      restore() {
+        delete require.cache[require.resolve(safeAreaPath)]
+        if (originalWx === undefined) delete global.wx
+        else global.wx = originalWx
+      }
+    }
+  }
+
+  // 主路径：wx.getWindowInfo() 的 safeArea（home 指示条/手势条 = screenHeight − safeArea.bottom）
+  let env = loadFresh({
+    getWindowInfo: () => ({ screenHeight: 800, safeArea: { top: 20, bottom: 766, left: 0, right: 375 } }),
+    getSystemInfoSync: () => ({ statusBarHeight: 20 })
+  })
+  try {
+    assert.equal(env.safeArea.getSafeBottom(), 34)
+    assert.equal(env.safeArea.getSafeTop(), 20)
+  } finally {
+    env.restore()
+  }
+
+  // 旧接口回退：getSystemInfoSync 的 safeArea
+  env = loadFresh({ getSystemInfoSync: () => ({ screenHeight: 700, safeArea: { bottom: 680 } }) })
+  try {
+    assert.equal(env.safeArea.getSafeBottom(), 20)
+  } finally {
+    env.restore()
+  }
+
+  // 无安全区信息 / 底部无插入：返回 0，不制造无意义底部空白
+  env = loadFresh({ getWindowInfo: () => ({ statusBarHeight: 24 }), getSystemInfoSync: () => ({}) })
+  try {
+    assert.equal(env.safeArea.getSafeBottom(), 0)
+  } finally {
+    env.restore()
+  }
+  env = loadFresh({ getWindowInfo: () => ({ screenHeight: 800, safeArea: { bottom: 800 } }) })
+  try {
+    assert.equal(env.safeArea.getSafeBottom(), 0)
+  } finally {
+    env.restore()
+  }
+
+  // 查询异常：兜底 0；顶部兜底保持 44（既有行为不回退）
+  env = loadFresh({
+    getWindowInfo: () => { throw new Error('denied') },
+    getSystemInfoSync: () => { throw new Error('denied') }
+  })
+  try {
+    assert.equal(env.safeArea.getSafeBottom(), 0)
+    assert.equal(env.safeArea.getSafeTop(), 44)
+  } finally {
+    env.restore()
+  }
+})
+
+test('every page root injects --safe-bottom alongside --safe-top from runtime data', () => {
+  for (const pagePath of ALL_PAGES) {
+    const wxml = readRepo(`${pagePath}.wxml`)
+    const js = readRepo(`${pagePath}.js`)
+    assert.match(wxml, /--safe-top:\s*\{\{safeTop\}\}px; --safe-bottom:\s*\{\{safeBottom\}\}px/, `${pagePath}.wxml root style must inject both safe-area vars`)
+    assert.match(js, /safeBottom:\s*safeArea\.getSafeBottom\(\)/, `${pagePath}.js data must feed safeBottom from utils/safeArea`)
+  }
+})
+
+test('bottom inset lands on non-tab page content; tab pages stay lean behind the native tabBar', () => {
+  for (const file of NON_TAB_WXSS) {
+    const content = findDecls(parseWxssRules(readRepo(file)), '.content')
+    assert.match(
+      content.padding || '',
+      /var\(--safe-bottom,\s*env\(safe-area-inset-bottom/,
+      `${file} .content bottom padding must add the runtime bottom inset`
+    )
+  }
+  for (const file of TAB_WXSS) {
+    const content = findDecls(parseWxssRules(readRepo(file)), '.content')
+    assert.doesNotMatch(
+      content.padding || '',
+      /safe-bottom/,
+      `${file} is a tab page: the native tabBar already absorbs the bottom inset, do not add dead space`
+    )
+  }
+})

@@ -15,6 +15,27 @@ page {
   --glass-border: rgba(255,255,255,0.12);
   --glass-glow: rgba(232,144,158,0.15);
   --glass-inset: inset 0 1px 0 rgba(255,255,255,0.15);
+  --glass-fallback: rgba(18,22,61,0.92);
+
+  /* Font Roles — 共享字号角色，页面 WXSS 只允许引用角色 token（glyph/display 例外登记在 tests/typography-roles.test.js） */
+  --font-size-month-title: 40rpx;
+  --font-size-title: 34rpx;
+  --font-size-body-lg: 32rpx;
+  --font-size-body: 28rpx;
+  --font-size-caption: 26rpx;
+  --font-size-calendar-date: 28rpx;
+  --font-size-calendar-date-compact: 30rpx;
+  --font-size-calendar-micro: 24rpx;
+  --font-size-button: 30rpx;
+  --font-size-input: 32rpx;
+
+  /* Spacing — DESIGN.md 名义 px 刻度（4/8/16/24/32/48）以 rpx 记，数值 ×2 */
+  --space-xs: 8rpx;
+  --space-sm: 16rpx;
+  --space-md: 32rpx;
+  --space-lg: 48rpx;
+  --space-xl: 64rpx;
+  --space-xxl: 96rpx;
 
   /* Text on Dark */
   --text-white: #FFFFFF;
@@ -22,9 +43,8 @@ page {
   --text-secondary: rgba(255,255,255,0.6);
   --text-tertiary: rgba(255,255,255,0.35);
 
-  /* Gradients */
-  --gradient-pink: linear-gradient(135deg, #E8909E, #C4A0D2);
-  --gradient-gold: linear-gradient(135deg, #D4A574, #E8909E);
+  /* Gradients 已全部退役：--gradient-gold（玫瑰 → 金，CTA 误用形态，issue #55）、
+     --gradient-pink（玫瑰 → 薰衣草，无屏上引用，issue #59）。渐变填充不再以 token 提供 */
 
   /* Sizes */
   --radius-sm: 12rpx;
@@ -35,11 +55,9 @@ page {
   --radius-full: 999rpx;
   --radius-circle: 50%;
 
-  /* Transitions — 逐属性声明，禁止 all */
+  /* Transitions — 逐属性声明，禁止 all；缓动只有 --ease-out 一条曲线（bounce/elastic 式 overshoot 曲线已随 issue #58 退役） */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --transition: background-color 0.3s var(--ease-out), border-color 0.3s var(--ease-out), transform 0.3s var(--ease-out);
-  --transition-spring: transform 0.3s var(--ease-spring), background-color 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
 
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -89,32 +107,29 @@ page {
   to { opacity: 1; }
 }
 
-/* ===== Glow Orbs ===== */
+/* ===== Glow Orbs — 每个 orb 只保留一层持续动画（orbFloat）；orbRotate 第二层随 issue #58 退役 ===== */
 .glow-orb {
   position: absolute;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   pointer-events: none;
   z-index: 0;
+  animation: orbFloat 6s ease-in-out infinite;
 }
 .glow-orb-1 {
   width: 300rpx; height: 300rpx;
   background: radial-gradient(circle, rgba(232,144,158,0.2), transparent);
   top: -100rpx; right: -80rpx;
-  animation: orbFloat 6s ease-in-out infinite, orbRotate 12s linear infinite;
 }
 .glow-orb-2 {
   width: 200rpx; height: 200rpx;
   background: radial-gradient(circle, rgba(196,160,210,0.13), transparent);
   bottom: 100rpx; left: -60rpx;
-  animation: orbFloat 8s ease-in-out infinite reverse, orbRotate 15s linear infinite reverse;
+  animation-duration: 8s;
+  animation-direction: reverse;
 }
 @keyframes orbFloat {
   0%, 100% { transform: translateY(0) scale(1); }
   50% { transform: translateY(-20rpx) scale(1.1); }
-}
-@keyframes orbRotate {
-  from { transform: rotate(0deg) translateX(30rpx) rotate(0deg); }
-  to { transform: rotate(360deg) translateX(30rpx) rotate(-360deg); }
 }
 
 /* ===== Custom Nav Bar ===== */
@@ -129,7 +144,7 @@ page {
 .nav-title {
   flex: 1;
   text-align: center;
-  font-size: 34rpx;
+  font-size: var(--font-size-title);
   font-weight: 700;
   letter-spacing: 2rpx;
   color: #E8909E;
@@ -147,7 +162,7 @@ page {
   line-height: 1;
   color: rgba(255,255,255,0.94);
   text-shadow: 0 2rpx 10rpx rgba(10,14,39,0.35);
-  transition: transform 0.22s var(--ease-spring);
+  transition: transform 0.22s var(--ease-out);
   position: relative;
   z-index: 11;
 }
@@ -158,7 +173,7 @@ page {
   bottom: 10rpx;
   left: 10rpx;
   border-radius: var(--radius-card);
-  background: rgba(255,255,255,0.09), rgba(18,22,61,0.92);
+  background: rgba(255,255,255,0.09), var(--glass-fallback);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(232,144,158,0.28);
@@ -179,7 +194,7 @@ page {
   transform: scale(0.94);
 }
 .nav-back:active .nav-back-surface {
-  background: rgba(255,255,255,0.14), rgba(18,22,61,0.92);
+  background: rgba(255,255,255,0.14), var(--glass-fallback);
   border-color: rgba(232,144,158,0.42);
   box-shadow:
     0 4rpx 12rpx rgba(10,14,39,0.16),
@@ -189,7 +204,7 @@ page {
 
 /* ===== Premium Card (Glass) ===== */
 .premium-card {
-  background: var(--glass-bg), rgba(18,22,61,0.92);
+  background: var(--glass-bg), var(--glass-fallback);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: var(--radius-card);
@@ -216,15 +231,15 @@ page {
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  background: #E8909E;
+  background: var(--aurora-pink);
   color: #0A0E27;
   border-radius: var(--radius-md);
   padding: 26rpx 0;
-  font-size: 30rpx;
+  font-size: var(--font-size-button);
   font-weight: 600;
   letter-spacing: 2rpx;
   box-shadow: 0 4px 15px rgba(232,144,158,0.28);
-  transition: var(--transition-spring);
+  transition: transform 0.3s var(--ease-out), background-color 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
   position: relative;
 }
 .btn-premium:active {
@@ -242,25 +257,25 @@ page {
 
 /* ===== Danger Button — 柔红，与玫瑰体系同族 ===== */
 .btn-danger {
-  background: var(--glass-bg), rgba(18,22,61,0.92);
+  background: var(--glass-bg), var(--glass-fallback);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   color: #F97373;
   text-align: center;
   padding: 26rpx;
   border-radius: var(--radius-md);
-  font-size: 30rpx;
+  font-size: var(--font-size-button);
   border: 1px solid rgba(249,115,115,0.28);
   transition: var(--transition);
 }
 .btn-danger:active {
   transform: scale(0.95);
-  background: rgba(249,115,115,0.12), rgba(18,22,61,0.92);
+  background: rgba(249,115,115,0.12), var(--glass-fallback);
 }
 
 /* ===== Header Gradient ===== */
 .header-gradient {
-  background: rgba(255,255,255,0.05), rgba(18,22,61,0.92);
+  background: rgba(255,255,255,0.05), var(--glass-fallback);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255,255,255,0.1);
@@ -276,7 +291,7 @@ page {
   width: 400rpx;
   height: 400rpx;
   background: radial-gradient(circle, rgba(232,144,158,0.2) 0%, transparent 60%);
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   animation: float 8s var(--ease-out) infinite alternate;
 }
 .header-gradient::after {
@@ -287,7 +302,7 @@ page {
   width: 200rpx;
   height: 200rpx;
   background: radial-gradient(circle, rgba(196,160,210,0.1) 0%, transparent 60%);
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   animation: float 6s var(--ease-out) infinite alternate-reverse;
 }
 @keyframes float {
@@ -319,12 +334,18 @@ page {
   height: 60rpx;
   border: 4rpx solid rgba(255,255,255,0.1);
   border-top-color: #E8909E;
-  border-radius: 50%;
+  border-radius: var(--radius-circle);
   animation: spin 0.8s linear infinite;
   box-shadow: 0 0 20px rgba(232,144,158,0.2);
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* reduced-motion 下的加载替代反馈：透明度脉冲，无位移/旋转 */
+@keyframes loadingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 
 /* ===== Pulse Animation（仅空态心跳使用） ===== */
@@ -347,9 +368,9 @@ page {
   transform: translateY(10rpx) scale(0.98);
 }
 
-/* ===== Nav Button Spring ===== */
+/* ===== Nav Button ===== */
 .nav-btn {
-  transition: transform 0.25s var(--ease-spring), background-color 0.25s var(--ease-out);
+  transition: transform 0.25s var(--ease-out), background-color 0.25s var(--ease-out);
 }
 .nav-btn:active {
   transform: scale(0.9);
@@ -365,7 +386,9 @@ page {
   color: var(--text-tertiary);
 }
 
-/* ===== Reduced Motion — 全局兜底 ===== */
+/* ===== Reduced Motion — 全局兜底 =====
+   政策（issue #58）：移除位移/缩放/旋转与装饰动画；状态反馈走颜色/透明度等无位移通道。
+   加载中不静默：spinner 的旋转替换为 loadingPulse 透明度脉冲。 */
 @media (prefers-reduced-motion: reduce) {
   .page,
   .page::before,
@@ -392,12 +415,14 @@ page {
     animation: none;
     transition: none;
   }
-  .loading-spinner,
   .cycle-card,
   .profile-card,
   .hero-icon,
   .tab {
     animation: none;
     transition: none;
+  }
+  .loading-spinner {
+    animation: loadingPulse 1.6s ease-in-out infinite;
   }
 }

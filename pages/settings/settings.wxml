@@ -1,4 +1,4 @@
-<view class="page safe-top" style="--safe-top: {{safeTop}}px">
+<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
   <view class="nav-bar header-gradient">
     <view class="nav-placeholder"></view>
     <view class="nav-title">设置</view>
@@ -21,13 +21,42 @@
           <text class="room-code-label">我的房间码</text>
           <text class="room-code-value {{roomCode ? '' : 'muted'}}">{{roomCodeDisplay || roomCode || '未绑定'}}</text>
         </view>
-        <view wx:if="{{roomCode}}" class="copy-btn" bindtap="copyRoomCode">复制</view>
+        <view wx:if="{{roomCode}}" class="copy-btn" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码">复制</view>
+      </view>
+    </view>
+
+    <!-- 日历显示密度（首页日历的密度偏好入口） -->
+    <view class="premium-card fade-in fade-in-d2">
+      <view class="menu-item">
+        <text class="menu-icon">🗓️</text>
+        <view class="density-menu-copy">
+          <text class="menu-text">日历显示</text>
+          <text class="density-menu-desc">清爽只看日期与标记，完整加显农历与节日</text>
+        </view>
+      </view>
+      <view class="density-control" aria-label="日历信息密度">
+        <view
+          class="density-option {{calendarDensity == 'compact' ? 'active' : ''}}"
+          data-density="compact"
+          bindtap="setCalendarDensity"
+          aria-role="radio"
+          aria-label="清爽显示日历"
+          aria-checked="{{calendarDensity == 'compact'}}"
+        >清爽</view>
+        <view
+          class="density-option {{calendarDensity == 'full' ? 'active' : ''}}"
+          data-density="full"
+          bindtap="setCalendarDensity"
+          aria-role="radio"
+          aria-label="完整显示农历和节假日"
+          aria-checked="{{calendarDensity == 'full'}}"
+        >完整</view>
       </view>
     </view>
 
     <!-- 功能菜单 -->
     <view class="premium-card fade-in fade-in-d2">
-      <view class="menu-item" bindtap="goMemory">
+      <view class="menu-item" bindtap="goMemory" aria-role="button" aria-label="查看欢乐时光">
         <text class="menu-icon">❤️</text>
         <text class="menu-text">欢乐时光</text>
         <text class="menu-arrow">›</text>
@@ -35,12 +64,12 @@
     </view>
 
     <view class="premium-card fade-in fade-in-d3">
-      <view class="menu-item" bindtap="exportData">
+      <view class="menu-item" bindtap="exportData" aria-role="button" aria-label="导出数据">
         <text class="menu-icon">📤</text>
         <text class="menu-text">导出数据</text>
         <text class="menu-arrow">›</text>
       </view>
-      <view class="menu-item" bindtap="clearData">
+      <view class="menu-item" bindtap="clearData" aria-role="button" aria-label="清除本地数据">
         <text class="menu-icon">🗑️</text>
         <text class="menu-text">清除本地数据</text>
         <text class="menu-arrow">›</text>
@@ -48,7 +77,7 @@
     </view>
 
     <view class="premium-card fade-in fade-in-d3">
-      <view class="menu-item" bindtap="about">
+      <view class="menu-item" bindtap="about" aria-role="button" aria-label="关于">
         <text class="menu-icon">ℹ️</text>
         <text class="menu-text">关于</text>
         <text class="menu-arrow">›</text>

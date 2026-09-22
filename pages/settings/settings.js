@@ -4,12 +4,25 @@ const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const settingsFlow = require('../../utils/settingsFlow')
 const safeArea = require('../../utils/safeArea')
 
+// 与 pages/index/index.js 共享同一存储键；首页 onShow 重读本偏好
+const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
+
 Page({
-  data: { safeTop: safeArea.getSafeTop(), roomCode: '', roomCodeDisplay: '未绑定' },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), roomCode: '', roomCodeDisplay: '未绑定', calendarDensity: 'compact' },
 
   async onShow() {
+    this.setData({ calendarDensity: getSavedCalendarDensity() })
     const room = await roomSession.getVerifiedActiveRoom()
     syncActiveRoom(this, room)
+  },
+
+  setCalendarDensity(e) {
+    const density = e.currentTarget.dataset.density
+    if (density !== 'compact' && density !== 'full') return
+    this.setData({ calendarDensity: density })
+    try {
+      wx.setStorageSync(CALENDAR_DENSITY_STORAGE_KEY, density)
+    } catch (e) {}
   },
 
   async copyRoomCode() {
@@ -59,4 +72,12 @@ Page({
 
 function syncActiveRoom(page, room) {
   page.setData(roomAccessOutcome.buildRoomDisplayState(room))
+}
+
+function getSavedCalendarDensity() {
+  try {
+    const density = wx.getStorageSync(CALENDAR_DENSITY_STORAGE_KEY)
+    if (density === 'compact' || density === 'full') return density
+  } catch (e) {}
+  return 'compact'
 }

@@ -1,4 +1,4 @@
-<view class="page safe-top" style="--safe-top: {{safeTop}}px">
+<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
   <view class="content">
     <view class="hero">
       <view class="hero-icon">❤️</view>
@@ -8,29 +8,29 @@
 
     <view wx:if="{{bound}}" class="premium-card">
       <view class="bound-status">✅ 已绑定房间</view>
-      <text class="bound-code" bindtap="copyRoomCode">房间码：{{roomCode}}</text>
-      <view class="btn-premium" bindtap="goHome">进入应用</view>
-      <view class="btn-danger" bindtap="unbind">解除绑定</view>
+      <text class="bound-code" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码">房间码：{{roomCode}}</text>
+      <view class="btn-premium" bindtap="goHome" aria-role="button" aria-label="进入应用">进入应用</view>
+      <view class="btn-danger" bindtap="unbind" aria-role="button" aria-label="解除绑定">解除绑定</view>
     </view>
 
     <view wx:else class="premium-card">
       <view class="tab-bar">
-        <view class="tab {{tab==='create' ? 'active' : ''}}" bindtap="switchTab" data-tab="create">创建房间</view>
-        <view class="tab {{tab==='join' ? 'active' : ''}}" bindtap="switchTab" data-tab="join">加入房间</view>
+        <view class="tab {{tab==='create' ? 'active' : ''}}" bindtap="switchTab" data-tab="create" aria-role="radio" aria-label="创建房间" aria-checked="{{tab==='create'}}">创建房间</view>
+        <view class="tab {{tab==='join' ? 'active' : ''}}" bindtap="switchTab" data-tab="join" aria-role="radio" aria-label="加入房间" aria-checked="{{tab==='join'}}">加入房间</view>
       </view>
 
       <view wx:if="{{tab === 'create'}}">
         <text class="info-text">生成房间码，把码发给对方加入</text>
-        <view wx:if="{{loading}}" class="btn-premium loading">创建中...</view>
-        <view wx:else class="btn-premium" bindtap="createRoom">创建我的房间</view>
+        <view wx:if="{{loading}}" class="btn-premium loading" aria-role="button" aria-disabled="true">创建中...</view>
+        <view wx:else class="btn-premium" bindtap="createRoom" aria-role="button" aria-label="创建我的房间">创建我的房间</view>
       </view>
 
       <view wx:if="{{tab === 'join'}}">
         <text class="info-text">输入对方给你的房间码</text>
-        <input class="code-input" placeholder-class="input-placeholder" placeholder="输入6位码" value="{{joinCode}}" bindinput="onCodeInput" maxlength="6" confirm-type="done" bindconfirm="joinRoom"/>
-        <view wx:if="{{joinCode.length < 6 && !loading}}" class="btn-premium disabled">请输入6位房间码</view>
-        <view wx:elif="{{loading}}" class="btn-premium loading">加入中...</view>
-        <view wx:elif="{{joinCode.length === 6}}" class="btn-premium" bindtap="joinRoom">加入房间</view>
+        <input class="code-input" placeholder-class="input-placeholder" placeholder="输入6位码" value="{{joinCode}}" bindinput="onCodeInput" maxlength="6" confirm-type="done" bindconfirm="joinRoom" aria-label="输入6位房间码"/>
+        <view wx:if="{{joinCode.length < 6 && !loading}}" class="btn-premium disabled" aria-role="button" aria-disabled="true">请输入6位房间码</view>
+        <view wx:elif="{{loading}}" class="btn-premium loading" aria-role="button" aria-disabled="true">加入中...</view>
+        <view wx:elif="{{joinCode.length === 6}}" class="btn-premium" bindtap="joinRoom" aria-role="button" aria-label="加入房间">加入房间</view>
       </view>
     </view>
 

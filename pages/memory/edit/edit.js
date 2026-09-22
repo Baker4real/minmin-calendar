@@ -9,7 +9,7 @@ const safeArea = require('../../../utils/safeArea')
 const DRAFT_FIELDS = ['date', 'note']
 
 Page({
-  data: { safeTop: safeArea.getSafeTop(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false },
 
   onLoad(options) {
     const routeState = recordEditRoute.parseMemoryEditOptions(options, {

@@ -1,6 +1,6 @@
-<view class="page safe-top" style="--safe-top: {{safeTop}}px">
+<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
   <view class="nav-bar header-gradient">
-    <view class="nav-back" bindtap="goBack">
+    <view class="nav-back" bindtap="goBack" aria-role="button" aria-label="返回">
       <view class="nav-back-surface"></view>
       <text class="nav-back-icon">‹</text>
     </view>
@@ -13,7 +13,7 @@
     <view class="premium-card">
       <view class="form-item">
         <text class="form-label">日期</text>
-        <picker mode="date" value="{{date}}" end="{{maxDate}}" bindchange="onDateChange">
+        <picker mode="date" value="{{date}}" end="{{maxDate}}" bindchange="onDateChange" aria-role="button" aria-label="选择日期">
           <view class="form-picker">
             <text>{{date}}</text>
             <text class="form-picker-arrow">›</text>
@@ -22,16 +22,16 @@
       </view>
       <view class="form-item">
         <text class="form-label">备注</text>
-        <input class="form-input" placeholder-class="input-placeholder" placeholder="记录你们的特别时刻..." value="{{note}}" bindinput="onNoteInput" maxlength="500"/>
+        <input class="form-input" placeholder-class="input-placeholder" placeholder="记录你们的特别时刻..." value="{{note}}" bindinput="onNoteInput" maxlength="500" aria-label="备注"/>
       </view>
     </view>
 
     <view class="btns">
-      <view wx:if="{{!saving && !deleting}}" class="btn-premium" bindtap="save">保存</view>
-      <view wx:elif="{{saving}}" class="btn-premium loading">保存中...</view>
-      <view wx:else class="btn-premium disabled">保存</view>
-      <view wx:if="{{isEdit && !deleting}}" class="btn-danger" bindtap="delete">删除此记录</view>
-      <view wx:elif="{{isEdit}}" class="btn-danger" style="opacity: 0.5;">删除中...</view>
+      <view wx:if="{{!saving && !deleting}}" class="btn-premium" bindtap="save" aria-role="button" aria-label="保存">保存</view>
+      <view wx:elif="{{saving}}" class="btn-premium loading" aria-role="button" aria-disabled="true">保存中...</view>
+      <view wx:else class="btn-premium disabled" aria-role="button" aria-disabled="true">保存</view>
+      <view wx:if="{{isEdit && !deleting}}" class="btn-danger" bindtap="delete" aria-role="button" aria-label="删除此记录">删除此记录</view>
+      <view wx:elif="{{isEdit}}" class="btn-danger" style="opacity: 0.5;" aria-role="button" aria-disabled="true">删除中...</view>
     </view>
   </view>
 </view>

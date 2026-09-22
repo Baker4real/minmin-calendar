@@ -12,6 +12,7 @@ const DRAFT_FIELDS = ['startDate', 'endDate', 'note', 'flow', 'symptoms']
 Page({
   data: {
     safeTop: safeArea.getSafeTop(),
+    safeBottom: safeArea.getSafeBottom(),
     id: '',
     startDate: '',
     endDate: '',

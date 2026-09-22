@@ -6,6 +6,7 @@ const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 const safeArea = require('../../utils/safeArea')
 
+// 与 pages/settings/settings.js 共享同一存储键；写入方在设置页
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
 const SYNC_STATUS_CLEAR_DELAY = 1600
 const COLLECTIONS = ['periods', 'memories']
@@ -21,6 +22,7 @@ const INITIAL_HOME_STATE = buildHomeCalendarState({
 Page({
   data: {
     safeTop: safeArea.getSafeTop(),
+    safeBottom: safeArea.getSafeBottom(),
     year: INITIAL_VIEW_DATE.getFullYear(),
     month: INITIAL_VIEW_DATE.getMonth(),
     weekDays: ['日','一','二','三','四','五','六'],
@@ -81,6 +83,8 @@ Page({
   },
 
   onShow() {
+    // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效
+    this.setData({ calendarDensity: this.getSavedCalendarDensity() })
     return this.loadData({ background: this.canRefreshInBackground() })
   },
 
@@ -414,15 +418,6 @@ Page({
       return 'compact'
     }
     return 'compact'
-  },
-
-  setCalendarDensity(e) {
-    const density = e.currentTarget.dataset.density
-    if (density !== 'compact' && density !== 'full') return
-    this.setData({ calendarDensity: density })
-    try {
-      wx.setStorageSync(CALENDAR_DENSITY_STORAGE_KEY, density)
-    } catch (e) {}
   },
 
   shiftJumpYear(e) {

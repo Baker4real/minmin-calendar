@@ -8,6 +8,18 @@ const { meetsContrast } = require('./contrast')
 const CANVAS_NAVY = '#0A0E27'
 const WARM_ROSE = '#E8909E'
 
+const APP_TOKENS = Object.fromEntries(
+  [...fs.readFileSync(path.join(__dirname, '..', 'app.wxss'), 'utf8').matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/gi)]
+    .map((match) => [`--${match[1]}`, match[2].trim()])
+)
+
+function resolveToken(value) {
+  const tokenRef = /^var\((--[a-z0-9-]+)\)$/i.exec(value)
+  if (!tokenRef) return value
+  assert.ok(APP_TOKENS[tokenRef[1]], `unknown token ${tokenRef[1]}`)
+  return APP_TOKENS[tokenRef[1]]
+}
+
 function readStylesheet(relativePath) {
   return fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8')
 }
@@ -37,8 +49,8 @@ function normalizeHex(value) {
 
 function assertRoseFillNavyLabel(css, selector) {
   const block = ruleDeclarations(css, selector)
-  const color = normalizeHex(declarationValue(block, 'color'))
-  const background = normalizeHex(declarationValue(block, 'background'))
+  const color = normalizeHex(resolveToken(declarationValue(block, 'color')))
+  const background = normalizeHex(resolveToken(declarationValue(block, 'background')))
   assert.equal(meetsContrast(color, background), true)
   assert.equal(color, CANVAS_NAVY)
   assert.equal(background, WARM_ROSE)
@@ -54,4 +66,27 @@ test('.copy-btn rose fill uses canvas-navy label at 4.5:1', () => {
 
 test('bind .tab.active rose fill uses canvas-navy label at 4.5:1', () => {
   assertRoseFillNavyLabel(readStylesheet('pages/bind/bind.wxss'), '.tab.active')
+})
+
+// issue #55：首页主操作统一玫瑰填充 + 画布海军字（快速记录、提醒记录、月份确认、月份选中态、复制小结）
+const INDEX_WXSS = 'pages/index/index.wxss'
+
+test('.quick-btn rose fill uses canvas-navy label at 4.5:1', () => {
+  assertRoseFillNavyLabel(readStylesheet(INDEX_WXSS), '.quick-btn')
+})
+
+test('.reminder-action rose fill uses canvas-navy label at 4.5:1', () => {
+  assertRoseFillNavyLabel(readStylesheet(INDEX_WXSS), '.reminder-action')
+})
+
+test('.jump-confirm rose fill uses canvas-navy label at 4.5:1', () => {
+  assertRoseFillNavyLabel(readStylesheet(INDEX_WXSS), '.jump-confirm')
+})
+
+test('.jump-option.active rose fill uses canvas-navy label at 4.5:1', () => {
+  assertRoseFillNavyLabel(readStylesheet(INDEX_WXSS), '.jump-option.active')
+})
+
+test('.copy-recap rose fill uses canvas-navy label at 4.5:1', () => {
+  assertRoseFillNavyLabel(readStylesheet(INDEX_WXSS), '.copy-recap')
 })

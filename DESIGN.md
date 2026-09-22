@@ -144,8 +144,16 @@ components:
 
 已在屏幕上成立、改 UI 时沿用：
 
-- 圆角 token（`app.wxss`）：`--radius-sm` / `--radius-md` / `--radius-lg` / `--radius-xl` 为 `12rpx` / `20rpx` / `28rpx` / `36rpx`，另有 `--radius-card: 24rpx`（卡片与日历块；`.premium-card`、导航返回底、`.month-nav` 等均走此 token）、`--radius-full: 999rpx`（胶囊）、`--radius-circle: 50%`（正圆点/圆钮）。`pages/index/index.wxss` 的 `border-radius` 只允许 token 与 `0` 复位，由 `tests/design-token-guardrail.test.js` 护栏。
-- 玻璃叠层：`--glass-bg` 为 `rgba(255,255,255,0.08)`；卡片边框常用 `rgba(255,255,255,0.12)`（含 `--glass-border`）。共享玻璃卡（`.premium-card` 等）在同一 `background` 里叠不透明海军或玫瑰底（`.premium-card` 现为 `var(--glass-bg), rgba(18,22,61,0.92)`）。`backdrop-filter` 与 `-webkit-backdrop-filter` 成对写；忽略模糊时仍是实色面，不要只留半透明空框。
+- 圆角 token（`app.wxss`）：`--radius-sm` / `--radius-md` / `--radius-lg` / `--radius-xl` 为 `12rpx` / `20rpx` / `28rpx` / `36rpx`，另有 `--radius-card: 24rpx`（卡片与日历块；`.premium-card`、导航返回底、`.month-nav` 等均走此 token）、`--radius-full: 999rpx`（胶囊）、`--radius-circle: 50%`（正圆点/圆钮）。全部 WXSS 文件（含 `app.wxss` 自身）的 `border-radius` 只允许 token 与 `0` 复位，由 `tests/design-token-guardrail.test.js` 护栏。
+- 玻璃叠层：`--glass-bg` 为 `rgba(255,255,255,0.08)`；卡片边框常用 `rgba(255,255,255,0.12)`（含 `--glass-border`）。共享玻璃卡（`.premium-card` 等）在同一 `background` 里叠不透明海军或玫瑰底；回退实色 `rgba(18,22,61,0.92)` 的唯一来源是 `--glass-fallback` token，所有规则一律写 `var(--glass-fallback)`（`.premium-card` 现为 `var(--glass-bg), var(--glass-fallback)`），不重复字面量，由 `tests/design-token-guardrail.test.js` 护栏。`backdrop-filter` 与 `-webkit-backdrop-filter` 成对写；忽略模糊时仍是实色面，不要只留半透明空框。
+- 间距阶梯：名义刻度 4/8/16/24/32/48px（frontmatter spacing）在 `app.wxss` 登记为 rpx token（数值 ×2）：`--space-xs` / `--space-sm` / `--space-md` / `--space-lg` / `--space-xl` / `--space-xxl` = `8rpx` / `16rpx` / `32rpx` / `48rpx` / `64rpx` / `96rpx`。issue #53 只收敛单一来源并登记；页面既有间距字面量的逐页迁移留给后续 UI ticket，新增布局优先使用 token。
+- 字号角色：见「Typography」节的共享字号角色表，`app.wxss` 的 `--font-size-*` token 是全页面唯一来源，`tests/typography-roles.test.js` 护栏。
+- 首页信息架构（issue #55）：首页 `.content` 自上而下为 月份导航 → 周头/日历 → 记录入口（`.quick-actions` 记经期/欢乐时光）→ 图例/预测/小结（`.meaning-toolbar`，次级工具）→ 统计卡/提醒/记录列表入口；月份与日历是首屏主焦点，日历之上不再插低频工具条。日历密度偏好（`calendarDensity` 存储键）的切换入口在设置页「日历显示」卡，首页 `onShow` 重读即刻生效；密度选中态保持玫瑰描边弱态，不用实色填充。结构序与首屏预算由 `tests/index-page.test.js`、`tests/calendar-micro-labels.test.js` 钉住。
+- 窄屏几何与安全区（issue #56）：所有带显式 `width` 与水平内边距的卡片/表单容器一律 `box-sizing: border-box`，宽度与内边距不得叠加出横向溢出（全 WXSS 护栏，含 `app.wxss`）。安全区运行时策略只有一套（`utils/safeArea.js`）：顶部 `--safe-top` 走状态栏高度、底部 `--safe-bottom` 走 `screenHeight − safeArea.bottom`，均由页面根节点内联注入；底部插入在无手势区设备上为 0，不制造无意义底部空白。底部落点：非 tab 页 `.content` 的 padding-bottom 与底部 sheet 的 padding-bottom = 基础值 + `var(--safe-bottom, env(safe-area-inset-bottom, 0px))`；tab 页内容由原生 tabBar 吸收底部插入，不重复加。底部 sheet 滚动边界 = `max-height` 82–86vh + `overflow-y: auto`，遮罩不做 `overflow` 裁切。日历触控目标按「高度 ≥44px」执行（compact 104rpx ≈ 44.4px@320px、full 160rpx ≈ 68.3px@320px）；320px 下七列宽 ≈42.5px 是物理上限（7×44px 放不进 320px），列整宽平铺、无水平 margin、互不重叠，不以缩小日期/农历/标记吸收。回归由 `tests/narrow-screen-geometry.test.js` 钉住。
+- 阴影登记（下文「Shadow / overlay 登记」段）实行区间登记制：同族同色阴影的透明度落在登记区间内即合规，区间内免逐值登记；区间外透明度或登记表外颜色由 `tests/design-token-guardrail.test.js` 的阴影注册表护栏拒绝。
+- 交互语义（issue #57）：每个可点控件（bindtap/catchtap，sheet 的 `catchtap="noop"` 泄泡盾除外）都带 `aria-role` 与可读 `aria-label`；弹层遮罩本身是「关闭」操作，按用途命名（关闭月份选择/当日操作/面板）。选中态用 `aria-checked` 表达并与 `active` 类同条件绑定（单选组如密度、月份格、绑定 tab 用 `radio`，可多选的经量/症状 chip 用 `checkbox`）；禁用与加载态用 `aria-disabled` 表达并与 `disabled`/`loading` 类同条件。picker 与输入框带 `aria-label`。日历格保持 `aria-label="{{item.ariaLabel}}"` 领域朗读（日期+经期/欢乐时光/预测/节日/调休）与 `aria-hidden="{{item.isEmpty}}"` 空白格隐藏，角色为 button；语义文案唯一来源仍是 `utils/homeCalendarState.js`。护栏：`tests/interaction-semantics.test.js`。
+- 次级可点入口对比度（issue #57）：可点击箭头（`.menu-arrow`、`.form-picker-arrow`、列表/入口/弹层箭头）与次要操作（重试空态、绑定页房间码、危险按钮）的文字色不弱于 `--text-secondary`，在各自实际表面（卡片/表单/sheet 合成底）上 ≥4.5:1——基准即未选中 tab `#7A7C8C` 在画布 `#0A0E27` 上的 4.5:1；`--text-tertiary`（0.35 白）只留给输入占位符等纯装饰文字，不再用于任何可点入口。护栏：`tests/secondary-affordance-contrast.test.js`。
+- 动效与性能边界（issue #58）：缓动只有 `--ease-out`（`cubic-bezier(0.16,1,0.3,1)`）与标准关键字（ease/ease-in-out/linear 等）；bounce/elastic 式 overshoot 曲线（cubic-bezier 的 y 参数超出 0–1）与 `--ease-spring` / `--transition-spring` token 已退役，bind 页 `bounceIn` 回弹入场同步改为无回弹的 `heroIn`，禁止同类曲线以任何命名回归。持续动画（`infinite`）实行注册表：装饰性（慢 6–12s）= `auroraPulse` 8s（唯一全屏背景动效）、`orbFloat` 6s/8s（首页两个 orb，动画声明挂在基类 `.glow-orb` 上，每个 orb 只有一层持续动画；第二层轨道旋转 `orbRotate` 已退役）、`float` 8s/6s（导航头光斑）、`pulse` 6s（空态图标）；功能性状态指示（可快于 6s，只在对应状态期间存在）= `spin` 0.8s（加载）、`syncDotPulse` 1s（同步中）、`skeletonPulse` 2.4s（骨架屏）；reduced-motion 替代 = `loadingPulse` 1.6s（仅透明度）。新增或删除持续动画必须同步本表与测试注册表。玻璃 blur：单面 ≤20px，全屏遮罩 ≤8px（`.day-sheet-mask` 对齐 frontmatter `modal-overlay` 登记的 8px——88% 不透明海军底上更大的 blur 不可见，纯 GPU 开销），每个 WXSS 文件的玻璃面（backdrop-filter 规则）数量上限由测试棘轮钉住，只允许收紧。阴影：颜色与透明度仍由上文阴影注册表管，每文件 `box-shadow` 声明数上限同法钉住。`@media (prefers-reduced-motion: reduce)` 政策：移除位移/缩放/旋转与装饰动画，状态反馈走无位移通道——加载=透明度脉冲（不静默）、同步中=玫瑰点静态色、骨架=静态哑光占位块、按压=即时 scale + 既有底色变化、弹层=即时出现（88% 海军遮罩保留层级）、日历切换=即时替换（月份标题文案变化承载状态）。护栏：`tests/motion-performance.test.js`。
 - `tabBar.borderStyle` 为 `white`（浅色发丝）。不要改成 `black`。未选中 `tabBar.color` 为 `#7A7C8C`：弱于选中玫瑰 `#E8909E`，在画布 `#0A0E27` 上达到 4.5:1。
 - `page` 没有 `auroraFlow`；全屏动感只保留 `.page::before` 的 `auroraPulse`（8s）。画布底为 `#0A0E27`。
 - 各页 0.62–0.94 信息文本透明度是逐元素调校，不要机械归并。
@@ -153,7 +161,9 @@ components:
 - `calendar-cell` 与下文日历状态表对齐 `pages/index` 与 `CALENDAR_LEGEND_ITEMS`。没有「整格选中底 = 经期」。
 - 日历微字 `.day-tag` / `.predict-mark` 字号为 `26rpx`（caption 量级）。节日/调休 `.day-tag` 与 `.day-tag-line` 盒高 `38rpx`（大于字号，覆盖 caption 行高），避免 CJK 被裁切。compact 密度下仍放进日期与标记，不把微字再缩小。
 
-主填充按钮是玫瑰底 `#E8909E` + 画布海军字 `#0A0E27`。同结构的复制键（`.copy-btn`）和绑定选中块走同一对色。不要把白字叠玫瑰写成规范。
+主填充按钮是玫瑰底 `#E8909E` + 画布海军字 `#0A0E27`，玫瑰填充一律写 `var(--aurora-pink)`（`.btn-premium`、`.copy-btn`、`.tab.active` 与首页的 `.quick-btn`、`.reminder-action`、`.jump-confirm`、`.jump-option.active`、`.copy-recap` 由 `tests/design-token-guardrail.test.js` 钉住单一来源，`tests/filled-cta-contrast.test.js` 钉住玫瑰底海军字 4.5:1 对比度）。护栏为 deny-by-default：任何选择器的渐变填充（linear/radial/conic）与实色玫瑰字面量填充（`#E8909E` / `rgb(232,144,158)` / `rgba(232,144,158,1)`）都必须落在测试登记的装饰例外白名单内，新增主操作按钮写字面量玫瑰或渐变填充会被直接拒绝。同结构的复制键和选中块走同一对色。不要把白字叠玫瑰写成规范。
+
+元数据金 `#D4A574` 只表示预测、区间、确定性及日历元数据（节日/调休标签、同步状态点）；实色金一律 `var(--aurora-gold)`。玫瑰 → 金的 135deg 渐变曾是 CTA 误用形态，已随 issue #55 退役：`--gradient-gold` token 已从 `app.wxss` 删除，任何页面不得再引用（design-token 护栏强制）。玫瑰 → 薰衣草的 `--gradient-pink` 同样无屏上引用，已随 issue #59 一并退役；渐变填充不再以 token 形式提供。首页金色只允许落在白名单规则上（`.predict-mark`、`.predict-date`、`.prediction-summary`、`.reminder-rail`、`.holiday-tag`、`.day-cell.holiday`、`.sync-dot`、`.detail-title`、`.detail-meaning.predict`/`.holiday`、图例 predict/holiday/workday 符号），由 `tests/design-token-guardrail.test.js` 的金语义白名单钉住。页面 WXSS 不得再出现 `#D4A574` 字面量。金的 rgba tint（如 `rgba(212,165,116,0.9)` 节日标签底）仍按组件登记使用。
 
 不安装、不覆盖成外部品牌设计系统。系统名仍是 Aurora Bloom。
 
@@ -174,13 +184,36 @@ Removed from original: neon green, hot pink, cyan, bright gold. Too aggressive f
 
 ## Typography
 
-System font stack for zero-bloat + excellent CJK rendering. H1 2rem/700 for month titles. Body-lg 1.0625rem/400/1.6 for diary reading. Caption 0.8125rem/500 with letter-spacing for week headers. Calendar holiday tags and 「预」 stay at caption scale: `.day-tag` / `.predict-mark` are `26rpx`. The holiday/workday `.day-tag` box is `38rpx` tall so CJK glyphs are not clipped.
+System font stack for zero-bloat + excellent CJK rendering;全页面只继承 `app.wxss` 的 `-apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif`，不声明 `@font-face`、不引入外部字体（`tests/typography-hierarchy.test.js` 护栏）。H1 2rem/700 for month titles. Body-lg 1.0625rem/400/1.6 for diary reading. Caption 0.8125rem/500 with letter-spacing for week headers. Calendar holiday tags and 「预」 stay at caption scale: `.day-tag` / `.predict-mark` are `26rpx`. The holiday/workday `.day-tag` box is `38rpx` tall so CJK glyphs are not clipped.
+
+首页月份标题层级：`.month-title` 走 `--font-size-month-title`（40rpx / 800 / letter-spacing 4rpx / 玫瑰辉光），明显高于各页共享导航标题 `.nav-title`（`--font-size-title` 34rpx / 700）；`line-height: 1.2` + `white-space: nowrap` 保证单行完整显示，最坏文案「2026年12月」在 750rpx 视口的月份导航行内不溢出。层级差（≥6rpx）、单行与宽度账本由 `tests/typography-hierarchy.test.js` 钉住。
+
+caption 家族行高策略：流式说明文字（`.form-hint`、`.symptom-group-label`、`.profile-desc`、`.room-code-label`）统一 `line-height: 1.4`；单行控件（`.copy-btn`、`.legend-symbol`）以盒高居中——盒高 88rpx flex 居中 / 行高=盒高，不另设文字行高。六族统一走 `--font-size-caption`（26rpx），由 `tests/typography-hierarchy.test.js` 钉住。
 
 信息性文字下限：日历格内微字（农历、经期/记忆标记、预测徽标）不小于 `24rpx`；日历格外 caption（统计标签、同步状态、说明文字）不小于 `26rpx`。低于下限的诉求靠缩短文案或调整布局吸收，不缩小字号。
 
+### 共享字号角色（issue #53，`app.wxss` token 为唯一来源）
+
+frontmatter 的 rem 值是设计参照；实现层全部走下表 rpx 角色 token。页面 WXSS 的 `font-size` 只允许 `var(--font-size-*)`；例外必须登记在 `tests/typography-roles.test.js` 的 `TYPOGRAPHY_EXCEPTIONS`（glyph = 箭头/emoji/标记字形，尺寸随容器几何；display = 展示型大数字/大字，单点登记）。
+
+| token | 值 | 角色 | 典型使用 |
+|---|---|---|---|
+| `--font-size-month-title` | `40rpx` | 首页月份大标题（高于全局导航一级） | `.month-title` |
+| `--font-size-title` | `34rpx` | 标题 | `.nav-title`、`.sheet-title`、`.profile-name`、`.no-room-title` |
+| `--font-size-body-lg` | `32rpx` | 正文大号 | `.predict-date`、`.prediction-summary`、`.jump-year-value`、`.bound-status` |
+| `--font-size-body` | `28rpx` | 正文 | 列表主行、`.tab`、`.menu-text`、`.quick-text`、`.empty-state` |
+| `--font-size-caption` | `26rpx` | caption（页面外下限） | 说明/标签/统计文字、`.day-tag`、`.predict-mark`、`.form-label`、流量/症状 chips、`.copy-btn` 等次级小操作 |
+| `--font-size-calendar-date` | `28rpx` | 日历日期（full 密度） | `.day-num` |
+| `--font-size-calendar-date-compact` | `30rpx` | 日历日期（compact 密度） | `.calendar-density-compact .day-num` |
+| `--font-size-calendar-micro` | `24rpx` | 日历格内微字（下限） | `.day-lunar`、`.memory-mark` |
+| `--font-size-button` | `30rpx` | 主按钮 | `.btn-premium`、`.btn-danger` |
+| `--font-size-input` | `32rpx` | 输入文字 | `.form-input`、`.form-picker` |
+
+主按钮角色（30rpx）只属于主按钮族；sheet 确认、复制等小操作文字按正文/caption 角色，不另立按钮字号。glyph/display 例外清单（`.nav-back` 46rpx、`.sheet-close` 46rpx、箭头 42/32rpx、emoji 图标、`.stat-num` 36rpx、`.cycle-num` 44rpx、`.hero-title` 48rpx、`.code-input` 40rpx、`.room-code-value` 36rpx 等）是收敛过程中登记的历史单点，后续字号层级 ticket 可逐项消化，但新增例外必须先登记。
+
 ## Components
 
-Cards use glassmorphism: `rgba(255,255,255,0.08)` overlay + `blur(20px)` + paired `-webkit-backdrop-filter` + top-edge highlight. Blur is an enhancement: the same rule also keeps an opaque enough navy or rose fill (`.premium-card` uses `var(--glass-bg), rgba(18,22,61,0.92)`) so the card remains a solid surface if `backdrop-filter` is ignored. No extra decorative shadows.
+Cards use glassmorphism: `rgba(255,255,255,0.08)` overlay + `blur(20px)` + paired `-webkit-backdrop-filter` + top-edge highlight. Blur is an enhancement: the same rule also keeps an opaque enough navy or rose fill (`.premium-card` uses `var(--glass-bg), var(--glass-fallback)`) so the card remains a solid surface if `backdrop-filter` is ignored. No extra decorative shadows.
 
 Primary fill (`.btn-premium`, `.copy-btn`, bind selected block): rose `#E8909E` fill, label `#0A0E27`. Ghost / outline, if used: transparent on canvas navy `#0A0E27`, rose border and rose label — readable on navy, not white type on rose.
 
@@ -206,8 +239,9 @@ Prediction metadata, reminder cards, and period tag chips stay compact and low-n
 - Do use canvas navy `#0A0E27` on rose for primary-fill labels
 - Do use warm gold for secondary certainty/range metadata
 - Do keep the reviewed tab top hairline (`tabBar.borderStyle: white`)
-- Do keep animations slow (6-12s cycles)
+- Do keep animations slow (6-12s cycles)（装饰性持续动画；加载/同步等功能性指示与 reduced-motion 替代按「动效与性能边界」注册表执行）
 - Do document Default and Pressed only; press uses `scale(0.94–0.98)`
+- Don't use bounce/elastic overshoot easing, and don't stack a second ambient animation layer on one element
 - Don't treat white-on-rose as the button spec
 - Don't fork the warning red into multiple reds; one red, distinguished by form
 - Don't use neon/bright colors

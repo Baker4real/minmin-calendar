@@ -81,7 +81,7 @@ function findOffTokenRadii(css, definedTokens) {
   const lines = maskComments(css).split('\n')
 
   lines.forEach((line, index) => {
-    for (const match of line.matchAll(/\bborder(?:-(?:top|bottom)-(?:left|right))?-radius\s*:\s*([^;]+);/gi)) {
+    for (const match of line.matchAll(/\bborder(?:-(?:top|bottom)-(?:left|right))?-radius\s*:\s*([^;}]+)/gi)) {
       const value = match[1].trim().replace(/var\(\s+/g, 'var(').replace(/\s+\)/g, ')')
       for (const component of value.split(/\s+/)) {
         if (component === '0') continue
@@ -93,6 +93,51 @@ function findOffTokenRadii(css, definedTokens) {
   })
 
   return violations
+}
+
+function parseWxssRules(css) {
+  const text = String(css).replace(/\/\*[\s\S]*?\*\//g, '')
+  const rules = []
+  let cursor = 0
+
+  while (cursor < text.length) {
+    const open = text.indexOf('{', cursor)
+    if (open === -1) break
+
+    let depth = 0
+    let close = open
+    for (; close < text.length; close += 1) {
+      if (text[close] === '{') depth += 1
+      else if (text[close] === '}') {
+        depth -= 1
+        if (depth === 0) break
+      }
+    }
+
+    const selectorText = text.slice(cursor, open).trim()
+    const body = text.slice(open + 1, close)
+
+    if (selectorText.startsWith('@')) {
+      for (const nested of parseWxssRules(body)) {
+        rules.push({ selectors: nested.selectors, decls: nested.decls })
+      }
+    } else if (selectorText) {
+      const selectors = selectorText.split(',').map((selector) => selector.trim()).filter(Boolean)
+      const decls = {}
+      for (const part of body.split(';')) {
+        const separator = part.indexOf(':')
+        if (separator === -1) continue
+        const prop = part.slice(0, separator).trim()
+        const value = part.slice(separator + 1).trim()
+        if (prop) decls[prop] = value
+      }
+      rules.push({ selectors, decls })
+    }
+
+    cursor = close + 1
+  }
+
+  return rules
 }
 
 function listFilesByExtension(root, extension) {
@@ -131,5 +176,6 @@ module.exports = {
   findOffTokenRadii,
   listWxmlFiles,
   listWxssFiles,
-  normalizeHex
+  normalizeHex,
+  parseWxssRules
 }

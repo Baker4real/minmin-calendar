@@ -7,7 +7,7 @@ const safeArea = require('../../utils/safeArea')
 
 Page({
   goBack() { wx.switchTab({ url: '/pages/index/index' }) },
-  data: { safeTop: safeArea.getSafeTop(), periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false },
 
   onShow() { return this.loadData() },
 
