@@ -405,6 +405,10 @@
   align-items: center;
   flex: 1;
   min-width: 0;
+  transition: transform 0.24s ease;
+}
+.stat-item:active {
+  transform: scale(0.98);
 }
 /* 数据实色化：玫瑰=经期数据 */
 .stat-num {

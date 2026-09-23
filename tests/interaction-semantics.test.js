@@ -216,6 +216,35 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(reminder.attrs['aria-label'], '{{item.title}}，{{item.text}}，点按记录')
 })
 
+test('stats card halves are named buttons into the record list and the prediction sheet', () => {
+  const elements = collectElements(readPage('pages/index/index.wxml'))
+  const periodHalf = elements.find((element) =>
+    element.attrs.bindtap === 'goPeriodList' && classTokens(element).includes('stat-item'))
+  const predictHalf = elements.find((element) =>
+    element.attrs.bindtap === 'openPredictionSheet' && classTokens(element).includes('predict-item'))
+  const divider = elements.find((element) => classTokens(element).includes('stat-divider'))
+  const statsCard = elements.find((element) => classTokens(element).includes('stats-card'))
+
+  // issue #69：左半块读屏名称与卡上条数同源（含 0 条）
+  assert.ok(periodHalf, 'expected the stats-card period half to be a tap target')
+  assert.equal(periodHalf.attrs['aria-role'], 'button')
+  assert.equal(periodHalf.attrs['aria-label'], '查看经期记录，共{{periods ? periods.length : 0}}条')
+
+  // issue #70：右半块有日期读月日+星期，无日期读固定暂无文案
+  assert.ok(predictHalf, 'expected the stats-card prediction half to be a tap target')
+  assert.equal(predictHalf.attrs['aria-role'], 'button')
+  assert.equal(
+    predictHalf.attrs['aria-label'],
+    "{{nextPredictWeekday ? '查看经期预测，' + nextPredictDisplay + ' ' + nextPredictWeekday : '查看经期预测，暂无下次日期'}}"
+  )
+
+  // 分隔线与整张统计卡都不是按钮
+  assert.equal(divider.attrs.bindtap, undefined)
+  assert.equal(divider.attrs['aria-role'], undefined)
+  assert.equal(statsCard.attrs.bindtap, undefined)
+  assert.equal(statsCard.attrs['aria-role'], undefined)
+})
+
 test('bind page controls are named, tab switch exposes checked state, inert states read as disabled', () => {
   const elements = collectElements(readPage('pages/bind/bind.wxml'))
   const byHandler = (handler, cls) =>

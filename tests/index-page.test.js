@@ -21,6 +21,12 @@ function ruleBody(wxss, selector) {
   return match[1]
 }
 
+// WXML {{ }} 内是 JS 表达式；用真实数据形状直接算出读屏最终整句
+function evaluateWxmlExpression(expr, scope) {
+  const keys = Object.keys(scope)
+  return new Function(...keys, `return (${expr})`)(...keys.map(key => scope[key]))
+}
+
 test('initial load publishes home records and clears loading state', async () => {
   const client = createQueuedClient([
     { kind: 'success', data: [period('p1', '2026-06-01')] },
@@ -415,6 +421,111 @@ test('homepage stats card leaves prediction range, confidence, and average cycle
   assert.match(statsBlock, /nextPredictDisplay/)
   assert.match(wxml, /predictionExplanation\.summary/)
   assert.match(wxml, /predictionExplanation\.lineItems/)
+})
+
+test('stats card left half enters the existing period list page with a count-true screen-reader name', () => {
+  const wxml = readIndexWxml()
+  const statsStart = wxml.indexOf('class="stats-card')
+  const statsBlock = wxml.slice(statsStart, wxml.indexOf('class="reminder-stack"'))
+  // 左半块 = 条数数字 + 「经期记录」标签；右半块从 predict-item 起
+  const leftHalf = statsBlock.slice(statsBlock.indexOf('class="stat-item"'), statsBlock.indexOf('stat-divider'))
+
+  // issue #69：左半块整块接现有 goPeriodList 动作，与下方「经期记录」入口同一 tab 目标；
+  // 条数为 0 时（卡因欢乐时光仍可见）一样可进
+  assert.match(leftHalf, /class="stat-item"[\s\S]*?bindtap="goPeriodList"[\s\S]*?aria-role="button"[\s\S]*?aria-label="查看经期记录，共\{\{periods \? periods\.length : 0\}\}条"/)
+
+  // 读屏最终整句与卡上条数同源，包括 0
+  const labelExpr = /aria-label="查看经期记录，共\{\{([\s\S]+?)\}\}条"/.exec(leftHalf)
+  assert.ok(labelExpr, 'expected the count-based aria label')
+  assert.equal(`查看经期记录，共${evaluateWxmlExpression(labelExpr[1], { periods: [] })}条`, '查看经期记录，共0条')
+  assert.equal(`查看经期记录，共${evaluateWxmlExpression(labelExpr[1], { periods: [{}, {}] })}条`, '查看经期记录，共2条')
+
+  // 外观不变：玫瑰数字与「经期记录」标签仍在，不加箭头、不加「条」
+  assert.match(leftHalf, /class="stat-num">\{\{periods \? periods\.length : 0\}\}<\/text>/)
+  assert.match(leftHalf, /class="stat-label">经期记录<\/text>/)
+  assert.doesNotMatch(leftHalf, /›|arrow|条</)
+
+  // 分隔线与整卡不响应点击；点左半块不打开预测说明
+  assert.doesNotMatch(statsBlock, /class="stat-divider"[^>]*bindtap/)
+  assert.doesNotMatch(statsBlock, /class="stats-card[^"]*"[^>]*bindtap/)
+  assert.doesNotMatch(leftHalf, /openPredictionSheet/)
+
+  // 行为：与下方入口完全相同的 switchTab，不用普通页面跳转
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const navigation = []
+    global.wx.switchTab = options => navigation.push({ type: 'switchTab', url: options.url })
+    global.wx.navigateTo = options => navigation.push({ type: 'navigateTo', url: options.url })
+
+    harness.page.goPeriodList()
+    assert.deepEqual(navigation, [{ type: 'switchTab', url: '/pages/period/period' }])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('stats card right half opens the existing prediction sheet without leaving the home page', () => {
+  const wxml = readIndexWxml()
+  const statsStart = wxml.indexOf('class="stats-card')
+  const statsBlock = wxml.slice(statsStart, wxml.indexOf('class="reminder-stack"'))
+  const rightHalf = statsBlock.slice(statsBlock.indexOf('predict-item'))
+
+  // issue #70：右半块整块接现有 openPredictionSheet 动作，与工具栏「预测」同一面板
+  assert.match(rightHalf, /bindtap="openPredictionSheet"[\s\S]*?aria-role="button"/)
+  assert.match(wxml, /class="meaning-tool" bindtap="openPredictionSheet"/)
+
+  // 有日期：月日 + 一个空格 + 星期；无日期：固定暂无文案（可见文字仍是 --）
+  const labelExpr = /aria-label="\{\{([\s\S]+?)\}\}"/.exec(rightHalf)
+  assert.ok(labelExpr, 'expected the date-aware aria label')
+  const readLabel = scope => evaluateWxmlExpression(labelExpr[1], scope)
+  assert.equal(readLabel({ nextPredictDisplay: '09月30日', nextPredictWeekday: '周三' }), '查看经期预测，09月30日 周三')
+  assert.equal(readLabel({ nextPredictDisplay: '--', nextPredictWeekday: '' }), '查看经期预测，暂无下次日期')
+
+  // -- 不是禁用态；点右半块不进入经期记录页
+  assert.doesNotMatch(rightHalf, /disabled/)
+  assert.doesNotMatch(rightHalf, /goPeriodList/)
+  assert.match(rightHalf, /class="predict-date">\{\{nextPredictDisplay \|\| '--'\}\}<\/text>/)
+  assert.match(rightHalf, /wx:if="\{\{nextPredictWeekday\}\}"[\s\S]*?\{\{nextPredictWeekday\}\}<\/text>/)
+  assert.doesNotMatch(rightHalf, /›|arrow/)
+
+  // 说明面板的标题、正文与查看月份副标题保持现状
+  assert.match(wxml, /predictionExplanation\.title/)
+  assert.match(wxml, /predictionExplanation\.summary/)
+  assert.match(wxml, /predictionExplanation\.lineItems/)
+  assert.match(wxml, /class="sheet-subtitle">\{\{year\}\}年\{\{month \+ 1\}\}月<\/text>/)
+  assert.doesNotMatch(statsBlock, /avgCycle|predictionRangeDisplay|predictConfidence/)
+
+  // 行为：留在首页、日历不跳转，只打开预测说明
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const navigation = []
+    global.wx.switchTab = options => navigation.push(options.url)
+    global.wx.navigateTo = options => navigation.push(options.url)
+    const viewBefore = { year: harness.page.data.year, month: harness.page.data.month }
+
+    harness.page.openPredictionSheet()
+    assert.equal(harness.page.data.infoSheetVisible, true)
+    assert.equal(harness.page.data.infoSheetMode, 'prediction')
+    assert.deepEqual(navigation, [])
+    assert.equal(harness.page.data.year, viewBefore.year)
+    assert.equal(harness.page.data.month, viewBefore.month)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('stats halves press with the shared card scale-down and reduced-motion policy', () => {
+  const wxss = readIndexWxss()
+
+  // 按下只缩小该半块（与首页其他卡片的 0.98 按压一致），不改颜色
+  const active = ruleBody(wxss, '.stat-item:active')
+  assert.match(active, /transform:\s*scale\(0\.98\)/)
+  assert.doesNotMatch(active, /background|color/)
+  assert.match(ruleBody(wxss, '.stat-item'), /transition:\s*transform/)
+
+  // 系统减弱动效沿用首页现成名单，不新增动画
+  const reduced = wxss.slice(wxss.indexOf('@media (prefers-reduced-motion: reduce)'))
+  assert.match(reduced, /\.stat-item\b/)
 })
 
 test('homepage stacks month navigation, calendar, and record actions ahead of secondary tools', () => {

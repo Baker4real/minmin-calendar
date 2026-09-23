@@ -97,12 +97,22 @@
 
     <view wx:if="{{periods.length || memories.length}}" class="stats-card premium-card">
       <view class="stats-row">
-        <view class="stat-item">
+        <view
+          class="stat-item"
+          bindtap="goPeriodList"
+          aria-role="button"
+          aria-label="查看经期记录，共{{periods ? periods.length : 0}}条"
+        >
           <text class="stat-num">{{periods ? periods.length : 0}}</text>
           <text class="stat-label">经期记录</text>
         </view>
         <view class="stat-divider"></view>
-        <view class="stat-item predict-item">
+        <view
+          class="stat-item predict-item"
+          bindtap="openPredictionSheet"
+          aria-role="button"
+          aria-label="{{nextPredictWeekday ? '查看经期预测，' + nextPredictDisplay + ' ' + nextPredictWeekday : '查看经期预测，暂无下次日期'}}"
+        >
           <view class="predict-value">
             <text class="predict-date">{{nextPredictDisplay || '--'}}</text>
             <text wx:if="{{nextPredictWeekday}}" class="predict-weekday">{{nextPredictWeekday}}</text>
