@@ -20,10 +20,11 @@
 }
 .card-label {
   font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
   color: var(--text-secondary);
-  font-weight: 500;
   position: relative;
-  letter-spacing: 2rpx;
 }
 .cycle-stats {
   display: flex;
@@ -36,12 +37,14 @@
 }
 .cycle-num {
   font-size: 44rpx;
-  font-weight: 800;
+  font-weight: var(--font-weight-control);
   color: #fff;
   font-variant-numeric: tabular-nums;
 }
 .cycle-label {
   font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.5);
   margin-top: 8rpx;
   display: block;
@@ -50,6 +53,7 @@
 /* Btn Premium */
 .btn-premium {
   margin-bottom: 20rpx;
+  line-height: var(--line-height-assist);
 }
 
 /* List Items */
@@ -72,11 +76,16 @@
 }
 .item-date {
   font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
+  font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.85);
-  font-weight: 600;
 }
 .item-note {
   font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.5);
   margin-top: 6rpx;
 }
@@ -87,13 +96,13 @@
   margin-top: 10rpx;
 }
 .item-tag {
-  height: 38rpx;
+  min-height: 38rpx;
   line-height: 38rpx;
-  padding: 0 12rpx;
+  padding: 4rpx 12rpx;
   border-radius: var(--radius-full);
   box-sizing: border-box;
   font-size: var(--font-size-caption);
-  font-weight: 700;
+  font-weight: var(--font-weight-assist);
   color: var(--text-secondary);
   background: var(--glass-bg);
   border: 1px solid rgba(255,255,255,0.1);
@@ -110,8 +119,9 @@
 }
 .item-duration {
   font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
   color: #E8909E;
-  font-weight: 600;
   background: rgba(232,144,158,0.12);
   padding: 4rpx 16rpx;
   border-radius: var(--radius-md);
@@ -182,7 +192,8 @@
   text-align: center;
   color: rgba(255,255,255,0.5);
   font-size: var(--font-size-body);
-  line-height: 1.8;
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
   background: rgba(255,255,255,0.05), var(--glass-fallback);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);

@@ -29,6 +29,18 @@ page {
   --font-size-button: 30rpx;
   --font-size-input: 32rpx;
 
+  /* 共享文字字重、行高、字距。页面只引用这些 token，不另写同义数字。 */
+  --font-weight-body: 400;
+  --font-weight-assist: 500;
+  --font-weight-control: 600;
+  --font-weight-title: 700;
+  --line-height-body: 1.6;
+  --line-height-assist: 1.4;
+  --line-height-title: 1.2;
+  --letter-spacing-assist: 1rpx;
+  --letter-spacing-room-code: 6rpx;
+  --letter-spacing-code-input: 12rpx;
+
   /* Spacing — DESIGN.md 名义 px 刻度（4/8/16/24/32/48）以 rpx 记，数值 ×2 */
   --space-xs: 8rpx;
   --space-sm: 16rpx;
@@ -145,8 +157,7 @@ page {
   flex: 1;
   text-align: center;
   font-size: var(--font-size-title);
-  font-weight: 700;
-  letter-spacing: 2rpx;
+  font-weight: var(--font-weight-title);
   color: #E8909E;
 }
 .nav-back {
@@ -236,8 +247,7 @@ page {
   border-radius: var(--radius-md);
   padding: 26rpx 0;
   font-size: var(--font-size-button);
-  font-weight: 600;
-  letter-spacing: 2rpx;
+  font-weight: var(--font-weight-control);
   box-shadow: 0 4px 15px rgba(232,144,158,0.28);
   transition: transform 0.3s var(--ease-out), background-color 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
   position: relative;
@@ -265,6 +275,7 @@ page {
   padding: 26rpx;
   border-radius: var(--radius-md);
   font-size: var(--font-size-button);
+  font-weight: var(--font-weight-control);
   border: 1px solid rgba(249,115,115,0.28);
   transition: var(--transition);
 }

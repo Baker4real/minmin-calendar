@@ -288,6 +288,7 @@ function buildDayAriaLabel(day) {
   if (!day || day.isEmpty || !day.date) return ''
   const parts = [formatAriaDate(day.date)]
   if (day.weekday) parts.push(day.weekday)
+  if (day.lunarText) parts.push(day.lunarText)
   buildDayMeanings(day).forEach(meaning => {
     if (meaning.key === 'holiday') {
       if (day.holidayName) parts.push(day.holidayName)

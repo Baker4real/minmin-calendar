@@ -304,11 +304,11 @@ test('buildHomeCalendarState spells out a complete aria label for stacked marker
 
   assert.equal(
     state.days.find(day => day.date === '2026-08-10').ariaLabel,
-    '8月10日 周一 今天 欢乐时光 预测区间'
+    '8月10日 周一 六月廿八 今天 欢乐时光 预测区间'
   )
   assert.equal(
     state.days.find(day => day.date === '2026-08-11').ariaLabel,
-    '8月11日 周二 预测区间'
+    '8月11日 周二 六月廿九 预测区间'
   )
 })
 
@@ -322,24 +322,36 @@ test('buildHomeCalendarState aria labels cover plain days, single markers, holid
   })
   assert.equal(
     august.days.find(day => day.date === '2026-08-12').ariaLabel,
-    '8月12日 周三 经期'
+    '8月12日 周三 六月三十 经期'
   )
   assert.equal(
     august.days.find(day => day.date === '2026-08-13').ariaLabel,
-    '8月13日 周四'
+    '8月13日 周四 七月初一'
   )
 
   const june = buildHomeCalendarState({ year: 2026, month: 5, today: '2026-06-01' })
   assert.equal(
     june.days.find(day => day.date === '2026-06-19').ariaLabel,
-    '6月19日 周五 端午'
+    '6月19日 周五 五月初五 端午'
   )
 
   const january = buildHomeCalendarState({ year: 2026, month: 0, today: '2026-01-01' })
   assert.equal(
     january.days.find(day => day.date === '2026-01-04').ariaLabel,
-    '1月4日 周日 调休上班'
+    '1月4日 周日 冬月十六 调休上班'
   )
+})
+
+test('buildHomeCalendarState keeps the full leap-month lunar string in the day name', () => {
+  const state = buildHomeCalendarState({
+    year: 2020,
+    month: 4,
+    today: '2020-05-01'
+  })
+  const day = state.days.find(item => item.date === '2020-05-23')
+
+  assert.equal(day.lunarText, '闰四月初一')
+  assert.equal(day.ariaLabel, '5月23日 周六 闰四月初一')
 })
 
 test('buildHomeCalendarState keeps hidden non-month cells silent for screen readers', () => {

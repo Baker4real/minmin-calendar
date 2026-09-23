@@ -13,6 +13,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: 100%;
+  max-width: 100%;
   margin-bottom: 20rpx;
 }
 .hero-icon {
@@ -27,18 +29,22 @@
   to { opacity: 1; transform: scale(1); }
 }
 .hero-title {
+  max-width: 100%;
   font-size: 48rpx;
-  font-weight: 800;
+  font-weight: var(--font-weight-title);
+  line-height: var(--line-height-title);
   color: #E8909E;
-  letter-spacing: 2rpx;
   text-shadow: 0 0 24rpx rgba(232,144,158,0.28);
 }
 .hero-desc {
+  max-width: 100%;
   font-size: var(--font-size-caption);
-  color: rgba(255,255,255,0.5);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.78);
   margin-top: 16rpx;
   text-align: center;
-  line-height: 1.8;
 }
 
 .premium-card {
@@ -69,18 +75,23 @@
   text-align: center;
   padding: 0 20rpx;
   font-size: var(--font-size-body);
+  font-weight: var(--font-weight-control);
+  line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.6);
-  font-weight: 500;
   transition: background-color 0.3s var(--ease-out), color 0.3s var(--ease-out);
 }
 .tab.active {
   background: var(--aurora-pink);
   color: #0A0E27;
-  font-weight: 600;
+  font-weight: var(--font-weight-control);
 }
 .info-text {
+  display: block;
   font-size: var(--font-size-caption);
-  color: rgba(255,255,255,0.5);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.72);
   margin-bottom: 30rpx;
   text-align: center;
 }
@@ -94,13 +105,13 @@
   padding: 20rpx;
   font-size: 40rpx;
   text-align: center;
-  letter-spacing: 12rpx;
-  text-indent: 12rpx;
+  letter-spacing: var(--letter-spacing-code-input);
+  text-indent: var(--letter-spacing-code-input);
   margin-bottom: 30rpx;
   background: var(--glass-bg), var(--glass-fallback);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  font-weight: 700;
+  font-weight: var(--font-weight-body);
   color: #fff;
 }
 .code-input:focus {
@@ -111,25 +122,38 @@
 /* Bound Status — 成功态用主色玫瑰，不引入色板外绿色 */
 .bound-status {
   font-size: var(--font-size-body-lg);
-  font-weight: 700;
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
   text-align: center;
   margin-bottom: 20rpx;
   color: #E8909E;
 }
 .bound-code {
+  max-width: 100%;
   font-size: var(--font-size-body);
+  font-weight: var(--font-weight-control);
+  line-height: var(--line-height-assist);
+  font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.6);
   text-align: center;
   display: block;
   margin-bottom: 30rpx;
-  letter-spacing: 6rpx;
-  text-indent: 6rpx;
+  letter-spacing: var(--letter-spacing-room-code);
+  text-indent: var(--letter-spacing-room-code);
+  word-break: break-all;
 }
 .btn-danger {
   margin-top: 16rpx;
 }
 .error-msg {
+  display: block;
+  align-self: stretch;
+  width: 100%;
+  box-sizing: border-box;
   font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
   color: #F97373;
   margin-top: 20rpx;
   text-align: center;

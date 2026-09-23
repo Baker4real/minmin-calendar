@@ -134,7 +134,7 @@ For UI changes, also verify in WeChat Developer Tools at a small-phone width.
 
 2026-09-15：Aurora Bloom 可读性收口已合入 `4bd1b54`：主填充为海军字叠玫瑰、tab 未选中 `#7A7C8C`、玻璃叠层带不透明海军回退、节日标签盒高 `38rpx` 以免 CJK 裁切。`DESIGN.md` 是唯一现行视觉说明。微信开发者工具小屏目视仍未做。
 
-2026-09-22：epic #52（issues #53–#59）已合入 `394cb4c`：共享视觉 token 契约与全页面护栏、全页面字体层级、首页 IA 重排（密度偏好迁入设置页、CTA 玫瑰+海军字、金色白名单）、窄屏几何与底部安全区运行时策略（`utils/safeArea.js` 新增 `getSafeBottom`，七页注入 `--safe-bottom`）、交互语义与次级操作对比度、动效/玻璃/reduced-motion 边界。微信开发者工具三档视口（320/375/430px）七页实渲零横向溢出、无状态栏/底部遮挡、无 CJK 裁切；真机验收（含 reduced-motion 系统态、读屏实听、破坏性路径）仍未做，追踪于 issue #60。
+2026-09-22：epic #52（issues #53–#59）已合入 `394cb4c`：共享视觉 token 契约与全页面护栏、全页面字体层级、首页 IA 重排（密度偏好迁入设置页、CTA 玫瑰+海军字、金色白名单）、窄屏几何与底部安全区运行时策略（`utils/safeArea.js` 新增 `getSafeBottom`，七页注入 `--safe-bottom`）、交互语义与次级操作对比度、动效/玻璃/reduced-motion 边界。issues #52–#67 已关闭。真机、读屏实听和系统减弱动效不是 live verified；画面证据只有 430 宽静态截图，320/375 人工视口未做。
 
 ## Repository Hygiene
 

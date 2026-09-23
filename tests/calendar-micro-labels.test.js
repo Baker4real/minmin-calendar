@@ -79,6 +79,93 @@ function stackedBlockRpx(body) {
   return declarationRpx(body, 'height') + optionalRpx(body, 'margin-top')
 }
 
+const NARROW_VIEWPORT_PX = 320
+const ORDINARY_LUNAR_SAMPLES = ['正月初一', '冬月三十']
+const LEAP_LUNAR_SAMPLE = '闰四月初一'
+const CAPSULE_SAMPLES = [
+  ['中秋', '.day-tag', '.holiday-tag'],
+  ['班', '.day-tag', '.workday-tag'],
+  ['预', '.predict-mark', '.predict-mark']
+]
+
+function lengthTokenRpx(token) {
+  if (token === '0') return 0
+  const match = /^(\d+(?:\.\d+)?)rpx$/.exec(token)
+  assert.ok(match, `expected an rpx length, got ${token}`)
+  return Number(match[1])
+}
+
+function horizontalPaddingRpx(body) {
+  const longhandLeft = body.match(/padding-left:\s*(\d+(?:\.\d+)?)rpx/)
+  const longhandRight = body.match(/padding-right:\s*(\d+(?:\.\d+)?)rpx/)
+  if (longhandLeft || longhandRight) {
+    return (longhandLeft ? Number(longhandLeft[1]) : 0) + (longhandRight ? Number(longhandRight[1]) : 0)
+  }
+  const shorthand = body.match(/padding:\s*([^\n;]+)/)
+  if (!shorthand) return 0
+  const parts = shorthand[1].trim().split(/\s+/).map(lengthTokenRpx)
+  if (parts.length === 1) return parts[0] * 2
+  if (parts.length === 2 || parts.length === 3) return parts[1] * 2
+  return parts[1] + parts[3]
+}
+
+function trackingRpx(body) {
+  const match = body.match(/letter-spacing:\s*([^;]+);/)
+  if (!match) return 0
+  const resolved = match[1].trim().replace(/var\((--[a-z0-9-]+)\)/i, (_, name) => {
+    assert.ok(APP_TOKENS[name], `unknown token ${name}`)
+    return APP_TOKENS[name]
+  })
+  return lengthTokenRpx(resolved)
+}
+
+function borderBoxRpx(body, viewportPx) {
+  const match = body.match(/(?:^|[;\n])\s*border:\s*([^;]+);/)
+  if (!match) return 0
+  const width = match[1].match(/(\d+(?:\.\d+)?)px/)
+  if (!width) return 0
+  return Number(width[1]) * 2 * (750 / viewportPx)
+}
+
+function contentInsetRpx(body, viewportPx) {
+  const sizing = body.match(/box-sizing:\s*([^;]+)/)
+  if (sizing && sizing[1].trim() === 'content-box') return 0
+  return borderBoxRpx(body, viewportPx)
+}
+
+function lineBoxRpx(body, fontRpx) {
+  const match = body.match(/line-height:\s*([^;]+);/)
+  assert.ok(match, 'expected line-height')
+  const raw = match[1].trim()
+  if (raw === '1') return fontRpx
+  const resolved = raw.replace(/var\((--[a-z0-9-]+)\)/i, (_, name) => {
+    assert.ok(APP_TOKENS[name], `unknown token ${name}`)
+    return APP_TOKENS[name]
+  })
+  return lengthTokenRpx(resolved)
+}
+
+function cjkRunRpx(text, fontRpx, tracking) {
+  // 每个字后都计入字距，覆盖 WebKit 把 letter-spacing 加在末字之后的情况。
+  return text.length * fontRpx + text.length * tracking
+}
+
+function dayColumnRpx(wxss, viewportPx) {
+  const contentPad = horizontalPaddingRpx(ruleBody(wxss, '.content'))
+  const gridBorder = ruleBody(wxss, '.calendar-grid').match(/border:\s*([^;]+);/)
+  assert.ok(gridBorder, 'expected .calendar-grid border')
+  const borderPx = Number(/(\d+(?:\.\d+)?)px/.exec(gridBorder[1])[1])
+  const widthPct = Number(/(\d+(?:\.\d+)?)%/.exec(ruleBody(wxss, '.day-cell').match(/width:\s*([^;]+);/)[1])[1])
+  const innerRpx = 750 - contentPad - borderPx * 2 * (750 / viewportPx)
+  return innerRpx * widthPct / 100
+}
+
+function todayRingRpx(wxss) {
+  const match = ruleBody(wxss, '.day-cell.today').match(/inset\s+0\s+0\s+0\s+(\d+(?:\.\d+)?)rpx/)
+  assert.ok(match, 'expected the today inset ring')
+  return Number(match[1])
+}
+
 function paddingVertical(body) {
   const longhandTop = body.match(/padding-top:\s*(\d+)rpx/)
   const longhandBottom = body.match(/padding-bottom:\s*(\d+)rpx/)
@@ -175,6 +262,146 @@ test('full calendar cells keep date, lunar, holiday tag, and marks with real ver
   assert.ok(
     slack >= MIN_FULL_CELL_SLACK_RPX,
     `full cell slack ${slack}rpx is below the ${MIN_FULL_CELL_SLACK_RPX}rpx floor`
+  )
+})
+
+test('full-density lunar shows ordinary month and day names inside a 320px column', () => {
+  const wxss = readWxss()
+  const lunar = ruleBody(wxss, '.day-lunar')
+  const font = declarationRpx(lunar, 'font-size')
+  const box = declarationRpx(lunar, 'height')
+  const line = declarationRpx(lunar, 'line-height')
+  const tracking = trackingRpx(lunar)
+  const column = dayColumnRpx(wxss, NARROW_VIEWPORT_PX) -
+    horizontalPaddingRpx(ruleBody(wxss, '.day-cell')) -
+    horizontalPaddingRpx(lunar)
+
+  assert.equal(lunar.match(/font-weight:\s*([^;]+);/)[1].trim(), 'var(--font-weight-assist)')
+  assert.match(lunar, /width:\s*100%/)
+  assert.match(lunar, /min-width:\s*0/)
+  assert.match(lunar, /white-space:\s*nowrap/)
+  assert.match(lunar, /overflow:\s*hidden/)
+  assert.doesNotMatch(lunar, /text-overflow\s*:\s*ellipsis/)
+  assert.ok(
+    box >= font * CAPTION_LINE_HEIGHT_RATIO && line >= font * CAPTION_LINE_HEIGHT_RATIO && line <= box,
+    `.day-lunar box ${box}rpx / line ${line}rpx does not cover ${font}rpx × ${CAPTION_LINE_HEIGHT_RATIO}`
+  )
+  for (const sample of ORDINARY_LUNAR_SAMPLES) {
+    const text = cjkRunRpx(sample, font, tracking)
+    assert.ok(
+      text <= column,
+      `${sample} needs ${text}rpx but the 320px column leaves ${column}rpx`
+    )
+  }
+})
+
+test('leap-month lunar stays on one line without ellipsis because a second line crosses the today ring', () => {
+  const wxss = readWxss()
+  const lunar = ruleBody(wxss, '.day-lunar')
+  const cell = ruleBody(wxss, '.day-cell')
+  const font = declarationRpx(lunar, 'font-size')
+  const line = declarationRpx(lunar, 'line-height')
+  const tracking = trackingRpx(lunar)
+  const column = dayColumnRpx(wxss, NARROW_VIEWPORT_PX) -
+    horizontalPaddingRpx(cell) -
+    horizontalPaddingRpx(lunar)
+  const twoLineStack =
+    declarationRpx(ruleBody(wxss, '.day-num'), 'line-height') +
+    (line * 2 + optionalRpx(lunar, 'margin-top')) +
+    stackedBlockRpx(ruleBody(wxss, '.day-tag-line')) +
+    stackedBlockRpx(ruleBody(wxss, '.day-marks'))
+  const twoLineSlack = contentHeightRpx(cell) - twoLineStack
+  const predict = ruleBody(wxss, '.predict-mark')
+  const overhang = Math.max(0, declarationRpx(predict, 'height') - declarationRpx(ruleBody(wxss, '.day-marks'), 'height'))
+  const room = twoLineSlack + paddingVertical(cell).bottom - todayRingRpx(wxss)
+
+  assert.ok(font >= MIN_CAPTION_RPX, `lunar font ${font}rpx is below the micro floor`)
+  assert.match(lunar, /white-space:\s*nowrap/)
+  assert.doesNotMatch(lunar, /text-overflow\s*:\s*ellipsis/)
+  assert.equal(declarationRpx(lunar, 'height'), line, 'single-line lunar box matches its line box')
+  assert.ok(
+    cjkRunRpx(LEAP_LUNAR_SAMPLE, font, tracking) > column,
+    `${LEAP_LUNAR_SAMPLE} fits one line, so the single-line fallback is unnecessary`
+  )
+  assert.ok(
+    overhang > room,
+    `a second lunar line still clears the today ring (overhang ${overhang}rpx, room ${room}rpx)`
+  )
+})
+
+test('holiday, workday, and predict capsules center their labels with inset at 320px', () => {
+  const wxss = readWxss()
+  const tag = ruleBody(wxss, '.day-tag')
+  const predict = ruleBody(wxss, '.predict-mark')
+  const column = dayColumnRpx(wxss, NARROW_VIEWPORT_PX) -
+    horizontalPaddingRpx(ruleBody(wxss, '.day-cell'))
+  const ring = todayRingRpx(wxss)
+
+  for (const selector of ['.day-tag', '.predict-mark']) {
+    const body = selector === '.day-tag' ? tag : predict
+    assert.equal(body.match(/font-weight:\s*([^;]+);/)[1].trim(), 'var(--font-weight-assist)', selector)
+    assert.equal(trackingRpx(body), 0, `${selector} must keep natural tracking`)
+    assert.doesNotMatch(body, /text-overflow\s*:\s*ellipsis/, selector)
+    assert.doesNotMatch(body, /overflow\s*:\s*hidden/, selector)
+    assert.ok(horizontalPaddingRpx(body) >= 16, `${selector} side inset is flush`)
+  }
+
+  const tagFont = declarationRpx(tag, 'font-size')
+  const tagHeight = declarationRpx(tag, 'height')
+  const tagLine = lineBoxRpx(tag, tagFont)
+  const workdayInset = contentInsetRpx(ruleBody(wxss, '.workday-tag'), NARROW_VIEWPORT_PX)
+  assert.equal(tagLine, tagHeight, '.day-tag line box should fill the capsule and center the label')
+  assert.ok(
+    tagHeight - workdayInset >= tagFont * CAPTION_LINE_HEIGHT_RATIO,
+    `workday edge leaves ${tagHeight - workdayInset}rpx, under the caption line box at 320px`
+  )
+
+  const predictFont = declarationRpx(predict, 'font-size')
+  const predictHeight = declarationRpx(predict, 'height')
+  const predictBorder = borderBoxRpx(predict, NARROW_VIEWPORT_PX)
+  const predictLine = lineBoxRpx(predict, predictFont)
+  assert.match(predict, /display:\s*flex/)
+  assert.match(predict, /align-items:\s*center/)
+  assert.match(predict, /justify-content:\s*center/)
+  assert.match(predict, /align-self:\s*flex-start/)
+  assert.ok(
+    predictHeight - predictBorder >= predictFont * CAPTION_LINE_HEIGHT_RATIO &&
+      predictLine <= predictHeight - predictBorder,
+    `predict capsule content cannot hold a ${predictFont}rpx label at 320px`
+  )
+
+  for (const [sample, typeSelector, edgeSelector] of CAPSULE_SAMPLES) {
+    const type = ruleBody(wxss, typeSelector)
+    const edge = ruleBody(wxss, edgeSelector)
+    const width = cjkRunRpx(sample, declarationRpx(type, 'font-size'), trackingRpx(type)) +
+      horizontalPaddingRpx(type) +
+      borderBoxRpx(edge, NARROW_VIEWPORT_PX)
+    assert.ok(width <= column, `${sample} capsule needs ${width}rpx in a ${column}rpx column`)
+  }
+
+  const overhang = Math.max(0, predictHeight - declarationRpx(ruleBody(wxss, '.day-marks'), 'height'))
+  const fullCell = ruleBody(wxss, '.day-cell')
+  const fullSlack = contentHeightRpx(fullCell) - (
+    declarationRpx(ruleBody(wxss, '.day-num'), 'line-height') +
+    stackedBlockRpx(ruleBody(wxss, '.day-lunar')) +
+    stackedBlockRpx(ruleBody(wxss, '.day-tag-line')) +
+    stackedBlockRpx(ruleBody(wxss, '.day-marks'))
+  )
+  const fullBelow = fullSlack + paddingVertical(fullCell).bottom
+  assert.ok(
+    overhang <= fullBelow - ring,
+    `predict capsule overhang ${overhang}rpx crosses the today ring (room ${fullBelow - ring}rpx)`
+  )
+
+  const compactCell = ruleBody(wxss, '.calendar-density-compact .day-cell')
+  const compactSlack = contentHeightRpx(compactCell) - (
+    declarationRpx(ruleBody(wxss, '.calendar-density-compact .day-num'), 'line-height') +
+    stackedBlockRpx(ruleBody(wxss, '.calendar-density-compact .day-marks'))
+  )
+  const compactBelow = compactSlack / 2 + paddingVertical(compactCell).bottom
+  assert.ok(
+    overhang <= compactBelow - ring,
+    `predict capsule overhang ${overhang}rpx crosses the compact today ring (room ${compactBelow - ring}rpx)`
   )
 })
 

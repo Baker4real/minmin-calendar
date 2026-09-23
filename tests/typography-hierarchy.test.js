@@ -73,11 +73,13 @@ test('home month title sits one level above the shared nav title', () => {
     `month title ${monthSize}rpx must clear the nav title ${navSize}rpx by at least 6rpx`
   )
 
-  assert.equal(monthTitle['font-weight'], '800', 'month title keeps the heavier 800 weight')
-  assert.ok(
-    Number(navTitle['font-weight']) < 800,
-    `nav title weight ${navTitle['font-weight']} must stay below the month title`
-  )
+  assert.equal(tokens['--font-weight-title'], '700', 'title role weight is 700')
+  assert.equal(monthTitle['font-weight'], 'var(--font-weight-title)')
+  assert.equal(navTitle['font-weight'], 'var(--font-weight-title)')
+  assert.equal(monthTitle['line-height'], 'var(--line-height-title)')
+  assert.equal(tokens['--line-height-title'], '1.2')
+  assert.equal(monthTitle['letter-spacing'], undefined, 'month title keeps natural CJK tracking')
+  assert.equal(navTitle['letter-spacing'], undefined, 'nav title keeps natural CJK tracking')
 })
 
 test('font role scale stays strictly ordered for reading hierarchy', () => {
@@ -109,7 +111,8 @@ test('month title stays single-line and inside its 88rpx trigger', () => {
   assert.equal(monthTitle['white-space'], 'nowrap', 'month title must never wrap on narrow screens')
 
   const fontSize = resolveRpx(monthTitle, 'font-size', tokens, '.month-title')
-  const lineHeight = Number(monthTitle['line-height'])
+  const lineHeight = Number(tokens['--line-height-title'])
+  assert.equal(monthTitle['line-height'], 'var(--line-height-title)')
   assert.ok(lineHeight >= 1.1 && lineHeight <= 1.4, `.month-title line-height ${lineHeight} out of range`)
 
   const trigger = ruleDecls(INDEX_WXSS, '.month-title-trigger')
@@ -124,7 +127,8 @@ test('month title worst-case CJK label fits the month-nav row on a 750rpx viewpo
   const tokens = readAppTokens()
   const monthTitle = ruleDecls(INDEX_WXSS, '.month-title')
   const fontSize = resolveRpx(monthTitle, 'font-size', tokens, '.month-title')
-  const letterSpacing = resolveRpx(monthTitle, 'letter-spacing', tokens, '.month-title')
+  assert.equal(monthTitle['letter-spacing'], undefined, 'month title must not add tracking')
+  const letterSpacing = 0
   const caretSize = resolveRpx(ruleDecls(INDEX_WXSS, '.month-title-caret'), 'font-size', tokens, '.month-title-caret')
   const trigger = ruleDecls(INDEX_WXSS, '.month-title-trigger')
   const padX = horizontalPaddingRpx(trigger, '.month-title-trigger')
@@ -154,11 +158,10 @@ test('caption family shares the caption token and the 1.4 line-height policy', (
   for (const [file, selector] of CAPTION_FAMILY_FLOW) {
     const decls = ruleDecls(file, selector)
     assert.equal(decls['font-size'], 'var(--font-size-caption)', `${selector} must use the caption role token`)
-    assert.equal(
-      Number(decls['line-height']),
-      CAPTION_LINE_HEIGHT,
-      `${selector} line-height must be ${CAPTION_LINE_HEIGHT}, got ${decls['line-height']}`
-    )
+    assert.equal(tokens['--line-height-assist'], String(CAPTION_LINE_HEIGHT))
+    assert.equal(tokens['--font-weight-assist'], '500')
+    assert.equal(decls['line-height'], 'var(--line-height-assist)', `${selector} must use the assist line-height token`)
+    assert.equal(decls['font-weight'], 'var(--font-weight-assist)', `${selector} must use the assist weight`)
     assert.ok(resolveRpx(decls, 'font-size', tokens, selector) >= CAPTION_FLOOR_RPX)
   }
 })

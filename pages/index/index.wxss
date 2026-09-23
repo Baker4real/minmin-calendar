@@ -53,7 +53,7 @@
 .sync-text {
   min-width: 0;
   font-size: var(--font-size-caption);
-  font-weight: 700;
+  font-weight: var(--font-weight-assist);
   line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
@@ -98,9 +98,8 @@
 }
 .month-title {
   font-size: var(--font-size-month-title);
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: 4rpx;
+  font-weight: var(--font-weight-title);
+  line-height: var(--line-height-title);
   white-space: nowrap;
   position: relative;
   z-index: 1;
@@ -183,7 +182,7 @@
   text-align: center;
   border-radius: var(--radius-circle);
   font-size: var(--font-size-caption);
-  font-weight: 800;
+  font-weight: var(--font-weight-control);
   color: #E8909E;
   background: rgba(232,144,158,0.12);
   box-shadow: inset 0 0 0 1px rgba(232,144,158,0.3);
@@ -191,8 +190,8 @@
 .meaning-tool-text {
   min-width: 0;
   font-size: var(--font-size-caption);
-  font-weight: 800;
-  line-height: 1.2;
+  font-weight: var(--font-weight-control);
+  line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.82);
   white-space: nowrap;
 }
@@ -212,9 +211,8 @@
   flex: 1;
   text-align: center;
   font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
   color: rgba(255,255,255,0.7);
-  font-weight: 600;
-  letter-spacing: 2rpx;
 }
 
 /* ===== Calendar Grid – Glass ===== */
@@ -240,7 +238,7 @@
   justify-content: flex-start;
   position: relative;
   border-radius: var(--radius-md);
-  padding: 10rpx 0 6rpx;
+  padding: 4rpx 0;
   box-sizing: border-box;
   transition: transform 0.2s var(--ease-out), background-color 0.25s ease;
 }
@@ -253,7 +251,7 @@
 .calendar-density-compact .day-cell {
   height: 104rpx;
   justify-content: center;
-  padding: 12rpx 0 10rpx;
+  padding: 10rpx 0 12rpx;
 }
 .calendar-density-compact .day-num {
   font-size: var(--font-size-calendar-date-compact);
@@ -279,7 +277,8 @@
 /* Day Number */
 .day-num {
   font-size: var(--font-size-calendar-date);
-  font-weight: 500;
+  font-weight: var(--font-weight-control);
+  font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.8);
   line-height: 32rpx;
   transition: color 0.25s ease;
@@ -288,20 +287,21 @@
 /* Today number — 实色玫瑰，不用渐变文字 */
 .day-cell.today .day-num {
   color: #E8909E;
-  font-weight: 700;
+  font-weight: var(--font-weight-title);
 }
 
 .day-lunar {
   width: 100%;
-  height: 28rpx;
-  line-height: 28rpx;
+  min-width: 0;
+  height: 34rpx;
+  line-height: 34rpx;
   margin-top: 2rpx;
   font-size: var(--font-size-calendar-micro);
+  font-weight: var(--font-weight-assist);
   color: rgba(255,255,255,0.6);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 .day-cell.holiday .day-lunar {
   color: rgba(255,255,255,0.62);
@@ -314,17 +314,15 @@
   justify-content: center;
 }
 .day-tag {
-  max-width: 92rpx;
   height: 38rpx;
   line-height: 38rpx;
-  padding: 0 8rpx;
+  padding: 0 10rpx;
   border-radius: var(--radius-full);
   box-sizing: border-box;
   font-size: var(--font-size-caption);
-  font-weight: 700;
+  font-weight: var(--font-weight-assist);
+  text-align: center;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .holiday-tag {
   color: #0A0E27;
@@ -333,6 +331,7 @@
 .workday-tag {
   color: rgba(255,255,255,0.72);
   background: rgba(255,255,255,0.12);
+  box-sizing: content-box;
   border: 1px solid rgba(255,255,255,0.12);
 }
 
@@ -370,14 +369,19 @@
 /* Predict Mark – Gold */
 .predict-mark {
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  flex-shrink: 0;
   width: auto;
   min-width: 36rpx;
-  height: 30rpx;
-  line-height: 26rpx;
-  padding: 0 8rpx;
+  height: 42rpx;
+  line-height: 1;
+  padding: 0 10rpx;
   border-radius: var(--radius-full);
   font-size: var(--font-size-caption);
-  font-weight: 700;
+  font-weight: var(--font-weight-assist);
   text-align: center;
   color: var(--aurora-gold);
   background: rgba(212,165,116,0.14);
@@ -405,7 +409,7 @@
 /* 数据实色化：玫瑰=经期数据 */
 .stat-num {
   font-size: 36rpx;
-  font-weight: 800;
+  font-weight: var(--font-weight-control);
   color: #E8909E;
   font-variant-numeric: tabular-nums;
 }
@@ -424,7 +428,7 @@
 /* 柔金=预测元数据 */
 .predict-date {
   font-size: var(--font-size-body-lg);
-  font-weight: 800;
+  font-weight: var(--font-weight-control);
   line-height: 1.15;
   color: var(--aurora-gold);
   font-variant-numeric: tabular-nums;
@@ -432,12 +436,13 @@
 .predict-weekday {
   flex: 0 0 auto;
   font-size: var(--font-size-caption);
-  font-weight: 700;
+  font-weight: var(--font-weight-assist);
   line-height: 1.15;
   color: rgba(255,255,255,0.72);
 }
 .stat-label {
   font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
   color: rgba(255,255,255,0.5);
   margin-top: 6rpx;
 }
@@ -496,13 +501,14 @@
 }
 .reminder-title {
   font-size: var(--font-size-caption);
-  font-weight: 700;
+  font-weight: var(--font-weight-assist);
   color: rgba(255,255,255,0.88);
 }
 .reminder-text {
   font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
   color: rgba(255,255,255,0.5);
-  line-height: 1.35;
+  line-height: var(--line-height-assist);
 }
 .reminder-action {
   min-width: 72rpx;
@@ -511,7 +517,7 @@
   text-align: center;
   border-radius: var(--radius-full);
   font-size: var(--font-size-caption);
-  font-weight: 700;
+  font-weight: var(--font-weight-control);
   color: #0A0E27;
   background: var(--aurora-pink);
 }
@@ -545,7 +551,7 @@
 }
 .quick-text {
   font-size: var(--font-size-body);
-  font-weight: 700;
+  font-weight: var(--font-weight-control);
   color: #0A0E27;
 }
 
@@ -563,8 +569,9 @@
 }
 .empty-guide-text {
   font-size: var(--font-size-caption);
-  font-weight: 700;
-  line-height: 1.4;
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
   text-align: center;
 }
@@ -607,7 +614,7 @@
   flex: 1;
   min-width: 0;
   font-size: var(--font-size-body);
-  font-weight: 700;
+  font-weight: var(--font-weight-body);
   line-height: 1.25;
   color: rgba(255,255,255,0.88);
 }
@@ -637,16 +644,17 @@
 }
 .no-room-title {
   font-size: var(--font-size-title);
-  font-weight: 700;
+  font-weight: var(--font-weight-title);
   color: #E8909E;
   text-shadow: 0 0 14rpx rgba(232,144,158,0.28);
 }
 .no-room-desc {
   font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
   color: rgba(255,255,255,0.5);
   margin-top: 16rpx;
   text-align: center;
-  line-height: 1.8;
+  line-height: var(--line-height-assist);
 }
 
 /* ===== Calendar Month Jump Sheet ===== */
@@ -693,18 +701,25 @@
   background: rgba(232,144,158,0.18);
 }
 .jump-today-label {
+  flex: 0 0 auto;
   font-size: var(--font-size-body);
-  font-weight: 800;
+  font-weight: var(--font-weight-control);
+  white-space: nowrap;
 }
 .jump-today-date {
+  flex: 0 0 auto;
   font-size: var(--font-size-caption);
-  font-weight: 700;
-  color: rgba(255,255,255,0.6);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.72);
+  white-space: nowrap;
 }
 .jump-section-title {
   display: block;
   font-size: var(--font-size-caption);
-  font-weight: 800;
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.68);
 }
 .jump-year-stepper {
@@ -746,8 +761,7 @@
   flex: 1;
   min-width: 0;
   font-size: var(--font-size-body-lg);
-  font-weight: 800;
-  letter-spacing: 2rpx;
+  font-weight: var(--font-weight-control);
   text-align: center;
   color: #E8909E;
   font-variant-numeric: tabular-nums;
@@ -764,9 +778,11 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+  padding: 0 8rpx;
   border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
-  font-weight: 800;
+  font-weight: var(--font-weight-control);
+  white-space: nowrap;
   color: rgba(255,255,255,0.78);
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1);
@@ -789,9 +805,11 @@
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+  padding: 0 28rpx;
   border-radius: var(--radius-full);
   font-size: var(--font-size-body);
-  font-weight: 800;
+  font-weight: var(--font-weight-control);
+  white-space: nowrap;
   color: #0A0E27;
   background: var(--aurora-pink);
   box-shadow: 0 14rpx 36rpx rgba(232,144,158,0.2);
@@ -859,15 +877,25 @@
   gap: 6rpx;
 }
 .sheet-title {
+  display: block;
+  min-width: 0;
   font-size: var(--font-size-title);
-  font-weight: 800;
-  line-height: 1.2;
+  font-weight: var(--font-weight-title);
+  line-height: var(--line-height-title);
   color: rgba(255,255,255,0.92);
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .sheet-subtitle {
+  display: block;
+  min-width: 0;
   font-size: var(--font-size-caption);
-  line-height: 1.35;
-  color: rgba(255,255,255,0.6);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.78);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .sheet-close {
   flex: 0 0 auto;
@@ -877,7 +905,7 @@
   text-align: center;
   border-radius: var(--radius-circle);
   font-size: 46rpx;
-  color: rgba(255,255,255,0.76);
+  color: rgba(255,255,255,0.92);
   background: var(--glass-bg);
   border: 1px solid rgba(255,255,255,0.12);
 }
@@ -934,23 +962,33 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4rpx;
+  gap: 8rpx;
 }
 .sheet-action-title {
+  display: block;
+  min-width: 0;
   font-size: var(--font-size-body);
-  font-weight: 700;
+  font-weight: var(--font-weight-body);
   color: rgba(255,255,255,0.9);
   line-height: 1.25;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .sheet-action-desc {
+  display: block;
+  min-width: 0;
   font-size: var(--font-size-caption);
-  color: rgba(255,255,255,0.5);
-  line-height: 1.3;
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.72);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .sheet-action-arrow {
   flex: 0 0 auto;
   font-size: 42rpx;
-  color: rgba(255,255,255,0.6);
+  color: rgba(255,255,255,0.78);
   line-height: 1;
 }
 .day-detail-list {
@@ -968,13 +1006,25 @@
   gap: 8rpx;
 }
 .detail-empty-title {
+  display: block;
+  min-width: 0;
   font-size: var(--font-size-body);
-  font-weight: 700;
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.86);
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .detail-empty-desc {
+  display: block;
+  min-width: 0;
   font-size: var(--font-size-caption);
-  color: rgba(255,255,255,0.5);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.72);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .day-detail-row {
   display: flex;
@@ -992,7 +1042,7 @@
 .detail-meaning {
   display: flex;
   flex-direction: column;
-  gap: 4rpx;
+  gap: 8rpx;
   padding: 16rpx 18rpx;
   border-radius: var(--radius-md);
   background: rgba(255,255,255,0.06);
@@ -1012,15 +1062,25 @@
   border-color: rgba(212,165,116,0.24);
 }
 .detail-meaning-title {
+  display: block;
+  min-width: 0;
   font-size: var(--font-size-caption);
-  font-weight: 800;
-  line-height: 1.25;
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.86);
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .detail-meaning-text {
+  display: block;
+  min-width: 0;
   font-size: var(--font-size-caption);
-  line-height: 1.35;
-  color: rgba(255,255,255,0.5);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.72);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .detail-rail {
   width: 6rpx;
@@ -1038,23 +1098,36 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6rpx;
+  gap: 8rpx;
 }
 .detail-title {
+  display: block;
+  min-width: 0;
   font-size: var(--font-size-caption);
-  font-weight: 700;
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
   color: var(--aurora-gold);
 }
 .detail-main {
+  display: block;
+  min-width: 0;
   font-size: var(--font-size-body);
-  line-height: 1.35;
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
   color: rgba(255,255,255,0.88);
   word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .detail-meta {
+  display: block;
+  min-width: 0;
   font-size: var(--font-size-caption);
-  line-height: 1.35;
-  color: rgba(255,255,255,0.5);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.72);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .compact-actions {
   flex-direction: row;
@@ -1100,7 +1173,7 @@
   text-align: center;
   border-radius: var(--radius-circle);
   font-size: var(--font-size-caption);
-  font-weight: 800;
+  font-weight: var(--font-weight-assist);
   color: #0A0E27;
   background: rgba(232,144,158,0.88);
 }
@@ -1118,59 +1191,88 @@
 .legend-row.workday .legend-symbol {
   background: rgba(212,165,116,0.9);
 }
-/* 节日图例 — 金底海军字小标签，对应日历上的真实节日名称标签 */
+/* 节日图例 — 金底海军字小标签，对应日历上的真实节日名称标签。
+   「中秋」两字保持 caption 字号，加宽标签避免在 54rpx 圆槽里换行裁切。 */
 .legend-row.holiday .legend-symbol {
+  width: auto;
+  min-width: 88rpx;
+  box-sizing: border-box;
+  padding: 0 12rpx;
   border-radius: var(--radius-sm);
+  white-space: nowrap;
 }
 .legend-copy {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4rpx;
+  gap: 8rpx;
 }
 .legend-title {
+  display: block;
+  min-width: 0;
   font-size: var(--font-size-body);
-  font-weight: 800;
+  font-weight: var(--font-weight-body);
   color: rgba(255,255,255,0.88);
   line-height: 1.25;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .legend-text {
+  display: block;
+  min-width: 0;
   font-size: var(--font-size-caption);
-  line-height: 1.35;
-  color: rgba(255,255,255,0.5);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.72);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .prediction-summary {
+  display: block;
+  min-width: 0;
   padding: 22rpx 20rpx;
   border-radius: var(--radius-md);
   font-size: var(--font-size-body-lg);
-  font-weight: 800;
-  line-height: 1.35;
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
   color: rgba(255,255,255,0.9);
   background: rgba(212,165,116,0.12);
   border: 1px solid rgba(212,165,116,0.18);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .explain-line {
+  min-width: 0;
   min-height: 64rpx;
   padding: 16rpx 18rpx;
   box-sizing: border-box;
   border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
-  line-height: 1.35;
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
   background: rgba(255,255,255,0.065);
   border: 1px solid rgba(255,255,255,0.09);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .recap-summary {
   display: block;
+  min-width: 0;
   padding: 18rpx 20rpx;
   border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
-  font-weight: 700;
-  line-height: 1.35;
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.82);
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1);
+  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .recap-highlights {
   display: flex;
@@ -1178,14 +1280,18 @@
   gap: 10rpx;
 }
 .recap-highlight {
+  min-width: 0;
   padding: 16rpx 18rpx;
   border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
-  line-height: 1.45;
-  color: rgba(255,255,255,0.62);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.78);
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.08);
   word-break: break-all;
+  overflow-wrap: anywhere;
 }
 .copy-recap {
   min-height: 88rpx;
@@ -1194,9 +1300,11 @@
   justify-content: center;
   margin-top: 4rpx;
   box-sizing: border-box;
+  padding: 0 28rpx;
   border-radius: var(--radius-full);
   font-size: var(--font-size-body);
-  font-weight: 800;
+  font-weight: var(--font-weight-control);
+  white-space: nowrap;
   color: #0A0E27;
   background: var(--aurora-pink);
   box-shadow: 0 14rpx 34rpx rgba(232,144,158,0.18);

@@ -18,13 +18,16 @@
 }
 .profile-name {
   font-size: var(--font-size-title);
-  font-weight: 800;
+  font-weight: var(--font-weight-title);
+  line-height: var(--line-height-title);
   color: rgba(255,255,255,0.9);
 }
 .profile-desc {
   font-size: var(--font-size-caption);
-  line-height: 1.4;
-  color: rgba(255,255,255,0.5);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.78);
   margin-top: 8rpx;
   display: block;
 }
@@ -53,9 +56,10 @@
 }
 .menu-text {
   flex: 1;
+  min-width: 0;
   font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
   color: rgba(255,255,255,0.85);
-  font-weight: 500;
 }
 .menu-arrow {
   font-size: 32rpx;
@@ -71,39 +75,44 @@
 }
 .room-code-label {
   font-size: var(--font-size-caption);
-  line-height: 1.4;
-  color: rgba(255,255,255,0.5);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.72);
 }
 .room-code-value {
   font-size: 36rpx;
-  font-weight: 800;
-  letter-spacing: 6rpx;
-  text-indent: 6rpx;
+  font-weight: var(--font-weight-control);
+  letter-spacing: var(--letter-spacing-room-code);
+  text-indent: var(--letter-spacing-room-code);
   margin-top: 4rpx;
+  line-height: var(--line-height-assist);
   color: #E8909E;
   word-break: break-all;
   font-variant-numeric: tabular-nums;
 }
 .room-code-value.muted {
   color: var(--text-secondary);
-  font-weight: 400;
+  font-weight: var(--font-weight-body);
   letter-spacing: 0;
   text-indent: 0;
 }
 
 /* Copy Button — 实色玫瑰 */
 .copy-btn {
+  flex-shrink: 0;
   min-height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
+  white-space: nowrap;
   background: var(--aurora-pink);
   color: #0A0E27;
   padding: 0 28rpx;
   border-radius: var(--radius-sm);
   font-size: var(--font-size-caption);
-  font-weight: 600;
+  font-weight: var(--font-weight-control);
   box-shadow: 0 4px 15px rgba(232,144,158,0.28);
   transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
 }
@@ -121,8 +130,10 @@
 }
 .density-menu-desc {
   font-size: var(--font-size-caption);
-  line-height: 1.4;
-  color: rgba(255,255,255,0.5);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.72);
 }
 .density-control {
   display: grid;
@@ -144,7 +155,7 @@
   box-sizing: border-box;
   border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
-  font-weight: 800;
+  font-weight: var(--font-weight-control);
   color: rgba(255,255,255,0.68);
   border: 1px solid transparent;
   transition: background-color 0.22s ease, color 0.22s ease, transform 0.22s ease;

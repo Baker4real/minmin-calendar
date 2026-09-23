@@ -499,6 +499,35 @@ test('homepage re-reads the persisted calendar density every time it shows', asy
   }
 })
 
+test('day detail keeps the full leap-month lunar string in the sheet subtitle', () => {
+  const wxml = readIndexWxml()
+  const subtitleAt = wxml.indexOf('selectedDateSubtitle')
+  const actionsAt = wxml.indexOf("daySheetMode == 'actions'")
+  const detailAt = wxml.indexOf("daySheetMode == 'detail'")
+  assert.ok(subtitleAt !== -1 && subtitleAt < actionsAt && subtitleAt < detailAt,
+    'day detail must show the shared subtitle, not only the action list')
+
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.setData({
+      days: [{
+        date: '2020-05-23',
+        weekday: '周六',
+        lunarText: '闰四月初一',
+        isEmpty: false
+      }],
+      dayDetailsByDate: {
+        '2020-05-23': { meanings: [], periods: [], memories: [], empty: true }
+      }
+    })
+    harness.page.showDayDetail('2020-05-23')
+    assert.equal(harness.page.data.daySheetMode, 'detail')
+    assert.equal(harness.page.data.selectedDateSubtitle, '周六 · 闰四月初一')
+  } finally {
+    harness.teardown()
+  }
+})
+
 function numberDecl(body, property) {
   const match = body.match(new RegExp(`${property}:\\s*(\\d+(?:\\.\\d+)?)rpx`))
   return match ? Number(match[1]) : 0

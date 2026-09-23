@@ -8,6 +8,7 @@
 /* Btn Premium */
 .btn-premium {
   margin: 24rpx 0 20rpx;
+  line-height: var(--line-height-assist);
 }
 
 /* List Items – Timeline */
@@ -53,11 +54,16 @@
 }
 .memory-date {
   font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
+  font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.85);
-  font-weight: 600;
 }
 .memory-note {
   font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.5);
   margin-top: 4rpx;
 }
@@ -127,7 +133,8 @@
   text-align: center;
   color: rgba(255,255,255,0.5);
   font-size: var(--font-size-body);
-  line-height: 1.8;
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
   background: rgba(255,255,255,0.05), var(--glass-fallback);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);

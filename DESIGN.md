@@ -184,11 +184,11 @@ Removed from original: neon green, hot pink, cyan, bright gold. Too aggressive f
 
 ## Typography
 
-System font stack for zero-bloat + excellent CJK rendering;全页面只继承 `app.wxss` 的 `-apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif`，不声明 `@font-face`、不引入外部字体（`tests/typography-hierarchy.test.js` 护栏）。H1 2rem/700 for month titles. Body-lg 1.0625rem/400/1.6 for diary reading. Caption 0.8125rem/500 with letter-spacing for week headers. Calendar holiday tags and 「预」 stay at caption scale: `.day-tag` / `.predict-mark` are `26rpx`. The holiday/workday `.day-tag` box is `38rpx` tall so CJK glyphs are not clipped.
+System font stack for zero-bloat + excellent CJK rendering;全页面只继承 `app.wxss` 的 `-apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif`，不声明 `@font-face`、不引入外部字体（`tests/typography-hierarchy.test.js` 护栏）。H1 2rem/700 for month titles. Body-lg 1.0625rem/400/1.6 for diary reading. Caption 0.8125rem/500; week headers keep natural letter-spacing and do not add tracking. Calendar holiday tags and 「预」 stay at caption scale: `.day-tag` / `.predict-mark` are `26rpx`. The holiday/workday `.day-tag` box is `38rpx` tall so CJK glyphs are not clipped.
 
-首页月份标题层级：`.month-title` 走 `--font-size-month-title`（40rpx / 800 / letter-spacing 4rpx / 玫瑰辉光），明显高于各页共享导航标题 `.nav-title`（`--font-size-title` 34rpx / 700）；`line-height: 1.2` + `white-space: nowrap` 保证单行完整显示，最坏文案「2026年12月」在 750rpx 视口的月份导航行内不溢出。层级差（≥6rpx）、单行与宽度账本由 `tests/typography-hierarchy.test.js` 钉住。
+首页月份标题层级：`.month-title` 走 `--font-size-month-title`（40rpx）与 `--font-weight-title`（700），字距保持自然，不另加 letter-spacing；明显高于各页共享导航标题 `.nav-title`（`--font-size-title` 34rpx / 同一标题字重 700）。层级差来自字号（≥6rpx），不来自更重的 800。`line-height: var(--line-height-title)`（1.2）+ `white-space: nowrap` 保证单行完整显示，最坏文案「2026年12月」在 750rpx 视口的月份导航行内不溢出。层级差、单行与宽度账本由 `tests/typography-hierarchy.test.js` 钉住。
 
-caption 家族行高策略：流式说明文字（`.form-hint`、`.symptom-group-label`、`.profile-desc`、`.room-code-label`）统一 `line-height: 1.4`；单行控件（`.copy-btn`、`.legend-symbol`）以盒高居中——盒高 88rpx flex 居中 / 行高=盒高，不另设文字行高。六族统一走 `--font-size-caption`（26rpx），由 `tests/typography-hierarchy.test.js` 钉住。
+caption 家族行高策略：流式说明文字（`.form-hint`、`.symptom-group-label`、`.profile-desc`、`.room-code-label`）统一 `line-height: var(--line-height-assist)`（1.4）与 `font-weight: var(--font-weight-assist)`（500）；单行控件（`.copy-btn`、`.legend-symbol`）以盒高居中——盒高 88rpx flex 居中 / 行高=盒高，不另设文字行高。六族统一走 `--font-size-caption`（26rpx），由 `tests/typography-hierarchy.test.js` 钉住。
 
 信息性文字下限：日历格内微字（农历、经期/记忆标记、预测徽标）不小于 `24rpx`；日历格外 caption（统计标签、同步状态、说明文字）不小于 `26rpx`。低于下限的诉求靠缩短文案或调整布局吸收，不缩小字号。
 
@@ -210,6 +210,33 @@ frontmatter 的 rem 值是设计参照；实现层全部走下表 rpx 角色 tok
 | `--font-size-input` | `32rpx` | 输入文字 | `.form-input`、`.form-picker` |
 
 主按钮角色（30rpx）只属于主按钮族；sheet 确认、复制等小操作文字按正文/caption 角色，不另立按钮字号。glyph/display 例外清单（`.nav-back` 46rpx、`.sheet-close` 46rpx、箭头 42/32rpx、emoji 图标、`.stat-num` 36rpx、`.cycle-num` 44rpx、`.hero-title` 48rpx、`.code-input` 40rpx、`.room-code-value` 36rpx 等）是收敛过程中登记的历史单点，后续字号层级 ticket 可逐项消化，但新增例外必须先登记。
+
+### 共享文字字重、行高与字距（issue #62）
+
+字号仍只来自上一节的 `--font-size-*`。字重、阅读行高和字距的数值只写在 `app.wxss` 下列 token；页面引用 `var(--…)`，不另写 400/500/600/700 或同义字距。文字角色不保留 800。
+
+| token | 值 | 角色 |
+|---|---|---|
+| `--font-weight-body` | `400` | 正文、正文大号、输入文字 |
+| `--font-weight-assist` | `500` | 辅助说明、农历、节日/调休/预测文字 |
+| `--font-weight-control` | `600` | 普通日历日期、主按钮与其他关键控件 |
+| `--font-weight-title` | `700` | 月份标题、导航/页面标题 |
+| `--line-height-body` | `1.6` | 流式正文 |
+| `--line-height-assist` | `1.4` | 流式辅助说明 |
+| `--line-height-title` | `1.2` | 月份标题单行 |
+| `--letter-spacing-assist` | `1rpx` | 有水平余量的流式辅助说明 |
+| `--letter-spacing-room-code` | `6rpx` | 房间码展示串，逐字核对，不是辅助说明字距 |
+| `--letter-spacing-code-input` | `12rpx` | 6 位房间码输入，逐字槽位，不是辅助说明字距 |
+
+今天（`.day-cell.today .day-num`）复用 `--font-weight-title`（700），作为相对普通日期 600 的语义强调；等宽数字仍由 `.day-num` 的 `tabular-nums` 继承。不另设第五档字重。
+
+统计数字（`.stat-num`、`.cycle-num`）按可扫读的数字信息处理，字重走 `--font-weight-control`（600）并保留 `tabular-nums` 与既有展示字号。不因历史展示例外保留 800，也不把它们升成标题。
+
+房间码（`.room-code-value`、`.bound-code`）同样走控件字重 600 与 `tabular-nums`，字距只用 `--letter-spacing-room-code`。无码占位 `.room-code-value.muted` 回到正文 400，字距复位为 0。`.code-input` 是输入文字，字重 400，字距只用 `--letter-spacing-code-input`。
+
+流式辅助说明在有水平余量时使用 `--letter-spacing-assist`。格内农历、节日/调休/预测胶囊、单字周标题、按钮标签和标题保持自然字距，不靠加字距或缩小字号制造轻盈。胶囊盒高、农历完整显示和日历格留白不在本角色表里改。格内农历保持单行且不用省略号；五字闰月名在窄列放不下时不换到第二行，完整字符串留在日历格无障碍名称和日详情里。
+
+字形例外：`.record-entry-icon`、`.sheet-action-icon`、`.jump-year-step` 是圆点、心形或步进箭头，不是阅读文字。它们保留字重 800 与既有字号，避免图标观感被文字角色改写。图例符号 `.legend-symbol` 含「中秋 / 班 / 预」等状态字，走辅助字重 500，盒高仍等于行高。
 
 ## Components
 
