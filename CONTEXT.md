@@ -13,13 +13,14 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - **Room leave**: A server-side membership revoke flow that removes the current user from a Room while preserving the remaining member when present.
 - **Archived room**: A room with no active members. Its `roomCode` and records are retained for explicit creator recovery, but normal record CRUD is closed until recovery.
 - **Period record**: A date range with optional note, Period duration, flow level, and symptom tags. A range that overlaps more than one calendar month is still one Period record, not one record per month.
+- **Period record count**: How many Period records the Room currently holds. The homepage figure labeled 经期记录 is this count. It is not Period duration and not Days in viewed month.
 - **Period duration**: Inclusive day count of one Period record from `startDate` through `endDate`. This is a property of the record, not of a month view.
 - **Monthly recap / 小结**: Homepage summary for one viewed calendar month. It lists Period records and Memory records that overlap that month. It is not a second Period record.
 - **Days in viewed month**: Inclusive day count of the intersection between a Period record's date range and the Monthly recap's calendar month. This is not Period duration.
 - **Memory record / happy time**: A dated note shown as a heart marker on the calendar.
 - **Edit draft / 草稿**: Edit-form input stashed in local storage when the Period/Memory edit page is hidden or unloaded, restored with a 「已恢复上次未完成的输入」 notice on return, and cleared after a successful save. Drafts are keyed per record identity (new vs. each existing record) and never leak across records.
 - **Calendar cell**: A homepage day tile that may show date number, lunar text, holiday/workday tag, and markers.
-- **Prediction**: Estimated next period range derived from previous period gaps, with confidence and reminder states.
+- **Prediction**: Estimated next period range derived from previous period gaps, with confidence and reminder states. The homepage figure labeled 预测下次 is this prediction's next start date, not a Period record.
 - **Today**: Current date highlight; it should not reuse the memory heart marker.
 - **Lunar date**: Chinese lunar calendar text such as `正月初一` or `冬月十六`.
 - **Public holiday**: China official holiday range or adjusted workday label displayed in calendar cells.

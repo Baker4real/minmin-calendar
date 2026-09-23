@@ -136,6 +136,8 @@ For UI changes, also verify in WeChat Developer Tools at a small-phone width.
 
 2026-09-22：epic #52（issues #53–#59）已合入 `394cb4c`：共享视觉 token 契约与全页面护栏、全页面字体层级、首页 IA 重排（密度偏好迁入设置页、CTA 玫瑰+海军字、金色白名单）、窄屏几何与底部安全区运行时策略（`utils/safeArea.js` 新增 `getSafeBottom`，七页注入 `--safe-bottom`）、交互语义与次级操作对比度、动效/玻璃/reduced-motion 边界。issues #52–#67 已关闭。真机、读屏实听和系统减弱动效不是 live verified；画面证据只有 430 宽静态截图，320/375 人工视口未做。
 
+2026-09-23：epic #68（issues #69–#70）已合入 `46dd749`：首页统计卡左半块（经期记录条数）复用 `goPeriodList` 切换到经期记录 tab，右半块（预测下次）复用 `openPredictionSheet` 打开现有预测说明；两半块带完整读屏名称（含 0 条与无日期两套文案）和 0.98 按压（已在减弱动效名单内），分隔线与整卡不可点，`pages/index/index.js` 零改动。issues #68–#70 已关闭。微信开发者工具小屏目视、真机读屏实听与减弱动效实机未验证。
+
 ## Repository Hygiene
 
 Generated dependencies, local tool state, imported reference material, and historical `hermes-*` maintenance reports are ignored by `.gitignore`.
