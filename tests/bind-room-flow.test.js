@@ -5,6 +5,8 @@ const path = require('node:path')
 const test = require('node:test')
 
 // issue #78：房间码复制/解除绑定同屏可达、清除本地数据文案与行为对齐的页面接缝测试。
+// issue #88：#78 的绑定页/设置页复制键像素同款契约解除，两页复制键改为各自独立形态断言，
+// 绑定页主按钮族/复制键/解除绑定按粉域试点形态断言。
 // 观察用户能看见或能做到的事：哪个控件在场、哪句话显示、点按后落到哪个状态；
 // 不断言私有结构。接缝与 tests/page-registration.test.js 的 loadPageHarness 同构（本文件自有最小副本）。
 
@@ -59,18 +61,88 @@ test('bind bound screen puts the copy button in the same row as the room code, a
   )
 })
 
-test('bind copy button is the same small button as settings: fill, label, radius, padding, rose glow', () => {
+// issue #88：#78 的「绑定页/设置页复制键像素同款」契约正式解除——绑定页整页换装粉胶囊后
+// 两页视觉域分离，同款不再成立；两页各自登记独立形态断言，设置页 .copy-btn 零改动。
+// 重建条件（全局视觉定稿若两页复制键回归同域同形）：恢复 fill/label/radius/padding/shadow 全等断言。
+test('bind copy button is the pink pilot pill while settings keeps its rose small button', () => {
   const bindRule = findRule(readPageFile('pages/bind/bind.wxss'), '.copy-btn')
   const settingsRule = findRule(readPageFile('pages/settings/settings.wxss'), '.copy-btn')
 
-  assert.equal(bindRule.background, 'var(--aurora-pink)')
-  assert.equal(bindRule.background, settingsRule.background)
-  assert.equal(bindRule.color, '#0A0E27')
-  assert.equal(bindRule.color, settingsRule.color)
-  assert.equal(bindRule['border-radius'], settingsRule['border-radius'])
-  // 质感不只底色/字色/圆角：横向 padding 与玫瑰辉光投影也与 settings 同款（issue #78）
-  assert.equal(bindRule.padding, settingsRule.padding)
-  assert.equal(bindRule['box-shadow'], settingsRule['box-shadow'])
+  // 绑定页：与主按钮同族的粉胶囊，88rpx 触控高度
+  assert.equal(bindRule.background, 'var(--bind-cta-pink)')
+  assert.equal(bindRule.color, 'var(--bind-canvas-bottom)')
+  assert.equal(bindRule['border-radius'], 'var(--radius-full)')
+  assert.equal(bindRule['min-height'], '88rpx')
+
+  // 设置页零改动：玫瑰底、海军字、radius-sm 小操作圆角
+  assert.equal(settingsRule.background, 'var(--aurora-pink)')
+  assert.equal(settingsRule.color, '#0A0E27')
+  assert.equal(settingsRule['border-radius'], 'var(--radius-sm)')
+
+  // 像素同款断言不再成立：两页复制键底色与圆角分叉
+  assert.notEqual(bindRule.background, settingsRule.background)
+  assert.notEqual(bindRule['border-radius'], settingsRule['border-radius'])
+})
+
+test('bind main button family is the pink pill and unbind is the pink ghost (issue #88)', () => {
+  const css = readPageFile('pages/bind/bind.wxss')
+
+  // 主按钮族（进入应用/创建我的房间/加入房间）页面级覆盖：粉底、深紫字、胶囊圆角、88rpx 触控高度
+  const premiumRule = findRule(css, '.btn-premium')
+  assert.equal(premiumRule.background, 'var(--bind-cta-pink)')
+  assert.equal(premiumRule.color, 'var(--bind-canvas-bottom)')
+  assert.equal(premiumRule['border-radius'], 'var(--radius-full)')
+  assert.equal(premiumRule['min-height'], '88rpx')
+
+  // 解除绑定：透明底 + 粉描边 + 粉字的幽灵形态（警示红族已移出该按钮）
+  const dangerRule = findRule(css, '.btn-danger')
+  assert.equal(dangerRule.background, 'transparent')
+  assert.equal(dangerRule.color, 'var(--bind-ghost-pink)')
+  assert.match(dangerRule.border, /1px solid rgba\(255,\s*143,\s*190,\s*0\.45\)/)
+
+  // Pressed 不再继承 app 级红 tint：叠粉 tint，红色通道不得回到绑定页按钮
+  const dangerActive = findRule(css, '.btn-danger:active')
+  assert.match(dangerActive.background, /rgba\(255,\s*143,\s*190,\s*0\.12\)/)
+  assert.doesNotMatch(dangerActive.background, /249,\s*115,\s*115/)
+})
+
+// issue #89：未绑定态整卡换装收口——tab 条与输入框玻璃面切紫域、选中 tab 换粉胶囊、
+// 聚焦描边映射粉域；输入行为（6 位上限/等宽数字/逐字槽位/1px 实线描边）零变化；
+// 需解绑中间态入口在场，错误提示保持警示红族形态。
+test('bind unbound form rides the purple-pink domain while the error strip keeps the warning-red family', () => {
+  const css = readPageFile('pages/bind/bind.wxss')
+
+  // tab 条与输入框玻璃面与表单卡同配方切紫域（tab 条保留自身更淡的白玻璃层），海军回退退场
+  const tabBar = findRule(css, '.tab-bar')
+  assert.equal(
+    tabBar.background,
+    'rgba(255,255,255,0.05), var(--bind-glass-tint), var(--bind-glass-fallback)'
+  )
+  const codeInput = findRule(css, '.code-input')
+  assert.equal(
+    codeInput.background,
+    'var(--glass-bg), var(--bind-glass-tint), var(--bind-glass-fallback)'
+  )
+  for (const rule of [tabBar, codeInput]) {
+    assert.doesNotMatch(rule.background, /--glass-fallback/, 'navy glass fallback must leave the unbound form')
+  }
+
+  // 选中 tab 与主按钮同族：粉底 + 深紫字
+  const activeTab = findRule(css, '.tab.active')
+  assert.equal(activeTab.background, 'var(--bind-cta-pink)')
+  assert.equal(activeTab.color, 'var(--bind-canvas-bottom)')
+
+  // 聚焦描边映射粉域，1px 实线形态不变
+  const focus = findRule(css, '.code-input:focus')
+  assert.equal(focus['border-color'], 'var(--bind-cta-pink)')
+
+  // 错误提示保持警示红族（红字 + 红族浅底描边），需解绑中间态入口样式在场
+  const errorMsg = findRule(css, '.error-msg')
+  assert.equal(errorMsg.color, '#F97373')
+  assert.match(errorMsg.background, /rgba\(249,\s*115,\s*115,\s*0\.1\)/)
+  assert.match(errorMsg.border, /1px solid rgba\(249,\s*115,\s*115,\s*0\.24\)/)
+  const unbindInline = findRule(css, '.unbind-inline')
+  assert.match(unbindInline['margin-top'], /^\d+rpx$/)
 })
 
 test('copy buttons press instantly under reduced motion on both bind and settings', () => {

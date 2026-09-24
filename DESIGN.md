@@ -17,6 +17,11 @@ colors:
   bg-secondary: "#1A0A2E"
   bg-tertiary: "#12163D"
   bg-aurora-mid: "#2D1B69"
+  bind-canvas-top: "#2E2350"
+  bind-canvas-bottom: "#1A1433"
+  bind-cta-pink: "#FF7FB0"
+  bind-ghost-pink: "#FF8FBE"
+  bind-status-rose: "#F2A3B0"
   warning-red: "#F97373"
 typography:
   h1:
@@ -145,7 +150,7 @@ components:
 已在屏幕上成立、改 UI 时沿用：
 
 - 圆角 token（`app.wxss`）：`--radius-sm` / `--radius-md` / `--radius-lg` / `--radius-xl` 为 `12rpx` / `20rpx` / `28rpx` / `36rpx`，另有 `--radius-card: 24rpx`（卡片与日历块；`.premium-card`、导航返回底、`.month-nav` 等均走此 token）、`--radius-full: 999rpx`（胶囊）、`--radius-circle: 50%`（正圆点/圆钮）。全部 WXSS 文件（含 `app.wxss` 自身）的 `border-radius` 只允许 token 与 `0` 复位，由 `tests/design-token-guardrail.test.js` 护栏。
-- 玻璃叠层：`--glass-bg` 为 `rgba(255,255,255,0.08)`；卡片边框常用 `rgba(255,255,255,0.12)`（含 `--glass-border`）。共享玻璃卡（`.premium-card` 等）在同一 `background` 里叠不透明海军或玫瑰底；回退实色 `rgba(18,22,61,0.92)` 的唯一来源是 `--glass-fallback` token，所有规则一律写 `var(--glass-fallback)`（`.premium-card` 现为 `var(--glass-bg), var(--glass-fallback)`），不重复字面量，由 `tests/design-token-guardrail.test.js` 护栏。`backdrop-filter` 与 `-webkit-backdrop-filter` 成对写；忽略模糊时仍是实色面，不要只留半透明空框。
+- 玻璃叠层：`--glass-bg` 为 `rgba(255,255,255,0.08)`；卡片边框常用 `rgba(255,255,255,0.12)`（含 `--glass-border`）。共享玻璃卡（`.premium-card` 等）在同一 `background` 里叠不透明海军或玫瑰底；回退实色 `rgba(18,22,61,0.92)` 的唯一来源是 `--glass-fallback` token，所有规则一律写 `var(--glass-fallback)`（`.premium-card` 现为 `var(--glass-bg), var(--glass-fallback)`），不重复字面量，由 `tests/design-token-guardrail.test.js` 护栏。绑定页紫域试点的深紫回退 `rgba(26,20,51,0.92)` 同法只有页面级 `--bind-glass-fallback` 一个来源（见「绑定页紫域试点」节）。`backdrop-filter` 与 `-webkit-backdrop-filter` 成对写；忽略模糊时仍是实色面，不要只留半透明空框。
 - 间距阶梯：名义刻度 4/8/16/24/32/48px（frontmatter spacing）在 `app.wxss` 登记为 rpx token（数值 ×2）：`--space-xs` / `--space-sm` / `--space-md` / `--space-lg` / `--space-xl` / `--space-xxl` = `8rpx` / `16rpx` / `32rpx` / `48rpx` / `64rpx` / `96rpx`。issue #53 只收敛单一来源并登记；页面既有间距字面量的逐页迁移留给后续 UI ticket，新增布局优先使用 token。
 - 字号角色：见「Typography」节的共享字号角色表，`app.wxss` 的 `--font-size-*` token 是全页面唯一来源，`tests/typography-roles.test.js` 护栏。
 - 首页信息架构（issue #55）：首页 `.content` 自上而下为 月份导航 → 周头/日历 → 记录入口（`.quick-actions` 记经期/欢乐时光）→ 图例/预测/小结（`.meaning-toolbar`，次级工具）→ 统计卡/提醒/记录列表入口；月份与日历是首屏主焦点，日历之上不再插低频工具条。日历密度偏好（`calendarDensity` 存储键）的切换入口在设置页「日历显示」卡，首页 `onShow` 重读即刻生效；密度选中态保持玫瑰描边弱态，不用实色填充。结构序与首屏预算由 `tests/index-page.test.js`、`tests/calendar-micro-labels.test.js` 钉住。
@@ -161,7 +166,7 @@ components:
 - `calendar-cell` 与下文日历状态表对齐 `pages/index` 与 `CALENDAR_LEGEND_ITEMS`。没有「整格选中底 = 经期」。
 - 日历微字 `.day-tag` / `.predict-mark` 字号为 `26rpx`（caption 量级）。节日/调休 `.day-tag` 与 `.day-tag-line` 盒高 `38rpx`（大于字号，覆盖 caption 行高），避免 CJK 被裁切。compact 密度下仍放进日期与标记，不把微字再缩小。
 
-主填充按钮是玫瑰底 `#E8909E` + 画布海军字 `#0A0E27`，玫瑰填充一律写 `var(--aurora-pink)`（`.btn-premium`、`.copy-btn`、`.tab.active` 与首页的 `.quick-btn`、`.reminder-action`、`.jump-confirm`、`.jump-option.active`、`.copy-recap` 由 `tests/design-token-guardrail.test.js` 钉住单一来源，`tests/filled-cta-contrast.test.js` 钉住玫瑰底海军字 4.5:1 对比度）。护栏为 deny-by-default：任何选择器的渐变填充（linear/radial/conic）与实色玫瑰字面量填充（`#E8909E` / `rgb(232,144,158)` / `rgba(232,144,158,1)`）都必须落在测试登记的装饰例外白名单内，新增主操作按钮写字面量玫瑰或渐变填充会被直接拒绝。同结构的复制键和选中块走同一对色。不要把白字叠玫瑰写成规范。
+主填充按钮是玫瑰底 `#E8909E` + 画布海军字 `#0A0E27`，玫瑰填充一律写 `var(--aurora-pink)`（`.btn-premium`、`.copy-btn` 与首页的 `.quick-btn`、`.reminder-action`、`.jump-confirm`、`.jump-option.active`、`.copy-recap` 由 `tests/design-token-guardrail.test.js` 钉住单一来源，`tests/filled-cta-contrast.test.js` 钉住玫瑰底海军字 4.5:1 对比度）。页面级例外：绑定页的 `.btn-premium` / `.copy-btn` 自 issue #88 起、选中 tab 自 issue #89 起是紫域试点的粉胶囊/粉选中块（见「绑定页紫域试点」节），app 级 `.btn-premium` 与设置页 `.copy-btn` 仍为玫瑰。护栏为 deny-by-default：任何选择器的渐变填充（linear/radial/conic）与实色玫瑰字面量填充（`#E8909E` / `rgb(232,144,158)` / `rgba(232,144,158,1)`）都必须落在测试登记的装饰例外白名单内，新增主操作按钮写字面量玫瑰或渐变填充会被直接拒绝。同结构的复制键和选中块走同一对色。不要把白字叠玫瑰写成规范。
 
 元数据金 `#D4A574` 只表示预测、区间、确定性及日历元数据（节日/调休标签、同步状态点）；实色金一律 `var(--aurora-gold)`。玫瑰 → 金的 135deg 渐变曾是 CTA 误用形态，已随 issue #55 退役：`--gradient-gold` token 已从 `app.wxss` 删除，任何页面不得再引用（design-token 护栏强制）。玫瑰 → 薰衣草的 `--gradient-pink` 同样无屏上引用，已随 issue #59 一并退役；渐变填充不再以 token 形式提供。首页金色只允许落在白名单规则上（`.predict-mark`、`.predict-date`、`.prediction-summary`、`.reminder-rail`、`.holiday-tag`、`.day-cell.holiday`、`.sync-dot`、`.detail-title`、`.detail-meaning.predict`/`.holiday`、图例 predict/holiday/workday 符号），由 `tests/design-token-guardrail.test.js` 的金语义白名单钉住。页面 WXSS 不得再出现 `#D4A574` 字面量。金的 rgba tint（如 `rgba(212,165,116,0.9)` 节日标签底）仍按组件登记使用。
 
@@ -176,11 +181,24 @@ Aurora Bloom is a premium wellness dark theme for minmin-calendar — a period t
 Primary: warm rose #E8909E. Secondary: soft lavender #C4A0D2. Accent: warm gold #D4A574.
 BG: deep navy #0A0E27 canvas with #1A0A2E and #12163D for surfaces. Canvas navy is also the primary-fill label color.
 Warning red: #F97373 — 唯一警示色，语义与形态见下文「警示红语义」。
-成功/完成态（如绑定成功 `.bound-status`）用主色玫瑰 #E8909E 表达；色板不引入绿色。全部 WXSS 的 hex 颜色必须落在本文件登记的色板内，由 `tests/design-token-guardrail.test.js` 护栏。
+成功/完成态（如绑定成功 `.bound-status`）用主色玫瑰 #E8909E 表达；色板不引入绿色。绑定页紫域试点内该标题改用升档玫瑰 `--bind-status-rose`（卡面换紫域三层后主色玫瑰不达 4.5:1，见「绑定页紫域试点」对比度账本）。全部 WXSS 的 hex 颜色必须落在本文件登记的色板内，由 `tests/design-token-guardrail.test.js` 护栏。
 Aurora base gradient (`.page::before` 末层): #0A0E27 → #1A0A2E → #2D1B69 → #0A0E27，中间色 #2D1B69 登记为 `--aurora-bg3`。
 Shadow / overlay 登记：卡片与日历网格投影 `rgba(0,0,0,0.2)`；浮层小投影 `rgba(0,0,0,0.12–0.15)`；底部 sheet 上缘投影 `rgba(0,0,0,0.34)`；海军近景投影与字阴影 `rgba(10,14,39,0.16–0.35)`（自定义导航返回键与标题）；sheet 遮罩 `rgba(10,14,39,0.88)`（画布海军 88% 透明度）；玻璃回退实色 `rgba(18,22,61,0.92)`；底部 sheet 面板为 `linear-gradient(160deg, rgba(232,144,158,0.12–0.14), rgba(196,160,210,0.08) 42–45%, rgba(18,22,61,0.94–0.96))` 叠同透明度海军实底；inset 顶线高光 `rgba(255,255,255,0.09–0.22)`；辉光阴影随主色走——玫瑰 `rgba(232,144,158,0.1–0.45)`、浅粉 `rgba(240,196,192,0.28–0.32)`、金 `rgba(212,165,116,0.3–0.5)`（含 sheet-action 金 inset 0.3）、警示红 `rgba(249,115,115,0.38)`。
 
 Removed from original: neon green, hot pink, cyan, bright gold. Too aggressive for a wellness app.
+
+## 绑定页紫域试点（issue #86-#89，页面级例外）
+
+范围只有启动首屏（`pages/bind`）。app 级画布（`.page::before` 极光层）、全局 `page` 底色、其他页面与 tabBar 零改动；按钮族自 issue #88 起切为本页粉胶囊/粉幽灵（见下两条），未绑定表单域（tab 条玻璃面、选中 tab、房间码输入框与其聚焦描边）自 issue #89 起同样切紫粉域（见下条）。本节颜色只经 `pages/bind/bind.wxss` 的 `--bind-*` 页面级 token 引用：
+
+- 画布：`--bind-canvas-top: #2E2350` → `--bind-canvas-bottom: #1A1433` 的 180deg 深紫渐变，写在本页对 `.page::before` 的覆盖上。bind 页该层为静态（`animation: none`，不参与 `auroraPulse`），仍是视口固定层，滚动不出现底部色带。这两个紫 hex 是本试点例外色板，只允许出现在这两个 token（`tests/design-token-guardrail.test.js` 拒绝字面量）。
+- 玻璃卡：已绑定卡与创建/加入表单卡的玻璃面 = 白玻璃 `--glass-bg` + 紫调 tint `--bind-glass-tint: rgba(196,160,210,0.14)` + 深紫实底回退 `--bind-glass-fallback: rgba(26,20,51,0.92)`。回退实色唯一来源是 `--bind-glass-fallback`，字面量由 `tests/design-token-guardrail.test.js` 拒绝，`tests/glass-fallback.test.js` 已把该深紫登记为合法实底回退色；blur 与 `-webkit-backdrop-filter` 成对声明仍由 app 级 `.premium-card` 承担，bind 页不新增玻璃面。
+- 爱心 hero：`♥` 字形（#E8909E）多层静态辉光，text-shadow 三层 `rgba(240,196,192,0.32)` / `rgba(232,144,158,0.45)` / `rgba(232,144,158,0.26)`，透明度全部落在上文 Shadow 登记的浅粉 0.28–0.32 与玫瑰 0.1–0.45 辉光区间内；`heroIn` 无回弹入场保留，不新增持续动画。
+- 粉胶囊按钮族（issue #88）：主按钮族（进入应用/创建我的房间/加入房间）与「复制」键统一实色粉胶囊——底 `--bind-cta-pink: #FF7FB0`、圆角 `--radius-full`、字复用画布深端 `var(--bind-canvas-bottom)`（#1A1433，在实际粉底上 7.5:1）、触控高度 88rpx；页面级覆盖 app 级 `.btn-premium` 玫瑰基类（其他页面的 `.btn-premium` 不变）。玫瑰辉光投影、主按钮 0.96 / 复制键 0.94 的按压缩放与各自减弱动效登记沿用既有形态；房间码与复制键同一行、整组居中（issue #83）不回退。
+- 粉幽灵「解除绑定」（issue #88）：透明底 + `rgba(255,143,190,0.45)` 粉描边 + `--bind-ghost-pink: #FF8FBE` 粉字，已移出警示红族；Pressed 叠 `rgba(255,143,190,0.12)` 粉 tint（不继承 app 级红 tint），0.95 按压缩放与减弱动效沿用 app 级基类；原生二次确认弹窗保留（bind.js 零改动）。
+- 未绑定表单域（issue #89）：tab 条玻璃面与房间码输入框沿用卡面同配方——白玻璃 + `--bind-glass-tint` + `--bind-glass-fallback` 深紫实底回退（tab 条保留自身更淡的白玻璃层 `rgba(255,255,255,0.05)`，不新增 blur 面）；选中 tab 与主按钮同族，实色粉 `var(--bind-cta-pink)` + `var(--bind-canvas-bottom)` 深紫字；输入框聚焦描边由玫瑰映射为 `var(--bind-cta-pink)`（1px 实线形态与聚焦行为不变，6 位上限、`tabular-nums` 等宽与逐字槽位字距零变化）。说明文案/未选中 tab 的中性白文字阶为双域共享色，不计旧域残留；需解绑中间态沿用粉幽灵，错误提示 `.error-msg` 仍是警示红族（见「警示红语义」）。
+- 对比度账本（最不利端 = 渐变顶端 #2E2350 叠紫卡三层，实测合成 ≈#433A5A）：粉胶囊深紫字 7.5:1；粉幽灵粉字约 5.0:1（`--bind-cta-pink` 的 #FF7FB0 在同一面上只有 4.48:1，不达 4.5 下限，故幽灵字用更亮一档的 `--bind-ghost-pink`）；已绑定成功标题 `.bound-status` 约 5.3:1（issue #89 换装复核：卡面从海军回退换紫域三层后，被波及的既有玫瑰标题 #E8909E 在同一合成面上跌到约 4.48:1，不达 4.5 下限，故改用更亮一档的 `--bind-status-rose: #F2A3B0`，由 `tests/secondary-affordance-contrast.test.js` 按真实合成面钉住）；不达标时优先调深字色/调亮粉底，不放宽护栏。两个粉 hex 与升档玫瑰是本试点例外色板，只允许出现在 `--bind-cta-pink` / `--bind-ghost-pink` / `--bind-status-rose` 三个 token（`tests/design-token-guardrail.test.js` 拒绝字面量）。
+- #78 同款契约解除（issue #88）：绑定页复制键原与设置页 `.copy-btn` 像素同款（玫瑰底、海军字、`--radius-sm`、同 padding 与玫瑰辉光投影）。绑定页整页换装粉胶囊后，两页复制键视觉域分离，同款契约不再成立——`tests/bind-room-flow.test.js` 与 `tests/filled-cta-contrast.test.js` 改为两页各自独立形态断言，设置页 `.copy-btn` 零改动。重建条件：后续全局视觉定稿若两页复制键回归同一色域与同一形态，在 `bind-room-flow` 恢复 fill/label/radius/padding/shadow 全等断言，并在本文件重新登记像素同款契约。
 
 ## Typography
 
@@ -242,7 +260,7 @@ frontmatter 的 rem 值是设计参照；实现层全部走下表 rpx 角色 tok
 
 Cards use glassmorphism: `rgba(255,255,255,0.08)` overlay + `blur(20px)` + paired `-webkit-backdrop-filter` + top-edge highlight. Blur is an enhancement: the same rule also keeps an opaque enough navy or rose fill (`.premium-card` uses `var(--glass-bg), var(--glass-fallback)`) so the card remains a solid surface if `backdrop-filter` is ignored. No extra decorative shadows.
 
-Primary fill (`.btn-premium`, `.copy-btn`, bind selected block): rose `#E8909E` fill, label `#0A0E27`. Ghost / outline, if used: transparent on canvas navy `#0A0E27`, rose border and rose label — readable on navy, not white type on rose.
+Primary fill (`.btn-premium`, `.copy-btn`): rose `#E8909E` fill, label `#0A0E27`. 绑定页按钮族、复制键与选中 tab 是粉域试点例外：实色粉胶囊/粉选中块与粉幽灵，登记见「绑定页紫域试点」节。Ghost / outline, if used: transparent on canvas navy `#0A0E27`, rose border and rose label — readable on navy, not white type on rose（绑定页「解除绑定」粉幽灵同理：透明底、粉描边粉字，读得清的是深面，不是深字叠粉底）.
 
 Prediction metadata, reminder cards, and period tag chips stay compact and low-noise. Interactive chips need at least a 44px touch target; active chips use navy type on rose. Calendar cell states are listed under 借入规则; a visual mark still means only one thing.
 
@@ -252,9 +270,11 @@ Prediction metadata, reminder cards, and period tag chips stay compact and low-n
 
 | 形态 | 位置 | 表现 |
 |---|---|---|
-| 危险操作按钮 | `.btn-danger`（解除绑定、删除记录） | 红字 + `rgba(249,115,115,0.28)` 描边，不透明海军实底（`var(--glass-bg)` 叠 `rgba(18,22,61,0.92)`）；Pressed 叠 `rgba(249,115,115,0.12)`、`scale(0.95)` |
+| 危险操作按钮 | `.btn-danger`（删除记录；app 级基类） | 红字 + `rgba(249,115,115,0.28)` 描边，不透明海军实底（`var(--glass-bg)` 叠 `rgba(18,22,61,0.92)`）；Pressed 叠 `rgba(249,115,115,0.12)`、`scale(0.95)` |
 | 逾期提醒 | `.reminder-card.overdue .reminder-rail` | 6rpx 细 rail 实色填充 + `rgba(249,115,115,0.38)` 辉光 |
 | 表单错误 | `.error-msg`（绑定页） | 红字 + `rgba(249,115,115,0.1)` 浅底 + `rgba(249,115,115,0.24)` 描边 |
+
+绑定页「解除绑定」原属危险操作按钮形态，issue #88 起改为紫域试点的粉幽灵（透明底 + 粉描边 + 粉字，见「绑定页紫域试点」节），移出红族；红族在绑定页只剩表单错误 `.error-msg`（不动）。
 
 同一含义共享同一红色，组件角色靠形态（按钮 / 细 rail / 文案条）区分，不靠颜色分叉；不引入第二种红。
 

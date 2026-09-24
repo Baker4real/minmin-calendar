@@ -377,10 +377,11 @@ test('bind success is stated in rose text without a green checkmark', () => {
     'the bound screen states success in plain text')
   assert.doesNotMatch(wxml, /✅|✔|💚/, 'no green-check glyph anywhere on the bind page')
 
-  // 成功用玫瑰文字表达（绑定页色板没有绿色）
+  // 成功用玫瑰文字表达（绑定页色板没有绿色）；
+  // issue #89 换装复核：紫卡面上改用页面级升档玫瑰 token（对比度账本见 DESIGN.md 紫域试点节）
   const boundStatus = wxssRuleBody('pages/bind/bind.wxss', '.bound-status')
   assert.ok(boundStatus, 'expected .bound-status rule')
-  assert.match(boundStatus, /color:\s*#E8909E/i)
+  assert.match(boundStatus, /color:\s*var\(--bind-status-rose\)\s*;/i)
 })
 
 test('settings clear-local-data row reads as danger before any tap, export stays a plain row', () => {
@@ -395,15 +396,16 @@ test('settings clear-local-data row reads as danger before any tap, export stays
 
 // ===== issue #81：输入焦点与非交互卡片的按压语义 =====
 
-test('text inputs focus into the registered 1px solid rose outline without any glow', () => {
+test('text inputs focus into the registered 1px solid outline without any glow', () => {
   // 房间码输入（绑定页）与经期/欢乐时光备注（编辑页）：
-  // 基线边框本就是 1px solid，焦点只把描边换成实线玫瑰；基线与焦点都不再有光晕
+  // 基线边框本就是 1px solid，焦点只把描边换成实线主色；基线与焦点都不再有光晕
+  // issue #89：绑定页描边色随紫粉域试点映射为 --bind-cta-pink，1px 实线形态与聚焦行为不变
   const inputs = [
-    ['pages/bind/bind.wxss', '.code-input'],
-    ['pages/period/edit/edit.wxss', '.form-input'],
-    ['pages/memory/edit/edit.wxss', '.form-input']
+    ['pages/bind/bind.wxss', '.code-input', /border-color:\s*var\(--bind-cta-pink\)\s*;/i],
+    ['pages/period/edit/edit.wxss', '.form-input', /border-color:\s*(?:#E8909E|var\(--aurora-pink\))\s*;/i],
+    ['pages/memory/edit/edit.wxss', '.form-input', /border-color:\s*(?:#E8909E|var\(--aurora-pink\))\s*;/i]
   ]
-  for (const [file, selector] of inputs) {
+  for (const [file, selector, focusOutline] of inputs) {
     const base = wxssRuleBody(file, selector)
     assert.ok(base, `expected ${selector} rule in ${file}`)
     assert.match(base, /border:\s*1px solid\s/,
@@ -414,8 +416,8 @@ test('text inputs focus into the registered 1px solid rose outline without any g
     assert.ok(focus, `expected ${selector}:focus rule in ${file}`)
     assert.match(
       focus,
-      /border-color:\s*(?:#E8909E|var\(--aurora-pink\))\s*;/i,
-      `${file} ${selector}:focus must be the registered solid rose outline`
+      focusOutline,
+      `${file} ${selector}:focus must be the registered solid outline`
     )
     assert.doesNotMatch(focus, /box-shadow\s*:/, `${file} ${selector}:focus must not add a glow`)
   }

@@ -142,6 +142,8 @@ For UI changes, also verify in WeChat Developer Tools at a small-phone width.
 
 2026-09-24：epic #82 子票 #83、#84 已在工作树实现，未提交：绑定页已绑定卡片中房间码与复制按钮同行整组居中，原独立复制按钮行删除，与「进入应用」的 30rpx 间距保留；房间码文本恢复纯展示（去掉 bindtap/aria），复制按钮成为唯一复制入口；零 JS 改动。全量 node --test（504 项，tests/ 全部 *.test.js）与 README 轻量检查组合（node --check 清单含 pages/bind/bind.js、syncRoomMembershipLifecycle --check、git diff --check）全部通过。实现经对抗评审：1 条候选发现，其中 1 条经独立复核确认并已修复、全量重验通过，0 条未复现。微信开发者工具小屏目检（issue #85，320/375 宽）未验证；真机、读屏实听、系统减弱动效实机沿用既有未验证口径。
 
+2026-09-25：epic #86 子票 #87、#88、#89 已在工作树实现，未提交：绑定页整页（已绑定/未绑定/错误态）切换为深紫渐变画布 + 紫调玻璃卡 + 粉 #FF7FB0 胶囊按钮族 + 粉幽灵「解除绑定」（保留原生二次确认）+ ♥ 字形静态辉光；#78 复制键同款契约解除（设置页未动）、警示红语义表改写、DESIGN.md 登记紫粉试点 token 与例外节；零 JS 改动，每票独立通过接缝与全量检查。全量 node --test（511 项，tests/ 全部 *.test.js）与 README 轻量检查组合（node --check 清单含 pages/bind/bind.js、syncRoomMembershipLifecycle --check、git diff --check）全部通过。实现经对抗评审：4 条候选发现，其中 4 条经独立复核确认并已修复、全量重验通过，0 条未复现。微信开发者工具小屏目检（issue #86 UI 变化与 issue #85 同行不折行）未验证；真机、读屏实听、系统减弱动效实机沿用既有未验证口径。
+
 ## Repository Hygiene
 
 Generated dependencies, local tool state, imported reference material, and historical `hermes-*` maintenance reports are ignored by `.gitignore`.
