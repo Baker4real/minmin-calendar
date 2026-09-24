@@ -135,6 +135,9 @@
   margin-bottom: 20rpx;
   color: #E8909E;
 }
+/* 房间码是行内项（issue #83）：与复制键同处一行，不再自带块级居中与下方间距；
+   字重/字距/数字对齐与 settings 的 .room-code-value 同族，字号保持本页 --font-size-body（settings 的 .room-code-value 为 36rpx）；
+   issue #84：纯展示文本，不再承担点按复制职责 */
 .bound-code {
   max-width: 100%;
   font-size: var(--font-size-body);
@@ -142,23 +145,24 @@
   line-height: var(--line-height-assist);
   font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.6);
-  text-align: center;
-  display: block;
-  margin-bottom: 30rpx;
   letter-spacing: var(--letter-spacing-room-code);
-  text-indent: var(--letter-spacing-room-code);
   word-break: break-all;
 }
 .btn-danger {
   margin-top: 16rpx;
 }
-/* 已绑定画面与设置页共用同一种复制小按钮：玫瑰底、海军字、radius-sm 小操作圆角，
-   横向 padding、玫瑰辉光投影与 box-shadow 过渡全部与 settings 的 .copy-btn 同款 */
-.bound-copy-row {
+/* 房间码 + 复制键行（issue #83）：整组在卡片内水平居中，
+   并承担与「进入应用」主按钮之间 30rpx 的间距（原独立复制行的职责） */
+.bound-code-row {
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 16rpx;
   margin-bottom: 30rpx;
 }
+/* 已绑定画面与设置页共用同一种复制小按钮：玫瑰底、海军字、radius-sm 小操作圆角，
+   横向 padding、玫瑰辉光投影与 box-shadow 过渡全部与 settings 的 .copy-btn 同款；
+   本票起按钮紧随房间码同排（issue #83），不再是独占一行的居中复制行 */
 .copy-btn {
   min-height: 88rpx;
   display: flex;

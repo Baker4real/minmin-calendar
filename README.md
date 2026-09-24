@@ -140,6 +140,8 @@ For UI changes, also verify in WeChat Developer Tools at a small-phone width.
 
 2026-09-24：远端 GitHub issue #72–#81（父 epic #71 的 10 张子票）已在工作树实现，未提交。全量 node 测试（504 项，tests/ 全部 *.test.js）与 README 完整轻量检查组合（node --check 全清单、syncRoomMembershipLifecycle --check、git diff --check）全部通过。实现经对抗评审与逐条独立复核；7 条低危评审发现已全部处置（6 条代码修复经只读复审确认，第 7 条即本注记的未验证项记录），另补齐设置页复制按钮的减弱动效登记。微信开发者工具小屏目检、真机、读屏实听、系统减弱动效均未验证。
 
+2026-09-24：epic #82 子票 #83、#84 已在工作树实现，未提交：绑定页已绑定卡片中房间码与复制按钮同行整组居中，原独立复制按钮行删除，与「进入应用」的 30rpx 间距保留；房间码文本恢复纯展示（去掉 bindtap/aria），复制按钮成为唯一复制入口；零 JS 改动。全量 node --test（504 项，tests/ 全部 *.test.js）与 README 轻量检查组合（node --check 清单含 pages/bind/bind.js、syncRoomMembershipLifecycle --check、git diff --check）全部通过。实现经对抗评审：1 条候选发现，其中 1 条经独立复核确认并已修复、全量重验通过，0 条未复现。微信开发者工具小屏目检（issue #85，320/375 宽）未验证；真机、读屏实听、系统减弱动效实机沿用既有未验证口径。
+
 ## Repository Hygiene
 
 Generated dependencies, local tool state, imported reference material, and historical `hermes-*` maintenance reports are ignored by `.gitignore`.

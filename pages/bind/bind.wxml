@@ -9,8 +9,10 @@
 
     <view wx:if="{{bound}}" class="premium-card">
       <view class="bound-status">已绑定房间</view>
-      <text class="bound-code" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码">房间码：{{roomCode}}</text>
-      <view class="bound-copy-row">
+      <!-- issue #83：复制键紧贴房间码同一行，整组在卡片内水平居中；
+           issue #84：房间码回归纯展示文本，复制键是唯一复制入口 -->
+      <view class="bound-code-row">
+        <text class="bound-code">房间码：{{roomCode}}</text>
         <view class="copy-btn" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码">复制</view>
       </view>
       <view class="btn-premium" bindtap="goHome" aria-role="button" aria-label="进入应用">进入应用</view>

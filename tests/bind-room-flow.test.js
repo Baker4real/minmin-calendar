@@ -12,13 +12,33 @@ const repoRoot = path.join(__dirname, '..')
 
 const readPageFile = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
 
-test('bind bound screen offers the settings-style copy button next to the enter-app main button', () => {
+test('bind bound screen puts the copy button in the same row as the room code, ahead of the enter-app main button', () => {
   const wxml = readPageFile('pages/bind/bind.wxml')
   const boundCard = sliceBetween(wxml, 'wx:if="{{bound}}"', 'wx:else')
 
   const copyButton = /class="copy-btn"[^>]*bindtap="copyRoomCode"/.exec(boundCard)
   assert.ok(copyButton, 'bound card must expose a copy button')
   assert.match(boundCard, /aria-label="复制房间码"/)
+
+  // issue #84：房间码文本回归纯展示，已绑定屏只有复制键这一个复制入口
+  assert.equal(
+    (boundCard.match(/bindtap="copyRoomCode"/g) || []).length,
+    1,
+    'the bound screen must expose exactly one copy entry'
+  )
+  assert.doesNotMatch(
+    boundCard,
+    /class="bound-code"[^>]*\s(?:bindtap|aria-role|aria-label)=/,
+    'the room code text must stay plain display text, not a control'
+  )
+
+  // issue #83：复制键紧贴房间码正后方，两者同处一个行容器（容器开→房间码→复制键→容器闭），
+  // 不再是复制键独占的居中行
+  assert.match(
+    boundCard,
+    /<view class="[^"]*">\s*<text class="bound-code"[^>]*>[^<]*<\/text>\s*<view class="copy-btn"[^>]*bindtap="copyRoomCode"[^>]*>[^<]*<\/view>\s*<\/view>/,
+    'the copy button must sit in the same row container as the room code'
+  )
 
   assert.match(
     boundCard,

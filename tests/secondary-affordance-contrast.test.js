@@ -163,7 +163,7 @@ const CASES = [
   { file: 'pages/index/index.wxss', selector: '.month-title-caret', surfaces: [['pages/index/index.wxss', '.month-title-trigger']], note: '月份选择器 caret' },
   { file: 'pages/period/period.wxss', selector: '.empty-state', surfaces: [], note: '经期列表加载失败重试入口' },
   { file: 'pages/memory/memory.wxss', selector: '.empty-state', surfaces: [], note: '欢乐时光加载失败重试入口' },
-  { file: 'pages/bind/bind.wxss', selector: '.bound-code', surfaces: [['app.wxss', '.premium-card']], note: '绑定页点按复制房间码' },
+  { file: 'pages/bind/bind.wxss', selector: '.bound-code', surfaces: [['app.wxss', '.premium-card']], note: '绑定页房间码展示文本' },
   { file: 'pages/bind/bind.wxss', selector: '.tab', surfaces: [['app.wxss', '.premium-card'], ['pages/bind/bind.wxss', '.tab-bar']], note: '绑定页未选中 tab' },
   { file: 'app.wxss', selector: '.btn-danger', surfaces: [], note: '危险操作（删除/解除绑定）' },
   // issue #77：设置清除本地数据行在点之前就是危险样式，红字在卡片表面上同样要读得清

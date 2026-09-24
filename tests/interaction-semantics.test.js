@@ -257,7 +257,18 @@ test('bind page controls are named, tab switch exposes checked state, inert stat
   assert.equal(createTab.attrs['aria-role'], 'radio')
   assert.equal(createTab.attrs['aria-checked'], "{{tab==='create'}}")
 
-  assert.equal(byHandler('copyRoomCode', 'bound-code').attrs['aria-label'], '复制房间码')
+  // issue #84：房间码文本回归纯展示——无点按、无控件角色与名称；复制键是唯一复制入口
+  const boundCode = elements.find((element) => classTokens(element).includes('bound-code'))
+  assert.equal(boundCode.attrs.bindtap, undefined)
+  assert.equal(boundCode.attrs['aria-role'], undefined)
+  assert.equal(boundCode.attrs['aria-label'], undefined)
+  assert.equal(
+    elements.filter((element) => element.attrs.bindtap === 'copyRoomCode').length,
+    1,
+    'the copy button must be the only copy entry on the bind page'
+  )
+  assert.equal(byHandler('copyRoomCode', 'copy-btn').attrs['aria-role'], 'button')
+  assert.equal(byHandler('copyRoomCode', 'copy-btn').attrs['aria-label'], '复制房间码')
   assert.equal(byHandler('goHome', 'btn-premium').attrs['aria-role'], 'button')
   assert.equal(byHandler('unbind', 'btn-danger').attrs['aria-label'], '解除绑定')
   assert.equal(byHandler('createRoom', 'btn-premium').attrs['aria-label'], '创建我的房间')
