@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
+const Module = require('node:module')
 const path = require('node:path')
 const test = require('node:test')
 
@@ -125,6 +126,31 @@ test('exportRecordsAsJson falls back to the clipboard when file sharing fails', 
     memories: [{ _id: 'm1', date: '2026-06-03', note: 'movie' }]
   })
   assert.deepEqual(env.wx.toasts, [{ title: '已复制到剪贴板' }])
+})
+
+test('exportRecordsAsJson leaves the clipboard untouched and silent when the user cancels the share panel', async () => {
+  assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
+
+  const env = createFakeSettingsEnv({
+    shareError: { errMsg: 'shareFileMessage:fail cancel' }
+  })
+  const client = createFakeRoomDataClient({
+    periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05' }],
+    memories: [{ _id: 'm1', date: '2026-06-03', note: 'movie' }]
+  })
+
+  const result = await settingsFlow.exportRecordsAsJson({
+    wx: env.wx,
+    cloud: { createRoomDataClient: () => client },
+    now: () => '2026-06-26T08:00:00.000Z',
+    userDataPath: '/tmp/user-data'
+  })
+
+  assert.equal(result.kind, 'cancelled')
+  assert.equal(env.wx.hideLoadingCalls, 1)
+  assert.deepEqual(env.wx.shareCalls, ['/tmp/user-data/minmin-calendar-backup.json'])
+  assert.deepEqual(env.wx.clipboardCalls, [], 'cancelling the share must not rewrite the clipboard')
+  assert.deepEqual(env.wx.toasts, [], 'cancelling the share must not claim the export was copied')
 })
 
 test('exportRecordsAsJson surfaces a retry action and retries the export when the user confirms', async () => {
@@ -495,16 +521,21 @@ test('exportRecordsAsJson reports export failure when toast is unavailable', asy
   assert.equal(wxApi.hideLoadingCalls, 1)
 })
 
-test('clearLocalCache only clears the local room cache and never leaves the shared room', async () => {
+test('clearLocalCache only clears the local room cache, never leaves the shared room, and re-resolves the active room', async () => {
   assert.equal(typeof settingsFlow.clearLocalCache, 'function')
 
   const env = createFakeSettingsEnv()
   let clearCalls = 0
   let leaveCalls = 0
   let deleteCalls = 0
+  let resolveCalls = 0
   const roomSession = {
     clearLocalRoom() {
       clearCalls += 1
+    },
+    async getActiveRoom() {
+      resolveCalls += 1
+      return { kind: 'success', bound: true, roomCode: 'ROOM01' }
     },
     leaveRoom() {
       leaveCalls += 1
@@ -522,11 +553,38 @@ test('clearLocalCache only clears the local room cache and never leaves the shar
     cloud
   })
 
-  assert.deepEqual(result, { kind: 'success', roomCode: '未绑定' })
+  assert.deepEqual(result, {
+    kind: 'success',
+    room: { kind: 'success', bound: true, roomCode: 'ROOM01' }
+  })
   assert.equal(clearCalls, 1)
+  assert.equal(resolveCalls, 1)
   assert.equal(leaveCalls, 0)
   assert.equal(deleteCalls, 0)
-  assert.deepEqual(env.wx.toasts, [{ title: '已清除' }])
+  assert.deepEqual(env.wx.toasts, [{ title: '已清除本机房间码' }])
+})
+
+test('clearLocalCache keeps the unbound state when re-resolution finds no room', async () => {
+  assert.equal(typeof settingsFlow.clearLocalCache, 'function')
+
+  const env = createFakeSettingsEnv()
+  const roomSession = {
+    clearLocalRoom() {},
+    async getActiveRoom() {
+      return { kind: 'no-room', bound: false, roomCode: '' }
+    }
+  }
+
+  const result = await settingsFlow.clearLocalCache({
+    wx: env.wx,
+    roomSession
+  })
+
+  assert.deepEqual(result, {
+    kind: 'success',
+    room: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+  assert.deepEqual(env.wx.toasts, [{ title: '已清除本机房间码' }])
 })
 
 test('settings page delegates copy/export/clear flows to settingsFlow and keeps local clear local-only', () => {
@@ -536,18 +594,24 @@ test('settings page delegates copy/export/clear flows to settingsFlow and keeps 
   assert.match(source, /settingsFlow\.copyRoomCode\(/)
   assert.match(source, /settingsFlow\.exportRecordsAsJson\(/)
   assert.match(source, /settingsFlow\.clearLocalCache\(/)
-  assert.match(source, /roomCodeDisplay:\s*result\.roomCode\s*\|\|\s*'未绑定'/)
+  assert.match(source, /syncActiveRoom\(this,\s*result\.room\)/)
   assert.match(source, /syncActiveRoom\(this,\s*room\)/)
   assert.doesNotMatch(source, /leaveRoom\(/)
   assert.doesNotMatch(source, /deletePeriod\(/)
   assert.doesNotMatch(source, /deleteMemory\(/)
 })
 
-test('settings page clear-local-data confirm explains scope and cloud safety, not a bare title', () => {
+test('settings page clear-local-data confirm explains the narrow local-only scope, cloud retention, and no room exit', () => {
   const source = readPageFile('pages/settings/settings.js')
 
   assert.match(source, /wx\.showModal\(\{[\s\S]*?title:\s*'⚠️ 确认清除'/)
-  assert.match(source, /wx\.showModal\(\{[\s\S]*?content:\s*'将清除所有本地缓存，不会影响云端数据/)
+  const content = /content:\s*'([^']+)'/.exec(source)
+  assert.ok(content, 'expected the clear-confirm modal content')
+  const copy = content[1]
+  assert.match(copy, /只清除保存在本机的房间码/)
+  assert.match(copy, /云端记录会保留/)
+  assert.match(copy, /不会退出当前房间/)
+  assert.doesNotMatch(copy, /所有本地缓存/)
 })
 
 test('confirmExport explains what will be exported, the JSON format, and how to use it before exporting', async () => {
@@ -666,6 +730,170 @@ test('settings page asks for the export explanation before exporting', () => {
 
   assert.match(source, /exportRecordsAsJson\(\{[\s\S]*?confirmBeforeExport:\s*true/)
 })
+
+// ===== issue #79：设置页拿不到房间码时的下一步（重试 / 去绑定）=====
+
+test('settings page offers retry and go-bind when the room code cannot be fetched', async () => {
+  const harness = loadSettingsPageHarness({
+    roomOutcome: { kind: 'retryable-failure', bound: false, roomCode: '', errorMsg: '同步房间状态失败：network down' }
+  })
+
+  try {
+    // 首次解析完成前不闪出可点操作
+    assert.equal(harness.page.data.roomCodeLoaded, false)
+
+    await harness.page.onShow()
+    assert.equal(harness.page.data.roomCodeLoaded, true)
+    assert.equal(harness.page.data.roomCode, '')
+    assert.equal(harness.page.data.roomCodeDisplay, '同步失败，请重试')
+
+    // 重试真的重新解析活动房间
+    await harness.page.retryRoomResolve()
+    assert.equal(harness.resolveCalls(), 2)
+
+    // 去绑定进入现有绑定页
+    harness.page.goBind()
+    assert.deepEqual(harness.navigation, [{ type: 'navigateTo', url: '/pages/bind/bind' }])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('settings page shows the retry and go-bind actions for the unbound state too', async () => {
+  const harness = loadSettingsPageHarness({
+    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+
+  try {
+    await harness.page.onShow()
+    assert.equal(harness.page.data.roomCodeLoaded, true)
+    assert.equal(harness.page.data.roomCode, '')
+    assert.equal(harness.page.data.roomCodeDisplay, '未绑定')
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('settings page drops the actions once a room code loads and keeps the copy control', async () => {
+  const harness = loadSettingsPageHarness({
+    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01' }
+  })
+
+  try {
+    await harness.page.onShow()
+    assert.equal(harness.page.data.roomCodeLoaded, true)
+    assert.equal(harness.page.data.roomCode, 'ROOM01')
+    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('settings room-code card swaps the dead sentence for tappable retry and go-bind rows when no code is available', () => {
+  const wxml = readPageFile('pages/settings/settings.wxml')
+  const cardStart = wxml.indexOf('class="menu-item room-code-item"')
+  const cardEnd = wxml.indexOf('日历显示')
+  assert.ok(cardStart !== -1 && cardEnd > cardStart, 'expected the room-code card')
+  const card = wxml.slice(cardStart, cardEnd)
+
+  // 没有房间码（未绑定 / 同步失败）时：重试 + 去绑定两个可点操作
+  assert.match(card, /wx:if="\{\{roomCodeLoaded && !roomCode\}\}" class="room-code-actions"/)
+  assert.match(card, /bindtap="retryRoomResolve"[\s\S]*?aria-role="button"[\s\S]*?aria-label="重试获取房间码"/)
+  assert.match(card, />重试<\//)
+  assert.match(card, /bindtap="goBind"[\s\S]*?aria-role="button"[\s\S]*?aria-label="去绑定房间"/)
+  assert.match(card, />去绑定<\//)
+
+  // 有房间码时仍只有复制控件；操作行与复制互斥
+  assert.match(card, /wx:if="\{\{roomCode\}\}" class="copy-btn"/)
+})
+
+test('settings room actions are rose tappable rows with the shared small-action treatment', () => {
+  const wxss = readPageFile('pages/settings/settings.wxss')
+  const btn = wxssRuleBody(wxss, '.room-action-btn')
+
+  assert.match(btn, /min-height:\s*88rpx/)
+  assert.match(btn, /color:\s*#E8909E/i)
+  assert.match(btn, /border-radius:\s*var\(--radius-sm\)/)
+  assert.match(btn, /background:\s*rgba\(232,144,158,0\.08\)/)
+  assert.doesNotMatch(btn, /linear-gradient/i)
+
+  const active = wxssRuleBody(wxss, '.room-action-btn:active')
+  assert.match(active, /transform:\s*scale\(0\.9[458]\)/)
+
+  // 减弱动效走既有即时按压缩放名单
+  const reduced = wxss.slice(wxss.indexOf('@media (prefers-reduced-motion: reduce)'))
+  assert.match(reduced, /\.room-action-btn/)
+})
+
+function wxssRuleBody(wxss, selector) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const match = wxss.match(new RegExp(`(?:^|[\\n}])\\s*${escaped}\\s*\\{([^}]+)\\}`))
+  assert.ok(match, `expected rule for ${selector}`)
+  return match[1]
+}
+
+function loadSettingsPageHarness({ roomOutcome }) {
+  const absolutePagePath = path.join(__dirname, '..', 'pages/settings/settings.js')
+  let resolveCalls = 0
+  const absoluteMocks = new Map([
+    [path.join(__dirname, '..', 'utils/cloud.js'), {
+      createRoomDataClient: () => ({ list: async () => ({ kind: 'success', data: [] }) })
+    }],
+    [path.join(__dirname, '..', 'utils/room.js'), {
+      async getVerifiedActiveRoom() {
+        resolveCalls += 1
+        if (typeof roomOutcome === 'function') return roomOutcome()
+        return roomOutcome
+      }
+    }],
+    [path.join(__dirname, '..', 'utils/safeArea.js'), { getSafeTop: () => 44, getSafeBottom: () => 0 }]
+  ])
+  const originalPage = global.Page
+  const originalWx = global.wx
+  const originalLoad = Module._load
+  let registered
+
+  delete require.cache[require.resolve(absolutePagePath)]
+  const navigation = []
+  global.wx = {
+    getStorageSync: () => '',
+    setStorageSync() {},
+    navigateTo(options) { navigation.push({ type: 'navigateTo', url: options.url }) },
+    switchTab(options) { navigation.push({ type: 'switchTab', url: options.url }) },
+    showModal() {},
+    showToast() {}
+  }
+  global.Page = config => { registered = config }
+  Module._load = function patchedLoad(request, parent, isMain) {
+    const resolved = Module._resolveFilename(request, parent, isMain)
+    if (absoluteMocks.has(resolved)) return absoluteMocks.get(resolved)
+    return originalLoad.apply(this, arguments)
+  }
+  require(absolutePagePath)
+  Module._load = originalLoad
+
+  const page = {
+    data: { ...(registered.data || {}) },
+    setData(update, callback) {
+      this.data = { ...this.data, ...update }
+      if (typeof callback === 'function') callback()
+    }
+  }
+  for (const [key, value] of Object.entries(registered)) {
+    if (key !== 'data') page[key] = typeof value === 'function' ? value.bind(page) : value
+  }
+  return {
+    page,
+    navigation,
+    resolveCalls: () => resolveCalls,
+    teardown() {
+      Module._load = originalLoad
+      global.Page = originalPage
+      global.wx = originalWx
+      delete require.cache[require.resolve(absolutePagePath)]
+    }
+  }
+}
 
 function createFakeSettingsEnv(options = {}) {
   const fs = {

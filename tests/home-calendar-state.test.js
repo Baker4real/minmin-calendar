@@ -342,6 +342,38 @@ test('buildHomeCalendarState aria labels cover plain days, single markers, holid
   )
 })
 
+test('buildHomeCalendarState keeps long holiday names complete for screen readers and day details', () => {
+  // 可视层把超长节日名裁在格子里（issue #72），读屏名称与当日详情仍用完整节日名
+  const nanjing = buildHomeCalendarState({ year: 2015, month: 8, today: '2015-09-01' })
+  const commemoration = nanjing.days.find(day => day.date === '2015-09-03')
+  assert.equal(commemoration.holidayName, '抗日战争暨世界反法西斯战争胜利70周年纪念日')
+  assert.equal(
+    commemoration.ariaLabel,
+    '9月3日 周四 七月廿一 抗日战争暨世界反法西斯战争胜利70周年纪念日'
+  )
+  const commemorationDetail = nanjing.dayDetailsByDate['2015-09-03']
+  assert.deepEqual(
+    commemorationDetail.meanings.map(item => [item.key, item.title]),
+    [['holiday', '节日']]
+  )
+  assert.equal(
+    commemorationDetail.meanings[0].text,
+    '抗日战争暨世界反法西斯战争胜利70周年纪念日。'
+  )
+
+  const combined = buildHomeCalendarState({ year: 2020, month: 9, today: '2020-10-01' })
+  const nationalDay = combined.days.find(day => day.date === '2020-10-01')
+  assert.equal(nationalDay.holidayName, '国庆/中秋')
+  assert.equal(nationalDay.isToday, true)
+  assert.equal(nationalDay.ariaLabel, '10月1日 周四 八月十五 今天 国庆/中秋')
+  const combinedDetail = combined.dayDetailsByDate['2020-10-01']
+  assert.deepEqual(
+    combinedDetail.meanings.map(item => item.key),
+    ['today', 'holiday']
+  )
+  assert.equal(combinedDetail.meanings[1].text, '国庆/中秋。')
+})
+
 test('buildHomeCalendarState keeps the full leap-month lunar string in the day name', () => {
   const state = buildHomeCalendarState({
     year: 2020,

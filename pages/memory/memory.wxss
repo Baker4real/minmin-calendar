@@ -1,4 +1,8 @@
 /* ===== Aurora Bloom: Memory ===== */
+/* 导航标题不可点：中性文字色（共享基类在 app.wxss，页面侧覆盖颜色，issue #77） */
+.nav-title {
+  color: rgba(255,255,255,0.92);
+}
 .content {
   padding: 0 24rpx calc(30rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
   position: relative;
@@ -21,19 +25,7 @@
   transition: background-color 0.3s ease, transform 0.3s ease;
   position: relative;
 }
-/* Timeline dot on left — 静态柔光玫瑰点 */
-.list-item::before {
-  content: '';
-  position: absolute;
-  left: 16rpx;
-  top: 50%;
-  width: 8rpx;
-  height: 8rpx;
-  background: #E8909E;
-  border-radius: var(--radius-circle);
-  box-shadow: 0 0 10rpx rgba(232,144,158,0.45);
-  transform: translateY(-50%);
-}
+/* 欢乐时光列表行只有浅色心，不再另放玫瑰圆点——玫瑰点只表经期（issue #77） */
 .list-item:last-child {
   border-bottom: none;
 }
@@ -45,7 +37,10 @@
   display: flex;
   align-items: center;
   gap: 16rpx;
-  padding-left: 20rpx;
+  min-width: 0;
+}
+.memory-info {
+  min-width: 0;
 }
 .memory-heart {
   font-size: 36rpx;
@@ -66,6 +61,9 @@
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.5);
   margin-top: 4rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .memory-arrow {
   font-size: 32rpx;
@@ -140,4 +138,27 @@
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--radius-card);
+}
+
+/* Load Failure —— 重试是可识别的操作（玫瑰小操作按钮），不是空列表的安静说明 */
+.load-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+}
+.retry-btn {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 64rpx;
+  border-radius: var(--radius-sm);
+  background: var(--aurora-pink);
+  color: #0A0E27;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-control);
+}
+.retry-btn:active {
+  transform: scale(0.96);
 }

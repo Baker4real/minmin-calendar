@@ -6,6 +6,8 @@ const test = require('node:test')
 // issue #57：交互语义护栏 —— 每个用户可点控件都有明确角色与可读名称；
 // 选中/禁用/隐藏状态用 aria 表达且与视觉状态同条件绑定，不与可操作状态冲突；
 // 日历格继续朗读完整领域语义，空白格保持隐藏。
+// issue #77：标记各管一件事 —— 可见符号与句子的语义也在此钉住：
+// 哪个标记在场、哪个控件可用、显示哪句话；不断言私有结构。
 
 const repoRoot = path.join(__dirname, '..')
 
@@ -317,4 +319,132 @@ test('edit pages name the save and delete operations and expose inert variants a
   assert.equal(flowChip.attrs['aria-role'], 'checkbox')
   const symptomChip = periodEdit.find((element) => classTokens(element).includes('symptom-chip'))
   assert.equal(symptomChip.attrs['aria-role'], 'checkbox')
+})
+
+// ===== issue #77：标记各管一件事（可见符号与句子语义） =====
+
+function wxssRuleBody(relativePath, selector) {
+  const css = readPage(relativePath).replace(/\/\*[\s\S]*?\*\//g, '')
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const match = new RegExp(`(?:^|[}\\s])${escaped}\\s*\\{([^}]*)\\}`).exec(css)
+  return match ? match[1] : null
+}
+
+test('brand, about and settings menu no longer use the red-heart emoji', () => {
+  // 品牌：绑定页大标题旁的心与设置资料卡的心改为文本字形，颜色走色板（wxss）
+  const bindWxml = readPage('pages/bind/bind.wxml')
+  const settingsWxml = readPage('pages/settings/settings.wxml')
+  assert.match(bindWxml, /class="hero-icon">♥</, 'bind hero heart is the text glyph')
+  assert.match(settingsWxml, /class="profile-avatar">♥</, 'settings profile heart is the text glyph')
+  assert.doesNotMatch(bindWxml, /❤/)
+  assert.doesNotMatch(settingsWxml, /❤/)
+
+  // 关于：弹窗文案里不再有红色心形表情（内容唯一来源在 settings.js）
+  assert.doesNotMatch(readPage('pages/settings/settings.js'), /❤/)
+
+  // 菜单：只重复标签的菜单表情去掉；欢乐时光入口用欢乐时光标记的浅色心
+  assert.match(settingsWxml, /class="menu-icon menu-heart">♥</)
+  for (const emoji of ['🔑', '🗓️', '📤', '🗑️', 'ℹ️']) {
+    assert.equal(settingsWxml.includes(emoji), false, `settings menu keeps only markers, found ${emoji}`)
+  }
+})
+
+test('happy-time list rows show only the light heart, no second rose dot', () => {
+  // 玫瑰圆点只表经期：欢乐时光列表行不再有时间轴玫瑰点
+  assert.equal(wxssRuleBody('pages/memory/memory.wxss', '.list-item::before'), null,
+    'memory rows must not draw the rose timeline dot')
+  assert.match(readPage('pages/memory/memory.wxss'), /\.memory-heart\s*\{[^}]*color:\s*#F0C4C0/i)
+
+  // 行内唯一标记是浅色心
+  assert.match(readPage('pages/memory/memory.wxml'), /class="memory-heart">♥</)
+})
+
+test('bind success is stated in rose text without a green checkmark', () => {
+  const wxml = readPage('pages/bind/bind.wxml')
+  const boundCard = wxml.slice(wxml.indexOf('wx:if="{{bound}}"'), wxml.indexOf('wx:else'))
+  assert.match(boundCard, /class="bound-status">已绑定房间</,
+    'the bound screen states success in plain text')
+  assert.doesNotMatch(wxml, /✅|✔|💚/, 'no green-check glyph anywhere on the bind page')
+
+  // 成功用玫瑰文字表达（绑定页色板没有绿色）
+  const boundStatus = wxssRuleBody('pages/bind/bind.wxss', '.bound-status')
+  assert.ok(boundStatus, 'expected .bound-status rule')
+  assert.match(boundStatus, /color:\s*#E8909E/i)
+})
+
+test('settings clear-local-data row reads as danger before any tap, export stays a plain row', () => {
+  const settingsWxml = readPage('pages/settings/settings.wxml')
+  const clearRow = /class="menu-item danger"[^>]*bindtap="clearData"/.exec(settingsWxml)
+  assert.ok(clearRow, 'the clear-local-data menu row carries the danger class')
+  assert.ok(/class="menu-item"[^>]*bindtap="exportData"/.test(settingsWxml),
+    'export stays a plain menu row')
+  assert.ok(!/class="menu-item danger"[^>]*bindtap="(exportData|about|goMemory)"/.test(settingsWxml),
+    'danger styling is reserved for clear-local-data')
+})
+
+// ===== issue #81：输入焦点与非交互卡片的按压语义 =====
+
+test('text inputs focus into the registered 1px solid rose outline without any glow', () => {
+  // 房间码输入（绑定页）与经期/欢乐时光备注（编辑页）：
+  // 基线边框本就是 1px solid，焦点只把描边换成实线玫瑰；基线与焦点都不再有光晕
+  const inputs = [
+    ['pages/bind/bind.wxss', '.code-input'],
+    ['pages/period/edit/edit.wxss', '.form-input'],
+    ['pages/memory/edit/edit.wxss', '.form-input']
+  ]
+  for (const [file, selector] of inputs) {
+    const base = wxssRuleBody(file, selector)
+    assert.ok(base, `expected ${selector} rule in ${file}`)
+    assert.match(base, /border:\s*1px solid\s/,
+      `${file} ${selector} keeps a 1px solid baseline border`)
+    assert.doesNotMatch(base, /box-shadow\s*:/, `${file} ${selector} baseline must not glow`)
+
+    const focus = wxssRuleBody(file, `${selector}:focus`)
+    assert.ok(focus, `expected ${selector}:focus rule in ${file}`)
+    assert.match(
+      focus,
+      /border-color:\s*(?:#E8909E|var\(--aurora-pink\))\s*;/i,
+      `${file} ${selector}:focus must be the registered solid rose outline`
+    )
+    assert.doesNotMatch(focus, /box-shadow\s*:/, `${file} ${selector}:focus must not add a glow`)
+  }
+})
+
+test('non-interactive cards do not scale on press', () => {
+  // 设置资料卡、经期/欢乐时光编辑的表单卡片与绑定页两张卡（创建/加入、已绑定）本身没有点按操作，按下不缩放
+  assert.match(
+    wxssRuleBody('pages/settings/settings.wxss', '.profile-card:active'),
+    /transform:\s*none/,
+    'settings profile card must not scale on press'
+  )
+  for (const file of ['pages/period/edit/edit.wxss', 'pages/memory/edit/edit.wxss', 'pages/bind/bind.wxss']) {
+    assert.match(
+      wxssRuleBody(file, '.premium-card:active'),
+      /transform:\s*none/,
+      `${file} card must not scale on press`
+    )
+  }
+})
+
+test('buttons inside cards keep their registered press scale', () => {
+  // 卡片不缩放不牵连卡内控件：经量/症状芯片、复制键、重试/去绑定仍按登记的 0.94–0.98 缩放
+  const pressScale = (file, selector) => {
+    const body = wxssRuleBody(file, `${selector}:active`)
+    assert.ok(body, `expected ${selector}:active rule in ${file}`)
+    const scale = /transform:\s*scale\(([\d.]+)\)/.exec(body)
+    assert.ok(scale, `${file} ${selector}:active must keep a press scale`)
+    return Number(scale[1])
+  }
+  // 经量/症状芯片共用一条 :active 规则（.flow-chip:active, .symptom-chip:active），经 .symptom-chip 锚定
+  for (const [file, selector] of [
+    ['pages/period/edit/edit.wxss', '.symptom-chip'],
+    ['pages/settings/settings.wxss', '.copy-btn'],
+    ['pages/settings/settings.wxss', '.room-action-btn']
+  ]) {
+    const scale = pressScale(file, selector)
+    assert.ok(
+      scale >= 0.94 && scale <= 0.98,
+      `${file} ${selector}:active press scale ${scale} is outside the registered 0.94-0.98 band`
+    )
+  }
 })

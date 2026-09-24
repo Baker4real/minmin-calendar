@@ -6,7 +6,7 @@ const safeArea = require('../../utils/safeArea')
 
 Page({
   goBack() { wx.navigateBack() },
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), memories: [], loading: true, loadFailed: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), memories: [], loading: true, loadFailed: false, hasLoaded: false },
 
   onShow() { return this.loadData() },
 
@@ -17,6 +17,9 @@ Page({
       itemsKey: 'memories',
       action: () => client.list('memories'),
       mapRecords: memories => [...memories].sort((a, b) => b.date.localeCompare(a.date)),
+      onLoaded: () => {
+        this.setData({ hasLoaded: true })
+      },
       retryableTitle: '加载失败，请检查网络',
       failureTitle: '加载失败'
     })

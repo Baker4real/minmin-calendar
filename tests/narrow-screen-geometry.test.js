@@ -179,6 +179,7 @@ test('calendar cell content stacks fit inside the cell at both densities (date s
   const tagLine = findDecls(rules, '.day-tag-line')
   const marks = findDecls(rules, '.day-marks')
   const compactNum = findDecls(rules, '.calendar-density-compact .day-num')
+  const compactTagLine = findDecls(rules, '.calendar-density-compact .day-tag-line')
   const compactMarks = findDecls(rules, '.calendar-density-compact .day-marks')
 
   const line = decls => rpxNumber(decls, 'line-height') || 0
@@ -188,7 +189,8 @@ test('calendar cell content stacks fit inside the cell at both densities (date s
   const fullRoom = rpxNumber(cell, 'height') - verticalPaddingRpx(cell)
   assert.ok(fullStack <= fullRoom, `full density stack ${fullStack}rpx exceeds cell room ${fullRoom}rpx`)
 
-  const compactStack = line(compactNum) + box(compactMarks)
+  // 清爽密度（issue #72）同样堆叠 节日/调休标签行：日期 + 标签 + 标记都必须放进格子
+  const compactStack = line(compactNum) + box(compactTagLine) + box(compactMarks)
   const compactRoom = rpxNumber(compactCell, 'height') - verticalPaddingRpx(compactCell)
   assert.ok(compactStack <= compactRoom, `compact density stack ${compactStack}rpx exceeds cell room ${compactRoom}rpx`)
 })

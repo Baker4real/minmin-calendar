@@ -11,9 +11,10 @@
 
   <view class="content">
     <view class="premium-card">
+      <view wx:if="{{draftRestored}}" class="draft-notice">已恢复上次未完成的输入</view>
       <view class="form-item">
         <text class="form-label">开始日期</text>
-        <picker mode="date" value="{{startDate}}" end="{{endDate}}" bindchange="onStartChange" aria-role="button" aria-label="选择开始日期">
+        <picker mode="date" value="{{startDate}}" end="{{endDate}}" disabled="{{saving}}" bindchange="onStartChange" aria-role="button" aria-label="选择开始日期">
           <view class="form-picker">
             <text>{{startDate}}</text>
             <text class="form-picker-arrow">›</text>
@@ -22,7 +23,7 @@
       </view>
       <view class="form-item">
         <text class="form-label">结束日期</text>
-        <picker mode="date" value="{{endDate}}" start="{{startDate}}" bindchange="onEndChange" aria-role="button" aria-label="选择结束日期">
+        <picker mode="date" value="{{endDate}}" start="{{startDate}}" disabled="{{saving}}" bindchange="onEndChange" aria-role="button" aria-label="选择结束日期">
           <view class="form-picker">
             <text>{{endDate}}</text>
             <text class="form-picker-arrow">›</text>
@@ -31,7 +32,7 @@
       </view>
       <view class="form-item">
         <text class="form-label">备注</text>
-        <input class="form-input" placeholder-class="input-placeholder" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput" maxlength="500" aria-label="备注"/>
+        <textarea class="form-input" placeholder-class="input-placeholder" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput" maxlength="500" auto-height disabled="{{saving}}" aria-label="备注"/>
       </view>
       <view class="form-item">
         <view class="form-label-row">
@@ -42,12 +43,13 @@
           <view
             wx:for="{{flowOptions}}"
             wx:key="value"
-            class="flow-chip {{flow === item.value ? 'active' : ''}}"
+            class="flow-chip {{flow === item.value ? 'active' : ''}}{{saving ? ' disabled' : ''}}"
             data-value="{{item.value}}"
             bindtap="selectFlow"
             aria-role="checkbox"
             aria-label="经量 {{item.label}}"
             aria-checked="{{flow === item.value}}"
+            aria-disabled="{{saving}}"
           >{{item.label}}</view>
         </view>
       </view>
@@ -67,12 +69,13 @@
             <view
               wx:for="{{group.options}}"
               wx:key="value"
-              class="symptom-chip {{item.selected ? 'active' : ''}}"
+              class="symptom-chip {{item.selected ? 'active' : ''}}{{saving ? ' disabled' : ''}}"
               data-value="{{item.value}}"
               bindtap="toggleSymptom"
               aria-role="checkbox"
               aria-label="症状 {{item.label}}"
               aria-checked="{{item.selected}}"
+              aria-disabled="{{saving}}"
             >{{item.label}}</view>
           </view>
         </view>
@@ -83,8 +86,9 @@
       <view wx:if="{{!saving && !deleting}}" class="btn-premium" bindtap="save" aria-role="button" aria-label="保存">保存</view>
       <view wx:elif="{{saving}}" class="btn-premium loading" aria-role="button" aria-disabled="true">保存中...</view>
       <view wx:else class="btn-premium disabled" aria-role="button" aria-disabled="true">保存</view>
-      <view wx:if="{{isEdit && !deleting}}" class="btn-danger" bindtap="delete" aria-role="button" aria-label="删除此记录">删除此记录</view>
-      <view wx:elif="{{isEdit}}" class="btn-danger" style="opacity: 0.5;" aria-role="button" aria-disabled="true">删除中...</view>
+      <view wx:if="{{isEdit && !deleting && !saving}}" class="btn-danger" bindtap="delete" aria-role="button" aria-label="删除此记录">删除此记录</view>
+      <view wx:elif="{{isEdit && deleting}}" class="btn-danger" style="opacity: 0.5;" aria-role="button" aria-disabled="true">删除中...</view>
+      <view wx:elif="{{isEdit}}" class="btn-danger" style="opacity: 0.5;" aria-role="button" aria-disabled="true">删除此记录</view>
     </view>
   </view>
 </view>

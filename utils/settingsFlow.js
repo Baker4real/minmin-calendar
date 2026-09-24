@@ -89,8 +89,8 @@ function clearLocalCache(options = {}) {
   const roomSession = options.roomSession || roomSessionApi
 
   roomSession.clearLocalRoom()
-  showToast(wxApi, { title: '已清除' })
-  return Promise.resolve({ kind: 'success', roomCode: '未绑定' })
+  showToast(wxApi, { title: '已清除本机房间码' })
+  return roomSession.getActiveRoom().then(room => ({ kind: 'success', room }))
 }
 
 function confirmExport(options = {}) {
@@ -178,9 +178,13 @@ function createLoadingGuard(wxApi) {
 async function shareOrCopyJson({ wxApi, filePath, json }) {
   if (typeof wxApi.shareFileMessage === 'function') {
     const shared = await shareFile(wxApi, filePath)
-    if (shared) {
+    if (shared === 'shared') {
       showToast(wxApi, { title: '导出成功' })
       return { kind: 'shared', filePath }
+    }
+    // 用户取消分享面板：不动剪贴板，也不提示已复制
+    if (shared === 'cancelled') {
+      return { kind: 'cancelled', filePath }
     }
   }
 
@@ -193,10 +197,15 @@ function shareFile(wxApi, filePath) {
   return new Promise(resolve => {
     wxApi.shareFileMessage({
       filePath,
-      success: () => resolve(true),
-      fail: () => resolve(false)
+      success: () => resolve('shared'),
+      fail: error => resolve(isShareCancelled(error) ? 'cancelled' : 'failed')
     })
   })
+}
+
+function isShareCancelled(error) {
+  const errMsg = error && error.errMsg ? String(error.errMsg) : ''
+  return errMsg.indexOf('cancel') !== -1
 }
 
 function setClipboardData(wxApi, data) {

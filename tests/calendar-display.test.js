@@ -269,6 +269,31 @@ test('index calendar keeps marker and tag semantics explicit for each meaning', 
   assert.match(wxml, /wx:elif="{{item\.isWorkday}}" class="day-tag workday-tag"/)
 })
 
+test('holiday and workday tags read in both densities and never displace the today ring', () => {
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
+
+  // 标签行只看「非空格」，不看密度：清爽密度同样能看到节日名与「班」
+  const tagLine = wxml.match(/<view wx:if="{{!item\.isEmpty}}" class="day-tag-line">/)
+  assert.ok(tagLine, 'expected the day-tag-line to render for both densities')
+  assert.doesNotMatch(tagLine[0], /calendarDensity/)
+  // 农历文字仍只在完整密度出现，清爽密度不带回农历
+  assert.match(wxml, /calendarDensity == 'full'\}\}" class="day-lunar"/)
+
+  // 标签的显示条件与今天无关：今天是节日/调休时，短标记与今日光圈同时在
+  const holidayTag = /<text wx:if="{{item\.holidayName}}"[^>]*>/.exec(wxml)
+  assert.ok(holidayTag, 'expected the holiday tag binding')
+  assert.doesNotMatch(holidayTag[0], /isToday/)
+  const workdayTag = /<text wx:elif="{{item\.isWorkday}}"[^>]*>/.exec(wxml)
+  assert.ok(workdayTag, 'expected the workday tag binding')
+  assert.doesNotMatch(workdayTag[0], /isToday/)
+
+  // 节日/调休的格子底必须让位给今天：玫瑰底 + 薰衣草内描边只在非今天格子上染色
+  assert.match(wxss, /\.day-cell\.holiday:not\(\.today\)\s*\{/)
+  assert.match(wxss, /\.day-cell\.workday:not\(\.today\)\s*\{/)
+  assert.match(wxss, /\.day-cell\.today\s*\{[\s\S]*?inset 0 0 0 3rpx rgba\(196,\s*160,\s*210,\s*0\.55\)/)
+})
+
 test('legend symbols mirror the real today ring and holiday tag forms', () => {
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
 
@@ -363,11 +388,12 @@ test('index calendar applies the persisted density without hosting the control',
   assert.doesNotMatch(js, /setCalendarDensity/)
 
   assert.doesNotMatch(wxml, /density-control/)
-  assert.match(wxml, /class="calendar-grid calendar-density-{{calendarDensity}}"/)
-  assert.match(wxml, /wx:if="{{!item\.isEmpty && calendarDensity == 'full'}}" class="day-lunar"/)
-  assert.match(wxml, /wx:if="{{!item\.isEmpty && calendarDensity == 'full'}}" class="day-tag-line"/)
+  assert.match(wxml, /class="calendar-grid calendar-density-\{\{calendarDensity\}\}"/)
+  // 农历文字只属完整密度；节日/调休标签行两密度都渲染（issue #72 清爽日历可读节日与调休）
+  assert.match(wxml, /wx:if="\{\{!item\.isEmpty && calendarDensity == 'full'\}\}" class="day-lunar"/)
+  assert.match(wxml, /wx:if="\{\{!item\.isEmpty\}\}" class="day-tag-line"/)
 
-  assert.match(wxss, /\.calendar-density-compact\s+\.day-cell\s*{[\s\S]*height:\s*104rpx/)
+  assert.match(wxss, /\.calendar-density-compact\s+\.day-cell\s*\{[\s\S]*height:\s*140rpx/)
 })
 
 test('settings page hosts the calendar density control with a quiet rose selected state', () => {

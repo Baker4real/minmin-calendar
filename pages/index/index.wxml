@@ -10,7 +10,8 @@
   </view>
 
   <view wx:if="{{noRoom}}" class="no-room">
-    <view class="no-room-icon">❤️</view>
+    <!-- 爱心画面只属于未绑定/需要重新绑定；加载失败保持失败标题 + 重试，不复用这颗心（issue #79） -->
+    <view wx:if="{{roomStatusAction == 'bind'}}" class="no-room-icon">❤️</view>
     <text class="no-room-title">{{roomStatusTitle}}</text>
     <text class="no-room-desc">{{roomStatusDesc}}</text>
     <view class="btn-premium" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}">{{roomStatusActionText}}</view>
@@ -40,6 +41,11 @@
       <view class="nav-btn" bindtap="nextMonth" aria-role="button" aria-label="下一个月">›</view>
     </view>
 
+    <!-- 刷新失败重试句：正常文档流放在月份导航与日历之间，不遮月份标题；留驻到重试成功（issue #79） -->
+    <view wx:if="{{refreshRetryVisible}}" class="refresh-retry" bindtap="retryRefresh" aria-role="button" aria-label="日历刷新失败，点按重试">
+      <text class="refresh-retry-text">刷新失败，点按重试</text>
+    </view>
+
     <view class="week-header">
       <view class="week-cell" wx:for="{{weekDays}}" wx:key="*this">{{item}}</view>
     </view>
@@ -57,7 +63,7 @@
       >
         <view class="day-num">{{item.day}}</view>
         <view wx:if="{{!item.isEmpty && calendarDensity == 'full'}}" class="day-lunar">{{item.lunarText}}</view>
-        <view wx:if="{{!item.isEmpty && calendarDensity == 'full'}}" class="day-tag-line">
+        <view wx:if="{{!item.isEmpty}}" class="day-tag-line">
           <text wx:if="{{item.holidayName}}" class="day-tag holiday-tag">{{item.holidayName}}</text>
           <text wx:elif="{{item.isWorkday}}" class="day-tag workday-tag">班</text>
         </view>
@@ -69,13 +75,14 @@
       </view>
     </view>
 
+    <!-- 首页记录入口：图标用日历图例的经期圆点与欢乐时光浅色心（海军圆盘承载），不用表情 -->
     <view class="quick-actions">
       <view class="quick-btn" bindtap="quickPeriod" aria-role="button" aria-label="记经期">
-        <text class="quick-icon">🩸</text>
+        <text class="quick-icon period-tone">●</text>
         <text class="quick-text">记经期</text>
       </view>
       <view class="quick-btn" bindtap="quickMemory" aria-role="button" aria-label="记录欢乐时光">
-        <text class="quick-icon">❤️</text>
+        <text class="quick-icon memory-tone">♥</text>
         <text class="quick-text">欢乐时光</text>
       </view>
     </view>

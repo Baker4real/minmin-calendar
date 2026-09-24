@@ -7,7 +7,7 @@ const safeArea = require('../../utils/safeArea')
 
 Page({
   goBack() { wx.switchTab({ url: '/pages/index/index' }) },
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false },
 
   onShow() { return this.loadData() },
 
@@ -20,7 +20,10 @@ Page({
       mapRecords: periods => [...periods]
         .sort((a, b) => b.startDate.localeCompare(a.startDate))
         .map(cycle.decoratePeriod),
-      onLoaded: periods => this.calcStats(periods),
+      onLoaded: periods => {
+        this.calcStats(periods)
+        this.setData({ hasLoaded: true })
+      },
       retryableTitle: '加载失败，请检查网络',
       failureTitle: '加载失败'
     })

@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const Module = require('node:module')
 const path = require('node:path')
 const test = require('node:test')
@@ -150,6 +151,8 @@ test('memory edit restores a stored draft on load and prompts the restore notice
     assert.equal(harness.page.data.date, '2026-09-01')
     assert.equal(harness.page.data.note, '没写完的纪念')
     assert.deepEqual(toasts, [{ title: '已恢复上次未完成的输入', icon: 'none' }])
+    // 草稿盖住已保存记录时，表单上有常驻可见说明，不只靠一闪而过的提示
+    assert.equal(harness.page.data.draftRestored, true)
   } finally {
     harness.teardown()
   }
@@ -169,6 +172,7 @@ test('memory edit keeps route values and stays quiet when no draft exists', () =
     assert.equal(harness.page.data.date, '2026-08-30')
     assert.equal(harness.page.data.note, 'original')
     assert.deepEqual(toasts, [])
+    assert.equal(harness.page.data.draftRestored, false)
   } finally {
     harness.teardown()
   }
@@ -344,6 +348,7 @@ test('period edit restores a stored draft with symptoms and prompts the restore 
     assert.deepEqual(harness.page.data.symptoms, ['cramps'])
     assert.deepEqual(symptomGroupCalls[symptomGroupCalls.length - 1], ['cramps'])
     assert.deepEqual(toasts, [{ title: '已恢复上次未完成的输入', icon: 'none' }])
+    assert.equal(harness.page.data.draftRestored, true)
   } finally {
     harness.teardown()
   }
@@ -374,6 +379,17 @@ test('period edit persists the in-progress form on hide', () => {
     })
   } finally {
     harness.teardown()
+  }
+})
+
+test('edit forms carry a persistent visible draft-restore notice, not only the toast', () => {
+  for (const relativePath of ['pages/period/edit/edit.wxml', 'pages/memory/edit/edit.wxml']) {
+    const wxml = fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
+    assert.match(
+      wxml,
+      /wx:if="\{\{draftRestored\}\}"[^>]*>[^<]*已恢复上次未完成的输入/,
+      `${relativePath} keeps the in-form restore notice bound to draftRestored`
+    )
   }
 })
 

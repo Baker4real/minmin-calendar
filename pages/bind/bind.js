@@ -2,6 +2,14 @@ const roomSession = require('../../utils/room')
 const settingsFlow = require('../../utils/settingsFlow')
 const safeArea = require('../../utils/safeArea')
 
+// 云端 create/join 拒绝「已在其他房间」时返回的固定短语（roomMembershipLifecycle），
+// 命中时当前屏直接提供解除绑定，而不是只留一句错误
+const LEAVE_ROOM_REQUIRED_HINT = '请先解除绑定'
+
+function isLeaveRoomRequired(msg) {
+  return typeof msg === 'string' && msg.indexOf(LEAVE_ROOM_REQUIRED_HINT) !== -1
+}
+
 Page({
   data: {
     safeTop: safeArea.getSafeTop(),
@@ -11,7 +19,8 @@ Page({
     roomCode: '',
     joinCode: '',
     loading: false,
-    errorMsg: ''
+    errorMsg: '',
+    needUnbind: false
   },
 
   onShow() {
@@ -21,11 +30,11 @@ Page({
   async checkRoom() {
     const room = await roomSession.getVerifiedActiveRoom()
     if (room.bound) {
-      this.setData({ bound: true, roomCode: room.roomCode, errorMsg: '' })
+      this.setData({ bound: true, roomCode: room.roomCode, errorMsg: '', needUnbind: false })
       return
     }
 
-    const data = { bound: false, roomCode: '', errorMsg: room.errorMsg || '' }
+    const data = { bound: false, roomCode: '', errorMsg: room.errorMsg || '', needUnbind: false }
     this.setData(data)
   },
 
@@ -42,9 +51,9 @@ Page({
     this.setData({ loading: true, errorMsg: '' })
     const res = await roomSession.createRoom()
     if (res.code === 0) {
-      this.setData({ bound: true, roomCode: res.roomCode })
+      this.setData({ bound: true, roomCode: res.roomCode, needUnbind: false })
     } else {
-      this.setData({ errorMsg: res.msg })
+      this.setData({ errorMsg: res.msg, needUnbind: isLeaveRoomRequired(res.msg) })
     }
     this.setData({ loading: false })
   },
@@ -56,9 +65,9 @@ Page({
     this.setData({ loading: true, errorMsg: '' })
     const res = await roomSession.joinRoom(code)
     if (res.code === 0) {
-      this.setData({ bound: true, roomCode: res.roomCode })
+      this.setData({ bound: true, roomCode: res.roomCode, needUnbind: false })
     } else {
-      this.setData({ errorMsg: res.msg })
+      this.setData({ errorMsg: res.msg, needUnbind: isLeaveRoomRequired(res.msg) })
     }
     this.setData({ loading: false })
   },
@@ -81,7 +90,7 @@ Page({
         if (res.confirm) {
           const result = await roomSession.leaveRoom()
           if (result.code === 0) {
-            this.setData({ bound: false, roomCode: '', joinCode: '' })
+            this.setData({ bound: false, roomCode: '', joinCode: '', errorMsg: '', needUnbind: false })
             return
           }
 

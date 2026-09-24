@@ -19,6 +19,8 @@
 }
 .hero-icon {
   font-size: 120rpx;
+  /* 品牌心：玫瑰文本字形，不再用红色心形表情（issue #77） */
+  color: #E8909E;
   margin-bottom: 20rpx;
   animation: heroIn 0.6s var(--ease-out) both;
   filter: drop-shadow(0 0 20px rgba(232,144,158,0.3));
@@ -33,8 +35,8 @@
   font-size: 48rpx;
   font-weight: var(--font-weight-title);
   line-height: var(--line-height-title);
-  color: #E8909E;
-  text-shadow: 0 0 24rpx rgba(232,144,158,0.28);
+  /* 大标题不可点，用中性文字色，不用玫瑰（issue #77） */
+  color: rgba(255,255,255,0.92);
 }
 .hero-desc {
   max-width: 100%;
@@ -52,6 +54,11 @@
   padding: 40rpx;
   margin-top: 30rpx;
   box-sizing: border-box;
+}
+/* 两张卡（创建/加入表单卡、已绑定状态卡）本身没有点按操作：按下不缩放（issue #81 同款覆盖）；
+   卡内控件保持各自登记的按压缩放 */
+.premium-card:active {
+  transform: none;
 }
 
 /* Tab Bar */
@@ -114,9 +121,9 @@
   font-weight: var(--font-weight-body);
   color: #fff;
 }
+/* 焦点是登记的 1px 实线玫瑰描边（基线边框本就是 1px solid），不加光晕（issue #81） */
 .code-input:focus {
-  border-color: rgba(232,144,158,0.4);
-  box-shadow: 0 0 20px rgba(232,144,158,0.1);
+  border-color: #E8909E;
 }
 
 /* Bound Status — 成功态用主色玫瑰，不引入色板外绿色 */
@@ -145,6 +152,36 @@
 .btn-danger {
   margin-top: 16rpx;
 }
+/* 已绑定画面与设置页共用同一种复制小按钮：玫瑰底、海军字、radius-sm 小操作圆角，
+   横向 padding、玫瑰辉光投影与 box-shadow 过渡全部与 settings 的 .copy-btn 同款 */
+.bound-copy-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 30rpx;
+}
+.copy-btn {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  white-space: nowrap;
+  background: var(--aurora-pink);
+  color: #0A0E27;
+  padding: 0 28rpx;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-control);
+  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
+  transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+}
+.copy-btn:active {
+  transform: scale(0.94);
+}
+/* 创建/加入被「请先解除绑定」拒绝时，当前屏直接给出的解除绑定入口 */
+.unbind-inline {
+  margin-top: 30rpx;
+}
 .error-msg {
   display: block;
   align-self: stretch;
@@ -161,4 +198,13 @@
   padding: 16rpx 30rpx;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(249,115,115,0.24);
+}
+
+/* 减弱动效（app.wxss 全局名单外的页面登记）：复制键按下为立即缩放、无 0.2s 过渡；
+   政策见 DESIGN.md「动效与性能边界」——按压 = 即时 scale + 既有底色变化 */
+@media (prefers-reduced-motion: reduce) {
+  .copy-btn {
+    animation: none;
+    transition: none;
+  }
 }

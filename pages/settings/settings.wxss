@@ -13,6 +13,8 @@
 }
 .profile-avatar {
   font-size: 72rpx;
+  /* 品牌心：玫瑰文本字形，不再用红色心形表情（issue #77） */
+  color: #E8909E;
   margin-bottom: 16rpx;
   filter: drop-shadow(0 0 20px rgba(232,144,158,0.3));
 }
@@ -30,6 +32,10 @@
   color: rgba(255,255,255,0.78);
   margin-top: 8rpx;
   display: block;
+}
+/* 资料卡本身没有点按操作：按下不缩放（issue #81）；各菜单卡的行内操作保持各自登记的按压缩放 */
+.profile-card:active {
+  transform: none;
 }
 
 .premium-card {
@@ -64,6 +70,33 @@
 .menu-arrow {
   font-size: 32rpx;
   color: var(--text-secondary);
+}
+
+/* 导航标题不可点：中性文字色（共享基类在 app.wxss，页面侧覆盖颜色，issue #77） */
+.nav-title {
+  color: rgba(255,255,255,0.92);
+}
+
+/* 欢乐时光入口的浅色心 = 日历欢乐时光标记色（issue #77） */
+.menu-heart {
+  color: #F0C4C0;
+}
+
+/* 清除本地数据：点之前就是危险样式（issue #77）——警告红字 + 警告红描边，
+   与 .btn-danger 同族同红，不是第二种红；导出保持上面的普通行 */
+.menu-item.danger {
+  margin: 20rpx 20rpx 24rpx;
+  border: 1px solid rgba(249,115,115,0.28);
+  border-radius: var(--radius-md);
+  box-sizing: border-box;
+  background: var(--glass-bg), var(--glass-fallback);
+}
+.menu-item.danger .menu-text {
+  color: #F97373;
+}
+.menu-item.danger:active {
+  background: rgba(249,115,115,0.12), var(--glass-fallback);
+  transform: scale(0.95);
 }
 
 /* Room Code Item */
@@ -120,6 +153,35 @@
   transform: scale(0.94);
 }
 
+/* 拿不到房间码时的下一步操作（issue #79）：重试/去绑定。
+   弱态玫瑰描边按钮（与密度选项同族的弱选中态），不做第二颗实色主按钮；
+   88rpx 触控高度，不加阴影（本文件阴影预算已满）。 */
+.room-code-actions {
+  display: flex;
+  gap: 16rpx;
+  padding: 20rpx 30rpx 28rpx;
+}
+.room-action-btn {
+  flex: 1;
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0 28rpx;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-control);
+  color: #E8909E;
+  background: rgba(232,144,158,0.08);
+  border: 1px solid rgba(232,144,158,0.45);
+  transition: transform 0.2s var(--ease-out), background-color 0.2s var(--ease-out);
+}
+.room-action-btn:active {
+  transform: scale(0.95);
+  background: rgba(232,144,158,0.14);
+}
+
 /* Calendar Density Preference — 首页日历密度的设置入口（issue #55 迁入） */
 .density-menu-copy {
   flex: 1;
@@ -172,7 +234,10 @@
   box-shadow: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  .density-option {
+  .copy-btn,
+  .density-option,
+  .room-action-btn,
+  .menu-item.danger {
     animation: none;
     transition: none;
   }

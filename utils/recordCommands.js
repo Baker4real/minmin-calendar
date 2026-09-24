@@ -61,15 +61,13 @@ function runRecordDelete(options) {
     return Promise.resolve({ kind: 'cancelled' })
   }
 
-  updatePage(page, { [loadingKey]: true })
-
+  // 确认之前不进入删除忙碌态：按钮仍读「删除此记录」，取消后无需复位。
   return new Promise(resolve => {
     wxApi.showModal({
       title: confirmTitle,
       ...(confirmContent ? { content: confirmContent } : {}),
       success: async (result) => {
         if (!result.confirm) {
-          updatePage(page, { [loadingKey]: false })
           resolve({ kind: 'cancelled' })
           return
         }
@@ -151,7 +149,7 @@ async function runCommand(options) {
   const {
     page,
     wxApi,
-    timer,
+    timer = createDefaultTimer(),
     action,
     validate,
     loadingKey = 'saving',

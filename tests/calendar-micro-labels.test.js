@@ -17,7 +17,13 @@ const CAPTION_LINE_HEIGHT_RATIO = 1.4
 const MIN_FULL_CELL_SLACK_RPX = 8
 const MIN_TOUCH_TARGET_RPX = 88
 const MICRO_LABEL_SELECTORS = ['.day-tag', '.predict-mark']
-const IN_CELL_MICRO_SELECTORS = ['.day-lunar', '.day-tag', '.predict-mark', '.memory-mark']
+const IN_CELL_MICRO_SELECTORS = [
+  '.day-lunar',
+  '.day-tag',
+  '.predict-mark',
+  '.memory-mark',
+  '.calendar-density-compact .day-tag'
+]
 const OUT_CELL_CAPTION_SELECTORS = [
   '.sync-text',
   '.week-cell',
@@ -225,18 +231,50 @@ test('holiday tag box is taller than caption type so CJK glyphs are not clipped'
   )
 })
 
-test('compact calendar cells still fit the date and caption-sized marks', () => {
+test('compact calendar cells still fit the date, holiday tag, and caption-sized marks', () => {
   const wxss = readWxss()
   const cell = ruleBody(wxss, '.calendar-density-compact .day-cell')
   const dayNum = ruleBody(wxss, '.calendar-density-compact .day-num')
+  const tagLine = ruleBody(wxss, '.calendar-density-compact .day-tag-line')
   const marks = ruleBody(wxss, '.calendar-density-compact .day-marks')
   const content = contentHeightRpx(cell)
   const occupied =
     declarationRpx(dayNum, 'line-height') +
+    stackedBlockRpx(tagLine) +
     stackedBlockRpx(marks)
   assert.ok(
     occupied <= content,
-    `compact cell content ${content}rpx cannot fit date+marks ${occupied}rpx`
+    `compact cell content ${content}rpx cannot fit date+tag+marks ${occupied}rpx`
+  )
+})
+
+test('long holiday names clip inside their own cell instead of painting across neighbors', () => {
+  const wxss = readWxss()
+  const cell = ruleBody(wxss, '.day-cell')
+  const tagLine = ruleBody(wxss, '.day-tag-line')
+  const tag = ruleBody(wxss, '.day-tag')
+  const compactTag = ruleBody(wxss, '.calendar-density-compact .day-tag')
+
+  // 完整密度：超长节日名（如「国庆/中秋」）被裁在自己的格子里
+  assert.match(cell, /overflow:\s*hidden/)
+  // 标签行占满格宽、标签盒不越过格宽，裁切只发生在格子边界
+  assert.match(tagLine, /width:\s*100%/)
+  assert.match(tag, /max-width:\s*100%/)
+  // 溢出裁切保留名字起点：胶囊内部对齐 left——放得下时盒宽=文宽、短名视觉不变，
+  // 超长名只在尾部被裁；标签行仍居中排版（justify-content 不动，短名不左移）
+  assert.match(tag, /text-align:\s*(?:left|start)\s*;/)
+  assert.match(tagLine, /justify-content:\s*center/)
+  // 裁切不是省略号：读屏与当日详情仍拿完整节日名（home-calendar-state 测试钉住）
+  assert.doesNotMatch(tag, /text-overflow/)
+  assert.doesNotMatch(tagLine, /text-overflow/)
+
+  // 清爽密度的标签盒高仍覆盖 24rpx 微字的 caption 行高，CJK 不被裁顶裁底
+  const compactFont = declarationRpx(compactTag, 'font-size')
+  const compactBox = declarationRpx(compactTag, 'height')
+  assert.ok(compactFont >= MIN_CAPTION_RPX, `compact tag font ${compactFont}rpx is below the micro floor`)
+  assert.ok(
+    compactBox >= compactFont * CAPTION_LINE_HEIGHT_RATIO,
+    `compact tag box ${compactBox}rpx does not cover ${compactFont}rpx × ${CAPTION_LINE_HEIGHT_RATIO}`
   )
 })
 
@@ -396,6 +434,7 @@ test('holiday, workday, and predict capsules center their labels with inset at 3
   const compactCell = ruleBody(wxss, '.calendar-density-compact .day-cell')
   const compactSlack = contentHeightRpx(compactCell) - (
     declarationRpx(ruleBody(wxss, '.calendar-density-compact .day-num'), 'line-height') +
+    stackedBlockRpx(ruleBody(wxss, '.calendar-density-compact .day-tag-line')) +
     stackedBlockRpx(ruleBody(wxss, '.calendar-density-compact .day-marks'))
   )
   const compactBelow = compactSlack / 2 + paddingVertical(compactCell).bottom
@@ -469,10 +508,11 @@ test('full density first-screen stack stays within the ratcheted budget', () => 
   const wxss = readWxss()
   // 与 tests/index-page.test.js 同一推算口径：750rpx 宽 × 667px 高 ≈ 1334rpx。
   // issue #55 起图例/预测/小结工具行与密度偏好退出首屏路径（密度迁入设置页），
-  // 栈深只剩 月份导航 → 日历 → 记录入口。完整密度 6 行时记录按钮上缘（1328rpx）
-  // 已落入视口，整体底部略超 1334rpx、只需极短滚动；农历行与节日标签行仍是被
-  // calendar-display 测试钉死的两层堆叠，不缩小微字吸收。钉住当前值作为棘轮，只允许变小。
-  const FULL_STACK_RATCHET_RPX = 1414
+  // 栈深只剩 月份导航 → 日历 → 记录入口。完整密度 6 行时记录按钮上缘已落入视口，
+  // 整体底部略超 1334rpx、只需极短滚动；农历行与节日标签行仍是被 calendar-display
+  // 测试钉死的两层堆叠，不缩小微字吸收。issue #73 把记录按钮抬高到 104rpx
+  // （320px 宽 44px 可点高度），栈底随之从 1414rpx 移到 1442rpx；钉住当前值作为棘轮，只允许变小。
+  const FULL_STACK_RATCHET_RPX = 1442
   const SAFE_TOP_RPX = 88
   const NAV_BAR_RPX = 88
   const MONTH_NAV_CONTENT_RPX = 88
@@ -487,9 +527,13 @@ test('full density first-screen stack stays within the ratcheted budget', () => 
   const weekHeader = verticalBox(ruleBody(wxss, '.week-header'), 'padding') + WEEK_TEXT_RPX
   const gridPadding = verticalBox(ruleBody(wxss, '.calendar-grid'), 'padding')
   const fullCell = declarationRpx(ruleBody(wxss, '.day-cell'), 'height')
-  const quickActions = declarationRpx(ruleBody(wxss, '.quick-actions'), 'margin-top') +
-    verticalBox(ruleBody(wxss, '.quick-btn'), 'padding') +
-    QUICK_CONTENT_RPX
+  // 记录按钮行高 = max(min-height, 纵向内边距 + 内容行)：min-height 抬高后按真实高度记账
+  const quickBody = ruleBody(wxss, '.quick-btn')
+  const quickRow = Math.max(
+    declarationRpx(quickBody, 'min-height'),
+    verticalBox(quickBody, 'padding') + QUICK_CONTENT_RPX
+  )
+  const quickActions = declarationRpx(ruleBody(wxss, '.quick-actions'), 'margin-top') + quickRow
 
   const stack = SAFE_TOP_RPX + NAV_BAR_RPX + monthNav +
     weekHeader + gridPadding + SIX_ROWS * fullCell + quickActions

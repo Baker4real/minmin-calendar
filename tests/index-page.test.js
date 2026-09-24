@@ -204,6 +204,123 @@ test('load failure preserves existing records and returns retryable outcome', as
   }
 })
 
+// issue #79：首页已加载后再刷新失败——留驻可点的重试句，重试成功或后一次成功刷新后消失
+test('background refresh failure keeps a tappable retry sentence until a later refresh succeeds', async () => {
+  const initialPeriod = period('p1', '2026-06-01')
+  const failure = { kind: 'retryable-failure', message: 'network down' }
+  let call = 0
+  const harness = loadPageHarness({
+    client: {
+      async list(collection) {
+        call += 1
+        if (call <= 2) return { kind: 'success', data: collection === 'periods' ? [initialPeriod] : [] }
+        if (call <= 6) return failure
+        return {
+          kind: 'success',
+          data: collection === 'periods' ? [initialPeriod, period('p2', '2026-06-29')] : []
+        }
+      }
+    }
+  })
+
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+    assert.equal(harness.page.data.refreshRetryVisible, false)
+
+    // 已加载后的后台刷新失败：重试句出现，日历数据保留
+    await harness.page.onShow()
+    assert.equal(harness.page.data.refreshRetryVisible, true)
+    assert.deepEqual(harness.page.data.periods, [initialPeriod])
+    // 失败反馈不挂在自动消失的同步 pill 上：pill 已隐藏，失败界面只剩常驻重试句
+    assert.equal(harness.page.data.syncStatusVisible, false)
+    assert.equal(harness.page.data.refreshing, false)
+
+    // 点重试仍失败：句子留驻，不换回整页失败画面
+    await harness.page.retryRefresh()
+    assert.equal(harness.page.data.refreshRetryVisible, true)
+    assert.equal(harness.page.data.noRoom, false)
+    assert.deepEqual(harness.page.data.periods, [initialPeriod])
+
+    // 后一次刷新成功：失败提示消失，数据被成功结果替换
+    await harness.page.onShow()
+    assert.equal(harness.page.data.refreshRetryVisible, false)
+    assert.deepEqual(harness.page.data.periods.map(item => item._id), ['p1', 'p2'])
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #79：第一次打开就加载失败——仍是失败标题 + 重试按钮，但不进入未绑定的爱心画面
+test('first-load failure keeps the failure title and retry action without the unbound art', async () => {
+  const harness = loadPageHarness({
+    client: {
+      async list() {
+        return { kind: 'retryable-failure', message: 'network down' }
+      }
+    }
+  })
+
+  try {
+    harness.page.onLoad()
+    const outcome = await harness.page.onShow()
+
+    assert.equal(outcome.kind, 'retryable-failure')
+    assert.equal(harness.page.data.noRoom, true)
+    assert.equal(harness.page.data.roomStatusTitle, '日历加载失败')
+    assert.equal(harness.page.data.roomStatusActionText, '重试')
+    assert.equal(harness.page.data.roomStatusAction, 'retry')
+    assert.equal(harness.page.data.hasLoadedHomeData, false)
+    assert.equal(harness.page.data.refreshRetryVisible, false)
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #79：重试句是正常文档流里的可点行，放在月份导航与周头之间，不遮月份标题
+test('the refresh retry sentence is a tappable in-flow row below the month title', () => {
+  const wxml = readIndexWxml()
+  const contentIndex = wxml.indexOf('wx:else class="content')
+  const monthNavIndex = wxml.indexOf('class="month-nav"')
+  const retryIndex = wxml.indexOf('class="refresh-retry"')
+  const weekHeaderIndex = wxml.indexOf('class="week-header"')
+
+  assert.ok(retryIndex !== -1, 'expected the refresh retry sentence')
+  assert.ok(contentIndex !== -1 && contentIndex < retryIndex, 'retry sentence lives inside the loaded content block')
+  assert.ok(monthNavIndex !== -1 && monthNavIndex < retryIndex, 'retry sentence sits below the month navigation')
+  assert.ok(retryIndex < weekHeaderIndex, 'retry sentence sits above the calendar week header')
+
+  const retryTagStart = wxml.lastIndexOf('<view', retryIndex)
+  const retryBlock = wxml.slice(retryTagStart, wxml.indexOf('</view>', retryIndex) + '</view>'.length)
+  assert.match(retryBlock, /wx:if="\{\{refreshRetryVisible\}\}"/)
+  assert.match(retryBlock, /bindtap="retryRefresh"/)
+  assert.match(retryBlock, /aria-role="button"/)
+  assert.match(retryBlock, /aria-label="日历刷新失败，点按重试"/)
+  assert.match(retryBlock, /刷新失败，点按重试/)
+
+  const wxss = readIndexWxss()
+  const row = ruleBody(wxss, '.refresh-retry')
+  assert.doesNotMatch(row, /position:\s*(fixed|absolute)/, 'the retry row must stay in the document flow')
+  assert.match(ruleBody(wxss, '.refresh-retry-text'), /color:\s*#E8909E/i)
+})
+
+// issue #79：爱心画面只属于未绑定/需要重新绑定；加载失败不再复用这颗心
+test('the unbound heart art is reserved for bind states, not load failures', () => {
+  const wxml = readIndexWxml()
+  const iconIndex = wxml.indexOf('class="no-room-icon"')
+  assert.ok(iconIndex !== -1, 'expected the unbound heart icon')
+
+  assert.match(
+    wxml,
+    /wx:if="\{\{roomStatusAction == 'bind'\}\}"[^>]*class="no-room-icon"/,
+    'the heart must be gated to bind (unbound / rebind) states only'
+  )
+
+  // 失败标题与重试按钮保持整页失败画面的原位
+  assert.match(wxml, /class="no-room-title">\{\{roomStatusTitle\}\}/)
+  assert.match(wxml, /bindtap="handleRoomStatusAction"[^>]*aria-label="\{\{roomStatusActionText\}\}"/)
+})
+
 test('concurrent loadData calls reuse the latest in-flight request', async () => {
   const deferred = deferredValue()
   let calls = 0
@@ -555,6 +672,35 @@ test('quick record buttons are rose-filled primary actions with canvas-navy labe
   assert.match(ruleBody(wxss, '.quick-text'), /color:\s*#0A0E27/i)
 })
 
+test('quick record buttons use the calendar legend marks, not emoji, and reach 44px at 320px', () => {
+  const wxml = readIndexWxml()
+  const wxss = readIndexWxss()
+
+  // issue #73：图标 = 日历图例的经期玫瑰圆点与欢乐时光浅色心，画在海军圆盘上
+  const quickStart = wxml.indexOf('class="quick-actions"')
+  const quickEnd = wxml.indexOf('class="meaning-toolbar"')
+  const quickBlock = wxml.slice(quickStart, quickEnd)
+  assert.match(quickBlock, /class="quick-icon period-tone">●<\/text>/)
+  assert.match(quickBlock, /class="quick-icon memory-tone">♥<\/text>/)
+  // 不再用表情（🩸 / ❤️ 表情形态），图标是文本字形圆点与心
+  assert.doesNotMatch(quickBlock, /🩸|❤️/)
+  // 语义色沿用图例标记：玫瑰圆点 / 浅色心
+  assert.match(ruleBody(wxss, '.period-tone'), /color:\s*#E8909E/i)
+  assert.match(ruleBody(wxss, '.memory-tone'), /color:\s*#F0C4C0/i)
+  assert.match(ruleBody(wxss, '.quick-icon'), /background:\s*#0A0E27/i)
+  assert.match(ruleBody(wxss, '.quick-icon'), /border-radius:\s*var\(--radius-circle\)/)
+
+  // 320px 宽上可点高度 ≥44px：104rpx ≈ 44.4px@320px（与 compact 日历格同换算）
+  const button = ruleBody(wxss, '.quick-btn')
+  const minHeight = numberDecl(button, 'min-height')
+  assert.ok(minHeight >= 104, `.quick-btn min-height ${minHeight}rpx is below 104rpx (44px at 320px)`)
+  assert.match(button, /box-sizing:\s*border-box/)
+  assert.ok((minHeight * 320) / 750 >= 44, `.quick-btn ${minHeight}rpx is under 44px at 320px`)
+
+  // 字号不降低：正文角色 28rpx 保持
+  assert.match(ruleBody(wxss, '.quick-text'), /font-size:\s*var\(--font-size-body\)/)
+})
+
 test('compact density keeps the record actions inside the 1334rpx first-screen budget', () => {
   const wxss = readIndexWxss()
   // issue #37 验收口径：750rpx 宽 × 667px 高视口 ≈ 1334rpx；状态栏与自定义导航栏为固定值。
@@ -574,9 +720,13 @@ test('compact density keeps the record actions inside the 1334rpx first-screen b
   const weekHeader = shorthandVertical(ruleBody(wxss, '.week-header'), 'padding') + WEEK_TEXT_RPX
   const gridPadding = shorthandVertical(ruleBody(wxss, '.calendar-grid'), 'padding')
   const compactCell = numberDecl(ruleBody(wxss, '.calendar-density-compact .day-cell'), 'height')
-  const quickActions = numberDecl(ruleBody(wxss, '.quick-actions'), 'margin-top') +
-    shorthandVertical(ruleBody(wxss, '.quick-btn'), 'padding') +
-    QUICK_CONTENT_RPX
+  // 记录按钮行高 = max(min-height, 纵向内边距 + 内容行)：issue #73 抬到 104rpx 后按真实高度记账
+  const quickBody = ruleBody(wxss, '.quick-btn')
+  const quickRow = Math.max(
+    numberDecl(quickBody, 'min-height'),
+    shorthandVertical(quickBody, 'padding') + QUICK_CONTENT_RPX
+  )
+  const quickActions = numberDecl(ruleBody(wxss, '.quick-actions'), 'margin-top') + quickRow
 
   const stack = SAFE_TOP_RPX + NAV_BAR_RPX + monthNav +
     weekHeader + gridPadding + SIX_ROWS * compactCell + quickActions

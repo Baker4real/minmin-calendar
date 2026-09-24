@@ -1,14 +1,18 @@
 <view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
   <view class="content">
     <view class="hero">
-      <view class="hero-icon">❤️</view>
+      <!-- 品牌心是文本字形（颜色走 wxss），不用红色心形表情（issue #77） -->
+      <view class="hero-icon">♥</view>
       <text class="hero-title">美少女的日历</text>
       <text class="hero-desc">两个人的专属空间<br/>共享经期与欢乐时光</text>
     </view>
 
     <view wx:if="{{bound}}" class="premium-card">
-      <view class="bound-status">✅ 已绑定房间</view>
+      <view class="bound-status">已绑定房间</view>
       <text class="bound-code" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码">房间码：{{roomCode}}</text>
+      <view class="bound-copy-row">
+        <view class="copy-btn" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码">复制</view>
+      </view>
       <view class="btn-premium" bindtap="goHome" aria-role="button" aria-label="进入应用">进入应用</view>
       <view class="btn-danger" bindtap="unbind" aria-role="button" aria-label="解除绑定">解除绑定</view>
     </view>
@@ -32,6 +36,8 @@
         <view wx:elif="{{loading}}" class="btn-premium loading" aria-role="button" aria-disabled="true">加入中...</view>
         <view wx:elif="{{joinCode.length === 6}}" class="btn-premium" bindtap="joinRoom" aria-role="button" aria-label="加入房间">加入房间</view>
       </view>
+
+      <view wx:if="{{needUnbind}}" class="btn-danger unbind-inline" bindtap="unbind" aria-role="button" aria-label="解除绑定">解除绑定</view>
     </view>
 
     <text wx:if="{{errorMsg}}" class="error-msg">{{errorMsg}}</text>

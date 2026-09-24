@@ -165,7 +165,9 @@ const CASES = [
   { file: 'pages/memory/memory.wxss', selector: '.empty-state', surfaces: [], note: '欢乐时光加载失败重试入口' },
   { file: 'pages/bind/bind.wxss', selector: '.bound-code', surfaces: [['app.wxss', '.premium-card']], note: '绑定页点按复制房间码' },
   { file: 'pages/bind/bind.wxss', selector: '.tab', surfaces: [['app.wxss', '.premium-card'], ['pages/bind/bind.wxss', '.tab-bar']], note: '绑定页未选中 tab' },
-  { file: 'app.wxss', selector: '.btn-danger', surfaces: [], note: '危险操作（删除/解除绑定）' }
+  { file: 'app.wxss', selector: '.btn-danger', surfaces: [], note: '危险操作（删除/解除绑定）' },
+  // issue #77：设置清除本地数据行在点之前就是危险样式，红字在卡片表面上同样要读得清
+  { file: 'pages/settings/settings.wxss', selector: '.menu-item.danger .menu-text', surfaces: [['app.wxss', '.premium-card']], note: '设置清除本地数据危险行文字' }
 ]
 
 test('the 4.5:1 benchmark: unselected tab grey on canvas navy', () => {

@@ -1,4 +1,8 @@
 /* ===== Aurora Bloom: Memory Edit ===== */
+/* 导航标题不可点：中性文字色（共享基类在 app.wxss，页面侧覆盖颜色，issue #77） */
+.nav-title {
+  color: rgba(255,255,255,0.92);
+}
 .content {
   padding: 24rpx 24rpx calc(24rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
   position: relative;
@@ -9,6 +13,10 @@
 .premium-card {
   padding: 36rpx;
   box-sizing: border-box;
+}
+/* 表单卡片本身没有点按操作：按下不缩放（issue #81）；卡内控件保持各自登记的按压缩放 */
+.premium-card:active {
+  transform: none;
 }
 
 /* Form Items */
@@ -58,26 +66,34 @@
 .form-input {
   box-sizing: border-box;
   width: 100%;
-  height: 88rpx;
   min-height: 88rpx;
   font-size: var(--font-size-input);
   font-weight: var(--font-weight-body);
-  line-height: 88rpx;
+  line-height: var(--line-height-body);
   color: rgba(255,255,255,0.85);
-  padding: 0 22rpx;
+  padding: 22rpx;
   background: rgba(255,255,255,0.06), var(--glass-fallback);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.12);
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  transition: border-color 0.3s ease;
 }
+/* 备注输入焦点：登记的 1px 实线玫瑰描边（基线边框本就是 1px solid），不加光晕（issue #81） */
 .form-input:focus {
-  border-color: rgba(232,144,158,0.4);
-  box-shadow: 0 0 20px rgba(232,144,158,0.1);
+  border-color: #E8909E;
 }
 .input-placeholder {
-  line-height: 88rpx;
+  line-height: var(--line-height-body);
+}
+
+/* 草稿恢复说明：表单上常驻可见，不只靠一闪而过的提示 */
+.draft-notice {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  color: var(--aurora-pink);
+  margin-bottom: 24rpx;
 }
 
 /* Buttons */

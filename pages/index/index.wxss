@@ -2,6 +2,11 @@
 .page {
   overflow: hidden;
 }
+/* 导航标题不可点：中性文字色（共享基类在 app.wxss，页面侧覆盖颜色，issue #77）；
+   月份标题 .month-title 保持玫瑰——它本身是打开选月的控件 */
+.nav-title {
+  color: rgba(255,255,255,0.92);
+}
 .content {
   padding: 0 24rpx 30rpx;
   position: relative;
@@ -66,6 +71,33 @@
 @keyframes syncDotPulse {
   0%, 100% { opacity: 0.55; transform: scale(0.9); }
   50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* 刷新失败重试句（issue #79）：已加载后的后台刷新失败留驻的可点行。
+   正常文档流（非 fixed/absolute）放在月份导航与周头之间，不遮月份标题；
+   文案行玫瑰可点色，88rpx 触控高度。 */
+.refresh-retry {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0 0 8rpx;
+  padding: 0 28rpx;
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: transform 0.2s var(--ease-out), background-color 0.2s var(--ease-out);
+}
+.refresh-retry:active {
+  transform: scale(0.98);
+  background: rgba(255,255,255,0.09);
+}
+.refresh-retry-text {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-control);
+  line-height: var(--line-height-assist);
+  color: #E8909E;
 }
 
 /* ===== Month Navigation – Glassmorphism ===== */
@@ -144,8 +176,10 @@
   -webkit-backdrop-filter: blur(10px);
   position: relative;
   z-index: 1;
+  transition: background-color 0.2s ease, transform 0.2s var(--ease-out);
 }
 .nav-btn:active {
+  transform: scale(0.96);
   background: rgba(255,255,255,0.2), var(--glass-fallback);
 }
 
@@ -237,6 +271,8 @@
   align-items: center;
   justify-content: flex-start;
   position: relative;
+  /* 节日/调休标签裁在格子内，不画进相邻格子；读屏与当日详情仍用完整节日名 */
+  overflow: hidden;
   border-radius: var(--radius-md);
   padding: 4rpx 0;
   box-sizing: border-box;
@@ -249,13 +285,24 @@
   visibility: hidden;
 }
 .calendar-density-compact .day-cell {
-  height: 104rpx;
+  height: 140rpx;
   justify-content: center;
   padding: 10rpx 0 12rpx;
 }
 .calendar-density-compact .day-num {
   font-size: var(--font-size-calendar-date-compact);
   line-height: 38rpx;
+}
+/* 清爽密度也读节日/调休：标签行占固定槽位，保证日期数字横向对齐 */
+.calendar-density-compact .day-tag-line {
+  height: 34rpx;
+  margin-top: 2rpx;
+}
+.calendar-density-compact .day-tag {
+  height: 34rpx;
+  line-height: 34rpx;
+  padding: 0 8rpx;
+  font-size: var(--font-size-calendar-micro);
 }
 .calendar-density-compact .day-marks {
   height: 30rpx;
@@ -307,6 +354,7 @@
   color: rgba(255,255,255,0.62);
 }
 .day-tag-line {
+  width: 100%;
   height: 38rpx;
   margin-top: 2rpx;
   display: flex;
@@ -321,8 +369,10 @@
   box-sizing: border-box;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
-  text-align: center;
+  /* 超长节日名只在尾部被格边界裁掉、起点可读；放得下时盒宽=文宽，短名视觉不变 */
+  text-align: left;
   white-space: nowrap;
+  max-width: 100%;
 }
 .holiday-tag {
   color: #0A0E27;
@@ -534,6 +584,9 @@
 }
 .quick-btn {
   flex: 1;
+  /* 320px 宽上可点高度 ≥44px：104rpx ≈ 44.4px@320px（与 compact 日历格同换算），不缩字号 */
+  min-height: 104rpx;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -550,8 +603,16 @@
   transform: scale(0.96);
   box-shadow: 0 4rpx 14rpx rgba(232,144,158,0.18);
 }
+/* 记录入口图标 = 日历图例标记：海军圆盘上承载经期玫瑰圆点 / 欢乐时光浅色心（.period-tone / .memory-tone） */
 .quick-icon {
+  flex: 0 0 auto;
+  width: 40rpx;
+  height: 40rpx;
+  line-height: 40rpx;
+  text-align: center;
+  border-radius: var(--radius-circle);
   font-size: 32rpx;
+  background: #0A0E27;
 }
 .quick-text {
   font-size: var(--font-size-body);
@@ -649,8 +710,8 @@
 .no-room-title {
   font-size: var(--font-size-title);
   font-weight: var(--font-weight-title);
-  color: #E8909E;
-  text-shadow: 0 0 14rpx rgba(232,144,158,0.28);
+  /* 未绑定/加载失败标题不可点：中性文字色，不用玫瑰（issue #77） */
+  color: rgba(255,255,255,0.92);
 }
 .no-room-desc {
   font-size: var(--font-size-caption);
@@ -767,7 +828,8 @@
   font-size: var(--font-size-body-lg);
   font-weight: var(--font-weight-control);
   text-align: center;
-  color: #E8909E;
+  /* 选月年份数字不是控件本体（步进箭头才是），用中性文字色（issue #77） */
+  color: rgba(255,255,255,0.9);
   font-variant-numeric: tabular-nums;
 }
 .jump-month-grid {
@@ -914,7 +976,7 @@
   border: 1px solid rgba(255,255,255,0.12);
 }
 .sheet-close:active {
-  transform: scale(0.92);
+  transform: scale(0.96);
   background: rgba(255,255,255,0.14);
 }
 .sheet-actions {
@@ -1327,10 +1389,12 @@
 @media (prefers-reduced-motion: reduce) {
   .sync-pill,
   .sync-pill.syncing .sync-dot,
+  .refresh-retry,
   .day-sheet-mask,
   .day-action-sheet,
   .calendar-jump-sheet,
   .month-title-trigger,
+  .nav-btn,
   .jump-option,
   .jump-confirm,
   .jump-year-step,

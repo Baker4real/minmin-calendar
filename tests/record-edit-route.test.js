@@ -128,7 +128,7 @@ test('memory edit page clamps the date picker to today', () => {
     'utf8'
   )
 
-  assert.match(memoryEditWxml, /<picker mode="date" value="\{\{date\}\}" end="\{\{maxDate\}\}" bindchange="onDateChange"[^>]*>/)
+  assert.match(memoryEditWxml, /<picker mode="date" value="\{\{date\}\}" end="\{\{maxDate\}\}"[^>]*bindchange="onDateChange"[^>]*>/)
   assert.match(memoryEditJs, /maxDate:\s*''/)
 })
 

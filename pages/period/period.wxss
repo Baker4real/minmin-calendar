@@ -1,4 +1,8 @@
 /* ===== Aurora Bloom: Period ===== */
+/* 导航标题不可点：中性文字色（共享基类在 app.wxss，页面侧覆盖颜色，issue #77） */
+.nav-title {
+  color: rgba(255,255,255,0.92);
+}
 .content {
   padding: 0 24rpx 30rpx;
   position: relative;
@@ -73,6 +77,7 @@
 }
 .item-left {
   flex: 1;
+  min-width: 0;
 }
 .item-date {
   font-size: var(--font-size-body);
@@ -88,6 +93,9 @@
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.5);
   margin-top: 6rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .item-tags {
   display: flex;
@@ -107,10 +115,11 @@
   background: var(--glass-bg);
   border: 1px solid rgba(255,255,255,0.1);
 }
+/* 经量标签 = 编辑页选中芯片的玫瑰角色；症状标签保持上面的中性样式 */
 .item-tag.flow {
   color: #0A0E27;
-  background: rgba(212,165,116,0.86);
-  border-color: rgba(212,165,116,0.9);
+  background: rgba(232,144,158,0.92);
+  border-color: rgba(232,144,158,0.95);
 }
 .item-right {
   display: flex;
@@ -199,4 +208,43 @@
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--radius-card);
+}
+
+/* Load Failure —— 重试是可识别的操作（玫瑰小操作按钮），不是空列表的安静说明 */
+.load-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+}
+.retry-btn {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 64rpx;
+  border-radius: var(--radius-sm);
+  background: var(--aurora-pink);
+  color: #0A0E27;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-control);
+}
+.retry-btn:active {
+  transform: scale(0.96);
+}
+
+/* 已有数据后刷新失败：列表与数字保留，重试行留在列表区域 */
+.list-retry {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  min-height: 88rpx;
+  margin-top: 16rpx;
+}
+.list-retry-text {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  color: var(--text-secondary);
 }

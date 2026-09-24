@@ -23,7 +23,8 @@ Page({
     symptomGroups: cycle.buildSymptomOptions(),
     isEdit: false,
     saving: false,
-    deleting: false
+    deleting: false,
+    draftRestored: false
   },
 
   onLoad(options) {
@@ -42,6 +43,7 @@ Page({
     this._draftDiscarded = false
     this.setData({
       ...formState,
+      draftRestored: !!storedDraft,
       symptomGroups: cycle.buildSymptomOptions(formState.symptoms)
     })
     if (storedDraft) {
@@ -79,10 +81,12 @@ Page({
   onEndChange(e) { this.setData({ endDate: e.detail.value }) },
   onNoteInput(e) { this.setData({ note: e.detail.value }) },
   selectFlow(e) {
+    if (this.data.saving) return
     const flow = e.currentTarget.dataset.value
     this.setData({ flow: this.data.flow === flow ? '' : flow })
   },
   toggleSymptom(e) {
+    if (this.data.saving) return
     const value = e.currentTarget.dataset.value
     const selected = new Set(this.data.symptoms)
     if (selected.has(value)) selected.delete(value)
@@ -135,24 +139,29 @@ Page({
   },
 
   async delete() {
-    if (this.data.deleting) return
-    const client = cloud.createRoomDataClient()
-    const outcome = await recordCommands.runRecordDelete({
-      page: this,
-      action: () => client.remove('periods', this.data.id),
-      confirmTitle: '确认删除',
-      confirmContent: '删除后你们两人的日历都会移除这条经期记录，且不可恢复',
-      successTitle: '已删除',
-      failureTitle: '删除失败'
-    })
-    if (outcome.kind === 'success') {
-      this.discardRecordDraft()
-      recordPageSync.notifyPreviousPageRecordChange({
-        collection: 'periods',
-        mode: 'remove',
-        record: { _id: this.data.id }
+    if (this.data.saving || this.data.deleting || this._deleteConfirming) return
+    this._deleteConfirming = true
+    try {
+      const client = cloud.createRoomDataClient()
+      const outcome = await recordCommands.runRecordDelete({
+        page: this,
+        action: () => client.remove('periods', this.data.id),
+        confirmTitle: '确认删除',
+        confirmContent: '删除后你们两人的日历都会移除这条经期记录，且不可恢复',
+        successTitle: '已删除',
+        failureTitle: '删除失败'
       })
+      if (outcome.kind === 'success') {
+        this.discardRecordDraft()
+        recordPageSync.notifyPreviousPageRecordChange({
+          collection: 'periods',
+          mode: 'remove',
+          record: { _id: this.data.id }
+        })
+      }
+      return outcome
+    } finally {
+      this._deleteConfirming = false
     }
-    return outcome
   }
 })

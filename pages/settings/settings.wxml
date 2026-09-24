@@ -6,29 +6,32 @@
   </view>
 
   <view class="content">
-    <!-- 用户卡片 -->
+    <!-- 用户卡片：品牌心是文本字形（颜色走 wxss），不用红色心形表情（issue #77） -->
     <view class="profile-card premium-card fade-in">
-      <view class="profile-avatar">❤️</view>
+      <view class="profile-avatar">♥</view>
       <view class="profile-name">美少女的日历</view>
       <text class="profile-desc">记录属于你们的每一天</text>
     </view>
 
-    <!-- 房间号 -->
+    <!-- 房间号（菜单表情只重复标签，不再使用，issue #77） -->
     <view class="premium-card fade-in fade-in-d1">
       <view class="menu-item room-code-item">
-        <text class="menu-icon">🔑</text>
         <view class="room-code-content">
           <text class="room-code-label">我的房间码</text>
           <text class="room-code-value {{roomCode ? '' : 'muted'}}">{{roomCodeDisplay || roomCode || '未绑定'}}</text>
         </view>
         <view wx:if="{{roomCode}}" class="copy-btn" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码">复制</view>
       </view>
+      <!-- 拿不到房间码时给下一步：重试解析或去绑定，不再是死句子（issue #79） -->
+      <view wx:if="{{roomCodeLoaded && !roomCode}}" class="room-code-actions">
+        <view class="room-action-btn" bindtap="retryRoomResolve" aria-role="button" aria-label="重试获取房间码">重试</view>
+        <view class="room-action-btn" bindtap="goBind" aria-role="button" aria-label="去绑定房间">去绑定</view>
+      </view>
     </view>
 
     <!-- 日历显示密度（首页日历的密度偏好入口） -->
     <view class="premium-card fade-in fade-in-d2">
       <view class="menu-item">
-        <text class="menu-icon">🗓️</text>
         <view class="density-menu-copy">
           <text class="menu-text">日历显示</text>
           <text class="density-menu-desc">清爽只看日期与标记，完整加显农历与节日</text>
@@ -54,10 +57,10 @@
       </view>
     </view>
 
-    <!-- 功能菜单 -->
+    <!-- 功能菜单：欢乐时光入口用欢乐时光标记的浅色心，不用表情（issue #77） -->
     <view class="premium-card fade-in fade-in-d2">
       <view class="menu-item" bindtap="goMemory" aria-role="button" aria-label="查看欢乐时光">
-        <text class="menu-icon">❤️</text>
+        <text class="menu-icon menu-heart">♥</text>
         <text class="menu-text">欢乐时光</text>
         <text class="menu-arrow">›</text>
       </view>
@@ -65,12 +68,14 @@
 
     <view class="premium-card fade-in fade-in-d3">
       <view class="menu-item" bindtap="exportData" aria-role="button" aria-label="导出数据">
-        <text class="menu-icon">📤</text>
         <text class="menu-text">导出数据</text>
         <text class="menu-arrow">›</text>
       </view>
-      <view class="menu-item" bindtap="clearData" aria-role="button" aria-label="清除本地数据">
-        <text class="menu-icon">🗑️</text>
+    </view>
+
+    <!-- 清除本地数据：点之前就是危险样式——警告红字 + 警告红描边（issue #77） -->
+    <view class="premium-card fade-in fade-in-d3">
+      <view class="menu-item danger" bindtap="clearData" aria-role="button" aria-label="清除本地数据">
         <text class="menu-text">清除本地数据</text>
         <text class="menu-arrow">›</text>
       </view>
@@ -78,7 +83,6 @@
 
     <view class="premium-card fade-in fade-in-d3">
       <view class="menu-item" bindtap="about" aria-role="button" aria-label="关于">
-        <text class="menu-icon">ℹ️</text>
         <text class="menu-text">关于</text>
         <text class="menu-arrow">›</text>
       </view>

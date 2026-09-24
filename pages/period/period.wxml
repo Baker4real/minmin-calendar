@@ -13,7 +13,9 @@
       <text class="card-label">周期概览</text>
       <view class="cycle-stats">
         <view class="cycle-item">
-          <text wx:if="{{!loading}}" class="cycle-num">{{periods.length}}</text>
+          <!-- 首次加载失败时不给确信的 0；已成功加载过则保留上次的数字 -->
+          <text wx:if="{{!loading && (!loadFailed || hasLoaded)}}" class="cycle-num">{{periods.length}}</text>
+          <text wx:elif="{{!loading}}" class="cycle-num">--</text>
           <text class="cycle-label">总记录</text>
         </view>
         <view class="cycle-item">
@@ -29,8 +31,10 @@
 
     <view class="btn-premium" bindtap="addPeriod" aria-role="button" aria-label="新增经期记录">＋ 新增经期记录</view>
 
-    <view wx:if="{{loadFailed && !loading}}" class="empty-state" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试">
-      <text>加载失败，点按重试</text>
+    <!-- 首次加载失败：重试是可识别的操作，不是与空列表一样的安静说明 -->
+    <view wx:if="{{loadFailed && !hasLoaded && !loading}}" class="empty-state load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试">
+      <text class="load-failed-text">经期记录加载失败</text>
+      <view class="retry-btn">重试</view>
     </view>
     <view wx:elif="{{periods.length > 0 && !loading}}" class="premium-card">
       <view class="list-item" wx:for="{{periods}}" wx:key="_id" wx:for-index="i" bindtap="editPeriod" data-index="{{i}}" aria-role="button" aria-label="编辑经期记录 {{item.startDate}} 至 {{item.endDate}}">
@@ -53,8 +57,15 @@
         </view>
       </view>
     </view>
-    <view wx:elif="{{periods.length === 0 && !loading}}" class="empty-state">
+    <!-- 空态断言句只在确认没有失败时出现：成功加载 0 条后再刷新失败时，数字保留 0，语境由重试行解释 -->
+    <view wx:elif="{{periods.length === 0 && !loading && !loadFailed}}" class="empty-state">
       <text>还没有经期记录\n点上面按钮新增</text>
+    </view>
+
+    <!-- 已成功加载过再失败：保留上次列表与数字，重试留在列表区域 -->
+    <view wx:if="{{loadFailed && hasLoaded && !loading}}" class="list-retry" bindtap="loadData" aria-role="button" aria-label="刷新失败，点按重试">
+      <text class="list-retry-text">刷新失败，正在显示上次的内容</text>
+      <view class="retry-btn">重试</view>
     </view>
 
     <view wx:if="{{loading}}" class="skeleton-card">

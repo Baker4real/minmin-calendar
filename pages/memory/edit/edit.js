@@ -9,7 +9,7 @@ const safeArea = require('../../../utils/safeArea')
 const DRAFT_FIELDS = ['date', 'note']
 
 Page({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false, draftRestored: false },
 
   onLoad(options) {
     const routeState = recordEditRoute.parseMemoryEditOptions(options, {
@@ -25,7 +25,7 @@ Page({
     this._draftKey = draftKey
     this._draftBaseline = recordDraft.pickDraftFields(routeState, DRAFT_FIELDS)
     this._draftDiscarded = false
-    this.setData(formState)
+    this.setData({ ...formState, draftRestored: !!storedDraft })
     if (storedDraft) {
       wx.showToast({ title: '已恢复上次未完成的输入', icon: 'none' })
     }
@@ -97,24 +97,29 @@ Page({
   },
 
   async delete() {
-    if (this.data.deleting) return
-    const client = cloud.createRoomDataClient()
-    const outcome = await recordCommands.runRecordDelete({
-      page: this,
-      action: () => client.remove('memories', this.data.id),
-      confirmTitle: '确认删除',
-      confirmContent: '删除后你们两人的日历都会移除这条欢乐时光，且不可恢复',
-      successTitle: '已删除',
-      failureTitle: '删除失败'
-    })
-    if (outcome.kind === 'success') {
-      this.discardRecordDraft()
-      recordPageSync.notifyPreviousPageRecordChange({
-        collection: 'memories',
-        mode: 'remove',
-        record: { _id: this.data.id }
+    if (this.data.saving || this.data.deleting || this._deleteConfirming) return
+    this._deleteConfirming = true
+    try {
+      const client = cloud.createRoomDataClient()
+      const outcome = await recordCommands.runRecordDelete({
+        page: this,
+        action: () => client.remove('memories', this.data.id),
+        confirmTitle: '确认删除',
+        confirmContent: '删除后你们两人的日历都会移除这条欢乐时光，且不可恢复',
+        successTitle: '已删除',
+        failureTitle: '删除失败'
       })
+      if (outcome.kind === 'success') {
+        this.discardRecordDraft()
+        recordPageSync.notifyPreviousPageRecordChange({
+          collection: 'memories',
+          mode: 'remove',
+          record: { _id: this.data.id }
+        })
+      }
+      return outcome
+    } finally {
+      this._deleteConfirming = false
     }
-    return outcome
   }
 })

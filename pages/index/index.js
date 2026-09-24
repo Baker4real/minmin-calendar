@@ -58,6 +58,7 @@ Page({
     loading: true,
     refreshing: false,
     hasLoadedHomeData: false,
+    refreshRetryVisible: false,
     syncStatusVisible: false,
     syncStatusText: '',
     noRoom: false,
@@ -156,6 +157,7 @@ Page({
       this.setData({
         loading: true,
         refreshing: false,
+        refreshRetryVisible: false,
         syncStatusVisible: false,
         syncStatusText: '',
         noRoom: false,
@@ -209,6 +211,7 @@ Page({
       hasLoadedHomeData: true,
       loading: false,
       refreshing: false,
+      refreshRetryVisible: false,
       noRoom: false,
       roomStatusTitle: '',
       roomStatusDesc: '',
@@ -242,6 +245,9 @@ Page({
       this.applyRoomStatusOutcome(outcome)
       return
     }
+    // 日历已显示过：刷新失败留驻可点的重试句，不自动消失，
+    // 直到重试成功或被后一次成功刷新替换（_resolveLoad 成功路径清除）
+    this.setData({ refreshRetryVisible: true })
     if (this._hasPendingRevisions()) {
       this.showSyncStatus('同步失败，稍后重试', { autoHide: true })
     } else {
@@ -463,6 +469,12 @@ Page({
     }
   },
 
+  // 首页已加载后的刷新失败重试：保持后台刷新语义，失败时日历与重试句都留驻，
+  // 不把已显示的日历换回整页失败画面
+  retryRefresh() {
+    return this.loadData({ background: true })
+  },
+
   goBind() { wx.redirectTo({ url: '/pages/bind/bind' }) },
 
   openLegendSheet() {
@@ -602,6 +614,7 @@ Page({
     this.setData({
       hasLoadedHomeData: false,
       refreshing: false,
+      refreshRetryVisible: false,
       syncStatusVisible: false,
       syncStatusText: '',
       noRoom: true,

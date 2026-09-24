@@ -10,6 +10,11 @@ const PERIOD_EDIT_WXSS = fs.readFileSync(
   'utf8'
 )
 
+const PERIOD_LIST_WXSS = fs.readFileSync(
+  path.join(__dirname, '..', 'pages/period/period.wxss'),
+  'utf8'
+)
+
 function parseRules(wxss) {
   const withoutComments = wxss.replace(/\/\*[\s\S]*?\*\//g, '')
   const rules = []
@@ -80,6 +85,22 @@ function activeChipPair(wxss, chipClass) {
   }
 }
 
+function declarationFor(wxss, selector, prop) {
+  let value
+  for (const rule of parseRules(wxss)) {
+    if (!rule.selectors.includes(selector)) continue
+    if (Object.prototype.hasOwnProperty.call(rule.decls, prop)) {
+      value = rule.decls[prop]
+    }
+  }
+  return value
+}
+
+function ruleTextFor(wxss, selector) {
+  const rule = parseRules(wxss).find((candidate) => candidate.selectors.includes(selector))
+  return rule ? Object.entries(rule.decls).map(([prop, value]) => `${prop}: ${value}`).join('; ') : ''
+}
+
 function assertReadableChip(chipClass, label) {
   const { color, fill } = activeChipPair(PERIOD_EDIT_WXSS, chipClass)
   const ratio = contrastRatio(color, fill)
@@ -123,4 +144,36 @@ test('white type on active chip fills fails 4.5:1', () => {
   const symptom = activeChipPair(PERIOD_EDIT_WXSS, 'symptom-chip')
   assert.equal(meetsContrast('#FFFFFF', flow.fill), false)
   assert.equal(meetsContrast('#FFFFFF', symptom.fill), false)
+})
+
+// issue #76：经期列表的经量标签与编辑页选中芯片同一玫瑰角色；症状保持中性，不用预测金。
+test('list flow tag rides the same rose fill and navy type as the selected edit chip', () => {
+  assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-tag.flow', 'color'), '#0A0E27')
+  assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-tag.flow', 'background'), 'rgba(232,144,158,0.92)')
+  assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-tag.flow', 'border-color'), 'rgba(232,144,158,0.95)')
+
+  const editChip = activeChipPair(PERIOD_EDIT_WXSS, 'flow-chip')
+  assert.equal(cssColorToHex('rgba(232,144,158,0.92)'), editChip.fill)
+  assert.equal(cssColorToHex('#0A0E27'), editChip.color)
+})
+
+test('list flow tag keeps navy type readable on the rose fill', () => {
+  const ratio = contrastRatio('#0A0E27', cssColorToHex('rgba(232,144,158,0.92)'))
+  assert.equal(
+    meetsContrast('#0A0E27', cssColorToHex('rgba(232,144,158,0.92)')),
+    true,
+    `list flow tag #0A0E27 on rose is ${ratio.toFixed(2)}:1, need ≥4.5:1`
+  )
+})
+
+test('list symptom tags stay neutral — no rose fill, no gold', () => {
+  assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-tag', 'color'), 'var(--text-secondary)')
+  assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-tag', 'background'), 'var(--glass-bg)')
+  const symptomRule = ruleTextFor(PERIOD_LIST_WXSS, '.item-tag')
+  assert.doesNotMatch(symptomRule, /aurora-pink|232,\s*144,\s*158/)
+})
+
+test('period list styles drop prediction gold from the flow tag', () => {
+  assert.doesNotMatch(ruleTextFor(PERIOD_LIST_WXSS, '.item-tag.flow'), /212,\s*165,\s*116|aurora-gold|D4A574/i)
+  assert.doesNotMatch(PERIOD_LIST_WXSS, /212,\s*165,\s*116/)
 })

@@ -68,6 +68,11 @@ test('bind .tab.active rose fill uses canvas-navy label at 4.5:1', () => {
   assertRoseFillNavyLabel(readStylesheet('pages/bind/bind.wxss'), '.tab.active')
 })
 
+// issue #78：绑定页已绑定画面与设置页共用同一种复制小按钮——玫瑰底、海军字、相同圆角
+test('bind .copy-btn rose fill uses canvas-navy label at 4.5:1', () => {
+  assertRoseFillNavyLabel(readStylesheet('pages/bind/bind.wxss'), '.copy-btn')
+})
+
 // issue #55：首页主操作统一玫瑰填充 + 画布海军字（快速记录、提醒记录、月份确认、月份选中态、复制小结）
 const INDEX_WXSS = 'pages/index/index.wxss'
 

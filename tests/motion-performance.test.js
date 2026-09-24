@@ -411,6 +411,38 @@ test('loading keeps an opacity-only pulse under reduced motion instead of going 
   assert.deepEqual([...props].sort(), ['opacity'], 'loadingPulse must be opacity-only (movement-free)')
 })
 
+// issue #73：月份箭头与弹层关闭的按压缩放落在登记的 0.94–0.98 区间；
+// 减弱动效下仍是「立即缩放」——RM 块移除 transition，按压态变化瞬时发生，不另加动画。
+test('month arrows and sheet close press inside the registered 0.94-0.98 band and stay instant under reduced motion', () => {
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+
+  const pressScale = (selector) => {
+    const active = index.rules.find((item) => item.selectors.includes(`${selector}:active`))
+    assert.ok(active, `expected rule ${selector}:active`)
+    assert.ok(active.decls.transform, `${selector}:active must declare a press scale`)
+    const scale = /^scale\(([\d.]+)\)$/.exec(active.decls.transform.trim())
+    assert.ok(scale, `${selector}:active press transform must be a plain scale, got ${active.decls.transform}`)
+    return Number(scale[1])
+  }
+
+  for (const selector of ['.nav-btn', '.sheet-close']) {
+    const scale = pressScale(selector)
+    assert.ok(
+      scale >= 0.94 && scale <= 0.98,
+      `${selector}:active press scale ${scale} is outside the registered 0.94-0.98 band`
+    )
+  }
+
+  // 减弱动效：两个控件都在 RM 名单里（transition: none），按下时缩放立即生效，无第二段动画
+  const covered = new Set(index.reducedMotionRules.flatMap((rule) => rule.selectors))
+  for (const selector of ['.nav-btn', '.sheet-close']) {
+    assert.ok(covered.has(selector), `reduced-motion block must neutralize ${selector} transitions`)
+    const rmRule = index.reducedMotionRules.find((rule) => rule.selectors.includes(selector))
+    assert.equal(rmRule.decls.animation, 'none', `${selector} must not gain a second animation under reduced motion`)
+    assert.equal(rmRule.decls.transition, 'none', `${selector} press must be instant under reduced motion`)
+  }
+})
+
 test('state channels survive reduced motion: sync color, calendar swap state, sheet mask hierarchy', () => {
   const index = analyzeFile(readRepo('pages/index/index.wxss'))
   const app = analyzeFile(readRepo('app.wxss'))
@@ -442,6 +474,7 @@ test('reduced-motion blocks keep covering the named sheet, sync, and ambient lay
     '.calendar-jump-sheet',
     '.no-room-icon',
     '.day-cell',
+    '.nav-btn',
     '.quick-btn'
   ]) {
     assert.ok(indexCovered.has(selector), `index reduced-motion block must cover ${selector}`)
