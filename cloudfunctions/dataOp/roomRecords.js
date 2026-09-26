@@ -185,6 +185,8 @@ function parseDate(dateStr) {
 
 module.exports = {
   ALLOWED_COLLECTIONS,
+  FLOW_VALUES,
+  SYMPTOM_VALUES,
   createRoomRecords,
   normalizeRecord
 }

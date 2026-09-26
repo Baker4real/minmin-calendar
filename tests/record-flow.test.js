@@ -978,6 +978,9 @@ test('period list first failure keeps hasLoaded false, then a retry loads record
         decoratePeriod(period) {
           return period
         },
+        getPeriodDuration(period) {
+          return stubGetPeriodDuration(period)
+        },
         predictNextPeriod() {
           return { canPredict: false, avgCycle: null, avgDuration: null }
         }
@@ -1086,6 +1089,9 @@ test('period list keeps the 0 count and retry row without the assertive empty no
       'utils/cycle.js': {
         decoratePeriod(period) {
           return period
+        },
+        getPeriodDuration(period) {
+          return stubGetPeriodDuration(period)
         },
         predictNextPeriod() {
           return { canPredict: false, avgCycle: null, avgDuration: null }
@@ -1667,6 +1673,13 @@ function createUtilStub() {
       return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
     }
   }
+}
+
+function stubGetPeriodDuration(period) {
+  const util = require(path.join(repoRoot, 'utils/util.js'))
+  const range = util.normalizeDateRange(period)
+  if (!range) return 0
+  return util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
 }
 
 // 与 tests/record-draft.test.js 同形的页面 harness：加载真实页面 JS，

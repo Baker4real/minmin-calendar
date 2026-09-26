@@ -264,7 +264,6 @@ test('index calendar keeps marker and tag semantics explicit for each meaning', 
   assert.match(wxml, /item\.isWorkday \? 'workday' : ''/)
   assert.match(wxml, /wx:if="{{item\.isPeriod}}" class="mark period-mark"/)
   assert.match(wxml, /wx:if="{{item\.isMemory}}" class="mark memory-mark"/)
-  assert.match(wxml, /wx:if="{{item\.isPredict && !item\.isPeriod}}" class="mark predict-mark"/)
   assert.match(wxml, /wx:if="{{item\.holidayName}}" class="day-tag holiday-tag"/)
   assert.match(wxml, /wx:elif="{{item\.isWorkday}}" class="day-tag workday-tag"/)
 })

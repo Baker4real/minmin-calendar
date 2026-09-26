@@ -1,9 +1,20 @@
 const assert = require('node:assert/strict')
 const test = require('node:test')
 
-const { createRoomRecords } = require('../cloudfunctions/dataOp/roomRecords')
+const { createRoomRecords, FLOW_VALUES, SYMPTOM_VALUES } = require('../cloudfunctions/dataOp/roomRecords')
+const { FLOW_OPTIONS, SYMPTOM_OPTIONS } = require('../utils/cycle')
 
 const SERVER_DATE = { serverDate: true }
+
+test('cycle module and cloud period copy allow the same flow and symptom values', () => {
+  const flow = ['heavy', 'light', 'normal']
+  const symptoms = ['acne', 'cramps', 'cravings', 'headache', 'mood', 'sleep', 'tired']
+
+  assert.deepEqual(sortedAllowedValues(FLOW_OPTIONS), flow)
+  assert.deepEqual(sortedAllowedValues(FLOW_VALUES), flow)
+  assert.deepEqual(sortedAllowedValues(SYMPTOM_OPTIONS), symptoms)
+  assert.deepEqual(sortedAllowedValues(SYMPTOM_VALUES), symptoms)
+})
 
 test('RoomRecords add stores a normalized Period record for the active Room', async () => {
   const db = createFakeDb()
@@ -408,6 +419,10 @@ function createQuery(records, query) {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value))
+}
+
+function sortedAllowedValues(values) {
+  return [...values].map(item => item.value || item).sort()
 }
 
 function pickClientRecord(record) {

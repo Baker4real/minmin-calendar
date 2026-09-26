@@ -48,19 +48,10 @@ Page({
 
 function calculateAverageDuration(periods = []) {
   const durations = periods
-    .map(getValidPeriodDuration)
+    .map(cycle.getPeriodDuration)
     .filter(duration => duration > 0)
 
   if (!durations.length) return null
   const total = durations.reduce((sum, duration) => sum + duration, 0)
   return Math.round(total / durations.length)
-}
-
-function getValidPeriodDuration(period) {
-  const range = util.normalizeDateRange(period)
-  if (!range) return null
-
-  const duration = Number(period.duration)
-  if (range.hasEndDate && Number.isFinite(duration) && duration > 0) return Math.round(duration)
-  return util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
 }

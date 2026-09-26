@@ -151,6 +151,48 @@ test('buildCycleReminders returns upcoming and overdue reminder states', () => {
   ])
 })
 
+test('period duration is the inclusive day count when stored duration conflicts with the dates', () => {
+  assert.equal(typeof cycle.getPeriodDuration, 'function')
+
+  assert.equal(cycle.getPeriodDuration({
+    startDate: '2026-06-01',
+    endDate: '2026-06-05',
+    duration: 99
+  }), 5)
+})
+
+test('period duration stays the inclusive day count when stored duration already matches the dates', () => {
+  assert.equal(cycle.getPeriodDuration({
+    startDate: '2026-06-01',
+    endDate: '2026-06-05',
+    duration: 5
+  }), 5)
+})
+
+test('period duration keeps the single-day fallback when a record has no usable end date', () => {
+  assert.equal(cycle.getPeriodDuration({
+    startDate: '2026-08-12',
+    duration: 9
+  }), 1)
+  assert.equal(cycle.getPeriodDuration({
+    startDate: '2026-08-12',
+    endDate: '',
+    duration: 9
+  }), 1)
+})
+
+test('predictNextPeriod counts inclusive date duration when stored duration conflicts', () => {
+  const prediction = cycle.predictNextPeriod([
+    { startDate: '2026-06-01', endDate: '2026-06-05', duration: 2 },
+    { startDate: '2026-06-30', endDate: '2026-07-04', duration: 9 }
+  ])
+
+  assert.equal(prediction.canPredict, true)
+  assert.equal(prediction.avgDuration, 5)
+  assert.equal(prediction.nextStart, '2026-07-29')
+  assert.equal(prediction.nextEnd, '2026-08-02')
+})
+
 test('buildPeriodPayload and decoratePeriod normalize optional flow and symptom tags', () => {
   assert.equal(typeof cycle.buildPeriodPayload, 'function')
   assert.equal(typeof cycle.decoratePeriod, 'function')

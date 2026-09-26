@@ -32,3 +32,6 @@ This repository uses a single-context documentation layout.
 - The app is a private two-person calendar, not a public social product.
 - "Happy time" is represented by memory records and should not share marker semantics with "today."
 - Period prediction is a lightweight calendar estimate, not medical advice.
+- On an overlap day (period + prediction), calendar projection suppresses prediction for that cell only; homepage 预测下次, legend, and prediction explanation remain.
+- Period duration with both dates present is always the inclusive date span from `utils/cycle.js`; stored `duration` is not a second display source.
+- Flow/symptom allowed-value sets must stay equal between `utils/cycle.js` labels and the self-contained cloud copy in `roomRecords.js`.

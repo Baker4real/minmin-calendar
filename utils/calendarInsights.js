@@ -106,7 +106,7 @@ function formatPeriodHighlight(period, monthStart, monthEnd) {
   const range = normalizePeriodRange(period)
   if (!range) return ''
 
-  const duration = getPeriodDuration(period)
+  const duration = cycle.getPeriodDuration(period)
   const detail = cycle.decoratePeriod({
     ...period,
     startDate: range.startDate,
@@ -177,15 +177,6 @@ function getPeriodDaysInMonth(period, monthStart, monthEnd) {
   const endDate = range.endDate < monthEnd ? range.endDate : monthEnd
   if (startDate > endDate) return 0
   return util.daysBetween(util.parseDate(startDate), util.parseDate(endDate)) + 1
-}
-
-function getPeriodDuration(period) {
-  const range = normalizePeriodRange(period)
-  if (!range) return 0
-
-  const duration = Number(period.duration)
-  if (range.hasEndDate && Number.isFinite(duration) && duration > 0) return Math.round(duration)
-  return util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
 }
 
 function formatMonthDay(dateStr) {

@@ -184,6 +184,66 @@ test('buildHomeCalendarState applies calendar marker semantics on top of date me
   assert.equal(periodMemoryAndPredict.lunarText, '六月廿八')
 })
 
+test('buildHomeCalendarState expresses a period day inside the prediction window as period only', () => {
+  const periods = [
+    period('2026-01-01', '2026-01-05'),
+    period('2026-01-29', '2026-02-02'),
+    period('2026-02-26', '2026-03-02'),
+    period('2026-04-20', '2026-04-24'),
+    period('2026-05-18', '2026-05-22'),
+    period('2026-06-15', '2026-06-19'),
+    period('2026-07-13', '2026-08-10')
+  ]
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods,
+    memories: [{ date: '2026-08-10', note: '庆祝晚餐' }],
+    today: '2026-08-20'
+  })
+
+  const periodOnly = state.days.find(day => day.date === '2026-08-08')
+  const overlap = state.days.find(day => day.date === '2026-08-09')
+  const overlapWithMemory = state.days.find(day => day.date === '2026-08-10')
+  const predictOnly = state.days.find(day => day.date === '2026-08-11')
+
+  assert.equal(periodOnly.isPeriod, true)
+  assert.equal(periodOnly.isPredict, false)
+  assert.equal(periodOnly.isMemory, false)
+  assert.equal(overlap.isPeriod, true)
+  assert.equal(overlap.isPredict, false)
+  assert.equal(overlap.isMemory, false)
+  assert.equal(overlapWithMemory.isPeriod, true)
+  assert.equal(overlapWithMemory.isMemory, true)
+  assert.equal(overlapWithMemory.isPredict, false)
+  assert.equal(predictOnly.isPeriod, false)
+  assert.equal(predictOnly.isMemory, false)
+  assert.equal(predictOnly.isPredict, true)
+  assert.deepEqual(
+    state.days.filter(day => day.isPredict).map(day => day.date),
+    ['2026-08-11']
+  )
+
+  assertPeriodDetailWithoutPrediction(state.dayDetailsByDate['2026-08-08'])
+  assertPeriodDetailWithoutPrediction(state.dayDetailsByDate['2026-08-09'])
+  assertPeriodDetailWithoutPrediction(state.dayDetailsByDate['2026-08-10'])
+  assert.deepEqual(
+    state.dayDetailsByDate['2026-08-10'].meanings.map(item => item.key),
+    ['period', 'memory']
+  )
+  assert.equal(state.dayDetailsByDate['2026-08-10'].memories[0].note, '庆祝晚餐')
+  assert.deepEqual(
+    state.dayDetailsByDate['2026-08-11'].meanings.map(item => [item.key, item.title]),
+    [['predict', '预测区间']]
+  )
+  assert.match(state.dayDetailsByDate['2026-08-11'].meanings[0].text, /预测/)
+
+  assert.equal(periodOnly.ariaLabel, '8月8日 周六 六月廿六 经期')
+  assert.equal(overlap.ariaLabel, '8月9日 周日 六月廿七 经期')
+  assert.equal(overlapWithMemory.ariaLabel, '8月10日 周一 六月廿八 经期 欢乐时光')
+  assert.equal(predictOnly.ariaLabel, '8月11日 周二 六月廿九 预测区间')
+})
+
 test('buildHomeCalendarState aligns missing endDate period markers with detail rows', () => {
   const state = buildHomeCalendarState({
     year: 2026,
@@ -536,6 +596,12 @@ test('buildHomeCalendarState ignores impossible dates in markers and details', (
   assert.match(validDetails.memories[0].key, /^memory:fallback:/)
   assert.equal(validDetails.memories[0].note, 'valid memory')
 })
+
+function assertPeriodDetailWithoutPrediction(detail) {
+  assert.ok(detail.meanings.some(item => item.key === 'period' && /经期/.test(item.title)))
+  assert.equal(detail.meanings.some(item => item.key === 'predict' || /预测区间/.test(`${item.title} ${item.text}`)), false)
+  assert.equal(detail.periods.length > 0, true)
+}
 
 function period(startDate, endDate) {
   return {

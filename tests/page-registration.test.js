@@ -789,6 +789,9 @@ test('period page fallback average ignores impossible dates', async () => {
         decoratePeriod(period) {
           return period
         },
+        getPeriodDuration(period) {
+          return stubGetPeriodDuration(period)
+        },
         predictNextPeriod() {
           return { canPredict: false, avgCycle: null, avgDuration: null }
         }
@@ -800,6 +803,84 @@ test('period page fallback average ignores impossible dates', async () => {
     await awaitPageOnShow(harness.page)
 
     assert.equal(harness.page.data.avgCycle, null)
+    assert.equal(harness.page.data.avgDuration, 5)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('period list shows date-based duration and averages it when prediction is unavailable', async () => {
+  const harness = loadPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list() {
+              return {
+                kind: 'success',
+                data: [
+                  { _id: 'closed', startDate: '2026-06-01', endDate: '2026-06-05', duration: 99 },
+                  { _id: 'open', startDate: '2026-08-12', duration: 9 }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+
+  try {
+    await awaitPageOnShow(harness.page)
+
+    const listed = harness.page.data.periods.map(period => ({
+      _id: period._id,
+      duration: period.duration
+    }))
+    assert.deepEqual(listed, [
+      { _id: 'open', duration: 1 },
+      { _id: 'closed', duration: 5 }
+    ])
+    assert.equal(harness.page.data.avgCycle, null)
+    assert.equal(harness.page.data.avgDuration, 3)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('period list and predicted duration use inclusive date counts when stored duration conflicts', async () => {
+  const harness = loadPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list() {
+              return {
+                kind: 'success',
+                data: [
+                  { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 2 },
+                  { _id: 'p2', startDate: '2026-06-30', endDate: '2026-07-04', duration: 9 }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+
+  try {
+    await awaitPageOnShow(harness.page)
+
+    const listed = harness.page.data.periods.map(period => ({
+      _id: period._id,
+      duration: period.duration
+    }))
+    assert.deepEqual(listed, [
+      { _id: 'p2', duration: 5 },
+      { _id: 'p1', duration: 5 }
+    ])
+    assert.equal(harness.page.data.avgCycle, 29)
     assert.equal(harness.page.data.avgDuration, 5)
   } finally {
     harness.teardown()
@@ -1187,6 +1268,9 @@ test('period and memory pages keep a visible retry action when room repair sync 
     'utils/cycle.js': {
       decoratePeriod(period) {
         return period
+      },
+      getPeriodDuration(period) {
+        return stubGetPeriodDuration(period)
       },
       predictNextPeriod() {
         return { canPredict: false, avgCycle: null, avgDuration: null }
@@ -1662,6 +1746,13 @@ function createUtilStub() {
       return { startDate, endDate: normalizedEndDate, hasEndDate }
     }
   }
+}
+
+function stubGetPeriodDuration(period) {
+  const util = createUtilStub()
+  const range = util.normalizeDateRange(period)
+  if (!range) return 0
+  return util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
 }
 
 function buildHomeCalendarState({ year, month, periods = [], memories = [], today = '2026-06-26' } = {}) {

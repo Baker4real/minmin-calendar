@@ -98,6 +98,25 @@ test('buildMonthlyRecap creates a gentle shareable recap for the selected month'
   assert.match(recap.shareText, /留下 2 条欢乐时光/)
 })
 
+test('buildMonthlyRecap keeps period duration and days in viewed month as two numbers when stored duration conflicts', () => {
+  const spanning = {
+    startDate: '2026-08-28',
+    endDate: '2026-09-01',
+    duration: 99
+  }
+
+  const august = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 7,
+    periods: [spanning]
+  })
+
+  assert.deepEqual(august.highlights, [
+    '经期：08月28日-09月01日，整段 5 天，本月 4 天'
+  ])
+  assert.equal(august.periodSummary, '本月开始 1 次，本月 4 天')
+})
+
 test('buildMonthlyRecap states period duration and days in viewed month separately when a period spans months', () => {
   const spanning = period('2026-08-28', '2026-09-01')
 

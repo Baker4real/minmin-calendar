@@ -70,7 +70,7 @@
         <view class="day-marks">
           <view wx:if="{{item.isPeriod}}" class="mark period-mark"></view>
           <view wx:if="{{item.isMemory}}" class="mark memory-mark">♥</view>
-          <view wx:if="{{item.isPredict && !item.isPeriod}}" class="mark predict-mark">预</view>
+          <view wx:if="{{item.isPredict}}" class="mark predict-mark">预</view>
         </view>
       </view>
     </view>

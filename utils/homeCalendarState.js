@@ -87,12 +87,13 @@ function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextP
 
   return util.buildCalendarDays({ year, month }).map(day => {
     if (!day || day.isEmpty) return { ...day, ariaLabel: '' }
+    const isPeriod = periodDates.has(day.date)
     const marked = {
       ...day,
       isToday: day.date === today,
-      isPeriod: periodDates.has(day.date),
+      isPeriod,
       isMemory: memoryDates.has(day.date),
-      isPredict: predictDates.has(day.date)
+      isPredict: predictDates.has(day.date) && !isPeriod
     }
     return { ...marked, ariaLabel: buildDayAriaLabel(marked) }
   })

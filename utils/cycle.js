@@ -140,9 +140,7 @@ function buildPeriodPayload({ startDate, endDate, note = '', flow = '', symptoms
     startDate,
     endDate: range ? range.endDate : (endDate || startDate),
     note,
-    duration: range
-      ? util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
-      : 0,
+    duration: getPeriodDuration({ startDate, endDate }),
     flow: FLOW_LABELS[flow] ? flow : '',
     symptoms: normalizeSymptoms(symptoms)
   }
@@ -152,9 +150,11 @@ function decoratePeriod(period) {
   const symptoms = normalizeSymptoms(period.symptoms)
   const symptomLabels = symptoms.map(value => SYMPTOM_LABELS[value])
   const flowLabel = FLOW_LABELS[period.flow] || ''
+  const duration = getPeriodDuration(period)
 
   return {
     ...period,
+    duration: duration > 0 ? duration : period.duration,
     flow: FLOW_LABELS[period.flow] ? period.flow : '',
     symptoms,
     flowLabel,
@@ -237,15 +237,18 @@ function emptyPrediction() {
   }
 }
 
+function getPeriodDuration(period) {
+  const range = util.normalizeDateRange(period)
+  if (!range) return 0
+  return util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
+}
+
 function normalizePeriods(periods = []) {
   return periods
     .map(item => {
       const range = util.normalizeDateRange(item)
       if (!range) return null
-      const duration = range.hasEndDate
-        ? toPositiveInt(item.duration) || util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
-        : util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
-      return { ...item, startDate: range.startDate, endDate: range.endDate, duration }
+      return { ...item, startDate: range.startDate, endDate: range.endDate, duration: getPeriodDuration(item) }
     })
     .filter(Boolean)
     .filter(item => item.duration > 0)
@@ -358,6 +361,7 @@ module.exports = {
   predictNextPeriod,
   buildCycleReminders,
   buildPeriodPayload,
+  getPeriodDuration,
   decoratePeriod,
   buildSymptomOptions,
   formatPredictionRange
