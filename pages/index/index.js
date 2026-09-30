@@ -1,13 +1,17 @@
 const util = require('../../utils/util')
 const cloud = require('../../utils/cloud')
+const cycle = require('../../utils/cycle')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const recordEditRoute = require('../../utils/recordEditRoute')
+const recordDraft = require('../../utils/recordDraft')
 const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 const safeArea = require('../../utils/safeArea')
 
 // 与 pages/settings/settings.js 共享同一存储键；写入方在设置页
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
+// issue #98：超期进行中记录的一次性完成提示标记；经 utils/recordDraft.js 的 createWxDraftStorage 本地存储接缝读写
+const ONGOING_REMINDER_STORAGE_KEY = 'ongoingPeriodReminderShown'
 const SYNC_STATUS_CLEAR_DELAY = 1600
 const COLLECTIONS = ['periods', 'memories']
 const JUMP_YEAR_MIN = 2001
@@ -55,6 +59,7 @@ Page({
     selectedDateSubtitle: '',
     selectedDayDetail: null,
     dayDetailsByDate: {},
+    ongoingCompletionReminder: null,
     loading: true,
     refreshing: false,
     hasLoadedHomeData: false,
@@ -219,6 +224,7 @@ Page({
       roomStatusAction: ''
     })
     if (!wasLoaded) this.applyHomeCalendarState()
+    this.syncOngoingCompletionReminder()
 
     const syncStatus = this._buildResolvedSyncStatus({
       snapshot: snapshot || {},
@@ -295,6 +301,7 @@ Page({
     if (this.data.hasLoadedHomeData) state.pendingRevisions[collection] = revision
 
     this.applyHomeCalendarState({ [collection]: nextRecords })
+    this.syncOngoingCompletionReminder()
     if (this.data.hasLoadedHomeData) {
       this.showSyncStatus('已更新，正在同步', { autoHide: false })
     }
@@ -584,13 +591,53 @@ Page({
 
   // 快速操作
   quickPeriod() {
+    // 已有进行中的经期时重开原记录，不建第二条
+    const ongoing = cycle.findOngoingPeriod(this.data.periods)
+    if (ongoing) {
+      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(ongoing) })
+      return
+    }
     const now = util.formatDate(new Date())
-    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: now, endDate: now }) })
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: now }) })
   },
   onReminderTap(e) {
     const reminder = this.data.cycleReminders[e.currentTarget.dataset.index]
     if (!reminder || reminder.action !== 'quickPeriod') return
-    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: reminder.date, endDate: reminder.date }) })
+    const ongoing = cycle.findOngoingPeriod(this.data.periods)
+    if (ongoing) {
+      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(ongoing) })
+      return
+    }
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: reminder.date }) })
+  },
+
+  // issue #98：超期进行中记录的一次非阻塞完成提示。同一条记录只提示一次：
+  // 提示出现即把记录标识经本地存储接缝持久化，之后刷新、跨天、重进应用都不再弹出；
+  // 提示本身绝不写结束日期、绝不关闭状态，点击只打开同一条记录补填。
+  syncOngoingCompletionReminder() {
+    const reminder = cycle.buildOngoingCompletionReminder(this.data.periods, {
+      today: util.formatDate(new Date())
+    })
+    const hideReminder = () => {
+      if (this.data.ongoingCompletionReminder) {
+        this.setData({ ongoingCompletionReminder: null })
+      }
+    }
+    if (!reminder) return hideReminder()
+
+    const storage = recordDraft.createWxDraftStorage(wx)
+    if (storage.get(ONGOING_REMINDER_STORAGE_KEY) === reminder.recordKey) {
+      return hideReminder()
+    }
+
+    this.setData({ ongoingCompletionReminder: reminder })
+    storage.set(ONGOING_REMINDER_STORAGE_KEY, reminder.recordKey)
+  },
+
+  onOngoingReminderTap() {
+    const reminder = this.data.ongoingCompletionReminder
+    if (!reminder || !reminder.record) return
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(reminder.record) })
   },
   quickMemory() {
     const now = util.formatDate(new Date())

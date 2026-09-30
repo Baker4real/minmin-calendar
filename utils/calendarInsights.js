@@ -20,7 +20,7 @@ function buildPredictionExplanation(prediction) {
     lines.push('参考手动设置的常用周期')
   }
 
-  lines.push(`平均周期 ${prediction.avgCycle} 天，平均持续 ${prediction.avgDuration} 天`)
+  lines.push(formatDurationLine(prediction))
   lines.push(`置信度：${prediction.confidenceText}`)
 
   if (prediction.ignoredCycleCount > 0) {
@@ -37,16 +37,16 @@ function buildPredictionExplanation(prediction) {
   }
 }
 
-function buildMonthlyRecap({ year, month, periods = [], memories = [], prediction = null }) {
+function buildMonthlyRecap({ year, month, periods = [], memories = [], prediction = null, today = util.formatDate(new Date()) }) {
   const monthStart = `${year}-${pad2(month + 1)}-01`
   const monthEnd = `${year}-${pad2(month + 1)}-${pad2(new Date(year, month + 1, 0).getDate())}`
-  const monthPeriods = periods.filter(period => overlapsMonth(period, monthStart, monthEnd))
+  const monthPeriods = periods.filter(period => overlapsMonth(period, monthStart, monthEnd, today))
   const monthMemories = memories.filter(memory => isDateString(memory.date) && memory.date >= monthStart && memory.date <= monthEnd)
-  const periodDays = monthPeriods.reduce((sum, period) => sum + getPeriodDaysInMonth(period, monthStart, monthEnd), 0)
+  const periodDays = monthPeriods.reduce((sum, period) => sum + getPeriodDaysInMonth(period, monthStart, monthEnd, today), 0)
   const highlights = []
 
   monthPeriods.forEach(period => {
-    const highlight = formatPeriodHighlight(period, monthStart, monthEnd)
+    const highlight = formatPeriodHighlight(period, monthStart, monthEnd, today)
     if (highlight) highlights.push(highlight)
   })
 
@@ -54,7 +54,7 @@ function buildMonthlyRecap({ year, month, periods = [], memories = [], predictio
   if (memoryHighlight) highlights.push(memoryHighlight)
 
   const title = `${year}年${month + 1}月小结`
-  const periodSummary = formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd)
+  const periodSummary = formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd, today)
   const memorySummary = monthMemories.length
     ? `留下 ${monthMemories.length} 条欢乐时光`
     : '本月还没有欢乐时光'
@@ -77,11 +77,23 @@ function formatPredictionSummary(prediction) {
   return `下次预测 ${prediction.nextDisplay}，区间 ${prediction.rangeDisplay}（${prediction.confidenceText}）`
 }
 
-function formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd) {
+// 预测持续天数按来源措辞：已知历史才说「平均」，用户设置说「常用」，
+// 五天默认不冒充已知天数，写明是估计的兜底值
+function formatDurationLine(prediction) {
+  if (prediction.durationSource === 'manual') {
+    return `平均周期 ${prediction.avgCycle} 天，经期时长按常用 ${prediction.avgDuration} 天`
+  }
+  if (prediction.durationSource === 'default') {
+    return `平均周期 ${prediction.avgCycle} 天，经期时长暂无已知记录，先按默认 ${prediction.avgDuration} 天估`
+  }
+  return `平均周期 ${prediction.avgCycle} 天，平均持续 ${prediction.avgDuration} 天`
+}
+
+function formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd, today) {
   if (!monthPeriods.length) return '本月暂无经期记录'
 
   const spanning = monthPeriods.some(period => {
-    const range = normalizePeriodRange(period)
+    const range = normalizePeriodRange(period, today)
     return range && !isPeriodFullyInMonth(range, monthStart, monthEnd)
   })
   if (!spanning) return `本月记录了 ${monthPeriods.length} 次经期，共 ${periodDays} 天`
@@ -89,7 +101,7 @@ function formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd) {
   let startedCount = 0
   let continuedCount = 0
   monthPeriods.forEach(period => {
-    const range = normalizePeriodRange(period)
+    const range = normalizePeriodRange(period, today)
     if (!range) return
     if (range.startDate >= monthStart && range.startDate <= monthEnd) startedCount += 1
     else if (range.startDate < monthStart) continuedCount += 1
@@ -102,22 +114,37 @@ function formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd) {
   return parts.join('，')
 }
 
-function formatPeriodHighlight(period, monthStart, monthEnd) {
-  const range = normalizePeriodRange(period)
+function formatPeriodHighlight(period, monthStart, monthEnd, today) {
+  const range = normalizePeriodRange(period, today)
   if (!range) return ''
 
-  const duration = cycle.getPeriodDuration(period)
   const detail = cycle.decoratePeriod({
     ...period,
     startDate: range.startDate,
-    endDate: range.endDate,
-    duration
-  })
+    endDate: range.endDate
+  }, { today })
+
+  // 进行中与结束日期不详没有精确经期时长，不写「整段 N 天」；只报本月天数
+  if (range.status === 'ongoing') {
+    const parts = [`经期：${formatMonthDay(range.startDate)}-${formatMonthDay(range.endDate)}，进行中`]
+    parts.push(`本月 ${getPeriodDaysInMonth(period, monthStart, monthEnd, today)} 天`)
+    if (detail.flowLabel) parts.push(`经量 ${detail.flowLabel}`)
+    if (detail.symptomText) parts.push(detail.symptomText)
+    return parts.join('，')
+  }
+  if (range.status === 'unknown-end') {
+    const parts = [`经期：${formatMonthDay(range.startDate)}，结束日期不详`]
+    if (detail.flowLabel) parts.push(`经量 ${detail.flowLabel}`)
+    if (detail.symptomText) parts.push(detail.symptomText)
+    return parts.join('，')
+  }
+
+  const duration = cycle.getPeriodDuration(period)
   const parts = [`经期：${formatMonthDay(detail.startDate)}-${formatMonthDay(detail.endDate)}`]
   if (isPeriodFullyInMonth(range, monthStart, monthEnd)) {
     parts.push(`${duration}天`)
   } else {
-    parts.push(`整段 ${duration} 天`, `本月 ${getPeriodDaysInMonth(period, monthStart, monthEnd)} 天`)
+    parts.push(`整段 ${duration} 天`, `本月 ${getPeriodDaysInMonth(period, monthStart, monthEnd, today)} 天`)
   }
   if (detail.flowLabel) parts.push(`经量 ${detail.flowLabel}`)
   if (detail.symptomText) parts.push(detail.symptomText)
@@ -159,8 +186,8 @@ function normalizeMemoryNote(memory) {
     : { text: '特别日子', isDefault: true }
 }
 
-function overlapsMonth(period, monthStart, monthEnd) {
-  const range = normalizePeriodRange(period)
+function overlapsMonth(period, monthStart, monthEnd, today) {
+  const range = normalizePeriodRange(period, today)
   if (!range) return false
   return range.endDate >= monthStart && range.startDate <= monthEnd
 }
@@ -169,8 +196,8 @@ function isPeriodFullyInMonth(range, monthStart, monthEnd) {
   return range.startDate >= monthStart && range.endDate <= monthEnd
 }
 
-function getPeriodDaysInMonth(period, monthStart, monthEnd) {
-  const range = normalizePeriodRange(period)
+function getPeriodDaysInMonth(period, monthStart, monthEnd, today) {
+  const range = normalizePeriodRange(period, today)
   if (!range) return 0
 
   const startDate = range.startDate > monthStart ? range.startDate : monthStart
@@ -194,8 +221,8 @@ function buildTextItems(lines, prefix) {
   }))
 }
 
-function normalizePeriodRange(period) {
-  return util.normalizeDateRange(period)
+function normalizePeriodRange(period, today) {
+  return cycle.projectPeriodRange(period, today)
 }
 
 function isDateString(value) {

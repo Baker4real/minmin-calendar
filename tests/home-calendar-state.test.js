@@ -268,15 +268,142 @@ test('buildHomeCalendarState aligns missing endDate period markers with detail r
     detail.meanings.map(item => item.key),
     ['period']
   )
+  // 旧数据缺结束日期：保守投影为结束日期不详，只有已知开始日，不发明时长
   assert.deepEqual(detail.periods, [
     {
       key: 'period:p-missing-end',
-      range: '2026-08-12 ~ 2026-08-12',
+      range: '2026-08-12（结束日期不详）',
       metaText: '经量 量少'
     }
   ])
   assert.deepEqual(detail.memories, [])
   assert.equal(detail.empty, false)
+})
+
+test('buildHomeCalendarState projects an ongoing period from its start through today only', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [
+      { _id: 'p-ongoing', startDate: '2026-08-10', endDate: '', status: 'ongoing' }
+    ],
+    memories: [],
+    today: '2026-08-13'
+  })
+
+  // 开始日至今天逐日有经期标记，今天之后不再发明未来日期
+  const covered = state.days
+    .filter(day => day.date >= '2026-08-10' && day.date <= '2026-08-13')
+    .map(day => ({ date: day.date, isPeriod: day.isPeriod, isOngoingPeriod: day.isOngoingPeriod }))
+  assert.deepEqual(covered, [
+    { date: '2026-08-10', isPeriod: true, isOngoingPeriod: true },
+    { date: '2026-08-11', isPeriod: true, isOngoingPeriod: true },
+    { date: '2026-08-12', isPeriod: true, isOngoingPeriod: true },
+    { date: '2026-08-13', isPeriod: true, isOngoingPeriod: true }
+  ])
+  assert.equal(state.days.find(day => day.date === '2026-08-14').isPeriod, false)
+
+  // 详情行与无障碍文本说出「进行中」
+  const detail = state.dayDetailsByDate['2026-08-12']
+  assert.deepEqual(detail.periods, [
+    {
+      key: 'period:p-ongoing',
+      range: '2026-08-10 ~ 2026-08-13（进行中）',
+      metaText: ''
+    }
+  ])
+  assert.match(detail.meanings.find(item => item.key === 'period').text, /进行中的经期范围/)
+
+  const ariaParts = state.days
+    .filter(day => day.date >= '2026-08-11' && day.date <= '2026-08-13')
+    .map(day => day.ariaLabel)
+  assert.ok(ariaParts.every(label => label.includes('经期进行中')))
+  assert.ok(state.days.find(day => day.date === '2026-08-14').ariaLabel.indexOf('经期') === -1)
+})
+
+test('buildHomeCalendarState does not project an ongoing period into later months beyond today', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 8,
+    periods: [
+      { _id: 'p-ongoing', startDate: '2026-08-10', endDate: '', status: 'ongoing' }
+    ],
+    memories: [],
+    today: '2026-08-13'
+  })
+
+  // 九月视图：进行中只投到今天（八月），九月不出现经期标记
+  assert.equal(state.days.some(day => day.isPeriod), false)
+  assert.equal(state.days.some(day => day.isOngoingPeriod), false)
+})
+
+test('buildHomeCalendarState marks only the known start day of an unknown-end period', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [
+      { _id: 'p-unknown-end', startDate: '2026-08-12', endDate: '', status: 'unknown-end' }
+    ],
+    memories: [],
+    today: '2026-08-20'
+  })
+
+  // 结束日期不详只标已知开始日：之后的日子（含今天）不延伸经期标记
+  const startDay = state.days.find(day => day.date === '2026-08-12')
+  assert.equal(startDay.isPeriod, true)
+  assert.equal(startDay.isUnknownEndPeriod, true)
+  assert.equal(startDay.isOngoingPeriod, false)
+  assert.deepEqual(
+    state.days.filter(day => day.isPeriod).map(day => day.date),
+    ['2026-08-12']
+  )
+  assert.equal(state.days.find(day => day.date === '2026-08-20').isPeriod, false)
+
+  // 详情行与含义文案说出「结束日期不详」，不用空白日期表达
+  const detail = state.dayDetailsByDate['2026-08-12']
+  assert.deepEqual(detail.periods, [
+    {
+      key: 'period:p-unknown-end',
+      range: '2026-08-12（结束日期不详）',
+      metaText: ''
+    }
+  ])
+  assert.match(detail.meanings.find(item => item.key === 'period').text, /结束日期不详的经期记录的已知开始日/)
+
+  // 读屏名称区分「结束日期不详」与「进行中」
+  assert.ok(startDay.ariaLabel.includes('经期 结束日期不详'))
+  assert.equal(startDay.ariaLabel.includes('进行中'), false)
+})
+
+test('buildHomeCalendarState shows an unknown-end period only in its start month', () => {
+  const periods = [
+    { _id: 'p-unknown-end', startDate: '2026-08-12', endDate: '', status: 'unknown-end' }
+  ]
+
+  // 八月视图：只有已知开始日带标记
+  const august = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods,
+    memories: [],
+    today: '2026-09-05'
+  })
+  assert.deepEqual(
+    august.days.filter(day => day.isPeriod).map(day => day.date),
+    ['2026-08-12']
+  )
+
+  // 九月视图：没有已知日子落在九月，不出现经期标记，也不生成推测范围
+  const september = buildHomeCalendarState({
+    year: 2026,
+    month: 8,
+    periods,
+    memories: [],
+    today: '2026-09-05'
+  })
+  assert.equal(september.days.some(day => day.isPeriod), false)
+  assert.equal(september.days.some(day => day.isUnknownEndPeriod), false)
+  assert.equal(september.days.some(day => day.isPredict), false)
 })
 
 test('buildHomeCalendarState does not show an empty state when a date only has meanings', () => {
@@ -595,6 +722,108 @@ test('buildHomeCalendarState ignores impossible dates in markers and details', (
   assert.equal(validDetails.memories.length, 1)
   assert.match(validDetails.memories[0].key, /^memory:fallback:/)
   assert.equal(validDetails.memories[0].note, 'valid memory')
+})
+
+test('buildHomeCalendarState invents no prediction or marks when there is no history', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [],
+    memories: [],
+    today: '2026-08-10'
+  })
+
+  // 无历史：不产出预测，也不出现任何预测或经期标记
+  assert.equal(state.avgDuration, null)
+  assert.equal(state.nextPredict, null)
+  assert.equal(state.predictionWindow, null)
+  assert.equal(state.days.some(day => day.isPredict), false)
+  assert.equal(state.days.some(day => day.isPeriod), false)
+  assert.equal(state.predictionExplanation.available, false)
+  assert.equal(state.monthlyRecap.periodSummary, '本月暂无经期记录')
+})
+
+test('a single ongoing record projects start-through-today without inventing a prediction', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [
+      { _id: 'p-ongoing', startDate: '2026-08-10', endDate: '', status: 'ongoing', duration: 9 }
+    ],
+    memories: [],
+    today: '2026-08-13'
+  })
+
+  // 仅一条进行中：开始日至今天有标记，但没有周期间隔，不编造预测或持续天数
+  assert.deepEqual(
+    state.days.filter(day => day.isPeriod).map(day => day.date),
+    ['2026-08-10', '2026-08-11', '2026-08-12', '2026-08-13']
+  )
+  assert.equal(state.avgDuration, null)
+  assert.equal(state.nextPredict, null)
+  assert.equal(state.predictionWindow, null)
+  assert.equal(state.days.some(day => day.isPredict), false)
+  assert.equal(state.predictionExplanation.available, false)
+  assert.equal(state.monthlyRecap.highlights[0], '经期：08月10日-08月13日，进行中，本月 4 天')
+})
+
+test('homepage prediction keeps durations from completed history when an ongoing record exists', () => {
+  const periods = [
+    period('2026-05-18', '2026-05-20'),
+    period('2026-06-15', '2026-06-19'),
+    period('2026-07-13', '2026-07-17'),
+    { _id: 'p-ongoing', startDate: '2026-08-10', endDate: '', status: 'ongoing', duration: 99 }
+  ]
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods,
+    memories: [],
+    today: '2026-08-12'
+  })
+
+  // 进行中的开始日参与周期起点（下次预测从 08-10 起算），
+  // 持续时长取已完成历史 3、5、5 的中位数 5，存库的 99 不进统计
+  assert.equal(state.avgCycle, 28)
+  assert.equal(state.avgDuration, 5)
+  assert.equal(state.nextPredict, '2026-09-07')
+  assert.ok(state.predictionExplanation.lines.includes('平均周期 28 天，平均持续 5 天'))
+
+  // 八月标记只来自进行中投影：08-10 到今天 08-12
+  assert.deepEqual(
+    state.days.filter(day => day.isPeriod).map(day => day.date),
+    ['2026-08-10', '2026-08-11', '2026-08-12']
+  )
+  assert.equal(state.monthlyRecap.highlights[0], '经期：08月10日-08月12日，进行中，本月 3 天')
+})
+
+test('homepage prediction excludes an unknown-end record from duration but marks its start day', () => {
+  const periods = [
+    period('2026-05-18', '2026-05-22'),
+    period('2026-06-15', '2026-06-17'),
+    period('2026-07-13', '2026-07-17'),
+    { _id: 'p-unknown', startDate: '2026-08-10', endDate: '', status: 'unknown-end', duration: 9 }
+  ]
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods,
+    memories: [],
+    today: '2026-08-20'
+  })
+
+  // 结束日期不详的开始日可作为最近周期起点，但存库 9 天不进持续时长中位数
+  assert.equal(state.avgCycle, 28)
+  assert.equal(state.avgDuration, 5)
+  assert.equal(state.nextPredict, '2026-09-07')
+
+  // 日历上只有已知开始日带经期标记，不延伸范围
+  assert.deepEqual(
+    state.days.filter(day => day.isPeriod).map(day => day.date),
+    ['2026-08-10']
+  )
+  assert.equal(state.days.find(day => day.date === '2026-08-10').isUnknownEndPeriod, true)
+  assert.equal(state.monthlyRecap.highlights[0], '经期：08月10日，结束日期不详')
 })
 
 function assertPeriodDetailWithoutPrediction(detail) {

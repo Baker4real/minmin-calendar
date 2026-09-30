@@ -283,7 +283,8 @@ test('record list rows, retry affordances and settings menu entries announce the
     elements.find((element) =>
       element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
 
-  assert.equal(byHandler(period, 'editPeriod', 'list-item').attrs['aria-label'], '编辑经期记录 {{item.startDate}} 至 {{item.endDate}}')
+  // 经期行读屏名称带状态：已知结束读「起 至 止」，进行中/结束日期不详由 rangeSummary 表达
+  assert.equal(byHandler(period, 'editPeriod', 'list-item').attrs['aria-label'], '编辑经期记录 {{item.rangeSummary}}')
   assert.equal(byHandler(period, 'loadData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
   assert.equal(byHandler(memory, 'editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.date}} 的欢乐时光')
   assert.equal(byHandler(memory, 'loadData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')

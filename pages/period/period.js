@@ -13,13 +13,14 @@ Page({
 
   async loadData() {
     const client = cloud.createRoomDataClient()
+    const today = util.formatDate(new Date())
     await recordCommands.runRecordListLoad({
       page: this,
       itemsKey: 'periods',
       action: () => client.list('periods'),
       mapRecords: periods => [...periods]
         .sort((a, b) => b.startDate.localeCompare(a.startDate))
-        .map(cycle.decoratePeriod),
+        .map(period => cycle.decoratePeriod(period, { today })),
       onLoaded: periods => {
         this.calcStats(periods)
         this.setData({ hasLoaded: true })
@@ -32,12 +33,23 @@ Page({
   calcStats(periods) {
     const prediction = cycle.predictNextPeriod(periods)
     this.setData({ avgCycle: prediction.canPredict ? prediction.avgCycle : null })
-    this.setData({ avgDuration: prediction.avgDuration || calculateAverageDuration(periods) })
+    // 预测持续时长落在五天默认档时不冒充已知统计，只退回已完成记录的平均
+    const predictedDuration = prediction.canPredict && prediction.durationSource !== 'default'
+      ? prediction.avgDuration
+      : null
+    this.setData({ avgDuration: predictedDuration || calculateAverageDuration(periods) })
   },
 
   addPeriod() {
+    // 已有进行中的记录时，重复新增重开原记录（进入原记录编辑页），不建第二条
+    const ongoing = cycle.findOngoingPeriod(this.data.periods)
+    if (ongoing) {
+      wx.showToast({ title: '已有进行中的经期，继续编辑它', icon: 'none' })
+      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(ongoing) })
+      return
+    }
     const today = util.formatDate(new Date())
-    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: today, endDate: today }) })
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: today }) })
   },
 
   editPeriod(e) {

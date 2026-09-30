@@ -146,6 +146,8 @@ For UI changes, also verify in WeChat Developer Tools at a small-phone width.
 
 2026-09-26：epic #90 子票 #91–#93：重叠日只表达经期（投影 `isPredict` 为假，模板只按该标记画「预」）；Period duration 在起止日期都在时只按含首尾天数计算（`cycle.getPeriodDuration`，不信存库 duration）；经量/症状允许值集合由测试锁住周期 module 与云端副本一致。本地轻量检查覆盖本改动面；微信开发者工具小屏未验证，非 live verified。
 
+2026-09-30：epic #94 子票 #95–#98：经期记录三态契约（进行中/结束日期不详/已结束且有结束日期）落地。新增默认「进行中」只填开始日期即可保存，补填结束日期完成同一条记录；同一 Room 重复新增与云端并发按确定性赢家收敛回唯一进行中，输家降为「结束日期不详」不删除；统计与预测只用已知结束的精确时长，预测结束日按「用户设置→已完成中位数→五天默认」优先级计算且绝不写回记录；超期进行中记录在首页获得一次非阻塞完成提醒（本地持久化去重，点击打开原记录）。改动覆盖 `utils/cycle.js`、`utils/homeCalendarState.js`、`utils/calendarInsights.js`、`pages/period/`（含 edit）、`pages/index/` 与 `cloudfunctions/dataOp/roomRecords.js`（云端契约已改、**尚未部署**）。584 项本地测试全绿（含四条云端并发收敛专项测试）+ 完整轻量组合通过；已知遗留：客户端领域层对 known-end+空结束日期仍单日回退（页面与云端均拦截，与云端 normalization 不完全一致）、`typicalPeriodLength` 用户配置档暂无生产设置入口——均按低危打磨项记录。微信开发者工具小屏目检、真机、读屏实听与云函数部署未做，非 live verified。
+
 ## Repository Hygiene
 
 Generated dependencies, local tool state, imported reference material, and historical `hermes-*` maintenance reports are ignored by `.gitignore`.

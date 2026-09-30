@@ -14,7 +14,7 @@
       <view wx:if="{{draftRestored}}" class="draft-notice">已恢复上次未完成的输入</view>
       <view class="form-item">
         <text class="form-label">开始日期</text>
-        <picker mode="date" value="{{startDate}}" end="{{endDate}}" disabled="{{saving}}" bindchange="onStartChange" aria-role="button" aria-label="选择开始日期">
+        <picker mode="date" value="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onStartChange" aria-role="button" aria-label="选择开始日期">
           <view class="form-picker">
             <text>{{startDate}}</text>
             <text class="form-picker-arrow">›</text>
@@ -22,8 +22,27 @@
         </picker>
       </view>
       <view class="form-item">
+        <view class="form-label-row">
+          <text class="form-label">经期状态</text>
+          <text class="form-hint">进行中可稍后补结束日期</text>
+        </view>
+        <view class="flow-options">
+          <view
+            wx:for="{{statusOptions}}"
+            wx:key="value"
+            class="flow-chip {{status === item.value ? 'active' : ''}}{{saving ? ' disabled' : ''}}"
+            data-value="{{item.value}}"
+            bindtap="selectStatus"
+            aria-role="checkbox"
+            aria-label="经期状态 {{item.label}}"
+            aria-checked="{{status === item.value}}"
+            aria-disabled="{{saving}}"
+          >{{item.label}}</view>
+        </view>
+      </view>
+      <view class="form-item" wx:if="{{status === 'known-end'}}">
         <text class="form-label">结束日期</text>
-        <picker mode="date" value="{{endDate}}" start="{{startDate}}" disabled="{{saving}}" bindchange="onEndChange" aria-role="button" aria-label="选择结束日期">
+        <picker mode="date" value="{{endDate}}" start="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onEndChange" aria-role="button" aria-label="选择结束日期">
           <view class="form-picker">
             <text>{{endDate}}</text>
             <text class="form-picker-arrow">›</text>

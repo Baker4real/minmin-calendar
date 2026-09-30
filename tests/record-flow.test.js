@@ -835,10 +835,13 @@ test('period and memory list templates keep the REC-03 visible row contract', ()
   const periodWxml = readPageFile('pages/period/period.wxml')
   const memoryWxml = readPageFile('pages/memory/memory.wxml')
 
-  assert.match(periodWxml, /\{\{item\.startDate\}\}\s*~\s*\{\{item\.endDate\}\}/)
+  // 日期行绑定状态化展示值：已知结束显示结束日期，进行中/不详显示状态文案
+  assert.match(periodWxml, /\{\{item\.startDate\}\}\s*~\s*\{\{item\.endDateDisplay\}\}/)
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}"/)
   assert.doesNotMatch(periodWxml, /无备注/)
-  assert.match(periodWxml, /\{\{item\.duration\}\}天/)
+  // 已完成记录仍以「N天」呈现时长；进行中/结束日期不详由状态文案占住时长位
+  assert.match(periodWxml, /wx:if="\{\{item\.status === 'known-end'\}\}" class="item-duration">\{\{item\.durationText\}\}/)
+  assert.match(periodWxml, /class="item-duration ongoing">\{\{item\.durationText\}\}/)
 
   assert.match(memoryWxml, /\{\{item\.date\}\}/)
   // 没有备注的欢乐时光不显示备注句；真实写下的备注（含与旧占位句相同的文字）照常显示
@@ -1068,6 +1071,68 @@ test('period list retains last records and stats when a later refresh fails', as
     assert.equal(harness.page.data.avgDuration, 5)
   } finally {
     harness.teardown()
+  }
+})
+
+test('period list duration stat counts only completed records and stays unknown without any known end', async () => {
+  const harness = loadRecordPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list() {
+              return {
+                kind: 'success',
+                data: [
+                  { _id: 'done', startDate: '2026-06-01', endDate: '2026-06-03', duration: 3 },
+                  { _id: 'foggy', startDate: '2026-07-01', endDate: '', status: 'unknown-end', duration: 9 },
+                  { _id: 'live', startDate: '2026-08-01', endDate: '', status: 'ongoing', duration: 9 }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+
+  try {
+    await harness.page.onShow()
+
+    // 进行中与结束日期不详不进持续天数统计：唯一已知时长是 3 天
+    assert.equal(harness.page.data.avgDuration, 3)
+  } finally {
+    harness.teardown()
+  }
+
+  const incompleteOnly = loadRecordPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list() {
+              return {
+                kind: 'success',
+                data: [
+                  { _id: 'a', startDate: '2026-07-01', endDate: '', status: 'unknown-end', duration: 9 },
+                  { _id: 'b', startDate: '2026-07-29', endDate: '', status: 'unknown-end', duration: 9 }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+
+  try {
+    await incompleteOnly.page.onShow()
+
+    // 没有任何已知结束：预测落在五天默认档也不冒充已知统计，页面显示 -- 占位
+    assert.equal(incompleteOnly.page.data.avgDuration, null)
+    assert.equal(incompleteOnly.page.data.avgCycle, 28)
+  } finally {
+    incompleteOnly.teardown()
   }
 })
 
@@ -1308,8 +1373,12 @@ test('record edit pages isolate delete loading, constrain period dates, and cap 
   assert.match(memoryEditWxml, /wx:elif="\{\{saving\}\}"[^>]*>保存中\.\.\./)
   assert.match(periodEditWxml, /wx:else class="btn-premium disabled"[^>]*>保存</)
   assert.match(memoryEditWxml, /wx:else class="btn-premium disabled"[^>]*>保存</)
-  assert.match(periodEditWxml, /end="\{\{endDate\}\}"/)
+  assert.match(periodEditWxml, /end="\{\{maxDate\}\}"/)
   assert.match(periodEditWxml, /start="\{\{startDate\}\}"/)
+  // 结束日期选择器只在已知结束状态出现；开始日期选择器上限为今天
+  assert.match(periodEditWxml, /<view class="form-item" wx:if="\{\{status === 'known-end'\}\}">/)
+  assert.match(periodEditWxml, /bindtap="selectStatus"/)
+  assert.match(periodEditWxml, /aria-label="经期状态/)
   assert.match(periodEditWxml, /maxlength="500"/)
   assert.match(memoryEditWxml, /maxlength="500"/)
   assert.match(memoryEditWxml, /wx:if="\{\{isEdit\}\}"[\s\S]*编辑欢乐时光/)
@@ -1420,6 +1489,19 @@ test('period edit keeps fields and delete unavailable until the save finishes', 
       },
       'utils/cycle.js': {
         FLOW_OPTIONS: [{ value: 'heavy', label: '量大' }, { value: 'light', label: '量少' }],
+        PERIOD_STATUS_OPTIONS: [
+          { value: 'ongoing', label: '进行中' },
+          { value: 'unknown-end', label: '结束日期不详' },
+          { value: 'known-end', label: '已结束' }
+        ],
+        isPeriodStatus(value) {
+          return value === 'ongoing' || value === 'unknown-end' || value === 'known-end'
+        },
+        getPeriodStatus(period = {}) {
+          if (this.isPeriodStatus(period.status)) return period.status
+          if (typeof period.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(period.endDate)) return 'known-end'
+          return 'unknown-end'
+        },
         buildSymptomOptions(selected = []) {
           return selected.map(value => ({ value, label: value, selected: true }))
         },
@@ -1606,6 +1688,293 @@ test('record lists preview long notes as one clamped line without displacing lat
   assert.match(memoryWxss, /\.memory-left\s*\{[^}]*min-width:\s*0[^}]*\}/)
   assert.match(memoryWxss, /\.memory-info\s*\{[^}]*min-width:\s*0[^}]*\}/)
 })
+
+test('period edit defaults a new record to ongoing and saves it with only a start date', async () => {
+  const env = createPeriodEditSaveEnv()
+
+  try {
+    env.harness.page.onLoad({})
+
+    // 新增默认进行中：只带开始日期，结束日期为空；日期选择器上限为今天
+    assert.equal(env.harness.page.data.status, 'ongoing')
+    assert.equal(env.harness.page.data.startDate, '2026-09-20')
+    assert.equal(env.harness.page.data.endDate, '')
+    assert.equal(env.harness.page.data.maxDate, '2026-09-20')
+
+    const outcome = await env.harness.page.save()
+
+    assert.equal(outcome.kind, 'success')
+    assert.equal(env.adds.length, 1)
+    assert.equal(env.updates.length, 0)
+    assert.deepEqual(env.adds[0], {
+      collection: 'periods',
+      payload: {
+        startDate: '2026-09-20',
+        endDate: '',
+        status: 'ongoing',
+        note: '',
+        duration: 0,
+        flow: '',
+        symptoms: []
+      }
+    })
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('period edit completes the same ongoing record by filling an end date', async () => {
+  const env = createPeriodEditSaveEnv()
+
+  try {
+    env.harness.page.onLoad({ id: 'p1', startDate: '2026-09-10', status: 'ongoing' })
+    assert.equal(env.harness.page.data.status, 'ongoing')
+    assert.equal(env.harness.page.data.endDate, '')
+
+    // 切到已结束：结束日期选择器出现，缺省用开始日（同日是合法单日记录）
+    env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'known-end' } } })
+    assert.equal(env.harness.page.data.endDate, '2026-09-10')
+
+    env.harness.page.onEndChange({ detail: { value: '2026-09-14' } })
+    const outcome = await env.harness.page.save()
+
+    // 补填结束日期更新同一条记录并清除进行中状态，不创建第二条
+    assert.equal(outcome.kind, 'success')
+    assert.equal(env.adds.length, 0)
+    assert.equal(env.updates.length, 1)
+    assert.equal(env.updates[0].id, 'p1')
+    assert.deepEqual(env.updates[0].payload, {
+      startDate: '2026-09-10',
+      endDate: '2026-09-14',
+      status: 'known-end',
+      note: '',
+      duration: 5,
+      flow: '',
+      symptoms: []
+    })
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('period edit saves a historical unknown-end record without an end date', async () => {
+  const env = createPeriodEditSaveEnv()
+
+  try {
+    // 历史补录：开始日选过去某天，状态改选「结束日期不详」，不必填或猜结束日期
+    env.harness.page.onLoad({})
+    env.harness.page.onStartChange({ detail: { value: '2026-06-10' } })
+    env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'unknown-end' } } })
+    assert.equal(env.harness.page.data.status, 'unknown-end')
+
+    const outcome = await env.harness.page.save()
+
+    assert.equal(outcome.kind, 'success')
+    assert.equal(env.adds.length, 1)
+    assert.equal(env.updates.length, 0)
+    assert.deepEqual(env.adds[0].payload, {
+      startDate: '2026-06-10',
+      endDate: '',
+      status: 'unknown-end',
+      note: '',
+      duration: 0,
+      flow: '',
+      symptoms: []
+    })
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('period edit switches a known-end record to unknown-end and drops the end date', async () => {
+  const env = createPeriodEditSaveEnv()
+
+  try {
+    env.harness.page.onLoad({ id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05' })
+    assert.equal(env.harness.page.data.status, 'known-end')
+
+    // 清空结束日期的方式是显式改选状态：切到结束日期不详，不让空值承担隐含语义
+    env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'unknown-end' } } })
+
+    const outcome = await env.harness.page.save()
+
+    assert.equal(outcome.kind, 'success')
+    assert.equal(env.updates.length, 1)
+    assert.equal(env.updates[0].id, 'p1')
+    assert.deepEqual(env.updates[0].payload, {
+      startDate: '2026-06-01',
+      endDate: '',
+      status: 'unknown-end',
+      note: '',
+      duration: 0,
+      flow: '',
+      symptoms: []
+    })
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('period edit completes an unknown-end record with an exact duration by filling the end date', async () => {
+  const env = createPeriodEditSaveEnv()
+
+  try {
+    env.harness.page.onLoad({ id: 'p3', startDate: '2026-08-01', status: 'unknown-end' })
+    assert.equal(env.harness.page.data.status, 'unknown-end')
+    assert.equal(env.harness.page.data.endDate, '')
+
+    // 想起结束日期：切到已结束并补填，同一条记录转为有结束日期的已完成记录
+    env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'known-end' } } })
+    assert.equal(env.harness.page.data.endDate, '2026-08-01')
+    env.harness.page.onEndChange({ detail: { value: '2026-08-04' } })
+
+    const outcome = await env.harness.page.save()
+
+    assert.equal(outcome.kind, 'success')
+    assert.equal(env.adds.length, 0)
+    assert.equal(env.updates.length, 1)
+    assert.equal(env.updates[0].id, 'p3')
+    assert.deepEqual(env.updates[0].payload, {
+      startDate: '2026-08-01',
+      endDate: '2026-08-04',
+      status: 'known-end',
+      note: '',
+      duration: 4,
+      flow: '',
+      symptoms: []
+    })
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('period edit rejects future start and end dates before touching the cloud', async () => {
+  const env = createPeriodEditSaveEnv()
+
+  try {
+    env.harness.page.onLoad({})
+
+    // util 桩的今天是 2026-09-20：开始日期晚于今天直接拒绝（不触云端）
+    env.harness.page.onStartChange({ detail: { value: '2026-09-21' } })
+    let outcome = await env.harness.page.save()
+    assert.deepEqual(outcome, { kind: 'validation', message: '开始日期不能晚于今天' })
+    assert.equal(env.adds.length + env.updates.length, 0)
+    assert.deepEqual(env.toasts, [])
+
+    // 已知结束但结束日期晚于今天同样拒绝
+    env.harness.page.onStartChange({ detail: { value: '2026-09-18' } })
+    env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'known-end' } } })
+    env.harness.page.onEndChange({ detail: { value: '2026-09-25' } })
+    outcome = await env.harness.page.save()
+    assert.deepEqual(outcome, { kind: 'validation', message: '结束日期不能晚于今天' })
+    assert.equal(env.adds.length + env.updates.length, 0)
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('period list reopens the existing ongoing record when the add button is tapped again', async () => {
+  const navigation = []
+  const toasts = []
+  const harness = loadRecordPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list() {
+              return {
+                kind: 'success',
+                data: [
+                  { _id: 'p1', startDate: '2026-08-01', endDate: '2026-08-05', duration: 5 },
+                  { _id: 'p2', startDate: '2026-09-10', endDate: '', status: 'ongoing' }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    wxOverrides: {
+      navigateTo(options) {
+        navigation.push(options.url)
+      },
+      showToast(options) {
+        toasts.push(options)
+      }
+    }
+  })
+
+  try {
+    await harness.page.onShow()
+    assert.equal(harness.page.data.periods.length, 2)
+
+    // 已有进行中记录：重复新增提示并进入原记录编辑页
+    harness.page.addPeriod()
+    assert.deepEqual(navigation, ['/pages/period/edit/edit?id=p2&startDate=2026-09-10&status=ongoing'])
+    assert.deepEqual(toasts, [{ title: '已有进行中的经期，继续编辑它', icon: 'none' }])
+
+    // 没有进行中记录：进入默认进行中的新增表单（只带开始日期）
+    harness.page.setData({
+      periods: [harness.page.data.periods.find(item => item._id === 'p1')]
+    })
+    harness.page.addPeriod()
+    assert.equal(navigation.length, 2)
+    assert.match(navigation[1], /^\/pages\/period\/edit\/edit\?startDate=\d{4}-\d{2}-\d{2}$/)
+  } finally {
+    harness.teardown()
+  }
+})
+
+// 进行中/已知结束两条主路径共用的编辑页保存环境：
+// 真实 cycle 与 recordEditRoute，云端与命令层用可捕获的桩。
+// util 只固定「今天」，其余日期能力委托真实模块，保证真实 cycle 拿到完整接缝。
+function createPeriodEditSaveEnv() {
+  const toasts = []
+  const adds = []
+  const updates = []
+  const realUtil = require(path.join(repoRoot, 'utils/util.js'))
+  const harness = loadRecordPageHarness('pages/period/edit/edit.js', {
+    mocks: {
+      'utils/util.js': { ...realUtil, formatDate: () => '2026-09-20' },
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async add(collection, payload) {
+              adds.push({ collection, payload })
+              return { kind: 'success', result: { record: { _id: 'new-1', ...payload } } }
+            },
+            async update(collection, id, payload) {
+              updates.push({ collection, id, payload })
+              return { kind: 'success', result: { record: { _id: id, ...payload } } }
+            }
+          }
+        }
+      },
+      'utils/recordCommands.js': {
+        async runRecordSave(options) {
+          const message = typeof options.validate === 'function' ? options.validate() : ''
+          if (message) return { kind: 'validation', message }
+          return options.action()
+        },
+        async runRecordDelete() {
+          return { kind: 'cancelled' }
+        }
+      },
+      'utils/recordPageSync.js': {
+        getSavedRecord(outcome) {
+          return outcome && outcome.result ? outcome.result.record : null
+        },
+        notifyPreviousPageRecordChange() {}
+      }
+    },
+    wxOverrides: {
+      showToast(options) {
+        toasts.push(options)
+      }
+    }
+  })
+  return { harness, toasts, adds, updates }
+}
 
 function createFakePage(initialData = {}) {
   return {

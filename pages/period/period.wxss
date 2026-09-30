@@ -135,6 +135,11 @@
   padding: 4rpx 16rpx;
   border-radius: var(--radius-md);
 }
+/* 进行中/结束日期不详：状态文案占住时长位置，语义不靠空白日期表达 */
+.item-duration.ongoing {
+  color: #E8909E;
+  background: rgba(232,144,158,0.28);
+}
 .item-arrow {
   font-size: 32rpx;
   color: var(--text-secondary);

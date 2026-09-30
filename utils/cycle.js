@@ -1,5 +1,19 @@
 const util = require('./util')
 
+// 经期记录三态：进行中 / 已结束但结束日期不详 / 已结束且有结束日期。
+// 状态是权威：空结束日期不被隐含解释为单日经期或进行中经期。
+const PERIOD_STATUS_OPTIONS = [
+  { value: 'ongoing', label: '进行中' },
+  { value: 'unknown-end', label: '结束日期不详' },
+  { value: 'known-end', label: '已结束' }
+]
+
+const PERIOD_STATUS_LABELS = {
+  ongoing: '进行中',
+  'unknown-end': '结束日期不详',
+  'known-end': ''
+}
+
 const FLOW_OPTIONS = [
   { value: 'light', label: '量少' },
   { value: 'normal', label: '正常' },
@@ -35,7 +49,9 @@ function predictNextPeriod(periods, options = {}) {
   const normalized = normalizePeriods(periods)
   if (normalized.length === 0) return emptyPrediction()
 
+  // 只有已知结束的记录贡献正时长；进行中与结束日期不详的时长恒为 0
   const durations = normalized.map(item => item.duration).filter(isPositiveNumber)
+  const predictedDuration = getPredictedDuration(durations, options)
   const cycleLengths = collectCycleLengths(normalized)
   const candidateCycles = cycleLengths.filter(length => length >= 15 && length <= 60)
   const stableCycles = getStableCycles(candidateCycles)
@@ -44,7 +60,6 @@ function predictNextPeriod(periods, options = {}) {
   if (stableCycles.length >= 2) {
     const recentCycles = stableCycles.slice(-6)
     const avgCycle = Math.round(weightedMean(recentCycles))
-    const avgDuration = getPredictedDuration(durations, options)
     const sd = standardDeviation(recentCycles)
     const rangeDays = clamp(Math.ceil(sd), 1, 7)
     const confidence = getConfidence(recentCycles.length, sd)
@@ -52,7 +67,8 @@ function predictNextPeriod(periods, options = {}) {
     return buildPrediction({
       lastStart: normalized[normalized.length - 1].startDate,
       avgCycle,
-      avgDuration,
+      avgDuration: predictedDuration.days,
+      durationSource: predictedDuration.source,
       rangeDays,
       confidence,
       usedCycleCount: recentCycles.length,
@@ -62,11 +78,11 @@ function predictNextPeriod(periods, options = {}) {
   }
 
   if (stableCycles.length === 1) {
-    const avgDuration = getPredictedDuration(durations, options)
     return buildPrediction({
       lastStart: normalized[normalized.length - 1].startDate,
       avgCycle: stableCycles[0],
-      avgDuration,
+      avgDuration: predictedDuration.days,
+      durationSource: predictedDuration.source,
       rangeDays: 3,
       confidence: 'low',
       usedCycleCount: 1,
@@ -77,11 +93,11 @@ function predictNextPeriod(periods, options = {}) {
 
   const manualCycle = toPositiveInt(options.typicalCycleLength)
   if (manualCycle) {
-    const avgDuration = getPredictedDuration(durations, options)
     return buildPrediction({
       lastStart: normalized[normalized.length - 1].startDate,
       avgCycle: manualCycle,
-      avgDuration,
+      avgDuration: predictedDuration.days,
+      durationSource: predictedDuration.source,
       rangeDays: 3,
       confidence: 'low',
       usedCycleCount: 0,
@@ -134,32 +150,84 @@ function buildCycleReminders(prediction, periods, options = {}) {
   return reminders
 }
 
-function buildPeriodPayload({ startDate, endDate, note = '', flow = '', symptoms = [] }) {
-  const range = util.normalizeDateRange({ startDate, endDate })
+// 超期进行中记录的一次非阻塞完成提示（issue #98）。
+// 预期时长优先级与预测结束日同源：用户配置 → 最近已完成时长中位数 → 五天默认；
+// 进行中记录自身与结束日期不详记录的时长恒为 0，天然不进预期计算。
+// 只返回提示对象，绝不写结束日期、绝不关闭状态。
+function buildOngoingCompletionReminder(periods, options = {}) {
+  const ongoing = findOngoingPeriod(periods)
+  if (!ongoing) return null
+
+  const today = options.today || util.formatDate(new Date())
+  if (!isDateString(ongoing.startDate) || !isDateString(today)) return null
+
+  const durations = normalizePeriods(periods).map(item => item.duration).filter(isPositiveNumber)
+  const expected = getPredictedDuration(durations, options)
+  const runningDays = util.daysBetween(util.parseDate(ongoing.startDate), util.parseDate(today)) + 1
+  if (runningDays <= expected.days) return null
+
+  return {
+    type: 'ongoing-overdue',
+    title: '经期还未结束',
+    text: `已进行 ${runningDays} 天，超过预期的 ${expected.days} 天，可以补填结束日期`,
+    runningDays,
+    expectedDays: expected.days,
+    expectedSource: expected.source,
+    record: ongoing,
+    recordKey: ongoing._id || ongoing.id || ongoing.startDate || '',
+    date: today
+  }
+}
+
+function buildPeriodPayload({ startDate, endDate = '', status, note = '', flow = '', symptoms = [] }) {
+  const normalizedStatus = getPeriodStatus({ status, endDate })
+  const range = normalizedStatus === 'known-end'
+    ? util.normalizeDateRange({ startDate, endDate })
+    : null
   return {
     startDate,
-    endDate: range ? range.endDate : (endDate || startDate),
+    endDate: range ? range.endDate : '',
+    status: normalizedStatus,
     note,
-    duration: getPeriodDuration({ startDate, endDate }),
+    duration: range
+      ? util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
+      : 0,
     flow: FLOW_LABELS[flow] ? flow : '',
     symptoms: normalizeSymptoms(symptoms)
   }
 }
 
-function decoratePeriod(period) {
+function decoratePeriod(period, { today } = {}) {
+  const status = getPeriodStatus(period)
+  const range = status === 'known-end' ? util.normalizeDateRange(period) : null
   const symptoms = normalizeSymptoms(period.symptoms)
   const symptomLabels = symptoms.map(value => SYMPTOM_LABELS[value])
   const flowLabel = FLOW_LABELS[period.flow] || ''
-  const duration = getPeriodDuration(period)
+  const duration = range
+    ? util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
+    : 0
 
   return {
     ...period,
-    duration: duration > 0 ? duration : period.duration,
+    status,
+    statusLabel: PERIOD_STATUS_LABELS[status] || '',
+    startDate: range ? range.startDate : period.startDate,
+    endDate: range ? range.endDate : '',
+    duration,
     flow: FLOW_LABELS[period.flow] ? period.flow : '',
     symptoms,
     flowLabel,
     symptomLabels,
-    symptomText: symptomLabels.join('、')
+    symptomText: symptomLabels.join('、'),
+    endDateDisplay: range
+      ? range.endDate
+      : status === 'ongoing' ? (isDateString(today) ? today : '') : '结束日期不详',
+    durationText: range ? `${duration}天` : PERIOD_STATUS_LABELS[status] || '',
+    rangeSummary: range
+      ? `${range.startDate} 至 ${range.endDate}`
+      : status === 'ongoing'
+        ? (isDateString(today) ? `${period.startDate} 至 ${today}，进行中` : `${period.startDate}，进行中`)
+        : `${period.startDate}，结束日期不详`
   }
 }
 
@@ -186,6 +254,7 @@ function buildPrediction({
   lastStart,
   avgCycle,
   avgDuration,
+  durationSource,
   rangeDays,
   confidence,
   usedCycleCount,
@@ -201,6 +270,7 @@ function buildPrediction({
     canPredict: true,
     avgCycle,
     avgDuration,
+    durationSource,
     nextStart,
     nextEnd,
     rangeStart,
@@ -222,6 +292,7 @@ function emptyPrediction() {
     canPredict: false,
     avgCycle: null,
     avgDuration: null,
+    durationSource: null,
     nextStart: null,
     nextEnd: null,
     rangeStart: null,
@@ -237,7 +308,48 @@ function emptyPrediction() {
   }
 }
 
+function getPeriodStatus(period = {}) {
+  if (isPeriodStatus(period.status)) return period.status
+  // 旧数据兼容：带合法结束日期视为已结束；缺结束日期保守解释为结束日期不详。
+  if (isDateString(period.endDate)) return 'known-end'
+  return 'unknown-end'
+}
+
+function isPeriodStatus(value) {
+  return value === 'ongoing' || value === 'unknown-end' || value === 'known-end'
+}
+
+function findOngoingPeriod(periods = []) {
+  const list = Array.isArray(periods) ? periods : []
+  return list.find(item => getPeriodStatus(item) === 'ongoing') || null
+}
+
+// 日历与小结共用的投影区间：进行中投影开始日至今天（不发明未来日期），
+// 结束日期不详只投已知开始日，已知结束保持含首尾区间。
+function projectPeriodRange(period, today) {
+  if (hasCorruptEndDate(period)) return null
+  const status = getPeriodStatus(period)
+  if (status === 'ongoing') {
+    if (!isDateString(period.startDate) || !isDateString(today)) return null
+    if (period.startDate > today) return null
+    return { startDate: period.startDate, endDate: today, status }
+  }
+  if (status === 'unknown-end') {
+    if (!isDateString(period.startDate)) return null
+    return { startDate: period.startDate, endDate: period.startDate, status }
+  }
+  const range = util.normalizeDateRange(period)
+  return range ? { startDate: range.startDate, endDate: range.endDate, status } : null
+}
+
+// 结束日期存在但不是合法日期（如 2026-01-32）是损坏数据，不当作结束日期不详
+function hasCorruptEndDate(period = {}) {
+  const endDate = period.endDate
+  return endDate !== undefined && endDate !== null && endDate !== '' && !isDateString(endDate)
+}
+
 function getPeriodDuration(period) {
+  if (getPeriodStatus(period) !== 'known-end') return 0
   const range = util.normalizeDateRange(period)
   if (!range) return 0
   return util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
@@ -246,12 +358,23 @@ function getPeriodDuration(period) {
 function normalizePeriods(periods = []) {
   return periods
     .map(item => {
-      const range = util.normalizeDateRange(item)
-      if (!range) return null
-      return { ...item, startDate: range.startDate, endDate: range.endDate, duration: getPeriodDuration(item) }
+      if (hasCorruptEndDate(item)) return null
+      const status = getPeriodStatus(item)
+      if (status === 'known-end') {
+        const range = util.normalizeDateRange(item)
+        if (!range) return null
+        return {
+          ...item,
+          status,
+          startDate: range.startDate,
+          endDate: range.endDate,
+          duration: getPeriodDuration(item)
+        }
+      }
+      if (!isDateString(item.startDate)) return null
+      return { ...item, status, endDate: '', duration: 0 }
     })
     .filter(Boolean)
-    .filter(item => item.duration > 0)
     .sort((a, b) => a.startDate.localeCompare(b.startDate))
 }
 
@@ -274,11 +397,13 @@ function getStableCycles(cycleLengths) {
   return stable.length >= 2 ? stable : cycleLengths
 }
 
+// 预测持续时长的优先级：用户设置 → 已完成历史时长中位数 → 五天默认。
+// 进行中与结束日期不详的记录不进 durations；结果只用于预测展示，绝不写回经期记录。
 function getPredictedDuration(durations, options) {
   const manualDuration = toPositiveInt(options.typicalPeriodLength)
-  if (manualDuration) return manualDuration
-  if (durations.length === 0) return 5
-  return Math.max(1, Math.round(median(durations.slice(-6))))
+  if (manualDuration) return { days: manualDuration, source: 'manual' }
+  if (durations.length === 0) return { days: 5, source: 'default' }
+  return { days: Math.max(1, Math.round(median(durations.slice(-6)))), source: 'history' }
 }
 
 function getConfidence(count, sd) {
@@ -358,9 +483,15 @@ module.exports = {
   FLOW_OPTIONS,
   SYMPTOM_GROUPS,
   SYMPTOM_OPTIONS,
+  PERIOD_STATUS_OPTIONS,
   predictNextPeriod,
   buildCycleReminders,
+  buildOngoingCompletionReminder,
   buildPeriodPayload,
+  getPeriodStatus,
+  isPeriodStatus,
+  findOngoingPeriod,
+  projectPeriodRange,
   getPeriodDuration,
   decoratePeriod,
   buildSymptomOptions,

@@ -13,9 +13,12 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - **Launch screen / 启动首屏**: The screen the app opens on — the bind page, in bound or unbound state. The tab named 首页 is a different thing: that tab is the calendar page.
 - **Room leave**: A server-side membership revoke flow that removes the current user from a Room while preserving the remaining member when present.
 - **Archived room**: A room with no active members. Its `roomCode` and records are retained for explicit creator recovery, but normal record CRUD is closed until recovery.
-- **Period record**: A date range with optional note, Period duration, flow level, and symptom tags. A range that overlaps more than one calendar month is still one Period record, not one record per month.
+- **Period record**: One shared menstrual-period record with a start date, a Period status, optional note, flow level, and symptom tags. A known date range that overlaps more than one calendar month is still one Period record, not one record per month.
+- **Period status / 经期状态**: The record state is one of ongoing, ended with a known end date, or ended with an unknown end date. A missing end date is never treated as proof that the period lasted one day.
+- **Ongoing period / 进行中经期**: A Period record whose start is known and whose end has not yet been recorded. Calendar projection covers the start date through Today, without inventing future dates, until the user completes the record.
+- **Unknown-end period / 结束日期不详经期**: A Period record known to have ended when the exact end date is unavailable. Calendar projection shows only the known start date and does not infer duration.
 - **Period record count**: How many Period records the Room currently holds. The homepage figure labeled 经期记录 is this count. It is not Period duration and not Days in viewed month.
-- **Period duration**: Inclusive day count of one Period record from `startDate` through `endDate`. This is a property of the record, not of a month view. When both dates are present, `utils/cycle.js` `getPeriodDuration` computes it from those dates and does not trust a stored `duration` field. List, Monthly recap, local average, and prediction duration inputs all use that result. Cloud writes still recompute from dates.
+- **Period duration**: The inclusive day count of a Period record from a known `startDate` through a known `endDate`. A same-day start and end is a valid one-day duration; an Ongoing period or Unknown-end period has no exact duration and is excluded from duration averages until completed. This is a property of the record, not of a month view.
 - **Monthly recap / 小结**: Homepage summary for one viewed calendar month. It lists Period records and Memory records that overlap that month. It is not a second Period record.
 - **Days in viewed month**: Inclusive day count of the intersection between a Period record's date range and the Monthly recap's calendar month. This is not Period duration.
 - **Memory record / happy time**: A dated note shown as a heart marker on the calendar.
@@ -30,6 +33,10 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 ## Product Principles
 
 - Calendar markers must be semantically clear. A visual symbol should not mean two different things. On an Overlap day, only the period meaning is expressed; prediction is suppressed for that cell only.
+- A Period record may be saved before its end is known. The form distinguishes Ongoing, Unknown-end, and completed records instead of using an empty end date to carry multiple meanings.
+- Recorded dates cannot be in the future. The system never guesses an end date or automatically closes an Ongoing period; the user completes the same record later.
+- Ongoing periods use the known start date for cycle prediction but do not contribute an exact duration. Unknown-end periods contribute neither an exact duration nor an inferred range.
+- A Room has at most one Ongoing period record for the period stream; a second add action reopens the existing record. Overlapping completed records remain a separate, later data-quality concern and are not merged or hard-blocked by this rule.
 - Flow and symptom allowed values stay light/normal/heavy and cramps/headache/tired/acne/mood/sleep/cravings. `utils/cycle.js` owns labels; `cloudfunctions/dataOp/roomRecords.js` keeps a self-contained copy for standalone deploy. Tests lock both allowed-value sets equal; do not invent a shared runtime module for this small list.
 - Monthly recap copy must not use unlabeled 「天」 for both Period duration and Days in viewed month. Any viewed month that does not fully contain a Period record states both quantities and that the same record continues across months, including the start month and year boundaries. Recap occurrence counts distinguish records that started this month from records continued from the previous month. Period duration is stated per Period record; the month total is Days in viewed month, never the sum of Period durations.
 - Shared data must stay room-scoped and private.

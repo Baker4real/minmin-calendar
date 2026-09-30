@@ -21,6 +21,17 @@ test('buildPeriodEditUrl builds add and edit routes with encoded optional fields
   }), '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&note=%E7%96%BC%E7%97%9B%20%26%20%E4%BC%91%E6%81%AF&flow=heavy&symptoms=cramps%2Cheadache')
 })
 
+test('buildPeriodEditUrl carries the explicit status and omits the end date for incomplete records', () => {
+  assert.equal(
+    route.buildPeriodEditUrl({ id: 'p2', startDate: '2026-09-20', endDate: '', status: 'ongoing' }),
+    '/pages/period/edit/edit?id=p2&startDate=2026-09-20&status=ongoing'
+  )
+  assert.equal(
+    route.buildPeriodEditUrl({ id: 'p3', startDate: '2026-08-01', status: 'unknown-end' }),
+    '/pages/period/edit/edit?id=p3&startDate=2026-08-01&status=unknown-end'
+  )
+})
+
 test('parsePeriodEditOptions hydrates period edit page state from route options', () => {
   const state = route.parsePeriodEditOptions({
     id: 'p1',
@@ -35,21 +46,55 @@ test('parsePeriodEditOptions hydrates period edit page state from route options'
     id: 'p1',
     startDate: '2026-06-01',
     endDate: '2026-06-05',
+    status: 'known-end',
     note: '疼痛 & 休息',
     flow: 'heavy',
     symptoms: ['cramps', 'headache'],
-    isEdit: true
+    isEdit: true,
+    maxDate: '2026-06-26'
   })
 
+  // 新增默认进行中：只带开始日期，结束日期为空，选择器上限为今天
   assert.deepEqual(route.parsePeriodEditOptions({}, { today: '2026-06-26' }), {
     id: '',
     startDate: '2026-06-26',
-    endDate: '2026-06-26',
+    endDate: '',
+    status: 'ongoing',
     note: '',
     flow: '',
     symptoms: [],
-    isEdit: false
+    isEdit: false,
+    maxDate: '2026-06-26'
   })
+
+  // 编辑旧记录缺结束日期：保守解释为结束日期不详
+  assert.deepEqual(route.parsePeriodEditOptions({ id: 'p9', startDate: '2026-06-01' }, { today: '2026-06-26' }), {
+    id: 'p9',
+    startDate: '2026-06-01',
+    endDate: '',
+    status: 'unknown-end',
+    note: '',
+    flow: '',
+    symptoms: [],
+    isEdit: true,
+    maxDate: '2026-06-26'
+  })
+
+  // 状态权威：显式 ongoing 时路由里的残留结束日期被忽略
+  assert.deepEqual(
+    route.parsePeriodEditOptions({ id: 'p2', startDate: '2026-09-20', endDate: '2026-09-30', status: 'ongoing' }, { today: '2026-09-29' }),
+    {
+      id: 'p2',
+      startDate: '2026-09-20',
+      endDate: '',
+      status: 'ongoing',
+      note: '',
+      flow: '',
+      symptoms: [],
+      isEdit: true,
+      maxDate: '2026-09-29'
+    }
+  )
 })
 
 test('parsePeriodEditOptions tolerates malformed encoded route options', () => {
@@ -66,10 +111,12 @@ test('parsePeriodEditOptions tolerates malformed encoded route options', () => {
     id: 'p1',
     startDate: '2026-06-01',
     endDate: '2026-06-05',
+    status: 'known-end',
     note: '%',
     flow: 'heavy',
     symptoms: [],
-    isEdit: true
+    isEdit: true,
+    maxDate: '2026-06-26'
   })
 })
 

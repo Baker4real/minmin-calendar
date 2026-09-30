@@ -456,7 +456,10 @@ function deferredValue() {
 }
 
 function createUtilStub() {
+  // 只固定「今天」，其余日期能力委托真实模块：真实 cycle 经由页面依赖链拿到完整接缝
+  const realUtil = require(path.join(repoRoot, 'utils/util.js'))
   return {
+    ...realUtil,
     formatDate(value) {
       return typeof value === 'string' ? value : '2026-06-26'
     }
@@ -629,6 +632,216 @@ test('stats card right half opens the existing prediction sheet without leaving 
   } finally {
     harness.teardown()
   }
+})
+
+test('homepage quick period action reopens the existing ongoing record instead of a blank form', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const navigation = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+
+    // 已有进行中记录：快速记录经期进入原记录编辑页（重开），不是空白新增表单
+    harness.page.setData({
+      periods: [
+        { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 },
+        { _id: 'p2', startDate: '2026-06-20', endDate: '', status: 'ongoing' }
+      ]
+    })
+    harness.page.quickPeriod()
+    assert.deepEqual(navigation, ['/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing'])
+
+    // 没有进行中记录：进入默认进行中的新增表单（只带开始日期，不带结束日期）
+    harness.page.setData({ periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 }] })
+    harness.page.quickPeriod()
+    assert.deepEqual(navigation, [
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing',
+      '/pages/period/edit/edit?startDate=2026-06-26'
+    ])
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #98：超期进行中记录的一次非阻塞完成提示——同一记录只提示一次（今天由 util stub 固定为 2026-06-26）
+test('an overdue ongoing record shows one completion reminder and never repeats it on refresh', async () => {
+  const ongoing = { _id: 'p2', startDate: '2026-06-20', endDate: '', status: 'ongoing' }
+  const client = createQueuedClient([
+    { kind: 'success', data: [ongoing] },
+    { kind: 'success', data: [] },
+    { kind: 'success', data: [{ ...ongoing }] },
+    { kind: 'success', data: [] }
+  ])
+  const harness = loadPageHarness({ client })
+
+  try {
+    let storedMarker = ''
+    const markerWrites = []
+    global.wx.getStorageSync = key => (key === 'ongoingPeriodReminderShown' ? storedMarker : '')
+    global.wx.setStorageSync = (key, value) => {
+      if (key === 'ongoingPeriodReminderShown') {
+        storedMarker = value
+        markerWrites.push(value)
+      }
+    }
+
+    harness.page.onLoad()
+    await harness.page.onShow()
+    // 开始日 06-20、今天 06-26：第 7 天；无已完成历史 → 默认预期 5 天，已超过
+    const reminder = harness.page.data.ongoingCompletionReminder
+    assert.ok(reminder, 'expected the completion reminder after the first load')
+    assert.equal(reminder.recordKey, 'p2')
+    assert.equal(reminder.expectedDays, 5)
+    assert.equal(reminder.title, '经期还未结束')
+    // 提示出现即写入一次性标记（经本地存储持久化，跨天/重进应用同受它约束）
+    assert.deepEqual(markerWrites, ['p2'])
+
+    // 之后刷新（同一条记录）：不再重复弹出
+    await harness.page.onShow()
+    assert.equal(harness.page.data.ongoingCompletionReminder, null)
+    assert.deepEqual(markerWrites, ['p2'])
+    assert.equal(storedMarker, 'p2')
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #98：新会话（模拟跨天后重进应用）里，已提示过的同一条记录不再弹出；
+// 完成旧记录后出现的另一条新进行中记录，仍可获得属于它自己的一次提示
+test('a fresh session does not re-show the reminder for a record already marked as shown', async () => {
+  const ongoing = { _id: 'p2', startDate: '2026-06-18', endDate: '', status: 'ongoing' }
+  const client = createQueuedClient([
+    { kind: 'success', data: [ongoing] },
+    { kind: 'success', data: [] }
+  ])
+  const harness = loadPageHarness({ client })
+
+  try {
+    // 上一个会话已为 p2 写入过标记：本次加载即使已超期也不再提示
+    global.wx.getStorageSync = key => (key === 'ongoingPeriodReminderShown' ? 'p2' : '')
+    const markerWrites = []
+    global.wx.setStorageSync = (key, value) => {
+      if (key === 'ongoingPeriodReminderShown') markerWrites.push(value)
+    }
+
+    harness.page.onLoad()
+    await harness.page.onShow()
+    assert.equal(harness.page.data.ongoingCompletionReminder, null)
+    assert.deepEqual(markerWrites, [])
+
+    // p2 被补填结束日期完成（编辑页保存回流），之后开始一条新的进行中记录 p3
+    harness.page.applyRecordChange({
+      collection: 'periods',
+      mode: 'upsert',
+      record: { _id: 'p2', startDate: '2026-06-18', endDate: '2026-06-22', status: 'known-end', duration: 5 }
+    })
+    assert.equal(harness.page.data.ongoingCompletionReminder, null)
+
+    harness.page.applyRecordChange({
+      collection: 'periods',
+      mode: 'add',
+      record: { _id: 'p3', startDate: '2026-06-18', endDate: '', status: 'ongoing' }
+    })
+    assert.equal(harness.page.data.ongoingCompletionReminder.recordKey, 'p3')
+    assert.deepEqual(markerWrites, ['p3'])
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #98：未超预期时长时不提示；提示不自动写结束日期、不自动关闭状态
+test('no completion reminder before the expected duration, and none is invented for completed records', async () => {
+  const ongoing = { _id: 'p2', startDate: '2026-06-24', endDate: '', status: 'ongoing' }
+  const client = createQueuedClient([
+    { kind: 'success', data: [ongoing] },
+    { kind: 'success', data: [] }
+  ])
+  const harness = loadPageHarness({ client })
+
+  try {
+    const markerWrites = []
+    global.wx.getStorageSync = () => ''
+    global.wx.setStorageSync = (key, value) => {
+      if (key === 'ongoingPeriodReminderShown') markerWrites.push(value)
+    }
+
+    harness.page.onLoad()
+    await harness.page.onShow()
+    // 第 3 天（06-24 → 06-26）未超过默认预期 5 天
+    assert.equal(harness.page.data.ongoingCompletionReminder, null)
+    assert.deepEqual(markerWrites, [])
+
+    // 记录被补填结束日期完成（经编辑页保存回流）：没有进行中记录，同样没有提示
+    harness.page.applyRecordChange({
+      collection: 'periods',
+      mode: 'upsert',
+      record: { _id: 'p2', startDate: '2026-06-24', endDate: '2026-06-26', status: 'known-end', duration: 3 }
+    })
+    assert.equal(harness.page.data.ongoingCompletionReminder, null)
+    assert.deepEqual(harness.page.data.periods[0].endDate, '2026-06-26')
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #98：点击提示打开同一条进行中记录补填，只导航、不改数据
+test('tapping the completion reminder opens the same ongoing record to fill its end date', async () => {
+  const ongoing = { _id: 'p9', startDate: '2026-06-18', endDate: '', status: 'ongoing' }
+  const client = createQueuedClient([
+    { kind: 'success', data: [ongoing] },
+    { kind: 'success', data: [] }
+  ])
+  const harness = loadPageHarness({ client })
+
+  try {
+    const navigation = []
+    global.wx.getStorageSync = () => ''
+    global.wx.setStorageSync = () => {}
+    global.wx.navigateTo = options => navigation.push(options.url)
+
+    harness.page.onLoad()
+    await harness.page.onShow()
+    assert.ok(harness.page.data.ongoingCompletionReminder)
+
+    harness.page.onOngoingReminderTap()
+    assert.deepEqual(navigation, ['/pages/period/edit/edit?id=p9&startDate=2026-06-18&status=ongoing'])
+
+    // 点击只打开原记录：不写结束日期、不关闭状态
+    assert.equal(harness.page.data.periods[0].endDate, '')
+    assert.equal(harness.page.data.periods[0].status, 'ongoing')
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #98：提示是文档流里的非阻塞卡片（无遮罩/弹层），位于统计卡之后、周期提醒之前，读屏可读
+test('the completion reminder is an in-flow non-blocking card with a readable name', () => {
+  const wxml = readIndexWxml()
+  const gateIndex = wxml.indexOf('wx:if="{{ongoingCompletionReminder}}"')
+  assert.ok(gateIndex !== -1, 'expected the ongoing completion reminder card')
+  const cardIndex = wxml.indexOf('onOngoingReminderTap', gateIndex)
+  assert.ok(cardIndex !== -1)
+
+  const blockStart = wxml.lastIndexOf('<view', gateIndex)
+  const actionIndex = wxml.indexOf('class="reminder-action"', cardIndex)
+  const blockEnd = wxml.indexOf('</view>', actionIndex)
+  const block = wxml.slice(blockStart, blockEnd + '</view>'.length)
+  assert.match(block, /wx:if="\{\{ongoingCompletionReminder\}\}"/)
+  assert.match(block, /class="reminder-card \{\{ongoingCompletionReminder\.type\}\}"/)
+  assert.match(block, /aria-role="button"/)
+  assert.match(block, /aria-label="\{\{ongoingCompletionReminder\.title\}\}，\{\{ongoingCompletionReminder\.text\}\}，点按去补填"/)
+  assert.match(block, /class="reminder-action">去补填</)
+  // 非阻塞：不是遮罩弹层，不用 modal/sheet 容器
+  assert.doesNotMatch(block, /mask|sheet|modal|fixed/)
+
+  // 位置：统计卡之后、周期提醒卡之前，保持既有首页信息层级
+  const statsIndex = wxml.indexOf('class="stats-card')
+  const cycleReminderIndex = wxml.indexOf('onReminderTap')
+  assert.ok(statsIndex !== -1 && statsIndex < cardIndex, 'reminder card sits after the stats card')
+  assert.ok(cycleReminderIndex !== -1 && cardIndex < cycleReminderIndex, 'reminder card sits before the cycle reminders')
+
+  // 样式复用周期提醒卡，不新增视觉系统；无新增 wxss 规则要求
+  const wxss = readIndexWxss()
+  assert.match(ruleBody(wxss, '.reminder-card'), /min-height:\s*88rpx/)
 })
 
 test('stats halves press with the shared card scale-down and reduced-motion policy', () => {

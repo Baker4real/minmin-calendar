@@ -336,6 +336,96 @@ test('calendarInsights does not expose marker semantics outside home calendar st
   assert.equal('buildDayMeanings' in insights, false)
 })
 
+test('buildMonthlyRecap states an ongoing period as start-through-today without inventing a duration', () => {
+  const recap = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 8,
+    periods: [
+      { startDate: '2026-09-20', endDate: '', status: 'ongoing', flow: 'heavy' }
+    ],
+    memories: [],
+    prediction: null,
+    today: '2026-09-24'
+  })
+
+  // 进行中：区间写到今天并说明进行中，只报本月天数，不写「整段 N 天」
+  assert.deepEqual(recap.highlights, ['经期：09月20日-09月24日，进行中，本月 5 天，经量 量多'])
+  assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 5 天')
+})
+
+test('buildMonthlyRecap states an unknown-end period as its known start day only', () => {
+  const recap = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 7,
+    periods: [
+      { startDate: '2026-08-12', endDate: '', status: 'unknown-end' }
+    ],
+    memories: [],
+    prediction: null,
+    today: '2026-09-24'
+  })
+
+  // 结束日期不详：只写已知开始日与状态，不发明时长或区间
+  assert.deepEqual(recap.highlights, ['经期：08月12日，结束日期不详'])
+  assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 1 天')
+})
+
+test('buildMonthlyRecap keeps completed precision separate from ongoing and unknown-end records', () => {
+  const recap = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 8,
+    periods: [
+      period('2026-09-02', '2026-09-06'),
+      { startDate: '2026-09-10', endDate: '', status: 'unknown-end', duration: 9 },
+      { startDate: '2026-09-20', endDate: '', status: 'ongoing', duration: 9 }
+    ],
+    memories: [],
+    prediction: null,
+    today: '2026-09-24'
+  })
+
+  // 同月三种状态各说各的事实：已完成写精确时长，不详只写开始日，进行中只写本月天数
+  assert.deepEqual(recap.highlights, [
+    '经期：09月02日-09月06日，5天',
+    '经期：09月10日，结束日期不详',
+    '经期：09月20日-09月24日，进行中，本月 5 天'
+  ])
+  // 存库的 9 天时长没有从任何未完成记录漏进文案
+  assert.equal(recap.shareText.includes('9天'), false)
+  assert.equal(recap.shareText.includes('9 天'), false)
+  assert.equal(recap.highlights.some(line => line.includes('整段')), false)
+  assert.equal(recap.periodSummary, '本月记录了 3 次经期，共 11 天')
+})
+
+test('prediction explanation states where the predicted duration comes from', () => {
+  // 用户设置档：经期时长来自常用设置，不说「平均」
+  const manual = insights.buildPredictionExplanation(
+    cycle.predictNextPeriod(
+      [period('2026-06-01', '2026-06-05')],
+      { typicalCycleLength: 30, typicalPeriodLength: 4 }
+    )
+  )
+  assert.deepEqual(manual.lines, [
+    '参考手动设置的常用周期',
+    '平均周期 30 天，经期时长按常用 4 天',
+    '置信度：低'
+  ])
+
+  // 默认档：没有已完成时长，不把五天默认说成已知平均
+  const defaulted = insights.buildPredictionExplanation(
+    cycle.predictNextPeriod([
+      { startDate: '2026-06-01', endDate: '', status: 'unknown-end', duration: 9 },
+      { startDate: '2026-06-29', endDate: '', status: 'unknown-end', duration: 9 }
+    ])
+  )
+  assert.deepEqual(defaulted.lines, [
+    '参考最近 1 次有效周期',
+    '平均周期 28 天，经期时长暂无已知记录，先按默认 5 天估',
+    '置信度：低'
+  ])
+  assert.equal(defaulted.lines.some(line => line.includes('平均持续')), false)
+})
+
 function period(startDate, endDate) {
   return {
     startDate,

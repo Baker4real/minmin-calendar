@@ -833,16 +833,20 @@ test('period list shows date-based duration and averages it when prediction is u
   try {
     await awaitPageOnShow(harness.page)
 
+    // 缺结束日期的旧记录保守解释为结束日期不详：没有精确时长，行上用状态文案表达
     const listed = harness.page.data.periods.map(period => ({
       _id: period._id,
-      duration: period.duration
+      duration: period.duration,
+      status: period.status,
+      durationText: period.durationText
     }))
     assert.deepEqual(listed, [
-      { _id: 'open', duration: 1 },
-      { _id: 'closed', duration: 5 }
+      { _id: 'open', duration: 0, status: 'unknown-end', durationText: '结束日期不详' },
+      { _id: 'closed', duration: 5, status: 'known-end', durationText: '5天' }
     ])
     assert.equal(harness.page.data.avgCycle, null)
-    assert.equal(harness.page.data.avgDuration, 3)
+    // 只有已知结束记录进入平均时长
+    assert.equal(harness.page.data.avgDuration, 5)
   } finally {
     harness.teardown()
   }
@@ -920,6 +924,16 @@ test('period edit save validates real calendar dates before building a payload',
         }
       },
       'utils/cycle.js': {
+        PERIOD_STATUS_OPTIONS: [],
+        isPeriodStatus(value) {
+          return value === 'ongoing' || value === 'unknown-end' || value === 'known-end'
+        },
+        getPeriodStatus(period = {}) {
+          if (typeof period.status === 'string' && ['ongoing', 'unknown-end', 'known-end'].includes(period.status)) {
+            return period.status
+          }
+          return period.endDate ? 'known-end' : 'unknown-end'
+        },
         FLOW_OPTIONS: [],
         buildSymptomOptions() {
           return []
@@ -1039,6 +1053,16 @@ test('period edit save notifies the previous page with the canonical saved recor
         }
       },
       'utils/cycle.js': {
+        PERIOD_STATUS_OPTIONS: [],
+        isPeriodStatus(value) {
+          return value === 'ongoing' || value === 'unknown-end' || value === 'known-end'
+        },
+        getPeriodStatus(period = {}) {
+          if (typeof period.status === 'string' && ['ongoing', 'unknown-end', 'known-end'].includes(period.status)) {
+            return period.status
+          }
+          return period.endDate ? 'known-end' : 'unknown-end'
+        },
         FLOW_OPTIONS: [],
         buildSymptomOptions() {
           return []
@@ -1157,6 +1181,16 @@ test('period edit onLoad tolerates malformed route encoding', () => {
       'utils/util.js': createUtilStub(),
       'utils/cloud.js': {},
       'utils/cycle.js': {
+        PERIOD_STATUS_OPTIONS: [],
+        isPeriodStatus(value) {
+          return value === 'ongoing' || value === 'unknown-end' || value === 'known-end'
+        },
+        getPeriodStatus(period = {}) {
+          if (typeof period.status === 'string' && ['ongoing', 'unknown-end', 'known-end'].includes(period.status)) {
+            return period.status
+          }
+          return period.endDate ? 'known-end' : 'unknown-end'
+        },
         FLOW_OPTIONS: [{ value: 'heavy', label: '量多' }],
         buildSymptomOptions(symptoms = []) {
           return symptoms.map(value => ({ value, label: value, selected: true }))
@@ -1180,6 +1214,21 @@ test('period edit onLoad tolerates malformed route encoding', () => {
     assert.equal(harness.page.data.note, '%')
     assert.deepEqual(harness.page.data.symptoms, [])
     assert.equal(harness.page.data.startDate, '2026-06-01')
+    // 新增默认进行中：路由里的结束日期不隐式生效
+    assert.equal(harness.page.data.status, 'ongoing')
+    assert.equal(harness.page.data.endDate, '')
+
+    // 编辑旧记录（带 id 与结束日期）：保守解释为已结束并保留结束日期
+    assert.doesNotThrow(() => {
+      harness.page.onLoad({
+        id: 'p1',
+        startDate: '2026-06-01',
+        endDate: '2026-06-05',
+        note: '%',
+        symptoms: '%E0%A4%A'
+      })
+    })
+    assert.equal(harness.page.data.status, 'known-end')
     assert.equal(harness.page.data.endDate, '2026-06-05')
   } finally {
     harness.teardown()
@@ -1458,6 +1507,16 @@ async function runPeriodEditSaveValidationCase(overrides = {}) {
         }
       },
       'utils/cycle.js': {
+        PERIOD_STATUS_OPTIONS: [],
+        isPeriodStatus(value) {
+          return value === 'ongoing' || value === 'unknown-end' || value === 'known-end'
+        },
+        getPeriodStatus(period = {}) {
+          if (typeof period.status === 'string' && ['ongoing', 'unknown-end', 'known-end'].includes(period.status)) {
+            return period.status
+          }
+          return period.endDate ? 'known-end' : 'unknown-end'
+        },
         FLOW_OPTIONS: [],
         buildSymptomOptions() {
           return []

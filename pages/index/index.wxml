@@ -132,6 +132,23 @@
       <text class="empty-guide-text">点日历任意一天开始记录</text>
     </view>
 
+    <!-- issue #98：超期进行中记录的一次非阻塞完成提示：同一记录只提示一次，点击打开同一条记录补填结束日期 -->
+    <view wx:if="{{ongoingCompletionReminder}}" class="reminder-stack">
+      <view
+        class="reminder-card {{ongoingCompletionReminder.type}}"
+        bindtap="onOngoingReminderTap"
+        aria-role="button"
+        aria-label="{{ongoingCompletionReminder.title}}，{{ongoingCompletionReminder.text}}，点按去补填"
+      >
+        <view class="reminder-rail"></view>
+        <view class="reminder-copy">
+          <text class="reminder-title">{{ongoingCompletionReminder.title}}</text>
+          <text class="reminder-text">{{ongoingCompletionReminder.text}}</text>
+        </view>
+        <text class="reminder-action">去补填</text>
+      </view>
+    </view>
+
     <view wx:if="{{cycleReminders.length}}" class="reminder-stack">
       <view
         class="reminder-card {{item.type}}"

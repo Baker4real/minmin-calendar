@@ -1,11 +1,22 @@
 const PERIOD_EDIT_PATH = '/pages/period/edit/edit'
 const MEMORY_EDIT_PATH = '/pages/memory/edit/edit'
+// 与 utils/cycle.js、云端副本一致的三态值；本模块保持零依赖，不引入运行时共享模块
+const PERIOD_STATUS_VALUES = ['ongoing', 'unknown-end', 'known-end']
+
+function isPeriodStatus(value) {
+  return PERIOD_STATUS_VALUES.includes(value)
+}
 
 function buildPeriodEditUrl(record = {}) {
+  const status = isPeriodStatus(record.status)
+    ? record.status
+    : (record.endDate ? 'known-end' : 'unknown-end')
   return buildUrl(PERIOD_EDIT_PATH, {
     id: record.id || record._id || '',
     startDate: record.startDate || '',
-    endDate: record.endDate || record.startDate || '',
+    // 只有已知结束的记录携带结束日期；进行中/结束日期不详由状态表达
+    endDate: status === 'known-end' ? (record.endDate || '') : '',
+    status: isPeriodStatus(record.status) ? record.status : '',
     note: record.note || '',
     flow: record.flow || '',
     symptoms: Array.isArray(record.symptoms) ? record.symptoms.join(',') : ''
@@ -15,14 +26,21 @@ function buildPeriodEditUrl(record = {}) {
 function parsePeriodEditOptions(options = {}, context = {}) {
   const today = context.today || ''
   const symptoms = parseSymptoms(options.symptoms)
+  const isEdit = !!options.id
+  // 新增默认进行中；编辑旧记录按已有日期保守推导状态
+  const status = isPeriodStatus(options.status)
+    ? options.status
+    : (isEdit ? (options.endDate ? 'known-end' : 'unknown-end') : 'ongoing')
   return {
     id: options.id || '',
     startDate: options.startDate || today,
-    endDate: options.endDate || options.startDate || today,
+    endDate: status === 'known-end' ? (options.endDate || '') : '',
+    status,
     note: decodeOption(options.note, { fallback: 'raw' }),
     flow: options.flow || '',
     symptoms,
-    isEdit: !!options.id
+    isEdit,
+    maxDate: today
   }
 }
 

@@ -17,6 +17,8 @@ project.private.config.json
 .serena/
 .tdd/
 .impeccable/
+.zcode/
+.zcodeignore
 
 # 本地草稿（保留已跟踪的使用说明）
 .scratch/*

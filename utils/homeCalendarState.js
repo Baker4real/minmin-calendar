@@ -72,14 +72,16 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
     legendItems: CALENDAR_LEGEND_ITEMS,
     predictionExplanation: calendarInsights.buildPredictionExplanation(prediction),
     cycleReminders: prediction.canPredict ? cycle.buildCycleReminders(prediction, periods, { today }) : [],
-    monthlyRecap: calendarInsights.buildMonthlyRecap({ year, month, periods, memories, prediction }),
+    monthlyRecap: calendarInsights.buildMonthlyRecap({ year, month, periods, memories, prediction, today }),
     days,
-    dayDetailsByDate: buildDayDetailsByDate(days, periods, memories)
+    dayDetailsByDate: buildDayDetailsByDate(days, periods, memories, today)
   }
 }
 
 function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextPredict = null, predictionWindow = null, today = util.formatDate(new Date()) }) {
-  const periodDates = collectPeriodDates(periods)
+  const periodDates = collectPeriodDates(periods, today)
+  const ongoingPeriodDates = collectOngoingPeriodDates(periods, today)
+  const unknownEndPeriodDates = collectUnknownEndPeriodDates(periods, today)
   const memoryDates = new Set(memories
     .map(memory => memory.date)
     .filter(isDateString))
@@ -92,6 +94,8 @@ function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextP
       ...day,
       isToday: day.date === today,
       isPeriod,
+      isOngoingPeriod: ongoingPeriodDates.has(day.date),
+      isUnknownEndPeriod: unknownEndPeriodDates.has(day.date),
       isMemory: memoryDates.has(day.date),
       isPredict: predictDates.has(day.date) && !isPeriod
     }
@@ -99,10 +103,10 @@ function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextP
   })
 }
 
-function collectPeriodDates(periods) {
+function collectPeriodDates(periods, today) {
   const periodDates = new Set()
   periods.forEach(period => {
-    const range = util.normalizeDateRange(period)
+    const range = cycle.projectPeriodRange(period, today)
     if (!range) return
     let date = util.parseDate(range.startDate)
     const end = util.parseDate(range.endDate)
@@ -112,6 +116,34 @@ function collectPeriodDates(periods) {
     }
   })
   return periodDates
+}
+
+function collectOngoingPeriodDates(periods, today) {
+  const ongoingDates = new Set()
+  periods.forEach(period => {
+    if (cycle.getPeriodStatus(period) !== 'ongoing') return
+    const range = cycle.projectPeriodRange(period, today)
+    if (!range) return
+    let date = util.parseDate(range.startDate)
+    const end = util.parseDate(range.endDate)
+    while (date <= end) {
+      ongoingDates.add(util.formatDate(date))
+      date.setDate(date.getDate() + 1)
+    }
+  })
+  return ongoingDates
+}
+
+// 结束日期不详只在已知开始日上区分状态，不延伸到其他日子
+function collectUnknownEndPeriodDates(periods, today) {
+  const unknownEndDates = new Set()
+  periods.forEach(period => {
+    if (cycle.getPeriodStatus(period) !== 'unknown-end') return
+    const range = cycle.projectPeriodRange(period, today)
+    if (!range) return
+    unknownEndDates.add(range.startDate)
+  })
+  return unknownEndDates
 }
 
 function collectPredictDates(nextPredict, year, month, predictionWindow) {
@@ -147,7 +179,7 @@ function isDateString(value) {
   return util.isValidDateString(value)
 }
 
-function buildDayDetailsByDate(days, periods, memories) {
+function buildDayDetailsByDate(days, periods, memories, today) {
   const details = {}
   const periodKeys = buildStableDetailKeys(periods, 'period', buildPeriodDetailFingerprint)
   const memoryKeys = buildStableDetailKeys(memories, 'memory', buildMemoryDetailFingerprint)
@@ -156,20 +188,20 @@ function buildDayDetailsByDate(days, periods, memories) {
     if (!day || day.isEmpty || !day.date) return
 
     const periodDetails = periods
-      .map((period, index) => ({ period, range: util.normalizeDateRange(period), index }))
+      .map((period, index) => ({ period, range: cycle.projectPeriodRange(period, today), index }))
       .filter(item => isPeriodActiveOnDate(item.range, day.date))
       .map(({ period, range, index }) => {
         const detail = cycle.decoratePeriod({
           ...period,
           startDate: range.startDate,
           endDate: range.endDate
-        })
+        }, { today })
         const meta = []
         if (detail.flowLabel) meta.push(`经量 ${detail.flowLabel}`)
         if (detail.symptomText) meta.push(detail.symptomText)
         return {
           key: periodKeys[index],
-          range: `${range.startDate} ~ ${range.endDate}`,
+          range: formatPeriodDetailRange(range),
           metaText: meta.join(' · ')
         }
       })
@@ -199,6 +231,13 @@ function isPeriodActiveOnDate(range, date) {
   return date >= range.startDate && date <= range.endDate
 }
 
+// 详情行文案暴露状态：进行中写明「开始日至今天」，结束日期不详不用空白日期表达
+function formatPeriodDetailRange(range) {
+  if (range.status === 'ongoing') return `${range.startDate} ~ ${range.endDate}（进行中）`
+  if (range.status === 'unknown-end') return `${range.startDate}（结束日期不详）`
+  return `${range.startDate} ~ ${range.endDate}`
+}
+
 function buildStableDetailKeys(records, type, buildFingerprint) {
   const occurrences = new Map()
   return records.map(record => {
@@ -217,6 +256,7 @@ function buildPeriodDetailFingerprint(period) {
   return [
     range.startDate || '',
     range.endDate || '',
+    detail.status || '',
     normalizeKeyText(period.note),
     detail.flow,
     detail.symptoms
@@ -244,7 +284,11 @@ function buildDayMeanings(day = {}) {
     meanings.push({
       key: 'period',
       title: '经期记录',
-      text: '这一天落在已记录的经期范围内。'
+      text: day.isOngoingPeriod
+        ? '这一天落在进行中的经期范围内（开始日至今天）。'
+        : day.isUnknownEndPeriod
+          ? '这一天是结束日期不详的经期记录的已知开始日。'
+          : '这一天落在已记录的经期范围内。'
     })
   }
   if (day.isMemory) {
@@ -280,6 +324,8 @@ function buildDayMeanings(day = {}) {
 const DAY_ARIA_MEANING_TEXT = {
   today: '今天',
   period: '经期',
+  'period-ongoing': '经期进行中',
+  'period-unknown-end': '结束日期不详',
   memory: '欢乐时光',
   predict: '预测区间',
   workday: '调休上班'
@@ -297,6 +343,13 @@ function buildDayAriaLabel(day) {
     }
     const text = DAY_ARIA_MEANING_TEXT[meaning.key]
     if (text) parts.push(text)
+    // 进行中的经期在读屏里明确说出「进行中」，不与已结束的经期混淆
+    if (meaning.key === 'period' && day.isOngoingPeriod) {
+      parts.push(DAY_ARIA_MEANING_TEXT['period-ongoing'])
+    } else if (meaning.key === 'period' && day.isUnknownEndPeriod) {
+      // 结束日期不详的开始日同样说出状态，读屏可与「进行中」区分
+      parts.push(DAY_ARIA_MEANING_TEXT['period-unknown-end'])
+    }
   })
   return parts.join(' ')
 }

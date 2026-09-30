@@ -343,6 +343,8 @@ test('period edit restores a stored draft with symptoms and prompts the restore 
 
     assert.equal(harness.page.data.startDate, '2026-09-02')
     assert.equal(harness.page.data.endDate, '2026-09-04')
+    // 旧草稿缺 status：按已知结束日期重新推导为已结束，不隐含进行中
+    assert.equal(harness.page.data.status, 'known-end')
     assert.equal(harness.page.data.note, '熬夜了')
     assert.equal(harness.page.data.flow, 'light')
     assert.deepEqual(harness.page.data.symptoms, ['cramps'])
@@ -370,13 +372,101 @@ test('period edit persists the in-progress form on hide', () => {
     harness.page.toggleSymptom({ currentTarget: { dataset: { value: 'cramps' } } })
     harness.page.onHide()
 
+    // 新增默认进行中：草稿保留状态与已知日期（结束日期为空）
     assert.deepEqual(JSON.parse(store.get(key)), {
       startDate: '2026-09-15',
-      endDate: '2026-09-20',
+      endDate: '',
+      status: 'ongoing',
       note: '',
       flow: 'heavy',
       symptoms: ['cramps']
     })
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('period edit draft keeps the chosen status and known dates across hide and reload', () => {
+  const store = new Map()
+  const harness = loadPageHarness('pages/period/edit/edit.js', {
+    mocks: createPeriodEditMocks(),
+    wxOverrides: createWxOverrides(store, [])
+  })
+
+  try {
+    const key = recordDraft.buildDraftKey({ collection: 'periods', id: 'p2' })
+
+    // 编辑一条进行中记录，切到已知结束并选好结束日期后离开
+    harness.page.onLoad({ id: 'p2', startDate: '2026-09-10', status: 'ongoing' })
+    harness.page.selectStatus({ currentTarget: { dataset: { value: 'known-end' } } })
+    harness.page.onEndChange({ detail: { value: '2026-09-14' } })
+    harness.page.onHide()
+
+    assert.deepEqual(JSON.parse(store.get(key)), {
+      startDate: '2026-09-10',
+      endDate: '2026-09-14',
+      status: 'known-end',
+      note: '',
+      flow: '',
+      symptoms: []
+    })
+
+    harness.teardown()
+    const restored = loadPageHarness('pages/period/edit/edit.js', {
+      mocks: createPeriodEditMocks(),
+      wxOverrides: createWxOverrides(store, [])
+    })
+    try {
+      restored.page.onLoad({ id: 'p2', startDate: '2026-09-10', status: 'ongoing' })
+      assert.equal(restored.page.data.status, 'known-end')
+      assert.equal(restored.page.data.endDate, '2026-09-14')
+      assert.equal(restored.page.data.draftRestored, true)
+    } finally {
+      restored.teardown()
+    }
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('period edit draft keeps an unknown-end selection across hide and reload', () => {
+  const store = new Map()
+  const harness = loadPageHarness('pages/period/edit/edit.js', {
+    mocks: createPeriodEditMocks(),
+    wxOverrides: createWxOverrides(store, [])
+  })
+
+  try {
+    const key = recordDraft.buildDraftKey({ collection: 'periods', id: 'p2' })
+
+    // 编辑一条进行中记录，显式改选「结束日期不详」后离开
+    harness.page.onLoad({ id: 'p2', startDate: '2026-09-10', status: 'ongoing' })
+    harness.page.selectStatus({ currentTarget: { dataset: { value: 'unknown-end' } } })
+    harness.page.onHide()
+
+    assert.deepEqual(JSON.parse(store.get(key)), {
+      startDate: '2026-09-10',
+      endDate: '',
+      status: 'unknown-end',
+      note: '',
+      flow: '',
+      symptoms: []
+    })
+
+    harness.teardown()
+    const restored = loadPageHarness('pages/period/edit/edit.js', {
+      mocks: createPeriodEditMocks(),
+      wxOverrides: createWxOverrides(store, [])
+    })
+    try {
+      // 路由仍是进行中：恢复的是用户显式选过的结束日期不详，空结束日期不隐含进行中
+      restored.page.onLoad({ id: 'p2', startDate: '2026-09-10', status: 'ongoing' })
+      assert.equal(restored.page.data.status, 'unknown-end')
+      assert.equal(restored.page.data.endDate, '')
+      assert.equal(restored.page.data.draftRestored, true)
+    } finally {
+      restored.teardown()
+    }
   } finally {
     harness.teardown()
   }
@@ -424,6 +514,19 @@ function createPeriodEditMocks(commandOverrides = {}, symptomGroupCalls = null) 
     ...createMemoryEditMocks(commandOverrides),
     'utils/cycle.js': {
       FLOW_OPTIONS: [{ value: 'heavy', label: '量大' }],
+      PERIOD_STATUS_OPTIONS: [
+        { value: 'ongoing', label: '进行中' },
+        { value: 'unknown-end', label: '结束日期不详' },
+        { value: 'known-end', label: '已结束' }
+      ],
+      isPeriodStatus(value) {
+        return value === 'ongoing' || value === 'unknown-end' || value === 'known-end'
+      },
+      getPeriodStatus(period = {}) {
+        if (this.isPeriodStatus(period.status)) return period.status
+        if (typeof period.endDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(period.endDate)) return 'known-end'
+        return 'unknown-end'
+      },
       buildSymptomOptions(selected = []) {
         if (symptomGroupCalls) symptomGroupCalls.push(selected.slice())
         return selected.map(value => ({ value, label: value, selected: true }))

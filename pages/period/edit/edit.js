@@ -7,7 +7,7 @@ const recordEditRoute = require('../../../utils/recordEditRoute')
 const recordPageSync = require('../../../utils/recordPageSync')
 const safeArea = require('../../../utils/safeArea')
 
-const DRAFT_FIELDS = ['startDate', 'endDate', 'note', 'flow', 'symptoms']
+const DRAFT_FIELDS = ['startDate', 'endDate', 'status', 'note', 'flow', 'symptoms']
 
 Page({
   data: {
@@ -16,11 +16,14 @@ Page({
     id: '',
     startDate: '',
     endDate: '',
+    status: 'ongoing',
     note: '',
     flow: '',
     symptoms: [],
     flowOptions: cycle.FLOW_OPTIONS,
+    statusOptions: cycle.PERIOD_STATUS_OPTIONS,
     symptomGroups: cycle.buildSymptomOptions(),
+    maxDate: '',
     isEdit: false,
     saving: false,
     deleting: false,
@@ -28,15 +31,21 @@ Page({
   },
 
   onLoad(options) {
-    const routeState = recordEditRoute.parsePeriodEditOptions(options, {
-      today: util.formatDate(new Date())
-    })
+    const today = util.formatDate(new Date())
+    const routeState = recordEditRoute.parsePeriodEditOptions(options, { today })
     const draftStorage = recordDraft.createWxDraftStorage(wx)
     const draftKey = recordDraft.buildDraftKey({ collection: 'periods', id: routeState.id })
     const storedDraft = recordDraft.readDraft(draftStorage, draftKey)
-    const formState = storedDraft
+    const merged = storedDraft
       ? { ...routeState, ...recordDraft.pickDraftFields(storedDraft, DRAFT_FIELDS) }
       : routeState
+    // 状态是权威：旧草稿缺 status 时按已知日期重新推导，不隐含进行中
+    const status = cycle.getPeriodStatus(merged)
+    const formState = {
+      ...merged,
+      status,
+      endDate: status === 'known-end' ? merged.endDate : ''
+    }
     this._draftStorage = draftStorage
     this._draftKey = draftKey
     this._draftBaseline = recordDraft.pickDraftFields(routeState, DRAFT_FIELDS)
@@ -76,9 +85,20 @@ Page({
 
   onStartChange(e) {
     this.setData({ startDate: e.detail.value })
-    if (this.data.startDate > this.data.endDate) this.setData({ endDate: this.data.startDate })
+    if (this.data.status === 'known-end' && this.data.startDate > this.data.endDate) {
+      this.setData({ endDate: this.data.startDate })
+    }
   },
   onEndChange(e) { this.setData({ endDate: e.detail.value }) },
+  selectStatus(e) {
+    if (this.data.saving) return
+    const status = e.currentTarget.dataset.value
+    if (!cycle.isPeriodStatus(status) || status === this.data.status) return
+    // 切到已知结束且还没选过结束日期时，用开始日期兜底（同日为合法单日记录）
+    const update = { status }
+    if (status === 'known-end' && !this.data.endDate) update.endDate = this.data.startDate
+    this.setData(update)
+  },
   onNoteInput(e) { this.setData({ note: e.detail.value }) },
   selectFlow(e) {
     if (this.data.saving) return
@@ -104,21 +124,27 @@ Page({
 
   async save() {
     if (this.data.saving || this.data.deleting) return
-    const { id, startDate, endDate, note, flow, symptoms, isEdit } = this.data
+    const { id, startDate, endDate, status, note, flow, symptoms, isEdit } = this.data
+    const today = util.formatDate(new Date())
     const client = cloud.createRoomDataClient()
     const outcome = await recordCommands.runRecordSave({
       page: this,
       action: () => {
-        const payload = cycle.buildPeriodPayload({ startDate, endDate, note, flow, symptoms })
+        const payload = cycle.buildPeriodPayload({ startDate, endDate, status, note, flow, symptoms })
         if (isEdit) {
           return client.update('periods', id, payload)
         }
         return client.add('periods', payload)
       },
       validate: () => {
-        if (!startDate || !endDate) return '请选择日期'
-        if (!util.isValidDateString(startDate) || !util.isValidDateString(endDate)) return '请选择有效日期'
-        if (startDate > endDate) return '结束日期不能早于开始'
+        if (!startDate) return '请选择日期'
+        if (!util.isValidDateString(startDate)) return '请选择有效日期'
+        if (startDate > today) return '开始日期不能晚于今天'
+        if (status === 'known-end') {
+          if (!endDate || !util.isValidDateString(endDate)) return '请选择有效日期'
+          if (startDate > endDate) return '结束日期不能早于开始'
+          if (endDate > today) return '结束日期不能晚于今天'
+        }
         return ''
       },
       successTitle: '保存成功',
