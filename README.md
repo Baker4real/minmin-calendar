@@ -83,7 +83,7 @@ Run the lightweight local checks after changing date, prediction, room, calendar
 下列命令假设当前目录是项目根；通过 Codex Desktop shell 执行时，应把测试和源码路径展开为绝对路径。
 
 ```powershell
-node --test tests\page-registration.test.js tests\room-data-client.test.js tests\room-resolver.test.js tests\index-page.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\record-draft.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\calendar-micro-labels.test.js tests\chip-contrast.test.js tests\contrast-guardrail.test.js tests\design-token-guardrail.test.js tests\filled-cta-contrast.test.js tests\glass-fallback.test.js tests\no-hover-tokens.test.js tests\form-entrance-animation.test.js tests\tabbar-contrast.test.js tests\tab-icons.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js tests\typography-roles.test.js tests\typography-hierarchy.test.js tests\narrow-screen-geometry.test.js tests\interaction-semantics.test.js tests\secondary-affordance-contrast.test.js tests\motion-performance.test.js tests\bind-room-flow.test.js
+node --test tests\page-registration.test.js tests\room-data-client.test.js tests\room-resolver.test.js tests\index-page.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\record-draft.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\calendar-micro-labels.test.js tests\chip-contrast.test.js tests\contrast-guardrail.test.js tests\design-token-guardrail.test.js tests\filled-cta-contrast.test.js tests\glass-fallback.test.js tests\no-hover-tokens.test.js tests\form-entrance-animation.test.js tests\tabbar-contrast.test.js tests\tab-icons.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js tests\typography-roles.test.js tests\typography-hierarchy.test.js tests\narrow-screen-geometry.test.js tests\interaction-semantics.test.js tests\secondary-affordance-contrast.test.js tests\motion-performance.test.js tests\bind-room-flow.test.js tests\readme-verification-list.test.js
 node --check cloudfunctions\_shared\roomMembershipLifecycle.js
 node --check cloudfunctions\_shared\syncRoomMembershipLifecycle.js
 node --check cloudfunctions\createRoom\roomMembershipLifecycle.js
@@ -125,7 +125,7 @@ node cloudfunctions\_shared\syncRoomMembershipLifecycle.js --check
 
 For UI changes, also verify in WeChat Developer Tools at a small-phone width.
 
-上面的 `node --test` 清单与 `tests/` 目录下的 `*.test.js` 一一对应（`tests/contrast.js`、`tests/designTokens.js` 是共享 helper，不是测试）；新增或删除测试文件时必须同步更新本清单。
+上面的 `node --test` 清单与 `tests/` 目录下的 `*.test.js` 一一对应（`tests/contrast.js`、`tests/designTokens.js` 是共享 helper，不是测试）；该同步由 `tests/readme-verification-list.test.js` 钉住，新增或删除测试文件时必须同步更新本清单，否则该测试变红。
 
 2026-08-13：`page` 上的 `auroraFlow` 已删除，理由是全屏 `background-position` 动画会每帧触发整页 repaint，页面动感改由 `.page::before` 的 `auroraPulse` 承担。`tabBar.borderStyle` 经审查保持 `white`。tab 图标 81×81 缺设计源，未做。
 2026-08-14：微信开发者工具重新编译通过，启动可用；此前控制台单独出现的 `WAServiceMainContext.js` `Error: timeout` 未再复现。真机小屏目检和 tab 图标重出仍未做。
