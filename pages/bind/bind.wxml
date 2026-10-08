@@ -15,8 +15,11 @@
         <text class="bound-code">房间码：{{roomCode}}</text>
         <view class="copy-btn" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码">复制</view>
       </view>
-      <view class="btn-premium" bindtap="goHome" aria-role="button" aria-label="进入应用">进入应用</view>
-      <view class="btn-danger" bindtap="unbind" aria-role="button" aria-label="解除绑定">解除绑定</view>
+      <!-- issue #102：创建成功后的下一步引导；复制键仍是唯一复制入口，不新增第二个 -->
+      <text wx:if="{{justCreated}}" class="info-text">把房间码发给 TA</text>
+      <!-- issue #102：已绑定冷启动由 checkRoom 自动进首页，「进入应用」只在跳转失败或刚创建房间时出现；
+           「解除绑定」移到设置页房间卡，本卡不再提供 -->
+      <view wx:if="{{justCreated || homeJumpFailed}}" class="btn-premium" bindtap="goHome" aria-role="button" aria-label="进入应用">进入应用</view>
     </view>
 
     <view wx:else class="premium-card">
@@ -43,5 +46,7 @@
     </view>
 
     <text wx:if="{{errorMsg}}" class="error-msg">{{errorMsg}}</text>
+    <!-- issue #102：房间校验失败给出可点重试（重跑校验），停留在本页，不导向重新绑定 -->
+    <view wx:if="{{checkFailed}}" class="error-retry" bindtap="retryCheck" aria-role="button" aria-label="重试">重试</view>
   </view>
 </view>

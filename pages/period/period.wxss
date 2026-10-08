@@ -193,10 +193,98 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
 }
+
+/* Segment Control – 记录分类（经期 / 欢乐时光）：弱态单选，选中项玫瑰描边+玫瑰字，
+   不用主操作的实色填充（同设置页密度控件形态，issue #103） */
+.segment-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10rpx;
+  margin: 24rpx 0 20rpx;
+  padding: 4rpx;
+  box-sizing: border-box;
+  border-radius: var(--radius-card);
+  background: rgba(255,255,255,0.055);
+  border: 1px solid rgba(255,255,255,0.11);
+}
+.segment-option {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-control);
+  color: rgba(255,255,255,0.68);
+  border: 1px solid transparent;
+  transition: background-color 0.22s ease, color 0.22s ease, transform 0.22s ease;
+}
+.segment-option:active {
+  transform: scale(0.98);
+  background: rgba(255,255,255,0.1);
+}
+.segment-option.active {
+  color: #E8909E;
+  background: rgba(232,144,158,0.08);
+  border-color: rgba(232,144,158,0.45);
+}
+
+/* Memory Segment – 欢乐时光列表行（与 pages/memory/memory.wxss 同款，分段内嵌拷贝） */
+.memory-left {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  min-width: 0;
+}
+.memory-info {
+  min-width: 0;
+}
+.memory-heart {
+  font-size: 36rpx;
+  color: #F0C4C0;
+  filter: drop-shadow(0 0 10px rgba(240,196,192,0.3));
+}
+.memory-date {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.85);
+}
+.memory-note {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.5);
+  margin-top: 4rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.memory-arrow {
+  font-size: 32rpx;
+  color: var(--text-secondary);
+}
+/* 欢乐时光骨架是圆点变体（经期侧是 pill），复用已注册的 skeletonPulse */
+.skeleton-dot {
+  width: 36rpx;
+  height: 36rpx;
+  margin-right: 16rpx;
+  border-radius: var(--radius-circle);
+  background: rgba(255,255,255,0.08);
+  animation: skeletonPulse 2.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .skeleton-line,
-  .skeleton-pill {
+  .skeleton-pill,
+  .skeleton-dot {
     animation: none;
+  }
+  .segment-option {
+    transition: none;
   }
 }
 

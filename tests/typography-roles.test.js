@@ -33,8 +33,6 @@ const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'pages/index/index.wxss', selector: '.month-title-caret', kind: 'glyph', value: '24rpx' },
   { file: 'pages/index/index.wxss', selector: '.nav-btn', kind: 'glyph', value: '42rpx' },
   { file: 'pages/index/index.wxss', selector: '.quick-icon', kind: 'glyph', value: '32rpx' },
-  { file: 'pages/index/index.wxss', selector: '.record-entry-icon', kind: 'glyph', value: '26rpx' },
-  { file: 'pages/index/index.wxss', selector: '.record-entry-arrow', kind: 'glyph', value: '42rpx' },
   { file: 'pages/index/index.wxss', selector: '.no-room-icon', kind: 'glyph', value: '120rpx' },
   { file: 'pages/index/index.wxss', selector: '.jump-year-step', kind: 'glyph', value: '40rpx' },
   { file: 'pages/index/index.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
@@ -43,6 +41,8 @@ const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'pages/index/index.wxss', selector: '.stat-num', kind: 'display', value: '36rpx' },
   { file: 'pages/period/period.wxss', selector: '.item-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/period/period.wxss', selector: '.cycle-num', kind: 'display', value: '44rpx' },
+  { file: 'pages/period/period.wxss', selector: '.memory-heart', kind: 'glyph', value: '36rpx' },
+  { file: 'pages/period/period.wxss', selector: '.memory-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/period/edit/edit.wxss', selector: '.form-picker-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/memory/memory.wxss', selector: '.memory-heart', kind: 'glyph', value: '36rpx' },
   { file: 'pages/memory/memory.wxss', selector: '.memory-arrow', kind: 'glyph', value: '32rpx' },
@@ -190,7 +190,6 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/index/index.wxss', '.reminder-action', 'control'],
   ['pages/index/index.wxss', '.quick-text', 'control'],
   ['pages/index/index.wxss', '.empty-guide-text', 'assist'],
-  ['pages/index/index.wxss', '.record-entry-title', 'body'],
   ['pages/index/index.wxss', '.no-room-desc', 'assist'],
   ['pages/index/index.wxss', '.jump-today-label', 'control'],
   ['pages/index/index.wxss', '.jump-today-date', 'assist'],
@@ -208,8 +207,6 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/index/index.wxss', '.detail-title', 'assist'],
   ['pages/index/index.wxss', '.detail-main', 'body'],
   ['pages/index/index.wxss', '.detail-meta', 'assist'],
-  ['pages/index/index.wxss', '.meaning-tool-icon', 'control'],
-  ['pages/index/index.wxss', '.meaning-tool-text', 'control'],
   ['pages/index/index.wxss', '.legend-symbol', 'assist'],
   ['pages/index/index.wxss', '.legend-title', 'body'],
   ['pages/index/index.wxss', '.legend-text', 'assist'],
@@ -261,7 +258,6 @@ const TEXT_WEIGHT_ROLES = [
 
 // 圆点、心形、步进箭头留在图标槽里，不进文字字重角色，避免改图标观感。
 const GLYPH_WEIGHT_HOLDS = [
-  { file: 'pages/index/index.wxss', selector: '.record-entry-icon', value: '800' },
   { file: 'pages/index/index.wxss', selector: '.jump-year-step', value: '800' },
   { file: 'pages/index/index.wxss', selector: '.sheet-action-icon', value: '800' }
 ]
@@ -466,7 +462,6 @@ const LOCAL_LINE_HEIGHT = new Map([
   ['pages/index/index.wxss::.sync-text', '1.25'],
   ['pages/index/index.wxss::.predict-date', '1.15'],
   ['pages/index/index.wxss::.predict-weekday', '1.15'],
-  ['pages/index/index.wxss::.record-entry-title', '1.25'],
   ['pages/index/index.wxss::.sheet-action-title', '1.25'],
   ['pages/index/index.wxss::.legend-title', '1.25'],
   ['pages/period/edit/edit.wxss::.flow-chip', '1.2'],

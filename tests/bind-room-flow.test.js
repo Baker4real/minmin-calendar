@@ -5,8 +5,11 @@ const path = require('node:path')
 const test = require('node:test')
 
 // issue #78：房间码复制/解除绑定同屏可达、清除本地数据文案与行为对齐的页面接缝测试。
-// issue #88：#78 的绑定页/设置页复制键像素同款契约解除，两页复制键改为各自独立形态断言，
-// 绑定页主按钮族/复制键/解除绑定按粉域试点形态断言。
+// issue #102：已绑定冷启动自动 switchTab 进首页（跳转失败才留「进入应用」兜底）；校验失败留在
+// 本页给可点重试；已绑定卡不再有解除绑定（needUnbind 中间态入口保留）；创建后提示「把房间码发给 TA」；
+// 加入成功给一次「已和 TA 连上」反馈再进首页。
+// issue #104：绑定页收敛回 Aurora Bloom——紫粉试点 token/深紫画布/粉胶囊/粉幽灵整体移除，
+// #78 的绑定页/设置页复制键像素同款契约按 DESIGN.md 重建条件恢复（fill/label/radius/padding/shadow 全等）。
 // 观察用户能看见或能做到的事：哪个控件在场、哪句话显示、点按后落到哪个状态；
 // 不断言私有结构。接缝与 tests/page-registration.test.js 的 loadPageHarness 同构（本文件自有最小副本）。
 
@@ -47,10 +50,12 @@ test('bind bound screen puts the copy button in the same row as the room code, a
     /class="btn-premium"[^>]*bindtap="goHome"[^>]*aria-label="进入应用"/,
     '进入应用 remains the main button on the bound screen'
   )
-  assert.match(
+  // issue #102：解除绑定移到设置页房间卡，已绑定卡不再有解绑入口；
+  // 绑定页只保留 needUnbind 中间态（错误恢复路径）的就地解除入口
+  assert.doesNotMatch(
     boundCard,
-    /class="btn-danger"[^>]*bindtap="unbind"/,
-    'bound screen keeps its unbind action'
+    /bindtap="unbind"/,
+    'the bound card no longer offers unbind; it lives on the settings room card'
   )
 
   const unboundCard = wxml.slice(wxml.indexOf('wx:else') + 'wx:else'.length)
@@ -61,80 +66,88 @@ test('bind bound screen puts the copy button in the same row as the room code, a
   )
 })
 
-// issue #88：#78 的「绑定页/设置页复制键像素同款」契约正式解除——绑定页整页换装粉胶囊后
-// 两页视觉域分离，同款不再成立；两页各自登记独立形态断言，设置页 .copy-btn 零改动。
-// 重建条件（全局视觉定稿若两页复制键回归同域同形）：恢复 fill/label/radius/padding/shadow 全等断言。
-test('bind copy button is the pink pilot pill while settings keeps its rose small button', () => {
+// issue #78 像素同款契约重建（issue #104，DESIGN.md「试点不推广」节登记）：绑定页整页收敛回
+// Aurora 后，两页复制键回归同一色域与同一形态——fill/label/radius/padding/shadow 逐属性全等，
+// 锚定设置页 .copy-btn（设置页侧零改动）。
+test('bind and settings copy buttons are the same rose small button pixel-for-pixel (issue #78)', () => {
   const bindRule = findRule(readPageFile('pages/bind/bind.wxss'), '.copy-btn')
   const settingsRule = findRule(readPageFile('pages/settings/settings.wxss'), '.copy-btn')
 
-  // 绑定页：与主按钮同族的粉胶囊，88rpx 触控高度
-  assert.equal(bindRule.background, 'var(--bind-cta-pink)')
-  assert.equal(bindRule.color, 'var(--bind-canvas-bottom)')
-  assert.equal(bindRule['border-radius'], 'var(--radius-full)')
-  assert.equal(bindRule['min-height'], '88rpx')
-
-  // 设置页零改动：玫瑰底、海军字、radius-sm 小操作圆角
+  // 契约五属性：fill / label / radius / padding / shadow，两页逐值全等
+  for (const prop of ['background', 'color', 'border-radius', 'padding', 'box-shadow']) {
+    assert.equal(bindRule[prop], settingsRule[prop], `copy button ${prop} must match the settings anchor`)
+  }
   assert.equal(settingsRule.background, 'var(--aurora-pink)')
   assert.equal(settingsRule.color, '#0A0E27')
   assert.equal(settingsRule['border-radius'], 'var(--radius-sm)')
+  assert.equal(settingsRule.padding, '0 28rpx')
+  assert.equal(settingsRule['box-shadow'], '0 4px 15px rgba(232,144,158,0.28)')
 
-  // 像素同款断言不再成立：两页复制键底色与圆角分叉
-  assert.notEqual(bindRule.background, settingsRule.background)
-  assert.notEqual(bindRule['border-radius'], settingsRule['border-radius'])
+  // 88rpx 触控高度与按下缩放在两页同样同款
+  assert.equal(bindRule['min-height'], '88rpx')
+  assert.equal(settingsRule['min-height'], '88rpx')
+  const bindActive = findRule(readPageFile('pages/bind/bind.wxss'), '.copy-btn:active')
+  const settingsActive = findRule(readPageFile('pages/settings/settings.wxss'), '.copy-btn:active')
+  assert.equal(bindActive.transform, settingsActive.transform)
 })
 
-test('bind main button family is the pink pill and unbind is the pink ghost (issue #88)', () => {
+// issue #104：粉胶囊/粉幽灵页面级覆盖整体移除——绑定页主按钮回 app 级玫瑰基类，
+// 解除绑定（needUnbind 中间态就地入口）回 app 级警示红基类，红 tint Pressed 一并回归
+test('bind buttons ride the app-level rose primary and warning-red danger families (issue #104)', () => {
   const css = readPageFile('pages/bind/bind.wxss')
 
-  // 主按钮族（进入应用/创建我的房间/加入房间）页面级覆盖：粉底、深紫字、胶囊圆角、88rpx 触控高度
-  const premiumRule = findRule(css, '.btn-premium')
-  assert.equal(premiumRule.background, 'var(--bind-cta-pink)')
-  assert.equal(premiumRule.color, 'var(--bind-canvas-bottom)')
-  assert.equal(premiumRule['border-radius'], 'var(--radius-full)')
-  assert.equal(premiumRule['min-height'], '88rpx')
+  // 页面级覆盖不再存在：bind.wxss 不得再出现 .btn-premium / .btn-danger 及其 :active 规则
+  for (const selector of ['.btn-premium', '.btn-danger', '.btn-danger:active']) {
+    const pattern = new RegExp(`(?:^|\\r?\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{`)
+    assert.doesNotMatch(css, pattern, `bind page must not override ${selector}; the app-level base applies`)
+  }
 
-  // 解除绑定：透明底 + 粉描边 + 粉字的幽灵形态（警示红族已移出该按钮）
-  const dangerRule = findRule(css, '.btn-danger')
-  assert.equal(dangerRule.background, 'transparent')
-  assert.equal(dangerRule.color, 'var(--bind-ghost-pink)')
-  assert.match(dangerRule.border, /1px solid rgba\(255,\s*143,\s*190,\s*0\.45\)/)
+  // app 级基类保持玫瑰主按钮与警示红危险按钮（红 tint Pressed 对 needUnbind 入口直接生效）
+  const appPremium = findRule(readPageFile('app.wxss'), '.btn-premium')
+  assert.equal(appPremium.background, 'var(--aurora-pink)')
+  assert.equal(appPremium.color, '#0A0E27')
+  const appDangerActive = findRule(readPageFile('app.wxss'), '.btn-danger:active')
+  assert.match(appDangerActive.background, /rgba\(249,\s*115,\s*115,\s*0\.12\)/)
 
-  // Pressed 不再继承 app 级红 tint：叠粉 tint，红色通道不得回到绑定页按钮
-  const dangerActive = findRule(css, '.btn-danger:active')
-  assert.match(dangerActive.background, /rgba\(255,\s*143,\s*190,\s*0\.12\)/)
-  assert.doesNotMatch(dangerActive.background, /249,\s*115,\s*115/)
+  // needUnbind 中间态就地解除入口保留：布局间距在场，样式跟随 app 级警示红族
+  const unbindInline = findRule(css, '.unbind-inline')
+  assert.match(unbindInline['margin-top'], /^\d+rpx$/)
 })
 
-// issue #89：未绑定态整卡换装收口——tab 条与输入框玻璃面切紫域、选中 tab 换粉胶囊、
-// 聚焦描边映射粉域；输入行为（6 位上限/等宽数字/逐字槽位/1px 实线描边）零变化；
-// 需解绑中间态入口在场，错误提示保持警示红族形态。
-test('bind unbound form rides the purple-pink domain while the error strip keeps the warning-red family', () => {
+// issue #104：未绑定表单域收敛回 Aurora 海军域——tab 条与输入框玻璃面回海军实底回退、
+// 选中 tab 回玫瑰填充、聚焦描边回玫瑰；输入行为（6 位上限/等宽数字/逐字槽位/1px 实线描边）零变化；
+// 需解绑中间态入口在场（样式跟随 app 级警示红），错误提示保持警示红族形态。
+test('bind unbound form rides the navy Aurora glass while the error strip keeps the warning-red family', () => {
   const css = readPageFile('pages/bind/bind.wxss')
 
-  // tab 条与输入框玻璃面与表单卡同配方切紫域（tab 条保留自身更淡的白玻璃层），海军回退退场
+  // 紫粉试点整体退场：页面级 --bind-* token 与深紫画布覆盖不再存在
+  assert.doesNotMatch(css, /--bind-/, 'the purple-pink pilot tokens must leave the bind page')
+  assert.doesNotMatch(css, /\.page::before/, 'the dark-purple canvas override must leave the bind page')
+
+  // tab 条与输入框玻璃面回海军实底回退（tab 条保留自身更淡的白玻璃层）
   const tabBar = findRule(css, '.tab-bar')
   assert.equal(
     tabBar.background,
-    'rgba(255,255,255,0.05), var(--bind-glass-tint), var(--bind-glass-fallback)'
+    'rgba(255,255,255,0.05), var(--glass-fallback)'
   )
   const codeInput = findRule(css, '.code-input')
   assert.equal(
     codeInput.background,
-    'var(--glass-bg), var(--bind-glass-tint), var(--bind-glass-fallback)'
+    'var(--glass-bg), var(--glass-fallback)'
   )
-  for (const rule of [tabBar, codeInput]) {
-    assert.doesNotMatch(rule.background, /--glass-fallback/, 'navy glass fallback must leave the unbound form')
-  }
 
-  // 选中 tab 与主按钮同族：粉底 + 深紫字
+  // 卡片不再覆盖紫玻璃 tint：布局声明保留，background 交回 app 级 .premium-card
+  const premiumCard = findRule(css, '.premium-card')
+  assert.equal(premiumCard.background, undefined, 'the bind card must ride the app-level navy glass background')
+
+  // 选中 tab 与主按钮同族：玫瑰填充 + 画布海军字
   const activeTab = findRule(css, '.tab.active')
-  assert.equal(activeTab.background, 'var(--bind-cta-pink)')
-  assert.equal(activeTab.color, 'var(--bind-canvas-bottom)')
+  assert.equal(activeTab.background, 'var(--aurora-pink)')
+  assert.equal(activeTab.color, '#0A0E27')
 
-  // 聚焦描边映射粉域，1px 实线形态不变
+  // 聚焦描边回玫瑰，1px 实线形态不变
   const focus = findRule(css, '.code-input:focus')
-  assert.equal(focus['border-color'], 'var(--bind-cta-pink)')
+  assert.equal(focus['border-color'], '#E8909E')
 
   // 错误提示保持警示红族（红字 + 红族浅底描边），需解绑中间态入口样式在场
   const errorMsg = findRule(css, '.error-msg')
@@ -292,6 +305,197 @@ test('bind page lands on the bound screen after creating a room, with the room c
   }
 })
 
+// issue #102：创建成功后的引导——房间码区域提示「把房间码发给 TA」，复制键仍是唯一复制入口
+test('bind page hints to send the room code to the partner after creating a room', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
+    createRoom: { code: 0, roomCode: 'ROOM05' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room })
+
+  try {
+    await harness.page.onShow()
+
+    await harness.page.createRoom()
+
+    assert.equal(harness.page.data.bound, true)
+    assert.equal(harness.page.data.justCreated, true)
+    assert.equal(
+      harness.page.data.homeJumpFailed,
+      false,
+      'the enter-app button shows through justCreated, not a jump failure'
+    )
+    assert.equal(harness.wx.switchTabCalls.length, 0, 'the creator stays to copy and send the room code')
+
+    const boundCard = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
+    assert.match(
+      boundCard,
+      /wx:if="\{\{justCreated\}\}"[^>]*>\s*把房间码发给 TA\s*<\//,
+      'the room-code area tells the creator to send the code to the partner'
+    )
+    assert.equal(
+      (boundCard.match(/bindtap="copyRoomCode"/g) || []).length,
+      1,
+      'the copy button stays the only copy entry'
+    )
+
+    // onShow 重校验后提示清除，不常驻
+    await harness.page.onShow()
+    assert.equal(harness.page.data.justCreated, false)
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #102：加入成功后给一次明确的「已和 TA 连上」反馈，再进入首页
+test('bind page confirms a successful join once and enters the homepage', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
+    joinRoom: { code: 0, roomCode: 'ROOM09' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room })
+
+  try {
+    await harness.page.onShow()
+    harness.page.setData({ joinCode: 'ROOM09' })
+
+    await harness.page.joinRoom()
+
+    assert.deepEqual(harness.wx.toasts, [{ title: '已和 TA 连上' }])
+    assert.equal(harness.wx.switchTabCalls.length, 1)
+    assert.equal(harness.wx.switchTabCalls[0].url, '/pages/index/index')
+    assert.equal(harness.page.data.bound, true)
+    assert.equal(harness.page.data.roomCode, 'ROOM09')
+  } finally {
+    harness.teardown()
+  }
+})
+
+// ===== issue #102：已绑定冷启动直达首页；跳转失败保留「进入应用」兜底 =====
+
+test('bind page cold-starts straight into the homepage tab when the room still verifies as bound', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room })
+
+  try {
+    await harness.page.onShow()
+
+    assert.equal(harness.page.data.bound, true)
+    assert.equal(harness.page.data.roomCode, 'ROOM01')
+    assert.equal(harness.wx.switchTabCalls.length, 1, 'bound verification must jump home immediately')
+    assert.equal(harness.wx.switchTabCalls[0].url, '/pages/index/index')
+    assert.deepEqual(harness.wx.toasts, [], 'cold-start jump stays silent; the connected toast is only for joins')
+
+    // review #99 / issue #102：自动跳转成功时「进入应用」不出现——只在跳转失败或刚创建房间时兜底
+    assert.equal(harness.page.data.justCreated, false)
+    assert.equal(harness.page.data.homeJumpFailed, false)
+    assert.match(
+      sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else'),
+      /wx:if="\{\{justCreated \|\| homeJumpFailed\}\}"[^>]*class="btn-premium"[^>]*bindtap="goHome"[^>]*aria-label="进入应用"/,
+      'the enter-app button renders only when the home jump failed or the room was just created'
+    )
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('bind page keeps the bound card with the enter-app fallback when the home jump fails', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room, switchTabFail: true })
+
+  try {
+    await harness.page.onShow()
+
+    assert.equal(harness.wx.switchTabCalls.length, 1)
+    assert.equal(harness.page.data.bound, true, 'the bound card stays as the fallback surface')
+    assert.equal(harness.page.data.roomCode, 'ROOM01')
+    assert.equal(harness.page.data.errorMsg, '')
+    assert.equal(harness.page.data.homeJumpFailed, true, 'the failed jump unhides the enter-app fallback')
+
+    // 兜底按钮可点：再点一次「进入应用」重试跳转；再次失败时旗标保持，按钮不退场
+    harness.page.goHome()
+    assert.equal(harness.wx.switchTabCalls.length, 2)
+    assert.equal(harness.page.data.homeJumpFailed, true)
+
+    assert.match(
+      sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else'),
+      /wx:if="\{\{justCreated \|\| homeJumpFailed\}\}"[^>]*class="btn-premium"[^>]*bindtap="goHome"/,
+      'the enter-app main button remains as the minimal fallback'
+    )
+  } finally {
+    harness.teardown()
+  }
+})
+
+// review #99 / issue #102：重新校验后旗标清除——「进入应用」兜底只在需要时在场
+test('bind page hides the enter-app fallback once re-verification clears the jump-failure flag', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' }
+  })
+  let failNextJump = true
+  const harness = loadPageHarness('pages/bind/bind.js', { room, switchTabFail: () => failNextJump })
+
+  try {
+    await harness.page.onShow()
+    assert.equal(harness.page.data.homeJumpFailed, true)
+
+    // 重校验仍已绑定且跳转恢复：旗标清除、自动进首页，兜底退场
+    failNextJump = false
+    await harness.page.retryCheck()
+    assert.equal(harness.page.data.justCreated, false)
+    assert.equal(harness.page.data.homeJumpFailed, false)
+    assert.equal(harness.wx.switchTabCalls.length, 2)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('bind page stays with the error and a tappable retry when room verification fails', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: {
+      kind: 'retryable-failure',
+      bound: false,
+      roomCode: '',
+      errorMsg: '同步房间状态失败：network down'
+    }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room })
+
+  try {
+    await harness.page.onShow()
+
+    assert.equal(harness.page.data.bound, false, 'a verification failure must not enter the app')
+    assert.equal(harness.page.data.needUnbind, false, 'a network failure must not mislead into rebinding')
+    assert.equal(harness.page.data.errorMsg, '同步房间状态失败：network down')
+    assert.equal(harness.page.data.checkFailed, true, 'the error strip gains a retry affordance')
+    assert.equal(harness.wx.switchTabCalls.length, 0)
+
+    // 重试 = 重跑 onShow 的房间校验，而不是导向重新绑定
+    await harness.page.retryCheck()
+    assert.equal(room.calls.getVerifiedActiveRoom, 2)
+    assert.equal(harness.page.data.errorMsg, '同步房间状态失败：network down')
+    assert.equal(harness.page.data.needUnbind, false)
+
+    const wxml = readPageFile('pages/bind/bind.wxml')
+    assert.match(
+      wxml,
+      /wx:if="\{\{checkFailed\}\}"[^>]*bindtap="retryCheck"/,
+      'the retry button only appears after a verification failure'
+    )
+    assert.match(
+      wxml,
+      /bindtap="retryCheck"[^>]*aria-role="button"[^>]*aria-label="重试"/,
+      'the retry button is a named tappable control'
+    )
+  } finally {
+    harness.teardown()
+  }
+})
+
 test('settings clear-local-data keeps showing the room code when the room is still active after clearing', async () => {
   const room = createRoomSessionStub({
     getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' },
@@ -399,7 +603,7 @@ function createRoomSessionStub(results = {}) {
   return session
 }
 
-function loadPageHarness(relativePath, { room, clipboard = [] } = {}) {
+function loadPageHarness(relativePath, { room, clipboard = [], switchTabFail = false } = {}) {
   const absolutePagePath = path.join(repoRoot, relativePath)
   const mocks = {
     [path.join(repoRoot, 'utils/room.js')]: room
@@ -413,7 +617,16 @@ function loadPageHarness(relativePath, { room, clipboard = [] } = {}) {
   const harnessWx = {
     modals: [],
     toasts: [],
-    switchTab() {},
+    switchTabCalls: [],
+    // issue #102：启动分流需要观察 switchTab 目标并能模拟跳转失败（扩展既有 fake，不是新 seam）；
+    // review #99：switchTabFail 也接受谓词函数，便于模拟「失败后恢复」
+    switchTab(options) {
+      harnessWx.switchTabCalls.push(options)
+      const shouldFail = typeof switchTabFail === 'function' ? switchTabFail() : switchTabFail
+      if (shouldFail && options && typeof options.fail === 'function') {
+        options.fail({ errMsg: 'switchTab:fail harness stub' })
+      }
+    },
     navigateTo() {},
     showToast(options) {
       harnessWx.toasts.push(options)

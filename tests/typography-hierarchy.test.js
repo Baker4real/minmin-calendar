@@ -14,7 +14,7 @@ const PERIOD_EDIT_WXSS = 'pages/period/edit/edit.wxss'
 const CAPTION_FLOOR_RPX = 26
 const MICRO_FLOOR_RPX = 24
 const CAPTION_LINE_HEIGHT = 1.4
-const MONTH_NAV_AVAILABLE_RPX = 478 // 750 视口 - content 24×2 - month-nav padding 24×2 - nav-btn 88×2
+const MONTH_NAV_AVAILABLE_RPX = 390 // 750 视口 - content 24×2 - month-nav padding 24×2 - nav-btn 88×2 - 月份工具菜单触发器 88（issue #105）
 const NAV_TOUCH_RPX = 88
 
 function readAppTokens() {
@@ -193,7 +193,7 @@ const PAGE_CAPTION_MATRIX = {
   [INDEX_WXSS]: ['.sync-text', '.week-cell', '.stat-label', '.reminder-text', '.legend-text', '.sheet-subtitle'],
   'pages/bind/bind.wxss': ['.hero-desc', '.info-text', '.error-msg'],
   [SETTINGS_WXSS]: ['.profile-desc', '.room-code-label', '.copy-btn', '.density-option'],
-  'pages/period/period.wxss': ['.card-label', '.cycle-label', '.item-note', '.item-tag', '.item-duration'],
+  'pages/period/period.wxss': ['.card-label', '.cycle-label', '.item-note', '.item-tag', '.item-duration', '.memory-note', '.segment-option'],
   [PERIOD_EDIT_WXSS]: ['.form-label', '.form-hint', '.symptom-group-label', '.flow-chip', '.symptom-chip'],
   'pages/memory/memory.wxss': ['.memory-note'],
   'pages/memory/edit/edit.wxss': ['.form-label']

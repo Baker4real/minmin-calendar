@@ -13,11 +13,9 @@
   z-index: 1;
 }
 .content-refreshing .calendar-grid,
-.content-refreshing .stats-card,
+.content-refreshing .status-card,
 .content-refreshing .empty-guide,
-.content-refreshing .reminder-stack,
-.content-refreshing .quick-actions,
-.content-refreshing .record-entries {
+.content-refreshing .quick-actions {
   opacity: 0.94;
 }
 .sync-pill {
@@ -181,53 +179,6 @@
 .nav-btn:active {
   transform: scale(0.96);
   background: rgba(255,255,255,0.2), var(--glass-fallback);
-}
-
-/* ===== Meaning Toolbar ===== */
-.meaning-toolbar {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14rpx;
-  margin: 18rpx 0 0;
-}
-.meaning-tool {
-  min-height: 88rpx;
-  padding: 12rpx 10rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10rpx;
-  box-sizing: border-box;
-  border-radius: var(--radius-md);
-  background: rgba(255,255,255,0.075);
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: 0 6rpx 20rpx rgba(0,0,0,0.12);
-  transition: background-color 0.22s ease, border-color 0.22s ease, transform 0.22s ease;
-}
-.meaning-tool:active {
-  transform: scale(0.97);
-  background: rgba(255,255,255,0.13);
-}
-.meaning-tool-icon {
-  flex: 0 0 auto;
-  width: 42rpx;
-  height: 42rpx;
-  line-height: 42rpx;
-  text-align: center;
-  border-radius: var(--radius-circle);
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-control);
-  color: #E8909E;
-  background: rgba(232,144,158,0.12);
-  box-shadow: inset 0 0 0 1px rgba(232,144,158,0.3);
-}
-.meaning-tool-text {
-  min-width: 0;
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-control);
-  line-height: var(--line-height-assist);
-  color: rgba(255,255,255,0.82);
-  white-space: nowrap;
 }
 
 /* ===== Week Header ===== */
@@ -438,16 +389,29 @@
   border: 1px solid rgba(212,165,116,0.22);
 }
 
-/* ===== Stats Bar – Glass Card ===== */
-.stats-card {
+/* ===== Status Card – Glass Card（issue #105 合并状态卡：条数现状 + 预测 + 提醒） ===== */
+.status-card {
   margin-top: 20rpx;
   padding: 28rpx 20rpx;
 }
-.stats-row {
+.status-row {
   display: flex;
   align-items: center;
   justify-content: space-around;
   gap: 10rpx;
+}
+.status-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+.status-reminders {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+  margin-top: 18rpx;
 }
 .stat-item {
   display: flex;
@@ -507,12 +471,6 @@
 }
 
 /* ===== Cycle Reminders ===== */
-.reminder-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 14rpx;
-  margin-top: 18rpx;
-}
 .reminder-card {
   min-height: 88rpx;
   display: flex;
@@ -641,55 +599,6 @@
   text-align: center;
 }
 
-/* ===== Record List Entries ===== */
-.record-entries {
-  display: flex;
-  flex-direction: column;
-  gap: 14rpx;
-  margin-top: 18rpx;
-}
-.record-entry {
-  min-height: 88rpx;
-  display: flex;
-  align-items: center;
-  gap: 18rpx;
-  padding: 16rpx 18rpx;
-  box-sizing: border-box;
-  border-radius: var(--radius-md);
-  background: rgba(255,255,255,0.075);
-  border: 1px solid rgba(255,255,255,0.11);
-  transition: background-color 0.24s ease, border-color 0.24s ease, transform 0.24s ease;
-}
-.record-entry:active {
-  transform: scale(0.98);
-  background: rgba(255,255,255,0.12);
-}
-.record-entry-icon {
-  flex: 0 0 auto;
-  width: 54rpx;
-  height: 54rpx;
-  line-height: 54rpx;
-  text-align: center;
-  border-radius: var(--radius-circle);
-  font-size: 26rpx;
-  font-weight: 800;
-  background: var(--glass-bg);
-}
-.record-entry-title {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-body);
-  line-height: 1.25;
-  color: rgba(255,255,255,0.88);
-}
-.record-entry-arrow {
-  flex: 0 0 auto;
-  font-size: 42rpx;
-  line-height: 1;
-  color: rgba(255,255,255,0.6);
-}
-
 /* ===== No Room State ===== */
 .no-room {
   display: flex;
@@ -704,6 +613,8 @@
 }
 .no-room-icon {
   font-size: 120rpx;
+  /* 无房间心：玫瑰文本字形，与绑定页 hero / 设置资料卡同款（issue #77 模式，issue #106） */
+  color: #E8909E;
   margin-bottom: 30rpx;
   animation: pulse 6s ease-in-out infinite;
 }
@@ -1402,10 +1313,8 @@
   .sheet-close,
   .day-cell,
   .stat-item,
-  .meaning-tool,
   .reminder-card,
   .quick-btn,
-  .record-entry,
   .no-room-icon {
     animation: none;
     transition: none;

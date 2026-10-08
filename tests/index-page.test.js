@@ -14,6 +14,15 @@ function readIndexWxss() {
   return fs.readFileSync(path.join(repoRoot, 'pages/index/index.wxss'), 'utf8')
 }
 
+// issue #105：合并状态卡的源码切片（卡起点 → 紧随其后的空态引导 wx:else 起点）
+function sliceStatusCard(wxml) {
+  const cardStart = wxml.indexOf('class="status-card')
+  const cardEnd = wxml.indexOf('wx:else class="empty-guide"')
+  assert.ok(cardStart !== -1, 'expected the merged status card')
+  assert.ok(cardEnd > cardStart, 'expected the empty guide to take the card slot when there are no records')
+  return wxml.slice(cardStart, cardEnd)
+}
+
 function ruleBody(wxss, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const match = wxss.match(new RegExp(`(?:^|[\\n}])\\s*${escaped}\\s*\\{([^}]+)\\}`))
@@ -172,6 +181,35 @@ test('pending revision prevents a background snapshot from rolling back a saved 
     assert.equal(harness.page.data.syncStatusText, '已更新，正在同步')
   } finally {
     deferred.resolve({ kind: 'success', data: [initialPeriod] })
+    harness.teardown()
+  }
+})
+
+test('a merged save syncs back as an update to the existing ongoing record without duplicating it', async () => {
+  const completed = period('p1', '2026-05-01')
+  const ongoing = { _id: 'p2', startDate: '2026-06-18', endDate: '', status: 'ongoing', note: '已经记录过的经期' }
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: [ongoing, completed] },
+      { kind: 'success', data: [] }
+    ])
+  })
+
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+
+    // 保存被合并后编辑页回流 update 语义：同一条 _id 原地更新，列表仍只有一条进行中
+    harness.page.applyRecordChange({
+      collection: 'periods',
+      mode: 'update',
+      record: { ...ongoing }
+    })
+
+    assert.deepEqual(harness.page.data.periods.map(item => item._id), ['p2', 'p1'])
+    assert.equal(harness.page.data.periods.filter(item => item.status === 'ongoing').length, 1)
+    assert.equal(harness.page.data.periods[0].note, '已经记录过的经期')
+  } finally {
     harness.teardown()
   }
 })
@@ -485,135 +523,110 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
   }
 }
 
-test('homepage places quick record actions after the calendar grid and before the stats card', () => {
+test('homepage places quick record actions after the calendar grid and before the merged status card', () => {
   const wxml = readIndexWxml()
   const gridIndex = wxml.indexOf('class="calendar-grid')
   const quickIndex = wxml.indexOf('class="quick-actions"')
-  const statsIndex = wxml.indexOf('class="stats-card')
+  const statusIndex = wxml.indexOf('class="status-card')
 
   assert.ok(gridIndex !== -1, 'expected the calendar grid')
   assert.ok(quickIndex !== -1, 'expected quick record actions')
-  assert.ok(statsIndex !== -1, 'expected the stats card')
+  assert.ok(statusIndex !== -1, 'expected the merged status card')
   assert.ok(gridIndex < quickIndex, 'record actions should directly follow the calendar grid')
-  assert.ok(quickIndex < statsIndex, 'record actions should precede the stats card')
+  assert.ok(quickIndex < statusIndex, 'record actions should precede the merged status card')
 })
 
-test('homepage offers secondary entries into the period and memory record lists', () => {
-  const wxml = readIndexWxml()
-  assert.match(wxml, /class="record-entries"/)
-  assert.match(wxml, /bindtap="goPeriodList"[\s\S]*?经期记录/)
-  assert.match(wxml, /bindtap="goMemoryList"[\s\S]*?欢乐时光/)
-
-  const navigation = []
-  const harness = loadPageHarness({ client: createQueuedClient([]) })
-  try {
-    global.wx.switchTab = options => navigation.push({ type: 'switchTab', url: options.url })
-    global.wx.navigateTo = options => navigation.push({ type: 'navigateTo', url: options.url })
-
-    harness.page.goPeriodList()
-    harness.page.goMemoryList()
-  } finally {
-    harness.teardown()
-  }
-
-  assert.deepEqual(navigation, [
-    { type: 'switchTab', url: '/pages/period/period' },
-    { type: 'navigateTo', url: '/pages/memory/memory' }
-  ])
-})
-
-test('homepage shows a first-record guide instead of silent zero stats when the room has no records', () => {
+test('homepage shows a first-record guide instead of the status card when the room has no records', () => {
   const wxml = readIndexWxml()
 
-  assert.match(wxml, /wx:if="{{periods\.length \|\| memories\.length}}" class="stats-card/)
+  assert.match(wxml, /wx:if="{{periods\.length \|\| memories\.length}}" class="status-card/)
   assert.match(wxml, /wx:else class="empty-guide"/)
   assert.match(wxml, /点日历任意一天开始记录/)
 })
 
-test('homepage stats card leaves prediction range, confidence, and average cycle to the prediction sheet', () => {
-  const wxml = readIndexWxml()
-  const statsStart = wxml.indexOf('class="stats-card')
-  const statsEnd = wxml.indexOf('class="reminder-stack"')
-  assert.ok(statsStart !== -1 && statsEnd > statsStart, 'expected a stats card before the reminder stack')
-  const statsBlock = wxml.slice(statsStart, statsEnd)
+// issue #105：空态引导文字对比度不低于 --text-secondary 档（基准 = 未选中 tab 在画布上的 4.5:1），
+// 在合成面（画布海军 + 引导卡 6% 白底）上验收，不是只看 alpha 值
+test('empty-state guide text meets the secondary-text contrast floor on its composed surface', () => {
+  const { contrastRatio } = require('./contrast')
+  const appWxss = fs.readFileSync(path.join(repoRoot, 'app.wxss'), 'utf8')
+  const wxss = readIndexWxss()
 
-  assert.doesNotMatch(statsBlock, /avgCycle|predictionRangeDisplay|predictConfidence/)
-  assert.match(statsBlock, /nextPredictDisplay/)
+  const canvasMatch = /page\s*\{[^}]*?background:\s*(#[0-9a-f]{6})/i.exec(appWxss)
+  assert.ok(canvasMatch, 'expected the app canvas background')
+  const guideBg = /background:\s*rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*([\d.]+)\s*\)/.exec(ruleBody(wxss, '.empty-guide'))
+  assert.ok(guideBg, 'expected the empty guide surface')
+  const guideText = /color:\s*rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*([\d.]+)\s*\)/.exec(ruleBody(wxss, '.empty-guide-text'))
+  assert.ok(guideText, 'expected the empty guide text color')
+
+  const compositeWhiteOver = (alpha, bgHex) => {
+    const channels = [1, 3, 5].map(i => parseInt(bgHex.slice(i, i + 2), 16))
+    const mixed = channels.map(channel => Math.round(alpha * 255 + (1 - alpha) * channel))
+    return `#${mixed.map(value => value.toString(16).padStart(2, '0')).join('')}`
+  }
+  const surface = compositeWhiteOver(Number(guideBg[1]), canvasMatch[1])
+  const foreground = compositeWhiteOver(Number(guideText[1]), surface)
+  const ratio = contrastRatio(foreground, surface)
+  assert.ok(
+    ratio >= 4.5,
+    `empty guide text ${foreground} on composed surface ${surface} = ${ratio.toFixed(2)}:1, below the 4.5:1 secondary floor`
+  )
+})
+
+test('homepage status card merges prediction and both reminders, leaving range and confidence to the prediction sheet', () => {
+  const wxml = readIndexWxml()
+  const cardBlock = sliceStatusCard(wxml)
+
+  assert.match(cardBlock, /nextPredictDisplay/)
+  assert.match(cardBlock, /bindtap="onOngoingReminderTap"/)
+  assert.match(cardBlock, /bindtap="onReminderTap"/)
+  assert.doesNotMatch(cardBlock, /avgCycle|predictionRangeDisplay|predictConfidence/)
   assert.match(wxml, /predictionExplanation\.summary/)
   assert.match(wxml, /predictionExplanation\.lineItems/)
 })
 
-test('stats card left half enters the existing period list page with a count-true screen-reader name', () => {
+test('status card keeps the period record count as plain status text, not a list entry', () => {
   const wxml = readIndexWxml()
-  const statsStart = wxml.indexOf('class="stats-card')
-  const statsBlock = wxml.slice(statsStart, wxml.indexOf('class="reminder-stack"'))
-  // 左半块 = 条数数字 + 「经期记录」标签；右半块从 predict-item 起
-  const leftHalf = statsBlock.slice(statsBlock.indexOf('class="stat-item"'), statsBlock.indexOf('stat-divider'))
+  const cardBlock = sliceStatusCard(wxml)
+  const figure = cardBlock.slice(cardBlock.indexOf('class="status-figure"'), cardBlock.indexOf('stat-divider'))
 
-  // issue #69：左半块整块接现有 goPeriodList 动作，与下方「经期记录」入口同一 tab 目标；
-  // 条数为 0 时（卡因欢乐时光仍可见）一样可进
-  assert.match(leftHalf, /class="stat-item"[\s\S]*?bindtap="goPeriodList"[\s\S]*?aria-role="button"[\s\S]*?aria-label="查看经期记录，共\{\{periods \? periods\.length : 0\}\}条"/)
-
-  // 读屏最终整句与卡上条数同源，包括 0
-  const labelExpr = /aria-label="查看经期记录，共\{\{([\s\S]+?)\}\}条"/.exec(leftHalf)
-  assert.ok(labelExpr, 'expected the count-based aria label')
-  assert.equal(`查看经期记录，共${evaluateWxmlExpression(labelExpr[1], { periods: [] })}条`, '查看经期记录，共0条')
-  assert.equal(`查看经期记录，共${evaluateWxmlExpression(labelExpr[1], { periods: [{}, {}] })}条`, '查看经期记录，共2条')
-
-  // 外观不变：玫瑰数字与「经期记录」标签仍在，不加箭头、不加「条」
-  assert.match(leftHalf, /class="stat-num">\{\{periods \? periods\.length : 0\}\}<\/text>/)
-  assert.match(leftHalf, /class="stat-label">经期记录<\/text>/)
-  assert.doesNotMatch(leftHalf, /›|arrow|条</)
-
-  // 分隔线与整卡不响应点击；点左半块不打开预测说明
-  assert.doesNotMatch(statsBlock, /class="stat-divider"[^>]*bindtap/)
-  assert.doesNotMatch(statsBlock, /class="stats-card[^"]*"[^>]*bindtap/)
-  assert.doesNotMatch(leftHalf, /openPredictionSheet/)
-
-  // 行为：与下方入口完全相同的 switchTab，不用普通页面跳转
-  const harness = loadPageHarness({ client: createQueuedClient([]) })
-  try {
-    const navigation = []
-    global.wx.switchTab = options => navigation.push({ type: 'switchTab', url: options.url })
-    global.wx.navigateTo = options => navigation.push({ type: 'navigateTo', url: options.url })
-
-    harness.page.goPeriodList()
-    assert.deepEqual(navigation, [{ type: 'switchTab', url: '/pages/period/period' }])
-  } finally {
-    harness.teardown()
-  }
+  // issue #105：条数仍是现状的一部分，但经期记录列表由「记录」tab 分段承接，
+  // 卡上不再有点按跳转（issue #68 的左半入口随本 ticket 退役）
+  assert.match(figure, /class="stat-num">\{\{periods \? periods\.length : 0\}\}<\/text>/)
+  assert.match(figure, /class="stat-label">经期记录<\/text>/)
+  assert.doesNotMatch(figure, /bindtap|aria-role|›|arrow|条</)
+  assert.doesNotMatch(cardBlock, /goPeriodList|goMemoryList/)
+  assert.doesNotMatch(cardBlock, /class="stat-divider"[^>]*bindtap/)
+  assert.doesNotMatch(cardBlock, /class="status-card[^"]*"[^>]*bindtap/)
 })
 
-test('stats card right half opens the existing prediction sheet without leaving the home page', () => {
+test('status card prediction region opens the existing prediction sheet without leaving the home page', () => {
   const wxml = readIndexWxml()
-  const statsStart = wxml.indexOf('class="stats-card')
-  const statsBlock = wxml.slice(statsStart, wxml.indexOf('class="reminder-stack"'))
-  const rightHalf = statsBlock.slice(statsBlock.indexOf('predict-item'))
+  const cardBlock = sliceStatusCard(wxml)
+  const predictRegion = cardBlock.slice(cardBlock.indexOf('predict-item'), cardBlock.indexOf('status-reminders'))
 
-  // issue #70：右半块整块接现有 openPredictionSheet 动作，与工具栏「预测」同一面板
-  assert.match(rightHalf, /bindtap="openPredictionSheet"[\s\S]*?aria-role="button"/)
-  assert.match(wxml, /class="meaning-tool" bindtap="openPredictionSheet"/)
+  // issue #70：预测区整块接现有 openPredictionSheet 动作（原工具栏「预测」入口现由月份菜单承接）
+  assert.match(predictRegion, /bindtap="openPredictionSheet"[\s\S]*?aria-role="button"/)
 
   // 有日期：月日 + 一个空格 + 星期；无日期：固定暂无文案（可见文字仍是 --）
-  const labelExpr = /aria-label="\{\{([\s\S]+?)\}\}"/.exec(rightHalf)
+  const labelExpr = /aria-label="\{\{([\s\S]+?)\}\}"/.exec(predictRegion)
   assert.ok(labelExpr, 'expected the date-aware aria label')
   const readLabel = scope => evaluateWxmlExpression(labelExpr[1], scope)
   assert.equal(readLabel({ nextPredictDisplay: '09月30日', nextPredictWeekday: '周三' }), '查看经期预测，09月30日 周三')
   assert.equal(readLabel({ nextPredictDisplay: '--', nextPredictWeekday: '' }), '查看经期预测，暂无下次日期')
 
-  // -- 不是禁用态；点右半块不进入经期记录页
-  assert.doesNotMatch(rightHalf, /disabled/)
-  assert.doesNotMatch(rightHalf, /goPeriodList/)
-  assert.match(rightHalf, /class="predict-date">\{\{nextPredictDisplay \|\| '--'\}\}<\/text>/)
-  assert.match(rightHalf, /wx:if="\{\{nextPredictWeekday\}\}"[\s\S]*?\{\{nextPredictWeekday\}\}<\/text>/)
-  assert.doesNotMatch(rightHalf, /›|arrow/)
+  // -- 不是禁用态；预测区不进入经期记录页
+  assert.doesNotMatch(predictRegion, /disabled/)
+  assert.doesNotMatch(predictRegion, /goPeriodList/)
+  assert.match(predictRegion, /class="predict-date">\{\{nextPredictDisplay \|\| '--'\}\}<\/text>/)
+  assert.match(predictRegion, /wx:if="\{\{nextPredictWeekday\}\}"[\s\S]*?\{\{nextPredictWeekday\}\}<\/text>/)
+  assert.doesNotMatch(predictRegion, /›|arrow/)
 
   // 说明面板的标题、正文与查看月份副标题保持现状
   assert.match(wxml, /predictionExplanation\.title/)
   assert.match(wxml, /predictionExplanation\.summary/)
   assert.match(wxml, /predictionExplanation\.lineItems/)
   assert.match(wxml, /class="sheet-subtitle">\{\{year\}\}年\{\{month \+ 1\}\}月<\/text>/)
-  assert.doesNotMatch(statsBlock, /avgCycle|predictionRangeDisplay|predictConfidence/)
+  assert.doesNotMatch(cardBlock, /avgCycle|predictionRangeDisplay|predictConfidence/)
 
   // 行为：留在首页、日历不跳转，只打开预测说明
   const harness = loadPageHarness({ client: createQueuedClient([]) })
@@ -659,6 +672,76 @@ test('homepage quick period action reopens the existing ongoing record instead o
     ])
   } finally {
     harness.teardown()
+  }
+})
+
+// issue #100：日历日动作 sheet 的「记录经期」与快捷入口同一决策——
+// 房间已有进行中记录时打开那条记录，否则按所选日期新增（默认状态由路由按开始日期推导）
+test('calendar day period action reopens the ongoing record or creates for the selected date', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const navigation = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+
+    // 已有进行中记录：从日历选过去某天点「记录经期」，打开那条进行中记录
+    harness.page.setData({
+      periods: [
+        { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 },
+        { _id: 'p2', startDate: '2026-06-20', endDate: '', status: 'ongoing' }
+      ]
+    })
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-01' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    assert.deepEqual(navigation, ['/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing'])
+
+    // 没有进行中记录：按所选日期新增；URL 不带状态与结束日期，由路由推导为已结束起止同日
+    harness.page.setData({ periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 }] })
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-10' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    assert.deepEqual(navigation, [
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing',
+      '/pages/period/edit/edit?startDate=2026-06-10'
+    ])
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #100：晚于今天的日期不提供可用的「记录经期」——动作 sheet 隐藏该入口（DESIGN.md 已登记），
+// 处理器侧保留不导航的兜底防线；编辑页日期上限与保存校验仍是最后防线
+test('calendar day period action is not usable for future dates', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const navigation = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+    harness.page.setData({ periods: [] })
+
+    // 未来日期（harness 今天固定为 2026-06-26）：入口被标记隐藏，直接触发处理器也不导航
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-30' } } })
+    assert.equal(harness.page.data.selectedDateIsFuture, true)
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    assert.deepEqual(navigation, [])
+
+    // 详情模式同一天同样被标记
+    harness.page.showDayDetail('2026-06-30')
+    assert.equal(harness.page.data.selectedDateIsFuture, true)
+
+    // 今天与过去日期：入口可用
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-26' } } })
+    assert.equal(harness.page.data.selectedDateIsFuture, false)
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-01' } } })
+    assert.equal(harness.page.data.selectedDateIsFuture, false)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('day action sheet hides both period entries for future dates in the template', () => {
+  const wxml = readIndexWxml()
+  const periodActions = wxml.match(/<view[^>]*data-action="period"[^>]*>/g) || []
+  assert.equal(periodActions.length, 2, 'expected the actions-mode and detail-mode period entries')
+  for (const tag of periodActions) {
+    assert.match(tag, /wx:if="\{\{!selectedDateIsFuture\}\}"/, 'period entry must be hidden on future dates')
   }
 })
 
@@ -813,7 +896,7 @@ test('tapping the completion reminder opens the same ongoing record to fill its 
   }
 })
 
-// issue #98：提示是文档流里的非阻塞卡片（无遮罩/弹层），位于统计卡之后、周期提醒之前，读屏可读
+// issue #98：提示是文档流里的非阻塞卡片（无遮罩/弹层）；issue #105 起并入合并状态卡、位于周期提醒之前，读屏可读
 test('the completion reminder is an in-flow non-blocking card with a readable name', () => {
   const wxml = readIndexWxml()
   const gateIndex = wxml.indexOf('wx:if="{{ongoingCompletionReminder}}"')
@@ -833,10 +916,10 @@ test('the completion reminder is an in-flow non-blocking card with a readable na
   // 非阻塞：不是遮罩弹层，不用 modal/sheet 容器
   assert.doesNotMatch(block, /mask|sheet|modal|fixed/)
 
-  // 位置：统计卡之后、周期提醒卡之前，保持既有首页信息层级
-  const statsIndex = wxml.indexOf('class="stats-card')
+  // 位置：合并状态卡内、周期提醒卡之前，一张卡看完现状
+  const statusIndex = wxml.indexOf('class="status-card')
   const cycleReminderIndex = wxml.indexOf('onReminderTap')
-  assert.ok(statsIndex !== -1 && statsIndex < cardIndex, 'reminder card sits after the stats card')
+  assert.ok(statusIndex !== -1 && statusIndex < gateIndex, 'reminder card lives inside the merged status card')
   assert.ok(cycleReminderIndex !== -1 && cardIndex < cycleReminderIndex, 'reminder card sits before the cycle reminders')
 
   // 样式复用周期提醒卡，不新增视觉系统；无新增 wxss 规则要求
@@ -858,20 +941,108 @@ test('stats halves press with the shared card scale-down and reduced-motion poli
   assert.match(reduced, /\.stat-item\b/)
 })
 
-test('homepage stacks month navigation, calendar, and record actions ahead of secondary tools', () => {
+test('homepage stacks month navigation, calendar, record actions, then the merged status card or empty guide', () => {
   const wxml = readIndexWxml()
   const monthNavIndex = wxml.indexOf('class="month-nav"')
   const weekHeaderIndex = wxml.indexOf('class="week-header"')
   const gridIndex = wxml.indexOf('class="calendar-grid')
   const quickIndex = wxml.indexOf('class="quick-actions"')
-  const toolbarIndex = wxml.indexOf('class="meaning-toolbar"')
+  const statusIndex = wxml.indexOf('class="status-card')
+  const emptyGuideIndex = wxml.indexOf('class="empty-guide"')
 
   assert.ok(monthNavIndex !== -1 && weekHeaderIndex !== -1 && gridIndex !== -1, 'expected month nav, week header, and calendar grid')
-  assert.ok(quickIndex !== -1 && toolbarIndex !== -1, 'expected quick actions and the meaning toolbar')
+  assert.ok(quickIndex !== -1 && statusIndex !== -1 && emptyGuideIndex !== -1, 'expected quick actions, the status card, and the empty guide')
   assert.ok(monthNavIndex < weekHeaderIndex, 'month navigation leads the calendar')
   assert.ok(weekHeaderIndex < gridIndex, 'week header sits directly above the calendar grid')
   assert.ok(gridIndex < quickIndex, 'record actions directly follow the calendar grid')
-  assert.ok(quickIndex < toolbarIndex, 'legend/prediction/recap tools stay secondary to the record actions')
+  assert.ok(quickIndex < statusIndex, 'the merged status card follows the record actions')
+  assert.ok(statusIndex < emptyGuideIndex, 'the empty-state guide takes the card slot when there is nothing to show')
+
+  // issue #105：低频工具收进月份菜单、列表入口由「记录」tab 分段承接，日历下方不再有工具条与底部入口
+  assert.equal(wxml.includes('meaning-toolbar'), false, 'the meaning toolbar moves into the month tools menu')
+  assert.equal(wxml.includes('record-entries'), false, 'the bottom record-list entries are removed')
+  const js = fs.readFileSync(path.join(repoRoot, 'pages/index/index.js'), 'utf8')
+  assert.doesNotMatch(js, /goPeriodList|goMemoryList/)
+})
+
+// issue #105：图例 / 预测说明 / 本月小结收进月份标题旁的「…」菜单（⌄ 已是选月 caret，不重复占用）
+test('month navigation offers a tools menu trigger beside the month title', () => {
+  const wxml = readIndexWxml()
+  const monthNav = wxml.slice(wxml.indexOf('class="month-nav"'), wxml.indexOf('class="week-header"'))
+  const titleIndex = monthNav.indexOf('month-title-trigger')
+  const menuIndex = monthNav.indexOf('month-menu-trigger')
+  const nextIndex = monthNav.indexOf('nextMonth')
+
+  assert.ok(titleIndex !== -1, 'expected the month title picker trigger')
+  assert.ok(menuIndex !== -1, 'expected the month tools menu trigger')
+  assert.ok(titleIndex < menuIndex && menuIndex < nextIndex, 'the tools menu trigger sits between the month title and the next-month arrow')
+
+  const triggerTag = monthNav.slice(monthNav.lastIndexOf('<view', menuIndex), monthNav.indexOf('</view>', menuIndex))
+  assert.match(triggerTag, /bindtap="openMonthMenu"/)
+  assert.match(triggerTag, /aria-role="button"/)
+  assert.match(triggerTag, /aria-label="打开工具菜单"/)
+  assert.match(triggerTag, /…/)
+  // 触发器与翻月箭头同族触控几何（88rpx 圆钮），不缩小吸收
+  const wxss = readIndexWxss()
+  const navBtn = ruleBody(wxss, '.nav-btn')
+  assert.match(triggerTag, /class="nav-btn month-menu-trigger"/)
+  assert.match(navBtn, /width:\s*88rpx/)
+  assert.match(navBtn, /height:\s*88rpx/)
+})
+
+test('month tools menu reuses the existing legend, prediction, and recap sheets', () => {
+  const wxml = readIndexWxml()
+  const menuStart = wxml.indexOf('wx:if="{{monthMenuVisible}}"')
+  assert.ok(menuStart !== -1, 'expected the month tools menu sheet')
+  const menuEnd = wxml.indexOf('wx:if="{{infoSheetVisible}}"')
+  assert.ok(menuEnd > menuStart, 'the menu sheet precedes the info sheets it opens')
+  const menuBlock = wxml.slice(menuStart, menuEnd)
+
+  // 遮罩本身是可点的「关闭」操作
+  assert.match(menuBlock, /bindtap="closeMonthMenu"[^>]*aria-role="button"[^>]*aria-label="关闭工具菜单"/)
+
+  // 三个菜单项按序 = 图例 / 预测说明 / 本月小结，朗读名承接原工具条
+  const items = [...menuBlock.matchAll(/data-action="(legend|prediction|recap)"[^>]*bindtap="onMonthMenuTap"/g)].map(match => match[1])
+  assert.deepEqual(items, ['legend', 'prediction', 'recap'])
+  assert.match(menuBlock, /aria-label="打开日历图例"/)
+  assert.match(menuBlock, /aria-label="查看经期预测"/)
+  assert.match(menuBlock, /aria-label="查看本月小结"/)
+
+  // sheet 本体零改动复用：三个信息面板仍在
+  assert.match(wxml, /class="legend-list"/)
+  assert.match(wxml, /class="prediction-explanation"/)
+  assert.match(wxml, /class="monthly-recap"/)
+})
+
+test('month tools menu opens the matching sheet and stays on the home page', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const navigation = []
+    global.wx.switchTab = options => navigation.push(options.url)
+    global.wx.navigateTo = options => navigation.push(options.url)
+    const viewBefore = { year: harness.page.data.year, month: harness.page.data.month }
+
+    harness.page.openMonthMenu()
+    assert.equal(harness.page.data.monthMenuVisible, true)
+    harness.page.closeMonthMenu()
+    assert.equal(harness.page.data.monthMenuVisible, false)
+
+    for (const [action, mode] of [['legend', 'legend'], ['prediction', 'prediction'], ['recap', 'recap']]) {
+      harness.page.openMonthMenu()
+      harness.page.onMonthMenuTap({ currentTarget: { dataset: { action } } })
+      assert.equal(harness.page.data.monthMenuVisible, false, `${action} closes the menu before opening its sheet`)
+      assert.equal(harness.page.data.infoSheetVisible, true)
+      assert.equal(harness.page.data.infoSheetMode, mode)
+      harness.page.closeInfoSheet()
+    }
+
+    // 菜单不导航、不翻月
+    assert.deepEqual(navigation, [])
+    assert.equal(harness.page.data.year, viewBefore.year)
+    assert.equal(harness.page.data.month, viewBefore.month)
+  } finally {
+    harness.teardown()
+  }
 })
 
 test('quick record buttons are rose-filled primary actions with canvas-navy labels', () => {
@@ -891,7 +1062,7 @@ test('quick record buttons use the calendar legend marks, not emoji, and reach 4
 
   // issue #73：图标 = 日历图例的经期玫瑰圆点与欢乐时光浅色心，画在海军圆盘上
   const quickStart = wxml.indexOf('class="quick-actions"')
-  const quickEnd = wxml.indexOf('class="meaning-toolbar"')
+  const quickEnd = wxml.indexOf('class="status-card')
   const quickBlock = wxml.slice(quickStart, quickEnd)
   assert.match(quickBlock, /class="quick-icon period-tone">●<\/text>/)
   assert.match(quickBlock, /class="quick-icon memory-tone">♥<\/text>/)

@@ -107,3 +107,12 @@
 .btn-premium {
   margin-bottom: 20rpx;
 }
+
+/* 减弱动效：边框过渡即时切换，不做渐进
+   （issue #106；DESIGN.md 动效政策——状态反馈走无位移通道） */
+@media (prefers-reduced-motion: reduce) {
+  .form-picker,
+  .form-input {
+    transition: none;
+  }
+}

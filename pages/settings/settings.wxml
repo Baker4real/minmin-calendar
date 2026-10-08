@@ -27,6 +27,11 @@
         <view class="room-action-btn" bindtap="retryRoomResolve" aria-role="button" aria-label="重试获取房间码">重试</view>
         <view class="room-action-btn" bindtap="goBind" aria-role="button" aria-label="去绑定房间">去绑定</view>
       </view>
+      <!-- issue #102：「解除绑定」从绑定页已绑定卡移到本卡，警示红菜单行族，二次确认文案不变 -->
+      <view wx:if="{{roomCode}}" class="menu-item danger" bindtap="unbind" aria-role="button" aria-label="解除绑定">
+        <text class="menu-text">解除绑定</text>
+        <text class="menu-arrow">›</text>
+      </view>
     </view>
 
     <!-- 日历显示密度（首页日历的密度偏好入口） -->

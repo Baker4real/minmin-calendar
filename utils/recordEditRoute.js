@@ -27,14 +27,20 @@ function parsePeriodEditOptions(options = {}, context = {}) {
   const today = context.today || ''
   const symptoms = parseSymptoms(options.symptoms)
   const isEdit = !!options.id
-  // 新增默认进行中；编辑旧记录按已有日期保守推导状态
-  const status = isPeriodStatus(options.status)
+  const startDate = options.startDate || today
+  const hasExplicitStatus = isPeriodStatus(options.status)
+  // 新增按生效开始日期推导默认状态：记今天默认进行中，补记过去默认已结束；
+  // 编辑旧记录按已有日期保守推导状态
+  const status = hasExplicitStatus
     ? options.status
-    : (isEdit ? (options.endDate ? 'known-end' : 'unknown-end') : 'ongoing')
+    : (isEdit ? (options.endDate ? 'known-end' : 'unknown-end') : (startDate < today ? 'known-end' : 'ongoing'))
+  // 推导出的「已结束」缺结束日期时兜底到开始日期（起止同日的单日记录）；
+  // 显式传入 known-end 的调用方保持原样，不补兜底
+  const derivedKnownEnd = !hasExplicitStatus && !isEdit && status === 'known-end'
   return {
     id: options.id || '',
-    startDate: options.startDate || today,
-    endDate: status === 'known-end' ? (options.endDate || '') : '',
+    startDate,
+    endDate: status === 'known-end' ? (options.endDate || (derivedKnownEnd ? startDate : '')) : '',
     status,
     note: decodeOption(options.note, { fallback: 'raw' }),
     flow: options.flow || '',

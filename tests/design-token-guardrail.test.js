@@ -167,84 +167,16 @@ test('glass fallback fill has a single token source', () => {
   assert.deepEqual(violations, [])
 })
 
-// issue #87 绑定页紫域试点：深紫玻璃回退与海军回退同法——唯一来源是 bind 页面级
-// --bind-glass-fallback；--bind-canvas-* 两端紫 hex 同法，只允许出现在 token 定义里，
-// 其余任何规则写这些字面量都会被拒绝。
-const BIND_PURPLE_FALLBACK = 'rgba(26,20,51,0.92)'
-const BIND_PURPLE_FALLBACK_PATTERN = /rgba\(\s*26\s*,\s*20\s*,\s*51\s*,\s*0\.92\s*\)/
-const BIND_CANVAS_PURPLES = [
-  ['--bind-canvas-top', '#2E2350'],
-  ['--bind-canvas-bottom', '#1A1433']
-]
-
-test('bind purple pilot tokens have a single page-token source', () => {
-  const bindRules = parseWxssRules(fs.readFileSync(path.join(repoRoot, 'pages/bind/bind.wxss'), 'utf8'))
-  const pageRule = bindRules.find((rule) => rule.selectors.includes('.page'))
-  assert.ok(pageRule, 'expected the bind page pilot token rule (.page)')
-  assert.equal(pageRule.decls['--bind-glass-fallback'], BIND_PURPLE_FALLBACK)
-  for (const [name, value] of BIND_CANVAS_PURPLES) {
-    assert.equal(pageRule.decls[name], value, `${name} should be ${value}`)
-  }
-
-  const violations = []
-  for (const file of listWxssFiles(repoRoot)) {
-    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    const lines = fs.readFileSync(file, 'utf8').split('\n')
-    lines.forEach((line, index) => {
-      const code = line.replace(/\/\*[\s\S]*?\*\//g, '')
-      if (
-        BIND_PURPLE_FALLBACK_PATTERN.test(code) &&
-        !(relative === 'pages/bind/bind.wxss' && code.includes('--bind-glass-fallback'))
-      ) {
-        violations.push(`${relative}:${index + 1} hardcodes the bind purple fallback instead of var(--bind-glass-fallback)`)
-      }
-      for (const [name, value] of BIND_CANVAS_PURPLES) {
-        if (!new RegExp(value.slice(1), 'i').test(code)) continue
-        if (relative === 'pages/bind/bind.wxss' && code.includes(name)) continue
-        violations.push(`${relative}:${index + 1} hardcodes ${value} instead of var(${name})`)
-      }
-    })
-  }
-  assert.deepEqual(violations, [])
-})
-
-// issue #88 绑定页粉按钮族：胶囊实色粉与幽灵粉同法——唯一来源是 bind 页面级
-// --bind-cta-pink / --bind-ghost-pink；issue #89 换装复核升档的成功标题玫瑰
-// --bind-status-rose 同法，其余任何规则写这些字面量都会被拒绝。
-const BIND_PILOT_ACCENTS = [
-  ['--bind-cta-pink', '#FF7FB0'],
-  ['--bind-ghost-pink', '#FF8FBE'],
-  ['--bind-status-rose', '#F2A3B0']
-]
-
-test('bind pilot accent tokens have a single page-token source', () => {
-  const bindRules = parseWxssRules(fs.readFileSync(path.join(repoRoot, 'pages/bind/bind.wxss'), 'utf8'))
-  const pageRule = bindRules.find((rule) => rule.selectors.includes('.page'))
-  assert.ok(pageRule, 'expected the bind page pilot token rule (.page)')
-  for (const [name, value] of BIND_PILOT_ACCENTS) {
-    assert.equal(pageRule.decls[name], value, `${name} should be ${value}`)
-  }
-
-  const violations = []
-  for (const file of listWxssFiles(repoRoot)) {
-    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    const lines = fs.readFileSync(file, 'utf8').split('\n')
-    lines.forEach((line, index) => {
-      const code = line.replace(/\/\*[\s\S]*?\*\//g, '')
-      for (const [name, value] of BIND_PILOT_ACCENTS) {
-        if (!new RegExp(value.slice(1), 'i').test(code)) continue
-        if (relative === 'pages/bind/bind.wxss' && code.includes(name)) continue
-        violations.push(`${relative}:${index + 1} hardcodes ${value} instead of var(${name})`)
-      }
-    })
-  }
-  assert.deepEqual(violations, [])
-})
+// issue #104：绑定页紫粉试点（issue #86–#89）结论是「不推广」，页面级 --bind-* token 与
+// 例外色板整体退役；色板护栏回到 deny-by-default 单一 Aurora 色板（tests/designTokens.js），
+// 绑定页任何紫粉字面量会被「every WXSS file uses only DESIGN.md palette hex colors」直接拒绝。
 
 const CTA_FILL_SELECTORS = [
   ['app.wxss', '.btn-premium'],
   ['pages/settings/settings.wxss', '.copy-btn'],
-  // issue #89：绑定页选中 tab 随未绑定表单域换装粉胶囊（--bind-cta-pink），移出玫瑰填充钉点表
+  // issue #104：绑定页收敛回 Aurora，复制键与选中 tab 回归玫瑰填充钉点表（与设置页同款）
+  ['pages/bind/bind.wxss', '.copy-btn'],
+  ['pages/bind/bind.wxss', '.tab.active'],
   // issue #55：首页主操作同构——快速记录、提醒记录、月份确认、月份选中态、复制小结
   ['pages/index/index.wxss', '.quick-btn'],
   ['pages/index/index.wxss', '.reminder-action'],
@@ -273,8 +205,6 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
   [
     // 极光背景、环境光斑、导航头辉光、卡缘高光、底部 sheet 面板、周期卡：装饰性渐变，非可操作填充
     ['app.wxss', '.page::before'],
-    // issue #87 绑定页紫域试点：页面级深紫画布覆盖（app 级极光层的 bind 页静态替代），非可操作填充
-    ['pages/bind/bind.wxss', '.page::before'],
     ['app.wxss', '.glow-orb-1'],
     ['app.wxss', '.glow-orb-2'],
     ['app.wxss', '.header-gradient::before'],
@@ -333,8 +263,8 @@ test('CTA fill guardrail flags unregistered gradient and literal rose fills', ()
   // 已登记装饰例外与合规填充不误伤
   const legit = [
     ['pages/period/period.wxss', '.cycle-card { background: linear-gradient(135deg, rgba(232,144,158,0.18), rgba(196,160,210,0.12)), var(--glass-fallback); }'],
-    // issue #89：绑定页选中 tab 已随紫粉域换装为 var(--bind-cta-pink)，var() 填充照旧不误伤
-    ['pages/bind/bind.wxss', '.tab.active { background: var(--bind-cta-pink); }'],
+    // issue #104：绑定页选中 tab 收敛回 var(--aurora-pink) 玫瑰填充，var() 填充照旧不误伤
+    ['pages/bind/bind.wxss', '.tab.active { background: var(--aurora-pink); }'],
     ['pages/period/edit/edit.wxss', '.flow-chip.active { background: rgba(232,144,158,0.92); }']
   ]
   assert.deepEqual(legit.flatMap(([f, css]) => scanCtaFillDiscipline(f, css)), [])

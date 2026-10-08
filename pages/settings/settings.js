@@ -6,6 +6,9 @@ const safeArea = require('../../utils/safeArea')
 
 // 与 pages/index/index.js 共享同一存储键；首页 onShow 重读本偏好
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
+// 与 pages/period/period.js 及两个记录编辑页共享的一次性「目标分段」意图键：
+// switchTab 不能带 query，「查看欢乐时光」先写键再切 tab，记录 tab onShow 消费并清除（issue #103）
+const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 
 Page({
   data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), roomCode: '', roomCodeDisplay: '未绑定', roomCodeLoaded: false, calendarDensity: 'compact' },
@@ -42,7 +45,31 @@ Page({
     })
   },
 
-  goMemory() { wx.navigateTo({ url: '/pages/memory/memory' }) },
+  // issue #102：「解除绑定」从绑定页已绑定卡移到本页房间卡；二次确认文案与绑定页逐字一致
+  unbind() {
+    wx.showModal({
+      title: '解除绑定',
+      content: '解除后将退出当前房间；若你是最后一人，数据会归档，可在本页重新创建恢复。确定解除？',
+      success: async (res) => {
+        if (res.confirm) {
+          const result = await roomSession.leaveRoom()
+          if (result.code === 0) {
+            // bind 非 tab 页，解绑成功后回绑定页只能 reLaunch
+            wx.reLaunch({ url: '/pages/bind/bind' })
+            return
+          }
+          wx.showToast({ title: result.msg || '解除绑定失败，请稍后重试', icon: 'none' })
+        }
+      }
+    })
+  },
+
+  goMemory() {
+    try {
+      wx.setStorageSync(RECORD_TAB_SEGMENT_STORAGE_KEY, 'memory')
+    } catch (e) {}
+    wx.switchTab({ url: '/pages/period/period' })
+  },
 
   async exportData() {
     const result = await settingsFlow.exportRecordsAsJson({
@@ -58,7 +85,7 @@ Page({
 
   clearData() {
     wx.showModal({
-      title: '⚠️ 确认清除',
+      title: '确认清除',
       content: '只清除保存在本机的房间码：云端记录会保留，也不会退出当前房间。确定清除？',
       success: async (res) => {
         if (res.confirm) {

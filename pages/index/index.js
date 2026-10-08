@@ -47,6 +47,7 @@ Page({
     jumpMonth: 0,
     ...buildJumpYearState(INITIAL_VIEW_DATE.getFullYear()),
     monthPickerVisible: false,
+    monthMenuVisible: false,
     calendarDensity: 'compact',
     periods: [], memories: [],
     ...INITIAL_HOME_STATE,
@@ -57,6 +58,7 @@ Page({
     daySheetMode: 'actions',
     selectedDate: '',
     selectedDateSubtitle: '',
+    selectedDateIsFuture: false,
     selectedDayDetail: null,
     dayDetailsByDate: {},
     ongoingCompletionReminder: null,
@@ -423,6 +425,27 @@ Page({
     this.setData({ monthPickerVisible: false })
   },
 
+  // issue #105：月份工具菜单——图例 / 预测说明 / 本月小结的低频入口收进月份标题旁的「…」
+  openMonthMenu() {
+    this.setData({ monthMenuVisible: true })
+  },
+
+  closeMonthMenu() {
+    this.setData({ monthMenuVisible: false })
+  },
+
+  onMonthMenuTap(e) {
+    const action = e.currentTarget.dataset.action
+    this.closeMonthMenu()
+    if (action === 'legend') {
+      this.openLegendSheet()
+    } else if (action === 'prediction') {
+      this.openPredictionSheet()
+    } else if (action === 'recap') {
+      this.openMonthlyRecap()
+    }
+  },
+
   getSavedCalendarDensity() {
     try {
       const density = wx.getStorageSync(CALENDAR_DENSITY_STORAGE_KEY)
@@ -531,6 +554,7 @@ Page({
       daySheetMode: 'actions',
       selectedDate: date,
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
+      selectedDateIsFuture: date > util.formatDate(new Date()),
       selectedDayDetail: null
     })
   },
@@ -541,8 +565,10 @@ Page({
     if (!date) return
 
     if (action === 'period') {
+      // 未来日期不提供记录经期（模板已隐藏入口，这里是不导航的兜底防线）
+      if (this.data.selectedDateIsFuture) return
       this.closeDayActions()
-      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: date, endDate: date }) })
+      this.openPeriodForDate(date)
     } else if (action === 'memory') {
       this.closeDayActions()
       wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl({ date }) })
@@ -557,6 +583,7 @@ Page({
       daySheetMode: 'actions',
       selectedDate: '',
       selectedDateSubtitle: '',
+      selectedDateIsFuture: false,
       selectedDayDetail: null
     })
   },
@@ -571,6 +598,7 @@ Page({
       daySheetMode: 'detail',
       selectedDate: date,
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
+      selectedDateIsFuture: date > util.formatDate(new Date()),
       selectedDayDetail: this.data.dayDetailsByDate[date] || {
         meanings: [],
         periods: [],
@@ -590,25 +618,24 @@ Page({
   },
 
   // 快速操作
-  quickPeriod() {
-    // 已有进行中的经期时重开原记录，不建第二条
+  // 「记录经期」统一决策：已有进行中的经期时重开原记录，不建第二条；
+  // 否则按给定日期新增（新增默认状态由 recordEditRoute 按开始日期推导）。
+  // 快捷入口、提醒入口与日历日动作 sheet 共用这一条页内逻辑。
+  openPeriodForDate(date) {
     const ongoing = cycle.findOngoingPeriod(this.data.periods)
     if (ongoing) {
       wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(ongoing) })
       return
     }
-    const now = util.formatDate(new Date())
-    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: now }) })
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: date }) })
+  },
+  quickPeriod() {
+    this.openPeriodForDate(util.formatDate(new Date()))
   },
   onReminderTap(e) {
     const reminder = this.data.cycleReminders[e.currentTarget.dataset.index]
     if (!reminder || reminder.action !== 'quickPeriod') return
-    const ongoing = cycle.findOngoingPeriod(this.data.periods)
-    if (ongoing) {
-      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(ongoing) })
-      return
-    }
-    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: reminder.date }) })
+    this.openPeriodForDate(reminder.date)
   },
 
   // issue #98：超期进行中记录的一次非阻塞完成提示。同一条记录只提示一次：
@@ -643,9 +670,6 @@ Page({
     const now = util.formatDate(new Date())
     wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl({ date: now }) })
   },
-
-  goPeriodList() { wx.switchTab({ url: '/pages/period/period' }) },
-  goMemoryList() { wx.navigateTo({ url: '/pages/memory/memory' }) },
 
   applyRoomStatusOutcome(outcome) {
     this.showRoomStatus(roomAccessOutcome.buildInlineRoomStatus(outcome, {

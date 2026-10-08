@@ -176,3 +176,14 @@
 .btn-premium {
   margin-bottom: 20rpx;
 }
+
+/* 减弱动效：边框、底色与按压缩放的过渡即时切换，不做渐进
+   （issue #106；DESIGN.md 动效政策——按压=即时 scale + 既有底色变化） */
+@media (prefers-reduced-motion: reduce) {
+  .form-picker,
+  .form-input,
+  .flow-chip,
+  .symptom-chip {
+    transition: none;
+  }
+}

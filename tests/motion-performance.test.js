@@ -497,6 +497,26 @@ test('reduced-motion blocks keep covering the named sheet, sync, and ambient lay
   }
 })
 
+test('edit page border and background transitions switch instantly under reduced motion', () => {
+  // issue #106：两个编辑页的 transition 全部被本文件 reduced-motion 块覆盖（DESIGN.md 政策：即时切换）；
+  // 覆盖判定与动画同规——同类集合、同伪元素层级，RM 规则必须把 transition 置 none
+  for (const relative of ['pages/period/edit/edit.wxss', 'pages/memory/edit/edit.wxss']) {
+    const file = analyzeFile(readRepo(relative))
+    const violations = []
+    for (const rule of file.rules) {
+      if (rule.inReducedMotion || !rule.decls.transition) continue
+      const covering = file.reducedMotionRules.find((rmRule) =>
+        rmRule.decls.transition === 'none' &&
+        rmRule.selectors.some((rmSelector) =>
+          rule.selectors.some((selector) => reducedMotionSelectorCovers(selector, rmSelector))))
+      if (!covering) {
+        violations.push(`${relative} ${rule.selectors.join(', ')} transition has no reduced-motion coverage`)
+      }
+    }
+    assert.deepEqual(violations, [])
+  }
+})
+
 test('DESIGN.md registers the motion and performance budgets', () => {
   const design = readRepo('DESIGN.md')
   for (const name of [

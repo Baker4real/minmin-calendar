@@ -464,10 +464,15 @@ test('index exposes calendar meaning and monthly recap sheets', () => {
   assert.match(js, /dayDetailsByDate:\s*\{\}/)
   assert.match(js, /selectedDayDetail:\s*this\.data\.dayDetailsByDate\[date\]\s*\|\|\s*{[\s\S]*meanings:\s*\[\]/)
 
-  assert.match(wxml, /meaning-toolbar/)
-  assert.match(wxml, /bindtap="openLegendSheet"/)
+  // issue #105：图例/预测说明/小结入口从常驻工具条收进月份标题旁的「…」菜单，
+  // 菜单项经 onMonthMenuTap 分发到既有打开函数；预测说明同时仍可从合并状态卡直接打开
+  assert.doesNotMatch(wxml, /meaning-toolbar/)
+  assert.match(wxml, /monthMenuVisible/)
+  assert.match(wxml, /bindtap="openMonthMenu"/)
+  assert.match(wxml, /data-action="legend"[^>]*bindtap="onMonthMenuTap"/)
+  assert.match(wxml, /data-action="prediction"[^>]*bindtap="onMonthMenuTap"/)
+  assert.match(wxml, /data-action="recap"[^>]*bindtap="onMonthMenuTap"/)
   assert.match(wxml, /bindtap="openPredictionSheet"/)
-  assert.match(wxml, /bindtap="openMonthlyRecap"/)
   assert.match(wxml, /calendar-info-sheet/)
   assert.match(wxml, /legend-list/)
   assert.match(wxml, /prediction-explanation/)
@@ -483,7 +488,7 @@ test('index exposes calendar meaning and monthly recap sheets', () => {
   assert.doesNotMatch(wxml, /wx:for="{{predictionExplanation\.lines}}"/)
   assert.doesNotMatch(wxml, /wx:for="{{monthlyRecap\.highlights}}"/)
 
-  assert.match(wxss, /\.meaning-toolbar/)
+  assert.doesNotMatch(wxss, /\.meaning-toolbar/)
   assert.match(wxss, /\.calendar-info-sheet/)
   assert.match(wxss, /\.monthly-recap/)
   assert.match(wxss, /\.detail-meaning/)
@@ -565,10 +570,10 @@ test('home page consumes RoomDataClient outcomes instead of legacy room-code and
   assert.match(wxml, /handleRoomStatusAction/)
 })
 
-test('index stats-card keeps only layout overrides over premium-card glass', () => {
+test('index status-card keeps only layout overrides over premium-card glass', () => {
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
-  const match = wxss.match(/(?:^|\r?\n)\.stats-card\s*\{([\s\S]*?)\r?\n\}/m)
-  assert.ok(match, 'expected a top-level .stats-card rule')
+  const match = wxss.match(/(?:^|\r?\n)\.status-card\s*\{([\s\S]*?)\r?\n\}/m)
+  assert.ok(match, 'expected a top-level .status-card rule')
   const block = match[1]
 
   assert.match(block, /margin-top\s*:/)

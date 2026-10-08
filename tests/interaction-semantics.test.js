@@ -182,9 +182,9 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(byHandler('closeDayActions', 'day-sheet-mask').attrs['aria-label'], '关闭当日操作')
   assert.equal(byHandler('closeInfoSheet', 'day-sheet-mask').attrs['aria-label'], '关闭面板')
 
-  // 三个 sheet 的 × 关闭按钮
+  // 四个 sheet 的 × 关闭按钮（月份跳转 / 日操作 / 信息面板 / 月份工具菜单）
   const closeButtons = elements.filter((element) => classTokens(element).includes('sheet-close'))
-  assert.equal(closeButtons.length, 3)
+  assert.equal(closeButtons.length, 4)
   for (const button of closeButtons) {
     assert.equal(button.attrs['aria-role'], 'button')
     assert.equal(button.attrs['aria-label'], '关闭')
@@ -194,7 +194,7 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   const dayActions = elements
     .filter((element) => element.attrs.bindtap === 'onDayActionTap')
     .map((element) => element.attrs['aria-label'])
-  assert.deepEqual(dayActions, ['记录经期', '记录欢乐时光', '查看详情', '补经期', '补记忆'])
+  assert.deepEqual(dayActions, ['记录经期', '记录欢乐时光', '查看详情', '补经期', '补欢乐时光'])
 
   // 月份选择与确认
   const jumpOption = byHandler('selectJumpMonth', 'jump-option')
@@ -207,10 +207,18 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(copyRecap.attrs['aria-role'], 'button')
   assert.equal(copyRecap.attrs['aria-label'], '复制小结')
 
-  // 图例 / 预测 / 小结次级工具
-  assert.equal(byHandler('openLegendSheet', 'meaning-tool').attrs['aria-label'], '打开日历图例')
-  assert.equal(byHandler('openPredictionSheet', 'meaning-tool').attrs['aria-label'], '查看经期预测')
-  assert.equal(byHandler('openMonthlyRecap', 'meaning-tool').attrs['aria-label'], '查看本月小结')
+  // 图例 / 预测说明 / 小结收进月份标题旁的「…」菜单（issue #105）：触发器与菜单项都是命名按钮
+  assert.equal(byHandler('openMonthMenu', 'month-menu-trigger').attrs['aria-role'], 'button')
+  assert.equal(byHandler('openMonthMenu', 'month-menu-trigger').attrs['aria-label'], '打开工具菜单')
+  assert.equal(byHandler('closeMonthMenu', 'day-sheet-mask').attrs['aria-label'], '关闭工具菜单')
+  const menuItems = elements.filter((element) => element.attrs.bindtap === 'onMonthMenuTap')
+  assert.deepEqual(
+    menuItems.map((element) => element.attrs['aria-label']),
+    ['打开日历图例', '查看经期预测', '查看本月小结']
+  )
+  for (const item of menuItems) {
+    assert.equal(item.attrs['aria-role'], 'button')
+  }
 
   // 周期提醒卡：朗读标题与说明，并说明点按动作
   const reminder = byHandler('onReminderTap', 'reminder-card')
@@ -218,33 +226,59 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(reminder.attrs['aria-label'], '{{item.title}}，{{item.text}}，点按记录')
 })
 
-test('stats card halves are named buttons into the record list and the prediction sheet', () => {
+test('merged status card names the prediction region and keeps the record count non-interactive', () => {
   const elements = collectElements(readPage('pages/index/index.wxml'))
-  const periodHalf = elements.find((element) =>
-    element.attrs.bindtap === 'goPeriodList' && classTokens(element).includes('stat-item'))
-  const predictHalf = elements.find((element) =>
+  const predictRegion = elements.find((element) =>
     element.attrs.bindtap === 'openPredictionSheet' && classTokens(element).includes('predict-item'))
   const divider = elements.find((element) => classTokens(element).includes('stat-divider'))
-  const statsCard = elements.find((element) => classTokens(element).includes('stats-card'))
+  const statusCard = elements.find((element) => classTokens(element).includes('status-card'))
+  const figure = elements.find((element) => classTokens(element).includes('status-figure'))
 
-  // issue #69：左半块读屏名称与卡上条数同源（含 0 条）
-  assert.ok(periodHalf, 'expected the stats-card period half to be a tap target')
-  assert.equal(periodHalf.attrs['aria-role'], 'button')
-  assert.equal(periodHalf.attrs['aria-label'], '查看经期记录，共{{periods ? periods.length : 0}}条')
-
-  // issue #70：右半块有日期读月日+星期，无日期读固定暂无文案
-  assert.ok(predictHalf, 'expected the stats-card prediction half to be a tap target')
-  assert.equal(predictHalf.attrs['aria-role'], 'button')
+  // issue #70：预测区有日期读月日+星期，无日期读固定暂无文案
+  assert.ok(predictRegion, 'expected the status-card prediction region to be a tap target')
+  assert.equal(predictRegion.attrs['aria-role'], 'button')
   assert.equal(
-    predictHalf.attrs['aria-label'],
+    predictRegion.attrs['aria-label'],
     "{{nextPredictWeekday ? '查看经期预测，' + nextPredictDisplay + ' ' + nextPredictWeekday : '查看经期预测，暂无下次日期'}}"
   )
 
-  // 分隔线与整张统计卡都不是按钮
+  // issue #105：条数是现状展示不是入口——记录列表由「记录」tab 分段承接，卡上无跳转
+  assert.ok(figure, 'expected the plain record-count figure')
+  assert.equal(figure.attrs.bindtap, undefined)
+  assert.equal(figure.attrs['aria-role'], undefined)
+  assert.equal(figure.attrs['aria-label'], undefined)
+
+  // 分隔线与整张状态卡都不是按钮
   assert.equal(divider.attrs.bindtap, undefined)
   assert.equal(divider.attrs['aria-role'], undefined)
-  assert.equal(statsCard.attrs.bindtap, undefined)
-  assert.equal(statsCard.attrs['aria-role'], undefined)
+  assert.equal(statusCard.attrs.bindtap, undefined)
+  assert.equal(statusCard.attrs['aria-role'], undefined)
+
+  // 卡内超期进行中提醒保留原有动作与朗读名
+  const ongoing = elements.find((element) => element.attrs.bindtap === 'onOngoingReminderTap')
+  assert.equal(ongoing.attrs['aria-role'], 'button')
+  assert.equal(
+    ongoing.attrs['aria-label'],
+    '{{ongoingCompletionReminder.title}}，{{ongoingCompletionReminder.text}}，点按去补填'
+  )
+})
+
+test('first-screen loading spinner and sync status changes are perceivable', () => {
+  // issue #106：首屏加载指示与同步状态不再只有视觉信号——
+  // spinner 有朗读名；同步胶囊是 status 角色，朗读名与 syncStatusText 同源，
+  // showSyncStatus 每次改写文本（index-page.test.js 钉住）即产生可朗读的状态变化
+  const elements = collectElements(readPage('pages/index/index.wxml'))
+
+  const spinner = elements.find((element) => classTokens(element).includes('loading-spinner'))
+  assert.ok(spinner, 'expected the first-screen loading spinner')
+  assert.equal(spinner.attrs['aria-label'], '正在加载')
+
+  const pill = elements.find((element) => classTokens(element).includes('sync-pill'))
+  assert.ok(pill, 'expected the sync status pill')
+  assert.equal(pill.attrs['aria-role'], 'status')
+  assert.equal(pill.attrs['aria-label'], '{{syncStatusText}}')
+  const syncText = elements.find((element) => classTokens(element).includes('sync-text'))
+  assert.ok(syncText, 'expected the sync status text element')
 })
 
 test('bind page controls are named, tab switch exposes checked state, inert states read as disabled', () => {
@@ -304,6 +338,38 @@ test('record list rows, retry affordances and settings menu entries announce the
   }
 })
 
+test('record tab segment control reads as a radio group with a perceivable checked state', () => {
+  const elements = collectElements(readPage('pages/period/period.wxml'))
+
+  // 组容器有可读名
+  const group = elements.find((element) => classTokens(element).includes('segment-control'))
+  assert.ok(group, 'expected the segment control group')
+  assert.equal(group.attrs['aria-label'], '记录分类')
+
+  // 两个分段选项都是 radio，选中态与 active 类同条件（镜像护栏逐字符兜底，此处钉住朗读名）
+  const options = elements.filter((element) => classTokens(element).includes('segment-option'))
+  assert.equal(options.length, 2)
+  const bySegment = (segment) => options.find((element) => element.attrs['data-segment'] === segment)
+
+  const periodOption = bySegment('period')
+  assert.equal(periodOption.attrs['aria-role'], 'radio')
+  assert.equal(periodOption.attrs['aria-label'], '经期记录')
+  assert.equal(periodOption.attrs['aria-checked'], "{{segment === 'period'}}")
+
+  const memoryOption = bySegment('memory')
+  assert.equal(memoryOption.attrs['aria-role'], 'radio')
+  assert.equal(memoryOption.attrs['aria-label'], '欢乐时光')
+  assert.equal(memoryOption.attrs['aria-checked'], "{{segment === 'memory'}}")
+
+  // 欢乐时光分段内的行与重试入口沿用独立页的朗读文案
+  const byHandler = (handler, cls) =>
+    elements.find((element) =>
+      element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
+  assert.equal(byHandler('editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.date}} 的欢乐时光')
+  assert.equal(byHandler('loadMemoryData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
+  assert.equal(byHandler('addMemory', 'btn-premium').attrs['aria-label'], '记录欢乐时光')
+})
+
 test('edit pages name the save and delete operations and expose inert variants as disabled', () => {
   for (const file of ['pages/period/edit/edit.wxml', 'pages/memory/edit/edit.wxml']) {
     const elements = collectElements(readPage(file))
@@ -327,7 +393,15 @@ test('edit pages name the save and delete operations and expose inert variants a
   }
 
   const periodEdit = collectElements(readPage('pages/period/edit/edit.wxml'))
-  const flowChip = periodEdit.find((element) => classTokens(element).includes('flow-chip'))
+  // issue #100：经期状态是单选组，按 radio 朗读且选中项带 checked 状态；
+  // 按 aria-label 前缀区分——状态组与经量组共用 flow-chip 类，不能按类名取第一个
+  const statusChip = periodEdit.find((element) =>
+    (element.attrs['aria-label'] || '').startsWith('经期状态'))
+  assert.equal(statusChip.attrs['aria-role'], 'radio')
+  assert.equal(statusChip.attrs['aria-checked'], '{{status === item.value}}')
+  // 经量（可再点取消的单选）与症状（多选）保持 checkbox
+  const flowChip = periodEdit.find((element) =>
+    (element.attrs['aria-label'] || '').startsWith('经量'))
   assert.equal(flowChip.attrs['aria-role'], 'checkbox')
   const symptomChip = periodEdit.find((element) => classTokens(element).includes('symptom-chip'))
   assert.equal(symptomChip.attrs['aria-role'], 'checkbox')
@@ -361,6 +435,37 @@ test('brand, about and settings menu no longer use the red-heart emoji', () => {
   }
 })
 
+test('homepage no-room heart is the registered rose text glyph', () => {
+  // issue #106：无房间态与绑定页 hero、设置资料卡同款（issue #77 模式）——
+  // ♥ 文本字形，颜色显式走色板玫瑰（emoji 自带红色随表情一起退场）
+  const indexWxml = readPage('pages/index/index.wxml')
+  assert.match(indexWxml, /class="no-room-icon">♥</, 'no-room heart is the text glyph')
+  assert.doesNotMatch(indexWxml, /❤/)
+
+  const iconRule = wxssRuleBody('pages/index/index.wxss', '.no-room-icon')
+  assert.ok(iconRule, 'expected .no-room-icon rule in index.wxss')
+  assert.match(iconRule, /color:\s*#E8909E/i, 'the glyph heart takes the palette rose')
+})
+
+test('make-up record wording uses the happy-time family across app markup', () => {
+  // issue #106：补录动作不再叫「补记忆」，与列表/编辑页/设置入口同一族「欢乐时光」叫法
+  for (const file of PAGE_WXML) {
+    assert.doesNotMatch(readPage(file), /补记忆/, `${file} keeps the happy-time family wording`)
+  }
+})
+
+test('no decorative emoji hearts or warning emoji remain in app markup', () => {
+  // issue #106 验收：app 标记里不再有装饰性 emoji 心或警示 emoji；
+  // ♥（U+2665 文本字形）是登记的标记符号，不在此列
+  for (const file of PAGE_WXML) {
+    assert.doesNotMatch(
+      readPage(file),
+      /❤|🧡|💛|💚|💙|💜|🖤|🤍|🤎|💔|❣|💕|💞|💓|💗|💖|💘|💝|💟|⚠/,
+      `${file} must not use emoji hearts or warning emoji`
+    )
+  }
+})
+
 test('happy-time list rows show only the light heart, no second rose dot', () => {
   // 玫瑰圆点只表经期：欢乐时光列表行不再有时间轴玫瑰点
   assert.equal(wxssRuleBody('pages/memory/memory.wxss', '.list-item::before'), null,
@@ -379,10 +484,10 @@ test('bind success is stated in rose text without a green checkmark', () => {
   assert.doesNotMatch(wxml, /✅|✔|💚/, 'no green-check glyph anywhere on the bind page')
 
   // 成功用玫瑰文字表达（绑定页色板没有绿色）；
-  // issue #89 换装复核：紫卡面上改用页面级升档玫瑰 token（对比度账本见 DESIGN.md 紫域试点节）
+  // issue #104：紫粉试点退役，成功标题回到主色玫瑰（海军卡面上 ≥4.5:1，对比度测试钉住）
   const boundStatus = wxssRuleBody('pages/bind/bind.wxss', '.bound-status')
   assert.ok(boundStatus, 'expected .bound-status rule')
-  assert.match(boundStatus, /color:\s*var\(--bind-status-rose\)\s*;/i)
+  assert.match(boundStatus, /color:\s*(?:#E8909E|var\(--aurora-pink\))\s*;/i)
 })
 
 test('settings clear-local-data row reads as danger before any tap, export stays a plain row', () => {
@@ -400,9 +505,9 @@ test('settings clear-local-data row reads as danger before any tap, export stays
 test('text inputs focus into the registered 1px solid outline without any glow', () => {
   // 房间码输入（绑定页）与经期/欢乐时光备注（编辑页）：
   // 基线边框本就是 1px solid，焦点只把描边换成实线主色；基线与焦点都不再有光晕
-  // issue #89：绑定页描边色随紫粉域试点映射为 --bind-cta-pink，1px 实线形态与聚焦行为不变
+  // issue #104：绑定页描边色随紫粉试点退役回归玫瑰，与两个编辑页同族
   const inputs = [
-    ['pages/bind/bind.wxss', '.code-input', /border-color:\s*var\(--bind-cta-pink\)\s*;/i],
+    ['pages/bind/bind.wxss', '.code-input', /border-color:\s*(?:#E8909E|var\(--aurora-pink\))\s*;/i],
     ['pages/period/edit/edit.wxss', '.form-input', /border-color:\s*(?:#E8909E|var\(--aurora-pink\))\s*;/i],
     ['pages/memory/edit/edit.wxss', '.form-input', /border-color:\s*(?:#E8909E|var\(--aurora-pink\))\s*;/i]
   ]

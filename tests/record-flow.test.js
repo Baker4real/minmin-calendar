@@ -122,6 +122,60 @@ test('runRecordSave supports warm success feedback without the system checkmark 
   assert.equal(env.timer.calls.length, 1)
 })
 
+test('runRecordSave classifies a reopened save as merged and explains it with a modal instead of the success toast', async () => {
+  assert.equal(typeof recordCommands.runRecordSave, 'function')
+
+  const page = createFakePage({ saving: false })
+  const env = createFakeCommandEnv()
+  const persistedRecord = {
+    _id: 'p1',
+    startDate: '2026-09-10',
+    endDate: '',
+    status: 'ongoing',
+    note: '已经记录过的经期',
+    duration: 0,
+    flow: 'normal',
+    symptoms: ['tired']
+  }
+
+  const promise = recordCommands.runRecordSave({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => ({
+      kind: 'success',
+      result: { code: 0, id: 'p1', reopened: true, record: persistedRecord }
+    }),
+    validate: null,
+    successTitle: '保存成功',
+    failureTitle: '保存失败',
+    mergedTitle: '已打开进行中的经期',
+    mergedContent: '房间里已有一条进行中的经期，已为你打开它'
+  })
+
+  await Promise.resolve()
+  // 合并到已有进行中记录：不显示「保存成功」、不排返回，改用单按钮说明 modal
+  assert.deepEqual(env.wx.toasts, [])
+  assert.equal(env.timer.calls.length, 0)
+  assert.equal(env.navigateBackCalls.length, 0)
+  assert.equal(env.wx.modals.length, 1)
+  const modal = env.wx.modals[0]
+  assert.deepEqual(modal, {
+    title: '已打开进行中的经期',
+    content: '房间里已有一条进行中的经期，已为你打开它',
+    showCancel: false,
+    confirmText: '知道了',
+    success: modal.success
+  })
+  assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
+
+  const result = await env.wx.resolveModal(true, promise)
+  assert.deepEqual(result, {
+    kind: 'merged',
+    result: { code: 0, id: 'p1', reopened: true, record: persistedRecord }
+  })
+})
+
 test('record page sync notifies the previous page without requiring a reload', () => {
   assert.equal(typeof recordPageSync.notifyPreviousPageRecordChange, 'function')
   assert.equal(typeof recordPageSync.getSavedRecord, 'function')
@@ -161,6 +215,13 @@ test('record page sync notifies the previous page without requiring a reload', (
   assert.equal(
     recordPageSync.getSavedRecord({ kind: 'success', result: { id: 'm2' } }),
     null
+  )
+  assert.deepEqual(
+    recordPageSync.getSavedRecord({
+      kind: 'merged',
+      result: { record: { _id: 'p9', startDate: '2026-09-10', endDate: '', status: 'ongoing' } }
+    }),
+    { _id: 'p9', startDate: '2026-09-10', endDate: '', status: 'ongoing' }
   )
   assert.equal(
     recordPageSync.getSavedRecord({ kind: 'business-failure' }),
@@ -831,6 +892,62 @@ test('runRecordListLoad keeps room repair sync failures retryable when the user 
   assert.equal(actionCalls, 2)
 })
 
+test('runRecordListLoad honors a custom loadFailedKey so two lists on one page keep independent failure state', async () => {
+  assert.equal(typeof recordCommands.runRecordListLoad, 'function')
+
+  const page = createFakePage({ memoryLoading: false })
+  const env = createFakeCommandEnv()
+
+  const promise = recordCommands.runRecordListLoad({
+    page,
+    wx: env.wx,
+    loadingKey: 'memoryLoading',
+    loadFailedKey: 'memoryLoadFailed',
+    itemsKey: 'memories',
+    action: async () => ({
+      kind: 'retryable-failure',
+      message: 'network down'
+    }),
+    mapRecords: records => records,
+    retryableTitle: '加载失败，请检查网络',
+    roomRepairTitle: '房间状态已变化，请重新绑定'
+  })
+
+  await Promise.resolve()
+  assert.equal(env.wx.modals.length, 1)
+
+  const result = await env.wx.resolveModal(false, promise)
+
+  assert.deepEqual(result, {
+    kind: 'retryable-failure',
+    message: 'network down'
+  })
+  // 取消重试后只置位自定义失败键；默认 loadFailed 不被触碰，两个列表互不污染
+  assert.deepEqual(page.setDataCalls, [
+    { memoryLoading: true },
+    { memoryLoading: false },
+    { memoryLoadFailed: true }
+  ])
+
+  const recovery = createFakePage({ memoryLoading: false })
+  const success = await recordCommands.runRecordListLoad({
+    page: recovery,
+    wx: env.wx,
+    loadingKey: 'memoryLoading',
+    loadFailedKey: 'memoryLoadFailed',
+    itemsKey: 'memories',
+    action: async () => ({ kind: 'success', data: [{ _id: 'm1', date: '2026-06-01' }] }),
+    mapRecords: records => records
+  })
+
+  assert.equal(success.kind, 'success')
+  assert.deepEqual(recovery.setDataCalls, [
+    { memoryLoading: true },
+    { memories: [{ _id: 'm1', date: '2026-06-01' }], memoryLoadFailed: false },
+    { memoryLoading: false }
+  ])
+})
+
 test('period and memory list templates keep the REC-03 visible row contract', () => {
   const periodWxml = readPageFile('pages/period/period.wxml')
   const memoryWxml = readPageFile('pages/memory/memory.wxml')
@@ -1346,6 +1463,200 @@ test('memory list hides the assertive empty note after a 0-record success then r
     assert.equal(harness.page.data.loadFailed, true)
     assert.equal(harness.page.data.hasLoaded, true)
     assert.equal(harness.page.data.loading, false)
+    assert.deepEqual(harness.page.data.memories, [])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('record tab memory segment mirrors the standalone memory list state contract', () => {
+  const periodWxml = readPageFile('pages/period/period.wxml')
+  const periodJs = readPageFile('pages/period/period.js')
+  const periodWxss = readPageFile('pages/period/period.wxss')
+
+  // 整卡失败态只在从未成功加载时出现；已加载后的失败保留列表，改走列表区重试行
+  assert.match(
+    periodWxml,
+    /wx:if="\{\{memoryLoadFailed && !memoryHasLoaded && !memoryLoading\}\}" class="empty-state load-failed" bindtap="loadMemoryData" aria-role="button" aria-label="加载失败，点按重试"/
+  )
+  assert.match(periodWxml, /class="load-failed-text">欢乐时光加载失败</)
+  assert.match(periodWxml, /class="retry-btn">重试</)
+
+  // 空列表说明保持安静：没有按钮、不可点；失败期间不显示断言式空态句
+  const emptyBlock = /wx:elif="\{\{memories\.length === 0 && !memoryLoading && !memoryLoadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
+  assert.ok(emptyBlock, 'expected the memory segment empty state block')
+  assert.match(emptyBlock[1], /还没有记录/)
+  assert.doesNotMatch(emptyBlock[1], /retry-btn|bindtap/)
+
+  // 已加载后失败：列表保留，重试行留在列表区域
+  assert.match(
+    periodWxml,
+    /wx:if="\{\{memoryLoadFailed && memoryHasLoaded && !memoryLoading\}\}" class="list-item" bindtap="loadMemoryData" aria-role="button" aria-label="刷新失败，点按重试"/
+  )
+  assert.match(periodWxml, /class="memory-note">刷新失败，正在显示上次的内容</)
+
+  // 欢乐时光骨架是圆点变体（经期侧是 pill，形态差异刻意保留），复用已注册的 skeletonPulse
+  assert.match(periodWxml, /wx:if="\{\{memoryLoading\}\}" class="skeleton-card"/)
+  assert.match(periodWxml, /class="skeleton-dot"/)
+  const dotRule = /\.skeleton-dot\s*\{[^}]*skeletonPulse[^}]*\}/.exec(periodWxss)
+  assert.ok(dotRule, 'expected the base .skeleton-dot rule')
+  assert.match(dotRule[0], /animation:\s*skeletonPulse 2\.4s ease-in-out infinite/)
+  // RM 下骨架圆点静止（与经期侧 skeleton-line/skeleton-pill 同块登记）
+  const rmBlock = periodWxss.slice(periodWxss.indexOf('@media (prefers-reduced-motion: reduce)'))
+  assert.match(rmBlock, /\.skeleton-dot/)
+
+  // memory 侧状态键经 onLoaded 接线，与经期侧同模式
+  assert.match(periodJs, /memoryLoadFailed:\s*false/)
+  assert.match(periodJs, /memoryHasLoaded:\s*false/)
+  assert.match(periodJs, /onLoaded:[\s\S]*?memoryHasLoaded: true/)
+})
+
+test('record tab memory segment first failure keeps memoryHasLoaded false, then a retry loads sorted records', async () => {
+  let call = 0
+  const harness = loadRecordPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list(collection) {
+              if (collection === 'periods') return { kind: 'success', data: [] }
+              call += 1
+              if (call === 1) return { kind: 'retryable-failure', message: 'network down' }
+              return {
+                kind: 'success',
+                data: [
+                  { _id: 'm1', date: '2026-06-01', note: 'older' },
+                  { _id: 'm2', date: '2026-07-03', note: 'newer' }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    wxOverrides: {
+      showModal(options) {
+        options.success({ confirm: false, cancel: true })
+      }
+    }
+  })
+
+  try {
+    await harness.page.onShow()
+    await harness.page.selectSegment({ currentTarget: { dataset: { segment: 'memory' } } })
+
+    // 首次失败：没有确信数据，分段态明确区分「从未成功加载」；经期分段未被波及
+    assert.equal(harness.page.data.memoryLoadFailed, true)
+    assert.equal(harness.page.data.memoryHasLoaded, false)
+    assert.equal(harness.page.data.memoryLoading, false)
+    assert.deepEqual(harness.page.data.memories, [])
+    assert.equal(harness.page.data.loadFailed, false)
+
+    // 列表区域的重试入口重新走 loadMemoryData，成功后失败态清空、按日期倒序
+    await harness.page.loadMemoryData()
+    assert.equal(harness.page.data.memoryLoadFailed, false)
+    assert.equal(harness.page.data.memoryHasLoaded, true)
+    assert.deepEqual(harness.page.data.memories, [
+      { _id: 'm2', date: '2026-07-03', note: 'newer' },
+      { _id: 'm1', date: '2026-06-01', note: 'older' }
+    ])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('record tab memory segment keeps records and turns to the list-area retry row when a later refresh fails', async () => {
+  let call = 0
+  const storage = { recordTabSegment: 'memory' }
+  const harness = loadRecordPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list(collection) {
+              if (collection === 'periods') return { kind: 'success', data: [] }
+              call += 1
+              if (call === 1) {
+                return {
+                  kind: 'success',
+                  data: [{ _id: 'm1', date: '2026-06-01', note: '一次愉快的野餐' }]
+                }
+              }
+              return { kind: 'retryable-failure', message: 'network down' }
+            }
+          }
+        }
+      }
+    },
+    wxOverrides: {
+      getStorageSync(key) {
+        return storage[key] || ''
+      },
+      removeStorageSync(key) {
+        delete storage[key]
+      },
+      showModal(options) {
+        options.success({ confirm: false, cancel: true })
+      }
+    }
+  })
+
+  try {
+    // 意图直落欢乐时光分段
+    await harness.page.onShow()
+    assert.equal(harness.page.data.segment, 'memory')
+    assert.equal(harness.page.data.memoryHasLoaded, true)
+    assert.equal(harness.page.data.memories.length, 1)
+
+    // 已加载后再刷新失败：旧列表保留（不被失败卡整卡替换），memoryHasLoaded 继续为真
+    await harness.page.onShow()
+    assert.equal(harness.page.data.memoryLoadFailed, true)
+    assert.equal(harness.page.data.memoryHasLoaded, true)
+    assert.equal(harness.page.data.memoryLoading, false)
+    assert.deepEqual(harness.page.data.memories, [
+      { _id: 'm1', date: '2026-06-01', note: '一次愉快的野餐' }
+    ])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('record tab memory segment hides the assertive empty note after a 0-record success then refresh failure', async () => {
+  let call = 0
+  const harness = loadRecordPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list(collection) {
+              if (collection === 'periods') return { kind: 'success', data: [] }
+              call += 1
+              if (call === 1) return { kind: 'success', data: [] }
+              return { kind: 'retryable-failure', message: 'network down' }
+            }
+          }
+        }
+      }
+    },
+    wxOverrides: {
+      showModal(options) {
+        options.success({ confirm: false, cancel: true })
+      }
+    }
+  })
+
+  try {
+    // 成功加载 0 条：这是确认过的真空态
+    await harness.page.onShow()
+    await harness.page.selectSegment({ currentTarget: { dataset: { segment: 'memory' } } })
+    assert.equal(harness.page.data.memoryHasLoaded, true)
+    assert.deepEqual(harness.page.data.memories, [])
+
+    // 再刷新失败：重试在场、无断言式空态句（!memoryLoadFailed 压住空态）
+    await harness.page.onShow()
+    assert.equal(harness.page.data.memoryLoadFailed, true)
+    assert.equal(harness.page.data.memoryHasLoaded, true)
+    assert.equal(harness.page.data.memoryLoading, false)
     assert.deepEqual(harness.page.data.memories, [])
   } finally {
     harness.teardown()
@@ -1873,6 +2184,191 @@ test('period edit rejects future start and end dates before touching the cloud',
   }
 })
 
+test('period edit switches to the reopened record after a merged save and keeps drafts on that record', async () => {
+  const persistedRecord = {
+    _id: 'p-ongoing',
+    startDate: '2026-09-01',
+    endDate: '',
+    status: 'ongoing',
+    note: '伴侣已经记过的经期',
+    duration: 0,
+    flow: 'normal',
+    symptoms: ['tired']
+  }
+  const env = createPeriodEditMergeEnv(persistedRecord)
+
+  try {
+    env.harness.page.onLoad({})
+    // 用户在新表单里填了自己的内容：保存时云端发现已有进行中记录，丢弃这份表单
+    env.harness.page.onStartChange({ detail: { value: '2026-09-19' } })
+    env.harness.page.onNoteInput({ detail: { value: '这次想补记的备注' } })
+    env.harness.page.selectFlow({ currentTarget: { dataset: { value: 'heavy' } } })
+    env.harness.page.toggleSymptom({ currentTarget: { dataset: { value: 'cramps' } } })
+
+    const saving = env.harness.page.save()
+    await new Promise(resolve => setImmediate(resolve))
+
+    // 合并分类：没有「保存成功」toast、不返回上一页，说明 modal 解释记录被重开
+    assert.deepEqual(env.toasts, [])
+    assert.equal(env.navigateBackCalls.length, 0)
+    assert.equal(env.modals.length, 1)
+    assert.equal(env.modals[0].showCancel, false)
+    assert.match(env.modals[0].content, /已有一条进行中的经期/)
+
+    env.modals[0].success({ confirm: true, cancel: false })
+    const outcome = await saving
+    assert.equal(outcome.kind, 'merged')
+
+    // 确认后编辑页展示被重开记录的持久化内容，而不是被丢弃的表单
+    assert.equal(env.harness.page.data.id, 'p-ongoing')
+    assert.equal(env.harness.page.data.isEdit, true)
+    assert.equal(env.harness.page.data.status, 'ongoing')
+    assert.equal(env.harness.page.data.startDate, '2026-09-01')
+    assert.equal(env.harness.page.data.endDate, '')
+    assert.equal(env.harness.page.data.note, '伴侣已经记过的经期')
+    assert.equal(env.harness.page.data.flow, 'normal')
+    assert.deepEqual(env.harness.page.data.symptoms, ['tired'])
+    assert.equal(env.harness.page.data.draftRestored, false)
+    const selectedSymptoms = env.harness.page.data.symptomGroups
+      .flatMap(group => group.options)
+      .filter(option => option.selected)
+      .map(option => option.value)
+    assert.deepEqual(selectedSymptoms, ['tired'])
+
+    // 上一页按更新语义同步：同一条 _id 合并，不产生重复的进行中记录
+    assert.equal(env.changes.length, 1)
+    assert.equal(env.changes[0].collection, 'periods')
+    assert.equal(env.changes[0].mode, 'update')
+    assert.deepEqual(env.changes[0].record, persistedRecord)
+
+    // 被丢弃表单的草稿按普通成功清理；草稿身份重建到被重开记录，不串键
+    assert.equal(env.storage.has('recordDraft:periods:new'), false)
+    assert.equal(env.harness.page._draftDiscarded, false)
+    assert.equal(env.harness.page._draftKey, 'recordDraft:periods:p-ongoing')
+
+    // 接着补填结束日期后离开页面：草稿写进被重开记录的草稿槽
+    env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'known-end' } } })
+    env.harness.page.onEndChange({ detail: { value: '2026-09-20' } })
+    env.harness.page.onHide()
+    assert.equal(env.storage.has('recordDraft:periods:new'), false)
+    const draft = JSON.parse(env.storage.get('recordDraft:periods:p-ongoing'))
+    assert.equal(draft.status, 'known-end')
+    assert.equal(draft.startDate, '2026-09-01')
+    assert.equal(draft.endDate, '2026-09-20')
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+// ===== review #99 / issue #103：编辑页保存/删除成功后写下一次性「目标分段」意图 =====
+// 首页快速入口经编辑页保存后返回首页，notify 只达前一页，到不了记录 tab；
+// 编辑页写下的一次性意图键让记录 tab 下一次 onShow 落在被改动记录所属分段。
+
+test('period edit save writes the one-shot segment intent so the record tab lands on periods', async () => {
+  const env = createPeriodEditSaveEnv()
+
+  try {
+    env.harness.page.onLoad({})
+    const outcome = await env.harness.page.save()
+
+    assert.equal(outcome.kind, 'success')
+    assert.equal(env.adds.length, 1)
+    // 无论从哪个入口进入本页：保存经期记录后，记录 tab 下次打开落在经期分段
+    assert.equal(env.storage.get('recordTabSegment'), 'period')
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('period edit merged save still writes the one-shot segment intent', async () => {
+  const persistedRecord = {
+    _id: 'p-ongoing',
+    startDate: '2026-09-01',
+    endDate: '',
+    status: 'ongoing',
+    note: '伴侣已经记过的经期',
+    duration: 0,
+    flow: 'normal',
+    symptoms: ['tired']
+  }
+  const env = createPeriodEditMergeEnv(persistedRecord)
+
+  try {
+    env.harness.page.onLoad({})
+    const saving = env.harness.page.save()
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(env.modals.length, 1)
+
+    env.modals[0].success({ confirm: true, cancel: false })
+    const outcome = await saving
+
+    // 合并到已有进行中经期也算保存成功：分段意图同样落在经期分段
+    assert.equal(outcome.kind, 'merged')
+    assert.equal(env.storage.get('recordTabSegment'), 'period')
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('period edit delete writes the one-shot segment intent', async () => {
+  const env = createEditDeleteEnv('pages/period/edit/edit.js', {
+    id: 'p1',
+    startDate: '2026-09-01',
+    endDate: '2026-09-03'
+  })
+
+  try {
+    const deleting = env.harness.page.delete()
+    assert.equal(env.modals.length, 1)
+
+    await env.modals[0].success({ confirm: true, cancel: false })
+    const outcome = await deleting
+
+    // 删除成功后返回，记录 tab 同样停在经期分段（分段上没有这条记录了，但位置符合期望）
+    assert.equal(outcome.kind, 'success')
+    assert.equal(env.storage.get('recordTabSegment'), 'period')
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('memory edit save writes the one-shot segment intent so the record tab lands on happy times', async () => {
+  const env = createMemoryEditSaveEnv()
+
+  try {
+    env.harness.page.onLoad({})
+    const outcome = await env.harness.page.save()
+
+    assert.equal(outcome.kind, 'success')
+    assert.equal(env.adds.length, 1)
+    // 从首页快速入口保存欢乐时光：记录 tab 下次打开落在欢乐时光分段
+    assert.equal(env.storage.get('recordTabSegment'), 'memory')
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('memory edit delete writes the one-shot segment intent', async () => {
+  const env = createEditDeleteEnv('pages/memory/edit/edit.js', {
+    id: 'm1',
+    date: '2026-09-01',
+    note: '野餐'
+  })
+
+  try {
+    const deleting = env.harness.page.delete()
+    assert.equal(env.modals.length, 1)
+
+    await env.modals[0].success({ confirm: true, cancel: false })
+    const outcome = await deleting
+
+    assert.equal(outcome.kind, 'success')
+    assert.equal(env.storage.get('recordTabSegment'), 'memory')
+  } finally {
+    env.harness.teardown()
+  }
+})
+
 test('period list reopens the existing ongoing record when the add button is tapped again', async () => {
   const navigation = []
   const toasts = []
@@ -1932,6 +2428,7 @@ function createPeriodEditSaveEnv() {
   const toasts = []
   const adds = []
   const updates = []
+  const storage = new Map()
   const realUtil = require(path.join(repoRoot, 'utils/util.js'))
   const harness = loadRecordPageHarness('pages/period/edit/edit.js', {
     mocks: {
@@ -1970,10 +2467,184 @@ function createPeriodEditSaveEnv() {
     wxOverrides: {
       showToast(options) {
         toasts.push(options)
+      },
+      getStorageSync(key) {
+        return storage.has(key) ? storage.get(key) : ''
+      },
+      setStorageSync(key, value) {
+        storage.set(key, value)
+      },
+      removeStorageSync(key) {
+        storage.delete(key)
       }
     }
   })
-  return { harness, toasts, adds, updates }
+  return { harness, toasts, adds, updates, storage }
+}
+
+// 欢乐时光编辑页保存环境：与 createPeriodEditSaveEnv 同形，云端与命令层用可捕获的桩。
+function createMemoryEditSaveEnv() {
+  const toasts = []
+  const adds = []
+  const updates = []
+  const storage = new Map()
+  const realUtil = require(path.join(repoRoot, 'utils/util.js'))
+  const harness = loadRecordPageHarness('pages/memory/edit/edit.js', {
+    mocks: {
+      'utils/util.js': { ...realUtil, formatDate: () => '2026-09-20' },
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async add(collection, payload) {
+              adds.push({ collection, payload })
+              return { kind: 'success', result: { record: { _id: 'new-m1', ...payload } } }
+            },
+            async update(collection, id, payload) {
+              updates.push({ collection, id, payload })
+              return { kind: 'success', result: { record: { _id: id, ...payload } } }
+            }
+          }
+        }
+      },
+      'utils/recordCommands.js': {
+        async runRecordSave(options) {
+          const message = typeof options.validate === 'function' ? options.validate() : ''
+          if (message) return { kind: 'validation', message }
+          return options.action()
+        },
+        async runRecordDelete() {
+          return { kind: 'cancelled' }
+        }
+      },
+      'utils/recordPageSync.js': {
+        getSavedRecord(outcome) {
+          return outcome && outcome.result ? outcome.result.record : null
+        },
+        notifyPreviousPageRecordChange() {}
+      }
+    },
+    wxOverrides: {
+      showToast(options) {
+        toasts.push(options)
+      },
+      getStorageSync(key) {
+        return storage.has(key) ? storage.get(key) : ''
+      },
+      setStorageSync(key, value) {
+        storage.set(key, value)
+      },
+      removeStorageSync(key) {
+        storage.delete(key)
+      }
+    }
+  })
+  return { harness, toasts, adds, updates, storage }
+}
+
+// 编辑页删除路径环境：真实 recordCommands 走确认 modal，云端 remove 成功；
+// modal 与本地存储（草稿 + 一次性分段意图键）均可观察。
+function createEditDeleteEnv(relativePath, loadOptions) {
+  const modals = []
+  const storage = new Map()
+  const harness = loadRecordPageHarness(relativePath, {
+    mocks: {
+      'utils/util.js': createUtilStub(),
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async remove() {
+              return { kind: 'success', result: {} }
+            }
+          }
+        }
+      },
+      'utils/recordPageSync.js': {
+        getSavedRecord() {
+          return null
+        },
+        notifyPreviousPageRecordChange() {}
+      }
+    },
+    wxOverrides: {
+      showModal(options) {
+        modals.push(options)
+      },
+      getStorageSync(key) {
+        return storage.has(key) ? storage.get(key) : ''
+      },
+      setStorageSync(key, value) {
+        storage.set(key, value)
+      },
+      removeStorageSync(key) {
+        storage.delete(key)
+      }
+    }
+  })
+  harness.page.onLoad(loadOptions)
+  return { harness, modals, storage }
+}
+
+// 合并路径（reopened）的编辑页保存环境：真实 recordCommands 与 recordPageSync.getSavedRecord，
+// 云端 add 固定返回 reopened + 持久化记录；modal、toast、navigateBack 与本地草稿存储均可观察。
+function createPeriodEditMergeEnv(persistedRecord) {
+  const toasts = []
+  const modals = []
+  const adds = []
+  const updates = []
+  const changes = []
+  const navigateBackCalls = []
+  const storage = new Map()
+  const realUtil = require(path.join(repoRoot, 'utils/util.js'))
+  const realRecordPageSync = require(path.join(repoRoot, 'utils/recordPageSync.js'))
+  const harness = loadRecordPageHarness('pages/period/edit/edit.js', {
+    mocks: {
+      'utils/util.js': { ...realUtil, formatDate: () => '2026-09-20' },
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async add(collection, payload) {
+              adds.push({ collection, payload })
+              return {
+                kind: 'success',
+                result: { code: 0, id: persistedRecord._id, reopened: true, record: persistedRecord }
+              }
+            },
+            async update(collection, id, payload) {
+              updates.push({ collection, id, payload })
+              return { kind: 'success', result: { record: { _id: id, ...payload } } }
+            }
+          }
+        }
+      },
+      'utils/recordPageSync.js': {
+        getSavedRecord: realRecordPageSync.getSavedRecord,
+        notifyPreviousPageRecordChange(change) {
+          changes.push(change)
+        }
+      }
+    },
+    wxOverrides: {
+      showToast(options) {
+        toasts.push(options)
+      },
+      showModal(options) {
+        modals.push(options)
+      },
+      navigateBack() {
+        navigateBackCalls.push({})
+      },
+      getStorageSync(key) {
+        return storage.has(key) ? storage.get(key) : ''
+      },
+      setStorageSync(key, value) {
+        storage.set(key, value)
+      },
+      removeStorageSync(key) {
+        storage.delete(key)
+      }
+    }
+  })
+  return { harness, toasts, modals, adds, updates, changes, navigateBackCalls, storage }
 }
 
 function createFakePage(initialData = {}) {

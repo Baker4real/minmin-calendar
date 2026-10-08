@@ -7,36 +7,239 @@ const test = require('node:test')
 const repoRoot = path.join(__dirname, '..')
 const recordPageSync = require('../utils/recordPageSync')
 
-test('period tab back button returns to the home tab without a previous page', () => {
+test('period record tab has no back button and the standalone memory page stays registered as a compat route', () => {
   const appConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, 'app.json'), 'utf8'))
   const tabs = appConfig.tabBar.list.map(tab => tab.pagePath)
-  const stack = ['pages/period/period']
-  assert.ok(tabs.includes(stack[0]))
+  assert.ok(tabs.includes('pages/period/period'), 'the record tab must stay a configured tab')
+  // issue #103 方案 A：独立欢乐时光列表页保留为兼容路由（深链/历史页面栈仍可达）
+  assert.ok(
+    appConfig.pages.includes('pages/memory/memory'),
+    'the standalone memory page stays registered as a compat route'
+  )
+
+  // tab 页不画返回键：导航模型与其他 tab 一致
+  const wxml = fs.readFileSync(path.join(repoRoot, 'pages/period/period.wxml'), 'utf8')
+  assert.equal(wxml.includes('nav-back'), false, 'record tab must not paint a back button')
+
+  const harness = loadPageHarness('pages/period/period.js', {})
+  try {
+    assert.equal(harness.page.goBack, undefined, 'record tab must not expose a goBack handler')
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('record tab segments period and memory lists behind one radio group', () => {
+  const wxml = fs.readFileSync(path.join(repoRoot, 'pages/period/period.wxml'), 'utf8')
+
+  // 分段控件：经期 / 欢乐时光 同级可达（radio 朗读语义由 interaction-semantics 钉住）
+  assert.match(wxml, /class="segment-control"/)
+  assert.match(wxml, /class="segment-option \{\{segment === 'period' \? 'active' : ''\}\}"/)
+  assert.match(wxml, /data-segment="period"/)
+  assert.match(wxml, /class="segment-option \{\{segment === 'memory' \? 'active' : ''\}\}"/)
+  assert.match(wxml, /data-segment="memory"/)
+
+  // 经期分段保留现有列表结构；欢乐时光分段复用同一套列表状态机（memory 前缀键）
+  assert.match(wxml, /wx:if="\{\{segment === 'period'\}\}"/)
+  assert.match(wxml, /<view wx:else>/, 'the memory segment is the else branch of the period segment')
+  assert.match(wxml, /wx:for="\{\{memories\}\}"/)
+  assert.match(wxml, /memoryLoadFailed/)
+  assert.match(wxml, /memoryLoading/)
+  assert.match(wxml, /memoryHasLoaded/)
+
+  // 导航标题不再与分段重名
+  assert.match(wxml, /nav-title">记录</)
+})
+
+test('record tab onShow consumes a stored segment intent once and lands on the memory segment', async () => {
+  const storage = { recordTabSegment: 'memory' }
+  const removedKeys = []
+  const calls = []
   const harness = loadPageHarness('pages/period/period.js', {
-    wxOverrides: {
-      navigateBack({ delta = 1, fail } = {}) {
-        if (stack.length <= delta) {
-          if (fail) fail({ errMsg: 'navigateBack:fail cannot navigate back at first page' })
-          return
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list(collection) {
+              calls.push(collection)
+              return {
+                kind: 'success',
+                data: [{ _id: 'm1', date: '2026-06-01', note: '野餐' }]
+              }
+            }
+          }
         }
-        stack.splice(-delta)
       },
-      switchTab({ url }) {
-        const route = url.replace(/^\//, '')
-        assert.ok(tabs.includes(route), 'switchTab destination must be a configured tab')
-        stack.splice(0, stack.length, route)
+      'utils/util.js': createUtilStub()
+    },
+    wxOverrides: {
+      getStorageSync(key) {
+        return storage[key] || ''
+      },
+      removeStorageSync(key) {
+        removedKeys.push(key)
+        delete storage[key]
       }
     }
   })
 
   try {
-    const wxml = fs.readFileSync(path.join(repoRoot, 'pages/period/period.wxml'), 'utf8')
-    const button = wxml.match(/<view\b[^>]*class="nav-back"[^>]*>/)
-    assert.ok(button, 'period page must expose its back button')
-    const binding = button[0].match(/bindtap="([^"]+)"/)
-    assert.ok(binding, 'back button must bind a tap handler')
-    harness.page[binding[1]]()
-    assert.deepEqual(stack, ['pages/index/index'], 'tapping back must leave the period tab for home')
+    await awaitPageOnShow(harness.page)
+
+    // 一次性意图：消费并清除，落在欢乐时光分段且只加载该分段
+    assert.deepEqual(removedKeys, ['recordTabSegment'])
+    assert.equal(harness.page.data.segment, 'memory')
+    assert.deepEqual(calls, ['memories'])
+    assert.deepEqual(harness.page.data.memories, [{ _id: 'm1', date: '2026-06-01', note: '野餐' }])
+
+    // 键已清除：再次 onShow 不被劫持，停在当前分段并重载它
+    await awaitPageOnShow(harness.page)
+    assert.equal(harness.page.data.segment, 'memory')
+    assert.deepEqual(calls, ['memories', 'memories'])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('record tab applyRecordChange lands on the saved record segment before the edit page returns', async () => {
+  const harness = loadPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list() {
+              return { kind: 'success', data: [] }
+            }
+          }
+        }
+      },
+      'utils/util.js': createUtilStub()
+    }
+  })
+
+  try {
+    await awaitPageOnShow(harness.page)
+    assert.equal(harness.page.data.segment, 'period')
+
+    // 保存欢乐时光后返回记录 tab：编辑页 notify 在返回定时器前同步触发，分段在返回前已就位
+    harness.page.applyRecordChange({
+      collection: 'memories',
+      mode: 'add',
+      record: { _id: 'm1', date: '2026-06-01', note: '野餐' }
+    })
+    assert.equal(harness.page.data.segment, 'memory')
+
+    // 经期保存/删除同理落在经期分段
+    harness.page.applyRecordChange({
+      collection: 'periods',
+      mode: 'update',
+      record: { _id: 'p1', startDate: '2026-06-01' }
+    })
+    assert.equal(harness.page.data.segment, 'period')
+  } finally {
+    harness.teardown()
+  }
+})
+
+// review #99 / issue #103：从记录 tab 进入编辑页保存时，applyRecordChange 已落分段，
+// 编辑页同时写下的一次性意图在下一次 onShow 被消费并清除，不造成二次跳段或残留劫持
+test('record tab consumes the edit-page intent without double-landing when applyRecordChange already landed', async () => {
+  const storage = {}
+  const removedKeys = []
+  const calls = []
+  const harness = loadPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list(collection) {
+              calls.push(collection)
+              return { kind: 'success', data: [] }
+            }
+          }
+        }
+      },
+      'utils/util.js': createUtilStub()
+    },
+    wxOverrides: {
+      getStorageSync(key) {
+        return storage[key] || ''
+      },
+      setStorageSync(key, value) {
+        storage[key] = value
+      },
+      removeStorageSync(key) {
+        removedKeys.push(key)
+        delete storage[key]
+      }
+    }
+  })
+
+  try {
+    await awaitPageOnShow(harness.page)
+    assert.equal(harness.page.data.segment, 'period')
+    assert.deepEqual(calls, ['periods'])
+
+    // 编辑页保存欢乐时光：notify 同步落在欢乐时光分段，一次性意图键同时被写下
+    storage.recordTabSegment = 'memory'
+    harness.page.applyRecordChange({
+      collection: 'memories',
+      mode: 'add',
+      record: { _id: 'm1', date: '2026-06-01', note: '野餐' }
+    })
+    assert.equal(harness.page.data.segment, 'memory')
+
+    // 返回记录 tab：意图被消费并清除，分段保持欢乐时光（同一分段再落一次，无可见跳动）
+    await awaitPageOnShow(harness.page)
+    assert.deepEqual(removedKeys, ['recordTabSegment'])
+    assert.equal(harness.page.data.segment, 'memory')
+    assert.deepEqual(calls, ['periods', 'memories'])
+
+    // 意图已清除：手动切回经期分段后，后续 onShow 不被残留意图劫持回欢乐时光
+    await harness.page.selectSegment({ currentTarget: { dataset: { segment: 'period' } } })
+    assert.equal(harness.page.data.segment, 'period')
+    await awaitPageOnShow(harness.page)
+    assert.equal(harness.page.data.segment, 'period')
+    assert.deepEqual(removedKeys, ['recordTabSegment'])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('record tab segment switch loads the target list and guards invalid segment values', async () => {
+  const calls = []
+  const harness = loadPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list(collection) {
+              calls.push(collection)
+              await waitForTimerTick()
+              return { kind: 'success', data: [] }
+            }
+          }
+        }
+      },
+      'utils/util.js': createUtilStub()
+    }
+  })
+
+  try {
+    await awaitPageOnShow(harness.page)
+    assert.equal(harness.page.data.segment, 'period')
+    assert.deepEqual(calls, ['periods'])
+
+    // 手动切到欢乐时光：切换即加载目标分段，与独立列表页的 onShow 重载行为一致
+    await harness.page.selectSegment({ currentTarget: { dataset: { segment: 'memory' } } })
+    assert.equal(harness.page.data.segment, 'memory')
+    assert.deepEqual(calls, ['periods', 'memories'])
+
+    // 重点已选中分段是 no-op；非法值被守卫忽略，都不触发跳转或加载
+    harness.page.selectSegment({ currentTarget: { dataset: { segment: 'memory' } } })
+    harness.page.selectSegment({ currentTarget: { dataset: { segment: 'unknown' } } })
+    assert.equal(harness.page.data.segment, 'memory')
+    assert.deepEqual(calls, ['periods', 'memories'])
   } finally {
     harness.teardown()
   }
@@ -1214,9 +1417,10 @@ test('period edit onLoad tolerates malformed route encoding', () => {
     assert.equal(harness.page.data.note, '%')
     assert.deepEqual(harness.page.data.symptoms, [])
     assert.equal(harness.page.data.startDate, '2026-06-01')
-    // 新增默认进行中：路由里的结束日期不隐式生效
-    assert.equal(harness.page.data.status, 'ongoing')
-    assert.equal(harness.page.data.endDate, '')
+    // issue #100：补记过去日期的新增默认已结束（修订 #95 的固定进行中），
+    // 路由里同在过去区间内的结束日期随之保留
+    assert.equal(harness.page.data.status, 'known-end')
+    assert.equal(harness.page.data.endDate, '2026-06-05')
 
     // 编辑旧记录（带 id 与结束日期）：保守解释为已结束并保留结束日期
     assert.doesNotThrow(() => {

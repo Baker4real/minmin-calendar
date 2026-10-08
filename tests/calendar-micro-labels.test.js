@@ -27,7 +27,6 @@ const IN_CELL_MICRO_SELECTORS = [
 const OUT_CELL_CAPTION_SELECTORS = [
   '.sync-text',
   '.week-cell',
-  '.meaning-tool-text',
   '.stat-label',
   '.predict-weekday',
   '.reminder-text',
@@ -468,7 +467,7 @@ test('captions outside calendar cells stay at or above the 26rpx floor', () => {
 
 test('tappable arrows reach the body-secondary contrast level', () => {
   const wxss = readWxss()
-  for (const selector of ['.record-entry-arrow', '.sheet-action-arrow']) {
+  for (const selector of ['.sheet-action-arrow']) {
     const color = ruleBody(wxss, selector).match(/color:\s*rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*([\d.]+)\s*\)/)
     assert.ok(color, `expected a white rgba color on ${selector}`)
     assert.ok(

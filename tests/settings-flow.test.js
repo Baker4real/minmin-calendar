@@ -596,7 +596,9 @@ test('settings page delegates copy/export/clear flows to settingsFlow and keeps 
   assert.match(source, /settingsFlow\.clearLocalCache\(/)
   assert.match(source, /syncActiveRoom\(this,\s*result\.room\)/)
   assert.match(source, /syncActiveRoom\(this,\s*room\)/)
-  assert.doesNotMatch(source, /leaveRoom\(/)
+  // issue #102：解除绑定迁入设置页——leaveRoom 合法出现，但只在 unbind 流程里；
+  // 清除本地数据保持 local-only（leaveCalls === 0 由 clearLocalCache 行为用例钉住）
+  assert.match(source, /unbind\(\)\s*\{[\s\S]*?roomSession\.leaveRoom\(/)
   assert.doesNotMatch(source, /deletePeriod\(/)
   assert.doesNotMatch(source, /deleteMemory\(/)
 })
@@ -604,8 +606,11 @@ test('settings page delegates copy/export/clear flows to settingsFlow and keeps 
 test('settings page clear-local-data confirm explains the narrow local-only scope, cloud retention, and no room exit', () => {
   const source = readPageFile('pages/settings/settings.js')
 
-  assert.match(source, /wx\.showModal\(\{[\s\S]*?title:\s*'⚠️ 确认清除'/)
-  const content = /content:\s*'([^']+)'/.exec(source)
+  // issue #106：清除只动本机房间码，语气和实际风险相称——确认标题不带警示表情
+  assert.match(source, /wx\.showModal\(\{[\s\S]*?title:\s*'确认清除'/)
+  assert.doesNotMatch(source, /⚠/)
+  // 锚定清除确认弹窗本身（页面上已有多个 modal，不能再取全文第一个 content）
+  const content = /title:\s*'确认清除'[\s\S]*?content:\s*'([^']+)'/.exec(source)
   assert.ok(content, 'expected the clear-confirm modal content')
   const copy = content[1]
   assert.match(copy, /只清除保存在本机的房间码/)
@@ -825,6 +830,129 @@ test('settings room actions are rose tappable rows with the shared small-action 
   assert.match(reduced, /\.room-action-btn/)
 })
 
+// ===== issue #102：「解除绑定」从绑定页已绑定卡移到设置页房间卡 =====
+
+test('settings room card exposes the moved unbind entry as a danger menu row while bound', () => {
+  const wxml = readPageFile('pages/settings/settings.wxml')
+  const cardStart = wxml.indexOf('class="menu-item room-code-item"')
+  const cardEnd = wxml.indexOf('日历显示')
+  assert.ok(cardStart !== -1 && cardEnd > cardStart, 'expected the room-code card')
+  const card = wxml.slice(cardStart, cardEnd)
+
+  // 警示红菜单行族（与「清除本地数据」同款 .menu-item.danger），有码时才可解
+  assert.match(
+    card,
+    /wx:if="\{\{roomCode\}\}" class="menu-item danger" bindtap="unbind" aria-role="button" aria-label="解除绑定"/
+  )
+  assert.match(card, />解除绑定<\//)
+})
+
+test('settings unbind reuses the bind page secondary-confirm copy verbatim', () => {
+  const settingsSource = readPageFile('pages/settings/settings.js')
+  const bindSource = readPageFile('pages/bind/bind.js')
+
+  const settingsUnbind = /unbind\(\)\s*\{[\s\S]*?wx\.showModal\(\{\s*title:\s*'([^']+)',\s*content:\s*'([^']+)'/.exec(settingsSource)
+  assert.ok(settingsUnbind, 'settings.js must hold the moved unbind flow with its modal')
+  const bindUnbind = /unbind\(\)\s*\{[\s\S]*?wx\.showModal\(\{\s*title:\s*'([^']+)',\s*content:\s*'([^']+)'/.exec(bindSource)
+  assert.ok(bindUnbind, 'bind.js keeps the same-screen unbind flow for the needUnbind state')
+
+  // 二次确认文案逐字相等：标题「解除绑定」+ 退出/归档/恢复说明
+  assert.equal(settingsUnbind[1], bindUnbind[1])
+  assert.equal(settingsUnbind[2], bindUnbind[2])
+  assert.equal(settingsUnbind[1], '解除绑定')
+  assert.match(settingsUnbind[2], /解除后将退出当前房间/)
+  assert.match(settingsUnbind[2], /若你是最后一人，数据会归档/)
+  assert.match(settingsUnbind[2], /可在本页重新创建恢复/)
+  assert.match(settingsUnbind[2], /确定解除？/)
+})
+
+test('confirming settings unbind leaves the room and reLaunches to the bind page', async () => {
+  const harness = loadSettingsPageHarness({
+    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01' },
+    leaveRoom: { code: 0 }
+  })
+
+  try {
+    await harness.page.onShow()
+    assert.equal(harness.page.data.roomCode, 'ROOM01')
+
+    harness.page.unbind()
+    assert.equal(harness.wx.modals.length, 1)
+    const modal = harness.wx.modals[0]
+    assert.equal(modal.title, '解除绑定')
+
+    await modal.success({ confirm: true, cancel: false })
+
+    assert.equal(harness.leaveRoomCalls(), 1)
+    // bind 非 tab 页，解绑后回绑定页只能 reLaunch，不能 switchTab
+    assert.deepEqual(harness.navigation, [{ type: 'reLaunch', url: '/pages/bind/bind' }])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('dismissing the settings unbind confirmation leaves the room and the page untouched', async () => {
+  const harness = loadSettingsPageHarness({
+    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01' },
+    leaveRoom: { code: 0 }
+  })
+
+  try {
+    await harness.page.onShow()
+
+    harness.page.unbind()
+    assert.equal(harness.wx.modals.length, 1)
+    await harness.wx.modals[0].success({ confirm: false, cancel: true })
+
+    assert.equal(harness.leaveRoomCalls(), 0)
+    assert.deepEqual(harness.navigation, [])
+    assert.equal(harness.page.data.roomCode, 'ROOM01')
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('settings unbind stays on the page with failure feedback when leaving the room fails', async () => {
+  const harness = loadSettingsPageHarness({
+    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01' },
+    leaveRoom: { code: -1, msg: '解除绑定失败：network down' }
+  })
+
+  try {
+    await harness.page.onShow()
+
+    harness.page.unbind()
+    assert.equal(harness.wx.modals.length, 1)
+    await harness.wx.modals[0].success({ confirm: true, cancel: false })
+
+    assert.equal(harness.leaveRoomCalls(), 1)
+    assert.deepEqual(harness.navigation, [], 'a failed leave must not reLaunch')
+    assert.equal(harness.wx.toasts.length, 1, 'the failure surfaces as feedback on this page')
+    assert.match(harness.wx.toasts[0].title, /解除绑定失败/)
+  } finally {
+    harness.teardown()
+  }
+})
+
+// ===== issue #103：「查看欢乐时光」→ 记录 tab 的欢乐时光分段 =====
+
+test('settings memory entry writes the one-shot segment intent and switchTabs into the record tab memory segment', async () => {
+  const harness = loadSettingsPageHarness({
+    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01' }
+  })
+
+  try {
+    await harness.page.onShow()
+
+    // switchTab 不能带 query：先写一次性「目标分段」意图，再切到记录 tab（issue #103）
+    harness.page.goMemory()
+    assert.deepEqual(harness.storageWrites, [{ key: 'recordTabSegment', value: 'memory' }])
+    assert.deepEqual(harness.navigation, [{ type: 'switchTab', url: '/pages/period/period' }])
+  } finally {
+    harness.teardown()
+  }
+})
+
 function wxssRuleBody(wxss, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const match = wxss.match(new RegExp(`(?:^|[\\n}])\\s*${escaped}\\s*\\{([^}]+)\\}`))
@@ -832,9 +960,10 @@ function wxssRuleBody(wxss, selector) {
   return match[1]
 }
 
-function loadSettingsPageHarness({ roomOutcome }) {
+function loadSettingsPageHarness({ roomOutcome, leaveRoom } = {}) {
   const absolutePagePath = path.join(__dirname, '..', 'pages/settings/settings.js')
   let resolveCalls = 0
+  let leaveRoomCalls = 0
   const absoluteMocks = new Map([
     [path.join(__dirname, '..', 'utils/cloud.js'), {
       createRoomDataClient: () => ({ list: async () => ({ kind: 'success', data: [] }) })
@@ -844,6 +973,12 @@ function loadSettingsPageHarness({ roomOutcome }) {
         resolveCalls += 1
         if (typeof roomOutcome === 'function') return roomOutcome()
         return roomOutcome
+      },
+      // issue #102：解除绑定迁入设置页，harness 需要能观察 leaveRoom 调用与结果
+      async leaveRoom() {
+        leaveRoomCalls += 1
+        if (typeof leaveRoom === 'function') return leaveRoom()
+        return leaveRoom || { code: 0 }
       }
     }],
     [path.join(__dirname, '..', 'utils/safeArea.js'), { getSafeTop: () => 44, getSafeBottom: () => 0 }]
@@ -855,14 +990,20 @@ function loadSettingsPageHarness({ roomOutcome }) {
 
   delete require.cache[require.resolve(absolutePagePath)]
   const navigation = []
-  global.wx = {
+  const storageWrites = []
+  const wx = {
+    modals: [],
+    toasts: [],
     getStorageSync: () => '',
-    setStorageSync() {},
+    setStorageSync(key, value) { storageWrites.push({ key, value }) },
     navigateTo(options) { navigation.push({ type: 'navigateTo', url: options.url }) },
     switchTab(options) { navigation.push({ type: 'switchTab', url: options.url }) },
-    showModal() {},
-    showToast() {}
+    // issue #102：解绑成功后 reLaunch 回绑定页（全仓首个 reLaunch，扩展现有 navigation 记录）
+    reLaunch(options) { navigation.push({ type: 'reLaunch', url: options.url }) },
+    showModal(options) { wx.modals.push(options) },
+    showToast(options) { wx.toasts.push(options) }
   }
+  global.wx = wx
   global.Page = config => { registered = config }
   Module._load = function patchedLoad(request, parent, isMain) {
     const resolved = Module._resolveFilename(request, parent, isMain)
@@ -885,7 +1026,10 @@ function loadSettingsPageHarness({ roomOutcome }) {
   return {
     page,
     navigation,
+    storageWrites,
+    wx,
     resolveCalls: () => resolveCalls,
+    leaveRoomCalls: () => leaveRoomCalls,
     teardown() {
       Module._load = originalLoad
       global.Page = originalPage

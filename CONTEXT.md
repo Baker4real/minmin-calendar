@@ -10,7 +10,7 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 ## Domain Language
 
 - **Room**: A private two-person sharing space identified by a six-character `roomCode`.
-- **Launch screen / 启动首屏**: The screen the app opens on — the bind page, in bound or unbound state. The tab named 首页 is a different thing: that tab is the calendar page.
+- **Launch screen / 启动首屏**: The screen the app opens on — the bind page. A successfully validated bound user is redirected straight to the 首页 tab, so the bind page rests only in unbound, needUnbind, or validation-failure states, with a minimal 进入应用 fallback when the home jump fails or right after room creation. The tab named 首页 is a different thing: that tab is the calendar page.
 - **Room leave**: A server-side membership revoke flow that removes the current user from a Room while preserving the remaining member when present.
 - **Archived room**: A room with no active members. Its `roomCode` and records are retained for explicit creator recovery, but normal record CRUD is closed until recovery.
 - **Period record**: One shared menstrual-period record with a start date, a Period status, optional note, flow level, and symptom tags. A known date range that overlaps more than one calendar month is still one Period record, not one record per month.

@@ -20,7 +20,10 @@ Page({
     joinCode: '',
     loading: false,
     errorMsg: '',
-    needUnbind: false
+    needUnbind: false,
+    checkFailed: false,
+    justCreated: false,
+    homeJumpFailed: false
   },
 
   onShow() {
@@ -30,12 +33,29 @@ Page({
   async checkRoom() {
     const room = await roomSession.getVerifiedActiveRoom()
     if (room.bound) {
-      this.setData({ bound: true, roomCode: room.roomCode, errorMsg: '', needUnbind: false })
+      // issue #102：已绑定冷启动直达首页，不再停在绑定页多点一次「进入应用」
+      // review #99：重校验清空一次性旗标——「进入应用」只在跳转失败或刚创建房间时出现
+      this.setData({ bound: true, roomCode: room.roomCode, errorMsg: '', needUnbind: false, justCreated: false, checkFailed: false, homeJumpFailed: false })
+      this.goHome()
       return
     }
 
-    const data = { bound: false, roomCode: '', errorMsg: room.errorMsg || '', needUnbind: false }
+    const data = {
+      bound: false,
+      roomCode: '',
+      errorMsg: room.errorMsg || '',
+      needUnbind: false,
+      justCreated: false,
+      homeJumpFailed: false,
+      // 校验失败（网络/云端异常）时给出可点重试；未绑定没有错误文案，不出重试
+      checkFailed: Boolean(room.errorMsg)
+    }
     this.setData(data)
+  },
+
+  // issue #102：校验失败的可点重试——重跑 onShow 同款校验，停留在本页，不导向重新绑定
+  retryCheck() {
+    return this.checkRoom()
   },
 
   switchTab(e) {
@@ -48,10 +68,11 @@ Page({
 
   async createRoom() {
     if (this.data.loading) return
-    this.setData({ loading: true, errorMsg: '' })
+    this.setData({ loading: true, errorMsg: '', checkFailed: false })
     const res = await roomSession.createRoom()
     if (res.code === 0) {
-      this.setData({ bound: true, roomCode: res.roomCode, needUnbind: false })
+      // issue #102：创建后引导——本次会话内在房间码区域提示「把房间码发给 TA」（onShow 重校验后清除）
+      this.setData({ bound: true, roomCode: res.roomCode, needUnbind: false, justCreated: true })
     } else {
       this.setData({ errorMsg: res.msg, needUnbind: isLeaveRoomRequired(res.msg) })
     }
@@ -62,10 +83,13 @@ Page({
     if (this.data.loading) return
     const code = this.data.joinCode
     if (code.length !== 6) return
-    this.setData({ loading: true, errorMsg: '' })
+    this.setData({ loading: true, errorMsg: '', checkFailed: false })
     const res = await roomSession.joinRoom(code)
     if (res.code === 0) {
       this.setData({ bound: true, roomCode: res.roomCode, needUnbind: false })
+      // issue #102：加入成功给一次「已和 TA 连上」反馈再进首页；toast 发出即跳转，不等待
+      wx.showToast({ title: '已和 TA 连上' })
+      this.goHome()
     } else {
       this.setData({ errorMsg: res.msg, needUnbind: isLeaveRoomRequired(res.msg) })
     }
@@ -79,7 +103,13 @@ Page({
   },
 
   goHome() {
-    wx.switchTab({ url: '/pages/index/index' })
+    wx.switchTab({
+      url: '/pages/index/index',
+      fail: () => {
+        // 跳转失败时停留在已绑定卡，竖起旗标让「进入应用」成为用户可见的最小兜底
+        this.setData({ bound: true, homeJumpFailed: true })
+      }
+    })
   },
 
   unbind() {

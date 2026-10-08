@@ -9,6 +9,10 @@ const safeArea = require('../../../utils/safeArea')
 
 const DRAFT_FIELDS = ['startDate', 'endDate', 'status', 'note', 'flow', 'symptoms']
 
+// 与 pages/settings/settings.js、pages/memory/edit/edit.js、pages/period/period.js 共享的一次性
+// 「目标分段」意图键：从首页等入口进入本页保存/删除后写键，记录 tab onShow 消费并落到经期分段（issue #103）
+const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
+
 Page({
   data: {
     safeTop: safeArea.getSafeTop(),
@@ -83,6 +87,14 @@ Page({
     if (this._draftStorage) recordDraft.clearDraft(this._draftStorage, this._draftKey)
   },
 
+  // 保存/删除成功后写下一次性分段意图：notify 只达前一页，从首页进入时到不了记录 tab；
+  // 记录 tab 下一次 onShow 消费该键落到本分段，从记录 tab 进入时已被 applyRecordChange 落段，多消费一次无害
+  markRecordTabSegmentIntent() {
+    try {
+      wx.setStorageSync(RECORD_TAB_SEGMENT_STORAGE_KEY, 'period')
+    } catch (e) {}
+  },
+
   onStartChange(e) {
     this.setData({ startDate: e.detail.value })
     if (this.data.status === 'known-end' && this.data.startDate > this.data.endDate) {
@@ -148,20 +160,51 @@ Page({
         return ''
       },
       successTitle: '保存成功',
-      failureTitle: '保存失败'
+      failureTitle: '保存失败',
+      mergedTitle: '已打开进行中的经期',
+      mergedContent: '房间里已有一条进行中的经期，已为你打开它'
     })
-    if (outcome && outcome.kind === 'success') {
+    if (outcome && (outcome.kind === 'success' || outcome.kind === 'merged')) {
       this.discardRecordDraft()
+      this.markRecordTabSegmentIntent()
     }
     const savedRecord = recordPageSync.getSavedRecord(outcome)
+    if (outcome && outcome.kind === 'merged' && savedRecord) {
+      this.applyReopenedRecord(savedRecord)
+    }
     if (savedRecord) {
       recordPageSync.notifyPreviousPageRecordChange({
         collection: 'periods',
-        mode: isEdit ? 'update' : 'add',
+        mode: outcome.kind === 'merged' ? 'update' : (isEdit ? 'update' : 'add'),
         record: savedRecord
       })
     }
     return outcome
+  },
+
+  applyReopenedRecord(record) {
+    const symptoms = Array.isArray(record.symptoms) ? record.symptoms : []
+    // 与 onLoad 同一原则：状态是权威，结束日期只在已知结束时保留
+    const status = cycle.getPeriodStatus(record)
+    const formState = {
+      id: record._id,
+      startDate: record.startDate || '',
+      endDate: status === 'known-end' ? (record.endDate || '') : '',
+      status,
+      note: record.note || '',
+      flow: record.flow || '',
+      symptoms,
+      isEdit: true
+    }
+    // 草稿身份切换到被重开的记录：键与基线按新身份重建，避免被丢弃表单的草稿串键
+    this._draftKey = recordDraft.buildDraftKey({ collection: 'periods', id: formState.id })
+    this._draftBaseline = recordDraft.pickDraftFields(formState, DRAFT_FIELDS)
+    this._draftDiscarded = false
+    this.setData({
+      ...formState,
+      draftRestored: false,
+      symptomGroups: cycle.buildSymptomOptions(symptoms)
+    })
   },
 
   async delete() {
@@ -179,6 +222,7 @@ Page({
       })
       if (outcome.kind === 'success') {
         this.discardRecordDraft()
+        this.markRecordTabSegmentIntent()
         recordPageSync.notifyPreviousPageRecordChange({
           collection: 'periods',
           mode: 'remove',

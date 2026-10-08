@@ -33,7 +33,7 @@
             class="flow-chip {{status === item.value ? 'active' : ''}}{{saving ? ' disabled' : ''}}"
             data-value="{{item.value}}"
             bindtap="selectStatus"
-            aria-role="checkbox"
+            aria-role="radio"
             aria-label="经期状态 {{item.label}}"
             aria-checked="{{status === item.value}}"
             aria-disabled="{{saving}}"

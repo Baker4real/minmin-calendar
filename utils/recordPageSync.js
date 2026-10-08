@@ -18,7 +18,7 @@ function notifyPreviousPageRecordChange(change, options = {}) {
 }
 
 function getSavedRecord(outcome) {
-  if (!outcome || outcome.kind !== 'success') return null
+  if (!outcome || (outcome.kind !== 'success' && outcome.kind !== 'merged')) return null
   const result = outcome && outcome.result ? outcome.result : {}
   const record = result.record
   if (!record || typeof record !== 'object' || !record._id) return null

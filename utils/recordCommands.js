@@ -36,6 +36,8 @@ function runRecordSave(options) {
     successTitle,
     successIcon,
     failureTitle,
+    mergedTitle: opts.mergedTitle,
+    mergedContent: opts.mergedContent,
     navigateBack,
     navigateToBind,
     successDelay,
@@ -96,6 +98,7 @@ async function runRecordListLoad(options) {
     onLoaded,
     itemsKey,
     loadingKey = 'loading',
+    loadFailedKey = 'loadFailed',
     retryableTitle = '加载失败，请检查网络',
     failureTitle = '加载失败',
     roomRepairTitle = '房间状态已变化，请重新绑定'
@@ -120,7 +123,7 @@ async function runRecordListLoad(options) {
   if (outcome.kind === 'success') {
     const records = Array.isArray(outcome.data) ? outcome.data : []
     const viewData = typeof mapRecords === 'function' ? mapRecords(records) : records
-    updatePage(page, { [itemsKey]: viewData, loadFailed: false })
+    updatePage(page, { [itemsKey]: viewData, [loadFailedKey]: false })
     if (typeof onLoaded === 'function') {
       onLoaded(records)
     }
@@ -140,7 +143,7 @@ async function runRecordListLoad(options) {
     retryableMode: 'retry'
   })
   if (!result || result.kind !== 'success') {
-    updatePage(page, { loadFailed: true })
+    updatePage(page, { [loadFailedKey]: true })
   }
   return result
 }
@@ -156,6 +159,8 @@ async function runCommand(options) {
     successTitle,
     successIcon,
     failureTitle,
+    mergedTitle = '已合并到已有记录',
+    mergedContent = '房间里已有一条进行中的记录，已为你打开它',
     navigateBack,
     navigateToBind,
     successDelay,
@@ -183,6 +188,17 @@ async function runCommand(options) {
   }
 
   if (outcome.kind === 'success') {
+    // 云端重开了已有进行中记录并丢弃本次表单：归为「合并到已有进行中记录」，
+    // 不显示保存成功、不排返回，用说明 modal 告知后再把结果交给页面
+    if (outcome.result && outcome.result.reopened === true) {
+      updatePage(page, { [loadingKey]: false })
+      return promptAcknowledge({
+        wxApi,
+        title: mergedTitle,
+        content: mergedContent,
+        fallback: { kind: 'merged', result: outcome.result }
+      })
+    }
     safeShowToast(wxApi, {
       title: successTitle,
       ...(successIcon ? { icon: successIcon } : {})

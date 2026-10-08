@@ -8,6 +8,10 @@ const safeArea = require('../../../utils/safeArea')
 
 const DRAFT_FIELDS = ['date', 'note']
 
+// 与 pages/settings/settings.js、pages/period/edit/edit.js、pages/period/period.js 共享的一次性
+// 「目标分段」意图键：从首页等入口进入本页保存/删除后写键，记录 tab onShow 消费并落到欢乐时光分段（issue #103）
+const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
+
 Page({
   data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false, draftRestored: false },
 
@@ -54,6 +58,14 @@ Page({
     if (this._draftStorage) recordDraft.clearDraft(this._draftStorage, this._draftKey)
   },
 
+  // 保存/删除成功后写下一次性分段意图：notify 只达前一页，从首页进入时到不了记录 tab；
+  // 记录 tab 下一次 onShow 消费该键落到本分段，从记录 tab 进入时已被 applyRecordChange 落段，多消费一次无害
+  markRecordTabSegmentIntent() {
+    try {
+      wx.setStorageSync(RECORD_TAB_SEGMENT_STORAGE_KEY, 'memory')
+    } catch (e) {}
+  },
+
   onDateChange(e) { this.setData({ date: e.detail.value }) },
   onNoteInput(e) { this.setData({ note: e.detail.value }) },
 
@@ -84,6 +96,7 @@ Page({
     })
     if (outcome && outcome.kind === 'success') {
       this.discardRecordDraft()
+      this.markRecordTabSegmentIntent()
     }
     const savedRecord = recordPageSync.getSavedRecord(outcome)
     if (savedRecord) {
@@ -111,6 +124,7 @@ Page({
       })
       if (outcome.kind === 'success') {
         this.discardRecordDraft()
+        this.markRecordTabSegmentIntent()
         recordPageSync.notifyPreviousPageRecordChange({
           collection: 'memories',
           mode: 'remove',

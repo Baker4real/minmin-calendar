@@ -16,7 +16,6 @@ const MIN_SECONDARY_RATIO = 4.5
 const readFile = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
 
 const APP_WXSS = readFile('app.wxss')
-const BIND_WXSS = readFile('pages/bind/bind.wxss')
 
 function customProperties(css) {
   return Object.fromEntries(
@@ -24,12 +23,8 @@ function customProperties(css) {
   )
 }
 
-// app 级 token 之外并入 bind 页面级试点 token（issue #87 画布/玻璃、#88 粉按钮族）：
-// 绑定页条目的真实合成面引用这些 --bind-* token，解析不到就无法按真实表面验收
-const APP_TOKENS = {
-  ...customProperties(APP_WXSS),
-  ...customProperties(BIND_WXSS)
-}
+// issue #104：绑定页 --bind-* 试点 token 整体退役，表面解析只需 app 级 token
+const APP_TOKENS = customProperties(APP_WXSS)
 
 function resolveVars(value) {
   return String(value).replace(/var\((--[a-z0-9-]+)\)/gi, (all, name) => {
@@ -165,7 +160,6 @@ const CASES = [
   { file: 'pages/settings/settings.wxss', selector: '.menu-arrow', surfaces: [['app.wxss', '.premium-card']], note: '设置菜单箭头' },
   { file: 'pages/period/period.wxss', selector: '.item-arrow', surfaces: [['app.wxss', '.premium-card']], note: '经期列表行箭头' },
   { file: 'pages/memory/memory.wxss', selector: '.memory-arrow', surfaces: [['app.wxss', '.premium-card']], note: '欢乐时光列表行箭头' },
-  { file: 'pages/index/index.wxss', selector: '.record-entry-arrow', surfaces: [['pages/index/index.wxss', '.record-entry']], note: '记录列表入口箭头' },
   { file: 'pages/index/index.wxss', selector: '.sheet-action-arrow', surfaces: [['pages/index/index.wxss', '.day-action-sheet'], ['pages/index/index.wxss', '.sheet-action']], note: '弹层操作行箭头' },
   { file: 'pages/index/index.wxss', selector: '.sheet-close', surfaces: [['pages/index/index.wxss', '.day-action-sheet']], note: '弹层关闭按钮' },
   { file: 'pages/index/index.wxss', selector: '.nav-btn', surfaces: [], note: '月份前后切换箭头' },
@@ -173,17 +167,14 @@ const CASES = [
   { file: 'pages/index/index.wxss', selector: '.month-title-caret', surfaces: [['pages/index/index.wxss', '.month-title-trigger']], note: '月份选择器 caret' },
   { file: 'pages/period/period.wxss', selector: '.empty-state', surfaces: [], note: '经期列表加载失败重试入口' },
   { file: 'pages/memory/memory.wxss', selector: '.empty-state', surfaces: [], note: '欢乐时光加载失败重试入口' },
-  // 绑定页条目按真实紫域试点表面验收：画布取 .page::before 深紫渐变最亮端（首个色标），
-  // 卡面取 bind 页 .premium-card 覆盖层（白玻璃 + 紫 tint + 深紫回退），不再用 app 级海军卡近似
-  { file: 'pages/bind/bind.wxss', selector: '.bound-code', surfaces: [['pages/bind/bind.wxss', '.page::before'], ['pages/bind/bind.wxss', '.premium-card']], note: '绑定页房间码展示文本' },
-  // issue #89 换装复核：已绑定成功标题是被卡面换装波及的既有文本——主色玫瑰 #E8909E 在紫卡
-  // 合成面上只有约 4.48:1，改用页面级升档玫瑰 --bind-status-rose 后按真实合成面钉住 ≥4.5:1
-  { file: 'pages/bind/bind.wxss', selector: '.bound-status', surfaces: [['pages/bind/bind.wxss', '.page::before'], ['pages/bind/bind.wxss', '.premium-card']], note: '绑定页已绑定成功标题' },
-  { file: 'pages/bind/bind.wxss', selector: '.tab', surfaces: [['pages/bind/bind.wxss', '.page::before'], ['pages/bind/bind.wxss', '.premium-card'], ['pages/bind/bind.wxss', '.tab-bar']], note: '绑定页未选中 tab' },
-  // issue #88：绑定页「解除绑定」移出警示红族，改粉幽灵（透明底 + 粉描边 + 粉字），
-  // 在真实紫域合成面上验收；app 级 .btn-danger 红族只剩删除记录
-  { file: 'pages/bind/bind.wxss', selector: '.btn-danger', surfaces: [['pages/bind/bind.wxss', '.page::before'], ['pages/bind/bind.wxss', '.premium-card']], note: '绑定页解除绑定粉幽灵' },
-  { file: 'app.wxss', selector: '.btn-danger', surfaces: [], note: '危险操作（删除记录）' },
+  // 绑定页条目按收敛后的 Aurora 海军面验收（issue #104）：紫域画布/紫卡覆盖已删，
+  // 卡片表面与其他页面同源——app 级 .premium-card（白玻璃 + 海军实底回退）
+  { file: 'pages/bind/bind.wxss', selector: '.bound-code', surfaces: [['app.wxss', '.premium-card']], note: '绑定页房间码展示文本' },
+  // issue #104：成功标题回到主色玫瑰 #E8909E（DESIGN.md「成功态用主色玫瑰」），
+  // 在海军卡合成面上钉住 ≥4.5:1
+  { file: 'pages/bind/bind.wxss', selector: '.bound-status', surfaces: [['app.wxss', '.premium-card']], note: '绑定页已绑定成功标题' },
+  { file: 'pages/bind/bind.wxss', selector: '.tab', surfaces: [['app.wxss', '.premium-card'], ['pages/bind/bind.wxss', '.tab-bar']], note: '绑定页未选中 tab' },
+  { file: 'app.wxss', selector: '.btn-danger', surfaces: [], note: '危险操作（删除记录/解除绑定）' },
   // issue #77：设置清除本地数据行在点之前就是危险样式，红字在卡片表面上同样要读得清
   { file: 'pages/settings/settings.wxss', selector: '.menu-item.danger .menu-text', surfaces: [['app.wxss', '.premium-card']], note: '设置清除本地数据危险行文字' }
 ]

@@ -12,14 +12,6 @@ const PALETTE_HEXES = [
   '#1A0A2E',
   '#12163D',
   '#2D1B69',
-  // 绑定页紫域试点（issue #87）：深紫画布两端，只允许 pages/bind/bind.wxss 的 --bind-canvas-* token 引用
-  '#2E2350',
-  '#1A1433',
-  // 绑定页粉按钮族（issue #88）：胶囊实色粉与幽灵粉，只允许 pages/bind/bind.wxss 的 --bind-cta-pink / --bind-ghost-pink token 引用
-  '#FF7FB0',
-  '#FF8FBE',
-  // 绑定页紫域试点（issue #89 换装复核）：成功标题升档玫瑰，只允许 pages/bind/bind.wxss 的 --bind-status-rose token 引用
-  '#F2A3B0',
   '#F97373',
   '#7A7C8C'
 ]

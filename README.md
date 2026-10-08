@@ -12,10 +12,10 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 ## Project Shape
 
 - `pages/index/` - homepage calendar, prediction display, reminders, day details, and page-local record synchronization.
-- `pages/period/` - period list plus create/edit flow with optional flow and symptom tags.
+- `pages/period/` - 记录 tab hosting the segmented 经期/欢乐时光 lists, plus the period create/edit flow with optional flow and symptom tags.
 - `pages/memory/` - memory list plus create/edit flow.
 - `pages/bind/` - shared-room create, join, and recover flow.
-- `pages/settings/` - room code, export, and local cache controls.
+- `pages/settings/` - room code, room unbind, export, and local cache controls.
 - `utils/room.js` - room-code cache, recovery, create/join, leave, and local clear wrapper.
 - `utils/cloud.js` - frontend cloud-function access wrapper and room-scoped `RoomDataClient`.
 - `utils/roomResolver.js` - active-room resolution seam used by `RoomDataClient`, with an in-memory test adapter.
@@ -147,6 +147,8 @@ For UI changes, also verify in WeChat Developer Tools at a small-phone width.
 2026-09-26：epic #90 子票 #91–#93：重叠日只表达经期（投影 `isPredict` 为假，模板只按该标记画「预」）；Period duration 在起止日期都在时只按含首尾天数计算（`cycle.getPeriodDuration`，不信存库 duration）；经量/症状允许值集合由测试锁住周期 module 与云端副本一致。本地轻量检查覆盖本改动面；微信开发者工具小屏未验证，非 live verified。
 
 2026-09-30：epic #94 子票 #95–#98：经期记录三态契约（进行中/结束日期不详/已结束且有结束日期）落地。新增默认「进行中」只填开始日期即可保存，补填结束日期完成同一条记录；同一 Room 重复新增与云端并发按确定性赢家收敛回唯一进行中，输家降为「结束日期不详」不删除；统计与预测只用已知结束的精确时长，预测结束日按「用户设置→已完成中位数→五天默认」优先级计算且绝不写回记录；超期进行中记录在首页获得一次非阻塞完成提醒（本地持久化去重，点击打开原记录）。改动覆盖 `utils/cycle.js`、`utils/homeCalendarState.js`、`utils/calendarInsights.js`、`pages/period/`（含 edit）、`pages/index/` 与 `cloudfunctions/dataOp/roomRecords.js`（云端契约已改、**尚未部署**）。584 项本地测试全绿（含四条云端并发收敛专项测试）+ 完整轻量组合通过；已知遗留：客户端领域层对 known-end+空结束日期仍单日回退（页面与云端均拦截，与云端 normalization 不完全一致）、`typicalPeriodLength` 用户配置档暂无生产设置入口——均按低危打磨项记录。微信开发者工具小屏目检、真机、读屏实听与云函数部署未做，非 live verified。
+
+2026-10-08：epic #99 子票 #100–#106：全页面 UX 收敛。日历补记经期默认按开始日期推导（今天→进行中，更早→已结束且起止同一天），日历「记录经期」沿用快捷决策、已有进行中记录时直接打开它，未来日期不提供该入口；保存被云端合并重开（`reopened: true`）时改说明 modal 并切到被重开记录，普通成功反馈不变；已绑定冷启动直达首页（校验失败可重试，「进入应用」仅在跳转失败或创建后兜底），「解除绑定」移到设置页房间卡（警示红、二次确认文案不变、成功 reLaunch 回绑定页），创建后提示「把房间码发给 TA」、加入成功提示「已和 TA 连上」；「记录」tab 改为经期/欢乐时光分段（radio 语义、无返回键、四态行为分段保留、一次性 storage 意图落分段，独立 memory 页保留为兼容路由）；绑定页收敛回 Aurora Bloom（删除紫粉试点 token 与例外色板、DESIGN.md 登记「不推广」结论、#78 复制键同款契约重建、needUnbind 就地解除归入警示红族）；首页减负为记录入口→合并状态卡（条数+预测+提醒）→空态引导，图例/预测/小结收进月份标题「…」菜单；细节统一（♥ 字形、清除确认去 ⚠️、「补欢乐时光」术语、两个编辑页 transition 覆盖 reduced-motion、spinner 与同步胶囊可读屏）。两轮评审（Standards/Spec 双轴）后修复 5 项：编辑页保存/删除补写分段意图（修复首页快捷入口落分段缺口）、「进入应用」按跳转失败/创建后双条件门控、CONTEXT.md/README/ADR 0007 文档对齐。零云函数改动，无需部署。622 项本地测试全绿 + 完整轻量组合通过；微信开发者工具小屏目检（分段控件几何、月份菜单观感、绑定页 Aurora 收敛）、真机、读屏实听、系统减弱动效实机未做，非 live verified。
 
 ## Repository Hygiene
 

@@ -97,6 +97,47 @@ test('parsePeriodEditOptions hydrates period edit page state from route options'
   )
 })
 
+test('parsePeriodEditOptions derives the new-record default status from the effective start date', () => {
+  // 补记过去某天：默认已结束，结束日期缺省落在开始日期（起止同日的单日记录）
+  assert.deepEqual(route.parsePeriodEditOptions({ startDate: '2026-06-01' }, { today: '2026-06-26' }), {
+    id: '',
+    startDate: '2026-06-01',
+    endDate: '2026-06-01',
+    status: 'known-end',
+    note: '',
+    flow: '',
+    symptoms: [],
+    isEdit: false,
+    maxDate: '2026-06-26'
+  })
+
+  // 记今天：默认进行中，结束日期为空
+  assert.deepEqual(route.parsePeriodEditOptions({ startDate: '2026-06-26' }, { today: '2026-06-26' }), {
+    id: '',
+    startDate: '2026-06-26',
+    endDate: '',
+    status: 'ongoing',
+    note: '',
+    flow: '',
+    symptoms: [],
+    isEdit: false,
+    maxDate: '2026-06-26'
+  })
+
+  // 显式状态调用方行为不变：显式 known-end 缺结束日期时不补开始日兜底
+  assert.deepEqual(route.parsePeriodEditOptions({ startDate: '2026-06-01', status: 'known-end' }, { today: '2026-06-26' }), {
+    id: '',
+    startDate: '2026-06-01',
+    endDate: '',
+    status: 'known-end',
+    note: '',
+    flow: '',
+    symptoms: [],
+    isEdit: false,
+    maxDate: '2026-06-26'
+  })
+})
+
 test('parsePeriodEditOptions tolerates malformed encoded route options', () => {
   const state = route.parsePeriodEditOptions({
     id: 'p1',

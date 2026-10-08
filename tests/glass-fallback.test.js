@@ -12,8 +12,6 @@ const NAVY_FILLS = [
   [18, 22, 61]
 ]
 const ROSE_FILL = [232, 144, 158]
-// issue #87 绑定页紫域试点：bind 页深紫玻璃回退（--bind-glass-fallback）同为合法实底回退色
-const BIND_PURPLE_FILL = [26, 20, 51]
 
 function stripComments(css) {
   return css.replace(/\/\*[\s\S]*?\*\//g, '')
@@ -143,7 +141,6 @@ function channelsMatch(color, expected) {
 function isSolidFallbackColor(color) {
   if (!(color.a >= MIN_FALLBACK_ALPHA)) return false
   if (NAVY_FILLS.some((navy) => channelsMatch(color, navy))) return true
-  if (channelsMatch(color, BIND_PURPLE_FILL)) return true
   return channelsMatch(color, ROSE_FILL)
 }
 
@@ -163,12 +160,8 @@ function ruleHasSolidFallback(decls, tokens) {
 }
 
 function appTokens() {
-  // app 级 token 之外并入 bind 页面级试点 token（issue #87/#89）：
-  // 绑定页玻璃面按真实引用的 --bind-* token 解析，解析不到就无法验证深紫实底回退
-  return {
-    ...customProperties(fs.readFileSync(path.join(repoRoot, 'app.wxss'), 'utf8')),
-    ...customProperties(fs.readFileSync(path.join(repoRoot, 'pages/bind/bind.wxss'), 'utf8'))
-  }
+  // issue #104：绑定页 --bind-* 试点 token 整体退役，玻璃面解析只需 app 级 token
+  return customProperties(fs.readFileSync(path.join(repoRoot, 'app.wxss'), 'utf8'))
 }
 
 function listWxssFiles() {
@@ -229,22 +222,6 @@ test('high-alpha navy in the same rule is a solid fallback', () => {
     'backdrop-filter': 'blur(20px)'
   }
   assert.equal(ruleHasSolidFallback(decls, { '--glass-bg': 'rgba(255,255,255,0.08)' }), true)
-})
-
-test('high-alpha bind purple in the same rule is a solid fallback', () => {
-  const decls = {
-    background: 'var(--glass-bg), rgba(26,20,51,0.92)',
-    'backdrop-filter': 'blur(20px)'
-  }
-  assert.equal(ruleHasSolidFallback(decls, { '--glass-bg': 'rgba(255,255,255,0.08)' }), true)
-})
-
-test('bind page registers its purple pilot glass tokens (issue #87)', () => {
-  const bind = customProperties(fs.readFileSync(path.join(repoRoot, 'pages/bind/bind.wxss'), 'utf8'))
-  assert.equal(bind['--bind-glass-fallback'], 'rgba(26,20,51,0.92)')
-  assert.equal(bind['--bind-glass-tint'], 'rgba(196,160,210,0.14)')
-  assert.equal(bind['--bind-canvas-top'], '#2E2350')
-  assert.equal(bind['--bind-canvas-bottom'], '#1A1433')
 })
 
 test('canvas navy hex in the same rule is a solid fallback', () => {
