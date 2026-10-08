@@ -123,7 +123,9 @@ node --check pages\period\edit\edit.js
 node cloudfunctions\_shared\syncRoomMembershipLifecycle.js --check
 ```
 
-For UI changes, also verify in WeChat Developer Tools at a small-phone width.
+For UI changes, also verify in WeChat Developer Tools at a small-phone width. `node tests/devtoolsCapture.mjs`（根 `npm install` 后可用）可按需把模拟器截图落到 `.scratch/screenshots/`：先手动运行 `cli.bat auto --project <repo> --auto-port 9420` 并确认端口监听，再 `node tests/devtoolsCapture.mjs --ws ws://127.0.0.1:9420`；前置是 IDE 已登录且「设置 → 安全设置 → 服务端口」已开启。2026-10-09 本机实测停在 Fetching AppID permissions 之后的 preparing 阶段（automation 端口未出现），live 截图尚未打通，首次使用前需人工在 IDE 里走通一次。
+
+在 bash（含 ZCode 本机 shell）下，上面的 PowerShell 反斜杠形态会被 shell 吃掉；等价入口是 `npm test`（即 `node --test tests/*.test.js`，Node 21+ 的测试运行器自行展开 glob，清单同步仍由 `tests/readme-verification-list.test.js` 钉住）与 `npm run check`（代替上面最后一行 sync 检查）。`node --check` 各行在 bash 下改用正斜杠路径执行。push 到远端 `main` 时，GitHub Actions（`.github/workflows/ci.yml`）会跑 `npm ci` + 同一组命令作为 guardrail。
 
 上面的 `node --test` 清单与 `tests/` 目录下的 `*.test.js` 一一对应（`tests/contrast.js`、`tests/designTokens.js` 是共享 helper，不是测试）；该同步由 `tests/readme-verification-list.test.js` 钉住，新增或删除测试文件时必须同步更新本清单，否则该测试变红。
 
@@ -157,6 +159,7 @@ Generated dependencies, local tool state, imported reference material, and histo
 Do not commit:
 
 - `cloudfunctions/**/node_modules/`
+- 根 `node_modules/`（`npm ci`/`npm install` 的本地产物；根 `package.json` 与 `package-lock.json` 提交，已在 `packOptions.ignore` 排除出上传）
 - `project.private.config.json`
 - IDE-only churn in `project.config.json`. That file stays tracked because DevTools opens the project with it; commit it only when `appid`, `packOptions`, `watchOptions`, or compile settings actually change.
 - `.codegraph/`
