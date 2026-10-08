@@ -153,6 +153,7 @@ components:
 - 阴影登记（下文「Shadow / overlay 登记」段）实行区间登记制：同族同色阴影的透明度落在登记区间内即合规，区间内免逐值登记；区间外透明度或登记表外颜色由 `tests/design-token-guardrail.test.js` 的阴影注册表护栏拒绝。
 - 交互语义（issue #57）：每个可点控件（bindtap/catchtap，sheet 的 `catchtap="noop"` 泄泡盾除外）都带 `aria-role` 与可读 `aria-label`；弹层遮罩本身是「关闭」操作，按用途命名（关闭月份选择/当日操作/面板）。选中态用 `aria-checked` 表达并与 `active` 类同条件绑定（单选组如经期状态、密度、月份格、绑定 tab 用 `radio`，可多选或可再点取消的经量/症状 chip 用 `checkbox`）；禁用与加载态用 `aria-disabled` 表达并与 `disabled`/`loading` 类同条件。picker 与输入框带 `aria-label`。首屏加载指示（`.loading-spinner`）带可读 `aria-label`；同步状态胶囊（`.sync-pill`）为 `status` 角色、朗读名与 `syncStatusText` 同源，同步状态变化即可朗读（issue #106）。日历格保持 `aria-label="{{item.ariaLabel}}"` 领域朗读（日期+经期/欢乐时光/预测/节日/调休）与 `aria-hidden="{{item.isEmpty}}"` 空白格隐藏，角色为 button；语义文案唯一来源仍是 `utils/homeCalendarState.js`。护栏：`tests/interaction-semantics.test.js`。
 - 次级可点入口对比度（issue #57）：可点击箭头（`.menu-arrow`、`.form-picker-arrow`、列表/入口/弹层箭头）与次要操作（重试空态、绑定页房间码、危险按钮）的文字色不弱于 `--text-secondary`，在各自实际表面（卡片/表单/sheet 合成底）上 ≥4.5:1——基准即未选中 tab `#7A7C8C` 在画布 `#0A0E27` 上的 4.5:1；`--text-tertiary`（0.35 白）只留给输入占位符等纯装饰文字，不再用于任何可点入口。护栏：`tests/secondary-affordance-contrast.test.js`。
+- 展开/收起文字入口（issue #109，「记录」tab 欢乐时光月份卡头）：切换入口用文字「展开」/「收起」，不用字形——「›」已用于列表行「点开编辑」（`.item-arrow`/`.memory-arrow`），「⌄」已用于首页选月 caret（`.month-title-caret`），不重复占用；文字自述点按后果。卡头按 button 朗读，`aria-expanded` 与展开状态同条件，读屏名「YYYY年M月，N 条欢乐时光，已展开/已收起」；点按即时切换、无过渡动画（不进动效注册表，开启减弱动效时无差别）。文字走 caption 角色（26rpx）+ `var(--text-secondary)`，在月份卡（`.premium-card`）表面 ≥4.5:1，护栏 `tests/secondary-affordance-contrast.test.js`（CASES 登记）；320px 单行账本由 `tests/narrow-screen-geometry.test.js` 钉住。这是应用里第一个展开/收起交互，本条即先例。
 - 动效与性能边界（issue #58）：缓动只有 `--ease-out`（`cubic-bezier(0.16,1,0.3,1)`）与标准关键字（ease/ease-in-out/linear 等）；bounce/elastic 式 overshoot 曲线（cubic-bezier 的 y 参数超出 0–1）与 `--ease-spring` / `--transition-spring` token 已退役，bind 页 `bounceIn` 回弹入场同步改为无回弹的 `heroIn`，禁止同类曲线以任何命名回归。持续动画（`infinite`）实行注册表：装饰性（慢 6–12s）= `auroraPulse` 8s（唯一全屏背景动效）、`orbFloat` 6s/8s（首页两个 orb，动画声明挂在基类 `.glow-orb` 上，每个 orb 只有一层持续动画；第二层轨道旋转 `orbRotate` 已退役）、`float` 8s/6s（导航头光斑）、`pulse` 6s（空态图标）；功能性状态指示（可快于 6s，只在对应状态期间存在）= `spin` 0.8s（加载）、`syncDotPulse` 1s（同步中）、`skeletonPulse` 2.4s（骨架屏）；reduced-motion 替代 = `loadingPulse` 1.6s（仅透明度）。新增或删除持续动画必须同步本表与测试注册表。玻璃 blur：单面 ≤20px，全屏遮罩 ≤8px（`.day-sheet-mask` 对齐 frontmatter `modal-overlay` 登记的 8px——88% 不透明海军底上更大的 blur 不可见，纯 GPU 开销），每个 WXSS 文件的玻璃面（backdrop-filter 规则）数量上限由测试棘轮钉住，只允许收紧。阴影：颜色与透明度仍由上文阴影注册表管，每文件 `box-shadow` 声明数上限同法钉住。`@media (prefers-reduced-motion: reduce)` 政策：移除位移/缩放/旋转与装饰动画，状态反馈走无位移通道——加载=透明度脉冲（不静默）、同步中=玫瑰点静态色、骨架=静态哑光占位块、按压=即时 scale + 既有底色变化、弹层=即时出现（88% 海军遮罩保留层级）、日历切换=即时替换（月份标题文案变化承载状态）；两个编辑页的边框/背景过渡由页面级 reduced-motion 块即时切换，无渐进（issue #106）。护栏：`tests/motion-performance.test.js`。
 - `tabBar.borderStyle` 为 `white`（浅色发丝）。不要改成 `black`。未选中 `tabBar.color` 为 `#7A7C8C`：弱于选中玫瑰 `#E8909E`，在画布 `#0A0E27` 上达到 4.5:1。
 - `page` 没有 `auroraFlow`；全屏动感只保留 `.page::before` 的 `auroraPulse`（8s）。画布底为 `#0A0E27`。
@@ -209,8 +210,8 @@ frontmatter 的 rem 值是设计参照；实现层全部走下表 rpx 角色 tok
 | `--font-size-month-title` | `40rpx` | 首页月份大标题（高于全局导航一级） | `.month-title` |
 | `--font-size-title` | `34rpx` | 标题 | `.nav-title`、`.sheet-title`、`.profile-name`、`.no-room-title` |
 | `--font-size-body-lg` | `32rpx` | 正文大号 | `.predict-date`、`.prediction-summary`、`.jump-year-value`、`.bound-status` |
-| `--font-size-body` | `28rpx` | 正文 | 列表主行、`.tab`、`.menu-text`、`.quick-text`、`.empty-state` |
-| `--font-size-caption` | `26rpx` | caption（页面外下限） | 说明/标签/统计文字、`.day-tag`、`.predict-mark`、`.form-label`、流量/症状 chips、`.copy-btn` 等次级小操作 |
+| `--font-size-body` | `28rpx` | 正文 | 列表主行、`.month-header-text`（欢乐时光月份卡头，issue #108）、`.tab`、`.menu-text`、`.quick-text`、`.empty-state` |
+| `--font-size-caption` | `26rpx` | caption（页面外下限） | 说明/标签/统计文字、`.day-tag`、`.predict-mark`、`.form-label`、流量/症状 chips、`.copy-btn`、`.month-toggle`（月份卡「展开/收起」，issue #109）等次级小操作 |
 | `--font-size-calendar-date` | `28rpx` | 日历日期（full 密度） | `.day-num` |
 | `--font-size-calendar-date-compact` | `30rpx` | 日历日期（compact 密度） | `.calendar-density-compact .day-num` |
 | `--font-size-calendar-micro` | `24rpx` | 日历格内微字（下限） | `.day-lunar`、`.memory-mark` |
@@ -294,7 +295,7 @@ Prediction metadata, reminder cards, and period tag chips stay compact and low-n
 
 - 可点色只有玫瑰 `#E8909E`。金 `#D4A574` 只表示预测、区间或确定性，不当成第二颗 CTA。
 - 控件状态只写 Default 与 Pressed。Pressed 用 `transform: scale(0.94–0.98)`，主按钮 `.btn-premium` 为 `0.96`。
-- 触控高度至少 44px。日历格在 compact 密度下仍须能读日期与标记。
+- 触控高度至少 44px。日历格在 compact 密度下仍须能读日期与标记。落地面换算（issue #107 评审澄清）：通用控件按 750rpx 设计宽执行为盒高 ≥88rpx（44px@375px），`.copy-btn`、重试入口、分段选项与「记录」tab 欢乐时光月份卡头（issue #109）同档；320px 换算口径（compact 104rpx ≈ 44.4px@320px）只登记给日历格（issue #56 窄屏几何），不外推到其他控件。
 - 卡片、按钮、正文不加新的装饰阴影。现有玻璃 inset 与主按钮玫瑰光保持，不叠第二套 elevation。
 
 ### 日历格状态（cal 的状态表写法，语义用本产品）

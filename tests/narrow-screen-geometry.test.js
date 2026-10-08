@@ -138,6 +138,54 @@ test('edit form cards are border-box so width and padding never add up past the 
   }
 })
 
+test('record tab memory month card header stays on one line at 320px', () => {
+  // issue #108：欢乐时光月份卡头「YYYY年M月 · N 条」在 320px 宽单行完整显示。
+  // issue #109：卡头右侧多了「展开/收起」文字（caption 档），一并纳入账本。
+  // 宽度账本口径与 typography-hierarchy 的月份标题先例一致：CJK 按 1em、数字按 0.6em 上限估算。
+  const appRules = parseWxssRules(readRepo('app.wxss'))
+  const appTokens = {}
+  for (const rule of appRules) {
+    for (const [prop, value] of Object.entries(rule.decls)) {
+      if (prop.startsWith('--')) appTokens[prop] = value
+    }
+  }
+  // 月份卡复用 app 级玻璃卡：卡面自身不带水平 padding，账本才不漏项
+  const card = findDecls(appRules, '.premium-card')
+  assert.equal(
+    horizontalPaddingTokens(card).length,
+    0,
+    '.premium-card must not add horizontal padding of its own'
+  )
+
+  const rules = parseWxssRules(readRepo('pages/period/period.wxss'))
+  const content = findDecls(rules, '.content')
+  const header = findDecls(rules, '.month-header')
+  const headerText = findDecls(rules, '.month-header-text')
+  const toggle = findDecls(rules, '.month-toggle')
+
+  assert.equal(headerText['font-size'], 'var(--font-size-body)')
+  assert.equal(headerText['white-space'], 'nowrap')
+  assert.equal(toggle['font-size'], 'var(--font-size-caption)')
+  assert.equal(toggle['white-space'], 'nowrap')
+
+  const fontSizeRpx = Number(/(\d+)rpx/.exec(appTokens['--font-size-body'])[1])
+  const toggleSizeRpx = Number(/(\d+)rpx/.exec(appTokens['--font-size-caption'])[1])
+  const contentPadRpx = Number(/(\d+)rpx/.exec(horizontalPaddingTokens(content)[0])[1])
+  const headerPadRpx = Number(/(\d+)rpx/.exec(horizontalPaddingTokens(header)[0])[1])
+  const headerGapRpx = Number(/(\d+)rpx/.exec(header.gap)[1])
+  const availableRpx = 750 - 2 * contentPadRpx - 2 * headerPadRpx
+
+  // 卡头标题最坏文案「2026年12月 · 99 条」：8 位数字（0.6em）+ 年/月/条 3 个 CJK（1em）
+  // +「·」按全宽 1em + 两侧空格按 0.5em；切换文字最坏「收起」2 个 CJK（1em）
+  const titleRpx = (8 * 0.6 + 3 + 1 + 2 * 0.5) * fontSizeRpx
+  const toggleRpx = 2 * toggleSizeRpx
+  const worstRpx = titleRpx + headerGapRpx + toggleRpx
+  assert.ok(
+    worstRpx <= availableRpx,
+    `month header worst case ${worstRpx}rpx exceeds the ${availableRpx}rpx available on a 750rpx viewport`
+  )
+})
+
 test('calendar day cells keep the 44px touch height at 320px in both densities', () => {
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
   const cell = findDecls(rules, '.day-cell')

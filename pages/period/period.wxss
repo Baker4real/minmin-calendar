@@ -230,7 +230,48 @@
   border-color: rgba(232,144,158,0.45);
 }
 
-/* Memory Segment – 欢乐时光列表行（与 pages/memory/memory.wxss 同款，分段内嵌拷贝） */
+/* Memory Segment – 欢乐时光月份分组（issue #108）：每月一张卡复用 app 级 .premium-card 玻璃面，
+   本文件不新增玻璃/阴影面（per-file backdrop-filter/box-shadow 预算已满）。
+   卡头可点切换展开/收起（issue #109）：即时生效、无动画（不写 transition/animation），
+   右侧「展开/收起」是文字不是字形（「›」表示点开编辑、「⌄」已用于首页选月，见 DESIGN.md） */
+.month-card {
+  margin-bottom: 20rpx;
+}
+.month-card:last-child {
+  margin-bottom: 0;
+}
+.month-header {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 20rpx 30rpx;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+/* 收起时卡头是卡内唯一子节点：不出悬空分隔线 */
+.month-header:last-child {
+  border-bottom: none;
+}
+.month-header:active {
+  background: rgba(255,255,255,0.05);
+}
+.month-header-text {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-body);
+  color: rgba(255,255,255,0.85);
+  white-space: nowrap;
+}
+/* 次级可点入口：caption 字号 + 不弱于 --text-secondary 的文字色（登记见 DESIGN.md 与对比度护栏） */
+.month-toggle {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+/* 欢乐时光列表行（与 pages/memory/memory.wxss 同款，分段内嵌拷贝） */
 .memory-left {
   display: flex;
   align-items: center;

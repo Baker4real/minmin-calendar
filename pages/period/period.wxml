@@ -106,16 +106,24 @@
         <text class="load-failed-text">欢乐时光加载失败</text>
         <view class="retry-btn">重试</view>
       </view>
-      <view wx:elif="{{memories.length > 0 && !memoryLoading}}" class="premium-card">
-        <view class="list-item" wx:for="{{memories}}" wx:key="_id" wx:for-index="i" bindtap="editMemory" data-index="{{i}}" aria-role="button" aria-label="编辑 {{item.date}} 的欢乐时光">
-          <view class="memory-left">
-            <text class="memory-heart">♥</text>
-            <view class="memory-info">
-              <view class="memory-date">{{item.date}}</view>
-              <view wx:if="{{item.note}}" class="memory-note">{{item.note}}</view>
-            </view>
+      <!-- 欢乐时光月份分组（issue #108）：每月一张玻璃卡，卡头写年月与条数；
+           点卡头切换展开/收起，默认只展开最近一个有记录的月份，收起时组内行不渲染（issue #109） -->
+      <view wx:elif="{{memories.length > 0 && !memoryLoading}}" class="memory-month-list">
+        <view class="premium-card month-card" wx:for="{{memoryGroups}}" wx:key="key" wx:for-item="group">
+          <view class="month-header" bindtap="toggleMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}">
+            <text class="month-header-text">{{group.title}}</text>
+            <text class="month-toggle">{{group.toggleLabel}}</text>
           </view>
-          <view class="memory-arrow">›</view>
+          <view class="list-item" wx:if="{{group.expanded}}" wx:for="{{group.records}}" wx:key="_id" bindtap="editMemory" data-id="{{item._id}}" aria-role="button" aria-label="编辑 {{item.date}} 的欢乐时光">
+            <view class="memory-left">
+              <text class="memory-heart">♥</text>
+              <view class="memory-info">
+                <view class="memory-date">{{item.dayLabel}}</view>
+                <view wx:if="{{item.note}}" class="memory-note">{{item.note}}</view>
+              </view>
+            </view>
+            <view class="memory-arrow">›</view>
+          </view>
         </view>
       </view>
 

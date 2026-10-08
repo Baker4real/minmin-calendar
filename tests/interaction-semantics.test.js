@@ -368,6 +368,16 @@ test('record tab segment control reads as a radio group with a perceivable check
   assert.equal(byHandler('editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.date}} 的欢乐时光')
   assert.equal(byHandler('loadMemoryData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
   assert.equal(byHandler('addMemory', 'btn-premium').attrs['aria-label'], '记录欢乐时光')
+
+  // 月份卡头（issue #109）：点按切换展开/收起，按 button 朗读；
+  // 读屏名「YYYY年M月，N 条欢乐时光，已展开/已收起」由分组数据绑定，
+  // aria-expanded 与展开状态同条件；不用 active 条件类（单选语义才配 aria-checked）
+  const monthHeader = elements.find((element) => classTokens(element).includes('month-header'))
+  assert.ok(monthHeader, 'expected the memory month card header')
+  assert.equal(monthHeader.attrs.bindtap, 'toggleMonth')
+  assert.equal(monthHeader.attrs['aria-role'], 'button')
+  assert.equal(monthHeader.attrs['aria-label'], '{{group.ariaLabel}}')
+  assert.equal(monthHeader.attrs['aria-expanded'], '{{group.expanded}}')
 })
 
 test('edit pages name the save and delete operations and expose inert variants as disabled', () => {

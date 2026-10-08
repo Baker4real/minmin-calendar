@@ -159,6 +159,8 @@ const CASES = [
   { file: 'pages/memory/edit/edit.wxss', selector: '.form-picker-arrow', surfaces: [['app.wxss', '.premium-card'], ['pages/memory/edit/edit.wxss', '.form-picker']], note: '表单 picker 箭头（记忆编辑）' },
   { file: 'pages/settings/settings.wxss', selector: '.menu-arrow', surfaces: [['app.wxss', '.premium-card']], note: '设置菜单箭头' },
   { file: 'pages/period/period.wxss', selector: '.item-arrow', surfaces: [['app.wxss', '.premium-card']], note: '经期列表行箭头' },
+  // issue #109：月份卡头「展开/收起」是文字型次级可点入口（不用 ›/⌄ 字形，见 DESIGN.md 登记）
+  { file: 'pages/period/period.wxss', selector: '.month-toggle', surfaces: [['app.wxss', '.premium-card']], note: '欢乐时光月份卡展开/收起入口' },
   { file: 'pages/memory/memory.wxss', selector: '.memory-arrow', surfaces: [['app.wxss', '.premium-card']], note: '欢乐时光列表行箭头' },
   { file: 'pages/index/index.wxss', selector: '.sheet-action-arrow', surfaces: [['pages/index/index.wxss', '.day-action-sheet'], ['pages/index/index.wxss', '.sheet-action']], note: '弹层操作行箭头' },
   { file: 'pages/index/index.wxss', selector: '.sheet-close', surfaces: [['pages/index/index.wxss', '.day-action-sheet']], note: '弹层关闭按钮' },
