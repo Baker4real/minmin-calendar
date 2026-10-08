@@ -36,6 +36,10 @@
         "type": "folder"
       },
       {
+        "value": "node_modules",
+        "type": "folder"
+      },
+      {
         "value": "_external",
         "type": "folder"
       },

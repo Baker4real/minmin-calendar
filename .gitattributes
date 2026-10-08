@@ -1,0 +1,8 @@
+# WeChat DevTools rewrites project.config.json with CRLF; pin it to LF so the
+# committed form stays deterministic and git status stays clean between rewrites.
+*.json text eol=lf
+*.js text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.wxml text eol=lf
+*.wxss text eol=lf

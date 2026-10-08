@@ -1,0 +1,12 @@
+{
+  "name": "minmin-calendar",
+  "private": true,
+  "description": "Local verification entry for the Minmin Calendar mini program repo. The mini program itself has no build step; these scripts only wire the existing node --test checklist to one command.",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check": "node cloudfunctions/_shared/syncRoomMembershipLifecycle.js --check"
+  },
+  "devDependencies": {
+    "miniprogram-automator": "^0.12.1"
+  }
+}
