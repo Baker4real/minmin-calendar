@@ -1009,7 +1009,7 @@ test('period list failure retry is a recognizable operation, distinct from the q
   assert.match(emptyBlock[1], /还没有经期记录/)
   assert.doesNotMatch(emptyBlock[1], /retry-btn|bindtap/)
 
-  // 重试按钮是玫瑰底海军字的小操作，触控目标 88rpx（44px@320px）
+  // 重试按钮是玫瑰底海军字的小操作，触控目标 88rpx（750rpx 设计宽 = 44px@375px，非日历可点控件统一 88rpx 档）
   const retryRule = /\.retry-btn\s*\{[^}]*\}/.exec(periodWxss)
   assert.ok(retryRule, 'expected the .retry-btn rule')
   assert.match(retryRule[0], /background:\s*var\(--aurora-pink\)/)
