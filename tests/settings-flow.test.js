@@ -794,6 +794,69 @@ test('settings page drops the actions once a room code loads and keeps the copy 
   }
 })
 
+// issue #114：首帧用本机缓存房间码，不等云端校验；校验结果仍覆盖首帧
+test('settings page shows the cached room code before verification, with copy and unbind available', async () => {
+  const harness = loadSettingsPageHarness({
+    cachedRoomCode: 'ROOM01',
+    roomOutcome: { kind: 'retryable-failure', bound: false, roomCode: '', errorMsg: '同步房间状态失败：network down' }
+  })
+
+  try {
+    assert.equal(harness.resolveCalls(), 0)
+    assert.equal(harness.page.data.roomCode, 'ROOM01')
+    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
+    assert.equal(harness.page.data.roomCodeLoaded, false)
+
+    const wxml = readPageFile('pages/settings/settings.wxml')
+    const cardStart = wxml.indexOf('class="menu-item room-code-item"')
+    const cardEnd = wxml.indexOf('日历显示')
+    const card = wxml.slice(cardStart, cardEnd)
+    assert.match(card, /wx:if="\{\{roomCode\}\}" class="copy-btn"/)
+    assert.match(card, /wx:if="\{\{roomCode\}\}" class="menu-item danger" bindtap="unbind"/)
+
+    await harness.page.onShow()
+    assert.equal(harness.resolveCalls(), 1)
+    assert.equal(harness.page.data.roomCode, '')
+    assert.equal(harness.page.data.roomCodeDisplay, '同步失败，请重试')
+    assert.equal(harness.page.data.roomCodeLoaded, true)
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #114：没有缓存时首帧是中性「读取中…」，校验完成前不出复制/解绑，也不先写「未绑定」
+test('settings page shows a neutral reading state before verification when no room code is cached', async () => {
+  const harness = loadSettingsPageHarness({
+    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+
+  try {
+    assert.equal(harness.resolveCalls(), 0)
+    assert.equal(harness.page.data.roomCode, '')
+    assert.equal(harness.page.data.roomCodeDisplay, '读取中…')
+    assert.equal(harness.page.data.roomCodeLoaded, false)
+
+    const wxml = readPageFile('pages/settings/settings.wxml')
+    const cardStart = wxml.indexOf('class="menu-item room-code-item"')
+    const cardEnd = wxml.indexOf('日历显示')
+    const card = wxml.slice(cardStart, cardEnd)
+    assert.match(card, /class="room-code-value \{\{roomCode \? '' : 'muted'\}\}"/)
+    assert.match(card, /wx:if="\{\{roomCode\}\}" class="copy-btn"/)
+    assert.match(card, /wx:if="\{\{roomCodeLoaded && !roomCode\}\}" class="room-code-actions"/)
+
+    const wxss = readPageFile('pages/settings/settings.wxss')
+    assert.match(wxssRuleBody(wxss, '.room-code-value.muted'), /color:\s*var\(--text-secondary\)/)
+
+    await harness.page.onShow()
+    assert.equal(harness.resolveCalls(), 1)
+    assert.equal(harness.page.data.roomCode, '')
+    assert.equal(harness.page.data.roomCodeDisplay, '未绑定')
+    assert.equal(harness.page.data.roomCodeLoaded, true)
+  } finally {
+    harness.teardown()
+  }
+})
+
 test('settings room-code card swaps the dead sentence for tappable retry and go-bind rows when no code is available', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
   const cardStart = wxml.indexOf('class="menu-item room-code-item"')
@@ -960,7 +1023,7 @@ function wxssRuleBody(wxss, selector) {
   return match[1]
 }
 
-function loadSettingsPageHarness({ roomOutcome, leaveRoom } = {}) {
+function loadSettingsPageHarness({ roomOutcome, leaveRoom, cachedRoomCode } = {}) {
   const absolutePagePath = path.join(__dirname, '..', 'pages/settings/settings.js')
   let resolveCalls = 0
   let leaveRoomCalls = 0
@@ -969,6 +1032,9 @@ function loadSettingsPageHarness({ roomOutcome, leaveRoom } = {}) {
       createRoomDataClient: () => ({ list: async () => ({ kind: 'success', data: [] }) })
     }],
     [path.join(__dirname, '..', 'utils/room.js'), {
+      getRoomCode() {
+        return cachedRoomCode || ''
+      },
       async getVerifiedActiveRoom() {
         resolveCalls += 1
         if (typeof roomOutcome === 'function') return roomOutcome()

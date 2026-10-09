@@ -1559,6 +1559,9 @@ test('settings page onShow uses verified room lookup, keeps retryable sync failu
     mocks: {
       'utils/cloud.js': {},
       'utils/room.js': {
+        getRoomCode() {
+          return ''
+        },
         async getActiveRoom() {
           throw new Error('settings onShow should use getVerifiedActiveRoom')
         },
@@ -1647,6 +1650,9 @@ test('settings page exportData keeps repair retryable failures visible instead o
     mocks: {
       'utils/cloud.js': {},
       'utils/room.js': {
+        getRoomCode() {
+          return ''
+        },
         async getVerifiedActiveRoom() {
           return {
             bound: true,
