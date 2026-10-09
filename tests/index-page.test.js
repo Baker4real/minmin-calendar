@@ -2,7 +2,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const Module = require('node:module')
 const path = require('node:path')
-const test = require('node:test')
+const { mock, test } = require('node:test')
 
 const repoRoot = path.join(__dirname, '..')
 
@@ -425,7 +425,10 @@ function loadPageHarness({ client, calendarState } = {}) {
     setStorageSync() {},
     switchTab() {},
     redirectTo() {},
-    navigateTo() {}
+    navigateTo() {},
+    nextTick(callback) {
+      setTimeout(callback, 0)
+    }
   }
   global.Page = config => { registered = config }
   Module._load = function patchedLoad(request, parent, isMain) {
@@ -994,9 +997,9 @@ test('month navigation offers a tools menu trigger beside the month title', () =
 
 test('month tools menu reuses the existing legend, prediction, and recap sheets', () => {
   const wxml = readIndexWxml()
-  const menuStart = wxml.indexOf('wx:if="{{monthMenuVisible}}"')
+  const menuStart = wxml.indexOf('wx:if="{{monthMenuMounted}}"')
   assert.ok(menuStart !== -1, 'expected the month tools menu sheet')
-  const menuEnd = wxml.indexOf('wx:if="{{infoSheetVisible}}"')
+  const menuEnd = wxml.indexOf('wx:if="{{infoSheetMounted}}"')
   assert.ok(menuEnd > menuStart, 'the menu sheet precedes the info sheets it opens')
   const menuBlock = wxml.slice(menuStart, menuEnd)
 
@@ -1336,6 +1339,199 @@ test('month selection, confirm jump, and back-to-today keep their behavior', () 
     assert.equal(harness.page.data.monthPickerVisible, false)
   } finally {
     harness.teardown()
+  }
+})
+
+// issue #116：进场先以关闭姿态挂载，下一次渲染才进入打开，CSS 过渡才有起点可反向。
+test('month picker mounts in the closed pose and opens on the next render', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.setData({ year: 2020, month: 5 })
+    harness.page.openMonthPicker()
+
+    assert.equal(harness.page.data.monthPickerVisible, true)
+    assert.equal(harness.page.data.monthPickerMounted, true)
+    assert.equal(harness.page.data.monthPickerPhase, 'closed')
+
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.monthPickerPhase, 'open')
+    assert.equal(harness.page.data.monthPickerMounted, true)
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #116：关闭后先离场，弹层仍挂载；200ms 到点才卸载。确认与回到今天走同一条离场。
+test('month picker stays mounted through leave and unmounts when the exit timer fires', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const wxml = readIndexWxml()
+    assert.match(wxml, /wx:if="\{\{monthPickerMounted\}\}"/)
+    assert.match(wxml, /sheet-\{\{monthPickerPhase\}\}/)
+    assert.match(ruleBody(readIndexWxss(), '.day-sheet-mask.sheet-leaving'), /pointer-events:\s*none/)
+
+    harness.page.onLoad()
+    harness.page.setData({ year: 2020, month: 5 })
+    harness.page.openMonthPicker()
+    mock.timers.tick(0)
+
+    harness.page.closeMonthPicker()
+    assert.equal(harness.page.data.monthPickerVisible, false)
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
+    assert.equal(harness.page.data.monthPickerMounted, true)
+
+    mock.timers.tick(199)
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
+    assert.equal(harness.page.data.monthPickerMounted, true)
+
+    mock.timers.tick(1)
+    assert.equal(harness.page.data.monthPickerPhase, 'closed')
+    assert.equal(harness.page.data.monthPickerMounted, false)
+    assert.equal(harness.page.data.monthPickerVisible, false)
+
+    harness.page.openMonthPicker()
+    mock.timers.tick(0)
+    harness.page.setData({ jumpYear: 2021, jumpMonth: 11 })
+    harness.page.confirmMonthJump()
+    assert.equal(harness.page.data.year, 2021)
+    assert.equal(harness.page.data.month, 11)
+    assert.equal(harness.page.data.monthPickerVisible, false)
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
+    assert.equal(harness.page.data.monthPickerMounted, true)
+
+    harness.page.openMonthPicker()
+    mock.timers.tick(0)
+    harness.page.jumpToToday()
+    const today = new Date()
+    assert.equal(harness.page.data.year, today.getFullYear())
+    assert.equal(harness.page.data.month, today.getMonth())
+    assert.equal(harness.page.data.monthPickerVisible, false)
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
+    assert.equal(harness.page.data.monthPickerMounted, true)
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+test('opening the month picker during leave cancels the unmount and returns to open', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.setData({ year: 2020, month: 5 })
+    harness.page.openMonthPicker()
+    mock.timers.tick(0)
+    harness.page.closeMonthPicker()
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
+
+    mock.timers.tick(100)
+    harness.page.openMonthPicker()
+    assert.equal(harness.page.data.monthPickerPhase, 'open')
+    assert.equal(harness.page.data.monthPickerVisible, true)
+    assert.equal(harness.page.data.monthPickerMounted, true)
+    assert.equal(harness.page.data.jumpYear, 2020)
+    assert.equal(harness.page.data.jumpMonth, 5)
+
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.monthPickerPhase, 'open')
+    assert.equal(harness.page.data.monthPickerMounted, true)
+    assert.equal(harness.page.data.monthPickerVisible, true)
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+test('day actions, tools menu, and the info sheet use the same enter and leave lifecycle', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const wxml = readIndexWxml()
+    assert.match(wxml, /wx:if="\{\{dayActionMounted\}\}"[\s\S]*?sheet-\{\{dayActionPhase\}\}/)
+    assert.match(wxml, /wx:if="\{\{monthMenuMounted\}\}"[\s\S]*?sheet-\{\{monthMenuPhase\}\}/)
+    assert.match(wxml, /wx:if="\{\{infoSheetMounted\}\}"[\s\S]*?sheet-\{\{infoSheetPhase\}\}/)
+
+    harness.page.onLoad()
+    harness.page.setData({
+      days: [{ date: '2026-06-20', weekday: '周六', lunarText: '五月初五', isEmpty: false }],
+      dayDetailsByDate: {
+        '2026-06-20': { meanings: [], periods: [], memories: [], empty: true }
+      }
+    })
+
+    harness.page.showDayDetail('2026-06-20')
+    assert.equal(harness.page.data.dayActionMounted, true)
+    assert.equal(harness.page.data.dayActionPhase, 'closed')
+    assert.equal(harness.page.data.daySheetMode, 'detail')
+    assert.equal(harness.page.data.selectedDateSubtitle, '周六 · 五月初五')
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.dayActionPhase, 'open')
+
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-20' } } })
+    assert.equal(harness.page.data.dayActionPhase, 'open')
+    assert.equal(harness.page.data.daySheetMode, 'actions')
+
+    const navigation = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'memory' } } })
+    assert.equal(navigation.length, 1)
+    assert.match(navigation[0], /2026-06-20/)
+    assert.equal(harness.page.data.dayActionPhase, 'leaving')
+    assert.equal(harness.page.data.dayActionSheetVisible, false)
+    assert.equal(harness.page.data.dayActionMounted, true)
+    assert.equal(harness.page.data.selectedDate, '2026-06-20')
+
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    assert.equal(navigation.length, 2)
+    assert.match(navigation[1], /2026-06-20/)
+    assert.equal(harness.page.data.dayActionPhase, 'leaving')
+
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.dayActionMounted, false)
+    assert.equal(harness.page.data.dayActionPhase, 'closed')
+    assert.equal(harness.page.data.selectedDate, '')
+
+    harness.page.openMonthMenu()
+    assert.equal(harness.page.data.monthMenuVisible, true)
+    assert.equal(harness.page.data.monthMenuMounted, true)
+    assert.equal(harness.page.data.monthMenuPhase, 'closed')
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.monthMenuPhase, 'open')
+
+    harness.page.onMonthMenuTap({ currentTarget: { dataset: { action: 'legend' } } })
+    assert.equal(harness.page.data.monthMenuVisible, false)
+    assert.equal(harness.page.data.monthMenuPhase, 'leaving')
+    assert.equal(harness.page.data.monthMenuMounted, true)
+    assert.equal(harness.page.data.infoSheetVisible, true)
+    assert.equal(harness.page.data.infoSheetMode, 'legend')
+    assert.equal(harness.page.data.infoSheetPhase, 'closed')
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.infoSheetPhase, 'open')
+    assert.equal(harness.page.data.monthMenuPhase, 'leaving')
+
+    harness.page.closeInfoSheet()
+    assert.equal(harness.page.data.infoSheetVisible, false)
+    assert.equal(harness.page.data.infoSheetPhase, 'leaving')
+    assert.equal(harness.page.data.infoSheetMounted, true)
+    assert.equal(harness.page.data.infoSheetMode, 'legend')
+
+    harness.page.openPredictionSheet()
+    assert.equal(harness.page.data.infoSheetPhase, 'open')
+    assert.equal(harness.page.data.infoSheetVisible, true)
+    assert.equal(harness.page.data.infoSheetMode, 'prediction')
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.infoSheetPhase, 'open')
+    assert.equal(harness.page.data.infoSheetMounted, true)
+    assert.equal(harness.page.data.monthMenuPhase, 'closed')
+    assert.equal(harness.page.data.monthMenuMounted, false)
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
   }
 })
 

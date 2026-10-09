@@ -153,7 +153,8 @@
     </view>
   </view>
 
-  <view wx:if="{{monthPickerVisible}}" class="day-sheet-mask month-jump-mask" bindtap="closeMonthPicker" aria-role="button" aria-label="关闭月份选择">
+  <view wx:if="{{monthPickerMounted}}" class="day-sheet-mask month-jump-mask sheet-{{monthPickerPhase}}" bindtap="closeMonthPicker" aria-role="button" aria-label="关闭月份选择">
+    <view class="sheet-slide">
     <view class="calendar-jump-sheet safe-bottom" catchtap="noop">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -215,9 +216,11 @@
 
       <view class="jump-confirm" bindtap="confirmMonthJump" aria-role="button" aria-label="跳转到 {{jumpYear}}年{{jumpMonth + 1}}月">跳转到 {{jumpYear}}年{{jumpMonth + 1}}月</view>
     </view>
+    </view>
   </view>
 
-  <view wx:if="{{dayActionSheetVisible}}" class="day-sheet-mask" bindtap="closeDayActions" aria-role="button" aria-label="关闭当日操作">
+  <view wx:if="{{dayActionMounted}}" class="day-sheet-mask sheet-{{dayActionPhase}}" bindtap="closeDayActions" aria-role="button" aria-label="关闭当日操作">
+    <view class="sheet-slide">
     <view class="day-action-sheet safe-bottom" catchtap="noop">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -313,10 +316,12 @@
         </view>
       </block>
     </view>
+    </view>
   </view>
 
   <!-- issue #105：月份工具菜单——图例 / 预测说明 / 本月小结的常驻入口从工具条收进这里，sheet 本体复用 -->
-  <view wx:if="{{monthMenuVisible}}" class="day-sheet-mask" bindtap="closeMonthMenu" aria-role="button" aria-label="关闭工具菜单">
+  <view wx:if="{{monthMenuMounted}}" class="day-sheet-mask sheet-{{monthMenuPhase}}" bindtap="closeMonthMenu" aria-role="button" aria-label="关闭工具菜单">
+    <view class="sheet-slide">
     <view class="day-action-sheet safe-bottom" catchtap="noop">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -354,9 +359,11 @@
         </view>
       </view>
     </view>
+    </view>
   </view>
 
-  <view wx:if="{{infoSheetVisible}}" class="day-sheet-mask calendar-info-sheet" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭面板">
+  <view wx:if="{{infoSheetMounted}}" class="day-sheet-mask calendar-info-sheet sheet-{{infoSheetPhase}}" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭面板">
+    <view class="sheet-slide">
     <view class="day-action-sheet calendar-info-panel safe-bottom" catchtap="noop">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -405,6 +412,7 @@
         </view>
         <view class="copy-recap" bindtap="copyMonthlyRecap" aria-role="button" aria-label="复制小结">复制小结</view>
       </view>
+    </view>
     </view>
   </view>
 </view>

@@ -651,7 +651,6 @@
   box-shadow:
     0 -18rpx 48rpx rgba(0,0,0,0.34),
     inset 0 1rpx 0 rgba(255,255,255,0.18);
-  animation: sheetRise var(--duration-sheet) var(--ease-out) both;
 }
 .jump-section {
   margin-top: 18rpx;
@@ -806,13 +805,32 @@
   z-index: 60;
   display: flex;
   align-items: flex-end;
-  padding: 0 20rpx 20rpx;
+  padding: 0 20rpx 0;
   box-sizing: border-box;
   background: rgba(10,14,39,0.88);
   /* 全屏遮罩 blur 压到 modal-overlay 登记的 8px：88% 不透明底上更大 blur 不可见，纯 GPU 开销（issue #58） */
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  animation: sheetFadeIn var(--duration-enter) var(--ease-out) both;
+  opacity: 0;
+  transition: opacity var(--duration-exit) var(--ease-out);
+}
+.day-sheet-mask.sheet-open {
+  opacity: 1;
+  transition: opacity var(--duration-enter) var(--ease-out);
+}
+.day-sheet-mask.sheet-leaving {
+  pointer-events: none;
+}
+.sheet-slide {
+  width: 100%;
+  padding-bottom: 20rpx;
+  box-sizing: border-box;
+  transform: translateY(100%);
+  transition: transform var(--duration-exit) var(--ease-out);
+}
+.day-sheet-mask.sheet-open .sheet-slide {
+  transform: translateY(0);
+  transition: transform var(--duration-sheet) var(--ease-out);
 }
 .day-action-sheet {
   width: 100%;
@@ -829,7 +847,6 @@
   box-shadow:
     0 -18rpx 48rpx rgba(0,0,0,0.34),
     inset 0 1rpx 0 rgba(255,255,255,0.18);
-  animation: sheetRise var(--duration-sheet) var(--ease-out) both;
 }
 .sheet-handle {
   width: 70rpx;
@@ -1288,15 +1305,10 @@
 .copy-recap:active {
   transform: scale(0.98);
 }
-@keyframes sheetFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes sheetRise {
-  from { transform: translateY(70rpx); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
 @media (prefers-reduced-motion: reduce) {
+  .day-sheet-mask.sheet-open,
+  .day-sheet-mask.sheet-open .sheet-slide,
+  .sheet-slide,
   .sync-pill,
   .sync-pill.syncing .sync-dot,
   .refresh-retry,

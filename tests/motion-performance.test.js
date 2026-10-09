@@ -259,8 +259,6 @@ const LITERAL_DURATION_ANIMATIONS = new Set([
 const ONE_SHOT_ANIMATIONS = {
   pageEnter: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   syncPillIn: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
-  sheetFadeIn: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
-  sheetRise: { duration: 'var(--duration-sheet)', easing: 'var(--ease-out)' },
   bindReveal: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' }
 }
 const COLOR_TRANSITION_PROPS = new Set(['background', 'background-color', 'color', 'border-color'])
@@ -322,6 +320,23 @@ function activeSetsProperty(files, target, prop) {
     }
   }
   return false
+}
+
+function sheetMotionExpectation(selector, prop) {
+  const normalized = selector.replace(/\s+/g, ' ').trim()
+  if (normalized === '.sheet-slide' && prop === 'transform') {
+    return { duration: 'var(--duration-exit)', easing: 'var(--ease-out)' }
+  }
+  if (normalized === '.day-sheet-mask.sheet-open .sheet-slide' && prop === 'transform') {
+    return { duration: 'var(--duration-sheet)', easing: 'var(--ease-out)' }
+  }
+  if (normalized === '.day-sheet-mask' && prop === 'opacity') {
+    return { duration: 'var(--duration-exit)', easing: 'var(--ease-out)' }
+  }
+  if (normalized === '.day-sheet-mask.sheet-open' && prop === 'opacity') {
+    return { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' }
+  }
+  return null
 }
 
 function expectedTransitionDuration(files, pressTargets, selector, prop) {
@@ -397,6 +412,20 @@ test('one-shot transitions and animations use the shared duration tokens and rol
           continue
         }
         const [, prop, duration, easing] = parsed
+        const sheetExpectations = rule.selectors.map((selector) => sheetMotionExpectation(selector, prop))
+        if (sheetExpectations.every(Boolean)) {
+          const expected = sheetExpectations[0]
+          const same = sheetExpectations.every((item) =>
+            item.duration === expected.duration && item.easing === expected.easing)
+          if (!same) {
+            violations.push(`${where} ${prop} has no single sheet-motion duration`)
+            continue
+          }
+          if (duration !== expected.duration || easing !== expected.easing) {
+            violations.push(`${where} ${prop} must be ${expected.duration} ${expected.easing}, got ${duration} ${easing}`)
+          }
+          continue
+        }
         const expectedDurations = rule.selectors.map((selector) =>
           expectedTransitionDuration(files, pressTargets, selector, prop))
         if (expectedDurations.some((value) => value == null) || new Set(expectedDurations).size !== 1) {
@@ -717,6 +746,9 @@ test('reduced-motion blocks keep covering the named sheet, sync, and ambient lay
     '.sync-pill',
     '.sync-pill.syncing .sync-dot',
     '.day-sheet-mask',
+    '.day-sheet-mask.sheet-open',
+    '.day-sheet-mask.sheet-open .sheet-slide',
+    '.sheet-slide',
     '.day-action-sheet',
     '.calendar-jump-sheet',
     '.no-room-icon',
@@ -762,6 +794,50 @@ test('edit page border and background transitions switch instantly under reduced
     }
     assert.deepEqual(violations, [])
   }
+})
+
+test('homepage sheets slide in and out with reversible transitions', () => {
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+  const wxss = maskComments(readRepo('pages/index/index.wxss'))
+  assert.equal(wxss.includes('sheetRise'), false, 'sheet entrance keyframes are retired')
+  assert.equal(wxss.includes('sheetFadeIn'), false, 'sheet entrance keyframes are retired')
+
+  const slide = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.sheet-slide'))
+  assert.ok(slide, 'expected .sheet-slide')
+  assert.equal(slide.decls.transform, 'translateY(100%)')
+  assert.equal(slide.decls.transition, 'transform var(--duration-exit) var(--ease-out)')
+  assert.doesNotMatch(slide.decls.transform, /px|rpx/)
+
+  const openSlide = index.rules.find((rule) => rule.selectors.includes('.day-sheet-mask.sheet-open .sheet-slide'))
+  assert.ok(openSlide, 'expected the open sheet pose')
+  assert.equal(openSlide.decls.transform, 'translateY(0)')
+  assert.equal(openSlide.decls.transition, 'transform var(--duration-sheet) var(--ease-out)')
+
+  const mask = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.day-sheet-mask'))
+  assert.ok(mask, 'expected .day-sheet-mask')
+  assert.match(mask.decls.background, /rgba\(10,\s*14,\s*39,\s*0\.88\)/)
+  assert.equal(mask.decls.opacity, '0')
+  assert.equal(mask.decls.transition, 'opacity var(--duration-exit) var(--ease-out)')
+
+  const openMask = index.rules.find((rule) => rule.selectors.includes('.day-sheet-mask.sheet-open'))
+  assert.ok(openMask, 'expected the open mask pose')
+  assert.equal(openMask.decls.opacity, '1')
+  assert.equal(openMask.decls.transition, 'opacity var(--duration-enter) var(--ease-out)')
+
+  const leaving = index.rules.find((rule) => rule.selectors.includes('.day-sheet-mask.sheet-leaving'))
+  assert.ok(leaving, 'expected the leaving mask')
+  assert.equal(leaving.decls['pointer-events'], 'none')
+
+  const covered = new Set(index.reducedMotionRules.flatMap((rule) => rule.selectors))
+  for (const selector of ['.sheet-slide', '.day-sheet-mask.sheet-open', '.day-sheet-mask.sheet-open .sheet-slide']) {
+    assert.ok(covered.has(selector), `reduced motion must cover ${selector}`)
+    const rmRule = index.reducedMotionRules.find((rule) => rule.selectors.includes(selector))
+    assert.equal(rmRule.decls.transition, 'none', `${selector} must finish immediately under reduced motion`)
+  }
+
+  const design = readRepo('DESIGN.md')
+  assert.match(design, /issue #116/)
+  assert.match(design, /translateY\(100%\)/)
 })
 
 test('DESIGN.md registers the motion and performance budgets', () => {

@@ -467,7 +467,7 @@ test('index exposes calendar meaning and monthly recap sheets', () => {
   // issue #105：图例/预测说明/小结入口从常驻工具条收进月份标题旁的「…」菜单，
   // 菜单项经 onMonthMenuTap 分发到既有打开函数；预测说明同时仍可从合并状态卡直接打开
   assert.doesNotMatch(wxml, /meaning-toolbar/)
-  assert.match(wxml, /monthMenuVisible/)
+  assert.match(wxml, /monthMenuMounted/)
   assert.match(wxml, /bindtap="openMonthMenu"/)
   assert.match(wxml, /data-action="legend"[^>]*bindtap="onMonthMenuTap"/)
   assert.match(wxml, /data-action="prediction"[^>]*bindtap="onMonthMenuTap"/)

@@ -7,6 +7,7 @@ const recordDraft = require('../../utils/recordDraft')
 const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 const safeArea = require('../../utils/safeArea')
+const { homepageSheets } = require('../../utils/sheetLifecycle')
 
 // 与 pages/settings/settings.js 共享同一存储键；写入方在设置页
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
@@ -47,14 +48,22 @@ Page({
     jumpMonth: 0,
     ...buildJumpYearState(INITIAL_VIEW_DATE.getFullYear()),
     monthPickerVisible: false,
+    monthPickerMounted: false,
+    monthPickerPhase: 'closed',
     monthMenuVisible: false,
+    monthMenuMounted: false,
+    monthMenuPhase: 'closed',
     calendarDensity: 'compact',
     periods: [], memories: [],
     ...INITIAL_HOME_STATE,
     infoSheetVisible: false,
+    infoSheetMounted: false,
+    infoSheetPhase: 'closed',
     infoSheetMode: '',
     monthlyRecap: null,
     dayActionSheetVisible: false,
+    dayActionMounted: false,
+    dayActionPhase: 'closed',
     daySheetMode: 'actions',
     selectedDate: '',
     selectedDateSubtitle: '',
@@ -416,8 +425,7 @@ Page({
 
   openMonthPicker() {
     const { year, month } = this.data
-    this.setData({
-      monthPickerVisible: true,
+    homepageSheets(this).monthPicker.open(this, {
       jumpMonth: month,
       ...buildJumpYearState(year)
     })
@@ -425,15 +433,17 @@ Page({
 
   closeMonthPicker() {
     this.setData({ monthPickerVisible: false })
+    homepageSheets(this).monthPicker.leave(this)
   },
 
   // issue #105：月份工具菜单——图例 / 预测说明 / 本月小结的低频入口收进月份标题旁的「…」
   openMonthMenu() {
-    this.setData({ monthMenuVisible: true })
+    homepageSheets(this).toolsMenu.open(this)
   },
 
   closeMonthMenu() {
     this.setData({ monthMenuVisible: false })
+    homepageSheets(this).toolsMenu.leave(this)
   },
 
   onMonthMenuTap(e) {
@@ -476,6 +486,7 @@ Page({
       month: this.data.jumpMonth,
       monthPickerVisible: false
     }, () => this.renderCalendar())
+    homepageSheets(this).monthPicker.leave(this)
   },
 
   jumpToToday() {
@@ -489,6 +500,7 @@ Page({
       ...buildJumpYearState(year),
       monthPickerVisible: false
     }, () => this.renderCalendar())
+    homepageSheets(this).monthPicker.leave(this)
   },
 
   handleRoomStatusAction() {
@@ -510,31 +522,24 @@ Page({
   goBind() { wx.redirectTo({ url: '/pages/bind/bind' }) },
 
   openLegendSheet() {
-    this.setData({
-      infoSheetVisible: true,
-      infoSheetMode: 'legend'
-    })
+    homepageSheets(this).info.open(this, { infoSheetMode: 'legend' })
   },
 
   openPredictionSheet() {
-    this.setData({
-      infoSheetVisible: true,
-      infoSheetMode: 'prediction'
-    })
+    homepageSheets(this).info.open(this, { infoSheetMode: 'prediction' })
   },
 
   openMonthlyRecap() {
-    this.setData({
-      infoSheetVisible: true,
+    homepageSheets(this).info.open(this, {
       infoSheetMode: 'recap',
       monthlyRecap: this.data.monthlyRecap
     })
   },
 
   closeInfoSheet() {
-    this.setData({
-      infoSheetVisible: false,
-      infoSheetMode: ''
+    this.setData({ infoSheetVisible: false })
+    homepageSheets(this).info.leave(this, () => {
+      this.setData({ infoSheetMode: '' })
     })
   },
 
@@ -551,8 +556,7 @@ Page({
     const date = e.currentTarget.dataset.date
     if (!date) return
     const selectedDay = this.data.days.find(day => day.date === date) || { date }
-    this.setData({
-      dayActionSheetVisible: true,
+    homepageSheets(this).dayActions.open(this, {
       daySheetMode: 'actions',
       selectedDate: date,
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
@@ -580,13 +584,15 @@ Page({
   },
 
   closeDayActions() {
-    this.setData({
-      dayActionSheetVisible: false,
-      daySheetMode: 'actions',
-      selectedDate: '',
-      selectedDateSubtitle: '',
-      selectedDateIsFuture: false,
-      selectedDayDetail: null
+    this.setData({ dayActionSheetVisible: false })
+    homepageSheets(this).dayActions.leave(this, () => {
+      this.setData({
+        daySheetMode: 'actions',
+        selectedDate: '',
+        selectedDateSubtitle: '',
+        selectedDateIsFuture: false,
+        selectedDayDetail: null
+      })
     })
   },
 
@@ -595,8 +601,7 @@ Page({
   showDayDetail(date) {
     const selectedDay = this.data.days.find(day => day.date === date) || { date }
 
-    this.setData({
-      dayActionSheetVisible: true,
+    homepageSheets(this).dayActions.open(this, {
       daySheetMode: 'detail',
       selectedDate: date,
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
