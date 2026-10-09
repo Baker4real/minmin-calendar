@@ -808,7 +808,7 @@ test('settings page shows the cached room code before verification, with copy an
     assert.equal(harness.page.data.roomCodeLoaded, false)
 
     const wxml = readPageFile('pages/settings/settings.wxml')
-    const cardStart = wxml.indexOf('class="menu-item room-code-item"')
+    const cardStart = wxml.indexOf('class="menu-item room-code-item')
     const cardEnd = wxml.indexOf('日历显示')
     const card = wxml.slice(cardStart, cardEnd)
     assert.match(card, /wx:if="\{\{roomCode\}\}" class="copy-btn"/)
@@ -837,7 +837,7 @@ test('settings page shows a neutral reading state before verification when no ro
     assert.equal(harness.page.data.roomCodeLoaded, false)
 
     const wxml = readPageFile('pages/settings/settings.wxml')
-    const cardStart = wxml.indexOf('class="menu-item room-code-item"')
+    const cardStart = wxml.indexOf('class="menu-item room-code-item')
     const cardEnd = wxml.indexOf('日历显示')
     const card = wxml.slice(cardStart, cardEnd)
     assert.match(card, /class="room-code-value \{\{roomCode \? '' : 'muted'\}\}"/)
@@ -859,7 +859,7 @@ test('settings page shows a neutral reading state before verification when no ro
 
 test('settings room-code card swaps the dead sentence for tappable retry and go-bind rows when no code is available', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
-  const cardStart = wxml.indexOf('class="menu-item room-code-item"')
+  const cardStart = wxml.indexOf('class="menu-item room-code-item')
   const cardEnd = wxml.indexOf('日历显示')
   assert.ok(cardStart !== -1 && cardEnd > cardStart, 'expected the room-code card')
   const card = wxml.slice(cardStart, cardEnd)
@@ -897,7 +897,7 @@ test('settings room actions are rose tappable rows with the shared small-action 
 
 test('settings room card exposes the moved unbind entry as a danger menu row while bound', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
-  const cardStart = wxml.indexOf('class="menu-item room-code-item"')
+  const cardStart = wxml.indexOf('class="menu-item room-code-item')
   const cardEnd = wxml.indexOf('日历显示')
   assert.ok(cardStart !== -1 && cardEnd > cardStart, 'expected the room-code card')
   const card = wxml.slice(cardStart, cardEnd)
