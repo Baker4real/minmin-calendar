@@ -50,6 +50,7 @@ Page({
     monthPickerVisible: false,
     monthPickerMounted: false,
     monthPickerPhase: 'closed',
+    pageObscured: false,
     monthMenuVisible: false,
     monthMenuMounted: false,
     monthMenuPhase: 'closed',

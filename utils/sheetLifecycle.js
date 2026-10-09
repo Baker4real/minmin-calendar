@@ -12,7 +12,7 @@ function nextRender(fn) {
   setTimeout(fn, 0)
 }
 
-function createSheetLifecycle({ visibleKey, mountedKey, phaseKey }) {
+function createSheetLifecycle({ visibleKey, mountedKey, phaseKey, decorate }) {
   let generation = 0
   let exitTimer = null
 
@@ -22,6 +22,10 @@ function createSheetLifecycle({ visibleKey, mountedKey, phaseKey }) {
     exitTimer = null
   }
 
+  function commit(page, patch) {
+    page.setData(typeof decorate === 'function' ? decorate(page, patch) : patch)
+  }
+
   return {
     open(page, extra = {}) {
       const ticket = ++generation
@@ -29,18 +33,18 @@ function createSheetLifecycle({ visibleKey, mountedKey, phaseKey }) {
       const mounted = Boolean(page.data[mountedKey])
       const phase = page.data[phaseKey]
       if (mounted && phase === 'leaving') {
-        page.setData({ ...extra, [visibleKey]: true, [mountedKey]: true, [phaseKey]: 'open' })
+        commit(page, { ...extra, [visibleKey]: true, [mountedKey]: true, [phaseKey]: 'open' })
         return
       }
       if (mounted && phase === 'open') {
-        page.setData({ ...extra, [visibleKey]: true })
+        commit(page, { ...extra, [visibleKey]: true })
         return
       }
-      page.setData({ ...extra, [visibleKey]: true, [mountedKey]: true, [phaseKey]: 'closed' })
+      commit(page, { ...extra, [visibleKey]: true, [mountedKey]: true, [phaseKey]: 'closed' })
       nextRender(() => {
         if (ticket !== generation) return
         if (!page.data[mountedKey] || page.data[phaseKey] !== 'closed') return
-        page.setData({ [phaseKey]: 'open' })
+        commit(page, { [phaseKey]: 'open' })
       })
     },
 
@@ -49,16 +53,30 @@ function createSheetLifecycle({ visibleKey, mountedKey, phaseKey }) {
       if (page.data[phaseKey] === 'leaving') return
       const ticket = ++generation
       clearExitTimer()
-      page.setData({ [visibleKey]: false, [mountedKey]: true, [phaseKey]: 'leaving' })
+      commit(page, { [visibleKey]: false, [mountedKey]: true, [phaseKey]: 'leaving' })
       exitTimer = setTimeout(() => {
         exitTimer = null
         if (ticket !== generation) return
         if (page.data[phaseKey] !== 'leaving') return
-        page.setData({ [visibleKey]: false, [mountedKey]: false, [phaseKey]: 'closed' })
+        commit(page, { [visibleKey]: false, [mountedKey]: false, [phaseKey]: 'closed' })
         if (typeof onUnmount === 'function') onUnmount()
       }, SHEET_EXIT_MS)
     }
   }
+}
+
+// 打开或离场才算遮挡。进场第一拍仍是 closed，页面还没被盖住。
+const HOMEPAGE_SHEET_PHASES = [
+  'monthPickerPhase',
+  'dayActionPhase',
+  'monthMenuPhase',
+  'infoSheetPhase'
+]
+
+function homepageSheetPatch(page, patch) {
+  const next = { ...page.data, ...patch }
+  const pageObscured = HOMEPAGE_SHEET_PHASES.some((key) => next[key] === 'open' || next[key] === 'leaving')
+  return { ...patch, pageObscured }
 }
 
 function homepageSheets(page) {
@@ -67,22 +85,26 @@ function homepageSheets(page) {
       monthPicker: createSheetLifecycle({
         visibleKey: 'monthPickerVisible',
         mountedKey: 'monthPickerMounted',
-        phaseKey: 'monthPickerPhase'
+        phaseKey: 'monthPickerPhase',
+        decorate: homepageSheetPatch
       }),
       dayActions: createSheetLifecycle({
         visibleKey: 'dayActionSheetVisible',
         mountedKey: 'dayActionMounted',
-        phaseKey: 'dayActionPhase'
+        phaseKey: 'dayActionPhase',
+        decorate: homepageSheetPatch
       }),
       toolsMenu: createSheetLifecycle({
         visibleKey: 'monthMenuVisible',
         mountedKey: 'monthMenuMounted',
-        phaseKey: 'monthMenuPhase'
+        phaseKey: 'monthMenuPhase',
+        decorate: homepageSheetPatch
       }),
       info: createSheetLifecycle({
         visibleKey: 'infoSheetVisible',
         mountedKey: 'infoSheetMounted',
-        phaseKey: 'infoSheetPhase'
+        phaseKey: 'infoSheetPhase',
+        decorate: homepageSheetPatch
       })
     }
   }

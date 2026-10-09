@@ -525,7 +525,7 @@ const BLUR_RADIUS_CAP_PX = 20
 const MASK_BLUR_CAP_PX = 8
 const BLUR_RULE_CEILINGS = {
   'app.wxss': 4,
-  'pages/index/index.wxss': 6,
+  'pages/index/index.wxss': 5,
   'pages/bind/bind.wxss': 2,
   'pages/settings/settings.wxss': 0,
   'pages/period/period.wxss': 3,
@@ -877,4 +877,40 @@ test('DESIGN.md registers the motion and performance budgets', () => {
     /按压只属于可点控件，容器和不可点的行不缩放、不变底色/,
     'press belongs only to tappable controls; containers and inert rows are not exemptions'
   )
+})
+
+// issue #118：遮挡只暂停播放，不改动画名或周期；animation: none 会丢掉当前帧。
+test('an obscured homepage pauses the five covered decorations on the current frame', () => {
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+  const paused = index.rules.filter((rule) => rule.decls['animation-play-state'] === 'paused')
+  assert.equal(paused.length, 1)
+  assert.equal(paused[0].inReducedMotion, false)
+  assert.deepEqual(Object.keys(paused[0].decls), ['animation-play-state'])
+  assert.deepEqual([...paused[0].selectors].sort(), [
+    '.page.page-obscured .glow-orb',
+    '.page.page-obscured .header-gradient::after',
+    '.page.page-obscured .header-gradient::before',
+    '.page.page-obscured::before'
+  ])
+
+  const design = readRepo('DESIGN.md')
+  assert.match(design, /issue #118/)
+  assert.match(design, /page-obscured/)
+  assert.match(design, /animation-play-state: paused/)
+})
+
+// issue #118：月份箭头嵌在月份栏的模糊里，自身再模糊一次看不见。首页玻璃面上限收到 5。
+test('month arrows do not add a second blur, and the homepage glass cap is 5', () => {
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+  const navBtn = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.nav-btn'))
+  assert.ok(navBtn, 'expected .nav-btn')
+  assert.equal(navBtn.decls['backdrop-filter'], undefined)
+  assert.equal(navBtn.decls['-webkit-backdrop-filter'], undefined)
+  assert.equal(BLUR_RULE_CEILINGS['pages/index/index.wxss'], 5)
+
+  const monthNav = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.month-nav'))
+  assert.equal(monthNav.decls['backdrop-filter'], 'blur(20px)')
+
+  const design = readRepo('DESIGN.md')
+  assert.match(design, /玻璃面数量上限收紧为 5/)
 })

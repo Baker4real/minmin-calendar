@@ -170,8 +170,6 @@
   border-radius: var(--radius-circle);
   background: linear-gradient(rgba(255,255,255,0.1), rgba(255,255,255,0.1)), var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.2);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   position: relative;
   z-index: 1;
   transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
@@ -1304,6 +1302,13 @@
 }
 .copy-recap:active {
   transform: scale(0.98);
+}
+/* issue #118：弹层盖住首页时暂停这五层装饰，卸掉标记后从当前帧继续。减弱动效仍是 animation: none。 */
+.page.page-obscured::before,
+.page.page-obscured .glow-orb,
+.page.page-obscured .header-gradient::before,
+.page.page-obscured .header-gradient::after {
+  animation-play-state: paused;
 }
 @media (prefers-reduced-motion: reduce) {
   .day-sheet-mask.sheet-open,

@@ -1535,6 +1535,78 @@ test('day actions, tools menu, and the info sheet use the same enter and leave l
   }
 })
 
+// issue #118：任一弹层打开或离场时首页根节点被遮挡；全部卸载后标记去掉。
+// 进场的关闭姿态还没盖住页面，标记先不出现。
+test('an open or leaving homepage sheet obscures the page until every sheet unmounts', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const root = readIndexWxml().slice(0, readIndexWxml().indexOf('>'))
+    assert.match(root, /class="page safe-top \{\{pageObscured \? 'page-obscured' : ''\}\}"/)
+
+    harness.page.onLoad()
+    harness.page.setData({
+      year: 2020,
+      month: 5,
+      days: [{ date: '2026-06-20', weekday: '周六', lunarText: '五月初五', isEmpty: false }]
+    })
+    assert.equal(harness.page.data.pageObscured, false)
+
+    harness.page.openMonthPicker()
+    assert.equal(harness.page.data.monthPickerPhase, 'closed')
+    assert.equal(harness.page.data.pageObscured, false)
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.monthPickerPhase, 'open')
+    assert.equal(harness.page.data.pageObscured, true)
+
+    harness.page.showDayDetail('2026-06-20')
+    assert.equal(harness.page.data.dayActionPhase, 'closed')
+    assert.equal(harness.page.data.pageObscured, true)
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.dayActionPhase, 'open')
+    assert.equal(harness.page.data.pageObscured, true)
+
+    harness.page.closeMonthPicker()
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
+    assert.equal(harness.page.data.pageObscured, true)
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.monthPickerMounted, false)
+    assert.equal(harness.page.data.pageObscured, true)
+
+    harness.page.closeDayActions()
+    assert.equal(harness.page.data.dayActionPhase, 'leaving')
+    assert.equal(harness.page.data.pageObscured, true)
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.dayActionMounted, false)
+    assert.equal(harness.page.data.pageObscured, false)
+
+    harness.page.openMonthMenu()
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.monthMenuPhase, 'open')
+    assert.equal(harness.page.data.pageObscured, true)
+    harness.page.onMonthMenuTap({ currentTarget: { dataset: { action: 'legend' } } })
+    assert.equal(harness.page.data.monthMenuPhase, 'leaving')
+    assert.equal(harness.page.data.infoSheetPhase, 'closed')
+    assert.equal(harness.page.data.pageObscured, true)
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.infoSheetPhase, 'open')
+    assert.equal(harness.page.data.pageObscured, true)
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.monthMenuMounted, false)
+    assert.equal(harness.page.data.infoSheetMounted, true)
+    assert.equal(harness.page.data.pageObscured, true)
+    harness.page.closeInfoSheet()
+    assert.equal(harness.page.data.infoSheetPhase, 'leaving')
+    assert.equal(harness.page.data.pageObscured, true)
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.infoSheetMounted, false)
+    assert.equal(harness.page.data.pageObscured, false)
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
 test('month jump sheet uses a bounded year stepper instead of a year grid', () => {
   const js = fs.readFileSync(path.join(repoRoot, 'pages/index/index.js'), 'utf8')
   const wxml = readIndexWxml()

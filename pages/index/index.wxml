@@ -1,4 +1,4 @@
-<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
+<view class="page safe-top {{pageObscured ? 'page-obscured' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
   <!-- Aurora Decorative Orbs -->
   <view class="glow-orb glow-orb-1"></view>
   <view class="glow-orb glow-orb-2"></view>
