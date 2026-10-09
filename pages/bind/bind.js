@@ -23,7 +23,10 @@ Page({
     needUnbind: false,
     checkFailed: false,
     justCreated: false,
-    homeJumpFailed: false
+    homeJumpFailed: false,
+    // issue #115：第一次显示到第一次校验结果之前只留品牌心
+    verifying: true,
+    revealed: false
   },
 
   onShow() {
@@ -35,7 +38,7 @@ Page({
     if (room.bound) {
       // issue #102：已绑定冷启动直达首页，不再停在绑定页多点一次「进入应用」
       // review #99：重校验清空一次性旗标——「进入应用」只在跳转失败或刚创建房间时出现
-      this.setData({ bound: true, roomCode: room.roomCode, errorMsg: '', needUnbind: false, justCreated: false, checkFailed: false, homeJumpFailed: false })
+      this.setData({ bound: true, roomCode: room.roomCode, errorMsg: '', needUnbind: false, justCreated: false, checkFailed: false, homeJumpFailed: false, verifying: false })
       this.goHome()
       return
     }
@@ -48,7 +51,9 @@ Page({
       justCreated: false,
       homeJumpFailed: false,
       // 校验失败（网络/云端异常）时给出可点重试；未绑定没有错误文案，不出重试
-      checkFailed: Boolean(room.errorMsg)
+      checkFailed: Boolean(room.errorMsg),
+      verifying: false,
+      revealed: true
     }
     this.setData(data)
   },
@@ -107,7 +112,7 @@ Page({
       url: '/pages/index/index',
       fail: () => {
         // 跳转失败时停留在已绑定卡，竖起旗标让「进入应用」成为用户可见的最小兜底
-        this.setData({ bound: true, homeJumpFailed: true })
+        this.setData({ bound: true, homeJumpFailed: true, revealed: true, verifying: false })
       }
     })
   },

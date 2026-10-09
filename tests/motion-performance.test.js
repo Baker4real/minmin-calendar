@@ -260,7 +260,8 @@ const ONE_SHOT_ANIMATIONS = {
   pageEnter: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   syncPillIn: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   sheetFadeIn: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
-  sheetRise: { duration: 'var(--duration-sheet)', easing: 'var(--ease-out)' }
+  sheetRise: { duration: 'var(--duration-sheet)', easing: 'var(--ease-out)' },
+  bindReveal: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' }
 }
 const COLOR_TRANSITION_PROPS = new Set(['background', 'background-color', 'color', 'border-color'])
 const PRESS_DURATION = 'var(--duration-press)'

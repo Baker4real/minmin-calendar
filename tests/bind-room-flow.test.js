@@ -496,6 +496,226 @@ test('bind page stays with the error and a tappable retry when room verification
   }
 })
 
+// issue #115：第一次房间校验出结果前，启动首屏只渲染品牌心
+test('bind page shows only the brand heart from first paint until the first room check returns', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room })
+
+  try {
+    assert.equal(harness.page.data.verifying, true, 'first paint is the verifying state')
+    assert.equal(harness.page.data.revealed, false, 'room content stays unrevealed until a result says so')
+    assert.equal(room.calls.getVerifiedActiveRoom, undefined, 'the check has not returned before onShow')
+
+    const wxml = readPageFile('pages/bind/bind.wxml')
+    const heartAt = wxml.indexOf('class="hero-icon">♥')
+    const gateAt = wxml.indexOf('wx:if="{{revealed}}"')
+    assert.ok(heartAt !== -1, 'the brand heart is on the page')
+    assert.ok(gateAt !== -1, 'room content waits behind the revealed gate')
+    assert.ok(heartAt < gateAt, 'the brand heart stays outside the revealed gate')
+
+    const gated = wxml.slice(gateAt)
+    for (const marker of [
+      'class="hero-title"',
+      'class="hero-desc"',
+      'wx:if="{{bound}}"',
+      'class="error-msg"',
+      'class="error-retry"',
+      '创建房间',
+      '加入房间'
+    ]) {
+      assert.ok(gated.includes(marker), `verifying hides ${marker}`)
+    }
+    assert.doesNotMatch(
+      wxml.slice(0, gateAt),
+      /hero-title|创建房间|已绑定房间|error-msg|error-retry/
+    )
+
+    const icon = findRule(readPageFile('pages/bind/bind.wxss'), '.hero-icon')
+    assert.equal(icon.animation, 'heroIn 0.6s var(--ease-out) both', 'the registered heart entrance stays')
+
+    let release
+    room.getVerifiedActiveRoom = () => new Promise((resolve) => {
+      release = resolve
+    })
+    const pending = harness.page.onShow()
+    await Promise.resolve()
+    assert.equal(harness.page.data.verifying, true, 'the heart stays alone while the first check is in flight')
+    assert.equal(harness.page.data.revealed, false)
+
+    release({ kind: 'no-room', bound: false, roomCode: '' })
+    await pending
+    assert.equal(harness.page.data.verifying, false, 'the first result ends verifying')
+    assert.equal(harness.page.data.revealed, true, 'an unbound result reveals the room card')
+    assert.equal(harness.page.data.bound, false)
+    assert.equal(harness.page.data.checkFailed, false)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('bind page keeps the heart and reveals the bound card only when the home jump fails', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' }
+  })
+  const jumped = loadPageHarness('pages/bind/bind.js', { room })
+
+  try {
+    await jumped.page.onShow()
+
+    assert.equal(jumped.page.data.verifying, false)
+    assert.equal(jumped.page.data.revealed, false, 'a bound result stays on the heart while the homepage opens')
+    assert.equal(jumped.page.data.homeJumpFailed, false)
+    assert.equal(jumped.wx.switchTabCalls.length, 1)
+    assert.equal(jumped.wx.switchTabCalls[0].url, '/pages/index/index')
+  } finally {
+    jumped.teardown()
+  }
+
+  const failed = loadPageHarness('pages/bind/bind.js', { room, switchTabFail: true })
+  try {
+    await failed.page.onShow()
+
+    assert.equal(failed.wx.switchTabCalls.length, 1)
+    assert.equal(failed.page.data.verifying, false)
+    assert.equal(failed.page.data.revealed, true, 'a failed jump is what reveals the bound card')
+    assert.equal(failed.page.data.bound, true)
+    assert.equal(failed.page.data.roomCode, 'ROOM01')
+    assert.equal(failed.page.data.homeJumpFailed, true)
+    assert.match(
+      sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else'),
+      /wx:if="\{\{justCreated \|\| homeJumpFailed\}\}"[^>]*class="btn-premium"[^>]*bindtap="goHome"[^>]*aria-label="进入应用"/
+    )
+  } finally {
+    failed.teardown()
+  }
+})
+
+test('bind page reveals an unbound or failed check with the shared enter motion', async () => {
+  const css = readPageFile('pages/bind/bind.wxss')
+  const frames = /@keyframes bindReveal\s*\{([\s\S]*?)\n\}/.exec(css)
+  assert.ok(frames, 'the room card reveal has its own keyframes')
+  assert.match(frames[1], /from\s*\{[^}]*opacity:\s*0/)
+  assert.match(frames[1], /from\s*\{[^}]*transform:\s*translateY\(16rpx\)/)
+  assert.match(frames[1], /to\s*\{[^}]*opacity:\s*1/)
+  assert.match(frames[1], /to\s*\{[^}]*transform:\s*translateY\(0\)/)
+
+  const reveal = findRule(css, '.bind-reveal')
+  assert.equal(reveal.animation, 'bindReveal var(--duration-enter) var(--ease-out) both')
+  assert.equal(reveal.opacity, undefined, 'the card rests visible so reduced motion does not fade it in')
+  assert.equal(reveal.transform, undefined, 'the card rests in place so reduced motion does not shift it')
+  assert.doesNotMatch(css, /--duration-enter\s*:/, 'duration tokens stay defined once at app level')
+
+  const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
+  assert.match(
+    reduced,
+    /\.bind-reveal[^{]*\{[^}]*animation:\s*none/,
+    'reduced motion shows the card immediately, with no fade and no shift'
+  )
+
+  const wxml = readPageFile('pages/bind/bind.wxml')
+  assert.match(
+    wxml,
+    /wx:if="\{\{revealed\}\}" class="bind-reveal"[\s\S]*wx:if="\{\{bound\}\}"[\s\S]*class="error-msg"[\s\S]*class="error-retry"/,
+    'the card, the error strip, and retry share one reveal'
+  )
+
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: {
+      kind: 'retryable-failure',
+      bound: false,
+      roomCode: '',
+      errorMsg: '同步房间状态失败：network down'
+    }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room })
+
+  try {
+    await harness.page.onShow()
+
+    assert.equal(harness.page.data.verifying, false)
+    assert.equal(harness.page.data.revealed, true)
+    assert.equal(harness.page.data.bound, false)
+    assert.equal(harness.page.data.checkFailed, true)
+    assert.equal(harness.page.data.errorMsg, '同步房间状态失败：network down')
+    assert.equal(harness.wx.switchTabCalls.length, 0)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('bind page keeps the current room content when a later check or retry runs', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room })
+
+  try {
+    await harness.page.onShow()
+    assert.equal(harness.page.data.verifying, false)
+    assert.equal(harness.page.data.revealed, true)
+
+    let release
+    room.getVerifiedActiveRoom = () => new Promise((resolve) => {
+      release = resolve
+    })
+    const pending = harness.page.onShow()
+    await Promise.resolve()
+    assert.equal(harness.page.data.verifying, false, 'a later onShow does not return to verifying')
+    assert.equal(harness.page.data.revealed, true, 'the revealed card stays put while the later check runs')
+    assert.equal(harness.page.data.bound, false)
+
+    release({ kind: 'success', bound: true, roomCode: 'ROOM01' })
+    await pending
+    assert.equal(harness.page.data.verifying, false)
+    assert.equal(harness.page.data.revealed, true, 'a later bound result does not collapse back to the heart')
+    assert.equal(harness.page.data.bound, true)
+    assert.equal(harness.page.data.roomCode, 'ROOM01')
+    assert.equal(harness.wx.switchTabCalls.length, 1)
+    assert.equal(harness.wx.switchTabCalls[0].url, '/pages/index/index')
+  } finally {
+    harness.teardown()
+  }
+
+  const failedRoom = createRoomSessionStub({
+    getVerifiedActiveRoom: {
+      kind: 'retryable-failure',
+      bound: false,
+      roomCode: '',
+      errorMsg: '同步房间状态失败：network down'
+    }
+  })
+  const retryHarness = loadPageHarness('pages/bind/bind.js', { room: failedRoom })
+
+  try {
+    await retryHarness.page.onShow()
+    assert.equal(retryHarness.page.data.revealed, true)
+    assert.equal(retryHarness.page.data.checkFailed, true)
+
+    let releaseRetry
+    failedRoom.getVerifiedActiveRoom = () => new Promise((resolve) => {
+      releaseRetry = resolve
+    })
+    const retrying = retryHarness.page.retryCheck()
+    await Promise.resolve()
+    assert.equal(retryHarness.page.data.verifying, false, 'retry does not return to verifying')
+    assert.equal(retryHarness.page.data.revealed, true)
+    assert.equal(retryHarness.page.data.errorMsg, '同步房间状态失败：network down')
+    assert.equal(retryHarness.page.data.checkFailed, true)
+
+    releaseRetry({ kind: 'no-room', bound: false, roomCode: '' })
+    await retrying
+    assert.equal(retryHarness.page.data.verifying, false)
+    assert.equal(retryHarness.page.data.revealed, true)
+    assert.equal(retryHarness.page.data.bound, false)
+    assert.equal(retryHarness.page.data.checkFailed, false)
+    assert.equal(retryHarness.page.data.errorMsg, '')
+  } finally {
+    retryHarness.teardown()
+  }
+})
+
 test('settings clear-local-data keeps showing the room code when the room is still active after clearing', async () => {
   const room = createRoomSessionStub({
     getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' },

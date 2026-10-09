@@ -189,6 +189,8 @@ issue #86–#89 的绑定页紫粉试点（深紫画布、紫玻璃 tint、粉�
 
 试点后绑定页保留的唯一情绪点是 ♥ 多层静态辉光 hero（浅粉近层 + 玫瑰远层，透明度落在「Shadow / overlay 登记」的浅粉 0.28–0.32 与玫瑰 0.1–0.45 辉光区间）与 `heroIn` 无回弹入场；减弱动效按 app.wxss 全局名单静止。成功标题 `.bound-status` 回到主色玫瑰 `#E8909E`，在海军卡合成面上 ≥4.5:1，由 `tests/secondary-affordance-contrast.test.js` 钉住。
 
+启动首屏校验中（issue #115）：第一次房间校验出结果前只渲染品牌心，`heroIn` 0.6s 入场保持不变；不渲染创建/加入卡、已绑定卡和错误条。已绑定则继续只留心并进入首页，只有跳转失败才露出已绑定卡和「进入应用」。未绑定或校验失败时，卡片（失败时连同错误条和「重试」）用 `bindReveal` 显现：透明度 0→1，自 `translateY(16rpx)` 回到 0，时长 `var(--duration-enter)`，曲线 `var(--ease-out)`。减弱动效下这次显现立即出现，无位移、无淡入。再次 `onShow` 或点「重试」不回到只留心的校验中。
+
 #78 同款契约重建（issue #104）：绑定页与设置页复制键回归同一色域与同一形态（玫瑰底 `var(--aurora-pink)`、海军字 `#0A0E27`、`--radius-sm`、`padding: 0 28rpx`、玫瑰辉光投影 `0 4px 15px rgba(232,144,158,0.28)`），像素同款契约按原「重建条件」恢复——`tests/bind-room-flow.test.js` 恢复两页 fill/label/radius/padding/shadow 全等断言，锚定设置页 `.copy-btn`（设置页侧零改动），在此重新登记。
 
 ## Typography

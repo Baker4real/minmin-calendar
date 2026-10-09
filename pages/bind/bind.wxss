@@ -56,6 +56,20 @@
   text-align: center;
 }
 
+/* issue #115：第一次未绑定或校验失败时，卡片和错误条一起显现。
+   静止态不写透明度或位移，减弱动效去掉动画后就是直接出现。 */
+.bind-reveal {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: bindReveal var(--duration-enter) var(--ease-out) both;
+}
+@keyframes bindReveal {
+  from { opacity: 0; transform: translateY(16rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .premium-card {
   width: 100%;
   padding: 40rpx;
@@ -228,7 +242,8 @@
 /* 减弱动效（app.wxss 全局名单外的页面登记）：复制键按下为立即缩放、无 0.2s 过渡；
    政策见 DESIGN.md「动效与性能边界」——按压 = 即时 scale + 既有底色变化 */
 @media (prefers-reduced-motion: reduce) {
-  .copy-btn {
+  .copy-btn,
+  .bind-reveal {
     animation: none;
     transition: none;
   }

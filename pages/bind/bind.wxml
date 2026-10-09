@@ -3,10 +3,13 @@
     <view class="hero">
       <!-- 品牌心是文本字形（颜色走 wxss），不用红色心形表情（issue #77） -->
       <view class="hero-icon">♥</view>
-      <text class="hero-title">美少女的日历</text>
-      <text class="hero-desc">两个人的专属空间<br/>共享经期与欢乐时光</text>
+      <block wx:if="{{revealed}}">
+        <text class="hero-title">美少女的日历</text>
+        <text class="hero-desc">两个人的专属空间<br/>共享经期与欢乐时光</text>
+      </block>
     </view>
 
+    <view wx:if="{{revealed}}" class="bind-reveal">
     <view wx:if="{{bound}}" class="premium-card">
       <view class="bound-status">已绑定房间</view>
       <!-- issue #83：复制键紧贴房间码同一行，整组在卡片内水平居中；
@@ -48,5 +51,6 @@
     <text wx:if="{{errorMsg}}" class="error-msg">{{errorMsg}}</text>
     <!-- issue #102：房间校验失败给出可点重试（重跑校验），停留在本页，不导向重新绑定 -->
     <view wx:if="{{checkFailed}}" class="error-retry" bindtap="retryCheck" aria-role="button" aria-label="重试">重试</view>
+    </view>
   </view>
 </view>
