@@ -360,11 +360,7 @@ page {
 
 /* ===== Calendar Grid Transition ===== */
 .calendar-grid {
-  transition: opacity var(--duration-state) ease, transform var(--duration-state) var(--ease-out);
-}
-.calendar-grid.changing {
-  opacity: 0;
-  transform: translateY(10rpx) scale(0.98);
+  transition: opacity var(--duration-state) ease;
 }
 
 /* Safe Area：--safe-top 由页面根节点内联注入（utils/safeArea.js），

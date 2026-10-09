@@ -652,7 +652,7 @@ test('month arrows and sheet close press inside the registered 0.94-0.98 band an
   }
 })
 
-test('state channels survive reduced motion: sync color, calendar swap state, sheet mask hierarchy', () => {
+test('state channels survive reduced motion: sync color, refresh dim, sheet mask hierarchy', () => {
   const index = analyzeFile(readRepo('pages/index/index.wxss'))
   const app = analyzeFile(readRepo('app.wxss'))
 
@@ -661,15 +661,53 @@ test('state channels survive reduced motion: sync color, calendar swap state, sh
   assert.ok(syncDot, 'expected .sync-pill.syncing .sync-dot rule')
   assert.match(syncDot.decls.background, /#E8909E/i)
 
-  // 日历切换：.changing 的透明态在 transition 移除后仍可辨（瞬时切换）
-  const changing = app.rules.find((rule) => rule.selectors.includes('.calendar-grid.changing'))
-  assert.ok(changing, 'expected .calendar-grid.changing rule')
-  assert.equal(changing.decls.opacity, '0')
+  // 翻月不再使用 .changing；后台刷新变暗仍是可辨的透明度
+  assert.equal(
+    app.rules.some((rule) => rule.selectors.includes('.calendar-grid.changing')),
+    false
+  )
+  const dim = index.rules.find((rule) => rule.selectors.includes('.content-refreshing .calendar-grid'))
+  assert.ok(dim, 'expected the background-refresh dim on .calendar-grid')
+  assert.equal(dim.decls.opacity, '0.94')
 
   // 弹层：遮罩 88% 海军保留层级（动画移除 ≠ 层级丢失）
   const mask = index.rules.find((rule) => rule.selectors.includes('.day-sheet-mask'))
   assert.ok(mask, 'expected .day-sheet-mask rule')
   assert.match(mask.decls.background, /rgba\(10,\s*14,\s*39,\s*0\.88\)/)
+})
+
+test('month flips keep only the refresh dim, and day colors switch immediately', () => {
+  const app = analyzeFile(readRepo('app.wxss'))
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+  const design = readRepo('DESIGN.md')
+
+  const grid = app.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.calendar-grid'))
+  assert.ok(grid, 'expected .calendar-grid')
+  assert.equal(grid.decls.transition, 'opacity var(--duration-state) ease')
+
+  const dayCell = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.day-cell'))
+  assert.ok(dayCell, 'expected .day-cell')
+  assert.equal(dayCell.decls.transition, 'transform var(--duration-press) var(--ease-out)')
+  const pressed = index.rules.find((rule) => rule.selectors.includes('.day-cell:active'))
+  assert.equal(pressed.decls.transform, 'scale(0.94)')
+
+  const dayNum = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.day-num'))
+  assert.ok(dayNum, 'expected .day-num')
+  assert.equal(dayNum.decls.transition, undefined)
+
+  for (const selector of [
+    '.day-cell.today',
+    '.day-cell.holiday:not(.today)',
+    '.day-cell.workday:not(.today)',
+    '.day-cell.today .day-num'
+  ]) {
+    const rule = index.rules.find((item) => !item.inReducedMotion && item.selectors.includes(selector))
+    assert.ok(rule, `expected ${selector}`)
+    assert.equal(rule.decls.transition, undefined, `${selector} must switch fill and text color immediately`)
+  }
+
+  assert.match(design, /翻月没有计时器，即时替换/)
+  assert.match(design, /日期格不做颜色过渡/)
 })
 
 test('reduced-motion blocks keep covering the named sheet, sync, and ambient layers', () => {

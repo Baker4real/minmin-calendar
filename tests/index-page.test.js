@@ -405,13 +405,15 @@ test('stale request resolution cannot overwrite the newer request result', () =>
   }
 })
 
-function loadPageHarness({ client }) {
+function loadPageHarness({ client, calendarState } = {}) {
   const absolutePagePath = path.join(repoRoot, 'pages/index/index.js')
   const absoluteMocks = new Map([
     [path.join(repoRoot, 'utils/cloud.js'), { createRoomDataClient: () => client }],
-    [path.join(repoRoot, 'utils/util.js'), createUtilStub()],
-    [path.join(repoRoot, 'utils/homeCalendarState.js'), { buildHomeCalendarState }]
+    [path.join(repoRoot, 'utils/util.js'), createUtilStub()]
   ])
+  if (calendarState !== 'real') {
+    absoluteMocks.set(path.join(repoRoot, 'utils/homeCalendarState.js'), { buildHomeCalendarState })
+  }
   const originalPage = global.Page
   const originalWx = global.wx
   const originalLoad = Module._load
@@ -1260,6 +1262,52 @@ test('month navigation clamps at the jump year bounds so the picker stays in syn
     harness.page.openMonthPicker()
     assert.equal(harness.page.data.jumpYear, harness.page.data.year)
   } finally {
+    harness.teardown()
+  }
+})
+
+test('month arrows publish the new month and its calendar grid in one update', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]), calendarState: 'real' })
+  const originalSetTimeout = global.setTimeout
+  const timerDelays = []
+  global.setTimeout = (fn, delay, ...args) => {
+    timerDelays.push(delay)
+    return originalSetTimeout(fn, delay, ...args)
+  }
+  try {
+    harness.page.onLoad()
+    const updates = []
+    const setData = harness.page.setData.bind(harness.page)
+    harness.page.setData = (update, callback) => {
+      updates.push(update)
+      setData(update, callback)
+    }
+
+    const flip = (setup, invoke, year, month, firstDate) => {
+      harness.page.setData({
+        ...setup,
+        monthPickerVisible: true,
+        days: [{ date: 'stale-grid' }]
+      })
+      updates.length = 0
+      timerDelays.length = 0
+      invoke()
+      assert.equal(timerDelays.length, 0)
+      assert.equal(updates.length, 1)
+      assert.equal(updates[0].year, year)
+      assert.equal(updates[0].month, month)
+      assert.equal(updates[0].monthPickerVisible, false)
+      assert.equal(updates[0].days[0].date, firstDate)
+      assert.equal(harness.page.data.year, year)
+      assert.equal(harness.page.data.month, month)
+      assert.equal(harness.page.data.days[0].date, firstDate)
+    }
+
+    // 2019-12-01 是周日，网格第一格就是该月 1 日
+    flip({ year: 2019, month: 10 }, () => harness.page.nextMonth(), 2019, 11, '2019-12-01')
+    flip({ year: 2020, month: 0 }, () => harness.page.prevMonth(), 2019, 11, '2019-12-01')
+  } finally {
+    global.setTimeout = originalSetTimeout
     harness.teardown()
   }
 })

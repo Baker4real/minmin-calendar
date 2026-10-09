@@ -279,11 +279,15 @@ Page({
     const month = hasOwn('month') ? overrides.month : this.data.month
     const today = hasOwn('today') ? overrides.today : util.formatDate(new Date())
 
-    this.setData({
+    const update = {
       periods,
       memories,
-      ...buildHomeCalendarState({ year, month, periods, memories, today })
-    })
+      ...buildHomeCalendarState({ year, month, periods, memories, today }),
+      year,
+      month
+    }
+    if (hasOwn('monthPickerVisible')) update.monthPickerVisible = overrides.monthPickerVisible
+    this.setData(update)
   },
 
   applyRecordChange(change = {}) {
@@ -400,16 +404,14 @@ Page({
     let { year, month } = this.data
     if (year < JUMP_YEAR_MIN || (year === JUMP_YEAR_MIN && month === 0)) return
     month--; if (month < 0) { month = 11; year-- }
-    this.setData({ year, month, monthPickerVisible: false })
-    setTimeout(() => this.renderCalendar(), 200)
+    this.applyHomeCalendarState({ year, month, monthPickerVisible: false })
   },
 
   nextMonth() {
     let { year, month } = this.data
     if (year > JUMP_YEAR_MAX || (year === JUMP_YEAR_MAX && month === 11)) return
     month++; if (month > 11) { month = 0; year++ }
-    this.setData({ year, month, monthPickerVisible: false })
-    setTimeout(() => this.renderCalendar(), 200)
+    this.applyHomeCalendarState({ year, month, monthPickerVisible: false })
   },
 
   openMonthPicker() {
