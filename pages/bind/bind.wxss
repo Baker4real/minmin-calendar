@@ -75,7 +75,7 @@
   overflow: hidden;
   border: 1px solid rgba(255,255,255,0.15);
   margin-bottom: 30rpx;
-  background: rgba(255,255,255,0.05), var(--glass-fallback);
+  background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -123,7 +123,7 @@
   letter-spacing: var(--letter-spacing-code-input);
   text-indent: var(--letter-spacing-code-input);
   margin-bottom: 30rpx;
-  background: var(--glass-bg), var(--glass-fallback);
+  background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   font-weight: var(--font-weight-body);

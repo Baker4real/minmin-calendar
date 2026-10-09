@@ -184,6 +184,45 @@ function listWxssFiles() {
   return files
 }
 
+function splitTopLevelCommas(value) {
+  const layers = []
+  let depth = 0
+  let start = 0
+  const text = String(value)
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index]
+    if (char === '(') depth += 1
+    else if (char === ')') depth = Math.max(0, depth - 1)
+    else if (char === ',' && depth === 0) {
+      layers.push(text.slice(start, index))
+      start = index + 1
+    }
+  }
+
+  layers.push(text.slice(start))
+  return layers.map((layer) => layer.trim()).filter(Boolean)
+}
+
+function isImageLayer(layer) {
+  if (/^none$/i.test(layer)) return true
+  return /(?:repeating-)?(?:linear|radial|conic)-gradient\(|\burl\(|\bimage-set\(/i.test(layer)
+}
+
+function nonFinalColorLayers(css) {
+  const hits = []
+  for (const rule of parseRules(css)) {
+    const value = rule.decls.background
+    if (!value) continue
+    const layers = splitTopLevelCommas(value)
+    for (const layer of layers.slice(0, -1)) {
+      if (isImageLayer(layer)) continue
+      hits.push(`${rule.selector} :: ${layer.replace(/\s+/g, ' ')}`)
+    }
+  }
+  return hits
+}
+
 test('translucent white glass is not a solid calendar-covering fallback', () => {
   const decls = {
     background: 'rgba(255,255,255,0.08)',
@@ -246,4 +285,33 @@ test('every backdrop-filter rule keeps an opaque navy or rose fill', () => {
   }
 
   assert.deepEqual(missing, [])
+})
+
+// CSS 只允许 <color> 作为 background 简写的最后一层。更早的颜色（含颜色型 var()）
+// 会让整条声明在计算值阶段失效，tint 和海军回退都不会画出来。
+test('a background shorthand may not put a color on a non-final layer', () => {
+  const samples = [
+    ['.a { background: rgba(255,255,255,0.09), var(--glass-fallback); }', ['.a :: rgba(255,255,255,0.09)']],
+    ['.a { background: var(--glass-bg), var(--glass-fallback); }', ['.a :: var(--glass-bg)']],
+    ['.a { background: rgba(249,115,115,0.12), var(--glass-fallback); }', ['.a :: rgba(249,115,115,0.12)']],
+    ['.a { background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback); }', []],
+    ['.a { background: linear-gradient(rgba(255,255,255,0.09), rgba(255,255,255,0.09)), var(--glass-fallback); }', []],
+    ['.a { background: linear-gradient(135deg, rgba(232,144,158,0.18), rgba(196,160,210,0.12)), var(--glass-fallback); }', []],
+    ['.a { background: #0A0E27; }', []],
+    ['.a { background: radial-gradient(circle, rgba(232,144,158,0.2), transparent), linear-gradient(135deg, #0A0E27, #1A0A2E); }', []]
+  ]
+
+  for (const [css, expected] of samples) {
+    assert.deepEqual(nonFinalColorLayers(css), expected)
+  }
+
+  const violations = []
+  for (const file of listWxssFiles()) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    for (const hit of nonFinalColorLayers(fs.readFileSync(file, 'utf8'))) {
+      violations.push(`${relative} ${hit}`)
+    }
+  }
+
+  assert.deepEqual(violations, [])
 })

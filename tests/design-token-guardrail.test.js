@@ -200,7 +200,9 @@ test('primary CTA rose fill comes from var(--aurora-pink) only', () => {
 
 // CTA 色义 deny-by-default（issue #59 review）：主操作填充只有 var(--aurora-pink) 一条路。
 // 上面的钉点表只管已登记选择器；这里反向拦截——任何选择器的渐变填充与实色玫瑰字面量填充
-// 都必须落在装饰例外白名单内，新增主操作按钮写字面量玫瑰或渐变会被直接拒绝。
+// 默认拒绝。白名单里的渐变只有两类：装饰性渐变，以及叠在 var(--glass-fallback) 上的平涂 tint 图像层
+// （issue #122）。平涂层两端色标相同，只为让颜色成为 background 的最后一层，海军回退才会画出来；
+// 它不是装饰渐变，也不是新的 CTA 填充。任意新渐变仍然拒绝。
 const GRADIENT_FILL_ALLOWLIST = new Set(
   [
     // 极光背景、环境光斑、导航头辉光、卡缘高光、底部 sheet 面板、周期卡：装饰性渐变，非可操作填充
@@ -213,7 +215,32 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/index/index.wxss', '.month-nav::before'],
     ['pages/index/index.wxss', '.calendar-jump-sheet'],
     ['pages/index/index.wxss', '.day-action-sheet'],
-    ['pages/period/period.wxss', '.cycle-card']
+    ['pages/period/period.wxss', '.cycle-card'],
+    // 平涂 tint 图像层叠在海军回退上。不是装饰渐变，也不是 CTA 填充。
+    ['app.wxss', '.nav-back-surface'],
+    ['app.wxss', '.nav-back:active .nav-back-surface'],
+    ['app.wxss', '.premium-card'],
+    ['app.wxss', '.btn-danger'],
+    ['app.wxss', '.btn-danger:active'],
+    ['app.wxss', '.header-gradient'],
+    ['pages/index/index.wxss', '.sync-pill'],
+    ['pages/index/index.wxss', '.month-nav'],
+    ['pages/index/index.wxss', '.nav-btn'],
+    ['pages/index/index.wxss', '.nav-btn:active'],
+    ['pages/index/index.wxss', '.week-header'],
+    ['pages/index/index.wxss', '.calendar-grid'],
+    ['pages/settings/settings.wxss', '.menu-item.danger'],
+    ['pages/settings/settings.wxss', '.menu-item.danger:active'],
+    ['pages/bind/bind.wxss', '.tab-bar'],
+    ['pages/bind/bind.wxss', '.code-input'],
+    ['pages/period/period.wxss', '.skeleton-card'],
+    ['pages/period/period.wxss', '.empty-state'],
+    ['pages/period/edit/edit.wxss', '.form-picker'],
+    ['pages/period/edit/edit.wxss', '.form-input'],
+    ['pages/memory/memory.wxss', '.skeleton-card'],
+    ['pages/memory/memory.wxss', '.empty-state'],
+    ['pages/memory/edit/edit.wxss', '.form-picker'],
+    ['pages/memory/edit/edit.wxss', '.form-input']
   ].map(([file, selector]) => `${file}::${selector}`)
 )
 
@@ -239,7 +266,7 @@ function scanCtaFillDiscipline(relative, css) {
     for (const selector of rule.selectors) {
       const key = `${relative}::${selector}`
       if (fills.some((fill) => GRADIENT_FILL.test(fill)) && !GRADIENT_FILL_ALLOWLIST.has(key)) {
-        violations.push(`${key} uses a gradient fill outside the decorative allowlist`)
+        violations.push(`${key} uses a gradient fill outside the gradient allowlist`)
       }
       if (fills.some((fill) => SOLID_ROSE_FILL_LITERAL.test(fill)) && !SOLID_ROSE_FILL_ALLOWLIST.has(key)) {
         violations.push(`${key} uses a literal solid rose fill instead of var(--aurora-pink)`)

@@ -128,12 +128,12 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
   const tabBar = findRule(css, '.tab-bar')
   assert.equal(
     tabBar.background,
-    'rgba(255,255,255,0.05), var(--glass-fallback)'
+    'linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback)'
   )
   const codeInput = findRule(css, '.code-input')
   assert.equal(
     codeInput.background,
-    'var(--glass-bg), var(--glass-fallback)'
+    'linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback)'
   )
 
   // 卡片不再覆盖紫玻璃 tint：布局声明保留，background 交回 app 级 .premium-card

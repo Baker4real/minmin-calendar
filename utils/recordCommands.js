@@ -206,7 +206,8 @@ async function runCommand(options) {
     timer.setTimeout(() => {
       navigateBack()
     }, successDelay)
-    updatePage(page, { [loadingKey]: false })
+    // 已提交、等待返回：清掉「保存中/删除中」，但保持不可点，直到 navigateBack
+    updatePage(page, { [loadingKey]: false, submitted: true })
     return outcome
   }
 

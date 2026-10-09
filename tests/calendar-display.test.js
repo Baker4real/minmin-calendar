@@ -598,7 +598,12 @@ function loadSettingsHarness() {
   const absolutePagePath = path.join(repoRoot, 'pages/settings/settings.js')
   const absoluteMocks = new Map([
     [path.join(repoRoot, 'utils/cloud.js'), {}],
-    [path.join(repoRoot, 'utils/room.js'), { getVerifiedActiveRoom: async () => null }],
+    [path.join(repoRoot, 'utils/room.js'), {
+      getRoomCode() {
+        return ''
+      },
+      getVerifiedActiveRoom: async () => null
+    }],
     [
       path.join(repoRoot, 'utils/roomAccessOutcome.js'),
       { buildRoomDisplayState: () => ({ roomCode: '', roomCodeDisplay: '未绑定' }) }

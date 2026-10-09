@@ -10,8 +10,15 @@ const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
 // switchTab 不能带 query，「查看欢乐时光」先写键再切 tab，记录 tab onShow 消费并清除（issue #103）
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 
+// issue #114：首帧只读本机缓存。没有缓存时用中性「读取中…」，云端校验仍是最终依据。
+function cachedRoomFirstFrame() {
+  const roomCode = roomSession.getRoomCode()
+  if (roomCode) return { roomCode, roomCodeDisplay: roomCode }
+  return { roomCode: '', roomCodeDisplay: '读取中…' }
+}
+
 Page({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), roomCode: '', roomCodeDisplay: '未绑定', roomCodeLoaded: false, calendarDensity: 'compact' },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), ...cachedRoomFirstFrame(), roomCodeLoaded: false, calendarDensity: 'compact' },
 
   async onShow() {
     this.setData({ calendarDensity: getSavedCalendarDensity() })
