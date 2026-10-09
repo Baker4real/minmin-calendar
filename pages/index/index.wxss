@@ -34,7 +34,7 @@
   box-sizing: border-box;
   border-radius: var(--radius-full);
   color: rgba(255,255,255,0.78);
-  background: var(--glass-bg), var(--glass-fallback);
+  background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.13);
   box-shadow: 0 8rpx 26rpx rgba(0,0,0,0.14);
   backdrop-filter: blur(16px);
@@ -104,7 +104,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 12rpx 24rpx;
-  background: var(--glass-bg), var(--glass-fallback);
+  background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,0.15);
@@ -168,7 +168,7 @@
   font-size: 42rpx;
   color: #fff;
   border-radius: var(--radius-circle);
-  background: rgba(255,255,255,0.1), var(--glass-fallback);
+  background: linear-gradient(rgba(255,255,255,0.1), rgba(255,255,255,0.1)), var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.2);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -178,7 +178,7 @@
 }
 .nav-btn:active {
   transform: scale(0.96);
-  background: rgba(255,255,255,0.2), var(--glass-fallback);
+  background: linear-gradient(rgba(255,255,255,0.2), rgba(255,255,255,0.2)), var(--glass-fallback);
 }
 
 /* ===== Week Header ===== */
@@ -186,7 +186,7 @@
   display: flex;
   padding: 8rpx 0;
   margin-bottom: 0;
-  background: rgba(255,255,255,0.05), var(--glass-fallback);
+  background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.08);
@@ -204,7 +204,7 @@
 .calendar-grid {
   display: flex;
   flex-wrap: wrap;
-  background: rgba(255,255,255,0.05), var(--glass-fallback);
+  background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
   border: 1px solid rgba(255,255,255,0.1);

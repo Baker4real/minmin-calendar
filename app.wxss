@@ -184,7 +184,7 @@ page {
   bottom: 10rpx;
   left: 10rpx;
   border-radius: var(--radius-card);
-  background: rgba(255,255,255,0.09), var(--glass-fallback);
+  background: linear-gradient(rgba(255,255,255,0.09), rgba(255,255,255,0.09)), var(--glass-fallback);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(232,144,158,0.28);
@@ -205,7 +205,7 @@ page {
   transform: scale(0.94);
 }
 .nav-back:active .nav-back-surface {
-  background: rgba(255,255,255,0.14), var(--glass-fallback);
+  background: linear-gradient(rgba(255,255,255,0.14), rgba(255,255,255,0.14)), var(--glass-fallback);
   border-color: rgba(232,144,158,0.42);
   box-shadow:
     0 4rpx 12rpx rgba(10,14,39,0.16),
@@ -215,7 +215,7 @@ page {
 
 /* ===== Premium Card (Glass) ===== */
 .premium-card {
-  background: var(--glass-bg), var(--glass-fallback);
+  background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: var(--radius-card);
@@ -267,7 +267,7 @@ page {
 
 /* ===== Danger Button — 柔红，与玫瑰体系同族 ===== */
 .btn-danger {
-  background: var(--glass-bg), var(--glass-fallback);
+  background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   color: #F97373;
@@ -281,12 +281,12 @@ page {
 }
 .btn-danger:active {
   transform: scale(0.95);
-  background: rgba(249,115,115,0.12), var(--glass-fallback);
+  background: linear-gradient(rgba(249,115,115,0.12), rgba(249,115,115,0.12)), var(--glass-fallback);
 }
 
 /* ===== Header Gradient ===== */
 .header-gradient {
-  background: rgba(255,255,255,0.05), var(--glass-fallback);
+  background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255,255,255,0.1);

@@ -72,7 +72,7 @@
 
 /* Skeleton Loading – 列表条目形状的哑光占位 */
 .skeleton-card {
-  background: var(--glass-bg), var(--glass-fallback);
+  background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,0.12);
@@ -133,7 +133,7 @@
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
-  background: rgba(255,255,255,0.05), var(--glass-fallback);
+  background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.08);
