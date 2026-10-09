@@ -22,7 +22,7 @@
   </view>
 
   <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}">
-    <view wx:if="{{syncStatusVisible}}" class="sync-pill {{refreshing ? 'syncing' : ''}}" aria-role="status" aria-label="{{syncStatusText}}">
+    <view wx:if="{{syncStatusMounted}}" class="sync-pill sync-{{syncStatusPhase}} {{refreshing ? 'syncing' : ''}}" aria-role="status" aria-label="{{syncStatusText}}">
       <view class="sync-dot"></view>
       <text class="sync-text">{{syncStatusText}}</text>
     </view>

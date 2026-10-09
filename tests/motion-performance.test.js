@@ -258,7 +258,6 @@ const LITERAL_DURATION_ANIMATIONS = new Set([
 ])
 const ONE_SHOT_ANIMATIONS = {
   pageEnter: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
-  syncPillIn: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   bindReveal: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' }
 }
 const COLOR_TRANSITION_PROPS = new Set(['background', 'background-color', 'color', 'border-color'])
@@ -334,6 +333,12 @@ function sheetMotionExpectation(selector, prop) {
     return { duration: 'var(--duration-exit)', easing: 'var(--ease-out)' }
   }
   if (normalized === '.day-sheet-mask.sheet-open' && prop === 'opacity') {
+    return { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' }
+  }
+  if (normalized === '.sync-pill' && (prop === 'opacity' || prop === 'transform')) {
+    return { duration: 'var(--duration-exit)', easing: 'var(--ease-out)' }
+  }
+  if (normalized === '.sync-pill.sync-open' && (prop === 'opacity' || prop === 'transform')) {
     return { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' }
   }
   return null
@@ -838,6 +843,44 @@ test('homepage sheets slide in and out with reversible transitions', () => {
   const design = readRepo('DESIGN.md')
   assert.match(design, /issue #116/)
   assert.match(design, /translateY\(100%\)/)
+})
+
+test('sync pill fades and rises with reversible transitions', () => {
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+  const wxss = maskComments(readRepo('pages/index/index.wxss'))
+  assert.equal(wxss.includes('syncPillIn'), false, 'sync pill entrance keyframes are retired')
+
+  const pill = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.sync-pill'))
+  assert.ok(pill, 'expected .sync-pill')
+  assert.equal(pill.decls.opacity, '0')
+  assert.equal(pill.decls.transform, 'translateY(-8rpx)')
+  assert.equal(
+    pill.decls.transition,
+    'opacity var(--duration-exit) var(--ease-out), transform var(--duration-exit) var(--ease-out)'
+  )
+
+  const shown = index.rules.find((rule) => rule.selectors.includes('.sync-pill.sync-open'))
+  assert.ok(shown, 'expected the shown sync pill pose')
+  assert.equal(shown.decls.opacity, '1')
+  assert.equal(shown.decls.transform, 'translateY(0)')
+  assert.equal(
+    shown.decls.transition,
+    'opacity var(--duration-enter) var(--ease-out), transform var(--duration-enter) var(--ease-out)'
+  )
+
+  const syncDot = index.rules.find((rule) => rule.selectors.includes('.sync-pill.syncing .sync-dot'))
+  assert.ok(syncDot, 'expected the syncing dot')
+  assert.equal(syncDot.decls.animation, 'syncDotPulse 1s ease-in-out infinite')
+
+  for (const selector of ['.sync-pill', '.sync-pill.sync-open']) {
+    const rmRule = index.reducedMotionRules.find((rule) => rule.selectors.includes(selector))
+    assert.ok(rmRule, `reduced motion must cover ${selector}`)
+    assert.equal(rmRule.decls.transition, 'none', `${selector} must finish immediately under reduced motion`)
+  }
+
+  const design = readRepo('DESIGN.md')
+  assert.match(design, /issue #120/)
+  assert.match(design, /translateY\(-8rpx\)/)
 })
 
 test('DESIGN.md registers the motion and performance budgets', () => {
