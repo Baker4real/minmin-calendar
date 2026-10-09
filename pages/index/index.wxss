@@ -177,7 +177,8 @@
   z-index: 1;
   transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
-.nav-btn:active {
+.nav-btn:active,
+.nav-btn.nav-btn-hover {
   transform: scale(0.96);
   background: linear-gradient(rgba(255,255,255,0.2), rgba(255,255,255,0.2)), var(--glass-fallback);
 }

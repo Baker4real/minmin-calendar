@@ -1,6 +1,6 @@
 <view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
   <view class="nav-bar header-gradient">
-    <view class="nav-back" bindtap="goBack" aria-role="button" aria-label="返回">
+    <view class="nav-back" hover-class="nav-back-hover" bindtap="goBack" aria-role="button" aria-label="返回">
       <view class="nav-back-surface"></view>
       <text class="nav-back-icon">‹</text>
     </view>

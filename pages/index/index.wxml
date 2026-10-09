@@ -29,7 +29,7 @@
     </view>
 
     <view class="month-nav">
-      <view class="nav-btn" bindtap="prevMonth" aria-role="button" aria-label="上一个月">‹</view>
+      <view class="nav-btn" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月">‹</view>
       <view
         class="month-title month-title-trigger"
         bindtap="openMonthPicker"
@@ -41,7 +41,7 @@
       </view>
       <!-- issue #105：图例/预测说明/本月小结收进月份标题旁的「…」菜单（⌄ 已用于选月 caret，不重复占用） -->
       <view class="nav-btn month-menu-trigger" bindtap="openMonthMenu" aria-role="button" aria-label="打开工具菜单">…</view>
-      <view class="nav-btn" bindtap="nextMonth" aria-role="button" aria-label="下一个月">›</view>
+      <view class="nav-btn" hover-class="nav-btn-hover" bindtap="nextMonth" aria-role="button" aria-label="下一个月">›</view>
     </view>
 
     <!-- 刷新失败重试句：正常文档流放在月份导航与日历之间，不遮月份标题；留驻到重试成功（issue #79） -->

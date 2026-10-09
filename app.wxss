@@ -205,10 +205,12 @@ page {
   line-height: 1;
   transform: translateY(-1rpx);
 }
-.nav-back:active {
+.nav-back:active,
+.nav-back.nav-back-hover {
   transform: scale(0.94);
 }
-.nav-back:active .nav-back-surface {
+.nav-back:active .nav-back-surface,
+.nav-back.nav-back-hover .nav-back-surface {
   background: linear-gradient(rgba(255,255,255,0.14), rgba(255,255,255,0.14)), var(--glass-fallback);
   border-color: rgba(232,144,158,0.42);
   box-shadow:
@@ -278,7 +280,8 @@ page {
   border: 1px solid rgba(249,115,115,0.28);
   transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-.btn-danger:active {
+.btn-danger:active,
+.btn-danger.btn-danger-hover {
   transform: scale(0.95);
   background: linear-gradient(rgba(249,115,115,0.12), rgba(249,115,115,0.12)), var(--glass-fallback);
 }

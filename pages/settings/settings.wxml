@@ -28,7 +28,7 @@
         <view class="room-action-btn" bindtap="goBind" aria-role="button" aria-label="去绑定房间">去绑定</view>
       </view>
       <!-- issue #102：「解除绑定」从绑定页已绑定卡移到本卡，警示红菜单行族，二次确认文案不变 -->
-      <view wx:if="{{roomCode}}" class="menu-item danger" bindtap="unbind" aria-role="button" aria-label="解除绑定">
+      <view wx:if="{{roomCode}}" class="menu-item danger" hover-class="danger-hover" bindtap="unbind" aria-role="button" aria-label="解除绑定">
         <text class="menu-text">解除绑定</text>
         <text class="menu-arrow">›</text>
       </view>
@@ -80,7 +80,7 @@
 
     <!-- 清除本地数据：点之前就是危险样式——警告红字 + 警告红描边（issue #77） -->
     <view class="premium-card">
-      <view class="menu-item danger" bindtap="clearData" aria-role="button" aria-label="清除本地数据">
+      <view class="menu-item danger" hover-class="danger-hover" bindtap="clearData" aria-role="button" aria-label="清除本地数据">
         <text class="menu-text">清除本地数据</text>
         <text class="menu-arrow">›</text>
       </view>

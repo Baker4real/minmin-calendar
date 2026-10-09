@@ -89,7 +89,8 @@
 .menu-item.danger .menu-text {
   color: #F97373;
 }
-.menu-item.danger:active {
+.menu-item.danger:active,
+.menu-item.danger.danger-hover {
   background: linear-gradient(rgba(249,115,115,0.12), rgba(249,115,115,0.12)), var(--glass-fallback);
   transform: scale(0.95);
 }

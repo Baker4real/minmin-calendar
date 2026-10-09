@@ -812,7 +812,7 @@ test('settings page shows the cached room code before verification, with copy an
     const cardEnd = wxml.indexOf('日历显示')
     const card = wxml.slice(cardStart, cardEnd)
     assert.match(card, /wx:if="\{\{roomCode\}\}" class="copy-btn"/)
-    assert.match(card, /wx:if="\{\{roomCode\}\}" class="menu-item danger" bindtap="unbind"/)
+    assert.match(card, /wx:if="\{\{roomCode\}\}" class="menu-item danger" hover-class="danger-hover" bindtap="unbind"/)
 
     await harness.page.onShow()
     assert.equal(harness.resolveCalls(), 1)
@@ -934,7 +934,7 @@ test('settings room card exposes the moved unbind entry as a danger menu row whi
   // 警示红菜单行族（与「清除本地数据」同款 .menu-item.danger），有码时才可解
   assert.match(
     card,
-    /wx:if="\{\{roomCode\}\}" class="menu-item danger" bindtap="unbind" aria-role="button" aria-label="解除绑定"/
+    /wx:if="\{\{roomCode\}\}" class="menu-item danger" hover-class="danger-hover" bindtap="unbind" aria-role="button" aria-label="解除绑定"/
   )
   assert.match(card, />解除绑定<\//)
 })
