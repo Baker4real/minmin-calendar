@@ -7,7 +7,7 @@ const recordDraft = require('../../utils/recordDraft')
 const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 const safeArea = require('../../utils/safeArea')
-const { homepageSheets, handoffSheet } = require('../../utils/sheetLifecycle')
+const { createSheetLifecycle, homepageSheets, handoffSheet } = require('../../utils/sheetLifecycle')
 
 // 与 pages/settings/settings.js 共享同一存储键；写入方在设置页
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
@@ -80,6 +80,8 @@ Page({
     refreshRetryVisible: false,
     syncStatusVisible: false,
     syncStatusText: '',
+    syncStatusMounted: false,
+    syncStatusPhase: 'closed',
     noRoom: false,
     roomStatusTitle: '',
     roomStatusDesc: '',
@@ -172,7 +174,7 @@ Page({
         this.hideSyncStatus()
       }
     } else {
-      this.clearSyncStatusTimer()
+      this.hideSyncStatus()
       this.setData({
         loading: true,
         refreshing: false,
@@ -700,7 +702,7 @@ Page({
   },
 
   showRoomStatus({ title, desc, actionText, action }) {
-    this.clearSyncStatusTimer()
+    this.hideSyncStatus()
     this.setData({
       hasLoadedHomeData: false,
       refreshing: false,
@@ -717,19 +719,13 @@ Page({
 
   showSyncStatus(text, options = {}) {
     this.clearSyncStatusTimer()
-    this.setData({
-      syncStatusVisible: true,
-      syncStatusText: text
-    })
+    syncPill(this).open(this, { syncStatusText: text })
 
     if (options.autoHide === false) return
 
     const timer = setTimeout(() => {
-      this.setData({
-        syncStatusVisible: false,
-        syncStatusText: ''
-      })
       this._syncStatusTimer = null
+      this.hideSyncStatus()
     }, SYNC_STATUS_CLEAR_DELAY)
     if (timer && typeof timer.unref === 'function') timer.unref()
     this._syncStatusTimer = timer
@@ -738,10 +734,14 @@ Page({
   hideSyncStatus() {
     this.clearSyncStatusTimer()
     if (!this.data.syncStatusVisible && !this.data.syncStatusText) return
-    this.setData({
-      syncStatusVisible: false,
-      syncStatusText: ''
-    })
+    if (!this.data.syncStatusMounted) {
+      this.setData({
+        syncStatusVisible: false,
+        syncStatusText: ''
+      })
+      return
+    }
+    syncPill(this).leave(this, null, { syncStatusText: '' })
   },
 
   clearSyncStatusTimer() {
@@ -750,6 +750,17 @@ Page({
     this._syncStatusTimer = null
   }
 })
+
+function syncPill(page) {
+  if (!page._syncPill) {
+    page._syncPill = createSheetLifecycle({
+      visibleKey: 'syncStatusVisible',
+      mountedKey: 'syncStatusMounted',
+      phaseKey: 'syncStatusPhase'
+    })
+  }
+  return page._syncPill
+}
 
 function buildJumpYearState(year) {
   const jumpYear = Math.min(JUMP_YEAR_MAX, Math.max(JUMP_YEAR_MIN, year))

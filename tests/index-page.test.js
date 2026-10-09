@@ -1659,6 +1659,36 @@ test('tapping view detail marks the new content to fade in without leaving the s
   }
 })
 
+// issue #120：同步胶囊入场改为两步过渡，先挂上离场姿态，下一次渲染才进入显示，中途才能反向。
+test('sync pill mounts in the hidden pose and shows on the next render', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const wxml = readIndexWxml()
+    assert.match(wxml, /wx:if="\{\{syncStatusMounted\}\}"/)
+    assert.match(wxml, /sync-\{\{syncStatusPhase\}\}/)
+    assert.match(wxml, /class="sync-pill[^"]*"[\s\S]*?aria-role="status"/)
+    assert.match(wxml, /class="sync-pill[^"]*"[\s\S]*?aria-label="\{\{syncStatusText\}\}"/)
+
+    harness.page.onLoad()
+    harness.page.showSyncStatus('已同步', { autoHide: false })
+
+    assert.equal(harness.page.data.syncStatusVisible, true)
+    assert.equal(harness.page.data.syncStatusText, '已同步')
+    assert.equal(harness.page.data.syncStatusMounted, true)
+    assert.equal(harness.page.data.syncStatusPhase, 'closed')
+
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.syncStatusPhase, 'open')
+    assert.equal(harness.page.data.syncStatusMounted, true)
+    assert.equal(harness.page.data.syncStatusVisible, true)
+    assert.equal(harness.page.data.syncStatusText, '已同步')
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
 // issue #117：工具菜单切到图例 / 预测说明 / 本月小结是同一次页面更新。
 // 菜单直接卸下，不进入 leaving；信息遮罩带着交接标记挂上，面板仍先停在底边再升起。
 test('tools menu hands off to the info sheet in one update and later leaves normally', () => {
@@ -1728,6 +1758,148 @@ test('tools menu hands off to the info sheet in one update and later leaves norm
     mock.timers.tick(0)
     assert.equal(harness.page.data.monthMenuMounted, false)
     assert.equal(harness.page.data.infoSheetPhase, 'open')
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #120：隐藏先进入离场，--duration-exit（200ms）到点才卸载，不听 transitionend。
+test('sync pill stays mounted through leave and unmounts when the exit timer fires', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.showSyncStatus('已同步', { autoHide: false })
+    mock.timers.tick(0)
+
+    harness.page.hideSyncStatus()
+    assert.equal(harness.page.data.syncStatusVisible, false)
+    assert.equal(harness.page.data.syncStatusText, '')
+    assert.equal(harness.page.data.syncStatusPhase, 'leaving')
+    assert.equal(harness.page.data.syncStatusMounted, true)
+
+    mock.timers.tick(199)
+    assert.equal(harness.page.data.syncStatusPhase, 'leaving')
+    assert.equal(harness.page.data.syncStatusMounted, true)
+
+    mock.timers.tick(1)
+    assert.equal(harness.page.data.syncStatusPhase, 'closed')
+    assert.equal(harness.page.data.syncStatusMounted, false)
+    assert.equal(harness.page.data.syncStatusVisible, false)
+    assert.equal(harness.page.data.syncStatusText, '')
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #120：离场途中又有新的同步状态，取消卸载并回到显示，不经过卸载再挂上。
+test('a new sync status during leave cancels the unmount and returns to shown', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.showSyncStatus('已同步', { autoHide: false })
+    mock.timers.tick(0)
+    harness.page.hideSyncStatus()
+    assert.equal(harness.page.data.syncStatusPhase, 'leaving')
+
+    mock.timers.tick(100)
+    harness.page.showSyncStatus('已更新，正在同步', { autoHide: false })
+    assert.equal(harness.page.data.syncStatusPhase, 'open')
+    assert.equal(harness.page.data.syncStatusVisible, true)
+    assert.equal(harness.page.data.syncStatusMounted, true)
+    assert.equal(harness.page.data.syncStatusText, '已更新，正在同步')
+
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.syncStatusPhase, 'open')
+    assert.equal(harness.page.data.syncStatusMounted, true)
+    assert.equal(harness.page.data.syncStatusVisible, true)
+    assert.equal(harness.page.data.syncStatusText, '已更新，正在同步')
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #120：自动隐藏仍是 1600ms 后才开始离场，离场时长不提前把文案清掉。
+test('sync pill auto-hide still waits 1600ms before leaving', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.showSyncStatus('已同步')
+    mock.timers.tick(0)
+
+    mock.timers.tick(1599)
+    assert.equal(harness.page.data.syncStatusVisible, true)
+    assert.equal(harness.page.data.syncStatusText, '已同步')
+    assert.equal(harness.page.data.syncStatusPhase, 'open')
+    assert.equal(harness.page.data.syncStatusMounted, true)
+
+    mock.timers.tick(1)
+    assert.equal(harness.page.data.syncStatusVisible, false)
+    assert.equal(harness.page.data.syncStatusText, '')
+    assert.equal(harness.page.data.syncStatusPhase, 'leaving')
+    assert.equal(harness.page.data.syncStatusMounted, true)
+
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.syncStatusMounted, false)
+    assert.equal(harness.page.data.syncStatusPhase, 'closed')
+    assert.equal(harness.page.data.syncStatusText, '')
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #120：两步入场中途隐藏会停在离场，下一次渲染不会再把它打开。
+test('hiding the sync pill before enter finishes reverses it instead of showing it', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.showSyncStatus('已同步', { autoHide: false })
+    assert.equal(harness.page.data.syncStatusPhase, 'closed')
+    assert.equal(harness.page.data.syncStatusMounted, true)
+
+    harness.page.hideSyncStatus()
+    assert.equal(harness.page.data.syncStatusPhase, 'leaving')
+    assert.equal(harness.page.data.syncStatusVisible, false)
+    assert.equal(harness.page.data.syncStatusText, '')
+    assert.equal(harness.page.data.syncStatusMounted, true)
+
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.syncStatusPhase, 'leaving')
+    assert.equal(harness.page.data.syncStatusMounted, true)
+
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.syncStatusMounted, false)
+    assert.equal(harness.page.data.syncStatusPhase, 'closed')
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+test('updating sync pill copy while it is shown keeps it shown', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.showSyncStatus('已同步', { autoHide: false })
+    mock.timers.tick(0)
+
+    harness.page.showSyncStatus('已更新，正在同步', { autoHide: false })
+    assert.equal(harness.page.data.syncStatusPhase, 'open')
+    assert.equal(harness.page.data.syncStatusMounted, true)
+    assert.equal(harness.page.data.syncStatusVisible, true)
+    assert.equal(harness.page.data.syncStatusText, '已更新，正在同步')
+
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.syncStatusPhase, 'open')
+    assert.equal(harness.page.data.syncStatusMounted, true)
   } finally {
     harness.teardown()
     mock.timers.reset()

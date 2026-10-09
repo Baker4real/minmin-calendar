@@ -71,12 +71,13 @@ function createSheetLifecycle({ visibleKey, mountedKey, phaseKey, handoffKey, de
       })
     },
 
-    leave(page, onUnmount) {
+    leave(page, onUnmount, extra = {}) {
       if (!page.data[mountedKey]) return
       if (page.data[phaseKey] === 'leaving') return
       const ticket = ++generation
       clearExitTimer()
       commit(page, {
+        ...extra,
         [visibleKey]: false,
         [mountedKey]: true,
         [phaseKey]: 'leaving',
