@@ -92,7 +92,7 @@
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.6);
-  transition: background-color 0.3s var(--ease-out), color 0.3s var(--ease-out);
+  transition: background-color var(--duration-state) ease, color var(--duration-state) ease;
 }
 /* 选中 tab 与主按钮同族：实色玫瑰填充 + 画布海军字，字重角色不变 */
 .tab.active {
@@ -182,7 +182,7 @@
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
   box-shadow: 0 4px 15px rgba(232,144,158,0.28);
-  transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+  transition: transform var(--duration-press) var(--ease-out);
 }
 .copy-btn:active {
   transform: scale(0.94);

@@ -48,7 +48,7 @@
   align-items: center;
   padding: 28rpx 30rpx;
   border-bottom: 1px solid rgba(255,255,255,0.06);
-  transition: background-color 0.3s ease, transform 0.3s ease;
+  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
 .menu-item:last-child {
   border-bottom: none;
@@ -147,7 +147,7 @@
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
   box-shadow: 0 4px 15px rgba(232,144,158,0.28);
-  transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+  transition: transform var(--duration-press) var(--ease-out);
 }
 .copy-btn:active {
   transform: scale(0.94);
@@ -175,7 +175,7 @@
   color: #E8909E;
   background: rgba(232,144,158,0.08);
   border: 1px solid rgba(232,144,158,0.45);
-  transition: transform 0.2s var(--ease-out), background-color 0.2s var(--ease-out);
+  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-press) ease;
 }
 .room-action-btn:active {
   transform: scale(0.95);
@@ -220,7 +220,7 @@
   font-weight: var(--font-weight-control);
   color: rgba(255,255,255,0.68);
   border: 1px solid transparent;
-  transition: background-color 0.22s ease, color 0.22s ease, transform 0.22s ease;
+  transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
 .density-option:active {
   transform: scale(0.98);

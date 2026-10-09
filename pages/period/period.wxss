@@ -67,7 +67,7 @@
   align-items: center;
   padding: 28rpx 30rpx;
   border-bottom: 1px solid rgba(255,255,255,0.06);
-  transition: background-color 0.3s ease, transform 0.3s ease;
+  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
 .list-item:last-child {
   border-bottom: none;
@@ -218,7 +218,7 @@
   font-weight: var(--font-weight-control);
   color: rgba(255,255,255,0.68);
   border: 1px solid transparent;
-  transition: background-color 0.22s ease, color 0.22s ease, transform 0.22s ease;
+  transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
 .segment-option:active {
   transform: scale(0.98);

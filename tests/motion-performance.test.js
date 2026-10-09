@@ -211,6 +211,20 @@ test('every cubic-bezier is the registered ease-out curve (no overshoot y>1)', (
   assert.deepEqual(violations, [])
 })
 
+test('app.wxss defines the five shared one-shot duration tokens', () => {
+  const app = maskComments(readRepo('app.wxss'))
+  const expected = {
+    '--duration-press': '160ms',
+    '--duration-state': '200ms',
+    '--duration-enter': '240ms',
+    '--duration-exit': '200ms',
+    '--duration-sheet': '280ms'
+  }
+  for (const [name, value] of Object.entries(expected)) {
+    assert.match(app, new RegExp(`${name}\\s*:\\s*${value}\\s*;`), `${name} must be ${value}`)
+  }
+})
+
 test('--ease-spring / --transition-spring tokens stay retired; --ease-out remains the single curve token', () => {
   const app = maskComments(readRepo('app.wxss'))
   assert.equal(app.includes('--ease-spring'), false, 'app.wxss should no longer define --ease-spring')
@@ -234,6 +248,200 @@ const DECORATIVE_INFINITE = { auroraPulse: true, orbFloat: true, float: true, pu
 const FUNCTIONAL_INFINITE = { spin: true, syncDotPulse: true, skeletonPulse: true }
 const REDUCED_MOTION_INFINITE = { loadingPulse: true }
 const RETIRED_ANIMATIONS = ['orbRotate', 'bounceIn']
+
+// issue #111：一次性时长必须引用五档 token；常驻动画、其周期、减弱动效替代和 heroIn 保持字面时长。
+const LITERAL_DURATION_ANIMATIONS = new Set([
+  ...Object.keys(DECORATIVE_INFINITE),
+  ...Object.keys(FUNCTIONAL_INFINITE),
+  ...Object.keys(REDUCED_MOTION_INFINITE),
+  'heroIn'
+])
+const ONE_SHOT_ANIMATIONS = {
+  pageEnter: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  fadeIn: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  syncPillIn: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  sheetFadeIn: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  sheetRise: { duration: 'var(--duration-sheet)', easing: 'var(--ease-out)' }
+}
+const COLOR_TRANSITION_PROPS = new Set(['background', 'background-color', 'color', 'border-color'])
+const PRESS_DURATION = 'var(--duration-press)'
+const STATE_DURATION = 'var(--duration-state)'
+const EASE_OUT_TOKEN = 'var(--ease-out)'
+
+function splitTopLevelComma(value) {
+  const parts = []
+  let current = ''
+  let depth = 0
+  for (const ch of value) {
+    if (ch === '(') depth += 1
+    else if (ch === ')') depth -= 1
+    if (ch === ',' && depth === 0) {
+      if (current.trim()) parts.push(current.trim())
+      current = ''
+      continue
+    }
+    current += ch
+  }
+  if (current.trim()) parts.push(current.trim())
+  return parts
+}
+
+function lastCompound(selector) {
+  const stripped = selector.replace(/:active/g, '').trim()
+  const parts = stripped.split(/\s+/).filter(Boolean)
+  return parts[parts.length - 1] || ''
+}
+
+function pressScaleTargets(files) {
+  const targets = new Set()
+  for (const file of files) {
+    for (const rule of file.rules) {
+      if (rule.inReducedMotion) continue
+      if (!/scale\(\s*0\.\d+/.test(rule.decls.transform || '')) continue
+      for (const selector of rule.selectors) {
+        if (selector.includes(':active')) targets.add(lastCompound(selector))
+      }
+    }
+  }
+  return targets
+}
+
+function activeSetsProperty(files, target, prop) {
+  for (const file of files) {
+    for (const rule of file.rules) {
+      if (rule.inReducedMotion) continue
+      for (const selector of rule.selectors) {
+        if (!selector.includes(':active') || lastCompound(selector) !== target) continue
+        if (prop === 'background' || prop === 'background-color') {
+          if (rule.decls.background || rule.decls['background-color']) return true
+        } else if (prop === 'border-color') {
+          if (rule.decls['border-color'] || rule.decls.border) return true
+        } else if (rule.decls[prop]) return true
+      }
+    }
+  }
+  return false
+}
+
+function expectedTransitionDuration(files, pressTargets, selector, prop) {
+  const target = lastCompound(selector)
+  if (prop === 'transform') return pressTargets.has(target) ? PRESS_DURATION : STATE_DURATION
+  if (COLOR_TRANSITION_PROPS.has(prop)) {
+    return activeSetsProperty(files, target, prop) ? PRESS_DURATION : STATE_DURATION
+  }
+  if (prop === 'opacity') return STATE_DURATION
+  return null
+}
+
+test('one-shot transitions and animations use the shared duration tokens and role curves', () => {
+  const files = analyzedWxssFiles()
+  const pressTargets = pressScaleTargets(files)
+  const violations = []
+  const floatDurations = []
+
+  for (const file of files) {
+    for (const rule of file.rules) {
+      if (rule.inReducedMotion) continue
+      const where = `${file.relative} ${rule.selectors.join(', ')}`
+
+      if (rule.decls['animation-duration']) {
+        const duration = rule.decls['animation-duration']
+        const orbCycle = rule.selectors.includes('.glow-orb-2') && duration === '8s'
+        if (!orbCycle) violations.push(`${where} animation-duration ${duration} is not a registered ambient cycle`)
+      }
+
+      if (rule.decls.animation && rule.decls.animation !== 'none') {
+        for (const part of splitTopLevelComma(rule.decls.animation)) {
+          const parsed = /^([A-Za-z_][\w-]*)\s+(\S+)\s+(\S+)/.exec(part)
+          if (!parsed) {
+            violations.push(`${where} animation "${part}" is not a named duration`)
+            continue
+          }
+          const [, name, duration, easing] = parsed
+          if (LITERAL_DURATION_ANIMATIONS.has(name)) {
+            if (/^var\(--duration-/.test(duration)) {
+              violations.push(`${where} ${name} cycle must stay a literal duration`)
+            }
+            if (name === 'heroIn' && (duration !== '0.6s' || easing !== EASE_OUT_TOKEN)) {
+              violations.push(`${where} heroIn must stay 0.6s ${EASE_OUT_TOKEN}`)
+            }
+            if (name === 'float') {
+              floatDurations.push(duration)
+              if (easing !== 'ease-in-out' || (duration !== '8s' && duration !== '6s')) {
+                violations.push(`${where} float must stay 8s/6s ease-in-out, got ${duration} ${easing}`)
+              }
+            }
+            continue
+          }
+          const expected = ONE_SHOT_ANIMATIONS[name]
+          if (!expected) {
+            violations.push(`${where} runs unregistered one-shot animation ${name}`)
+            continue
+          }
+          if (duration !== expected.duration || easing !== expected.easing) {
+            violations.push(`${where} ${name} must be ${expected.duration} ${expected.easing}, got ${duration} ${easing}`)
+          }
+        }
+      }
+
+      if (!rule.decls.transition || rule.decls.transition === 'none') continue
+      for (const segment of splitTopLevelComma(rule.decls.transition)) {
+        if (segment.startsWith('box-shadow')) {
+          violations.push(`${where} still transitions box-shadow ("${segment}")`)
+          continue
+        }
+        const parsed = /^([a-z-]+)\s+(\S+)\s+(\S+)$/.exec(segment)
+        if (!parsed) {
+          violations.push(`${where} transition "${segment}" must be a property, duration token, and curve`)
+          continue
+        }
+        const [, prop, duration, easing] = parsed
+        const expectedDurations = rule.selectors.map((selector) =>
+          expectedTransitionDuration(files, pressTargets, selector, prop))
+        if (expectedDurations.some((value) => value == null) || new Set(expectedDurations).size !== 1) {
+          violations.push(`${where} ${prop} has no single duration role`)
+          continue
+        }
+        const expectedDuration = expectedDurations[0]
+        const expectedEasing = prop === 'transform' ? EASE_OUT_TOKEN : 'ease'
+        if (duration !== expectedDuration || easing !== expectedEasing) {
+          violations.push(`${where} ${prop} must be ${expectedDuration} ${expectedEasing}, got ${duration} ${easing}`)
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(floatDurations.sort(), ['6s', '8s'])
+  assert.deepEqual(violations, [])
+})
+
+test('cubic-bezier survives only as the --ease-out definition', () => {
+  const violations = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    const stripped = maskComments(fs.readFileSync(file, 'utf8'))
+      .replace(/--ease-out\s*:\s*cubic-bezier\(\s*0\.16\s*,\s*1\s*,\s*0\.3\s*,\s*1\s*\)/g, '')
+    if (/cubic-bezier\s*\(/i.test(stripped)) violations.push(relative)
+  }
+  assert.deepEqual(violations, [])
+})
+
+test('single-use --transition token and unused app-level .nav-btn rule are retired', () => {
+  const violations = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    const masked = maskComments(fs.readFileSync(file, 'utf8'))
+    if (/(^|[^\w-])--transition(?![\w-])/.test(masked)) violations.push(relative)
+  }
+  assert.deepEqual(violations, [])
+
+  const app = analyzeFile(readRepo('app.wxss'))
+  const leftovers = app.rules.filter((rule) =>
+    !rule.inReducedMotion &&
+    rule.selectors.some((selector) => selector === '.nav-btn' || selector === '.nav-btn:active')
+  )
+  assert.equal(leftovers.length, 0)
+})
 
 test('infinite animations stay inside the registered registry with slow decorative cycles', () => {
   const foundDecorative = new Map()
@@ -535,4 +743,18 @@ test('DESIGN.md registers the motion and performance budgets', () => {
     assert.ok(design.includes(retired), `DESIGN.md is missing the ${retired} retirement note`)
   }
   assert.match(design, /prefers-reduced-motion/)
+  for (const token of [
+    '--duration-press',
+    '--duration-state',
+    '--duration-enter',
+    '--duration-exit',
+    '--duration-sheet'
+  ]) {
+    assert.ok(design.includes(token), `DESIGN.md is missing ${token}`)
+  }
+  assert.match(design, /--duration-press` 160ms/)
+  assert.match(design, /--duration-state` 200ms/)
+  assert.match(design, /--duration-enter` 240ms/)
+  assert.match(design, /--duration-exit` 200ms/)
+  assert.match(design, /--duration-sheet` 280ms/)
 })

@@ -22,7 +22,7 @@
   align-items: center;
   padding: 28rpx 30rpx;
   border-bottom: 1px solid rgba(255,255,255,0.06);
-  transition: background-color 0.3s ease, transform 0.3s ease;
+  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
   position: relative;
 }
 /* 欢乐时光列表行只有浅色心，不再另放玫瑰圆点——玫瑰点只表经期（issue #77） */

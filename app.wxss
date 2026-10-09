@@ -67,9 +67,13 @@ page {
   --radius-full: 999rpx;
   --radius-circle: 50%;
 
-  /* Transitions — 逐属性声明，禁止 all；缓动只有 --ease-out 一条曲线（bounce/elastic 式 overshoot 曲线已随 issue #58 退役） */
+  /* Transitions — 逐属性声明，禁止 all；缓动只有 --ease-out。一次性时长用 --duration-*（issue #111） */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --transition: background-color 0.3s var(--ease-out), border-color 0.3s var(--ease-out), transform 0.3s var(--ease-out);
+  --duration-press: 160ms;
+  --duration-state: 200ms;
+  --duration-enter: 240ms;
+  --duration-exit: 200ms;
+  --duration-sheet: 280ms;
 
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -88,7 +92,7 @@ page {
   position: relative;
   min-height: 100vh;
   /* 页面入场动画 */
-  animation: pageEnter 0.35s ease-out both;
+  animation: pageEnter var(--duration-enter) var(--ease-out) both;
 }
 .page::before {
   content: '';
@@ -173,7 +177,7 @@ page {
   line-height: 1;
   color: rgba(255,255,255,0.94);
   text-shadow: 0 2rpx 10rpx rgba(10,14,39,0.35);
-  transition: transform 0.22s var(--ease-out);
+  transition: transform var(--duration-press) var(--ease-out);
   position: relative;
   z-index: 11;
 }
@@ -191,7 +195,7 @@ page {
   box-shadow:
     0 6rpx 18rpx rgba(10,14,39,0.18),
     inset 0 1rpx 0 rgba(255,255,255,0.18);
-  transition: background 0.22s var(--ease-out), border-color 0.22s var(--ease-out), box-shadow 0.22s var(--ease-out);
+  transition: background var(--duration-press) ease, border-color var(--duration-press) ease;
   z-index: 0;
 }
 .nav-back-icon {
@@ -224,7 +228,7 @@ page {
   position: relative;
   overflow: hidden;
   color: var(--text-primary);
-  transition: transform 0.2s var(--ease-out);
+  transition: transform var(--duration-press) var(--ease-out);
 }
 .premium-card::after {
   content: '';
@@ -249,7 +253,7 @@ page {
   font-size: var(--font-size-button);
   font-weight: var(--font-weight-control);
   box-shadow: 0 4px 15px rgba(232,144,158,0.28);
-  transition: transform 0.3s var(--ease-out), background-color 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
+  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-state) ease;
   position: relative;
 }
 .btn-premium:active {
@@ -277,7 +281,7 @@ page {
   font-size: var(--font-size-button);
   font-weight: var(--font-weight-control);
   border: 1px solid rgba(249,115,115,0.28);
-  transition: var(--transition);
+  transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
 .btn-danger:active {
   transform: scale(0.95);
@@ -303,7 +307,7 @@ page {
   height: 400rpx;
   background: radial-gradient(circle, rgba(232,144,158,0.2) 0%, transparent 60%);
   border-radius: var(--radius-circle);
-  animation: float 8s var(--ease-out) infinite alternate;
+  animation: float 8s ease-in-out infinite alternate;
 }
 .header-gradient::after {
   content: '';
@@ -314,7 +318,7 @@ page {
   height: 200rpx;
   background: radial-gradient(circle, rgba(196,160,210,0.1) 0%, transparent 60%);
   border-radius: var(--radius-circle);
-  animation: float 6s var(--ease-out) infinite alternate-reverse;
+  animation: float 6s ease-in-out infinite alternate-reverse;
 }
 @keyframes float {
   0% { transform: translate(0, 0) scale(1); }
@@ -327,7 +331,7 @@ page {
   to { opacity: 1; transform: translateY(0); }
 }
 .fade-in {
-  animation: fadeIn 0.5s var(--ease-out) forwards;
+  animation: fadeIn var(--duration-enter) var(--ease-out) forwards;
 }
 .fade-in-d1 { animation-delay: 0.1s; }
 .fade-in-d2 { animation-delay: 0.2s; }
@@ -372,19 +376,11 @@ page {
 
 /* ===== Calendar Grid Transition ===== */
 .calendar-grid {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity var(--duration-state) ease, transform var(--duration-state) var(--ease-out);
 }
 .calendar-grid.changing {
   opacity: 0;
   transform: translateY(10rpx) scale(0.98);
-}
-
-/* ===== Nav Button ===== */
-.nav-btn {
-  transition: transform 0.25s var(--ease-out), background-color 0.25s var(--ease-out);
-}
-.nav-btn:active {
-  transform: scale(0.9);
 }
 
 /* Safe Area：--safe-top 由页面根节点内联注入（utils/safeArea.js），
