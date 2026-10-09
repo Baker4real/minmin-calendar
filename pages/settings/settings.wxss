@@ -33,11 +33,6 @@
   margin-top: 8rpx;
   display: block;
 }
-/* 资料卡本身没有点按操作：按下不缩放（issue #81）；各菜单卡的行内操作保持各自登记的按压缩放 */
-.profile-card:active {
-  transform: none;
-}
-
 .premium-card {
   margin-bottom: 20rpx;
 }
@@ -53,7 +48,7 @@
 .menu-item:last-child {
   border-bottom: none;
 }
-.menu-item:active {
+.menu-item:not(.non-interactive):active {
   background: rgba(255,255,255,0.05);
 }
 .menu-icon {

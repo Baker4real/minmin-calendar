@@ -7,15 +7,15 @@
 
   <view class="content">
     <!-- 用户卡片：品牌心是文本字形（颜色走 wxss），不用红色心形表情（issue #77） -->
-    <view class="profile-card premium-card fade-in">
+    <view class="profile-card premium-card">
       <view class="profile-avatar">♥</view>
       <view class="profile-name">美少女的日历</view>
       <text class="profile-desc">记录属于你们的每一天</text>
     </view>
 
     <!-- 房间号（菜单表情只重复标签，不再使用，issue #77） -->
-    <view class="premium-card fade-in fade-in-d1">
-      <view class="menu-item room-code-item">
+    <view class="premium-card">
+      <view class="menu-item room-code-item non-interactive">
         <view class="room-code-content">
           <text class="room-code-label">我的房间码</text>
           <text class="room-code-value {{roomCode ? '' : 'muted'}}">{{roomCodeDisplay || roomCode || '未绑定'}}</text>
@@ -35,8 +35,8 @@
     </view>
 
     <!-- 日历显示密度（首页日历的密度偏好入口） -->
-    <view class="premium-card fade-in fade-in-d2">
-      <view class="menu-item">
+    <view class="premium-card">
+      <view class="menu-item non-interactive">
         <view class="density-menu-copy">
           <text class="menu-text">日历显示</text>
           <text class="density-menu-desc">清爽只看日期与标记，完整加显农历与节日</text>
@@ -63,7 +63,7 @@
     </view>
 
     <!-- 功能菜单：欢乐时光入口用欢乐时光标记的浅色心，不用表情（issue #77） -->
-    <view class="premium-card fade-in fade-in-d2">
+    <view class="premium-card">
       <view class="menu-item" bindtap="goMemory" aria-role="button" aria-label="查看欢乐时光">
         <text class="menu-icon menu-heart">♥</text>
         <text class="menu-text">欢乐时光</text>
@@ -71,7 +71,7 @@
       </view>
     </view>
 
-    <view class="premium-card fade-in fade-in-d3">
+    <view class="premium-card">
       <view class="menu-item" bindtap="exportData" aria-role="button" aria-label="导出数据">
         <text class="menu-text">导出数据</text>
         <text class="menu-arrow">›</text>
@@ -79,14 +79,14 @@
     </view>
 
     <!-- 清除本地数据：点之前就是危险样式——警告红字 + 警告红描边（issue #77） -->
-    <view class="premium-card fade-in fade-in-d3">
+    <view class="premium-card">
       <view class="menu-item danger" bindtap="clearData" aria-role="button" aria-label="清除本地数据">
         <text class="menu-text">清除本地数据</text>
         <text class="menu-arrow">›</text>
       </view>
     </view>
 
-    <view class="premium-card fade-in fade-in-d3">
+    <view class="premium-card">
       <view class="menu-item" bindtap="about" aria-role="button" aria-label="关于">
         <text class="menu-text">关于</text>
         <text class="menu-arrow">›</text>

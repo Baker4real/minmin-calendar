@@ -539,20 +539,53 @@ test('text inputs focus into the registered 1px solid outline without any glow',
   }
 })
 
-test('non-interactive cards do not scale on press', () => {
-  // 设置资料卡、经期/欢乐时光编辑的表单卡片与绑定页两张卡（创建/加入、已绑定）本身没有点按操作，按下不缩放
-  assert.match(
-    wxssRuleBody('pages/settings/settings.wxss', '.profile-card:active'),
-    /transform:\s*none/,
-    'settings profile card must not scale on press'
-  )
-  for (const file of ['pages/period/edit/edit.wxss', 'pages/memory/edit/edit.wxss', 'pages/bind/bind.wxss']) {
-    assert.match(
-      wxssRuleBody(file, '.premium-card:active'),
-      /transform:\s*none/,
-      `${file} card must not scale on press`
-    )
+test('glass cards are not press targets', () => {
+  // 玻璃卡本身不可点（issue #113）。按压从基类拿掉，不再靠各页 transform:none 抵消。
+  const card = wxssRuleBody('app.wxss', '.premium-card')
+  assert.ok(card, 'expected .premium-card in app.wxss')
+  assert.doesNotMatch(card, /transition\s*:/, 'glass card base must not keep a press transition')
+  assert.equal(wxssRuleBody('app.wxss', '.premium-card:active'), null,
+    'glass card base must not scale on press')
+  for (const [file, selector] of [
+    ['pages/settings/settings.wxss', '.profile-card:active'],
+    ['pages/period/edit/edit.wxss', '.premium-card:active'],
+    ['pages/memory/edit/edit.wxss', '.premium-card:active'],
+    ['pages/bind/bind.wxss', '.premium-card:active']
+  ]) {
+    assert.equal(wxssRuleBody(file, selector), null,
+      `${file} must not keep a page-level rule that only cancels card press scale`)
   }
+})
+
+test('untappable settings rows do not take menu press feedback', () => {
+  // 房间码行和「日历显示」标题行没有 bindtap。它们带 non-interactive，
+  // 全局与设置页的列表/菜单 :active 只命中可点行（issue #113）。
+  const menuRows = collectElements(readPage('pages/settings/settings.wxml'))
+    .filter((element) => classTokens(element).includes('menu-item'))
+  const inert = menuRows.filter((element) => !isTapTarget(element))
+  assert.equal(inert.length, 2, 'settings has exactly two untappable menu rows')
+  assert.ok(classTokens(inert[0]).includes('room-code-item'), 'the room-code row stays first')
+  assert.equal(classTokens(inert[1]).includes('room-code-item'), false, 'the calendar-display title is the other inert row')
+  for (const row of inert) {
+    assert.ok(classTokens(row).includes('non-interactive'), `${describe(row)} needs the non-interactive modifier`)
+  }
+  for (const row of menuRows.filter(isTapTarget)) {
+    assert.equal(classTokens(row).includes('non-interactive'), false, `${describe(row)} stays tappable`)
+  }
+
+  const app = readPage('app.wxss').replace(/\/\*[\s\S]*?\*\//g, '')
+  assert.match(app, /\.list-item:not\(\.non-interactive\):active/)
+  assert.match(app, /\.menu-item:not\(\.non-interactive\):active/)
+  assert.doesNotMatch(app, /(^|[^\w.-])\.list-item:active\s*[,{]/)
+  assert.doesNotMatch(app, /(^|[^\w.-])\.menu-item:active\s*[,{]/)
+
+  const settingsCss = readPage('pages/settings/settings.wxss').replace(/\/\*[\s\S]*?\*\//g, '')
+  const pressBackground = wxssRuleBody(
+    'pages/settings/settings.wxss',
+    '.menu-item:not(.non-interactive):active'
+  )
+  assert.match(pressBackground || '', /background\s*:/, 'tappable menu rows keep the press background')
+  assert.doesNotMatch(settingsCss, /(^|[^\w.-])\.menu-item:active\s*[,{]/)
 })
 
 test('buttons inside cards keep their registered press scale', () => {
@@ -568,7 +601,8 @@ test('buttons inside cards keep their registered press scale', () => {
   for (const [file, selector] of [
     ['pages/period/edit/edit.wxss', '.symptom-chip'],
     ['pages/settings/settings.wxss', '.copy-btn'],
-    ['pages/settings/settings.wxss', '.room-action-btn']
+    ['pages/settings/settings.wxss', '.room-action-btn'],
+    ['pages/settings/settings.wxss', '.density-option']
   ]) {
     const scale = pressScale(file, selector)
     assert.ok(

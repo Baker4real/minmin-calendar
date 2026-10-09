@@ -14,10 +14,6 @@
   padding: 36rpx;
   box-sizing: border-box;
 }
-/* 表单卡片本身没有点按操作：按下不缩放（issue #81）；卡内控件保持各自登记的按压缩放 */
-.premium-card:active {
-  transform: none;
-}
 
 /* Form Items */
 .form-item {

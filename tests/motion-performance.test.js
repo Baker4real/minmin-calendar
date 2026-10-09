@@ -258,7 +258,6 @@ const LITERAL_DURATION_ANIMATIONS = new Set([
 ])
 const ONE_SHOT_ANIMATIONS = {
   pageEnter: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
-  fadeIn: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   syncPillIn: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   sheetFadeIn: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   sheetRise: { duration: 'var(--duration-sheet)', easing: 'var(--ease-out)' }
@@ -287,7 +286,8 @@ function splitTopLevelComma(value) {
 }
 
 function lastCompound(selector) {
-  const stripped = selector.replace(/:active/g, '').trim()
+  // :not(.non-interactive) 只排除不可点行，按压时长仍按控件本体（.menu-item / .list-item）归类
+  const stripped = selector.replace(/:active/g, '').replace(/:not\([^)]*\)/g, '').trim()
   const parts = stripped.split(/\s+/).filter(Boolean)
   return parts[parts.length - 1] || ''
 }
@@ -757,4 +757,9 @@ test('DESIGN.md registers the motion and performance budgets', () => {
   assert.match(design, /--duration-enter` 240ms/)
   assert.match(design, /--duration-exit` 200ms/)
   assert.match(design, /--duration-sheet` 280ms/)
+  assert.match(
+    design,
+    /按压只属于可点控件，容器和不可点的行不缩放、不变底色/,
+    'press belongs only to tappable controls; containers and inert rows are not exemptions'
+  )
 })

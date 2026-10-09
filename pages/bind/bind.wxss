@@ -62,11 +62,6 @@
   margin-top: 30rpx;
   box-sizing: border-box;
 }
-/* 两张卡（创建/加入表单卡、已绑定状态卡）本身没有点按操作：按下不缩放（issue #81 同款覆盖）；
-   卡内控件保持各自登记的按压缩放 */
-.premium-card:active {
-  transform: none;
-}
 
 /* Tab Bar */
 .tab-bar {

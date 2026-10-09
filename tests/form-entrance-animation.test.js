@@ -8,7 +8,8 @@ const repoRoot = path.join(__dirname, '..')
 const FORM_PAGE_WXML = [
   'pages/period/edit/edit.wxml',
   'pages/memory/edit/edit.wxml',
-  'pages/bind/bind.wxml'
+  'pages/bind/bind.wxml',
+  'pages/settings/settings.wxml'
 ]
 
 test('form pages keep only the page-level entrance animation without card-level fade-in stacking', () => {
@@ -25,6 +26,12 @@ test('form pages keep only the page-level entrance animation without card-level 
       `${relativePath} must not stack card-level fade-in on top of pageEnter`
     )
   }
+})
+
+test('shared stylesheet no longer defines the staggered card fade-in', () => {
+  const app = fs.readFileSync(path.join(repoRoot, 'app.wxss'), 'utf8')
+  assert.equal(/@keyframes\s+fadeIn\b/.test(app), false, 'fadeIn keyframes are unused once settings cards stop staggering')
+  assert.equal(/\.fade-in\b/.test(app), false, 'fade-in rules and reduced-motion entries are retired with the keyframes')
 })
 
 test('form page wxss layers define no extra entrance fade animation', () => {
