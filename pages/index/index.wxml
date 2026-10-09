@@ -260,7 +260,7 @@
         </view>
       </block>
 
-      <block wx:elif="{{daySheetMode == 'detail'}}">
+      <view wx:elif="{{daySheetMode == 'detail'}}" class="{{dayDetailFade ? 'day-detail-fade' : ''}}">
         <view class="day-detail-list">
           <view wx:if="{{selectedDayDetail.meanings && selectedDayDetail.meanings.length}}" class="detail-meaning-list">
             <view
@@ -314,7 +314,7 @@
             <text class="sheet-action-title">补欢乐时光</text>
           </view>
         </view>
-      </block>
+      </view>
     </view>
     </view>
   </view>
@@ -362,7 +362,7 @@
     </view>
   </view>
 
-  <view wx:if="{{infoSheetMounted}}" class="day-sheet-mask calendar-info-sheet sheet-{{infoSheetPhase}}" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭面板">
+  <view wx:if="{{infoSheetMounted}}" class="day-sheet-mask calendar-info-sheet sheet-{{infoSheetPhase}}{{infoSheetHandoff ? ' sheet-handoff' : ''}}" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭面板">
     <view class="sheet-slide">
     <view class="day-action-sheet calendar-info-panel safe-bottom" catchtap="noop">
       <view class="sheet-handle"></view>

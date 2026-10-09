@@ -1505,20 +1505,23 @@ test('day actions, tools menu, and the info sheet use the same enter and leave l
 
     harness.page.onMonthMenuTap({ currentTarget: { dataset: { action: 'legend' } } })
     assert.equal(harness.page.data.monthMenuVisible, false)
-    assert.equal(harness.page.data.monthMenuPhase, 'leaving')
-    assert.equal(harness.page.data.monthMenuMounted, true)
+    assert.equal(harness.page.data.monthMenuPhase, 'closed')
+    assert.equal(harness.page.data.monthMenuMounted, false)
     assert.equal(harness.page.data.infoSheetVisible, true)
     assert.equal(harness.page.data.infoSheetMode, 'legend')
+    assert.equal(harness.page.data.infoSheetHandoff, true)
     assert.equal(harness.page.data.infoSheetPhase, 'closed')
     mock.timers.tick(0)
     assert.equal(harness.page.data.infoSheetPhase, 'open')
-    assert.equal(harness.page.data.monthMenuPhase, 'leaving')
+    assert.equal(harness.page.data.monthMenuMounted, false)
+    assert.equal(harness.page.data.infoSheetHandoff, true)
 
     harness.page.closeInfoSheet()
     assert.equal(harness.page.data.infoSheetVisible, false)
     assert.equal(harness.page.data.infoSheetPhase, 'leaving')
     assert.equal(harness.page.data.infoSheetMounted, true)
     assert.equal(harness.page.data.infoSheetMode, 'legend')
+    assert.equal(harness.page.data.infoSheetHandoff, false)
 
     harness.page.openPredictionSheet()
     assert.equal(harness.page.data.infoSheetPhase, 'open')
@@ -1536,7 +1539,7 @@ test('day actions, tools menu, and the info sheet use the same enter and leave l
 })
 
 // issue #118：任一弹层打开或离场时首页根节点被遮挡；全部卸载后标记去掉。
-// 进场的关闭姿态还没盖住页面，标记先不出现。
+// 进场的关闭姿态还没盖住页面，标记先不出现。交接遮罩已经不透明，标记保持。
 test('an open or leaving homepage sheet obscures the page until every sheet unmounts', () => {
   mock.timers.enable({ apis: ['setTimeout'] })
   const harness = loadPageHarness({ client: createQueuedClient([]) })
@@ -1585,8 +1588,10 @@ test('an open or leaving homepage sheet obscures the page until every sheet unmo
     assert.equal(harness.page.data.monthMenuPhase, 'open')
     assert.equal(harness.page.data.pageObscured, true)
     harness.page.onMonthMenuTap({ currentTarget: { dataset: { action: 'legend' } } })
-    assert.equal(harness.page.data.monthMenuPhase, 'leaving')
+    assert.equal(harness.page.data.monthMenuMounted, false)
+    assert.equal(harness.page.data.monthMenuPhase, 'closed')
     assert.equal(harness.page.data.infoSheetPhase, 'closed')
+    assert.equal(harness.page.data.infoSheetHandoff, true)
     assert.equal(harness.page.data.pageObscured, true)
     mock.timers.tick(0)
     assert.equal(harness.page.data.infoSheetPhase, 'open')
@@ -1601,6 +1606,128 @@ test('an open or leaving homepage sheet obscures the page until every sheet unmo
     mock.timers.tick(200)
     assert.equal(harness.page.data.infoSheetMounted, false)
     assert.equal(harness.page.data.pageObscured, false)
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #117：当日操作里点「查看详情」时，新内容带淡入标记；弹层本身保持打开。
+test('tapping view detail marks the new content to fade in without leaving the sheet', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.setData({
+      days: [{ date: '2026-06-20', weekday: '周六', lunarText: '五月初五', isEmpty: false }],
+      dayDetailsByDate: {
+        '2026-06-20': { meanings: [], periods: [], memories: [], empty: true }
+      }
+    })
+
+    harness.page.showDayDetail('2026-06-20')
+    assert.equal(harness.page.data.daySheetMode, 'detail')
+    assert.equal(harness.page.data.dayDetailFade, false)
+    assert.equal(harness.page.data.selectedDateSubtitle, '周六 · 五月初五')
+    harness.page.closeDayActions()
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.dayActionMounted, false)
+
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-20' } } })
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.dayActionPhase, 'open')
+    assert.equal(harness.page.data.daySheetMode, 'actions')
+    assert.equal(harness.page.data.dayDetailFade, false)
+
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'detail' } } })
+    assert.equal(harness.page.data.daySheetMode, 'detail')
+    assert.equal(harness.page.data.dayDetailFade, true)
+    assert.equal(harness.page.data.dayActionPhase, 'open')
+    assert.equal(harness.page.data.dayActionMounted, true)
+    assert.equal(harness.page.data.dayActionSheetVisible, true)
+    assert.equal(harness.page.data.selectedDate, '2026-06-20')
+    assert.equal(harness.page.data.selectedDayDetail.empty, true)
+
+    const wxml = readIndexWxml()
+    const detailAt = wxml.indexOf("daySheetMode == 'detail'")
+    assert.ok(detailAt !== -1, 'expected the detail branch')
+    assert.match(wxml.slice(detailAt, detailAt + 240), /dayDetailFade/)
+    assert.match(wxml.slice(detailAt, detailAt + 240), /day-detail-fade/)
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #117：工具菜单切到图例 / 预测说明 / 本月小结是同一次页面更新。
+// 菜单直接卸下，不进入 leaving；信息遮罩带着交接标记挂上，面板仍先停在底边再升起。
+test('tools menu hands off to the info sheet in one update and later leaves normally', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const wxml = readIndexWxml()
+    assert.match(wxml, /infoSheetHandoff/)
+    assert.match(wxml, /sheet-handoff/)
+
+    harness.page.onLoad()
+    harness.page.openPredictionSheet()
+    assert.equal(harness.page.data.infoSheetHandoff, false)
+    assert.equal(harness.page.data.infoSheetPhase, 'closed')
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.infoSheetPhase, 'open')
+    assert.equal(harness.page.data.infoSheetHandoff, false)
+    harness.page.closeInfoSheet()
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.infoSheetMounted, false)
+
+    for (const [action, mode] of [['legend', 'legend'], ['prediction', 'prediction'], ['recap', 'recap']]) {
+      harness.page.openMonthMenu()
+      mock.timers.tick(0)
+      assert.equal(harness.page.data.monthMenuPhase, 'open')
+      assert.equal(harness.page.data.monthMenuMounted, true)
+
+      const updates = []
+      const originalSetData = harness.page.setData
+      harness.page.setData = function record(update, callback) {
+        updates.push(update)
+        return originalSetData.call(this, update, callback)
+      }
+      harness.page.onMonthMenuTap({ currentTarget: { dataset: { action } } })
+      harness.page.setData = originalSetData
+
+      assert.equal(updates.length, 1, `${action} replaces the menu in one page update`)
+      const update = updates[0]
+      assert.equal(update.monthMenuMounted, false)
+      assert.equal(update.monthMenuVisible, false)
+      assert.equal(update.monthMenuPhase, 'closed')
+      assert.equal(update.infoSheetMounted, true)
+      assert.equal(update.infoSheetVisible, true)
+      assert.equal(update.infoSheetMode, mode)
+      assert.equal(update.infoSheetHandoff, true)
+      assert.equal(update.infoSheetPhase, 'closed')
+      assert.equal(harness.page.data.monthMenuMounted, false)
+      assert.equal(harness.page.data.infoSheetHandoff, true)
+
+      mock.timers.tick(0)
+      assert.equal(harness.page.data.infoSheetPhase, 'open')
+      assert.equal(harness.page.data.infoSheetHandoff, true)
+      assert.equal(harness.page.data.monthMenuMounted, false)
+      assert.equal(harness.page.data.monthMenuPhase, 'closed')
+
+      harness.page.closeInfoSheet()
+      assert.equal(harness.page.data.infoSheetPhase, 'leaving')
+      assert.equal(harness.page.data.infoSheetMounted, true)
+      assert.equal(harness.page.data.infoSheetHandoff, false)
+      mock.timers.tick(200)
+      assert.equal(harness.page.data.infoSheetMounted, false)
+      assert.equal(harness.page.data.infoSheetPhase, 'closed')
+    }
+
+    harness.page.openMonthMenu()
+    harness.page.onMonthMenuTap({ currentTarget: { dataset: { action: 'legend' } } })
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.monthMenuMounted, false)
+    assert.equal(harness.page.data.infoSheetPhase, 'open')
   } finally {
     harness.teardown()
     mock.timers.reset()

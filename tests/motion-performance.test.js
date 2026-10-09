@@ -259,7 +259,8 @@ const LITERAL_DURATION_ANIMATIONS = new Set([
 const ONE_SHOT_ANIMATIONS = {
   pageEnter: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   syncPillIn: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
-  bindReveal: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' }
+  bindReveal: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  dayDetailFade: { duration: 'var(--duration-state)', easing: 'var(--ease-out)' }
 }
 const COLOR_TRANSITION_PROPS = new Set(['background', 'background-color', 'color', 'border-color'])
 const PRESS_DURATION = 'var(--duration-press)'
@@ -794,6 +795,51 @@ test('edit page border and background transitions switch instantly under reduced
     }
     assert.deepEqual(violations, [])
   }
+})
+
+test('day detail content fades opacity only and shows immediately under reduced motion', () => {
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+  const fade = index.rules.find((rule) =>
+    !rule.inReducedMotion && rule.selectors.includes('.day-detail-fade'))
+  assert.ok(fade, 'expected .day-detail-fade')
+  assert.equal(fade.decls.animation, 'dayDetailFade var(--duration-state) var(--ease-out) both')
+  assert.equal(fade.decls.transition, undefined)
+  assert.equal(fade.decls.height, undefined)
+  assert.equal(fade.decls['max-height'], undefined)
+
+  const props = index.keyframes.dayDetailFade
+  assert.ok(props, 'expected @keyframes dayDetailFade')
+  assert.deepEqual([...props].sort(), ['opacity'])
+
+  const panel = index.rules.find((rule) =>
+    !rule.inReducedMotion && rule.selectors.includes('.day-action-sheet'))
+  assert.ok(panel, 'expected .day-action-sheet')
+  assert.equal(panel.decls.transition, undefined)
+
+  const reduced = index.reducedMotionRules.find((rule) => rule.selectors.includes('.day-detail-fade'))
+  assert.ok(reduced, 'reduced motion must cover .day-detail-fade')
+  assert.equal(reduced.decls.animation, 'none')
+
+  const design = readRepo('DESIGN.md')
+  assert.match(design, /dayDetailFade/)
+  assert.match(design, /只动透明度/)
+})
+
+test('a handed-off info mask stays fully visible and does not fade in', () => {
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+  const handoff = index.rules.find((rule) =>
+    !rule.inReducedMotion && rule.selectors.includes('.day-sheet-mask.sheet-handoff'))
+  assert.ok(handoff, 'expected .day-sheet-mask.sheet-handoff')
+  assert.equal(handoff.decls.opacity, '1')
+  assert.equal(handoff.decls.transition, 'none')
+
+  const openSlide = index.rules.find((rule) => rule.selectors.includes('.day-sheet-mask.sheet-open .sheet-slide'))
+  assert.equal(openSlide.decls.transform, 'translateY(0)')
+  assert.equal(openSlide.decls.transition, 'transform var(--duration-sheet) var(--ease-out)')
+
+  const design = readRepo('DESIGN.md')
+  assert.match(design, /issue #117/)
+  assert.match(design, /sheet-handoff/)
 })
 
 test('homepage sheets slide in and out with reversible transitions', () => {

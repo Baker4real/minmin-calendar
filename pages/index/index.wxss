@@ -816,6 +816,10 @@
   opacity: 1;
   transition: opacity var(--duration-enter) var(--ease-out);
 }
+.day-sheet-mask.sheet-handoff {
+  opacity: 1;
+  transition: none;
+}
 .day-sheet-mask.sheet-leaving {
   pointer-events: none;
 }
@@ -981,6 +985,13 @@
   font-size: 42rpx;
   color: rgba(255,255,255,0.78);
   line-height: 1;
+}
+.day-detail-fade {
+  animation: dayDetailFade var(--duration-state) var(--ease-out) both;
+}
+@keyframes dayDetailFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 .day-detail-list {
   display: flex;
@@ -1327,6 +1338,7 @@
   .jump-year-step,
   .sheet-action,
   .sheet-close,
+  .day-detail-fade,
   .day-cell,
   .stat-item,
   .reminder-card,

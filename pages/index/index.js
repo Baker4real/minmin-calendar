@@ -7,7 +7,7 @@ const recordDraft = require('../../utils/recordDraft')
 const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 const safeArea = require('../../utils/safeArea')
-const { homepageSheets } = require('../../utils/sheetLifecycle')
+const { homepageSheets, handoffSheet } = require('../../utils/sheetLifecycle')
 
 // 与 pages/settings/settings.js 共享同一存储键；写入方在设置页
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
@@ -60,12 +60,14 @@ Page({
     infoSheetVisible: false,
     infoSheetMounted: false,
     infoSheetPhase: 'closed',
+    infoSheetHandoff: false,
     infoSheetMode: '',
     monthlyRecap: null,
     dayActionSheetVisible: false,
     dayActionMounted: false,
     dayActionPhase: 'closed',
     daySheetMode: 'actions',
+    dayDetailFade: false,
     selectedDate: '',
     selectedDateSubtitle: '',
     selectedDateIsFuture: false,
@@ -449,13 +451,16 @@ Page({
 
   onMonthMenuTap(e) {
     const action = e.currentTarget.dataset.action
-    this.closeMonthMenu()
+    const sheets = homepageSheets(this)
     if (action === 'legend') {
-      this.openLegendSheet()
+      handoffSheet(this, sheets.toolsMenu, sheets.info, { infoSheetMode: 'legend' })
     } else if (action === 'prediction') {
-      this.openPredictionSheet()
+      handoffSheet(this, sheets.toolsMenu, sheets.info, { infoSheetMode: 'prediction' })
     } else if (action === 'recap') {
-      this.openMonthlyRecap()
+      handoffSheet(this, sheets.toolsMenu, sheets.info, {
+        infoSheetMode: 'recap',
+        monthlyRecap: this.data.monthlyRecap
+      })
     }
   },
 
@@ -559,6 +564,7 @@ Page({
     const selectedDay = this.data.days.find(day => day.date === date) || { date }
     homepageSheets(this).dayActions.open(this, {
       daySheetMode: 'actions',
+      dayDetailFade: false,
       selectedDate: date,
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
       selectedDateIsFuture: date > util.formatDate(new Date()),
@@ -589,6 +595,7 @@ Page({
     homepageSheets(this).dayActions.leave(this, () => {
       this.setData({
         daySheetMode: 'actions',
+        dayDetailFade: false,
         selectedDate: '',
         selectedDateSubtitle: '',
         selectedDateIsFuture: false,
@@ -601,9 +608,13 @@ Page({
 
   showDayDetail(date) {
     const selectedDay = this.data.days.find(day => day.date === date) || { date }
+    const fadingIn = this.data.dayActionMounted
+      && this.data.daySheetMode === 'actions'
+      && this.data.dayActionPhase !== 'leaving'
 
     homepageSheets(this).dayActions.open(this, {
       daySheetMode: 'detail',
+      dayDetailFade: fadingIn,
       selectedDate: date,
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
       selectedDateIsFuture: date > util.formatDate(new Date()),
