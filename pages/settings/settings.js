@@ -11,14 +11,27 @@ const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 
 // issue #114：首帧只读本机缓存。没有缓存时用中性「读取中…」，云端校验仍是最终依据。
+// 必须在页面实例创建时读。写进 data 字面量会在模块求值时只跑一次，同一次进程里的下一次进入仍是那张快照。
 function cachedRoomFirstFrame() {
   const roomCode = roomSession.getRoomCode()
   if (roomCode) return { roomCode, roomCodeDisplay: roomCode }
   return { roomCode: '', roomCodeDisplay: '读取中…' }
 }
 
+function settingsInitialData() {
+  return {
+    safeTop: safeArea.getSafeTop(),
+    safeBottom: safeArea.getSafeBottom(),
+    ...cachedRoomFirstFrame(),
+    roomCodeLoaded: false,
+    calendarDensity: 'compact'
+  }
+}
+
 Page({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), ...cachedRoomFirstFrame(), roomCodeLoaded: false, calendarDensity: 'compact' },
+  get data() {
+    return settingsInitialData()
+  },
 
   async onShow() {
     this.setData({ calendarDensity: getSavedCalendarDensity() })

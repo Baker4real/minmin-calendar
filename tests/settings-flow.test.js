@@ -857,6 +857,35 @@ test('settings page shows a neutral reading state before verification when no ro
   }
 })
 
+// issue #114：同一轮模块加载里，后一次进入要读到当时的缓存，不能沿用第一次求值的快照
+test('two settings instances created after one module load see the cache from their own creation, before verification', () => {
+  let cachedRoomCode = 'ROOM01'
+  const harness = loadSettingsPageHarness({
+    cachedRoomCode: () => cachedRoomCode,
+    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+
+  try {
+    assert.equal(harness.resolveCalls(), 0)
+    assert.equal(harness.page.data.roomCode, 'ROOM01')
+    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
+    assert.equal(harness.page.data.roomCodeLoaded, false)
+
+    cachedRoomCode = ''
+    const later = harness.createInstance()
+    assert.equal(harness.resolveCalls(), 0)
+    assert.equal(later.data.roomCode, '')
+    assert.equal(later.data.roomCodeDisplay, '读取中…')
+    assert.equal(later.data.roomCodeLoaded, false)
+    assert.notEqual(later.data.roomCodeDisplay, '未绑定')
+
+    assert.equal(harness.page.data.roomCode, 'ROOM01')
+    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
+  } finally {
+    harness.teardown()
+  }
+})
+
 test('settings room-code card swaps the dead sentence for tappable retry and go-bind rows when no code is available', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
   const cardStart = wxml.indexOf('class="menu-item room-code-item')
@@ -1033,7 +1062,8 @@ function loadSettingsPageHarness({ roomOutcome, leaveRoom, cachedRoomCode } = {}
     }],
     [path.join(__dirname, '..', 'utils/room.js'), {
       getRoomCode() {
-        return cachedRoomCode || ''
+        const value = typeof cachedRoomCode === 'function' ? cachedRoomCode() : cachedRoomCode
+        return value || ''
       },
       async getVerifiedActiveRoom() {
         resolveCalls += 1
@@ -1079,18 +1109,23 @@ function loadSettingsPageHarness({ roomOutcome, leaveRoom, cachedRoomCode } = {}
   require(absolutePagePath)
   Module._load = originalLoad
 
-  const page = {
-    data: { ...(registered.data || {}) },
-    setData(update, callback) {
-      this.data = { ...this.data, ...update }
-      if (typeof callback === 'function') callback()
+  function createInstance() {
+    const page = {
+      data: { ...(registered.data || {}) },
+      setData(update, callback) {
+        this.data = { ...this.data, ...update }
+        if (typeof callback === 'function') callback()
+      }
     }
+    for (const [key, value] of Object.entries(registered)) {
+      if (key !== 'data') page[key] = typeof value === 'function' ? value.bind(page) : value
+    }
+    return page
   }
-  for (const [key, value] of Object.entries(registered)) {
-    if (key !== 'data') page[key] = typeof value === 'function' ? value.bind(page) : value
-  }
+
   return {
-    page,
+    page: createInstance(),
+    createInstance,
     navigation,
     storageWrites,
     wx,

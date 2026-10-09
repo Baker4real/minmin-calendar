@@ -776,7 +776,10 @@ Page({
       })
       return
     }
-    syncPill(this).leave(this, null, { syncStatusText: '' })
+    // issue #120：离场过程中文案和朗读名保持可见，胶囊卸载后再清掉。
+    syncPill(this).leave(this, () => {
+      this.setData({ syncStatusText: '' })
+    })
   },
 
   clearSyncStatusTimer() {

@@ -1775,13 +1775,14 @@ test('sync pill stays mounted through leave and unmounts when the exit timer fir
 
     harness.page.hideSyncStatus()
     assert.equal(harness.page.data.syncStatusVisible, false)
-    assert.equal(harness.page.data.syncStatusText, '')
+    assert.equal(harness.page.data.syncStatusText, '已同步')
     assert.equal(harness.page.data.syncStatusPhase, 'leaving')
     assert.equal(harness.page.data.syncStatusMounted, true)
 
     mock.timers.tick(199)
     assert.equal(harness.page.data.syncStatusPhase, 'leaving')
     assert.equal(harness.page.data.syncStatusMounted, true)
+    assert.equal(harness.page.data.syncStatusText, '已同步')
 
     mock.timers.tick(1)
     assert.equal(harness.page.data.syncStatusPhase, 'closed')
@@ -1840,7 +1841,7 @@ test('sync pill auto-hide still waits 1600ms before leaving', () => {
 
     mock.timers.tick(1)
     assert.equal(harness.page.data.syncStatusVisible, false)
-    assert.equal(harness.page.data.syncStatusText, '')
+    assert.equal(harness.page.data.syncStatusText, '已同步')
     assert.equal(harness.page.data.syncStatusPhase, 'leaving')
     assert.equal(harness.page.data.syncStatusMounted, true)
 
@@ -1867,16 +1868,18 @@ test('hiding the sync pill before enter finishes reverses it instead of showing 
     harness.page.hideSyncStatus()
     assert.equal(harness.page.data.syncStatusPhase, 'leaving')
     assert.equal(harness.page.data.syncStatusVisible, false)
-    assert.equal(harness.page.data.syncStatusText, '')
+    assert.equal(harness.page.data.syncStatusText, '已同步')
     assert.equal(harness.page.data.syncStatusMounted, true)
 
     mock.timers.tick(0)
     assert.equal(harness.page.data.syncStatusPhase, 'leaving')
     assert.equal(harness.page.data.syncStatusMounted, true)
+    assert.equal(harness.page.data.syncStatusText, '已同步')
 
     mock.timers.tick(200)
     assert.equal(harness.page.data.syncStatusMounted, false)
     assert.equal(harness.page.data.syncStatusPhase, 'closed')
+    assert.equal(harness.page.data.syncStatusText, '')
   } finally {
     harness.teardown()
     mock.timers.reset()
