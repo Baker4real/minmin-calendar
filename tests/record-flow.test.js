@@ -75,10 +75,10 @@ test('runRecordSave returns validation fallback when wx is null', async () => {
   assert.equal(actionCalls, 0)
 })
 
-test('runRecordSave clears saving state, shows success toast, and schedules one navigateBack on success', async () => {
+test('runRecordSave enters submitted-waiting state, shows success toast, and schedules one navigateBack on success', async () => {
   assert.equal(typeof recordCommands.runRecordSave, 'function')
 
-  const page = createFakePage({ saving: false })
+  const page = createFakePage({ saving: false, submitted: false })
   const env = createFakeCommandEnv()
 
   const result = await recordCommands.runRecordSave({
@@ -92,7 +92,10 @@ test('runRecordSave clears saving state, shows success toast, and schedules one 
   })
 
   assert.equal(result.kind, 'success')
-  assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
+  // 成功后清掉「保存中」，但进入已提交、等待返回：按钮保持不可点，直到 navigateBack
+  assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false, submitted: true }])
+  assert.equal(page.data.saving, false)
+  assert.equal(page.data.submitted, true)
   assert.deepEqual(env.wx.toasts, [{ title: '保存成功' }])
   assert.equal(env.timer.calls.length, 1)
   assert.equal(env.timer.calls[0].delay, 1000)
@@ -100,6 +103,7 @@ test('runRecordSave clears saving state, shows success toast, and schedules one 
 
   env.timer.calls[0].fn()
   assert.equal(env.navigateBackCalls.length, 1)
+  assert.equal(page.data.submitted, true)
 })
 
 test('runRecordSave supports warm success feedback without the system checkmark icon', async () => {
@@ -444,11 +448,17 @@ test('runRecordDelete keeps modal confirmation and success feedback behavior', a
 
   assert.equal(result.kind, 'success')
   assert.equal(actionCalls, 1)
-  assert.deepEqual(page.setDataCalls, [{ deleting: true }, { deleting: false }])
+  // 删除成功同样进入已提交、等待返回：文案不再是「删除中」，按钮保持不可点
+  assert.deepEqual(page.setDataCalls, [{ deleting: true }, { deleting: false, submitted: true }])
+  assert.equal(page.data.deleting, false)
+  assert.equal(page.data.submitted, true)
   assert.deepEqual(env.wx.toasts, [{ title: '已删除' }])
   assert.equal(env.timer.calls.length, 1)
+  assert.equal(env.timer.calls[0].delay, undefined)
+  assert.equal(env.navigateBackCalls.length, 0)
   env.timer.calls[0].fn()
   assert.equal(env.navigateBackCalls.length, 1)
+  assert.equal(page.data.submitted, true)
 })
 
 test('runRecordDelete shows the caller-provided shared consequence copy in the confirm modal', async () => {
@@ -2300,15 +2310,15 @@ test('record edit pages isolate delete loading, constrain period dates, and cap 
 
   assert.match(periodEditJs, /deleting:\s*false/)
   assert.match(memoryEditJs, /deleting:\s*false/)
-  assert.match(periodEditJs, /if\s*\(\s*this\.data\.saving\s*\|\|\s*this\.data\.deleting\s*\|\|\s*this\._deleteConfirming\s*\)\s*return/)
-  assert.match(memoryEditJs, /if\s*\(\s*this\.data\.saving\s*\|\|\s*this\.data\.deleting\s*\|\|\s*this\._deleteConfirming\s*\)\s*return/)
-  assert.match(periodEditJs, /if\s*\(\s*this\.data\.saving\s*\|\|\s*this\.data\.deleting\s*\)\s*return/)
-  assert.match(memoryEditJs, /if\s*\(\s*this\.data\.saving\s*\|\|\s*this\.data\.deleting\s*\)\s*return/)
+  assert.match(periodEditJs, /if\s*\(\s*this\.data\.saving\s*\|\|\s*this\.data\.deleting\s*\|\|\s*this\.data\.submitted\s*\|\|\s*this\._deleteConfirming\s*\)\s*return/)
+  assert.match(memoryEditJs, /if\s*\(\s*this\.data\.saving\s*\|\|\s*this\.data\.deleting\s*\|\|\s*this\.data\.submitted\s*\|\|\s*this\._deleteConfirming\s*\)\s*return/)
+  assert.match(periodEditJs, /if\s*\(\s*this\.data\.saving\s*\|\|\s*this\.data\.deleting\s*\|\|\s*this\.data\.submitted\s*\)\s*return/)
+  assert.match(memoryEditJs, /if\s*\(\s*this\.data\.saving\s*\|\|\s*this\.data\.deleting\s*\|\|\s*this\.data\.submitted\s*\)\s*return/)
 
   assert.match(periodEditWxml, /删除中\.\.\./)
   assert.match(memoryEditWxml, /删除中\.\.\./)
-  assert.match(periodEditWxml, /wx:if="\{\{!saving && !deleting\}\}"/)
-  assert.match(memoryEditWxml, /wx:if="\{\{!saving && !deleting\}\}"/)
+  assert.match(periodEditWxml, /wx:if="\{\{!saving && !deleting && !submitted\}\}"/)
+  assert.match(memoryEditWxml, /wx:if="\{\{!saving && !deleting && !submitted\}\}"/)
   assert.match(periodEditWxml, /wx:elif="\{\{saving\}\}"[^>]*>保存中\.\.\./)
   assert.match(memoryEditWxml, /wx:elif="\{\{saving\}\}"[^>]*>保存中\.\.\./)
   assert.match(periodEditWxml, /wx:else class="btn-premium disabled"[^>]*>保存</)
@@ -2335,7 +2345,7 @@ test('record edit templates keep fields and delete locked while saving', () => {
   assert.equal(periodLocked.length, 3, 'period date pickers and note input must be disabled while saving')
   assert.equal(memoryLocked.length, 2, 'memory date picker and note input must be disabled while saving')
   for (const wxml of [periodEditWxml, memoryEditWxml]) {
-    assert.match(wxml, /wx:if="\{\{isEdit && !deleting && !saving\}\}"[^>]*bindtap="delete"/)
+    assert.match(wxml, /wx:if="\{\{isEdit && !deleting && !saving && !submitted\}\}"[^>]*bindtap="delete"/)
   }
 
   // 经量与症状芯片在保存中不可点：JS 守卫 + 模板禁用类与 aria-disabled
@@ -2393,6 +2403,184 @@ test('record pages delegate feedback to shared record command helpers', () => {
 
   assert.match(memoryListJs, /runRecordListLoad\(/)
   assert.doesNotMatch(memoryListJs, /cloud\.getMemories\(/)
+})
+
+test('edit pages ignore a second save while submitted and waiting to return', async () => {
+  for (const spec of [
+    {
+      page: 'pages/period/edit/edit.js',
+      load: { id: 'p1', startDate: '2026-09-01', endDate: '2026-09-03', status: 'known-end' }
+    },
+    {
+      page: 'pages/memory/edit/edit.js',
+      load: { id: 'm1', date: '2026-09-01', note: '野餐' }
+    }
+  ]) {
+    const writes = []
+    const navigateBackCalls = []
+    const modals = []
+    const harness = loadRecordPageHarness(spec.page, {
+      mocks: {
+        'utils/util.js': createUtilStub(),
+        'utils/cloud.js': {
+          createRoomDataClient() {
+            return {
+              async update(collection, id, payload) {
+                writes.push({ collection, id, payload })
+                return { kind: 'success', result: { record: { _id: id, ...payload } } }
+              },
+              async remove() {
+                writes.push({ op: 'remove' })
+                return { kind: 'success', result: {} }
+              }
+            }
+          }
+        },
+        'utils/recordPageSync.js': {
+          getSavedRecord(outcome) {
+            return outcome && outcome.result ? outcome.result.record : null
+          },
+          notifyPreviousPageRecordChange() {}
+        }
+      },
+      wxOverrides: {
+        navigateBack() {
+          navigateBackCalls.push({})
+        },
+        showModal(options) {
+          modals.push(options)
+          if (typeof options.success === 'function') {
+            options.success({ confirm: false, cancel: true })
+          }
+        }
+      }
+    })
+
+    try {
+      harness.page.onLoad(spec.load)
+      const outcome = await harness.page.save()
+
+      assert.equal(outcome.kind, 'success')
+      assert.equal(writes.length, 1)
+      assert.equal(harness.page.data.saving, false)
+      assert.equal(harness.page.data.submitted, true)
+      assert.equal(navigateBackCalls.length, 0)
+
+      const second = await harness.page.save()
+      assert.equal(second, undefined)
+      assert.equal(writes.length, 1, `${spec.page} must not save again while waiting to return`)
+      const pendingDelete = harness.page.delete()
+      assert.equal(modals.length, 0, `${spec.page} must not open delete while waiting to return`)
+      assert.equal(writes.length, 1, `${spec.page} must not delete while waiting to return`)
+      await pendingDelete
+
+      await new Promise(resolve => setTimeout(resolve, 1100))
+      assert.equal(navigateBackCalls.length, 1, `${spec.page} returns once`)
+    } finally {
+      harness.teardown()
+    }
+  }
+
+  for (const relativePath of ['pages/period/edit/edit.wxml', 'pages/memory/edit/edit.wxml']) {
+    const wxml = readPageFile(relativePath)
+    assert.match(
+      wxml,
+      /wx:if="\{\{!saving && !deleting && !submitted\}\}"[^>]*bindtap="save"[^>]*>保存</
+    )
+    assert.match(wxml, /wx:elif="\{\{saving\}\}"[^>]*>保存中\.\.\.</)
+    assert.match(wxml, /wx:else class="btn-premium disabled"[^>]*aria-disabled="true"[^>]*>保存</)
+    assert.doesNotMatch(wxml, /submitted[^>]*>保存中/)
+  }
+})
+
+test('edit pages ignore a second delete while submitted and waiting to return', async () => {
+  for (const spec of [
+    {
+      page: 'pages/period/edit/edit.js',
+      load: { id: 'p1', startDate: '2026-09-01', endDate: '2026-09-03', status: 'known-end' }
+    },
+    {
+      page: 'pages/memory/edit/edit.js',
+      load: { id: 'm1', date: '2026-09-01', note: '野餐' }
+    }
+  ]) {
+    const removes = []
+    const writes = []
+    const navigateBackCalls = []
+    const modals = []
+    const harness = loadRecordPageHarness(spec.page, {
+      mocks: {
+        'utils/util.js': createUtilStub(),
+        'utils/cloud.js': {
+          createRoomDataClient() {
+            return {
+              async update(collection, id, payload) {
+                writes.push({ collection, id, payload })
+                return { kind: 'success', result: { record: { _id: id, ...payload } } }
+              },
+              async remove(collection, id) {
+                removes.push({ collection, id })
+                return { kind: 'success', result: {} }
+              }
+            }
+          }
+        },
+        'utils/recordPageSync.js': {
+          getSavedRecord() {
+            return null
+          },
+          notifyPreviousPageRecordChange() {}
+        }
+      },
+      wxOverrides: {
+        navigateBack() {
+          navigateBackCalls.push({})
+        },
+        showModal(options) {
+          modals.push(options)
+        }
+      }
+    })
+
+    try {
+      harness.page.onLoad(spec.load)
+      const deleting = harness.page.delete()
+      assert.equal(modals.length, 1)
+      modals[0].success({ confirm: true, cancel: false })
+      const outcome = await deleting
+
+      assert.equal(outcome.kind, 'success')
+      assert.equal(removes.length, 1)
+      assert.equal(harness.page.data.deleting, false)
+      assert.equal(harness.page.data.submitted, true)
+      assert.equal(navigateBackCalls.length, 0)
+
+      const second = harness.page.delete()
+      assert.equal(modals.length, 1, `${spec.page} must not confirm delete again while waiting to return`)
+      await second
+      assert.equal(removes.length, 1)
+      await harness.page.save()
+      assert.equal(writes.length, 0, `${spec.page} must not save while waiting to return`)
+
+      await new Promise(resolve => setTimeout(resolve, 20))
+      assert.equal(navigateBackCalls.length, 1, `${spec.page} returns once`)
+    } finally {
+      harness.teardown()
+    }
+  }
+
+  for (const relativePath of ['pages/period/edit/edit.wxml', 'pages/memory/edit/edit.wxml']) {
+    const wxml = readPageFile(relativePath)
+    assert.match(
+      wxml,
+      /wx:if="\{\{isEdit && !deleting && !saving && !submitted\}\}"[^>]*bindtap="delete"[^>]*>删除此记录</
+    )
+    assert.match(wxml, /wx:elif="\{\{isEdit && deleting\}\}"[^>]*>删除中\.\.\.</)
+    assert.match(
+      wxml,
+      /wx:elif="\{\{isEdit\}\}"[^>]*aria-disabled="true"[^>]*>删除此记录</
+    )
+  }
 })
 
 test('period edit keeps fields and delete unavailable until the save finishes', async () => {

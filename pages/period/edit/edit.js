@@ -31,6 +31,7 @@ Page({
     isEdit: false,
     saving: false,
     deleting: false,
+    submitted: false,
     draftRestored: false
   },
 
@@ -135,7 +136,7 @@ Page({
   },
 
   async save() {
-    if (this.data.saving || this.data.deleting) return
+    if (this.data.saving || this.data.deleting || this.data.submitted) return
     const { id, startDate, endDate, status, note, flow, symptoms, isEdit } = this.data
     const today = util.formatDate(new Date())
     const client = cloud.createRoomDataClient()
@@ -208,7 +209,7 @@ Page({
   },
 
   async delete() {
-    if (this.data.saving || this.data.deleting || this._deleteConfirming) return
+    if (this.data.saving || this.data.deleting || this.data.submitted || this._deleteConfirming) return
     this._deleteConfirming = true
     try {
       const client = cloud.createRoomDataClient()

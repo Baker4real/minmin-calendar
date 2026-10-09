@@ -13,7 +13,7 @@ const DRAFT_FIELDS = ['date', 'note']
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 
 Page({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false, draftRestored: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false, submitted: false, draftRestored: false },
 
   onLoad(options) {
     const routeState = recordEditRoute.parseMemoryEditOptions(options, {
@@ -74,7 +74,7 @@ Page({
   },
 
   async save() {
-    if (this.data.saving || this.data.deleting) return
+    if (this.data.saving || this.data.deleting || this.data.submitted) return
     const { id, date, note, isEdit } = this.data
     const client = cloud.createRoomDataClient()
     const outcome = await recordCommands.runRecordSave({
@@ -110,7 +110,7 @@ Page({
   },
 
   async delete() {
-    if (this.data.saving || this.data.deleting || this._deleteConfirming) return
+    if (this.data.saving || this.data.deleting || this.data.submitted || this._deleteConfirming) return
     this._deleteConfirming = true
     try {
       const client = cloud.createRoomDataClient()
