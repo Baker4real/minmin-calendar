@@ -1,0 +1,140 @@
+// 首页弹层跟手。只在视图层改面板 transform，松手把位移、耗时、面板高度交给页面。
+
+var START_PX = 10
+var RUBBER = 0.55
+var pendingClear = null
+
+function touchStart(event, ownerInstance) {
+  var panel = findPanel(event, ownerInstance)
+  if (!panel) return
+  var state = panel.getState()
+  if (state.dragging || state.tracking) return
+  var touch = event.touches && event.touches[0]
+  if (!touch) return
+  state.tracking = true
+  state.dragging = false
+  state.identifier = touch.identifier
+  state.startY = touch.pageY
+  state.startTime = event.timeStamp
+  state.sheet = sheetName(event)
+  state.panelHeight = readHeight(panel)
+  state.displacement = 0
+}
+
+function touchMove(event, ownerInstance) {
+  var panel = findPanel(event, ownerInstance)
+  if (!panel) return
+  var state = panel.getState()
+  if (!state.tracking) return
+  var touch = findTouch(event.touches, state.identifier)
+  if (!touch) return
+  var delta = touch.pageY - state.startY
+  if (!state.dragging) {
+    if (!(delta > START_PX || delta < -START_PX)) return
+    state.dragging = true
+    if (!(state.panelHeight > 0)) state.panelHeight = readHeight(panel)
+  }
+  var displacement = delta > 0 ? delta : rubberBand(delta, state.panelHeight)
+  state.displacement = displacement
+  panel.setStyle({
+    transform: 'translateY(' + displacement + 'px)',
+    '-webkit-transform': 'translateY(' + displacement + 'px)',
+    transition: 'none',
+    '-webkit-transition': 'none'
+  })
+  return false
+}
+
+function touchEnd(event, ownerInstance) {
+  var panel = findPanel(event, ownerInstance)
+  if (!panel) return
+  var state = panel.getState()
+  if (!state.tracking) return
+  var touch = findTouch(event.changedTouches, state.identifier)
+  if (!touch) return
+  var delta = touch.pageY - state.startY
+  if (!state.dragging && (delta > START_PX || delta < -START_PX)) {
+    state.dragging = true
+    if (!(state.panelHeight > 0)) state.panelHeight = readHeight(panel)
+  }
+  var displacement = delta > 0 ? delta : rubberBand(delta, state.panelHeight)
+  var elapsed = event.timeStamp - state.startTime
+  var dragging = state.dragging
+  var sheet = state.sheet
+  var panelHeight = state.panelHeight
+  state.tracking = false
+  state.dragging = false
+  state.displacement = 0
+  if (!dragging) return
+  ownerInstance.callMethod('onSheetDragRelease', {
+    sheet: sheet,
+    displacement: displacement,
+    elapsed: elapsed,
+    panelHeight: panelHeight
+  })
+}
+
+function clearInline(newValue, oldValue, ownerInstance, instance) {
+  if (!newValue || !newValue.token) return
+  if (newValue.action !== 'reset' && newValue.action !== 'close') return
+  if (newValue.action === 'reset') instance.addClass('sheet-reset')
+  else instance.removeClass('sheet-reset')
+  instance.setStyle({
+    transition: '',
+    '-webkit-transition': ''
+  })
+  pendingClear = instance
+  instance.requestAnimationFrame(flushPendingClear)
+}
+
+function flushPendingClear() {
+  if (!pendingClear) return
+  var instance = pendingClear
+  pendingClear = null
+  instance.setStyle({
+    transform: '',
+    '-webkit-transform': ''
+  })
+}
+
+function sheetName(event) {
+  var current = event.currentTarget && event.currentTarget.dataset
+  if (current && current.sheet) return current.sheet
+  var dataset = event.instance && event.instance.getDataset()
+  if (dataset && dataset.sheet) return dataset.sheet
+  return ''
+}
+
+function findPanel(event, ownerInstance) {
+  var sheet = sheetName(event)
+  if (!sheet) return null
+  return ownerInstance.selectComponent('.sheet-slide-' + sheet)
+}
+
+function findTouch(touches, identifier) {
+  if (!touches) return null
+  var index = 0
+  for (index = 0; index < touches.length; index++) {
+    if (touches[index].identifier === identifier) return touches[index]
+  }
+  return null
+}
+
+function readHeight(panel) {
+  var rect = panel.getBoundingClientRect()
+  if (rect && rect.height > 0) return rect.height
+  return 0
+}
+
+function rubberBand(overshoot, panelHeight) {
+  if (!(panelHeight > 0)) return 0
+  var magnitude = overshoot < 0 ? -overshoot : overshoot
+  return overshoot * panelHeight * RUBBER / (panelHeight + RUBBER * magnitude)
+}
+
+module.exports = {
+  touchStart: touchStart,
+  touchMove: touchMove,
+  touchEnd: touchEnd,
+  clearInline: clearInline
+}

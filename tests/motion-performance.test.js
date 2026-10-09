@@ -330,6 +330,9 @@ function sheetMotionExpectation(selector, prop) {
   if (normalized === '.day-sheet-mask.sheet-open .sheet-slide' && prop === 'transform') {
     return { duration: 'var(--duration-sheet)', easing: 'var(--ease-out)' }
   }
+  if (normalized === '.day-sheet-mask.sheet-open .sheet-slide.sheet-reset' && prop === 'transform') {
+    return { duration: 'var(--duration-exit)', easing: 'var(--ease-out)' }
+  }
   if (normalized === '.day-sheet-mask' && prop === 'opacity') {
     return { duration: 'var(--duration-exit)', easing: 'var(--ease-out)' }
   }
@@ -754,6 +757,7 @@ test('reduced-motion blocks keep covering the named sheet, sync, and ambient lay
     '.day-sheet-mask',
     '.day-sheet-mask.sheet-open',
     '.day-sheet-mask.sheet-open .sheet-slide',
+    '.day-sheet-mask.sheet-open .sheet-slide.sheet-reset',
     '.sheet-slide',
     '.day-action-sheet',
     '.calendar-jump-sheet',
@@ -880,7 +884,7 @@ test('homepage sheets slide in and out with reversible transitions', () => {
   assert.equal(leaving.decls['pointer-events'], 'none')
 
   const covered = new Set(index.reducedMotionRules.flatMap((rule) => rule.selectors))
-  for (const selector of ['.sheet-slide', '.day-sheet-mask.sheet-open', '.day-sheet-mask.sheet-open .sheet-slide']) {
+  for (const selector of ['.sheet-slide', '.day-sheet-mask.sheet-open', '.day-sheet-mask.sheet-open .sheet-slide', '.day-sheet-mask.sheet-open .sheet-slide.sheet-reset']) {
     assert.ok(covered.has(selector), `reduced motion must cover ${selector}`)
     const rmRule = index.reducedMotionRules.find((rule) => rule.selectors.includes(selector))
     assert.equal(rmRule.decls.transition, 'none', `${selector} must finish immediately under reduced motion`)
@@ -889,6 +893,11 @@ test('homepage sheets slide in and out with reversible transitions', () => {
   const design = readRepo('DESIGN.md')
   assert.match(design, /issue #116/)
   assert.match(design, /translateY\(100%\)/)
+  assert.match(design, /issue #119/)
+  assert.match(design, /10px/)
+  assert.match(design, /25%/)
+  assert.match(design, /0\.11 px\/ms/)
+  assert.match(design, /0\.55/)
 })
 
 test('sync pill fades and rises with reversible transitions', () => {

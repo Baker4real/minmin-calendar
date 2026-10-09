@@ -1,4 +1,5 @@
 <view class="page safe-top {{pageObscured ? 'page-obscured' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
+<wxs module="sheetDrag" src="../../utils/sheetDrag.wxs"></wxs>
   <!-- Aurora Decorative Orbs -->
   <view class="glow-orb glow-orb-1"></view>
   <view class="glow-orb glow-orb-2"></view>
@@ -154,8 +155,9 @@
   </view>
 
   <view wx:if="{{monthPickerMounted}}" class="day-sheet-mask month-jump-mask sheet-{{monthPickerPhase}}" bindtap="closeMonthPicker" aria-role="button" aria-label="关闭月份选择">
-    <view class="sheet-slide">
+    <view class="sheet-slide sheet-slide-monthPicker" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.monthPicker}}">
     <view class="calendar-jump-sheet safe-bottom" catchtap="noop">
+      <view class="sheet-drag-zone" data-sheet="monthPicker" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
         <view class="sheet-date-copy">
@@ -163,6 +165,7 @@
           <text class="sheet-subtitle">{{jumpYear}}年{{jumpMonth + 1}}月</text>
         </view>
         <view class="sheet-close" bindtap="closeMonthPicker" aria-role="button" aria-label="关闭">×</view>
+      </view>
       </view>
 
       <view
@@ -220,8 +223,9 @@
   </view>
 
   <view wx:if="{{dayActionMounted}}" class="day-sheet-mask sheet-{{dayActionPhase}}" bindtap="closeDayActions" aria-role="button" aria-label="关闭当日操作">
-    <view class="sheet-slide">
+    <view class="sheet-slide sheet-slide-dayActions" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.dayActions}}">
     <view class="day-action-sheet safe-bottom" catchtap="noop">
+      <view class="sheet-drag-zone" data-sheet="dayActions" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
         <view class="sheet-date-copy">
@@ -229,6 +233,7 @@
           <text class="sheet-subtitle">{{selectedDateSubtitle}}</text>
         </view>
         <view class="sheet-close" bindtap="closeDayActions" aria-role="button" aria-label="关闭">×</view>
+      </view>
       </view>
 
       <block wx:if="{{daySheetMode == 'actions'}}">
@@ -321,8 +326,9 @@
 
   <!-- issue #105：月份工具菜单——图例 / 预测说明 / 本月小结的常驻入口从工具条收进这里，sheet 本体复用 -->
   <view wx:if="{{monthMenuMounted}}" class="day-sheet-mask sheet-{{monthMenuPhase}}" bindtap="closeMonthMenu" aria-role="button" aria-label="关闭工具菜单">
-    <view class="sheet-slide">
+    <view class="sheet-slide sheet-slide-toolsMenu" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.toolsMenu}}">
     <view class="day-action-sheet safe-bottom" catchtap="noop">
+      <view class="sheet-drag-zone" data-sheet="toolsMenu" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
         <view class="sheet-date-copy">
@@ -330,6 +336,7 @@
           <text class="sheet-subtitle">{{year}}年{{month + 1}}月</text>
         </view>
         <view class="sheet-close" bindtap="closeMonthMenu" aria-role="button" aria-label="关闭">×</view>
+      </view>
       </view>
 
       <view class="sheet-actions">
@@ -363,8 +370,9 @@
   </view>
 
   <view wx:if="{{infoSheetMounted}}" class="day-sheet-mask calendar-info-sheet sheet-{{infoSheetPhase}}{{infoSheetHandoff ? ' sheet-handoff' : ''}}" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭面板">
-    <view class="sheet-slide">
+    <view class="sheet-slide sheet-slide-info" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.info}}">
     <view class="day-action-sheet calendar-info-panel safe-bottom" catchtap="noop">
+      <view class="sheet-drag-zone" data-sheet="info" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
         <view class="sheet-date-copy">
@@ -374,6 +382,7 @@
           <text class="sheet-subtitle">{{year}}年{{month + 1}}月</text>
         </view>
         <view class="sheet-close" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭">×</view>
+      </view>
       </view>
 
       <view wx:if="{{infoSheetMode == 'legend'}}" class="legend-list">

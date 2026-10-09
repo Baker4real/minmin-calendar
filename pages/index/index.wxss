@@ -837,6 +837,9 @@
   transform: translateY(0);
   transition: transform var(--duration-sheet) var(--ease-out);
 }
+.day-sheet-mask.sheet-open .sheet-slide.sheet-reset {
+  transition: transform var(--duration-exit) var(--ease-out);
+}
 .day-action-sheet {
   width: 100%;
   max-height: 82vh;
@@ -1327,6 +1330,7 @@
 @media (prefers-reduced-motion: reduce) {
   .day-sheet-mask.sheet-open,
   .day-sheet-mask.sheet-open .sheet-slide,
+  .day-sheet-mask.sheet-open .sheet-slide.sheet-reset,
   .sheet-slide,
   .sync-pill,
   .sync-pill.sync-open,

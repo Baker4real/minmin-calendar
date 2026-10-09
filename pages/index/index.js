@@ -51,6 +51,12 @@ Page({
     monthPickerMounted: false,
     monthPickerPhase: 'closed',
     pageObscured: false,
+    sheetDragClear: {
+      monthPicker: { token: 0, action: '' },
+      dayActions: { token: 0, action: '' },
+      toolsMenu: { token: 0, action: '' },
+      info: { token: 0, action: '' }
+    },
     monthMenuVisible: false,
     monthMenuMounted: false,
     monthMenuPhase: 'closed',
@@ -438,7 +444,36 @@ Page({
 
   closeMonthPicker() {
     this.setData({ monthPickerVisible: false })
-    homepageSheets(this).monthPicker.leave(this)
+    homepageSheets(this).monthPicker.leave(this, undefined, this._takeSheetDragPatch())
+  },
+
+  onSheetDragRelease(detail) {
+    const target = detail && SHEET_DRAG_TARGETS[detail.sheet]
+    if (!target || this.data[target.phaseKey] !== 'open') return
+    const decision = decideSheetDragRelease(detail.displacement, detail.elapsed, detail.panelHeight)
+    this._queueSheetDrag(detail.sheet, decision)
+    if (decision === 'close') {
+      target.close(this)
+      return
+    }
+    this.setData(this._takeSheetDragPatch())
+  },
+
+  _queueSheetDrag(sheet, action) {
+    const current = this.data.sheetDragClear
+    const previous = current[sheet]
+    this._pendingSheetDrag = {
+      sheetDragClear: {
+        ...current,
+        [sheet]: { token: previous.token + 1, action }
+      }
+    }
+  },
+
+  _takeSheetDragPatch() {
+    const patch = this._pendingSheetDrag
+    this._pendingSheetDrag = null
+    return patch || {}
   },
 
   // issue #105：月份工具菜单——图例 / 预测说明 / 本月小结的低频入口收进月份标题旁的「…」
@@ -448,7 +483,7 @@ Page({
 
   closeMonthMenu() {
     this.setData({ monthMenuVisible: false })
-    homepageSheets(this).toolsMenu.leave(this)
+    homepageSheets(this).toolsMenu.leave(this, undefined, this._takeSheetDragPatch())
   },
 
   onMonthMenuTap(e) {
@@ -548,7 +583,7 @@ Page({
     this.setData({ infoSheetVisible: false })
     homepageSheets(this).info.leave(this, () => {
       this.setData({ infoSheetMode: '' })
-    })
+    }, this._takeSheetDragPatch())
   },
 
   copyMonthlyRecap() {
@@ -603,7 +638,7 @@ Page({
         selectedDateIsFuture: false,
         selectedDayDetail: null
       })
-    })
+    }, this._takeSheetDragPatch())
   },
 
   noop() {},
@@ -760,6 +795,32 @@ function syncPill(page) {
     })
   }
   return page._syncPill
+}
+
+const SHEET_DRAG_TARGETS = {
+  monthPicker: {
+    phaseKey: 'monthPickerPhase',
+    close(page) { page.closeMonthPicker() }
+  },
+  dayActions: {
+    phaseKey: 'dayActionPhase',
+    close(page) { page.closeDayActions() }
+  },
+  toolsMenu: {
+    phaseKey: 'monthMenuPhase',
+    close(page) { page.closeMonthMenu() }
+  },
+  info: {
+    phaseKey: 'infoSheetPhase',
+    close(page) { page.closeInfoSheet() }
+  }
+}
+
+function decideSheetDragRelease(displacement, elapsed, panelHeight) {
+  if (!(displacement > 0)) return 'reset'
+  const pastDistance = panelHeight > 0 && displacement > panelHeight * 0.25
+  const pastSpeed = elapsed > 0 && displacement / elapsed > 0.11
+  return pastDistance || pastSpeed ? 'close' : 'reset'
 }
 
 function buildJumpYearState(year) {

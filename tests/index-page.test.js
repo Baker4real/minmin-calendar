@@ -1906,6 +1906,221 @@ test('updating sync pill copy while it is shown keeps it shown', () => {
   }
 })
 
+// issue #119：松手由页面纯函数决定。位移短、速度超过 0.11 px/ms 时关闭，走既有离场。
+test('a short fast downward drag closes the month picker through the leave flow', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.openMonthPicker()
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.monthPickerPhase, 'open')
+
+    // 12px / 100ms = 0.12，超过 0.11；12 / 400 = 3%，不到 25%
+    harness.page.onSheetDragRelease({
+      sheet: 'monthPicker',
+      displacement: 12,
+      elapsed: 100,
+      panelHeight: 400
+    })
+
+    assert.equal(harness.page.data.monthPickerVisible, false)
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
+    assert.equal(harness.page.data.monthPickerMounted, true)
+
+    mock.timers.tick(199)
+    assert.equal(harness.page.data.monthPickerMounted, true)
+
+    mock.timers.tick(1)
+    assert.equal(harness.page.data.monthPickerPhase, 'closed')
+    assert.equal(harness.page.data.monthPickerMounted, false)
+    assert.equal(harness.page.data.monthPickerVisible, false)
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #119：速度很慢，但向下位移超过面板高度的 25% 时仍然关闭。
+test('a slow drag past a quarter of the panel closes the month picker', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.openMonthPicker()
+    mock.timers.tick(0)
+
+    // 101 / 400 = 25.25%，超过 25%；101 / 10000 = 0.0101，不到 0.11
+    harness.page.onSheetDragRelease({
+      sheet: 'monthPicker',
+      displacement: 101,
+      elapsed: 10000,
+      panelHeight: 400
+    })
+
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
+    assert.equal(harness.page.data.monthPickerVisible, false)
+    assert.equal(harness.page.data.monthPickerMounted, true)
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #119：又慢又短则保持打开，并通知视图层清掉内联位移。
+test('a slow short drag keeps the month picker open and asks the view to reset', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.openMonthPicker()
+    mock.timers.tick(0)
+
+    // 40 / 400 = 10%，不到 25%；40 / 1000 = 0.04，不到 0.11
+    harness.page.onSheetDragRelease({
+      sheet: 'monthPicker',
+      displacement: 40,
+      elapsed: 1000,
+      panelHeight: 400
+    })
+
+    assert.equal(harness.page.data.monthPickerPhase, 'open')
+    assert.equal(harness.page.data.monthPickerVisible, true)
+    assert.equal(harness.page.data.monthPickerMounted, true)
+    assert.equal(harness.page.data.sheetDragClear.monthPicker.action, 'reset')
+    assert.equal(harness.page.data.sheetDragClear.monthPicker.token, 1)
+
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.monthPickerPhase, 'open')
+    assert.equal(harness.page.data.monthPickerMounted, true)
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #119：向上拖即使又快又远也不关闭，四个弹层都回到原位。
+test('an upward drag never closes a homepage sheet', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    for (const sheet of homepageSheetTargets(harness)) {
+      sheet.open()
+      mock.timers.tick(0)
+      assert.equal(harness.page.data[sheet.phase], 'open', sheet.id)
+
+      const tokenBefore = harness.page.data.sheetDragClear[sheet.id].token
+      // -120px / 50ms，绝对值超过 25% 且快过 0.11，但方向向上
+      harness.page.onSheetDragRelease({
+        sheet: sheet.id,
+        displacement: -120,
+        elapsed: 50,
+        panelHeight: 400
+      })
+
+      assert.equal(harness.page.data[sheet.phase], 'open', sheet.id)
+      assert.equal(harness.page.data[sheet.visible], true, sheet.id)
+      assert.equal(harness.page.data[sheet.mounted], true, sheet.id)
+      assert.equal(harness.page.data.sheetDragClear[sheet.id].action, 'reset', sheet.id)
+      assert.equal(harness.page.data.sheetDragClear[sheet.id].token, tokenBefore + 1, sheet.id)
+    }
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+test('day actions, the tools menu, and the info sheet use the same drag release decision', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    const sheets = homepageSheetTargets(harness).filter(sheet => sheet.id !== 'monthPicker')
+    for (const sheet of sheets) {
+      sheet.open()
+      mock.timers.tick(0)
+      harness.page.onSheetDragRelease({
+        sheet: sheet.id,
+        displacement: 12,
+        elapsed: 100,
+        panelHeight: 400
+      })
+      assert.equal(harness.page.data[sheet.phase], 'leaving', `${sheet.id} fast`)
+      assert.equal(harness.page.data[sheet.visible], false, `${sheet.id} fast`)
+      assert.equal(harness.page.data[sheet.mounted], true, `${sheet.id} fast`)
+      mock.timers.tick(200)
+      assert.equal(harness.page.data[sheet.mounted], false, `${sheet.id} fast unmount`)
+
+      sheet.open()
+      mock.timers.tick(0)
+      harness.page.onSheetDragRelease({
+        sheet: sheet.id,
+        displacement: 101,
+        elapsed: 10000,
+        panelHeight: 400
+      })
+      assert.equal(harness.page.data[sheet.phase], 'leaving', `${sheet.id} distance`)
+      mock.timers.tick(200)
+
+      sheet.open()
+      mock.timers.tick(0)
+      const tokenBefore = harness.page.data.sheetDragClear[sheet.id].token
+      harness.page.onSheetDragRelease({
+        sheet: sheet.id,
+        displacement: 40,
+        elapsed: 1000,
+        panelHeight: 400
+      })
+      assert.equal(harness.page.data[sheet.phase], 'open', `${sheet.id} reset`)
+      assert.equal(harness.page.data[sheet.visible], true, `${sheet.id} reset`)
+      assert.equal(harness.page.data.sheetDragClear[sheet.id].action, 'reset', `${sheet.id} reset`)
+      assert.equal(harness.page.data.sheetDragClear[sheet.id].token, tokenBefore + 1, `${sheet.id} reset`)
+    }
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+function homepageSheetTargets(harness) {
+  return [
+    {
+      id: 'monthPicker',
+      phase: 'monthPickerPhase',
+      visible: 'monthPickerVisible',
+      mounted: 'monthPickerMounted',
+      open() { harness.page.openMonthPicker() }
+    },
+    {
+      id: 'dayActions',
+      phase: 'dayActionPhase',
+      visible: 'dayActionSheetVisible',
+      mounted: 'dayActionMounted',
+      open() {
+        harness.page.setData({
+          days: [{ date: '2026-06-20', weekday: '周六', lunarText: '五月初五', isEmpty: false }]
+        })
+        harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-20' } } })
+      }
+    },
+    {
+      id: 'toolsMenu',
+      phase: 'monthMenuPhase',
+      visible: 'monthMenuVisible',
+      mounted: 'monthMenuMounted',
+      open() { harness.page.openMonthMenu() }
+    },
+    {
+      id: 'info',
+      phase: 'infoSheetPhase',
+      visible: 'infoSheetVisible',
+      mounted: 'infoSheetMounted',
+      open() { harness.page.openLegendSheet() }
+    }
+  ]
+}
+
 test('month jump sheet uses a bounded year stepper instead of a year grid', () => {
   const js = fs.readFileSync(path.join(repoRoot, 'pages/index/index.js'), 'utf8')
   const wxml = readIndexWxml()
