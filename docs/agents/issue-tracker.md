@@ -44,6 +44,15 @@ Links to screenshots, ADRs, code paths, or prior commits.
 
 implement-spec 等技能无参数调用时，spec 默认取当前开放的 epic 父票：有子票以 `## Parent` 指向它、整组标记 `ready-for-agent`。只开放一个 epic 时直接采用；多个 epic 同时开放时先与用户确认目标再开工。
 
+## Close and evidence fallbacks
+
+| Trigger | First repair | Still failing |
+|---|---|---|
+| `gh issue close` returns GraphQL `EOF` | Retry once. If it fails again, `gh api --method PATCH repos/<owner>/<repo>/issues/<n> -f state=closed`, then post the same comment with `gh api --method POST repos/<owner>/<repo>/issues/<n>/comments`. | Stop and report the issue number. Do not say it is closed until the tracker says so. |
+| A screenshot or other file will not upload to `uploads.github.com` | Commit the file on the private branch that holds the work, under `docs/evidence/issue-<n>/`, push that branch, and put the raw URL in the issue comment. | Leave the ticket open and say the file is only on disk. Do not keep retrying the upload API. |
+
+Do not put room codes, tokens, or other secrets into those evidence files.
+
 ## Local Scratch Notes
 
 `.scratch/` is retained only for temporary local notes or drafts that are not ready for the private GitHub tracker. Do not treat `.scratch/` as the durable issue source once work is ready to track.
