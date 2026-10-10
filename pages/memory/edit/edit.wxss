@@ -44,8 +44,6 @@
   color: rgba(255,255,255,0.85);
   padding: 22rpx;
   background: linear-gradient(rgba(255,255,255,0.06), rgba(255,255,255,0.06)), var(--glass-fallback);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.12);
   transition: border-color var(--duration-press) ease;
@@ -69,8 +67,6 @@
   color: rgba(255,255,255,0.85);
   padding: 22rpx;
   background: linear-gradient(rgba(255,255,255,0.06), rgba(255,255,255,0.06)), var(--glass-fallback);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.12);
   transition: border-color var(--duration-state) ease;

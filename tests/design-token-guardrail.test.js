@@ -453,3 +453,40 @@ test('every box-shadow/text-shadow color stays inside the DESIGN.md shadow regis
 
   assert.deepEqual(violations, [])
 })
+
+function declsFor(relative, selector) {
+  const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
+  const rule = rules.find((item) => item.selectors.includes(selector))
+  assert.ok(rule, `expected ${relative} ${selector}`)
+  return rule.decls
+}
+
+// issue #146：辉光只留在主按钮和复制键上。月份导航、加载圈、同步点不发光；
+// 绑定页爱心只留一层字阴影。提醒和详情的彩色 rail 继续承载状态色。
+test('glow stays on primary buttons and the copy control', () => {
+  const roseGlow = '0 4px 15px rgba(232,144,158,0.28)'
+  assert.equal(declsFor('app.wxss', '.btn-premium')['box-shadow'], roseGlow)
+  assert.equal(declsFor('pages/settings/settings.wxss', '.copy-btn')['box-shadow'], roseGlow)
+  assert.equal(declsFor('pages/bind/bind.wxss', '.copy-btn')['box-shadow'], roseGlow)
+
+  const monthNav = declsFor('pages/index/index.wxss', '.month-nav')['box-shadow'] || ''
+  assert.doesNotMatch(monthNav, /232,\s*144,\s*158/)
+  assert.equal(declsFor('app.wxss', '.loading-spinner')['box-shadow'], undefined)
+  assert.equal(declsFor('pages/index/index.wxss', '.sync-dot')['box-shadow'], undefined)
+
+  const heart = declsFor('pages/bind/bind.wxss', '.hero-icon')['text-shadow']
+  assert.equal(heart, '0 0 18rpx rgba(240,196,192,0.32)')
+
+  assert.equal(
+    declsFor('pages/index/index.wxss', '.reminder-rail')['box-shadow'],
+    '0 0 14rpx rgba(212,165,116,0.36)'
+  )
+  assert.equal(
+    declsFor('pages/index/index.wxss', '.detail-rail')['box-shadow'],
+    '0 0 16rpx rgba(232,144,158,0.35)'
+  )
+
+  const design = fs.readFileSync(path.join(repoRoot, 'DESIGN.md'), 'utf8')
+  assert.match(design, /不可点元素不再发光/)
+  assert.match(design, /0 0 18rpx rgba\(240,196,192,0\.32\)/)
+})

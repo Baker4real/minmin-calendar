@@ -533,14 +533,14 @@ test('retired second-layer / bounce animations stay gone', () => {
 const BLUR_RADIUS_CAP_PX = 20
 const MASK_BLUR_CAP_PX = 8
 const BLUR_RULE_CEILINGS = {
-  'app.wxss': 4,
-  'pages/index/index.wxss': 5,
-  'pages/bind/bind.wxss': 2,
+  'app.wxss': 0,
+  'pages/index/index.wxss': 1,
+  'pages/bind/bind.wxss': 0,
   'pages/settings/settings.wxss': 0,
-  'pages/period/period.wxss': 3,
-  'pages/memory/memory.wxss': 2,
-  'pages/period/edit/edit.wxss': 2,
-  'pages/memory/edit/edit.wxss': 2
+  'pages/period/period.wxss': 0,
+  'pages/memory/memory.wxss': 0,
+  'pages/period/edit/edit.wxss': 0,
+  'pages/memory/edit/edit.wxss': 0
 }
 
 test('backdrop blur stays within the radius cap and per-file glass surface budget', () => {
@@ -997,18 +997,49 @@ test('an obscured homepage pauses the five covered decorations on the current fr
   assert.match(design, /animation-play-state: paused/)
 })
 
-// issue #118：月份箭头嵌在月份栏的模糊里，自身再模糊一次看不见。首页玻璃面上限收到 5。
-test('month arrows do not add a second blur, and the homepage glass cap is 5', () => {
+// issue #146：极光层从 200%×200% 收到刚好盖住 scale(1.05) 的尺寸。动画名、周期和遮挡暂停不变。
+test('the aurora layer covers a 1.05 scale without renaming auroraPulse', () => {
+  const app = analyzeFile(readRepo('app.wxss'))
+  const aurora = app.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.page::before'))
+  assert.ok(aurora, 'expected .page::before')
+  assert.equal(aurora.decls.top, '-2.5%')
+  assert.equal(aurora.decls.left, '-2.5%')
+  assert.equal(aurora.decls.width, '105%')
+  assert.equal(aurora.decls.height, '105%')
+  assert.equal(aurora.decls.animation, 'auroraPulse 8s ease infinite')
+
+  const source = readRepo('app.wxss')
+  assert.match(source, /@keyframes auroraPulse/)
+  assert.match(source, /transform:\s*scale\(1\.05\)/)
+  assert.doesNotMatch(source, /width:\s*200%/)
+  assert.doesNotMatch(source, /height:\s*200%/)
+
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+  const paused = index.rules.find((rule) => rule.decls['animation-play-state'] === 'paused')
+  assert.ok(paused, 'sheet cover must still pause the aurora')
+  assert.ok(paused.selectors.includes('.page.page-obscured::before'))
+
+  const design = readRepo('DESIGN.md')
+  assert.match(design, /105%×105%/)
+  assert.match(design, /scale\(1\.05\)/)
+})
+
+// issue #146：月份栏本身已近不透明，不再模糊。首页玻璃面只剩 88% 遮罩。
+test('month navigation does not blur, and the homepage glass cap is 1', () => {
   const index = analyzeFile(readRepo('pages/index/index.wxss'))
   const navBtn = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.nav-btn'))
   assert.ok(navBtn, 'expected .nav-btn')
   assert.equal(navBtn.decls['backdrop-filter'], undefined)
   assert.equal(navBtn.decls['-webkit-backdrop-filter'], undefined)
-  assert.equal(BLUR_RULE_CEILINGS['pages/index/index.wxss'], 5)
+  assert.equal(BLUR_RULE_CEILINGS['pages/index/index.wxss'], 1)
 
   const monthNav = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.month-nav'))
-  assert.equal(monthNav.decls['backdrop-filter'], 'blur(20px)')
+  assert.equal(monthNav.decls['backdrop-filter'], undefined)
+  assert.equal(monthNav.decls['-webkit-backdrop-filter'], undefined)
+
+  const mask = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.day-sheet-mask'))
+  assert.equal(mask.decls['backdrop-filter'], 'blur(8px)')
 
   const design = readRepo('DESIGN.md')
-  assert.match(design, /玻璃面数量上限收紧为 5/)
+  assert.match(design, /玻璃面数量上限收紧为 1/)
 })

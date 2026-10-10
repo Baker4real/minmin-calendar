@@ -24,13 +24,9 @@
   color: #E8909E;
   margin-bottom: 20rpx;
   animation: heroIn 0.6s var(--ease-out) both;
-  /* ♥ 字形多层静态辉光（浅粉近层 + 玫瑰远层两层，共三层）是绑定页保留的唯一情绪点：
-     透明度都落在 DESIGN.md 已登记的浅粉 0.28–0.32 / 玫瑰 0.1–0.45 辉光区间；
+  /* ♥ 字形只留一层浅粉字阴影。不可点元素不再叠远层光晕（issue #146）。
      heroIn 无回弹入场保留，辉光本身无持续动画，减弱动效由 app.wxss 全局名单静止 */
-  text-shadow:
-    0 0 18rpx rgba(240,196,192,0.32),
-    0 0 44rpx rgba(232,144,158,0.45),
-    0 0 90rpx rgba(232,144,158,0.26);
+  text-shadow: 0 0 18rpx rgba(240,196,192,0.32);
 }
 /* 入场只做淡入 + 轻微放大，不做 overshoot 回弹（issue #58） */
 @keyframes heroIn {
@@ -85,8 +81,6 @@
   border: 1px solid rgba(255,255,255,0.15);
   margin-bottom: 30rpx;
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 .tab {
   flex: 1;
@@ -133,8 +127,6 @@
   text-indent: var(--letter-spacing-code-input);
   margin-bottom: 30rpx;
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   font-weight: var(--font-weight-body);
   color: #fff;
 }

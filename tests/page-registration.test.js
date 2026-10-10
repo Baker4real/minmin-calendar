@@ -326,8 +326,11 @@ test('index page exposes retry state and can reload after retryable RoomDataClie
     }
 
     assert.equal(harness.page.data.noRoom, false)
-    assert.deepEqual(harness.page.data.periods, [{ _id: 'p1', startDate: '2026-06-01' }])
-    assert.deepEqual(harness.page.data.memories, [{ _id: 'm1', date: '2026-06-03' }])
+    assert.equal(harness.page.data.periods, undefined)
+    assert.equal(harness.page.data.memories, undefined)
+    assert.equal(harness.page.data.dayDetailsByDate, undefined)
+    assert.deepEqual(harness.page._homeRecords.periods, [{ _id: 'p1', startDate: '2026-06-01' }])
+    assert.deepEqual(harness.page._homeRecords.memories, [{ _id: 'm1', date: '2026-06-03' }])
     assert.deepEqual(calls, ['periods', 'memories', 'periods', 'memories'])
   } finally {
     harness.teardown()
@@ -366,8 +369,8 @@ test('index page shows available memories when periods fail on the first load', 
     assert.equal(harness.page.data.noRoom, false)
     assert.equal(harness.page.data.syncStatusVisible, true)
     assert.equal(harness.page.data.syncStatusText, '经期同步失败，已显示记忆数据')
-    assert.deepEqual(harness.page.data.periods, [])
-    assert.deepEqual(harness.page.data.memories, [{ _id: 'm1', date: '2026-06-03' }])
+    assert.deepEqual(harness.page._homeRecords.periods, [])
+    assert.deepEqual(harness.page._homeRecords.memories, [{ _id: 'm1', date: '2026-06-03' }])
     assert.deepEqual(calls, ['periods', 'memories'])
   } finally {
     harness.teardown()
@@ -456,8 +459,8 @@ test('index page keeps loaded calendar visible while refreshing on later onShow'
     assert.equal(harness.page.data.loading, false)
     assert.equal(harness.page.data.refreshing, false)
     assert.equal(harness.page.data.hasLoadedHomeData, true)
-    assert.deepEqual(harness.page.data.periods, [{ _id: 'p2', startDate: '2026-07-01', endDate: '2026-07-02', duration: 2 }])
-    assert.deepEqual(harness.page.data.memories, [{ _id: 'm2', date: '2026-07-03', note: 'second' }])
+    assert.deepEqual(harness.page._homeRecords.periods, [{ _id: 'p2', startDate: '2026-07-01', endDate: '2026-07-02', duration: 2 }])
+    assert.deepEqual(harness.page._homeRecords.memories, [{ _id: 'm2', date: '2026-07-03', note: 'second' }])
     assert.deepEqual(calls, ['periods', 'memories', 'periods', 'memories'])
     assert.equal(harness.page.setDataCalls.some(update => update.loading === true), false)
     assert.equal(harness.page.setDataCalls.some(update => update.refreshing === true), true)
@@ -600,8 +603,8 @@ test('index page keeps existing calendar content and stays quiet on background r
     assert.equal(harness.page.data.noRoom, false)
     assert.equal(harness.page.data.syncStatusText, '')
     assert.equal(harness.page.data.syncStatusVisible, false)
-    assert.deepEqual(harness.page.data.periods, [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03', duration: 3 }])
-    assert.deepEqual(harness.page.data.memories, [{ _id: 'm1', date: '2026-06-02', note: 'first' }])
+    assert.deepEqual(harness.page._homeRecords.periods, [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03', duration: 3 }])
+    assert.deepEqual(harness.page._homeRecords.memories, [{ _id: 'm1', date: '2026-06-02', note: 'first' }])
     assert.deepEqual(calls, ['periods', 'memories', 'periods', 'memories'])
     assert.equal(harness.page.setDataCalls.some(update => update.loading === true), false)
   } finally {
@@ -682,8 +685,8 @@ test('index page updates successful collections and preserves failed ones during
     assert.equal(harness.page.data.noRoom, false)
     assert.equal(harness.page.data.syncStatusText, '记忆同步失败，已保留旧记忆数据')
     assert.equal(harness.page.data.syncStatusVisible, true)
-    assert.deepEqual(harness.page.data.periods, [{ _id: 'p2', startDate: '2026-07-01', endDate: '2026-07-02', duration: 2 }])
-    assert.deepEqual(harness.page.data.memories, [{ _id: 'm1', date: '2026-06-02', note: 'first' }])
+    assert.deepEqual(harness.page._homeRecords.periods, [{ _id: 'p2', startDate: '2026-07-01', endDate: '2026-07-02', duration: 2 }])
+    assert.deepEqual(harness.page._homeRecords.memories, [{ _id: 'm1', date: '2026-06-02', note: 'first' }])
     assert.deepEqual(calls, ['periods', 'memories', 'periods', 'memories'])
     assert.equal(harness.page.setDataCalls.some(update => update.loading === true), false)
   } finally {
@@ -717,7 +720,7 @@ test('index page merges a saved record locally before background sync completes'
       record: { _id: 'm2', date: '2026-07-03', note: 'second' }
     })
 
-    assert.deepEqual(harness.page.data.memories, [{ _id: 'm2', date: '2026-07-03', note: 'second' }])
+    assert.deepEqual(harness.page._homeRecords.memories, [{ _id: 'm2', date: '2026-07-03', note: 'second' }])
     assert.equal(harness.page.data.syncStatusText, '已更新，正在同步')
     assert.equal(harness.page.data.syncStatusVisible, true)
   } finally {
@@ -788,7 +791,7 @@ test('index page keeps a canonical record change when an older background snapsh
     await backgroundLoad
 
     assert.deepEqual(
-      harness.page.data.periods.map(item => item._id),
+      harness.page._homeRecords.periods.map(item => item._id),
       ['p2', 'p1']
     )
     assert.equal(harness.page.data.syncStatusText, '已更新，正在同步')

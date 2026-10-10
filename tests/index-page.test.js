@@ -51,8 +51,8 @@ test('initial load publishes home records and clears loading state', async () =>
     assert.equal(harness.page.data.hasLoadedHomeData, true)
     assert.equal(harness.page.data.loading, false)
     assert.equal(harness.page.data.refreshing, false)
-    assert.deepEqual(harness.page.data.periods, [period('p1', '2026-06-01')])
-    assert.deepEqual(harness.page.data.memories, [memory('m1', '2026-06-02')])
+    assert.deepEqual(harness.page._homeRecords.periods, [period('p1', '2026-06-01')])
+    assert.deepEqual(harness.page._homeRecords.memories, [memory('m1', '2026-06-02')])
   } finally {
     harness.teardown()
   }
@@ -76,8 +76,8 @@ test('unchanged background refresh preserves records and revisions', async () =>
     const revisionsBefore = { ...harness.page._syncState.revisions }
     await harness.page.onShow()
 
-    assert.deepEqual(harness.page.data.periods, initialPeriods)
-    assert.deepEqual(harness.page.data.memories, initialMemories)
+    assert.deepEqual(harness.page._homeRecords.periods, initialPeriods)
+    assert.deepEqual(harness.page._homeRecords.memories, initialMemories)
     assert.deepEqual(harness.page._syncState.revisions, revisionsBefore)
     assert.equal(harness.page.data.syncStatusVisible, false)
     assert.equal(harness.page.data.refreshing, false)
@@ -104,8 +104,8 @@ test('background refresh adds remote records while retaining local revision trac
     await harness.page.onShow()
     await harness.page.onShow()
 
-    assert.deepEqual(harness.page.data.periods, [remotePeriod, initialPeriod])
-    assert.deepEqual(harness.page.data.memories, [initialMemory, remoteMemory])
+    assert.deepEqual(harness.page._homeRecords.periods, [remotePeriod, initialPeriod])
+    assert.deepEqual(harness.page._homeRecords.memories, [initialMemory, remoteMemory])
     assert.deepEqual(harness.page._syncState.revisions, { periods: 0, memories: 0 })
     assert.deepEqual(harness.page._syncState.pendingRevisions, { periods: null, memories: null })
   } finally {
@@ -130,7 +130,7 @@ test('stale snapshot is rejected after a local record revision', async () => {
     harness.page.applyRecordChange({ collection: 'periods', mode: 'add', record: savedPeriod })
     harness.page._resolveLoad(requestId, successSnapshot([initialPeriod], []), true)
 
-    assert.deepEqual(harness.page.data.periods.map(item => item._id), ['p2', 'p1'])
+    assert.deepEqual(harness.page._homeRecords.periods.map(item => item._id), ['p2', 'p1'])
     assert.equal(harness.page._syncState.pendingRevisions.periods, 1)
     assert.equal(harness.page.data.syncStatusText, '已更新，正在同步')
   } finally {
@@ -176,7 +176,7 @@ test('pending revision prevents a background snapshot from rolling back a saved 
     deferred.resolve({ kind: 'success', data: [initialPeriod] })
     await refresh
 
-    assert.deepEqual(harness.page.data.periods.map(item => item._id), ['p2', 'p1'])
+    assert.deepEqual(harness.page._homeRecords.periods.map(item => item._id), ['p2', 'p1'])
     assert.equal(harness.page._syncState.pendingRevisions.periods, 1)
     assert.equal(harness.page.data.syncStatusText, '已更新，正在同步')
   } finally {
@@ -206,9 +206,9 @@ test('a merged save syncs back as an update to the existing ongoing record witho
       record: { ...ongoing }
     })
 
-    assert.deepEqual(harness.page.data.periods.map(item => item._id), ['p2', 'p1'])
-    assert.equal(harness.page.data.periods.filter(item => item.status === 'ongoing').length, 1)
-    assert.equal(harness.page.data.periods[0].note, '已经记录过的经期')
+    assert.deepEqual(harness.page._homeRecords.periods.map(item => item._id), ['p2', 'p1'])
+    assert.equal(harness.page._homeRecords.periods.filter(item => item.status === 'ongoing').length, 1)
+    assert.equal(harness.page._homeRecords.periods[0].note, '已经记录过的经期')
   } finally {
     harness.teardown()
   }
@@ -233,7 +233,7 @@ test('load failure preserves existing records and returns retryable outcome', as
     const outcome = await harness.page.onShow()
 
     assert.equal(outcome.kind, 'retryable-failure')
-    assert.deepEqual(harness.page.data.periods, [initialPeriod])
+    assert.deepEqual(harness.page._homeRecords.periods, [initialPeriod])
     assert.equal(harness.page.data.loading, false)
     assert.equal(harness.page.data.refreshing, false)
     assert.equal(harness.page.data.hasLoadedHomeData, true)
@@ -269,7 +269,7 @@ test('background refresh failure keeps a tappable retry sentence until a later r
     // 已加载后的后台刷新失败：重试句出现，日历数据保留
     await harness.page.onShow()
     assert.equal(harness.page.data.refreshRetryVisible, true)
-    assert.deepEqual(harness.page.data.periods, [initialPeriod])
+    assert.deepEqual(harness.page._homeRecords.periods, [initialPeriod])
     // 失败反馈不挂在自动消失的同步 pill 上：pill 已隐藏，失败界面只剩常驻重试句
     assert.equal(harness.page.data.syncStatusVisible, false)
     assert.equal(harness.page.data.refreshing, false)
@@ -278,12 +278,12 @@ test('background refresh failure keeps a tappable retry sentence until a later r
     await harness.page.retryRefresh()
     assert.equal(harness.page.data.refreshRetryVisible, true)
     assert.equal(harness.page.data.noRoom, false)
-    assert.deepEqual(harness.page.data.periods, [initialPeriod])
+    assert.deepEqual(harness.page._homeRecords.periods, [initialPeriod])
 
     // 后一次刷新成功：失败提示消失，数据被成功结果替换
     await harness.page.onShow()
     assert.equal(harness.page.data.refreshRetryVisible, false)
-    assert.deepEqual(harness.page.data.periods.map(item => item._id), ['p1', 'p2'])
+    assert.deepEqual(harness.page._homeRecords.periods.map(item => item._id), ['p1', 'p2'])
   } finally {
     harness.teardown()
   }
@@ -395,10 +395,10 @@ test('stale request resolution cannot overwrite the newer request result', () =>
     const firstRequest = harness.page._startLoad(false)
     const secondRequest = harness.page._startLoad(false)
     harness.page._resolveLoad(firstRequest, successSnapshot([period('old', '2026-01-01')], []), false)
-    assert.deepEqual(harness.page.data.periods, [])
+    assert.deepEqual(harness.page._homeRecords.periods, [])
 
     harness.page._resolveLoad(secondRequest, successSnapshot([period('new', '2026-02-01')], []), false)
-    assert.deepEqual(harness.page.data.periods.map(item => item._id), ['new'])
+    assert.deepEqual(harness.page._homeRecords.periods.map(item => item._id), ['new'])
     assert.equal(harness.page.data.hasLoadedHomeData, true)
   } finally {
     harness.teardown()
@@ -411,7 +411,9 @@ function loadPageHarness({ client, calendarState } = {}) {
     [path.join(repoRoot, 'utils/cloud.js'), { createRoomDataClient: () => client }],
     [path.join(repoRoot, 'utils/util.js'), createUtilStub()]
   ])
-  if (calendarState !== 'real') {
+  if (typeof calendarState === 'function') {
+    absoluteMocks.set(path.join(repoRoot, 'utils/homeCalendarState.js'), { buildHomeCalendarState: calendarState })
+  } else if (calendarState !== 'real') {
     absoluteMocks.set(path.join(repoRoot, 'utils/homeCalendarState.js'), { buildHomeCalendarState })
   }
   const originalPage = global.Page
@@ -541,10 +543,86 @@ test('homepage places quick record actions after the calendar grid and before th
   assert.ok(quickIndex < statusIndex, 'record actions should precede the merged status card')
 })
 
+test('homepage render data omits record arrays and the per-day detail map', async () => {
+  const periodRecord = {
+    _id: 'p1',
+    startDate: '2026-06-01',
+    endDate: '2026-06-03',
+    duration: 3,
+    note: '经期备注甲'
+  }
+  const memoryRecord = { _id: 'm1', date: '2026-06-04', note: '只有四号的备注' }
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: [periodRecord] },
+      { kind: 'success', data: [memoryRecord] }
+    ]),
+    calendarState({ periods = [], memories = [] }) {
+      return {
+        days: [
+          { date: '2026-06-01', isEmpty: false, isPeriod: periods.length > 0, isMemory: false },
+          { date: '2026-06-04', isEmpty: false, isPeriod: false, isMemory: memories.length > 0 }
+        ],
+        dayDetailsByDate: {
+          '2026-06-01': {
+            meanings: [],
+            periods: periods.length ? [{ key: 'period:p1', range: '2026-06-01 ~ 2026-06-03' }] : [],
+            memories: [],
+            empty: periods.length === 0
+          },
+          '2026-06-04': {
+            meanings: [],
+            periods: [],
+            memories: memories.length ? [{ key: 'memory:m1', note: '只有四号的备注' }] : [],
+            empty: memories.length === 0
+          }
+        },
+        nextPredict: null,
+        cycleReminders: [],
+        monthlyRecap: null
+      }
+    }
+  })
+
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+
+    assert.equal(harness.page.data.periods, undefined)
+    assert.equal(harness.page.data.memories, undefined)
+    assert.equal(harness.page.data.dayDetailsByDate, undefined)
+    assert.equal(harness.page.data.periodCount, 1)
+    assert.equal(harness.page.data.hasRecords, true)
+    assert.equal(harness.page.data.days.find((day) => day.date === '2026-06-01').isPeriod, true)
+    assert.equal(harness.page.data.days.find((day) => day.date === '2026-06-04').isMemory, true)
+    assert.doesNotMatch(JSON.stringify(harness.page.data), /"_id":"p1"/)
+    assert.doesNotMatch(JSON.stringify(harness.page.data), /"_id":"m1"/)
+    assert.doesNotMatch(JSON.stringify(harness.page.data), /经期备注甲/)
+
+    harness.page.showDayDetail('2026-06-04')
+    assert.equal(harness.page.data.selectedDayDetail.memories[0].note, '只有四号的备注')
+    assert.equal(harness.page.data.dayDetailsByDate, undefined)
+    assert.doesNotMatch(JSON.stringify(harness.page.data), /经期备注甲/)
+
+    harness.page.showDayDetail('2026-06-01')
+    assert.equal(harness.page.data.selectedDayDetail.memories.length, 0)
+    assert.equal(harness.page.data.selectedDayDetail.periods.length, 1)
+    assert.doesNotMatch(JSON.stringify(harness.page.data.selectedDayDetail), /只有四号的备注/)
+    assert.equal(harness.page._dayDetailsByDate['2026-06-04'].memories[0].note, '只有四号的备注')
+
+    const wxml = readIndexWxml()
+    assert.match(wxml, /wx:if="\{\{hasRecords\}\}" class="status-card/)
+    assert.match(wxml, /class="stat-num">\{\{periodCount\}\}<\/text>/)
+    assert.doesNotMatch(wxml, /periods\.length|memories\.length|dayDetailsByDate/)
+  } finally {
+    harness.teardown()
+  }
+})
+
 test('homepage shows a first-record guide instead of the status card when the room has no records', () => {
   const wxml = readIndexWxml()
 
-  assert.match(wxml, /wx:if="{{periods\.length \|\| memories\.length}}" class="status-card/)
+  assert.match(wxml, /wx:if="\{\{hasRecords\}\}" class="status-card/)
   assert.match(wxml, /wx:else class="empty-guide"/)
   assert.match(wxml, /点日历任意一天开始记录/)
 })
@@ -596,7 +674,7 @@ test('status card keeps the period record count as plain status text, not a list
 
   // issue #105：条数仍是现状的一部分，但经期记录列表由「记录」tab 分段承接，
   // 卡上不再有点按跳转（issue #68 的左半入口随本 ticket 退役）
-  assert.match(figure, /class="stat-num">\{\{periods \? periods\.length : 0\}\}<\/text>/)
+  assert.match(figure, /class="stat-num">\{\{periodCount\}\}<\/text>/)
   assert.match(figure, /class="stat-label">经期记录<\/text>/)
   assert.doesNotMatch(figure, /bindtap|aria-role|›|arrow|条</)
   assert.doesNotMatch(cardBlock, /goPeriodList|goMemoryList/)
@@ -659,17 +737,21 @@ test('homepage quick period action reopens the existing ongoing record instead o
     global.wx.navigateTo = options => navigation.push(options.url)
 
     // 已有进行中记录：快速记录经期进入原记录编辑页（重开），不是空白新增表单
-    harness.page.setData({
+    harness.page._homeRecords = {
       periods: [
         { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 },
         { _id: 'p2', startDate: '2026-06-20', endDate: '', status: 'ongoing' }
-      ]
-    })
+      ],
+      memories: []
+    }
     harness.page.quickPeriod()
     assert.deepEqual(navigation, ['/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing'])
 
     // 没有进行中记录：进入默认进行中的新增表单（只带开始日期，不带结束日期）
-    harness.page.setData({ periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 }] })
+    harness.page._homeRecords = {
+      periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 }],
+      memories: []
+    }
     harness.page.quickPeriod()
     assert.deepEqual(navigation, [
       '/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing',
@@ -689,18 +771,22 @@ test('calendar day period action reopens the ongoing record or creates for the s
     global.wx.navigateTo = options => navigation.push(options.url)
 
     // 已有进行中记录：从日历选过去某天点「记录经期」，打开那条进行中记录
-    harness.page.setData({
+    harness.page._homeRecords = {
       periods: [
         { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 },
         { _id: 'p2', startDate: '2026-06-20', endDate: '', status: 'ongoing' }
-      ]
-    })
+      ],
+      memories: []
+    }
     harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-01' } } })
     harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
     assert.deepEqual(navigation, ['/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing'])
 
     // 没有进行中记录：按所选日期新增；URL 不带状态与结束日期，由路由推导为已结束起止同日
-    harness.page.setData({ periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 }] })
+    harness.page._homeRecords = {
+      periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 }],
+      memories: []
+    }
     harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-10' } } })
     harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
     assert.deepEqual(navigation, [
@@ -719,7 +805,7 @@ test('calendar day period action is not usable for future dates', () => {
   try {
     const navigation = []
     global.wx.navigateTo = options => navigation.push(options.url)
-    harness.page.setData({ periods: [] })
+    harness.page._homeRecords = { periods: [], memories: [] }
 
     // 未来日期（harness 今天固定为 2026-06-26）：入口被标记隐藏，直接触发处理器也不导航
     harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-30' } } })
@@ -865,7 +951,7 @@ test('no completion reminder before the expected duration, and none is invented 
       record: { _id: 'p2', startDate: '2026-06-24', endDate: '2026-06-26', status: 'known-end', duration: 3 }
     })
     assert.equal(harness.page.data.ongoingCompletionReminder, null)
-    assert.deepEqual(harness.page.data.periods[0].endDate, '2026-06-26')
+    assert.deepEqual(harness.page._homeRecords.periods[0].endDate, '2026-06-26')
   } finally {
     harness.teardown()
   }
@@ -894,8 +980,8 @@ test('tapping the completion reminder opens the same ongoing record to fill its 
     assert.deepEqual(navigation, ['/pages/period/edit/edit?id=p9&startDate=2026-06-18&status=ongoing'])
 
     // 点击只打开原记录：不写结束日期、不关闭状态
-    assert.equal(harness.page.data.periods[0].endDate, '')
-    assert.equal(harness.page.data.periods[0].status, 'ongoing')
+    assert.equal(harness.page._homeRecords.periods[0].endDate, '')
+    assert.equal(harness.page._homeRecords.periods[0].status, 'ongoing')
   } finally {
     harness.teardown()
   }

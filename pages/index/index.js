@@ -24,7 +24,27 @@ const INITIAL_HOME_STATE = buildHomeCalendarState({
   today: util.formatDate(INITIAL_VIEW_DATE)
 })
 
+function calendarRenderState(state) {
+  const render = { ...state }
+  delete render.dayDetailsByDate
+  delete render.periods
+  delete render.memories
+  return render
+}
+
+function emptyDayDetail() {
+  return {
+    meanings: [],
+    periods: [],
+    memories: [],
+    empty: true
+  }
+}
+
 Page({
+  _homeRecords: { periods: [], memories: [] },
+  _dayDetailsByDate: INITIAL_HOME_STATE.dayDetailsByDate || {},
+
   data: {
     safeTop: safeArea.getSafeTop(),
     safeBottom: safeArea.getSafeBottom(),
@@ -61,8 +81,9 @@ Page({
     monthMenuMounted: false,
     monthMenuPhase: 'closed',
     calendarDensity: 'compact',
-    periods: [], memories: [],
-    ...INITIAL_HOME_STATE,
+    ...calendarRenderState(INITIAL_HOME_STATE),
+    periodCount: 0,
+    hasRecords: false,
     infoSheetVisible: false,
     infoSheetMounted: false,
     infoSheetPhase: 'closed',
@@ -78,7 +99,6 @@ Page({
     selectedDateSubtitle: '',
     selectedDateIsFuture: false,
     selectedDayDetail: null,
-    dayDetailsByDate: {},
     ongoingCompletionReminder: null,
     loading: true,
     refreshing: false,
@@ -291,22 +311,46 @@ Page({
     this.applyHomeCalendarState()
   },
 
+  _recordList(collection) {
+    const stored = this._homeRecords && this._homeRecords[collection]
+    return Array.isArray(stored) ? stored : []
+  },
+
+  _rememberRecords(periods, memories) {
+    this._homeRecords = {
+      periods: this._normalizeRecords(periods),
+      memories: this._normalizeRecords(memories)
+    }
+  },
+
+  _dayDetail(date) {
+    const details = this._dayDetailsByDate || {}
+    return details[date] || emptyDayDetail()
+  },
+
   applyHomeCalendarState(overrides = {}) {
     const hasOwn = (key) => Object.prototype.hasOwnProperty.call(overrides, key)
-    const periods = hasOwn('periods') ? overrides.periods : this.data.periods
-    const memories = hasOwn('memories') ? overrides.memories : this.data.memories
+    const periods = hasOwn('periods') ? overrides.periods : this._recordList('periods')
+    const memories = hasOwn('memories') ? overrides.memories : this._recordList('memories')
     const year = hasOwn('year') ? overrides.year : this.data.year
     const month = hasOwn('month') ? overrides.month : this.data.month
     const today = hasOwn('today') ? overrides.today : util.formatDate(new Date())
 
+    const state = buildHomeCalendarState({ year, month, periods, memories, today })
+    this._rememberRecords(periods, memories)
+    this._dayDetailsByDate = state.dayDetailsByDate || {}
+
     const update = {
-      periods,
-      memories,
-      ...buildHomeCalendarState({ year, month, periods, memories, today }),
+      ...calendarRenderState(state),
+      periodCount: this._homeRecords.periods.length,
+      hasRecords: this._homeRecords.periods.length > 0 || this._homeRecords.memories.length > 0,
       year,
       month
     }
     if (hasOwn('monthPickerVisible')) update.monthPickerVisible = overrides.monthPickerVisible
+    if (this.data.daySheetMode === 'detail' && this.data.selectedDate) {
+      update.selectedDayDetail = this._dayDetail(this.data.selectedDate)
+    }
     this.setData(update)
   },
 
@@ -318,7 +362,7 @@ Page({
     const state = this._ensureSyncState()
     if (!COLLECTIONS.includes(collection) || !record || typeof record !== 'object') return
 
-    const currentRecords = this._normalizeRecords(this.data[collection])
+    const currentRecords = this._normalizeRecords(this._recordList(collection))
     const nextRecords = this._mergeRecordChange(currentRecords, record, mode)
     if (this._stableRecordListKey(nextRecords) === this._stableRecordListKey(currentRecords)) return
 
@@ -339,7 +383,7 @@ Page({
 
   _applySnapshotCollection(collection, records) {
     const nextRecords = this._normalizeRecords(records)
-    const currentRecords = this._normalizeRecords(this.data[collection])
+    const currentRecords = this._normalizeRecords(this._recordList(collection))
     if (this._stableRecordListKey(currentRecords) === this._stableRecordListKey(nextRecords)) return false
     this.applyHomeCalendarState({ [collection]: nextRecords })
     return true
@@ -655,12 +699,7 @@ Page({
       selectedDate: date,
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
       selectedDateIsFuture: date > util.formatDate(new Date()),
-      selectedDayDetail: this.data.dayDetailsByDate[date] || {
-        meanings: [],
-        periods: [],
-        memories: [],
-        empty: true
-      }
+      selectedDayDetail: this._dayDetail(date)
     })
   },
 
@@ -678,7 +717,7 @@ Page({
   // 否则按给定日期新增（新增默认状态由 recordEditRoute 按开始日期推导）。
   // 快捷入口、提醒入口与日历日动作 sheet 共用这一条页内逻辑。
   openPeriodForDate(date) {
-    const ongoing = cycle.findOngoingPeriod(this.data.periods)
+    const ongoing = cycle.findOngoingPeriod(this._recordList('periods'))
     if (ongoing) {
       wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(ongoing) })
       return
@@ -698,7 +737,7 @@ Page({
   // 提示出现即把记录标识经本地存储接缝持久化，之后刷新、跨天、重进应用都不再弹出；
   // 提示本身绝不写结束日期、绝不关闭状态，点击只打开同一条记录补填。
   syncOngoingCompletionReminder() {
-    const reminder = cycle.buildOngoingCompletionReminder(this.data.periods, {
+    const reminder = cycle.buildOngoingCompletionReminder(this._recordList('periods'), {
       today: util.formatDate(new Date())
     })
     const hideReminder = () => {
