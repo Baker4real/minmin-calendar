@@ -1126,6 +1126,21 @@ test('compact density keeps the record actions inside the 1334rpx first-screen b
   )
 })
 
+test('homepage keeps a navbar slot when the capsule rect is missing', () => {
+  const safeAreaPath = path.join(repoRoot, 'utils/safeArea.js')
+  delete require.cache[require.resolve(safeAreaPath)]
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    // 拿不到胶囊时：状态栏 44，顶栏 84，右侧占位 94
+    assert.equal(harness.page.data.safeTop, 44)
+    assert.equal(harness.page.data.navBarHeight, 84)
+    assert.equal(harness.page.data.capsuleRight, 94)
+  } finally {
+    harness.teardown()
+    delete require.cache[require.resolve(safeAreaPath)]
+  }
+})
+
 test('homepage re-reads the persisted calendar density every time it shows', async () => {
   let storedDensity = 'full'
   const harness = loadPageHarness({

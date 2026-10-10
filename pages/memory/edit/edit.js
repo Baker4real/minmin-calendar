@@ -13,7 +13,7 @@ const DRAFT_FIELDS = ['date', 'note']
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 
 Page({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false, submitted: false, draftRestored: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false, submitted: false, draftRestored: false },
 
   onLoad(options) {
     const routeState = recordEditRoute.parseMemoryEditOptions(options, {

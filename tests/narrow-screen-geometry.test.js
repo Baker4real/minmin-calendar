@@ -348,6 +348,191 @@ test('safeArea exposes a runtime bottom inset with the same query discipline as 
   }
 })
 
+test('navbar height lines up with the capsule rect and reserves its right-hand slot at 375px', () => {
+  const safeAreaPath = path.join(repoRoot, 'utils/safeArea.js')
+  delete require.cache[require.resolve(safeAreaPath)]
+  const originalWx = global.wx
+  global.wx = {
+    getWindowInfo: () => ({
+      windowWidth: 375,
+      statusBarHeight: 44,
+      screenHeight: 812,
+      safeArea: { top: 44, bottom: 778, left: 0, right: 375 }
+    }),
+    getMenuButtonBoundingClientRect: () => ({
+      width: 87,
+      height: 32,
+      top: 48,
+      right: 368,
+      bottom: 80,
+      left: 281
+    })
+  }
+  try {
+    const safeArea = require(safeAreaPath)
+    // 状态栏 44 + 胶囊上间隙 4 的两倍 + 胶囊高 32 = 84，底边与胶囊底对齐
+    assert.equal(safeArea.getNavBarHeight(), 84)
+    // 右侧占位是胶囊左缘到屏幕右缘，按钮不会钻进胶囊
+    assert.equal(safeArea.getCapsuleRightInset(), 94)
+    assert.deepEqual(safeArea.getCapsuleRect(), {
+      width: 87,
+      height: 32,
+      top: 48,
+      right: 368,
+      bottom: 80,
+      left: 281
+    })
+  } finally {
+    delete require.cache[require.resolve(safeAreaPath)]
+    if (originalWx === undefined) delete global.wx
+    else global.wx = originalWx
+  }
+})
+
+test('navbar height lines up with the capsule rect at 320px and 390px', () => {
+  // 320：状态栏 20，胶囊顶 24、高 32、左 226 → 顶栏 60，右侧占位 94
+  const narrow = loadSafeArea({
+    getWindowInfo: () => ({ windowWidth: 320, statusBarHeight: 20 }),
+    getMenuButtonBoundingClientRect: () => ({
+      width: 87, height: 32, top: 24, right: 313, bottom: 56, left: 226
+    })
+  })
+  try {
+    assert.equal(narrow.safeArea.getNavBarHeight(), 60)
+    assert.equal(narrow.safeArea.getCapsuleRightInset(), 94)
+  } finally {
+    narrow.restore()
+  }
+
+  // 390：状态栏 47，胶囊顶 53、高 32、左 287 → 顶栏 91，右侧占位 103
+  const wide = loadSafeArea({
+    getWindowInfo: () => ({ windowWidth: 390, statusBarHeight: 47 }),
+    getMenuButtonBoundingClientRect: () => ({
+      width: 96, height: 32, top: 53, right: 383, bottom: 85, left: 287
+    })
+  })
+  try {
+    assert.equal(wide.safeArea.getNavBarHeight(), 91)
+    assert.equal(wide.safeArea.getCapsuleRightInset(), 103)
+  } finally {
+    wide.restore()
+  }
+})
+
+test('a missing capsule rect falls back without dropping the navbar slot', () => {
+  const denied = loadSafeArea({
+    getWindowInfo: () => { throw new Error('denied') },
+    getSystemInfoSync: () => { throw new Error('denied') }
+  })
+  try {
+    // 状态栏兜底 44；胶囊高 32，距状态栏 4，右缘距屏幕 7，宽 87，窗口宽兜底 375
+    assert.deepEqual(denied.safeArea.getCapsuleRect(), {
+      width: 87,
+      height: 32,
+      top: 48,
+      right: 368,
+      bottom: 80,
+      left: 281
+    })
+    assert.equal(denied.safeArea.getNavBarHeight(), 84)
+    assert.equal(denied.safeArea.getCapsuleRightInset(), 94)
+  } finally {
+    denied.restore()
+  }
+
+  const zeroRect = loadSafeArea({
+    getWindowInfo: () => ({ windowWidth: 320, statusBarHeight: 20 }),
+    getMenuButtonBoundingClientRect: () => ({ width: 0, height: 0, top: 0, right: 0, bottom: 0, left: 0 })
+  })
+  try {
+    assert.deepEqual(zeroRect.safeArea.getCapsuleRect(), {
+      width: 87,
+      height: 32,
+      top: 24,
+      right: 313,
+      bottom: 56,
+      left: 226
+    })
+    assert.equal(zeroRect.safeArea.getNavBarHeight(), 60)
+    assert.equal(zeroRect.safeArea.getCapsuleRightInset(), 94)
+  } finally {
+    zeroRect.restore()
+  }
+})
+
+function loadSafeArea(wxMock) {
+  const safeAreaPath = path.join(repoRoot, 'utils/safeArea.js')
+  delete require.cache[require.resolve(safeAreaPath)]
+  const originalWx = global.wx
+  global.wx = wxMock
+  const loaded = require(safeAreaPath)
+  return {
+    safeArea: loaded,
+    restore() {
+      delete require.cache[require.resolve(safeAreaPath)]
+      if (originalWx === undefined) delete global.wx
+      else global.wx = originalWx
+    }
+  }
+}
+
+test('shared navbar is fixed, reserves the capsule, and content starts at the bar bottom', () => {
+  const rules = parseWxssRules(readRepo('app.wxss'))
+  const nav = findDecls(rules, '.nav-bar')
+  const safeTop = findDecls(rules, '.safe-top')
+  const header = findDecls(rules, '.header-gradient')
+
+  assert.equal(nav.position, 'fixed')
+  assert.equal(nav.top, '0')
+  assert.equal(nav.left, '0')
+  assert.equal(nav.right, '0')
+  assert.equal(nav['box-sizing'], 'border-box')
+  assert.match(nav.height, /var\(--nav-bar-height/)
+  assert.match(nav['padding-top'], /var\(--safe-top/)
+  assert.match(nav['padding-right'], /var\(--capsule-right/)
+  assert.notEqual(header.position, 'relative', 'header gradient must not return the navbar to document flow')
+
+  // 内容区起点用同一顶栏高度，因此不会高于顶栏底边
+  assert.match(safeTop['padding-top'], /var\(--nav-bar-height/)
+
+  const pill = findDecls(parseWxssRules(readRepo('pages/index/index.wxss')), '.sync-pill')
+  assert.match(pill.top, /var\(--nav-bar-height/, 'sync status must start at or below the fixed navbar')
+
+  for (const pagePath of ALL_PAGES) {
+    const wxml = readRepo(`${pagePath}.wxml`)
+    const js = readRepo(`${pagePath}.js`)
+    assert.match(wxml, /class="[^"]*\bnav-bar\b/, `${pagePath} must use the shared navbar`)
+    assert.match(wxml, /--nav-bar-height:\s*\{\{navBarHeight\}\}px/, `${pagePath} must inject navbar height`)
+    assert.match(wxml, /--capsule-right:\s*\{\{capsuleRight\}\}px/, `${pagePath} must inject the capsule slot`)
+    assert.match(js, /navBarHeight:\s*safeArea\.getNavBarHeight\(\)/, `${pagePath} must read navbar height from safeArea`)
+    assert.match(js, /capsuleRight:\s*safeArea\.getCapsuleRightInset\(\)/, `${pagePath} must read the capsule slot from safeArea`)
+    if (wxml.includes('class="nav-back"')) {
+      assert.match(
+        wxml,
+        /class="nav-bar header-gradient">\s*<view class="nav-back"/,
+        `${pagePath} back button must live in the navbar`
+      )
+    }
+  }
+
+  const index = readRepo('pages/index/index.wxml')
+  assert.match(
+    index,
+    /class="nav-bar header-gradient">\s*<view class="nav-placeholder"><\/view>\s*<view class="nav-title">美少女的日历<\/view>/,
+    'home keeps an empty left slot and the title in the navbar'
+  )
+  assert.match(readRepo('pages/period/period.wxml'), /nav-title">记录</)
+  assert.match(readRepo('pages/settings/settings.wxml'), /nav-title">设置</)
+  assert.doesNotMatch(readRepo('pages/period/period.wxml'), /nav-back/)
+  assert.doesNotMatch(readRepo('pages/settings/settings.wxml'), /nav-back/)
+  assert.doesNotMatch(readRepo('pages/index/index.wxml'), /nav-back/)
+
+  const design = readRepo('DESIGN.md')
+  const geometry = design.slice(design.indexOf('窄屏几何与安全区'), design.indexOf('阴影登记'))
+  assert.match(geometry, /共享顶栏/)
+  assert.match(geometry, /胶囊/)
+})
+
 test('every page root injects --safe-bottom alongside --safe-top from runtime data', () => {
   for (const pagePath of ALL_PAGES) {
     const wxml = readRepo(`${pagePath}.wxml`)

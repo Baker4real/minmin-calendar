@@ -28,6 +28,8 @@ Page({
   data: {
     safeTop: safeArea.getSafeTop(),
     safeBottom: safeArea.getSafeBottom(),
+    navBarHeight: safeArea.getNavBarHeight(),
+    capsuleRight: safeArea.getCapsuleRightInset(),
     year: INITIAL_VIEW_DATE.getFullYear(),
     month: INITIAL_VIEW_DATE.getMonth(),
     weekDays: ['日','一','二','三','四','五','六'],

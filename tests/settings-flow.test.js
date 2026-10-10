@@ -1077,7 +1077,7 @@ function loadSettingsPageHarness({ roomOutcome, leaveRoom, cachedRoomCode } = {}
         return leaveRoom || { code: 0 }
       }
     }],
-    [path.join(__dirname, '..', 'utils/safeArea.js'), { getSafeTop: () => 44, getSafeBottom: () => 0 }]
+    [path.join(__dirname, '..', 'utils/safeArea.js'), { getSafeTop: () => 44, getSafeBottom: () => 0, getNavBarHeight: () => 84, getCapsuleRightInset: () => 94 }]
   ])
   const originalPage = global.Page
   const originalWx = global.wx

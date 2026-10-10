@@ -22,7 +22,7 @@
   width: 300rpx;
   min-height: 52rpx;
   position: fixed;
-  top: calc(var(--safe-top, env(safe-area-inset-top, 88rpx)) + 92rpx);
+  top: calc(var(--nav-bar-height, calc(env(safe-area-inset-top, 44px) + 44px)) + 12rpx);
   left: 50%;
   z-index: 50;
   margin: 0 0 0 -150rpx;
