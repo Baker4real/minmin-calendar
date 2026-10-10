@@ -1,4 +1,4 @@
-<view class="page safe-top {{pageObscured ? 'page-obscured' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
+<view class="page safe-top {{pageObscured ? 'page-obscured' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
 <wxs module="sheetDrag" src="../../utils/sheetDrag.wxs"></wxs>
   <!-- Aurora Decorative Orbs -->
   <view class="glow-orb glow-orb-1"></view>
@@ -7,7 +7,6 @@
   <view class="nav-bar header-gradient">
     <view class="nav-placeholder"></view>
     <view class="nav-title">美少女的日历</view>
-    <view class="nav-placeholder"></view>
   </view>
 
   <view wx:if="{{noRoom}}" class="no-room">
@@ -80,9 +79,9 @@
 
     <!-- 首页记录入口：图标用日历图例的经期圆点与欢乐时光浅色心（海军圆盘承载），不用表情 -->
     <view class="quick-actions">
-      <view class="quick-btn" bindtap="quickPeriod" aria-role="button" aria-label="记经期">
+      <view class="quick-btn" bindtap="quickPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}">
         <text class="quick-icon period-tone">●</text>
-        <text class="quick-text">记经期</text>
+        <text class="quick-text">{{periodQuickLabel}}</text>
       </view>
       <view class="quick-btn" bindtap="quickMemory" aria-role="button" aria-label="记录欢乐时光">
         <text class="quick-icon memory-tone">♥</text>

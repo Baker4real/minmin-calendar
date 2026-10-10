@@ -4,6 +4,7 @@ const roomAccessOutcome = require('./roomAccessOutcome')
 function createRoomSession(options = {}) {
   const storage = options.storage || createWxStorage()
   const cloud = options.cloud || createWxCloud()
+  const logger = options.logger || console
 
   return {
     getRoomCode() {
@@ -98,19 +99,21 @@ function createRoomSession(options = {}) {
       try {
         const res = await cloud.callFunction({ name: 'createRoom' })
         if (res.result?.code !== 0) {
-          return { code: -1, msg: res.result?.msg || '创建失败' }
+          return { code: -1, msg: presentRoomActionMessage(res.result?.msg, logger) }
         }
 
         const room = res.result.room || {}
         const roomCode = normalizeRoomCode(room.roomCode)
         if (!roomCode) {
-          return { code: -1, msg: '创建失败：房间码为空' }
+          logger.error('创建失败：房间码为空')
+          return { code: -1, msg: '这次没有完成，请重试' }
         }
 
         storage.set(ROOM_CODE_KEY, roomCode)
         return { code: 0, roomCode, room: { ...room, roomCode } }
       } catch (error) {
-        return { code: -1, msg: '创建失败：' + getErrorMessage(error) }
+        logger.error(error)
+        return { code: -1, msg: presentRoomActionFailure(error) }
       }
     },
 
@@ -126,14 +129,15 @@ function createRoomSession(options = {}) {
           data: { roomCode }
         })
         if (res.result?.code !== 0) {
-          return { code: -1, msg: res.result?.msg || '加入失败' }
+          return { code: -1, msg: presentRoomActionMessage(res.result?.msg, logger) }
         }
 
         const joinedRoomCode = normalizeRoomCode(res.result.roomCode) || roomCode
         storage.set(ROOM_CODE_KEY, joinedRoomCode)
         return { code: 0, roomCode: joinedRoomCode }
       } catch (error) {
-        return { code: -1, msg: '加入失败：' + getErrorMessage(error) }
+        logger.error(error)
+        return { code: -1, msg: presentRoomActionFailure(error) }
       }
     },
 
@@ -221,6 +225,30 @@ function normalizeRoomCode(value) {
 
 function getErrorMessage(error) {
   return error && error.message ? error.message : String(error || '未知错误')
+}
+
+function presentRoomActionMessage(msg, logger) {
+  const text = typeof msg === 'string' ? msg.trim() : ''
+  if (isProductRoomMessage(text)) return text
+  logger.error(msg || 'room action failed')
+  return presentRoomActionFailure(text)
+}
+
+function isProductRoomMessage(text) {
+  if (!text) return false
+  if (/[A-Za-z]/.test(text)) return false
+  if (/\d+\s*ms/.test(text)) return false
+  return true
+}
+
+function presentRoomActionFailure(error) {
+  const text = getErrorMessage(error)
+  if (isRetryableNetworkFailure(text)) return '网络不太稳定，请重试'
+  return '这次没有完成，请重试'
+}
+
+function isRetryableNetworkFailure(text) {
+  return /timeout|timed out|超时|network|云数据库|\d+\s*ms|request:fail/i.test(text)
 }
 
 function getFailureMessage(result) {

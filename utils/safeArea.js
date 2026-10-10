@@ -1,10 +1,12 @@
 // 安全区运行时策略：顶部（状态栏）与底部（home 指示条/手势条）共用同一套查询。
 // WXSS 的 env(safe-area-inset-*) 在部分 Android 设备上解析为 0，
 // 导致自定义导航栏顶进系统状态栏、底部 sheet/表单操作贴进手势区；统一由 JS 计算，
-// 经页面根节点的 CSS 变量注入（--safe-top → app.wxss 的 .safe-top；
-// --safe-bottom → 各页面 .content 与底部 sheet 的 padding-bottom）。
+// 经页面根节点的 CSS 变量注入（--safe-top、--nav-bar-height、--capsule-right、
+// --safe-bottom）。顶栏高度由状态栏和胶囊矩形推出，右侧让出胶囊宽度。
 let cachedSafeTop = null
 let cachedSafeBottom = null
+let cachedCapsule = null
+let cachedWindowWidth = null
 
 function getSafeTop() {
   if (cachedSafeTop === null) cachedSafeTop = queryStatusBarHeight()
@@ -52,4 +54,73 @@ function readBottomInset(info) {
   return inset > 0 ? Math.round(inset) : 0
 }
 
-module.exports = { getSafeTop, getSafeBottom }
+// 胶囊矩形与顶/底安全区走同一套运行时查询。
+// 顶栏高度 = 状态栏 + 由胶囊矩形推出的导航高度（胶囊在导航行里上下间隙相等）。
+function getCapsuleRect() {
+  if (cachedCapsule === null) cachedCapsule = queryCapsuleRect()
+  return cachedCapsule
+}
+
+function queryCapsuleRect() {
+  try {
+    if (typeof wx.getMenuButtonBoundingClientRect === 'function') {
+      const rect = readCapsuleRect(wx.getMenuButtonBoundingClientRect())
+      if (rect) return rect
+    }
+  } catch (e) {
+    // 拿不到胶囊矩形时走兜底
+  }
+  return fallbackCapsuleRect()
+}
+
+function readCapsuleRect(rect) {
+  if (!rect) return null
+  const { width, height, top, right, bottom, left } = rect
+  const numbers = [width, height, top, right, bottom, left]
+  if (!numbers.every(value => typeof value === 'number' && Number.isFinite(value))) return null
+  if (!(width > 0 && height > 0 && right > left && bottom > top)) return null
+  return { width, height, top, right, bottom, left }
+}
+
+function fallbackCapsuleRect() {
+  const statusBar = getSafeTop()
+  const windowWidth = queryWindowWidth()
+  const width = 87
+  const height = 32
+  const top = statusBar + 4
+  const right = windowWidth - 7
+  const left = right - width
+  return { width, height, top, right, bottom: top + height, left }
+}
+
+function queryWindowWidth() {
+  if (cachedWindowWidth === null) cachedWindowWidth = readWindowWidth()
+  return cachedWindowWidth
+}
+
+function readWindowWidth() {
+  try {
+    if (typeof wx.getWindowInfo === 'function') {
+      const info = wx.getWindowInfo()
+      if (info && info.windowWidth > 0) return info.windowWidth
+    }
+    const legacy = wx.getSystemInfoSync()
+    if (legacy && legacy.windowWidth > 0) return legacy.windowWidth
+  } catch (e) {
+    // 查询失败走兜底
+  }
+  return 375
+}
+
+function getNavBarHeight() {
+  const statusBar = getSafeTop()
+  const capsule = getCapsuleRect()
+  const gap = Math.max(0, capsule.top - statusBar)
+  return statusBar + gap * 2 + capsule.height
+}
+
+function getCapsuleRightInset() {
+  return queryWindowWidth() - getCapsuleRect().left
+}
+
+module.exports = { getSafeTop, getSafeBottom, getCapsuleRect, getNavBarHeight, getCapsuleRightInset }

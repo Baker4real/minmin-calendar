@@ -6,12 +6,12 @@ const recordEditRoute = require('../../utils/recordEditRoute')
 const memoryMonthGroups = require('../../utils/memoryMonthGroups')
 const safeArea = require('../../utils/safeArea')
 
-// 与 pages/settings/settings.js、pages/period/edit/edit.js、pages/memory/edit/edit.js 共享的
+// 与 pages/period/edit/edit.js、pages/memory/edit/edit.js 共享的
 // 一次性「目标分段」意图键：switchTab 不能带 query，入口先写键，本页 onShow 消费并立即清除（issue #103）
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 
 Page({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), segment: 'period', periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memories: [], memoryGroups: [], memoryLoading: false, memoryLoadFailed: false, memoryHasLoaded: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), segment: 'period', periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memories: [], memoryGroups: [], memoryLoading: false, memoryLoadFailed: false, memoryHasLoaded: false },
 
   // 欢乐时光月份卡的展开选择（issue #109）：页面内存按月份键记「用户点过卡头」的月份，
   // 值为 memoryMonthGroups.EXPANDED / COLLAPSED；没点过的月份走默认规则（只展开最近一个有记录的月份）。
