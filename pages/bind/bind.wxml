@@ -1,11 +1,14 @@
-<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
+<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
+  <view class="nav-bar header-gradient">
+    <view class="nav-placeholder"></view>
+  </view>
   <view class="content">
     <view class="hero">
       <!-- 品牌心是文本字形（颜色走 wxss），不用红色心形表情（issue #77） -->
       <view class="hero-icon">♥</view>
       <block wx:if="{{revealed}}">
         <text class="hero-title">美少女的日历</text>
-        <text class="hero-desc">两个人的专属空间<br/>共享经期与欢乐时光</text>
+        <text class="hero-desc">两个人的专属空间\n共享经期与欢乐时光</text>
       </block>
     </view>
 
@@ -20,12 +23,14 @@
       </view>
       <!-- issue #102：创建成功后的下一步引导；复制键仍是唯一复制入口，不新增第二个 -->
       <text wx:if="{{justCreated}}" class="info-text">把房间码发给 TA</text>
+      <button wx:if="{{justCreated}}" class="btn-premium share-invite" open-type="share" hover-class="share-invite-hover" aria-role="button" aria-label="发给 TA">发给 TA</button>
       <!-- issue #102：已绑定冷启动由 checkRoom 自动进首页，「进入应用」只在跳转失败或刚创建房间时出现；
            「解除绑定」移到设置页房间卡，本卡不再提供 -->
       <view wx:if="{{justCreated || homeJumpFailed}}" class="btn-premium" bindtap="goHome" aria-role="button" aria-label="进入应用">进入应用</view>
     </view>
 
     <view wx:else class="premium-card">
+      <text class="info-text">房间只有你们两个人能看到</text>
       <view class="tab-bar">
         <view class="tab {{tab==='create' ? 'active' : ''}}" bindtap="switchTab" data-tab="create" aria-role="radio" aria-label="创建房间" aria-checked="{{tab==='create'}}">创建房间</view>
         <view class="tab {{tab==='join' ? 'active' : ''}}" bindtap="switchTab" data-tab="join" aria-role="radio" aria-label="加入房间" aria-checked="{{tab==='join'}}">加入房间</view>

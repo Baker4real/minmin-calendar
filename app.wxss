@@ -97,10 +97,10 @@ page {
 .page::before {
   content: '';
   position: fixed;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
+  top: -2.5%;
+  left: -2.5%;
+  width: 105%;
+  height: 105%;
   background:
     radial-gradient(ellipse at 30% 20%, rgba(232,144,158,0.12) 0%, transparent 50%),
     radial-gradient(ellipse at 70% 80%, rgba(196,160,210,0.09) 0%, transparent 50%),
@@ -152,10 +152,17 @@ page {
 .nav-bar {
   display: flex;
   align-items: center;
-  padding: 0 30rpx;
-  height: 88rpx;
-  position: relative;
+  box-sizing: border-box;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 10;
+  height: var(--nav-bar-height, calc(env(safe-area-inset-top, 44px) + 44px));
+  padding-top: var(--safe-top, env(safe-area-inset-top, 44px));
+  padding-right: var(--capsule-right, 96px);
+  padding-bottom: 0;
+  padding-left: 30rpx;
 }
 .nav-title {
   flex: 1;
@@ -189,8 +196,6 @@ page {
   left: 10rpx;
   border-radius: var(--radius-card);
   background: linear-gradient(rgba(255,255,255,0.09), rgba(255,255,255,0.09)), var(--glass-fallback);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(232,144,158,0.28);
   box-shadow:
     0 6rpx 18rpx rgba(10,14,39,0.18),
@@ -222,8 +227,6 @@ page {
 /* ===== Premium Card (Glass) ===== */
 .premium-card {
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border-radius: var(--radius-card);
   border: 1px solid rgba(255,255,255,0.12);
   box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
@@ -269,8 +272,6 @@ page {
 /* ===== Danger Button — 柔红，与玫瑰体系同族 ===== */
 .btn-danger {
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   color: #F97373;
   text-align: center;
   padding: 26rpx;
@@ -289,10 +290,7 @@ page {
 /* ===== Header Gradient ===== */
 .header-gradient {
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255,255,255,0.1);
-  position: relative;
   overflow: hidden;
   z-index: 10;
 }
@@ -337,7 +335,6 @@ page {
   border-top-color: #E8909E;
   border-radius: var(--radius-circle);
   animation: spin 0.8s linear infinite;
-  box-shadow: 0 0 20px rgba(232,144,158,0.2);
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -366,9 +363,10 @@ page {
   transition: opacity var(--duration-state) ease;
 }
 
-/* Safe Area：--safe-top 由页面根节点内联注入（utils/safeArea.js），
+/* 共享顶栏：--safe-top、--nav-bar-height、--capsule-right、--safe-bottom
+   由页面根节点内联注入（utils/safeArea.js）。顶栏固定，内容从顶栏底边开始。
    env() 在部分 Android 设备解析为 0，仅作兜底 */
-.safe-top { padding-top: var(--safe-top, env(safe-area-inset-top, 88rpx)); }
+.safe-top { padding-top: var(--nav-bar-height, calc(env(safe-area-inset-top, 44px) + 44px)); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 20rpx); }
 
 /* ===== Input Placeholder ===== */
@@ -400,7 +398,6 @@ page {
     transition: none;
   }
   .cycle-card,
-  .profile-card,
   .hero-icon,
   .tab {
     animation: none;

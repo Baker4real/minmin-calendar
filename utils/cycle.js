@@ -162,11 +162,10 @@ function buildOngoingCompletionReminder(periods, options = {}) {
   if (!ongoing) return null
 
   const today = options.today || util.formatDate(new Date())
-  if (!isDateString(ongoing.startDate) || !isDateString(today)) return null
+  const runningDays = inclusiveDayCount(ongoing.startDate, today)
+  if (!runningDays) return null
 
-  const durations = normalizePeriods(periods).map(item => item.duration).filter(isPositiveNumber)
-  const expected = getPredictedDuration(durations, options)
-  const runningDays = util.daysBetween(util.parseDate(ongoing.startDate), util.parseDate(today)) + 1
+  const expected = expectedPeriodLength(periods, options)
   if (runningDays <= expected.days) return null
 
   return {
@@ -345,6 +344,16 @@ function findOngoingPeriod(periods = []) {
   return list.find(item => getPeriodStatus(item) === 'ongoing') || null
 }
 
+function buildPeriodQuickAction(periods, options = {}) {
+  const today = options.today || util.formatDate(new Date())
+  const ongoing = findOngoingPeriod(periods)
+  if (!ongoing) return { label: '记经期', ariaLabel: '记经期', mode: 'add' }
+  const day = inclusiveDayCount(ongoing.startDate, today)
+  if (!day) return { label: '记结束', ariaLabel: '记结束', mode: 'complete' }
+  const label = `经期第 ${day} 天 · 记结束`
+  return { label, ariaLabel: label, mode: 'complete' }
+}
+
 // 日历与小结共用的投影区间：进行中投影开始日至今天（不发明未来日期），
 // 结束日期不详只投已知开始日，已知结束保持含首尾区间。
 function projectPeriodRange(period, today) {
@@ -416,6 +425,42 @@ function getStableCycles(cycleLengths) {
   const threshold = Math.max(7, mad * 2)
   const stable = cycleLengths.filter(length => Math.abs(length - center) <= threshold)
   return stable.length >= 2 ? stable : cycleLengths
+}
+
+function inclusiveDayCount(startDate, endDate) {
+  if (!isDateString(startDate) || !isDateString(endDate) || startDate > endDate) return 0
+  return util.daysBetween(util.parseDate(startDate), util.parseDate(endDate)) + 1
+}
+
+function expectedPeriodLength(periods, options = {}) {
+  const durations = normalizePeriods(periods).map(item => item.duration).filter(isPositiveNumber)
+  return getPredictedDuration(durations, options)
+}
+
+// 已知起止的含首尾天数，以及是否超过超期完成提醒所用的同一预期时长。
+// 只描述，不改记录、不写结束日。
+function describeKnownPeriodLength({ startDate, endDate, periods = [], typicalPeriodLength } = {}) {
+  const days = inclusiveDayCount(startDate, endDate)
+  if (!days) {
+    return {
+      days: 0,
+      text: '',
+      exceedsExpected: false,
+      expectedDays: 0,
+      expectedSource: '',
+      hint: ''
+    }
+  }
+  const expected = expectedPeriodLength(periods, { typicalPeriodLength })
+  const exceedsExpected = days > expected.days
+  return {
+    days,
+    text: `共 ${days} 天`,
+    exceedsExpected,
+    expectedDays: expected.days,
+    expectedSource: expected.source,
+    hint: exceedsExpected ? `超过预期的 ${expected.days} 天，请核对结束日期` : ''
+  }
 }
 
 // 预测持续时长的优先级：用户设置 → 已完成历史时长中位数 → 五天默认。
@@ -502,10 +547,12 @@ module.exports = {
   predictNextPeriod,
   buildCycleReminders,
   buildOngoingCompletionReminder,
+  describeKnownPeriodLength,
   buildPeriodPayload,
   getPeriodStatus,
   isPeriodStatus,
   findOngoingPeriod,
+  buildPeriodQuickAction,
   projectPeriodRange,
   getPeriodDuration,
   decoratePeriod,

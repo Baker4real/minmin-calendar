@@ -6,7 +6,7 @@ const safeArea = require('../../utils/safeArea')
 
 Page({
   goBack() { wx.navigateBack() },
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), memories: [], loading: true, loadFailed: false, hasLoaded: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), memories: [], loading: true, loadFailed: false, hasLoaded: false },
 
   onShow() { return this.loadData() },
 

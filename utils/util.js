@@ -244,6 +244,17 @@ function isValidDateString(value) {
     date.getDate() === day
 }
 
+// 滑动翻月（issue #137）：超过 48px 且水平位移严格大于竖直位移才翻月。
+// 左滑（dx 为负）到下一月，右滑到上一月；相等或竖直更大留给轻点和滚动。
+const MONTH_SWIPE_MIN_PX = 48
+
+function decideMonthSwipe(dx, dy) {
+  const travelX = Math.abs(Number(dx))
+  const travelY = Math.abs(Number(dy))
+  if (!(travelX > MONTH_SWIPE_MIN_PX) || !(travelX > travelY)) return 'none'
+  return dx < 0 ? 'next' : 'prev'
+}
+
 function normalizeDateRange(range = {}) {
   if (!range) return null
   const { startDate, endDate } = range
@@ -266,6 +277,8 @@ module.exports = {
   formatDate,
   parseDate,
   isValidDateString,
+  MONTH_SWIPE_MIN_PX,
+  decideMonthSwipe,
   normalizeDateRange,
   getDaysInMonth,
   getFirstDayOfMonth,

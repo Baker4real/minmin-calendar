@@ -26,7 +26,7 @@ function copyRoomCode(options = {}) {
       },
       fail: error => {
         showToast(wxApi, { title: '复制失败', icon: 'error' })
-        resolve({ kind: 'copy-failed', message: getErrorMessage(error) })
+        resolve({ kind: 'copy-failed', message: roomAccessOutcome.presentUserFailure(getErrorMessage(error)) })
       }
     })
   })
@@ -79,7 +79,7 @@ async function exportRecordsAsJson(options = {}) {
     showToast(wxApi, { title: '导出失败', icon: 'error' })
     return {
       kind: 'export-failed',
-      message: getErrorMessage(error)
+      message: roomAccessOutcome.presentUserFailure(getErrorMessage(error))
     }
   }
 }
@@ -102,7 +102,7 @@ function confirmExport(options = {}) {
   return new Promise(resolve => {
     wxApi.showModal({
       title: '导出数据',
-      content: '将导出房间里的全部经期记录和欢乐时光，打包成一个 JSON 文件（通用的数据备份格式，手机和电脑都能打开查看）。\n\n你可以把文件转发给微信好友保存，或复制内容自己留存，作为一份数据备份。\n\n导出只是复制一份数据，不会改动或删除云端记录。',
+      content: '会导出全部经期和欢乐时光。建议发到「文件传输助手」保存。目前还不能导入恢复。',
       confirmText: '开始导出',
       cancelText: '取消',
       success: result => {
@@ -161,7 +161,9 @@ function getRoomRepairMessage(repair) {
   if (repair && repair.kind === 'success' && !repair.bound) {
     return '房间状态已变化，请重新绑定'
   }
-  return repair && repair.message ? repair.message : '同步房间状态失败，请稍后重试'
+  return roomAccessOutcome.presentUserFailure(
+    repair && repair.message ? repair.message : '同步房间状态失败，请稍后重试'
+  )
 }
 
 function createLoadingGuard(wxApi) {

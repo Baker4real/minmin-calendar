@@ -30,7 +30,7 @@ function createRoomDataClient(options = {}) {
     if (resolution.kind === 'retryable-failure') {
       return buildRetryableFailure({
         action,
-        message: resolution.message,
+        message: roomAccessOutcome.presentUserFailure(resolution.message),
         retry: () => runAction(action, collection, data, id)
       })
     }
@@ -57,12 +57,12 @@ function createRoomDataClient(options = {}) {
       }
       return {
         kind: 'business-failure',
-        message: result.msg || '操作失败'
+        message: roomAccessOutcome.presentUserFailure(result.msg || '操作失败')
       }
     } catch (error) {
       return buildRetryableFailure({
         action,
-        message: getErrorMessage(error),
+        message: roomAccessOutcome.presentUserFailure(getErrorMessage(error)),
         retry: () => runAction(action, collection, data, id)
       })
     }
