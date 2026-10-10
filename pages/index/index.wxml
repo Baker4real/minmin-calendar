@@ -73,7 +73,7 @@
       >
         <view wx:if="{{item.periodSegment != 'none'}}" class="period-band"></view>
         <view class="day-num">{{item.day}}</view>
-        <view wx:if="{{!item.isEmpty && calendarDensity == 'full'}}" class="day-lunar">{{item.lunarText}}</view>
+        <view wx:if="{{!item.isEmpty && calendarDensity == 'full'}}" class="day-lunar">{{item.lunarCellText}}</view>
         <view wx:if="{{!item.isEmpty}}" class="day-tag-line">
           <text wx:if="{{item.holidayName}}" class="day-tag holiday-tag">{{item.holidayName}}</text>
           <text wx:elif="{{item.isWorkday}}" class="day-tag workday-tag">班</text>
@@ -392,12 +392,13 @@
       </view>
 
       <view wx:if="{{infoSheetMode == 'legend'}}" class="legend-list">
-        <view
-          wx:for="{{legendItems}}"
-          wx:key="key"
-          class="legend-row {{item.key}}"
-        >
-          <text class="legend-symbol">{{item.marker}}</text>
+        <view wx:for="{{legendItems}}" wx:key="key" class="legend-row">
+          <view class="legend-sample day-cell {{item.cellClass}}">
+            <block wx:for="{{item.parts}}" wx:for-item="part" wx:key="className">
+              <view wx:if="{{part.kind == 'band' || part.kind == 'num' || part.kind == 'mark'}}" class="{{part.className}}">{{part.text}}</view>
+              <text wx:elif="{{part.kind == 'tag'}}" class="{{part.className}}">{{part.text}}</text>
+            </block>
+          </view>
           <view class="legend-copy">
             <text class="legend-title">{{item.title}}</text>
             <text class="legend-text">{{item.text}}</text>

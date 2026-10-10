@@ -1094,6 +1094,16 @@ test('settings page leads with room info in named groups and keeps unbind in the
   assert.doesNotMatch(density, /box-shadow\s*:/)
 })
 
+test('settings calendar display says compact keeps holidays and adjusted workdays, and full adds the lunar day', () => {
+  const wxml = readPageFile('pages/settings/settings.wxml')
+  const calendar = wxml.slice(wxml.indexOf('>日历显示<'), wxml.indexOf('>数据<'))
+
+  assert.match(calendar, /清爽只看日期与标记（含节日和调休），完整另外显示农历/)
+  assert.doesNotMatch(calendar, /完整加显农历与节日|完整显示农历和节假日/)
+  assert.match(calendar, /aria-label="清爽显示日期与标记"/)
+  assert.match(calendar, /aria-label="完整显示农历"/)
+})
+
 // ===== issue #103：「查看欢乐时光」→ 记录 tab 的欢乐时光分段 =====
 
 test('settings page no longer offers a second happy-time entry', () => {

@@ -37,7 +37,8 @@ test('buildHomeCalendarState returns fallback prediction state and explicit day 
     ['today', 'period', 'memory', 'predict', 'holiday', 'workday']
   )
   assert.equal(new Set(state.legendItems.map(item => item.key)).size, 6)
-  assert.match(state.legendItems.find(item => item.key === 'predict').text, /预测区间/)
+  assert.match(state.legendItems.find(item => item.key === 'predict').text, /下次可能开始的日子/)
+  assert.doesNotMatch(state.legendItems.find(item => item.key === 'predict').text, /预测区间/)
   assert.match(state.legendItems.find(item => item.key === 'memory').text, /欢乐时光/)
   assert.deepEqual(state.cycleReminders, [])
   assert.deepEqual(
@@ -234,9 +235,10 @@ test('buildHomeCalendarState expresses a period day inside the prediction window
   assert.equal(state.dayDetailsByDate['2026-08-10'].memories[0].note, '庆祝晚餐')
   assert.deepEqual(
     state.dayDetailsByDate['2026-08-11'].meanings.map(item => [item.key, item.title]),
-    [['predict', '预测区间']]
+    [['predict', '下次可能开始的日子']]
   )
-  assert.match(state.dayDetailsByDate['2026-08-11'].meanings[0].text, /预测/)
+  assert.match(state.dayDetailsByDate['2026-08-11'].meanings[0].text, /下次可能开始的日子/)
+  assert.doesNotMatch(state.dayDetailsByDate['2026-08-11'].meanings[0].text, /预测区间/)
 
   assert.deepEqual(segmentRow(state, '2026-08-08', '2026-08-11'), [
     ['2026-08-08', 'end', false],
@@ -247,7 +249,7 @@ test('buildHomeCalendarState expresses a period day inside the prediction window
   assert.equal(periodOnly.ariaLabel, '8月8日 周六 六月廿六 经期第27天')
   assert.equal(overlap.ariaLabel, '8月9日 周日 六月廿七 经期第28天')
   assert.equal(overlapWithMemory.ariaLabel, '8月10日 周一 六月廿八 经期第29天 欢乐时光')
-  assert.equal(predictOnly.ariaLabel, '8月11日 周二 六月廿九 预测区间')
+  assert.equal(predictOnly.ariaLabel, '8月11日 周二 六月廿九 下次可能开始的日子')
 })
 
 test('buildHomeCalendarState aligns missing endDate period markers with detail rows', () => {
@@ -679,11 +681,11 @@ test('buildHomeCalendarState spells out a complete aria label for stacked marker
 
   assert.equal(
     state.days.find(day => day.date === '2026-08-10').ariaLabel,
-    '8月10日 周一 六月廿八 今天 欢乐时光 预测区间'
+    '8月10日 周一 六月廿八 今天 欢乐时光 下次可能开始的日子'
   )
   assert.equal(
     state.days.find(day => day.date === '2026-08-11').ariaLabel,
-    '8月11日 周二 六月廿九 预测区间'
+    '8月11日 周二 六月廿九 下次可能开始的日子'
   )
 })
 
@@ -749,6 +751,25 @@ test('buildHomeCalendarState keeps long holiday names complete for screen reader
   assert.equal(combinedDetail.meanings[1].text, '国庆/中秋。')
 })
 
+test('calendar cells show the lunar day, and the first day of a lunar month shows the month name', () => {
+  const august = buildHomeCalendarState({ year: 2026, month: 7, today: '2026-08-01' })
+  const twentyNine = august.days.find(day => day.date === '2026-08-11')
+  const first = august.days.find(day => day.date === '2026-08-13')
+
+  assert.equal(twentyNine.lunarText, '六月廿九')
+  assert.equal(twentyNine.lunarCellText, '廿九')
+  assert.equal(twentyNine.ariaLabel, '8月11日 周二 六月廿九')
+  assert.equal(first.lunarText, '七月初一')
+  assert.equal(first.lunarCellText, '七月')
+  assert.equal(first.ariaLabel, '8月13日 周四 七月初一')
+
+  const leap = buildHomeCalendarState({ year: 2020, month: 4, today: '2020-05-01' })
+  const leapDay = leap.days.find(day => day.date === '2020-05-23')
+  assert.equal(leapDay.lunarText, '闰四月初一')
+  assert.equal(leapDay.lunarCellText, '闰四月')
+  assert.equal(leapDay.ariaLabel, '5月23日 周六 闰四月初一')
+})
+
 test('buildHomeCalendarState keeps the full leap-month lunar string in the day name', () => {
   const state = buildHomeCalendarState({
     year: 2020,
@@ -775,20 +796,30 @@ test('buildHomeCalendarState keeps hidden non-month cells silent for screen read
   emptyCells.forEach(day => assert.equal(day.ariaLabel, ''))
 })
 
-test('legend items describe the real calendar rendering instead of phantom glyphs', () => {
+test('legend items use the same marker description the calendar cells draw', () => {
   const state = buildHomeCalendarState({ year: 2026, month: 7, today: '2026-08-10' })
   const legend = Object.fromEntries(state.legendItems.map(item => [item.key, item]))
 
-  assert.notEqual(legend.today.marker, '今')
-  assert.match(legend.today.text, /玫瑰色光圈/)
-  assert.notEqual(legend.today.marker, legend.period.marker)
+  assert.equal(legend.today.cellClass, 'today')
+  assert.deepEqual(legend.today.parts, [{ kind: 'num', className: 'day-num', text: '8' }])
+  assert.match(legend.today.text, /薰衣草描边/)
+  assert.match(legend.today.text, /玫瑰底/)
+  assert.match(legend.today.text, /玫瑰色/)
+  assert.doesNotMatch(legend.today.text, /光圈/)
 
-  assert.notEqual(legend.holiday.marker, '节')
-  assert.equal(legend.holiday.marker, '中秋')
+  assert.equal(legend.period.cellClass, 'period period-single')
+  assert.deepEqual(legend.period.parts, [{ kind: 'band', className: 'period-band', text: '' }])
+  assert.doesNotMatch(legend.period.text, /圆点|●/)
+
+  assert.deepEqual(legend.memory.parts, [{ kind: 'mark', className: 'mark memory-mark', text: '♥' }])
+  assert.deepEqual(legend.predict.parts, [{ kind: 'mark', className: 'mark predict-mark', text: '预' }])
+  assert.match(legend.predict.text, /下次可能开始的日子/)
+  assert.doesNotMatch(legend.predict.text, /预测区间/)
+
+  assert.deepEqual(legend.holiday.parts, [{ kind: 'tag', className: 'day-tag holiday-tag', text: '中秋' }])
   assert.match(legend.holiday.text, /真实节日名称/)
-
-  assert.equal(legend.period.marker, '●')
-  assert.equal(legend.memory.marker, '♥')
+  assert.doesNotMatch(legend.holiday.text, /金底/)
+  assert.deepEqual(legend.workday.parts, [{ kind: 'tag', className: 'day-tag workday-tag', text: '班' }])
 })
 
 test('buildHomeCalendarState keeps fallback detail keys stable when records are inserted', () => {

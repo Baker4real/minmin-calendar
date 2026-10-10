@@ -25,14 +25,14 @@
     <view class="settings-group">
       <text class="settings-group-title">日历显示</text>
       <view class="premium-card">
-        <text class="density-menu-desc">清爽只看日期与标记，完整加显农历与节日</text>
+        <text class="density-menu-desc">清爽只看日期与标记（含节日和调休），完整另外显示农历</text>
         <view class="density-control" aria-label="日历信息密度">
           <view
             class="density-option {{calendarDensity == 'compact' ? 'active' : ''}}"
             data-density="compact"
             bindtap="setCalendarDensity"
             aria-role="radio"
-            aria-label="清爽显示日历"
+            aria-label="清爽显示日期与标记"
             aria-checked="{{calendarDensity == 'compact'}}"
           >清爽</view>
           <view
@@ -40,7 +40,7 @@
             data-density="full"
             bindtap="setCalendarDensity"
             aria-role="radio"
-            aria-label="完整显示农历和节假日"
+            aria-label="完整显示农历"
             aria-checked="{{calendarDensity == 'full'}}"
           >完整</view>
         </view>

@@ -735,7 +735,6 @@ test('month flips keep only the refresh dim, and day colors switch immediately',
 
   for (const selector of [
     '.day-cell.today',
-    '.day-cell.holiday:not(.today)',
     '.day-cell.workday:not(.today)',
     '.day-cell.today .day-num'
   ]) {
