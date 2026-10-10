@@ -99,8 +99,8 @@ components:
     periodBand: "rgba(232,144,158,0.22)"
     memoryMark: "#F0C4C0"
     predictMark: "#D4A574"
-    holidayTagBg: "rgba(212,165,116,0.9)"
-    holidayTagText: "#0A0E27"
+    holidayTagBg: "transparent"
+    holidayTagText: "#D4A574"
     workdayTagBg: "rgba(255,255,255,0.12)"
   diary-card:
     backgroundColor: "rgba(232,144,158,0.06)"
@@ -148,7 +148,7 @@ components:
 - 间距阶梯：名义刻度 4/8/16/24/32/48px（frontmatter spacing）在 `app.wxss` 登记为 rpx token（数值 ×2）：`--space-xs` / `--space-sm` / `--space-md` / `--space-lg` / `--space-xl` / `--space-xxl` = `8rpx` / `16rpx` / `32rpx` / `48rpx` / `64rpx` / `96rpx`。issue #53 只收敛单一来源并登记；页面既有间距字面量的逐页迁移留给后续 UI ticket，新增布局优先使用 token。
 - 字号角色：见「Typography」节的共享字号角色表，`app.wxss` 的 `--font-size-*` token 是全页面唯一来源，`tests/typography-roles.test.js` 护栏。
 - 首页信息架构（issue #55，issue #105 修订）：首页 `.content` 自上而下为 月份导航 → 周头/日历 → 记录入口（`.quick-actions` 记经期/欢乐时光）→ 合并状态卡（`.status-card`，无任何记录时整卡收起，由空态引导补位）。图例/预测说明/本月小结收进月份标题旁的「…」菜单（issue #105 登记：触发器字形用「…」——「⌄」已用于选月 caret，不重复占用；菜单是与日操作 sheet 同族的底部 sheet，三个菜单项复用 `openLegendSheet` / `openPredictionSheet` / `openMonthlyRecap` 与既有 sheet 本体），日历上方与下方不再有常驻工具条。合并状态卡 = 经期记录条数（纯现状文本，不再是列表跳转；issue #68 的左半入口随本修订退役）+ 下次预测（整块可点，打开预测说明）+ 卡内提醒区（超期进行中补填提示与周期提醒，点击仍走原有补填/记录动作），无预测且无提醒时卡只剩预测区，不新增空区块。经期与欢乐时光列表由「记录」tab 的经期/欢乐时光分段承接（issue #103），首页不再放列表入口。空态引导仅在无任何记录时出现，文字在其合成面（画布海军 + 引导卡 6% 白底）上 ≥4.5:1，不低于 `--text-secondary` 档。日历密度偏好（`calendarDensity` 存储键）的切换入口在设置页「日历显示」分组里，分段控件直接放在分组卡中，不再套一层内卡；首页 `onShow` 重读即刻生效；密度选中态保持玫瑰描边弱态，不用实色填充。结构序与首屏预算由 `tests/index-page.test.js`、`tests/calendar-micro-labels.test.js` 钉住。日历日动作 sheet 对晚于今天的日期隐藏「记录经期 / 补经期」入口（issue #100 登记：隐藏而非置灰，模板按 `selectedDateIsFuture` 门控），编辑页日期上限与保存校验仍是最后防线。
-- 窄屏几何与安全区（issue #56）：所有带显式 `width` 与水平内边距的卡片/表单容器一律 `box-sizing: border-box`，宽度与内边距不得叠加出横向溢出（全 WXSS 护栏，含 `app.wxss`）。安全区运行时策略只有一套（`utils/safeArea.js`）：顶部 `--safe-top` 走状态栏高度、底部 `--safe-bottom` 走 `screenHeight − safeArea.bottom`，均由页面根节点内联注入；底部插入在无手势区设备上为 0，不制造无意义底部空白。共享顶栏：七个页面共用一个固定顶栏，高度等于状态栏高度加上由微信胶囊矩形推出的导航高度，右侧用 `--capsule-right` 预留胶囊宽度，顶栏固定定位，页面内容用同一个 `--nav-bar-height` 下移，起点不高于顶栏底边。胶囊矩形和顶、底安全区共用 `utils/safeArea.js` 这一个运行时出口，拿不到胶囊矩形时有兜底。编辑页的返回键在顶栏里，首页顶栏左侧留空。底部落点：非 tab 页 `.content` 的 padding-bottom 与底部 sheet 的 padding-bottom = 基础值 + `var(--safe-bottom, env(safe-area-inset-bottom, 0px))`；tab 页内容由原生 tabBar 吸收底部插入，不重复加。底部 sheet 滚动边界 = `max-height` 82–86vh + `overflow-y: auto`，遮罩不做 `overflow` 裁切。日历触控目标按「高度 ≥44px」执行（compact 104rpx ≈ 44.4px@320px、full 160rpx ≈ 68.3px@320px）；320px 下七列宽 ≈42.5px 是物理上限（7×44px 放不进 320px），列整宽平铺、无水平 margin、互不重叠，不以缩小日期/农历/标记吸收。回归由 `tests/narrow-screen-geometry.test.js` 钉住。
+- 窄屏几何与安全区（issue #56）：所有带显式 `width` 与水平内边距的卡片/表单容器一律 `box-sizing: border-box`，宽度与内边距不得叠加出横向溢出（全 WXSS 护栏，含 `app.wxss`）。安全区运行时策略只有一套（`utils/safeArea.js`）：顶部 `--safe-top` 走状态栏高度、底部 `--safe-bottom` 走 `screenHeight − safeArea.bottom`，均由页面根节点内联注入；底部插入在无手势区设备上为 0，不制造无意义底部空白。共享顶栏：七个页面共用一个固定顶栏，高度等于状态栏高度加上由微信胶囊矩形推出的导航高度，右侧用 `--capsule-right` 预留胶囊宽度，顶栏固定定位，页面内容用同一个 `--nav-bar-height` 下移，起点不高于顶栏底边。胶囊矩形和顶、底安全区共用 `utils/safeArea.js` 这一个运行时出口，拿不到胶囊矩形时有兜底。编辑页的返回键在顶栏里，首页顶栏左侧留空。底部落点：非 tab 页 `.content` 的 padding-bottom 与底部 sheet 的 padding-bottom = 基础值 + `var(--safe-bottom, env(safe-area-inset-bottom, 0px))`；tab 页内容由原生 tabBar 吸收底部插入，不重复加。底部 sheet 滚动边界 = `max-height` 82–86vh + `overflow-y: auto`，遮罩不做 `overflow` 裁切。日历触控目标按「高度 ≥44px」执行（compact 104rpx ≈ 44.4px@320px、full 160rpx ≈ 68.3px@320px）；320px 下七列宽 ≈42.5px 是物理上限（7×44px 放不进 320px），列整宽平铺、无水平 margin、互不重叠，不以缩小日期/农历/标记吸收。周头与日历网格左右各留 10rpx，最左列和最右列的内容不贴网格边框；色带仍铺满各自的格子，不因这道内边距改形状。回归由 `tests/narrow-screen-geometry.test.js` 钉住。
 - 阴影登记（下文「Shadow / overlay 登记」段）实行区间登记制：同族同色阴影的透明度落在登记区间内即合规，区间内免逐值登记；区间外透明度或登记表外颜色由 `tests/design-token-guardrail.test.js` 的阴影注册表护栏拒绝。
 - 交互语义（issue #57）：每个可点控件（bindtap/catchtap，sheet 的 `catchtap="noop"` 泄泡盾除外）都带 `aria-role` 与可读 `aria-label`；弹层遮罩本身是「关闭」操作，按用途命名（关闭月份选择/当日操作/面板）。选中态用 `aria-checked` 表达并与 `active` 类同条件绑定（单选组如经期状态、密度、月份格、绑定 tab 用 `radio`，可多选或可再点取消的经量/症状 chip 用 `checkbox`）；禁用与加载态用 `aria-disabled` 表达并与 `disabled`/`loading` 类同条件。picker 与输入框带 `aria-label`。首屏加载指示（`.loading-spinner`）带可读 `aria-label`；同步状态胶囊（`.sync-pill`）为 `status` 角色、朗读名与 `syncStatusText` 同源，同步状态变化即可朗读（issue #106）。日历格保持 `aria-label="{{item.ariaLabel}}"` 领域朗读（日期+经期/欢乐时光/预测/节日/调休）与 `aria-hidden="{{item.isEmpty}}"` 空白格隐藏，角色为 button；语义文案唯一来源仍是 `utils/homeCalendarState.js`。护栏：`tests/interaction-semantics.test.js`。
 - 次级可点入口对比度（issue #57）：可点击箭头（`.menu-arrow`、`.form-picker-arrow`、列表/入口/弹层箭头）与次要操作（重试空态、绑定页房间码、危险按钮）的文字色不弱于 `--text-secondary`，在各自实际表面（卡片/表单/sheet 合成底）上 ≥4.5:1——基准即未选中 tab `#7A7C8C` 在画布 `#0A0E27` 上的 4.5:1；输入占位符用 `--text-placeholder`（`rgba(255,255,255,0.6)`，与 `--text-secondary` 同档，不弱于它；issue #144），`.input-placeholder` 的字号走 `--font-size-input`。`--text-tertiary`（0.35 白）不再用于占位符，也不再用于任何可点入口。护栏：`tests/secondary-affordance-contrast.test.js`、`tests/typography-hierarchy.test.js`。
@@ -163,11 +163,11 @@ components:
 - 各页 0.62–0.94 信息文本透明度是逐元素调校，不要机械归并。
 - 可点控件只描述 Default 与 Pressed。Pressed 用 `:active` `scale(0.94–0.98)`；主按钮 `.btn-premium` 为 `0.96`。
 - `calendar-cell` 与下文日历状态表对齐 `pages/index`。经期是 22% 玫瑰连续色带，不是实色整格选中底。
-- 日历微字 `.day-tag` / `.predict-mark` 字号为 `26rpx`（caption 量级）。节日/调休 `.day-tag` 与 `.day-tag-line` 盒高 `38rpx`（大于字号，覆盖 caption 行高），避免 CJK 被裁切。compact 密度下仍放进日期与标记，不把微字再缩小。
+- 日历微字 `.day-tag` / `.predict-mark` 字号为 `26rpx`（caption 量级）。节日是无底金字，调休「班」仍是低调小标签；`.day-tag` 与 `.day-tag-line` 盒高 `38rpx`（大于字号，覆盖 caption 行高），避免 CJK 被裁切。compact 密度下仍放进日期与标记，不把微字再缩小。
 
 主填充按钮是玫瑰底 `#E8909E` + 画布海军字 `#0A0E27`，玫瑰填充一律写 `var(--aurora-pink)`（`.btn-premium`、`.copy-btn` 与首页的 `.quick-btn`、`.reminder-action`、`.jump-option.active`、`.copy-recap` 由 `tests/design-token-guardrail.test.js` 钉住单一来源，`tests/filled-cta-contrast.test.js` 钉住玫瑰底海军字 4.5:1 对比度）。全页面（含绑定页）同一套玫瑰主操作，无页面级例外。护栏为 deny-by-default：任何选择器的渐变填充（linear/radial/conic）与实色玫瑰字面量填充（`#E8909E` / `rgb(232,144,158)` / `rgba(232,144,158,1)`）都必须落在测试登记的装饰例外白名单内，新增主操作按钮写字面量玫瑰或渐变填充会被直接拒绝。同结构的复制键和选中块走同一对色。不要把白字叠玫瑰写成规范。主按钮（`.btn-premium`、`.quick-btn`、`.reminder-action`、`.copy-recap`）只有一种形状：`var(--radius-md)`。复制键和重试小按钮不是主按钮。分段控件（记录分类 `.segment-option`、设置密度 `.density-option`、绑定页创建/加入 `.tab`）只有一种选中态：玫瑰字 `#E8909E`、`rgba(232,144,158,0.08)` 底、`rgba(232,144,158,0.45)` 描边，不用实色玫瑰填充。
 
-元数据金 `#D4A574` 只表示预测、区间、确定性及日历元数据（节日/调休标签、同步状态点）；实色金一律 `var(--aurora-gold)`。玫瑰 → 金的 135deg 渐变曾是 CTA 误用形态，已随 issue #55 退役：`--gradient-gold` token 已从 `app.wxss` 删除，任何页面不得再引用（design-token 护栏强制）。玫瑰 → 薰衣草的 `--gradient-pink` 同样无屏上引用，已随 issue #59 一并退役；渐变填充不再以 token 形式提供。首页金色只允许落在白名单规则上（`.predict-mark`、`.predict-date`、`.prediction-summary`、`.reminder-rail`、`.holiday-tag`、`.day-cell.holiday`、`.sync-dot`、`.detail-title`、`.detail-meaning.predict`/`.holiday`、图例 predict/holiday/workday 符号），由 `tests/design-token-guardrail.test.js` 的金语义白名单钉住。页面 WXSS 不得再出现 `#D4A574` 字面量。金的 rgba tint（如 `rgba(212,165,116,0.9)` 节日标签底）仍按组件登记使用。
+元数据金 `#D4A574` 只表示下次可能开始的日子（「预」）和节日文字，以及已登记的预测与确定性元数据（同步状态点、预测日期、详情里的预测与节日标题）。调休「班」不用金。实色金一律 `var(--aurora-gold)`。节日是无底金字：不铺整格金底，也不铺金底胶囊。玫瑰 → 金的 135deg 渐变曾是 CTA 误用形态，已随 issue #55 退役：`--gradient-gold` token 已从 `app.wxss` 删除，任何页面不得再引用（design-token 护栏强制）。玫瑰 → 薰衣草的 `--gradient-pink` 同样无屏上引用，已随 issue #59 一并退役；渐变填充不再以 token 形式提供。首页金色只允许落在白名单规则上（`.predict-mark`、`.predict-date`、`.prediction-summary`、`.reminder-rail`、`.holiday-tag`、`.sync-dot`、`.detail-title`、`.detail-meaning.predict`/`.holiday`），由 `tests/design-token-guardrail.test.js` 的金语义白名单钉住。页面 WXSS 不得再出现 `#D4A574` 字面量。金的 rgba 只留给描边或辉光（「预」的描边、同步点光晕），不铺节日标签底。
 
 不安装、不覆盖成外部品牌设计系统。系统名仍是 Aurora Bloom。
 
@@ -202,7 +202,7 @@ System font stack for zero-bloat + excellent CJK rendering;全页面只继承 `a
 
 首页月份标题层级：`.month-title` 走 `--font-size-month-title`（40rpx）与 `--font-weight-title`（700），字距保持自然，不另加 letter-spacing；明显高于各页共享导航标题 `.nav-title`（`--font-size-title` 34rpx / 同一标题字重 700）。层级差来自字号（≥6rpx），不来自更重的 800。`line-height: var(--line-height-title)`（1.2）+ `white-space: nowrap` 保证单行完整显示，最坏文案「2026年12月」在 750rpx 视口的月份导航行内不溢出。层级差、单行与宽度账本由 `tests/typography-hierarchy.test.js` 钉住。
 
-caption 家族行高策略：流式说明文字（`.form-hint`、`.symptom-group-label`、`.settings-group-title`、`.room-code-label`）统一 `line-height: var(--line-height-assist)`（1.4）与 `font-weight: var(--font-weight-assist)`（500）；单行控件（`.copy-btn`、`.legend-symbol`）以盒高居中——盒高 88rpx flex 居中 / 行高=盒高，不另设文字行高。六族统一走 `--font-size-caption`（26rpx），由 `tests/typography-hierarchy.test.js` 钉住。
+caption 家族行高策略：流式说明文字（`.form-hint`、`.symptom-group-label`、`.settings-group-title`、`.room-code-label`）统一 `line-height: var(--line-height-assist)`（1.4）与 `font-weight: var(--font-weight-assist)`（500）；单行控件（`.copy-btn`）以盒高居中——盒高 88rpx flex 居中，不另设文字行高。图例符号复用日历格标记类，不另设 `.legend-symbol`。六族统一走 `--font-size-caption`（26rpx），由 `tests/typography-hierarchy.test.js` 钉住。
 
 信息性文字下限：日历格内微字（农历、经期/欢乐时光标记、预测徽标）不小于 `24rpx`；日历格外 caption（统计标签、同步状态、说明文字）不小于 `26rpx`。低于下限的诉求靠缩短文案或调整布局吸收，不缩小字号。
 
@@ -248,9 +248,9 @@ frontmatter 的 rem 值是设计参照；实现层全部走下表 rpx 角色 tok
 
 房间码（`.room-code-value`、`.bound-code`）同样走控件字重 600 与 `tabular-nums`，字距只用 `--letter-spacing-room-code`。无码占位 `.room-code-value.muted` 回到正文 400，字距复位为 0。`.code-input` 是输入文字，字重 400，字距只用 `--letter-spacing-code-input`。它的盒高和行高都是 88rpx，纵向 padding 为 0，六位码在框内完整可见并水平居中；输入框通栏，与上方说明和下方主按钮对齐。占位符走同一行高。
 
-流式辅助说明在有水平余量时使用 `--letter-spacing-assist`。格内农历、节日/调休/预测胶囊、单字周标题、按钮标签和标题保持自然字距，不靠加字距或缩小字号制造轻盈。胶囊盒高、农历完整显示和日历格留白不在本角色表里改。格内农历保持单行且不用省略号；五字闰月名在窄列放不下时不换到第二行，完整字符串留在日历格无障碍名称和日详情里。
+流式辅助说明在有水平余量时使用 `--letter-spacing-assist`。格内农历、节日/调休/预测文字、单字周标题、按钮标签和标题保持自然字距，不靠加字距或缩小字号制造轻盈。胶囊盒高和日历格留白不在本角色表里改。完整密度的格内农历只显示日名，农历初一显示月名（含闰月，如「闰四月」）；完整农历字符串留在日历格无障碍名称和日详情副标题。格内仍单行、不用省略号。清爽密度不显示农历。
 
-字形例外：`.sheet-action-icon`、`.jump-year-step` 是圆点、心形或步进箭头，不是阅读文字。它们保留字重 800 与既有字号，避免图标观感被文字角色改写。图例符号 `.legend-symbol` 含「中秋 / 班 / 预」等状态字，走辅助字重 500，盒高仍等于行高。
+字形例外：`.sheet-action-icon`、`.jump-year-step` 是圆点、心形或步进箭头，不是阅读文字。它们保留字重 800 与既有字号，避免图标观感被文字角色改写。图例样本复用格内的 `.day-tag`、`.predict-mark`、`.memory-mark`、`.day-num` 与 `.period-band`，这些状态字走各自已有的辅助字重，不另设图例符号盒。
 
 ## Components
 
@@ -298,7 +298,7 @@ Prediction metadata, reminder cards, and period tag chips stay compact and low-n
 
 ### 交互（apple，映射到本仓）
 
-- 可点色只有玫瑰 `#E8909E`。金 `#D4A574` 只表示预测、区间或确定性，不当成第二颗 CTA。
+- 可点色只有玫瑰 `#E8909E`。金 `#D4A574` 只表示下次可能开始的日子、节日文字，以及已登记的预测与确定性元数据，不当成第二颗 CTA，也不表示调休。
 - 控件状态只写 Default 与 Pressed。Pressed 用 `transform: scale(0.94–0.98)`，主按钮 `.btn-premium` 为 `0.96`。
 - 触控高度至少 44px。日历格在 compact 密度下仍须能读日期与标记。落地面换算（issue #107 评审澄清）：通用控件按 750rpx 设计宽执行为盒高 ≥88rpx（44px@375px），`.copy-btn`、重试入口、分段选项与「记录」tab 欢乐时光月份卡头（issue #109）同档；320px 换算口径（compact 104rpx ≈ 44.4px@320px）只登记给日历格（issue #56 窄屏几何），不外推到其他控件。
 - 卡片、按钮、正文不加新的装饰阴影。现有玻璃 inset 与主按钮玫瑰光保持，不叠第二套 elevation。
@@ -307,14 +307,18 @@ Prediction metadata, reminder cards, and period tag chips stay compact and low-n
 
 | 状态 | 标记 | 格子 |
 |---|---|---|
-| 今天 | 玫瑰色光圈，不用爱心 | `todayBg` + 薰衣草内描边，描边画在色带之上；非经期日期字 `#E8909E`；经期色带上的日期字 `rgba(255,255,255,0.92)` |
+| 今天 | 薰衣草描边、玫瑰底、玫瑰色日期，不用爱心 | `todayBg` + 薰衣草内描边，描边画在色带之上；非经期日期字 `#E8909E`；经期色带上的日期字 `rgba(255,255,255,0.92)` |
 | 经期 | 22% 玫瑰连续色带 `rgba(232,144,158,0.22)` | 起点与终点用整圆头，中段在行内直角相连，换行在行首行尾收口；单日是圆块；进行中投影到今天的一端开口。不铺实色整格底。重叠日只表达经期。色带无过渡，减弱动效下立即出现。♥ 画在色带之上 |
 | 欢乐时光 | ♥ `#F0C4C0` | 仅欢乐时光 |
-| 预测区间 | 金色「预」 | 已是经期日时不叠「预」字 |
-| 节日 | 金底海军字标签 | 浅金底，今天仍用今天光圈 |
-| 调休上班 | 「班」 | 低对比底，今天仍用今天光圈 |
+| 下次可能开始的日子 | 金色「预」 | 已是经期日时不叠「预」。底透明，描边可留金。今天落在这个窗口时，「预」在今天玫瑰底与自身底的合成面上 ≥4.5:1 |
+| 节日 | 无底金色文字 | 不铺整格金底，也不铺金底胶囊。今天仍用今天的玫瑰底和薰衣草描边 |
+| 调休上班 | 「班」 | 低调小标签，低对比底，不用金。今天仍用今天的玫瑰底和薰衣草描边 |
 
 同一天可叠多种标记，但每个符号只表示上表一行。空格（非本月）隐藏，不参与状态。
+
+图例项由 `utils/homeCalendarState.js` 的 `CALENDAR_LEGEND_ITEMS` 驱动：`cellClass` 与 `parts.className` 就是日历格上的那些类，模板不再另画 `.legend-symbol`。经期图例是单日圆角色带。今天的说明与格子一致：薰衣草描边、玫瑰底、玫瑰色日期。「预」的说明是「下次可能开始的日子」。样本只把格子收成 72rpx 方格，不改标记的颜色和形状。
+
+完整密度的格内农历用 `lunarCellText`：平时是日名，农历月初一是月名。`lunarText` 的完整字符串只出现在读屏名和日详情副标题。清爽密度不显示农历；节日和调休两档都显示。设置页「日历显示」写明：清爽只看日期与标记（含节日和调休），完整另外显示农历。
 
 ### 明确不借
 

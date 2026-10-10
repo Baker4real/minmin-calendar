@@ -197,7 +197,7 @@
 /* ===== Week Header ===== */
 .week-header {
   display: flex;
-  padding: 8rpx 0;
+  padding: 8rpx 10rpx;
   margin-bottom: 0;
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.08);
@@ -218,7 +218,7 @@
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 0 0 var(--radius-card) var(--radius-card);
-  padding: 6rpx 0;
+  padding: 6rpx 10rpx;
   box-shadow: 0 8px 32px rgba(0,0,0,0.2);
 }
 
@@ -286,9 +286,6 @@
   z-index: 2;
   box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
 }
-.day-cell.holiday:not(.today) {
-  background: rgba(212,165,116,0.08);
-}
 .day-cell.workday:not(.today) {
   background: rgba(255,255,255,0.035);
 }
@@ -349,8 +346,7 @@
   max-width: 100%;
 }
 .holiday-tag {
-  color: #0A0E27;
-  background: rgba(212,165,116,0.9);
+  color: var(--aurora-gold);
 }
 .workday-tag {
   color: rgba(255,255,255,0.72);
@@ -444,8 +440,8 @@
   font-weight: var(--font-weight-assist);
   text-align: center;
   color: var(--aurora-gold);
-  background: rgba(212,165,116,0.14);
-  border: 1px solid rgba(212,165,116,0.22);
+  background: transparent;
+  border: 1px solid rgba(212,165,116,0.55);
 }
 
 /* ===== Status Card – Glass Card（issue #105 合并状态卡：条数现状 + 预测 + 提醒） ===== */
@@ -1252,41 +1248,12 @@
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1);
 }
-.legend-symbol {
-  flex: 0 0 auto;
-  width: 54rpx;
-  height: 54rpx;
-  line-height: 54rpx;
-  text-align: center;
-  border-radius: var(--radius-circle);
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-assist);
-  color: #0A0E27;
-  background: rgba(232,144,158,0.88);
-}
-.legend-row.memory .legend-symbol {
-  background: rgba(240,196,192,0.9);
-}
-/* 今天图例 — 与 .day-cell.today 同款玫瑰光圈，不再是日历上不存在的「今」字 */
-.legend-row.today .legend-symbol {
-  color: #E8909E;
-  background: rgba(232,144,158,0.16);
-  box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
-}
-.legend-row.predict .legend-symbol,
-.legend-row.holiday .legend-symbol,
-.legend-row.workday .legend-symbol {
-  background: rgba(212,165,116,0.9);
-}
-/* 节日图例 — 金底海军字小标签，对应日历上的真实节日名称标签。
-   「中秋」两字保持 caption 字号，加宽标签避免在 54rpx 圆槽里换行裁切。 */
-.legend-row.holiday .legend-symbol {
-  width: auto;
-  min-width: 88rpx;
-  box-sizing: border-box;
-  padding: 0 12rpx;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
+.legend-sample.day-cell {
+  width: 72rpx;
+  height: 72rpx;
+  flex: none;
+  padding: 0;
+  justify-content: center;
 }
 .legend-copy {
   flex: 1;

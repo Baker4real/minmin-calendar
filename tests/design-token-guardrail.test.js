@@ -468,7 +468,6 @@ test('retired gradient tokens stay out of tokens and screens', () => {
 // CTA、导航 affordance 与工具图标不再用金。
 const INDEX_GOLD_ALLOWLIST = new Set([
   '.sync-dot',
-  '.day-cell.holiday:not(.today)',
   '.holiday-tag',
   '.predict-mark',
   '.predict-date',
@@ -476,9 +475,6 @@ const INDEX_GOLD_ALLOWLIST = new Set([
   '.detail-title',
   '.detail-meaning.predict',
   '.detail-meaning.holiday',
-  '.legend-row.predict .legend-symbol',
-  '.legend-row.holiday .legend-symbol',
-  '.legend-row.workday .legend-symbol',
   '.prediction-summary'
 ])
 
