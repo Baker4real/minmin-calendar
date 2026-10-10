@@ -66,13 +66,26 @@ function daysBetween(d1, d2) {
   return Math.round((t2 - t1) / (24 * 60 * 60 * 1000))
 }
 
-function formatPredictDisplay(dateStr) {
-  if (!isValidDateString(dateStr)) return { date: '--', weekday: '' }
+function formatDisplayDate(dateStr, options = {}) {
+  if (!isValidDateString(dateStr)) return ''
   const date = parseDate(dateStr)
-  return {
-    date: `${String(date.getMonth() + 1).padStart(2, '0')}月${String(date.getDate()).padStart(2, '0')}日`,
-    weekday: WEEKDAYS[date.getDay()]
-  }
+  const today = resolveDisplayToday(options.today)
+  const yearPrefix = date.getFullYear() === today.getFullYear() ? '' : `${date.getFullYear()}年`
+  const text = `${yearPrefix}${date.getMonth() + 1}月${date.getDate()}日`
+  return options.withWeekday ? `${text} ${WEEKDAYS[date.getDay()]}` : text
+}
+
+function formatDisplayDateRange(startStr, endStr, options = {}) {
+  const start = formatDisplayDate(startStr, { today: options.today })
+  const end = formatDisplayDate(endStr, { today: options.today })
+  if (!start || !end) return ''
+  return `${start}–${end}`
+}
+
+function resolveDisplayToday(today) {
+  if (isValidDateString(today)) return parseDate(today)
+  if (today instanceof Date && !Number.isNaN(today.getTime())) return today
+  return new Date()
 }
 
 function getChineseDateMeta(dateStr) {
@@ -231,6 +244,17 @@ function isValidDateString(value) {
     date.getDate() === day
 }
 
+// 滑动翻月（issue #137）：超过 48px 且水平位移严格大于竖直位移才翻月。
+// 左滑（dx 为负）到下一月，右滑到上一月；相等或竖直更大留给轻点和滚动。
+const MONTH_SWIPE_MIN_PX = 48
+
+function decideMonthSwipe(dx, dy) {
+  const travelX = Math.abs(Number(dx))
+  const travelY = Math.abs(Number(dy))
+  if (!(travelX > MONTH_SWIPE_MIN_PX) || !(travelX > travelY)) return 'none'
+  return dx < 0 ? 'next' : 'prev'
+}
+
 function normalizeDateRange(range = {}) {
   if (!range) return null
   const { startDate, endDate } = range
@@ -253,11 +277,14 @@ module.exports = {
   formatDate,
   parseDate,
   isValidDateString,
+  MONTH_SWIPE_MIN_PX,
+  decideMonthSwipe,
   normalizeDateRange,
   getDaysInMonth,
   getFirstDayOfMonth,
   daysBetween,
-  formatPredictDisplay,
+  formatDisplayDate,
+  formatDisplayDateRange,
   getChineseDateMeta,
   buildCalendarDays
 }

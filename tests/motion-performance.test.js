@@ -327,10 +327,10 @@ function sheetMotionExpectation(selector, prop) {
   if (normalized === '.sheet-slide' && prop === 'transform') {
     return { duration: 'var(--duration-exit)', easing: 'var(--ease-out)' }
   }
-  if (normalized === '.day-sheet-mask.sheet-open .sheet-slide' && prop === 'transform') {
+  if (normalized === '.sheet-slide.sheet-open' && prop === 'transform') {
     return { duration: 'var(--duration-sheet)', easing: 'var(--ease-out)' }
   }
-  if (normalized === '.day-sheet-mask.sheet-open .sheet-slide.sheet-reset' && prop === 'transform') {
+  if (normalized === '.sheet-slide.sheet-open.sheet-reset' && prop === 'transform') {
     return { duration: 'var(--duration-exit)', easing: 'var(--ease-out)' }
   }
   if (normalized === '.day-sheet-mask' && prop === 'opacity') {
@@ -533,14 +533,14 @@ test('retired second-layer / bounce animations stay gone', () => {
 const BLUR_RADIUS_CAP_PX = 20
 const MASK_BLUR_CAP_PX = 8
 const BLUR_RULE_CEILINGS = {
-  'app.wxss': 4,
-  'pages/index/index.wxss': 5,
-  'pages/bind/bind.wxss': 2,
+  'app.wxss': 0,
+  'pages/index/index.wxss': 1,
+  'pages/bind/bind.wxss': 0,
   'pages/settings/settings.wxss': 0,
-  'pages/period/period.wxss': 3,
-  'pages/memory/memory.wxss': 2,
-  'pages/period/edit/edit.wxss': 2,
-  'pages/memory/edit/edit.wxss': 2
+  'pages/period/period.wxss': 0,
+  'pages/memory/memory.wxss': 0,
+  'pages/period/edit/edit.wxss': 0,
+  'pages/memory/edit/edit.wxss': 0
 }
 
 test('backdrop blur stays within the radius cap and per-file glass surface budget', () => {
@@ -756,8 +756,8 @@ test('reduced-motion blocks keep covering the named sheet, sync, and ambient lay
     '.sync-pill.syncing .sync-dot',
     '.day-sheet-mask',
     '.day-sheet-mask.sheet-open',
-    '.day-sheet-mask.sheet-open .sheet-slide',
-    '.day-sheet-mask.sheet-open .sheet-slide.sheet-reset',
+    '.sheet-slide.sheet-open',
+    '.sheet-slide.sheet-open.sheet-reset',
     '.sheet-slide',
     '.day-action-sheet',
     '.calendar-jump-sheet',
@@ -842,13 +842,35 @@ test('a handed-off info mask stays fully visible and does not fade in', () => {
   assert.equal(handoff.decls.opacity, '1')
   assert.equal(handoff.decls.transition, 'none')
 
-  const openSlide = index.rules.find((rule) => rule.selectors.includes('.day-sheet-mask.sheet-open .sheet-slide'))
+  const openSlide = index.rules.find((rule) => rule.selectors.includes('.sheet-slide.sheet-open'))
   assert.equal(openSlide.decls.transform, 'translateY(0)')
   assert.equal(openSlide.decls.transition, 'transform var(--duration-sheet) var(--ease-out)')
 
   const design = readRepo('DESIGN.md')
   assert.match(design, /issue #117/)
   assert.match(design, /sheet-handoff/)
+})
+
+test('reduced motion makes native tab bar hide and restore instant', () => {
+  const { readReducedMotionProbe, sheetTabBarAnimates } = require('../utils/sheetLifecycle')
+  assert.equal(readReducedMotionProbe('1px'), true)
+  assert.equal(readReducedMotionProbe('0px'), false)
+  assert.equal(readReducedMotionProbe(''), false)
+  assert.equal(sheetTabBarAnimates(true), false)
+  assert.equal(sheetTabBarAnimates(false), true)
+
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+  const probe = index.rules.find((rule) =>
+    !rule.inReducedMotion && rule.selectors.includes('.reduced-motion-probe'))
+  assert.ok(probe, 'expected a reduced-motion probe')
+  assert.equal(probe.decls.width, '0')
+  const reduced = index.reducedMotionRules.find((rule) => rule.selectors.includes('.reduced-motion-probe'))
+  assert.ok(reduced, 'reduced motion must widen the probe')
+  assert.equal(reduced.decls.width, '1px')
+  assert.equal(
+    index.reducedMotionRules.find((rule) => rule.selectors.includes('.sheet-slide.sheet-open')).decls.transition,
+    'none'
+  )
 })
 
 test('homepage sheets slide in and out with reversible transitions', () => {
@@ -863,7 +885,7 @@ test('homepage sheets slide in and out with reversible transitions', () => {
   assert.equal(slide.decls.transition, 'transform var(--duration-exit) var(--ease-out)')
   assert.doesNotMatch(slide.decls.transform, /px|rpx/)
 
-  const openSlide = index.rules.find((rule) => rule.selectors.includes('.day-sheet-mask.sheet-open .sheet-slide'))
+  const openSlide = index.rules.find((rule) => rule.selectors.includes('.sheet-slide.sheet-open'))
   assert.ok(openSlide, 'expected the open sheet pose')
   assert.equal(openSlide.decls.transform, 'translateY(0)')
   assert.equal(openSlide.decls.transition, 'transform var(--duration-sheet) var(--ease-out)')
@@ -884,7 +906,7 @@ test('homepage sheets slide in and out with reversible transitions', () => {
   assert.equal(leaving.decls['pointer-events'], 'none')
 
   const covered = new Set(index.reducedMotionRules.flatMap((rule) => rule.selectors))
-  for (const selector of ['.sheet-slide', '.day-sheet-mask.sheet-open', '.day-sheet-mask.sheet-open .sheet-slide', '.day-sheet-mask.sheet-open .sheet-slide.sheet-reset']) {
+  for (const selector of ['.sheet-slide', '.day-sheet-mask.sheet-open', '.sheet-slide.sheet-open', '.sheet-slide.sheet-open.sheet-reset']) {
     assert.ok(covered.has(selector), `reduced motion must cover ${selector}`)
     const rmRule = index.reducedMotionRules.find((rule) => rule.selectors.includes(selector))
     assert.equal(rmRule.decls.transition, 'none', `${selector} must finish immediately under reduced motion`)
@@ -894,6 +916,8 @@ test('homepage sheets slide in and out with reversible transitions', () => {
   assert.match(design, /issue #116/)
   assert.match(design, /translateY\(100%\)/)
   assert.match(design, /issue #119/)
+  assert.match(design, /原生 tabBar 在弹层处于 open 或 leaving 时隐藏/)
+  assert.match(design, /减弱动效下这次隐藏和恢复不播放动画/)
   assert.match(design, /10px/)
   assert.match(design, /25%/)
   assert.match(design, /0\.11 px\/ms/)
@@ -997,18 +1021,75 @@ test('an obscured homepage pauses the five covered decorations on the current fr
   assert.match(design, /animation-play-state: paused/)
 })
 
-// issue #118：月份箭头嵌在月份栏的模糊里，自身再模糊一次看不见。首页玻璃面上限收到 5。
-test('month arrows do not add a second blur, and the homepage glass cap is 5', () => {
+// issue #146：极光层从 200%×200% 收到刚好盖住 scale(1.05) 的尺寸。动画名、周期和遮挡暂停不变。
+test('the aurora layer covers a 1.05 scale without renaming auroraPulse', () => {
+  const app = analyzeFile(readRepo('app.wxss'))
+  const aurora = app.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.page::before'))
+  assert.ok(aurora, 'expected .page::before')
+  assert.equal(aurora.decls.top, '-2.5%')
+  assert.equal(aurora.decls.left, '-2.5%')
+  assert.equal(aurora.decls.width, '105%')
+  assert.equal(aurora.decls.height, '105%')
+  assert.equal(aurora.decls.animation, 'auroraPulse 8s ease infinite')
+
+  const source = readRepo('app.wxss')
+  assert.match(source, /@keyframes auroraPulse/)
+  assert.match(source, /transform:\s*scale\(1\.05\)/)
+  assert.doesNotMatch(source, /width:\s*200%/)
+  assert.doesNotMatch(source, /height:\s*200%/)
+
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+  const paused = index.rules.find((rule) => rule.decls['animation-play-state'] === 'paused')
+  assert.ok(paused, 'sheet cover must still pause the aurora')
+  assert.ok(paused.selectors.includes('.page.page-obscured::before'))
+
+  const design = readRepo('DESIGN.md')
+  assert.match(design, /105%×105%/)
+  assert.match(design, /scale\(1\.05\)/)
+})
+
+// issue #146：月份栏本身已近不透明，不再模糊。首页玻璃面只剩 88% 遮罩。
+test('month navigation does not blur, and the homepage glass cap is 1', () => {
   const index = analyzeFile(readRepo('pages/index/index.wxss'))
   const navBtn = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.nav-btn'))
   assert.ok(navBtn, 'expected .nav-btn')
   assert.equal(navBtn.decls['backdrop-filter'], undefined)
   assert.equal(navBtn.decls['-webkit-backdrop-filter'], undefined)
-  assert.equal(BLUR_RULE_CEILINGS['pages/index/index.wxss'], 5)
+  assert.equal(BLUR_RULE_CEILINGS['pages/index/index.wxss'], 1)
 
   const monthNav = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.month-nav'))
-  assert.equal(monthNav.decls['backdrop-filter'], 'blur(20px)')
+  assert.equal(monthNav.decls['backdrop-filter'], undefined)
+  assert.equal(monthNav.decls['-webkit-backdrop-filter'], undefined)
+
+  const mask = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.day-sheet-mask'))
+  assert.equal(mask.decls['backdrop-filter'], 'blur(8px)')
 
   const design = readRepo('DESIGN.md')
-  assert.match(design, /玻璃面数量上限收紧为 5/)
+  assert.match(design, /玻璃面数量上限收紧为 1/)
+})
+
+// issue #137：滑动翻月不跟手、没有翻页动画；减弱动效下同样是一次即时替换。
+test('calendar month swipe stays instant under reduced motion', () => {
+  const design = readRepo('DESIGN.md')
+  assert.match(design, /滑动翻月（issue #137）/)
+  assert.match(design, /水平位移超过 48px 且大于竖直位移才翻月/)
+  assert.match(design, /不跟手、不加翻页动画/)
+  assert.match(design, /减弱动效下同样即时/)
+
+  const wxs = readRepo('utils/monthSwipe.wxs')
+  assert.doesNotMatch(wxs, /setStyle|translate|animation/)
+
+  const app = analyzeFile(readRepo('app.wxss'))
+  const grid = app.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.calendar-grid'))
+  assert.equal(grid.decls.transition, 'opacity var(--duration-state) ease')
+  const reducedGrid = app.reducedMotionRules.find((rule) => rule.selectors.includes('.calendar-grid'))
+  assert.ok(reducedGrid, 'reduced motion must cover .calendar-grid')
+  assert.equal(reducedGrid.decls.transition, 'none')
+  assert.equal(reducedGrid.decls.animation, 'none')
+
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+  const swipeRule = index.rules.find((rule) =>
+    rule.selectors.some((selector) => selector.includes('calendar-swipe'))
+  )
+  assert.equal(swipeRule, undefined)
 })

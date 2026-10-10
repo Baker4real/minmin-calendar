@@ -15,7 +15,7 @@
         <text class="form-label">日期</text>
         <picker mode="date" value="{{date}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onDateChange" aria-role="button" aria-label="选择日期">
           <view class="form-picker">
-            <text>{{date}}</text>
+            <text>{{dateLabel}}</text>
             <text class="form-picker-arrow">›</text>
           </view>
         </picker>

@@ -7,7 +7,13 @@ const recordDraft = require('../../utils/recordDraft')
 const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 const safeArea = require('../../utils/safeArea')
-const { createSheetLifecycle, homepageSheets, handoffSheet } = require('../../utils/sheetLifecycle')
+const {
+  createSheetLifecycle,
+  homepageSheets,
+  handoffSheet,
+  homepageSheetMounted,
+  readReducedMotionProbe
+} = require('../../utils/sheetLifecycle')
 
 // 与 pages/settings/settings.js 共享同一存储键；写入方在设置页
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
@@ -24,7 +30,27 @@ const INITIAL_HOME_STATE = buildHomeCalendarState({
   today: util.formatDate(INITIAL_VIEW_DATE)
 })
 
+function calendarRenderState(state) {
+  const render = { ...state }
+  delete render.dayDetailsByDate
+  delete render.periods
+  delete render.memories
+  return render
+}
+
+function emptyDayDetail() {
+  return {
+    meanings: [],
+    periods: [],
+    memories: [],
+    empty: true
+  }
+}
+
 Page({
+  _homeRecords: { periods: [], memories: [] },
+  _dayDetailsByDate: INITIAL_HOME_STATE.dayDetailsByDate || {},
+
   data: {
     safeTop: safeArea.getSafeTop(),
     safeBottom: safeArea.getSafeBottom(),
@@ -53,6 +79,7 @@ Page({
     monthPickerMounted: false,
     monthPickerPhase: 'closed',
     pageObscured: false,
+    sheetExitGuard: false,
     sheetDragClear: {
       monthPicker: { token: 0, action: '' },
       dayActions: { token: 0, action: '' },
@@ -63,8 +90,9 @@ Page({
     monthMenuMounted: false,
     monthMenuPhase: 'closed',
     calendarDensity: 'compact',
-    periods: [], memories: [],
-    ...INITIAL_HOME_STATE,
+    ...calendarRenderState(INITIAL_HOME_STATE),
+    periodCount: 0,
+    hasRecords: false,
     infoSheetVisible: false,
     infoSheetMounted: false,
     infoSheetPhase: 'closed',
@@ -77,10 +105,10 @@ Page({
     daySheetMode: 'actions',
     dayDetailFade: false,
     selectedDate: '',
+    selectedDateLabel: '',
     selectedDateSubtitle: '',
     selectedDateIsFuture: false,
     selectedDayDetail: null,
-    dayDetailsByDate: {},
     ongoingCompletionReminder: null,
     periodQuickLabel: '记经期',
     periodQuickAriaLabel: '记经期',
@@ -100,6 +128,7 @@ Page({
   },
 
   onLoad() {
+    this.refreshReducedMotion()
     const now = new Date()
     this.setData({
       year: now.getFullYear(),
@@ -117,7 +146,24 @@ Page({
   onShow() {
     // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效
     this.setData({ calendarDensity: this.getSavedCalendarDensity() })
+    this.refreshReducedMotion()
     return this.loadData({ background: this.canRefreshInBackground() })
+  },
+
+  onReady() {
+    this.refreshReducedMotion()
+  },
+
+  // 微信逻辑层没有 matchMedia。探针宽度在减弱动效下是 1px，computed style 会保留这个用值。
+  refreshReducedMotion() {
+    if (typeof wx === 'undefined' || !wx || typeof wx.createSelectorQuery !== 'function') return
+    wx.createSelectorQuery()
+      .select('.reduced-motion-probe')
+      .fields({ computedStyle: ['width'] })
+      .exec((res) => {
+        const width = res && res[0] && res[0].width
+        this._reducedMotion = readReducedMotionProbe(width)
+      })
   },
 
   loadData(options = {}) {
@@ -295,25 +341,49 @@ Page({
     this.applyHomeCalendarState()
   },
 
+  _recordList(collection) {
+    const stored = this._homeRecords && this._homeRecords[collection]
+    return Array.isArray(stored) ? stored : []
+  },
+
+  _rememberRecords(periods, memories) {
+    this._homeRecords = {
+      periods: this._normalizeRecords(periods),
+      memories: this._normalizeRecords(memories)
+    }
+  },
+
+  _dayDetail(date) {
+    const details = this._dayDetailsByDate || {}
+    return details[date] || emptyDayDetail()
+  },
+
   applyHomeCalendarState(overrides = {}) {
     const hasOwn = (key) => Object.prototype.hasOwnProperty.call(overrides, key)
-    const periods = hasOwn('periods') ? overrides.periods : this.data.periods
-    const memories = hasOwn('memories') ? overrides.memories : this.data.memories
+    const periods = hasOwn('periods') ? overrides.periods : this._recordList('periods')
+    const memories = hasOwn('memories') ? overrides.memories : this._recordList('memories')
     const year = hasOwn('year') ? overrides.year : this.data.year
     const month = hasOwn('month') ? overrides.month : this.data.month
     const today = hasOwn('today') ? overrides.today : util.formatDate(new Date())
 
+    const state = buildHomeCalendarState({ year, month, periods, memories, today })
+    this._rememberRecords(periods, memories)
+    this._dayDetailsByDate = state.dayDetailsByDate || {}
     const quickAction = cycle.buildPeriodQuickAction(periods, { today })
+
     const update = {
-      periods,
-      memories,
-      ...buildHomeCalendarState({ year, month, periods, memories, today }),
+      ...calendarRenderState(state),
+      periodCount: this._homeRecords.periods.length,
+      hasRecords: this._homeRecords.periods.length > 0 || this._homeRecords.memories.length > 0,
       periodQuickLabel: quickAction.label,
       periodQuickAriaLabel: quickAction.ariaLabel,
       year,
       month
     }
     if (hasOwn('monthPickerVisible')) update.monthPickerVisible = overrides.monthPickerVisible
+    if (this.data.daySheetMode === 'detail' && this.data.selectedDate) {
+      update.selectedDayDetail = this._dayDetail(this.data.selectedDate)
+    }
     this.setData(update)
   },
 
@@ -325,7 +395,7 @@ Page({
     const state = this._ensureSyncState()
     if (!COLLECTIONS.includes(collection) || !record || typeof record !== 'object') return
 
-    const currentRecords = this._normalizeRecords(this.data[collection])
+    const currentRecords = this._normalizeRecords(this._recordList(collection))
     const nextRecords = this._mergeRecordChange(currentRecords, record, mode)
     if (this._stableRecordListKey(nextRecords) === this._stableRecordListKey(currentRecords)) return
 
@@ -346,7 +416,7 @@ Page({
 
   _applySnapshotCollection(collection, records) {
     const nextRecords = this._normalizeRecords(records)
-    const currentRecords = this._normalizeRecords(this.data[collection])
+    const currentRecords = this._normalizeRecords(this._recordList(collection))
     if (this._stableRecordListKey(currentRecords) === this._stableRecordListKey(nextRecords)) return false
     this.applyHomeCalendarState({ [collection]: nextRecords })
     return true
@@ -441,6 +511,13 @@ Page({
     this.applyHomeCalendarState({ year, month, monthPickerVisible: false })
   },
 
+  // 日历滑动松手：判定在纯函数里，页面只做一次既有翻月更新，不跟手。
+  onCalendarSwipe(detail) {
+    const decision = util.decideMonthSwipe(detail && detail.dx, detail && detail.dy)
+    if (decision === 'next') this.nextMonth()
+    else if (decision === 'prev') this.prevMonth()
+  },
+
   openMonthPicker() {
     const { year, month } = this.data
     homepageSheets(this).monthPicker.open(this, {
@@ -526,14 +603,11 @@ Page({
 
   selectJumpMonth(e) {
     const month = Number(e.currentTarget.dataset.month)
-    if (Number.isNaN(month)) return
-    this.setData({ jumpMonth: month })
-  },
-
-  confirmMonthJump() {
+    if (!Number.isInteger(month) || month < 0 || month > 11) return
     this.setData({
       year: this.data.jumpYear,
-      month: this.data.jumpMonth,
+      month,
+      jumpMonth: month,
       monthPickerVisible: false
     }, () => this.renderCalendar())
     homepageSheets(this).monthPicker.leave(this)
@@ -567,6 +641,14 @@ Page({
   // 不把已显示的日历换回整页失败画面
   retryRefresh() {
     return this.loadData({ background: true })
+  },
+
+  onPullDownRefresh() {
+    const task = this.loadData({ background: true })
+    const stop = () => {
+      if (typeof wx.stopPullDownRefresh === 'function') wx.stopPullDownRefresh()
+    }
+    return Promise.resolve(task).then(stop, stop)
   },
 
   goBind() { wx.redirectTo({ url: '/pages/bind/bind' }) },
@@ -610,6 +692,7 @@ Page({
       daySheetMode: 'actions',
       dayDetailFade: false,
       selectedDate: date,
+      selectedDateLabel: this.formatSelectedDateLabel(date),
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
       selectedDateIsFuture: date > util.formatDate(new Date()),
       selectedDayDetail: null
@@ -641,6 +724,7 @@ Page({
         daySheetMode: 'actions',
         dayDetailFade: false,
         selectedDate: '',
+        selectedDateLabel: '',
         selectedDateSubtitle: '',
         selectedDateIsFuture: false,
         selectedDayDetail: null
@@ -649,6 +733,43 @@ Page({
   },
 
   noop() {},
+
+  // issue #134：page-container 吃掉系统返回后会自己离场。弹层还在时下一帧重新挂上，避免第二次返回离开页面。
+  // 把 show 设为 false 时组件会再次触发 beforeleave，用锁挡住这次重入。
+  onSheetSystemBack() {
+    if (this._sheetBackLock) return
+    this._sheetBackLock = true
+    this._dismissTopHomepageSheet()
+    const stillMounted = homepageSheetMounted(this.data)
+    this.setData({ sheetExitGuard: false })
+    if (!stillMounted) {
+      this._sheetBackLock = false
+      return
+    }
+    const rearm = () => {
+      this._sheetBackLock = false
+      if (homepageSheetMounted(this.data)) this.setData({ sheetExitGuard: true })
+    }
+    if (typeof wx !== 'undefined' && wx && typeof wx.nextTick === 'function') {
+      wx.nextTick(rearm)
+      return
+    }
+    setTimeout(rearm, 0)
+  },
+
+  _dismissTopHomepageSheet() {
+    const order = [
+      ['infoSheetMounted', 'infoSheetPhase', 'closeInfoSheet'],
+      ['monthPickerMounted', 'monthPickerPhase', 'closeMonthPicker'],
+      ['monthMenuMounted', 'monthMenuPhase', 'closeMonthMenu'],
+      ['dayActionMounted', 'dayActionPhase', 'closeDayActions']
+    ]
+    for (const [mountedKey, phaseKey, closeName] of order) {
+      if (!this.data[mountedKey] || this.data[phaseKey] === 'leaving') continue
+      this[closeName]()
+      return
+    }
+  },
 
   showDayDetail(date) {
     const selectedDay = this.data.days.find(day => day.date === date) || { date }
@@ -660,15 +781,15 @@ Page({
       daySheetMode: 'detail',
       dayDetailFade: fadingIn,
       selectedDate: date,
+      selectedDateLabel: this.formatSelectedDateLabel(date),
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
       selectedDateIsFuture: date > util.formatDate(new Date()),
-      selectedDayDetail: this.data.dayDetailsByDate[date] || {
-        meanings: [],
-        periods: [],
-        memories: [],
-        empty: true
-      }
+      selectedDayDetail: this._dayDetail(date)
     })
+  },
+
+  formatSelectedDateLabel(date) {
+    return util.formatDisplayDate(date, { today: util.formatDate(new Date()) })
   },
 
   formatDaySubtitle(day) {
@@ -683,7 +804,7 @@ Page({
   // 日历日动作与周期提醒：已有进行中的经期时打开原记录，不建第二条；
   // 否则按给定日期新增。首页「记结束」不走这里，它预选已结束且结束日为今天。
   openPeriodForDate(date) {
-    const ongoing = cycle.findOngoingPeriod(this.data.periods)
+    const ongoing = cycle.findOngoingPeriod(this._recordList('periods'))
     if (ongoing) {
       wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(ongoing) })
       return
@@ -692,7 +813,7 @@ Page({
   },
   quickPeriod() {
     const today = util.formatDate(new Date())
-    const ongoing = cycle.findOngoingPeriod(this.data.periods)
+    const ongoing = cycle.findOngoingPeriod(this._recordList('periods'))
     if (ongoing) {
       wx.navigateTo({
         url: recordEditRoute.buildPeriodEditUrl(ongoing, { intent: 'complete', today })
@@ -707,11 +828,11 @@ Page({
     this.openPeriodForDate(reminder.date)
   },
 
-  // issue #98：超期进行中记录的一次非阻塞完成提示。同一条记录只提示一次：
-  // 提示出现即把记录标识经本地存储接缝持久化，之后刷新、跨天、重进应用都不再弹出；
-  // 提示本身绝不写结束日期、绝不关闭状态，点击只打开同一条记录补填。
+  // issue #129：同一条记录只提示一次，但渲染本身不记「已提醒」。
+  // 用户点过它，或首页在显示过它之后被离开，才经本地存储接缝持久化。
+  // 提示绝不写结束日期、绝不关闭状态，点击只打开同一条记录补填。
   syncOngoingCompletionReminder() {
-    const reminder = cycle.buildOngoingCompletionReminder(this.data.periods, {
+    const reminder = cycle.buildOngoingCompletionReminder(this._recordList('periods'), {
       today: util.formatDate(new Date())
     })
     const hideReminder = () => {
@@ -723,16 +844,36 @@ Page({
 
     const storage = recordDraft.createWxDraftStorage(wx)
     if (storage.get(ONGOING_REMINDER_STORAGE_KEY) === reminder.recordKey) {
+      this._ongoingReminderShownKey = ''
       return hideReminder()
     }
 
+    this._ongoingReminderShownKey = reminder.recordKey
     this.setData({ ongoingCompletionReminder: reminder })
-    storage.set(ONGOING_REMINDER_STORAGE_KEY, reminder.recordKey)
+  },
+
+  persistOngoingReminderSeen() {
+    const recordKey = this._ongoingReminderShownKey
+    if (!recordKey) return
+    const storage = recordDraft.createWxDraftStorage(wx)
+    if (storage.get(ONGOING_REMINDER_STORAGE_KEY) !== recordKey) {
+      storage.set(ONGOING_REMINDER_STORAGE_KEY, recordKey)
+    }
+    this._ongoingReminderShownKey = ''
+  },
+
+  onHide() {
+    this.persistOngoingReminderSeen()
+  },
+
+  onUnload() {
+    this.persistOngoingReminderSeen()
   },
 
   onOngoingReminderTap() {
     const reminder = this.data.ongoingCompletionReminder
     if (!reminder || !reminder.record) return
+    this.persistOngoingReminderSeen()
     wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(reminder.record) })
   },
   quickMemory() {

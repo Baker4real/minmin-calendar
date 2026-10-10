@@ -15,7 +15,7 @@
         <text class="form-label">开始日期</text>
         <picker mode="date" value="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onStartChange" aria-role="button" aria-label="选择开始日期">
           <view class="form-picker">
-            <text>{{startDate}}</text>
+            <text>{{startDateLabel}}</text>
             <text class="form-picker-arrow">›</text>
           </view>
         </picker>
@@ -43,7 +43,7 @@
         <text class="form-label">结束日期</text>
         <picker mode="date" value="{{endDate}}" start="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onEndChange" aria-role="button" aria-label="选择结束日期">
           <view class="form-picker">
-            <text>{{endDate}}</text>
+            <text>{{endDateLabel}}</text>
             <text class="form-picker-arrow">›</text>
           </view>
         </picker>

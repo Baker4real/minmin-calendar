@@ -66,6 +66,46 @@ function classTokens(element) {
     .filter(Boolean)
 }
 
+function parseAttrs(raw) {
+  const attrs = {}
+  ATTR_PATTERN.lastIndex = 0
+  let attrMatch
+  while ((attrMatch = ATTR_PATTERN.exec(raw))) {
+    attrs[attrMatch[1]] = attrMatch[2] ?? attrMatch[3] ?? ''
+  }
+  return attrs
+}
+
+function parseWxmlForest(wxml) {
+  const source = wxml.replace(/<!--[\s\S]*?-->/g, '')
+  const pattern = /<\/?([a-zA-Z][\w-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*(\/?)>/g
+  const roots = []
+  const stack = []
+  let match
+  while ((match = pattern.exec(source))) {
+    const token = match[0]
+    const tag = match[1]
+    if (token.startsWith('</')) {
+      while (stack.length && stack[stack.length - 1].tag !== tag) stack.pop()
+      stack.pop()
+      continue
+    }
+    const parent = stack[stack.length - 1]
+    const node = { tag, attrs: parseAttrs(match[2] || ''), children: [], parent: parent || null }
+    if (parent) parent.children.push(node)
+    else roots.push(node)
+    if (match[3] !== '/') stack.push(node)
+  }
+  return roots
+}
+
+function walkForest(nodes, visit) {
+  for (const node of nodes) {
+    visit(node)
+    walkForest(node.children, visit)
+  }
+}
+
 // 抽取 {{cond ? 'active' : ''}} 形式的条件类绑定条件；单双引号等价接受
 function conditionalClassCondition(classAttr, className) {
   const pattern = new RegExp(`\\{\\{([\\s\\S]*?)\\s*\\?\\s*(['"])${className}\\2\\s*:\\s*(['"])\\3\\s*\\}\\}`)
@@ -196,11 +236,11 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
     .map((element) => element.attrs['aria-label'])
   assert.deepEqual(dayActions, ['记录经期', '记录欢乐时光', '查看详情', '补经期', '补欢乐时光'])
 
-  // 月份选择与确认
+  // 月份格点一下即跳转，不再有确认按钮
   const jumpOption = byHandler('selectJumpMonth', 'jump-option')
   assert.equal(jumpOption.attrs['aria-role'], 'radio')
   assert.equal(jumpOption.attrs['aria-label'], '选择{{item.label}}')
-  assert.equal(byHandler('confirmMonthJump', 'jump-confirm').attrs['aria-role'], 'button')
+  assert.equal(byHandler('confirmMonthJump', 'jump-confirm'), undefined)
 
   // 复制小结
   const copyRecap = byHandler('copyMonthlyRecap', 'copy-recap')
@@ -224,6 +264,39 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   const reminder = byHandler('onReminderTap', 'reminder-card')
   assert.equal(reminder.attrs['aria-role'], 'button')
   assert.equal(reminder.attrs['aria-label'], '{{item.title}}，{{item.text}}，点按记录')
+})
+
+// issue #134：遮罩和面板是兄弟。遮罩单独作为「关闭」朗读，面板里的控件不包在这个按钮里。
+test('sheet mask and panel are siblings so only the mask is announced as close', () => {
+  const forest = parseWxmlForest(readPage('pages/index/index.wxml'))
+  const masks = []
+  walkForest(forest, (node) => {
+    if (classTokens(node).includes('day-sheet-mask')) masks.push(node)
+  })
+  assert.equal(masks.length, 4)
+
+  const labels = []
+  for (const mask of masks) {
+    assert.equal(mask.attrs['aria-role'], 'button')
+    labels.push(mask.attrs['aria-label'])
+    assert.equal(mask.children.length, 0, `${mask.attrs['aria-label']} must not wrap panel controls`)
+
+    const host = mask.parent
+    assert.ok(host, `${mask.attrs['aria-label']} needs a sibling panel`)
+    assert.equal(host.attrs['aria-role'], undefined)
+    assert.equal(host.attrs['aria-label'], undefined)
+    const panel = host.children.find((child) => classTokens(child).includes('sheet-slide'))
+    assert.ok(panel, `${mask.attrs['aria-label']} panel should be a sibling`)
+    assert.equal(panel.attrs['aria-role'], undefined)
+    assert.notEqual(panel, mask)
+    const named = []
+    walkForest(panel.children, (node) => {
+      if (node.attrs['aria-label']) named.push(node.attrs['aria-label'])
+    })
+    assert.ok(named.length > 0, `${mask.attrs['aria-label']} panel controls stay reachable`)
+    assert.ok(named.includes('关闭'), `${mask.attrs['aria-label']} keeps its own close control`)
+  }
+  assert.deepEqual(labels.sort(), ['关闭工具菜单', '关闭当日操作', '关闭月份选择', '关闭面板'])
 })
 
 test('merged status card names the prediction region and keeps the record count non-interactive', () => {
@@ -309,6 +382,16 @@ test('bind page controls are named, tab switch exposes checked state, inert stat
   assert.equal(byHandler('joinRoom', 'btn-premium').attrs['aria-label'], '加入房间')
 })
 
+// issue #140：原生分享按钮没有 bindtap，仍要按按钮朗读，读屏名是「发给 TA」。
+test('bind page share button exposes a button role and the send-to-partner name', () => {
+  const elements = collectElements(readPage('pages/bind/bind.wxml'))
+  const shareButton = elements.find((element) => element.attrs['open-type'] === 'share')
+  assert.ok(shareButton, 'expected the native share button')
+  assert.equal(shareButton.tag, 'button')
+  assert.equal(shareButton.attrs['aria-role'], 'button')
+  assert.equal(shareButton.attrs['aria-label'], '发给 TA')
+})
+
 test('record list rows, retry affordances and settings menu entries announce their action', () => {
   const period = collectElements(readPage('pages/period/period.wxml'))
   const memory = collectElements(readPage('pages/memory/memory.wxml'))
@@ -317,10 +400,10 @@ test('record list rows, retry affordances and settings menu entries announce the
     elements.find((element) =>
       element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
 
-  // 经期行读屏名称带状态：已知结束读「起 至 止」，进行中/结束日期不详由 rangeSummary 表达
+  // 经期行读屏名称带状态：日期走统一显示格式，进行中/结束日期不详由 rangeSummary 表达
   assert.equal(byHandler(period, 'editPeriod', 'list-item').attrs['aria-label'], '编辑经期记录 {{item.rangeSummary}}')
   assert.equal(byHandler(period, 'loadData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
-  assert.equal(byHandler(memory, 'editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.date}} 的欢乐时光')
+  assert.equal(byHandler(memory, 'editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dateLabel}} 的欢乐时光')
   assert.equal(byHandler(memory, 'loadData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
 
   assert.equal(byHandler(settings, 'copyRoomCode', 'copy-btn').attrs['aria-label'], '复制房间码')
@@ -365,7 +448,7 @@ test('record tab segment control reads as a radio group with a perceivable check
   const byHandler = (handler, cls) =>
     elements.find((element) =>
       element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
-  assert.equal(byHandler('editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.date}} 的欢乐时光')
+  assert.equal(byHandler('editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dayLabel}} 的欢乐时光')
   assert.equal(byHandler('loadMemoryData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
   assert.equal(byHandler('addMemory', 'btn-premium').attrs['aria-label'], '记录欢乐时光')
 

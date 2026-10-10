@@ -194,7 +194,6 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/index/index.wxss', '.jump-section-title', 'assist'],
   ['pages/index/index.wxss', '.jump-year-value', 'control'],
   ['pages/index/index.wxss', '.jump-option', 'control'],
-  ['pages/index/index.wxss', '.jump-confirm', 'control'],
   ['pages/index/index.wxss', '.sheet-subtitle', 'assist'],
   ['pages/index/index.wxss', '.sheet-action-title', 'body'],
   ['pages/index/index.wxss', '.sheet-action-desc', 'assist'],

@@ -16,11 +16,11 @@
       <view class="retry-btn">重试</view>
     </view>
     <view wx:elif="{{memories.length > 0 && !loading}}" class="premium-card">
-      <view class="list-item" wx:for="{{memories}}" wx:key="_id" wx:for-index="i" bindtap="editMemory" data-index="{{i}}" aria-role="button" aria-label="编辑 {{item.date}} 的欢乐时光">
+      <view class="list-item" wx:for="{{memories}}" wx:key="_id" wx:for-index="i" bindtap="editMemory" data-index="{{i}}" aria-role="button" aria-label="编辑 {{item.dateLabel}} 的欢乐时光">
         <view class="memory-left">
           <text class="memory-heart">♥</text>
           <view class="memory-info">
-            <view class="memory-date">{{item.date}}</view>
+            <view class="memory-date">{{item.dateLabel}}</view>
             <view wx:if="{{item.note}}" class="memory-note">{{item.note}}</view>
           </view>
         </view>
