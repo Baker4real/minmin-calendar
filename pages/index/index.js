@@ -441,6 +441,13 @@ Page({
     this.applyHomeCalendarState({ year, month, monthPickerVisible: false })
   },
 
+  // 日历滑动松手：判定在纯函数里，页面只做一次既有翻月更新，不跟手。
+  onCalendarSwipe(detail) {
+    const decision = util.decideMonthSwipe(detail && detail.dx, detail && detail.dy)
+    if (decision === 'next') this.nextMonth()
+    else if (decision === 'prev') this.prevMonth()
+  },
+
   openMonthPicker() {
     const { year, month } = this.data
     homepageSheets(this).monthPicker.open(this, {
@@ -526,14 +533,11 @@ Page({
 
   selectJumpMonth(e) {
     const month = Number(e.currentTarget.dataset.month)
-    if (Number.isNaN(month)) return
-    this.setData({ jumpMonth: month })
-  },
-
-  confirmMonthJump() {
+    if (!Number.isInteger(month) || month < 0 || month > 11) return
     this.setData({
       year: this.data.jumpYear,
-      month: this.data.jumpMonth,
+      month,
+      jumpMonth: month,
       monthPickerVisible: false
     }, () => this.renderCalendar())
     homepageSheets(this).monthPicker.leave(this)
@@ -567,6 +571,14 @@ Page({
   // 不把已显示的日历换回整页失败画面
   retryRefresh() {
     return this.loadData({ background: true })
+  },
+
+  onPullDownRefresh() {
+    const task = this.loadData({ background: true })
+    const stop = () => {
+      if (typeof wx.stopPullDownRefresh === 'function') wx.stopPullDownRefresh()
+    }
+    return Promise.resolve(task).then(stop, stop)
   },
 
   goBind() { wx.redirectTo({ url: '/pages/bind/bind' }) },

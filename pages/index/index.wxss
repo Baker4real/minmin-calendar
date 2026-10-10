@@ -775,27 +775,6 @@
   border-color: rgba(255,255,255,0.18);
   box-shadow: 0 12rpx 28rpx rgba(232,144,158,0.18);
 }
-.jump-confirm {
-  min-height: 88rpx;
-  margin-top: 22rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  padding: 0 28rpx;
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-control);
-  white-space: nowrap;
-  color: #0A0E27;
-  background: var(--aurora-pink);
-  box-shadow: 0 14rpx 36rpx rgba(232,144,158,0.2);
-  transition: transform var(--duration-press) var(--ease-out);
-}
-.jump-confirm:active {
-  transform: scale(0.98);
-  box-shadow: 0 8rpx 24rpx rgba(232,144,158,0.16);
-}
 
 /* ===== Day Action Sheet ===== */
 .day-sheet-mask {
@@ -1343,7 +1322,6 @@
   .month-title-trigger,
   .nav-btn,
   .jump-option,
-  .jump-confirm,
   .jump-year-step,
   .sheet-action,
   .sheet-close,
