@@ -215,7 +215,8 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(byHandler('prevMonth', 'nav-btn').attrs['aria-label'], '上一个月')
   assert.equal(byHandler('nextMonth', 'nav-btn').attrs['aria-label'], '下一个月')
   assert.equal(byHandler('quickPeriod', 'quick-btn').attrs['aria-label'], '{{periodQuickAriaLabel}}')
-  assert.equal(byHandler('quickMemory', 'quick-btn').attrs['aria-label'], '记录欢乐时光')
+  assert.equal(byHandler('quickMemory', 'quick-btn').attrs['aria-label'], '记欢乐时光')
+  assert.match(readPage('pages/index/index.wxml'), /class="quick-text">记欢乐时光</)
 
   // 弹层遮罩本身是可点的「关闭」操作，必须带角色与可读名称
   assert.equal(byHandler('closeMonthPicker', 'day-sheet-mask').attrs['aria-label'], '关闭月份选择')
@@ -234,7 +235,12 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   const dayActions = elements
     .filter((element) => element.attrs.bindtap === 'onDayActionTap')
     .map((element) => element.attrs['aria-label'])
-  assert.deepEqual(dayActions, ['记录经期', '记录欢乐时光', '查看详情', '补经期', '补欢乐时光'])
+  assert.deepEqual(dayActions, ['记经期', '记欢乐时光', '查看详情', '补记经期', '补记欢乐时光'])
+  const indexWxml = readPage('pages/index/index.wxml')
+  assert.match(indexWxml, /sheet-action-title">记经期</)
+  assert.match(indexWxml, /sheet-action-title">记欢乐时光</)
+  assert.match(indexWxml, /sheet-action-title">补记经期</)
+  assert.match(indexWxml, /sheet-action-title">补记欢乐时光</)
 
   // 月份格点一下即跳转，不再有确认按钮
   const jumpOption = byHandler('selectJumpMonth', 'jump-option')
@@ -451,7 +457,9 @@ test('record tab segment control reads as a radio group with a perceivable check
       element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
   assert.equal(byHandler('editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dayLabel}} 的欢乐时光')
   assert.equal(byHandler('loadMemoryData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
-  assert.equal(byHandler('addMemory', 'btn-premium').attrs['aria-label'], '记录欢乐时光')
+  assert.equal(byHandler('addMemory', 'btn-premium').attrs['aria-label'], '记欢乐时光')
+  assert.match(readPage('pages/period/period.wxml'), />＋ 记欢乐时光</)
+  assert.doesNotMatch(readPage('pages/memory/memory.wxml'), /wx:for="\{\{memories\}\}"/)
 
   // 月份卡头（issue #109）：点按切换展开/收起，按 button 朗读；
   // 读屏名「YYYY年M月，N 条欢乐时光，已展开/已收起」由分组数据绑定，
@@ -506,7 +514,8 @@ test('edit pages name the save and delete operations and expose inert variants a
 function wxssRuleBody(relativePath, selector) {
   const css = readPage(relativePath).replace(/\/\*[\s\S]*?\*\//g, '')
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const match = new RegExp(`(?:^|[}\\s])${escaped}\\s*\\{([^}]*)\\}`).exec(css)
+  // :active 与 hover-class 可以写在同一条规则里，选择器后面先是逗号再是 `{`。
+  const match = new RegExp(`(?:^|[},\\s])${escaped}\\s*(?:,[^{]*)?\\{([^}]*)\\}`).exec(css)
   return match ? match[1] : null
 }
 
@@ -625,6 +634,33 @@ test('text inputs focus into the registered 1px solid outline without any glow',
   }
 })
 
+test('every tappable control carries a hover-class painted with its :active rule', () => {
+  const { parseWxssRules, listWxssFiles } = require('./designTokens')
+  const rules = []
+  for (const file of listWxssFiles(repoRoot)) {
+    rules.push(...parseWxssRules(fs.readFileSync(file, 'utf8')))
+  }
+  const failures = []
+  for (const file of PAGE_WXML) {
+    for (const element of collectElements(readPage(file))) {
+      if (!isTapTarget(element)) continue
+      const hover = element.attrs['hover-class'] || ''
+      const stem = hover.endsWith('-hover') ? hover.slice(0, -'-hover'.length) : ''
+      if (!stem || !classTokens(element).includes(stem)) {
+        failures.push(`${file}: ${describe(element)} hover-class=${hover || '(missing)'}`)
+        continue
+      }
+      const painted = rules.some((rule) =>
+        rule.selectors.some((selector) => selector.includes(`.${hover}`)) &&
+        rule.selectors.some((selector) => selector.includes(':active')))
+      if (!painted) {
+        failures.push(`${file}: hover-class ${hover} is not in an :active rule`)
+      }
+    }
+  }
+  assert.deepEqual(failures, [])
+})
+
 test('glass cards are not press targets', () => {
   // 玻璃卡本身不可点（issue #113）。按压从基类拿掉，不再靠各页 transform:none 抵消。
   const card = wxssRuleBody('app.wxss', '.premium-card')
@@ -649,9 +685,10 @@ test('untappable settings rows do not take menu press feedback', () => {
   const menuRows = collectElements(readPage('pages/settings/settings.wxml'))
     .filter((element) => classTokens(element).includes('menu-item'))
   const inert = menuRows.filter((element) => !isTapTarget(element))
-  assert.equal(inert.length, 2, 'settings has the room-code row and the version row')
+  assert.equal(inert.length, 3, 'settings has the room-code row, the member status row, and the version row')
   assert.ok(classTokens(inert[0]).includes('room-code-item'), 'the room-code row stays inert')
-  assert.equal(classTokens(inert[1]).includes('room-code-item'), false, 'the version row is the other inert row')
+  assert.match(inert[1].attrs['wx:if'] || '', /roomMemberLabel/, 'the member status row stays inert')
+  assert.equal(classTokens(inert[2]).includes('room-code-item'), false, 'the version row is the other inert row')
   for (const row of inert) {
     assert.ok(classTokens(row).includes('non-interactive'), `${describe(row)} needs the non-interactive modifier`)
   }
@@ -668,7 +705,7 @@ test('untappable settings rows do not take menu press feedback', () => {
   const settingsCss = readPage('pages/settings/settings.wxss').replace(/\/\*[\s\S]*?\*\//g, '')
   const pressBackground = wxssRuleBody(
     'pages/settings/settings.wxss',
-    '.menu-item:not(.non-interactive):active'
+    '.menu-item:not(.non-interactive):not(.danger):active'
   )
   assert.match(pressBackground || '', /background\s*:/, 'tappable menu rows keep the press background')
   assert.doesNotMatch(settingsCss, /(^|[^\w.-])\.menu-item:active\s*[,{]/)

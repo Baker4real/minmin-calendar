@@ -70,7 +70,8 @@
 .list-item:last-child {
   border-bottom: none;
 }
-.list-item:active {
+.list-item:active,
+.list-item.list-item-hover {
   background: rgba(255,255,255,0.05);
 }
 .item-left {
@@ -217,7 +218,8 @@
   border: 1px solid transparent;
   transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-.segment-option:active {
+.segment-option:active,
+.segment-option.segment-option-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.1);
 }
@@ -250,7 +252,8 @@
 .month-header:last-child {
   border-bottom: none;
 }
-.month-header:active {
+.month-header:active,
+.month-header.month-header-hover {
   background: rgba(255,255,255,0.05);
 }
 .month-header-main {
@@ -337,6 +340,8 @@
   .skeleton-dot {
     animation: none;
   }
+  .load-failed,
+  .list-retry,
   .segment-option {
     transition: none;
   }
@@ -361,6 +366,11 @@
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.load-failed:active,
+.load-failed.load-failed-hover {
+  transform: scale(0.98);
 }
 .retry-btn {
   min-height: 88rpx;
@@ -374,7 +384,8 @@
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
 }
-.retry-btn:active {
+.retry-btn:active,
+.retry-btn.retry-btn-hover {
   transform: scale(0.96);
 }
 
@@ -386,6 +397,12 @@
   gap: 16rpx;
   min-height: 88rpx;
   margin-top: 16rpx;
+  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
+}
+.list-retry:active,
+.list-retry.list-retry-hover {
+  background: rgba(255,255,255,0.05);
+  transform: scale(0.97);
 }
 .list-retry-text {
   font-size: var(--font-size-caption);

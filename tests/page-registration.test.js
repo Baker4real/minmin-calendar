@@ -369,7 +369,7 @@ test('index page shows available memories when periods fail on the first load', 
     assert.equal(harness.page.data.hasLoadedHomeData, true)
     assert.equal(harness.page.data.noRoom, false)
     assert.equal(harness.page.data.syncStatusVisible, true)
-    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已显示记忆数据')
+    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已显示欢乐时光')
     assert.deepEqual(harness.page._homeRecords.periods, [])
     assert.deepEqual(harness.page._homeRecords.memories, [{ _id: 'm1', date: '2026-06-03' }])
     assert.deepEqual(calls, ['periods', 'memories'])
@@ -413,7 +413,7 @@ test('index page starts period and memory loads together so one timeout does not
 
     resolvePeriods()
     await loadPromise
-    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已显示记忆数据')
+    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已显示欢乐时光')
   } finally {
     if (resolvePeriods) resolvePeriods()
     if (loadPromise) await loadPromise.catch(() => {})
@@ -684,7 +684,7 @@ test('index page updates successful collections and preserves failed ones during
     assert.equal(harness.page.data.refreshing, false)
     assert.equal(harness.page.data.hasLoadedHomeData, true)
     assert.equal(harness.page.data.noRoom, false)
-    assert.equal(harness.page.data.syncStatusText, '记忆同步失败，已保留旧记忆数据')
+    assert.equal(harness.page.data.syncStatusText, '欢乐时光同步失败，已保留上次的欢乐时光')
     assert.equal(harness.page.data.syncStatusVisible, true)
     assert.deepEqual(harness.page._homeRecords.periods, [{ _id: 'p2', startDate: '2026-07-01', endDate: '2026-07-02', duration: 2 }])
     assert.deepEqual(harness.page._homeRecords.memories, [{ _id: 'm1', date: '2026-06-02', note: 'first' }])
@@ -1149,6 +1149,9 @@ test('period edit save validates real calendar dates before building a payload',
         buildSymptomOptions() {
           return []
         },
+        periodStatusHint() {
+          return ''
+        },
         buildPeriodPayload() {
           payloadBuilds += 1
           return { startDate: '2026-02-31', endDate: '2026-03-02', duration: 1 }
@@ -1278,6 +1281,9 @@ test('period edit save notifies the previous page with the canonical saved recor
         buildSymptomOptions() {
           return []
         },
+        periodStatusHint() {
+          return ''
+        },
         buildPeriodPayload() {
           return clientPayload
         }
@@ -1403,6 +1409,9 @@ test('period edit onLoad tolerates malformed route encoding', () => {
           return period.endDate ? 'known-end' : 'unknown-end'
         },
         FLOW_OPTIONS: [{ value: 'heavy', label: '量多' }],
+        periodStatusHint() {
+          return ''
+        },
         buildSymptomOptions(symptoms = []) {
           return symptoms.map(value => ({ value, label: value, selected: true }))
         }
@@ -1707,6 +1716,9 @@ async function runPeriodEditSaveValidationCase(overrides = {}) {
         FLOW_OPTIONS: [],
         buildSymptomOptions() {
           return []
+        },
+        periodStatusHint() {
+          return ''
         },
         buildPeriodPayload() {
           payloadBuilds += 1

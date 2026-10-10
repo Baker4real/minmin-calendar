@@ -6,38 +6,44 @@ const CALENDAR_LEGEND_ITEMS = [
   {
     key: 'today',
     title: '今天',
-    marker: '',
-    text: '玫瑰色光圈圈出今天，日期数字变成玫瑰色。'
+    text: '薰衣草描边、玫瑰底，日期数字是玫瑰色。',
+    cellClass: 'today',
+    parts: [{ kind: 'num', className: 'day-num', text: '8' }]
   },
   {
     key: 'period',
     title: '经期记录',
-    marker: '●',
-    text: '粉色圆点表示这一天有经期记录。'
+    text: '连续的玫瑰色带表示这一天有经期记录。',
+    cellClass: 'period period-single',
+    parts: [{ kind: 'band', className: 'period-band', text: '' }]
   },
   {
     key: 'memory',
     title: '欢乐时光',
-    marker: '♥',
-    text: '爱心表示这一天留下了欢乐时光。'
+    text: '爱心表示这一天留下了欢乐时光。',
+    cellClass: '',
+    parts: [{ kind: 'mark', className: 'mark memory-mark', text: '♥' }]
   },
   {
     key: 'predict',
-    title: '预测区间',
-    marker: '预',
-    text: '金色“预”表示下次经期的预测区间。'
+    title: '下次可能开始的日子',
+    text: '金色「预」表示下次可能开始的日子。',
+    cellClass: '',
+    parts: [{ kind: 'mark', className: 'mark predict-mark', text: '预' }]
   },
   {
     key: 'holiday',
     title: '节日',
-    marker: '中秋',
-    text: '金色标签会写出当天的真实节日名称，如「中秋」。'
+    text: '金色文字写出当天的真实节日名称，如「中秋」。',
+    cellClass: '',
+    parts: [{ kind: 'tag', className: 'day-tag holiday-tag', text: '中秋' }]
   },
   {
     key: 'workday',
     title: '调休上班',
-    marker: '班',
-    text: '“班”表示官方调休上班日。'
+    text: '“班”表示官方调休上班日。',
+    cellClass: '',
+    parts: [{ kind: 'tag', className: 'day-tag workday-tag', text: '班' }]
   }
 ]
 
@@ -98,6 +104,7 @@ function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextP
       isUnknownEndPeriod: unknownEndPeriodDates.has(day.date),
       isMemory: memoryDates.has(day.date),
       isPredict: predictDates.has(day.date) && !isPeriod,
+      lunarCellText: lunarCellLabel(day.lunarText),
       periodDayCount: isPeriod ? countPeriodDay(day.date, periods, today) : 0
     }
     return { ...marked, ariaLabel: buildDayAriaLabel(marked, today) }
@@ -239,7 +246,7 @@ function buildDayDetailsByDate(days, periods, memories, today) {
       .filter(({ memory }) => isDateString(memory.date) && memory.date === day.date)
       .map(({ memory, index }) => ({
         key: memoryKeys[index],
-        note: memory.note || '特别日子'
+        note: memory.note || '欢乐时光'
       }))
     const meanings = buildDayMeanings(day)
 
@@ -333,8 +340,8 @@ function buildDayMeanings(day = {}) {
   if (day.isPredict) {
     meanings.push({
       key: 'predict',
-      title: '预测区间',
-      text: '这一天落在下次经期的预测范围内。'
+      title: '下次可能开始的日子',
+      text: '这一天是下次可能开始的日子。'
     })
   }
   if (day.holidayName) {
@@ -358,7 +365,7 @@ const DAY_ARIA_MEANING_TEXT = {
   'period-ongoing': '经期进行中',
   'period-unknown-end': '结束日期不详',
   memory: '欢乐时光',
-  predict: '预测区间',
+  predict: '下次可能开始的日子',
   workday: '调休上班'
 }
 
@@ -397,6 +404,12 @@ function buildDayAriaLabel(day, today) {
     if (text) parts.push(text)
   })
   return parts.join(' ')
+}
+
+function lunarCellLabel(lunarText) {
+  if (!lunarText) return ''
+  if (lunarText.endsWith('初一')) return lunarText.slice(0, -2)
+  return lunarText.slice(-2)
 }
 
 module.exports = {

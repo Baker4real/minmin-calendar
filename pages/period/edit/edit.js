@@ -33,6 +33,7 @@ Page({
     flowOptions: cycle.FLOW_OPTIONS,
     statusOptions: cycle.PERIOD_STATUS_OPTIONS,
     symptomGroups: cycle.buildSymptomOptions(),
+    statusHint: cycle.periodStatusHint('ongoing'),
     maxDate: '',
     periodDayCountText: '',
     periodLengthHint: '',
@@ -69,7 +70,8 @@ Page({
       startDateLabel: displayDateLabel(formState.startDate),
       endDateLabel: displayDateLabel(formState.endDate),
       draftRestored: !!storedDraft,
-      symptomGroups: cycle.buildSymptomOptions(formState.symptoms)
+      symptomGroups: cycle.buildSymptomOptions(formState.symptoms),
+      statusHint: cycle.periodStatusHint(formState.status)
     })
     this.syncPeriodLengthHint()
     if (storedDraft) {
@@ -133,7 +135,7 @@ Page({
     if (this.data.saving) return
     const status = e.currentTarget.dataset.value
     if (!cycle.isPeriodStatus(status) || status === this.data.status) return
-    const update = { status }
+    const update = { status, statusHint: cycle.periodStatusHint(status) }
     // 只有完成进行中记录才把空结束日兜底为今天；其他切换保持为空
     if (status === 'known-end' && !this.data.endDate && this.data.status === 'ongoing') {
       const today = this.data.maxDate || util.formatDate(new Date())
@@ -170,6 +172,9 @@ Page({
 
   async save() {
     if (this.data.saving || this.data.deleting || this.data.submitted) return
+    if (this._overlapConfirming) return
+    const overlap = await this.resolveNewPeriodOverlap()
+    if (overlap !== 'save') return overlap
     const { id, startDate, endDate, status, note, flow, symptoms, isEdit } = this.data
     const today = util.formatDate(new Date())
     const client = cloud.createRoomDataClient()
@@ -222,6 +227,36 @@ Page({
     return outcome
   },
 
+  // 新记录的开始日如果落在已有投影里，先问是去编辑那条还是仍然新建。编辑已有记录不拦。
+  // 云端不因为重叠拒绝；选「仍然新建」后照常保存。
+  async resolveNewPeriodOverlap() {
+    if (this.data.isEdit) return 'save'
+    if (typeof cycle.findPeriodCoveringDate !== 'function') return 'save'
+    this._overlapConfirming = true
+    try {
+      await this.loadPeriodHistory()
+      const today = util.formatDate(new Date())
+      const covering = cycle.findPeriodCoveringDate(this._periodHistory, this.data.startDate, today)
+      if (!covering) return 'save'
+      const editExisting = await new Promise(resolve => {
+        wx.showModal({
+          title: '这一天已有经期',
+          content: '开始日已经落在一条已有经期里。',
+          confirmText: '去编辑那条',
+          cancelText: '仍然新建',
+          success: res => resolve(!!(res && res.confirm)),
+          fail: () => resolve(false)
+        })
+      })
+      if (!editExisting) return 'save'
+      this.discardRecordDraft()
+      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(covering) })
+      return { kind: 'edit-existing' }
+    } finally {
+      this._overlapConfirming = false
+    }
+  },
+
   applyReopenedRecord(record) {
     const symptoms = Array.isArray(record.symptoms) ? record.symptoms : []
     // 与 onLoad 同一原则：状态是权威，结束日期只在已知结束时保留
@@ -243,7 +278,8 @@ Page({
     this.setData({
       ...formState,
       draftRestored: false,
-      symptomGroups: cycle.buildSymptomOptions(symptoms)
+      symptomGroups: cycle.buildSymptomOptions(symptoms),
+      statusHint: cycle.periodStatusHint(status)
     })
     this.syncPeriodLengthHint()
   },

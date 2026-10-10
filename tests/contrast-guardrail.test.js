@@ -115,6 +115,24 @@ test('period band stays a translucent rose and date numbers on it clear 4.5:1', 
   assert.ok(meetsContrast('#F0C4C0', toHex(todaySurface)), 'the memory heart must stay readable on the band')
 })
 
+test('the in-cell 预 stays at least 4.5:1 when today falls in the prediction window', () => {
+  const grid = composite(
+    composite(hex('#0A0E27'), hex('#12163D'), 0.92),
+    { r: 1, g: 1, b: 1 },
+    0.05
+  )
+  const todayBg = exactDeclaration('pages/index/index.wxss', '.day-cell.today', 'background')
+  const todayWash = /^rgba\(\s*232\s*,\s*144\s*,\s*158\s*,\s*(0?\.\d+|1(?:\.0*)?)\s*\)$/.exec(todayBg)
+  assert.ok(todayWash, `today background must be the rose wash, got ${todayBg}`)
+  const todaySurface = composite(grid, hex('#E8909E'), Number(todayWash[1]))
+
+  const chip = cssLayer(exactDeclaration('pages/index/index.wxss', '.predict-mark', 'background'))
+  const surface = composite(todaySurface, chip.color, chip.alpha)
+  const foreground = resolvePaint(exactDeclaration('pages/index/index.wxss', '.predict-mark', 'color'))
+  const ratio = contrastRatio(foreground, toHex(surface))
+  assert.ok(ratio >= 4.5, `预 on the today composite ${toHex(surface)} is ${ratio.toFixed(2)}:1`)
+})
+
 test('settings clear-local-data uses warning-red text and warning-red border before any tap', () => {
   const wxss = 'pages/settings/settings.wxss'
   assert.equal(declarationOf(wxss, '.menu-item.danger .menu-text', 'color'), WARNING_RED)
@@ -204,6 +222,33 @@ function composite(background, foreground, alpha) {
 function toHex(color) {
   const channel = (value) => Math.round(value * 255).toString(16).padStart(2, '0')
   return `#${channel(color.r)}${channel(color.g)}${channel(color.b)}`
+}
+
+function cssLayer(declared) {
+  const value = declared.trim()
+  if (value === 'transparent' || value === 'none') return { color: { r: 0, g: 0, b: 0 }, alpha: 0 }
+  const rgba = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(0?\.\d+|1(?:\.0*)?)\s*\)$/.exec(value)
+  assert.ok(rgba, `expected a color layer, got ${value}`)
+  return {
+    color: {
+      r: Number(rgba[1]) / 255,
+      g: Number(rgba[2]) / 255,
+      b: Number(rgba[3]) / 255
+    },
+    alpha: Number(rgba[4])
+  }
+}
+
+function resolvePaint(declared) {
+  const value = declared.trim()
+  if (value.startsWith('var(')) {
+    const name = value.slice(4, -1).trim()
+    const match = new RegExp(`${name}\\s*:\\s*(#[0-9a-f]{6})`, 'i').exec(readSource('app.wxss'))
+    assert.ok(match, `expected ${name} in app.wxss`)
+    return match[1]
+  }
+  assert.match(value, /^#[0-9a-f]{6}$/i)
+  return value
 }
 
 function paint(declared, background) {
