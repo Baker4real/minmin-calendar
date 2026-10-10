@@ -29,6 +29,7 @@ Page({
     flowOptions: cycle.FLOW_OPTIONS,
     statusOptions: cycle.PERIOD_STATUS_OPTIONS,
     symptomGroups: cycle.buildSymptomOptions(),
+    statusHint: cycle.periodStatusHint('ongoing'),
     maxDate: '',
     periodDayCountText: '',
     periodLengthHint: '',
@@ -63,7 +64,8 @@ Page({
     this.setData({
       ...formState,
       draftRestored: !!storedDraft,
-      symptomGroups: cycle.buildSymptomOptions(formState.symptoms)
+      symptomGroups: cycle.buildSymptomOptions(formState.symptoms),
+      statusHint: cycle.periodStatusHint(formState.status)
     })
     this.syncPeriodLengthHint()
     if (storedDraft) {
@@ -118,7 +120,7 @@ Page({
     if (this.data.saving) return
     const status = e.currentTarget.dataset.value
     if (!cycle.isPeriodStatus(status) || status === this.data.status) return
-    const update = { status }
+    const update = { status, statusHint: cycle.periodStatusHint(status) }
     // 只有完成进行中记录才把空结束日兜底为今天；其他切换保持为空
     if (status === 'known-end' && !this.data.endDate && this.data.status === 'ongoing') {
       const today = this.data.maxDate || util.formatDate(new Date())
@@ -220,7 +222,8 @@ Page({
     this.setData({
       ...formState,
       draftRestored: false,
-      symptomGroups: cycle.buildSymptomOptions(symptoms)
+      symptomGroups: cycle.buildSymptomOptions(symptoms),
+      statusHint: cycle.periodStatusHint(status)
     })
     this.syncPeriodLengthHint()
   },

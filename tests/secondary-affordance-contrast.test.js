@@ -177,6 +177,10 @@ const CASES = [
   { file: 'pages/bind/bind.wxss', selector: '.bound-status', surfaces: [['app.wxss', '.premium-card']], note: '绑定页已绑定成功标题' },
   { file: 'pages/bind/bind.wxss', selector: '.tab', surfaces: [['app.wxss', '.premium-card'], ['pages/bind/bind.wxss', '.tab-bar']], note: '绑定页未选中 tab' },
   { file: 'app.wxss', selector: '.btn-danger', surfaces: [], note: '危险操作（删除记录/解除绑定）' },
+  // issue #144：备注占位符不再用 0.35 白，颜色档位不弱于次要文字，落在输入框合成面上
+  { file: 'app.wxss', selector: '.input-placeholder', surfaces: [['app.wxss', '.premium-card'], ['pages/period/edit/edit.wxss', '.form-input']], note: '经期编辑备注占位' },
+  { file: 'app.wxss', selector: '.input-placeholder', surfaces: [['app.wxss', '.premium-card'], ['pages/memory/edit/edit.wxss', '.form-input']], note: '欢乐时光备注占位' },
+  { file: 'app.wxss', selector: '.input-placeholder', surfaces: [['app.wxss', '.premium-card'], ['pages/bind/bind.wxss', '.code-input']], note: '绑定页房间码占位' },
   // issue #139：页底解除绑定在点之前就是危险样式，红字在卡片表面上同样要读得清
   { file: 'pages/settings/settings.wxss', selector: '.menu-item.danger .menu-text', surfaces: [['app.wxss', '.premium-card']], note: '设置页解除绑定危险行文字' }
 ]
@@ -196,6 +200,21 @@ test('every clickable arrow and secondary entry meets the secondary-text contras
     }
   }
   assert.deepEqual(failures, [])
+})
+
+test('input placeholder color is a registered token no weaker than secondary text', () => {
+  const design = readFile('DESIGN.md')
+  assert.match(design, /--text-placeholder/)
+  assert.equal(declarationsFor('app.wxss', '.input-placeholder').color, 'var(--text-placeholder)')
+  const placeholder = parseColor(APP_TOKENS['--text-placeholder'])
+  const secondary = parseColor(APP_TOKENS['--text-secondary'])
+  assert.equal(placeholder.r, 255)
+  assert.equal(placeholder.g, 255)
+  assert.equal(placeholder.b, 255)
+  assert.ok(
+    placeholder.a + 1e-9 >= secondary.a,
+    `placeholder alpha ${placeholder.a} is weaker than secondary ${secondary.a}`
+  )
 })
 
 test('picker and settings menu arrows ride the secondary text token, not the decorative tertiary', () => {

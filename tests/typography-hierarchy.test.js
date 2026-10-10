@@ -153,6 +153,13 @@ const CAPTION_FAMILY_FLOW = [
   [SETTINGS_WXSS, '.room-code-label']
 ]
 
+test('input placeholder type stays on the input role, at least the caption floor', () => {
+  const tokens = readAppTokens()
+  const decls = ruleDecls(APP_WXSS, '.input-placeholder')
+  assert.equal(decls['font-size'], 'var(--font-size-input)')
+  assert.ok(resolveRpx(decls, 'font-size', tokens, '.input-placeholder') >= CAPTION_FLOOR_RPX)
+})
+
 test('caption family shares the caption token and the 1.4 line-height policy', () => {
   const tokens = readAppTokens()
   for (const [file, selector] of CAPTION_FAMILY_FLOW) {

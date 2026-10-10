@@ -30,6 +30,8 @@
       <view wx:if="{{!saving && !deleting && !submitted}}" class="btn-premium" bindtap="save" aria-role="button" aria-label="保存">保存</view>
       <view wx:elif="{{saving}}" class="btn-premium loading" aria-role="button" aria-disabled="true">保存中...</view>
       <view wx:else class="btn-premium disabled" aria-role="button" aria-disabled="true">保存</view>
+    </view>
+    <view wx:if="{{isEdit}}" class="delete-zone">
       <view wx:if="{{isEdit && !deleting && !saving && !submitted}}" class="btn-danger" hover-class="btn-danger-hover" bindtap="delete" aria-role="button" aria-label="删除此记录">删除此记录</view>
       <view wx:elif="{{isEdit && deleting}}" class="btn-danger" style="opacity: 0.5;" aria-role="button" aria-disabled="true">删除中...</view>
       <view wx:elif="{{isEdit}}" class="btn-danger" style="opacity: 0.5;" aria-role="button" aria-disabled="true">删除此记录</view>

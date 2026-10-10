@@ -14,6 +14,12 @@ const PERIOD_STATUS_LABELS = {
   'known-end': ''
 }
 
+const PERIOD_STATUS_HINTS = {
+  ongoing: '进行中可稍后补结束日期',
+  'known-end': '选好结束日期，这次经期才有确定的天数',
+  'unknown-end': '结束日不清楚，日历只标开始那天'
+}
+
 const FLOW_OPTIONS = [
   { value: 'light', label: '量少' },
   { value: 'normal', label: '正常' },
@@ -22,7 +28,7 @@ const FLOW_OPTIONS = [
 
 const SYMPTOM_GROUPS = [
   { key: 'body', label: '身体' },
-  { key: 'emotion', label: '情绪' }
+  { key: 'emotion', label: '情绪与睡眠' }
 ]
 
 const SYMPTOM_OPTIONS = [
@@ -228,6 +234,10 @@ function decoratePeriod(period, { today } = {}) {
         ? (isDateString(today) ? `${period.startDate} 至 ${today}，进行中` : `${period.startDate}，进行中`)
         : `${period.startDate}，结束日期不详`
   }
+}
+
+function periodStatusHint(status) {
+  return PERIOD_STATUS_HINTS[status] || ''
 }
 
 function buildSymptomOptions(selectedSymptoms = []) {
@@ -538,6 +548,7 @@ module.exports = {
   isPeriodStatus,
   findOngoingPeriod,
   buildPeriodQuickAction,
+  periodStatusHint,
   projectPeriodRange,
   getPeriodDuration,
   decoratePeriod,

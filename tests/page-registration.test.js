@@ -1142,6 +1142,9 @@ test('period edit save validates real calendar dates before building a payload',
         buildSymptomOptions() {
           return []
         },
+        periodStatusHint() {
+          return ''
+        },
         buildPeriodPayload() {
           payloadBuilds += 1
           return { startDate: '2026-02-31', endDate: '2026-03-02', duration: 1 }
@@ -1271,6 +1274,9 @@ test('period edit save notifies the previous page with the canonical saved recor
         buildSymptomOptions() {
           return []
         },
+        periodStatusHint() {
+          return ''
+        },
         buildPeriodPayload() {
           return clientPayload
         }
@@ -1396,6 +1402,9 @@ test('period edit onLoad tolerates malformed route encoding', () => {
           return period.endDate ? 'known-end' : 'unknown-end'
         },
         FLOW_OPTIONS: [{ value: 'heavy', label: '量多' }],
+        periodStatusHint() {
+          return ''
+        },
         buildSymptomOptions(symptoms = []) {
           return symptoms.map(value => ({ value, label: value, selected: true }))
         }
@@ -1731,6 +1740,9 @@ async function runPeriodEditSaveValidationCase(overrides = {}) {
         FLOW_OPTIONS: [],
         buildSymptomOptions() {
           return []
+        },
+        periodStatusHint() {
+          return ''
         },
         buildPeriodPayload() {
           payloadBuilds += 1

@@ -53,6 +53,8 @@ function runRecordDelete(options) {
     page,
     confirmTitle = '确认删除',
     confirmContent,
+    confirmText = '删除',
+    confirmColor = '#F97373',
     loadingKey = 'deleting'
   } = opts
   const navigateBack = typeof opts.navigateBack === 'function'
@@ -67,6 +69,8 @@ function runRecordDelete(options) {
   return new Promise(resolve => {
     wxApi.showModal({
       title: confirmTitle,
+      confirmText,
+      confirmColor,
       ...(confirmContent ? { content: confirmContent } : {}),
       success: async (result) => {
         if (!result.confirm) {

@@ -60,7 +60,7 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - `utils/recordDraft.js` owns edit-form draft save/restore/clear as pure functions keyed per record identity; `createWxDraftStorage` is the only wx local-storage seam.
 - `utils/room.js` owns room-code cache, recovery, create/join, local clear, and server-side leave calls.
 - `utils/util.js` owns date formatting, lunar conversion, official holiday metadata, and base calendar-grid construction.
-- `utils/cycle.js` owns cycle prediction, reminder derivation, Period duration from dates (`getPeriodDuration`), flow labels, symptom labels, and the body/emotion symptom grouping metadata.
+- `utils/cycle.js` owns cycle prediction, reminder derivation, Period duration from dates (`getPeriodDuration`), flow labels, symptom labels, and the display grouping metadata (身体 / 情绪与睡眠). Allowed symptom values stay the same set as the cloud copy.
 - `utils/calendarInsights.js` owns prediction explanation copy and monthly recap text.
 - `utils/safeArea.js` owns runtime safe-area computation for status-bar top and gesture-area bottom; page roots inject `--safe-top` and `--safe-bottom`.
 - `cloudfunctions/dataOp/index.js` is the cloud runtime adapter for room-authorized CRUD on `periods` and `memories`.
