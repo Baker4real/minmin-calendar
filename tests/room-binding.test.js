@@ -924,16 +924,36 @@ test('Room membership lifecycle preserves records for creator recovery and isola
   const dataOp = createDataOpHandler({
     getWXContext: () => ({ OPENID: activeOpenid }),
     db,
-    records: createRoomRecords({ db, serverDate: () => SERVER_DATE })
+    records: createRoomRecords({
+      db,
+      serverDate: () => SERVER_DATE,
+      getOpenid: () => activeOpenid
+    })
   })
+  const periodProjection = {
+    _id: 'period-old',
+    startDate: '2026-06-01',
+    endDate: '2026-06-03',
+    note: 'old period',
+    duration: 3,
+    flow: 'normal',
+    symptoms: ['cramps'],
+    createdByMe: true
+  }
+  const memoryProjection = {
+    _id: 'memory-old',
+    date: '2026-06-02',
+    note: 'old memory',
+    createdByMe: true
+  }
 
   assert.deepEqual(await dataOp({ action: 'list', collection: 'periods', roomCode: 'ROOM01' }), {
     code: 0,
-    data: [period]
+    data: [periodProjection]
   })
   assert.deepEqual(await dataOp({ action: 'list', collection: 'memories', roomCode: 'ROOM01' }), {
     code: 0,
-    data: [memory]
+    data: [memoryProjection]
   })
 
   assert.deepEqual(await lifecycle.leave({ openid: 'creator' }), {
@@ -988,11 +1008,11 @@ test('Room membership lifecycle preserves records for creator recovery and isola
   activeOpenid = 'creator'
   assert.deepEqual(await dataOp({ action: 'list', collection: 'periods', roomCode: 'ROOM01' }), {
     code: 0,
-    data: [period]
+    data: [periodProjection]
   })
   assert.deepEqual(await dataOp({ action: 'list', collection: 'memories', roomCode: 'ROOM01' }), {
     code: 0,
-    data: [memory]
+    data: [memoryProjection]
   })
 })
 

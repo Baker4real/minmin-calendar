@@ -226,6 +226,12 @@ function periodRangeSummary(status, range, period, today) {
   return start ? `${start}，结束日期不详` : '结束日期不详'
 }
 
+function recordAuthorLabel(record, { paired = false } = {}) {
+  if (paired !== true) return ''
+  if (!record || typeof record.createdByMe !== 'boolean') return ''
+  return record.createdByMe ? '我记的' : 'TA 记的'
+}
+
 function decoratePeriod(period, { today } = {}) {
   const status = getPeriodStatus(period)
   const range = status === 'known-end' ? util.normalizeDateRange(period) : null
@@ -614,6 +620,7 @@ module.exports = {
   periodStatusHint,
   projectPeriodRange,
   getPeriodDuration,
+  recordAuthorLabel,
   decoratePeriod,
   buildSymptomOptions,
   formatPredictionRange

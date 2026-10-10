@@ -41,12 +41,14 @@ function buildMemoryMonthGroups(memories, options = {}) {
       groupsByKey.set(key, group)
     }
     group.count += 1
-    group.records.push({
+    const row = {
       _id: memory._id,
       date,
       note: memory.note || '',
       dayLabel: util.formatDisplayDate(date, { today })
-    })
+    }
+    if (memory.authorLabel) row.authorLabel = memory.authorLabel
+    group.records.push(row)
   }
 
   // 月份从新到旧；组内从新到旧（同一天多条保持原有相对顺序）

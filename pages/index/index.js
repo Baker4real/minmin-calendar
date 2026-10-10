@@ -165,8 +165,14 @@ Page({
   async observeRoomPresence() {
     try {
       const room = await roomSession.getVerifiedActiveRoom()
+      const paired = Boolean(room && room.status === 'paired')
+      const changed = paired !== (this._roomPaired === true)
+      this._roomPaired = paired
       if (roomPresence.rememberRoomStatus(room && room.status)) {
         wx.showToast({ title: 'TA 已加入', icon: 'none' })
+      }
+      if (changed && this.data.hasLoadedHomeData) {
+        this.applyHomeCalendarState()
       }
     } catch (error) {}
     if (!this.data.partnerWelcome && roomPresence.takePartnerWelcome()) {
@@ -390,7 +396,14 @@ Page({
     const month = hasOwn('month') ? overrides.month : this.data.month
     const today = hasOwn('today') ? overrides.today : util.formatDate(new Date())
 
-    const state = buildHomeCalendarState({ year, month, periods, memories, today })
+    const state = buildHomeCalendarState({
+      year,
+      month,
+      periods,
+      memories,
+      today,
+      roomPaired: this._roomPaired === true
+    })
     this._rememberRecords(periods, memories)
     this._dayDetailsByDate = state.dayDetailsByDate || {}
     const quickAction = cycle.buildPeriodQuickAction(periods, { today })

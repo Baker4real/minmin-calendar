@@ -47,7 +47,7 @@ const CALENDAR_LEGEND_ITEMS = [
   }
 ]
 
-function buildHomeCalendarState({ year, month, periods = [], memories = [], today = util.formatDate(new Date()) }) {
+function buildHomeCalendarState({ year, month, periods = [], memories = [], today = util.formatDate(new Date()), roomPaired = false }) {
   const prediction = cycle.predictNextPeriod(periods, { today })
   const predictionWindow = prediction.canPredict
     ? {
@@ -80,7 +80,7 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
     cycleReminders: prediction.canPredict ? cycle.buildCycleReminders(prediction, periods, { today }) : [],
     monthlyRecap: calendarInsights.buildMonthlyRecap({ year, month, periods, memories, prediction, today }),
     days,
-    dayDetailsByDate: buildDayDetailsByDate(days, periods, memories, today)
+    dayDetailsByDate: buildDayDetailsByDate(days, periods, memories, today, roomPaired)
   }
 }
 
@@ -214,7 +214,7 @@ function isDateString(value) {
   return util.isValidDateString(value)
 }
 
-function buildDayDetailsByDate(days, periods, memories, today) {
+function buildDayDetailsByDate(days, periods, memories, today, roomPaired = false) {
   const details = {}
   const periodKeys = buildStableDetailKeys(periods, 'period', buildPeriodDetailFingerprint)
   const memoryKeys = buildStableDetailKeys(memories, 'memory', buildMemoryDetailFingerprint)
@@ -234,20 +234,20 @@ function buildDayDetailsByDate(days, periods, memories, today) {
         const meta = []
         if (detail.flowLabel) meta.push(`经量 ${detail.flowLabel}`)
         if (detail.symptomText) meta.push(detail.symptomText)
-        return {
+        return withAuthorLabel({
           key: periodKeys[index],
           range: formatPeriodDetailRange(range, today),
           metaText: meta.join(' · ')
-        }
+        }, cycle.recordAuthorLabel(period, { paired: roomPaired === true }))
       })
 
     const memoryDetails = memories
       .map((memory, index) => ({ memory, index }))
       .filter(({ memory }) => isDateString(memory.date) && memory.date === day.date)
-      .map(({ memory, index }) => ({
+      .map(({ memory, index }) => withAuthorLabel({
         key: memoryKeys[index],
         note: memory.note || '欢乐时光'
-      }))
+      }, cycle.recordAuthorLabel(memory, { paired: roomPaired === true })))
     const meanings = buildDayMeanings(day)
 
     details[day.date] = {
@@ -259,6 +259,11 @@ function buildDayDetailsByDate(days, periods, memories, today) {
   })
 
   return details
+}
+
+function withAuthorLabel(row, authorLabel) {
+  if (!authorLabel) return row
+  return { ...row, authorLabel }
 }
 
 function isPeriodActiveOnDate(range, date) {

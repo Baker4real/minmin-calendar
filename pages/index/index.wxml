@@ -296,6 +296,7 @@
               <text class="detail-title">经期</text>
               <text class="detail-main">{{item.range}}</text>
               <text wx:if="{{item.metaText}}" class="detail-meta">{{item.metaText}}</text>
+              <text wx:if="{{item.authorLabel}}" class="detail-meta">{{item.authorLabel}}</text>
             </view>
           </view>
 
@@ -308,6 +309,7 @@
             <view class="detail-copy">
               <text class="detail-title">欢乐时光</text>
               <text class="detail-main">{{item.note}}</text>
+              <text wx:if="{{item.authorLabel}}" class="detail-meta">{{item.authorLabel}}</text>
             </view>
           </view>
         </view>

@@ -1198,6 +1198,69 @@ test('record list pages show load-failed retry copy and hide period stats while 
   assert.match(periodJs, /onLoaded: periods => \{[\s\S]*?hasLoaded: true/)
 })
 
+test('paired record tab rows name who recorded them, and quiet rows stay blank', async () => {
+  const periods = [
+    { _id: 'p-mine', startDate: '2026-09-01', endDate: '2026-09-03', status: 'known-end', createdByMe: true },
+    { _id: 'p-theirs', startDate: '2026-08-01', endDate: '2026-08-03', status: 'known-end', createdByMe: false },
+    { _id: 'p-old', startDate: '2026-07-01', endDate: '2026-07-02', status: 'known-end' }
+  ]
+  const memories = [
+    { _id: 'm-mine', date: '2026-09-20', note: '散步', createdByMe: true },
+    { _id: 'm-old', date: '2026-09-18', note: '旧记录' }
+  ]
+
+  function harnessFor(status) {
+    return loadRecordPageHarness('pages/period/period.js', {
+      mocks: {
+        'utils/cloud.js': {
+          createRoomDataClient() {
+            return {
+              async list(collection) {
+                return {
+                  kind: 'success',
+                  data: collection === 'periods' ? periods : memories
+                }
+              }
+            }
+          }
+        },
+        'utils/room.js': {
+          async getVerifiedActiveRoom() {
+            return { kind: 'success', bound: true, roomCode: 'ROOM01', status }
+          }
+        }
+      }
+    })
+  }
+
+  const paired = harnessFor('paired')
+  try {
+    await paired.page.onShow()
+    assert.equal(paired.page.data.periods.find(item => item._id === 'p-mine').authorLabel, '我记的')
+    assert.equal(paired.page.data.periods.find(item => item._id === 'p-theirs').authorLabel, 'TA 记的')
+    assert.equal(paired.page.data.periods.find(item => item._id === 'p-old').authorLabel, undefined)
+
+    paired.page.setData({ segment: 'memory' })
+    await paired.page.onShow()
+    const memoryRows = paired.page.data.memoryGroups.flatMap(group => group.expanded ? group.records : [])
+    assert.equal(memoryRows.find(item => item._id === 'm-mine').authorLabel, '我记的')
+    assert.equal(memoryRows.find(item => item._id === 'm-old').authorLabel, undefined)
+
+    const wxml = readPageFile('pages/period/period.wxml')
+    assert.match(wxml, /wx:if="\{\{item\.authorLabel\}\}"/)
+  } finally {
+    paired.teardown()
+  }
+
+  const waiting = harnessFor('waiting')
+  try {
+    await waiting.page.onShow()
+    assert.ok(waiting.page.data.periods.every(item => !item.authorLabel))
+  } finally {
+    waiting.teardown()
+  }
+})
+
 test('an unknown-end period list row says 结束日期不详 only once', async () => {
   const harness = loadRecordPageHarness('pages/period/period.js', {
     mocks: {

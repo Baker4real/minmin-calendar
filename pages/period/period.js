@@ -5,6 +5,7 @@ const recordCommands = require('../../utils/recordCommands')
 const recordEditRoute = require('../../utils/recordEditRoute')
 const memoryMonthGroups = require('../../utils/memoryMonthGroups')
 const safeArea = require('../../utils/safeArea')
+const roomSession = require('../../utils/room')
 
 // 与 pages/period/edit/edit.js、pages/memory/edit/edit.js 共享的
 // 一次性「目标分段」意图键：switchTab 不能带 query，入口先写键，本页 onShow 消费并立即清除（issue #103）
@@ -72,7 +73,8 @@ Page({
   async loadData() {
     const client = cloud.createRoomDataClient()
     const today = util.formatDate(new Date())
-    await recordCommands.runRecordListLoad({
+    const pairedPromise = roomIsPaired()
+    const outcome = await recordCommands.runRecordListLoad({
       page: this,
       itemsKey: 'periods',
       action: () => client.list('periods'),
@@ -86,12 +88,14 @@ Page({
       retryableTitle: '加载失败，请检查网络',
       failureTitle: '加载失败'
     })
+    await labelLoadedPeriods(this, outcome, pairedPromise)
   },
 
   async loadMemoryData() {
     const client = cloud.createRoomDataClient()
     const today = util.formatDate(new Date())
-    await recordCommands.runRecordListLoad({
+    const pairedPromise = roomIsPaired()
+    const outcome = await recordCommands.runRecordListLoad({
       page: this,
       itemsKey: 'memories',
       loadingKey: 'memoryLoading',
@@ -101,6 +105,7 @@ Page({
       onLoaded: memories => {
         // 列表加载成功后产出月份分组（issue #108）；失败路径不清 memories，分组同样保留上次的。
         // 展开状态由页面内存的手动选择推导（issue #109）：重载后手动选择保留，没点过的月份走默认规则
+        this._loadedMemories = memories
         this.setData({
           memoryHasLoaded: true,
           memoryGroups: memoryMonthGroups.applyMemoryMonthExpansion(
@@ -112,6 +117,7 @@ Page({
       retryableTitle: '加载失败，请检查网络',
       failureTitle: '加载失败'
     })
+    await labelLoadedMemories(this, outcome, pairedPromise, today)
   },
 
   calcStats(periods) {
@@ -177,6 +183,48 @@ function findMemoryRecordById(groups, id) {
     if (record) return record
   }
   return null
+}
+
+async function labelLoadedPeriods(page, outcome, pairedPromise) {
+  const paired = await pairedPromise
+  page._roomPaired = paired
+  if (!paired || !outcome || outcome.kind !== 'success') return
+  page.setData({
+    periods: page.data.periods.map(period => withAuthorLabel(
+      period,
+      cycle.recordAuthorLabel(period, { paired: true })
+    ))
+  })
+}
+
+async function labelLoadedMemories(page, outcome, pairedPromise, today) {
+  const paired = await pairedPromise
+  page._roomPaired = paired
+  if (!paired || !outcome || outcome.kind !== 'success' || !page._loadedMemories) return
+  const rows = page._loadedMemories.map(memory => withAuthorLabel(
+    memory,
+    cycle.recordAuthorLabel(memory, { paired: true })
+  ))
+  page.setData({
+    memoryGroups: memoryMonthGroups.applyMemoryMonthExpansion(
+      memoryMonthGroups.buildMemoryMonthGroups(rows, { today }),
+      page.memoryMonthChoices
+    )
+  })
+}
+
+function withAuthorLabel(record, authorLabel) {
+  if (!authorLabel) return record
+  return { ...record, authorLabel }
+}
+
+async function roomIsPaired() {
+  try {
+    const room = await roomSession.getVerifiedActiveRoom()
+    return Boolean(room && room.status === 'paired')
+  } catch (error) {
+    return false
+  }
 }
 
 function calculateAverageDuration(periods = []) {

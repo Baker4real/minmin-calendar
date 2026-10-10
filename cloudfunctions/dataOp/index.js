@@ -4,7 +4,11 @@ const { createDataOpHandler } = require('./dataOpHandler')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
-const records = createRoomRecords({ db, serverDate: () => db.serverDate() })
+const records = createRoomRecords({
+  db,
+  serverDate: () => db.serverDate(),
+  getOpenid: () => cloud.getWXContext().OPENID
+})
 
 exports.main = createDataOpHandler({
   getWXContext: () => cloud.getWXContext(),

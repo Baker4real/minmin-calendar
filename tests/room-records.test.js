@@ -435,6 +435,209 @@ test('RoomRecords stores a legacy write without status or end date as unknown-en
   assert.deepEqual(pickClientRecord(db.data.periods[0]), result.record)
 })
 
+test('RoomRecords list, add, and update share a client projection marked for the caller', async () => {
+  const db = createFakeDb({
+    periods: [
+      {
+        _id: 'p-mine',
+        roomCode: 'ROOM01',
+        createdBy: 'user-a',
+        createdAt: '2026-08-01T00:00:00.000Z',
+        startDate: '2026-08-01',
+        endDate: '2026-08-03',
+        status: 'known-end',
+        note: 'mine',
+        duration: 3,
+        flow: 'light',
+        symptoms: ['tired']
+      },
+      {
+        _id: 'p-theirs',
+        roomCode: 'ROOM01',
+        createdBy: 'user-b',
+        createdAt: '2026-07-01T00:00:00.000Z',
+        startDate: '2026-07-01',
+        endDate: '2026-07-02',
+        status: 'known-end',
+        note: 'theirs',
+        duration: 2,
+        flow: '',
+        symptoms: []
+      }
+    ],
+    memories: [
+      {
+        _id: 'm-theirs',
+        roomCode: 'ROOM01',
+        createdBy: 'user-b',
+        createdAt: '2026-09-01T00:00:00.000Z',
+        date: '2026-09-01',
+        note: 'their day'
+      }
+    ]
+  })
+  const records = createRoomRecords({
+    db,
+    serverDate: () => SERVER_DATE,
+    today: TODAY,
+    getOpenid: () => 'user-a'
+  })
+
+  const listedPeriods = await records.list({ collection: 'periods', roomCode: 'ROOM01' })
+  assert.deepEqual(listedPeriods, {
+    code: 0,
+    data: [
+      {
+        _id: 'p-mine',
+        startDate: '2026-08-01',
+        endDate: '2026-08-03',
+        status: 'known-end',
+        note: 'mine',
+        duration: 3,
+        flow: 'light',
+        symptoms: ['tired'],
+        createdByMe: true
+      },
+      {
+        _id: 'p-theirs',
+        startDate: '2026-07-01',
+        endDate: '2026-07-02',
+        status: 'known-end',
+        note: 'theirs',
+        duration: 2,
+        flow: '',
+        symptoms: [],
+        createdByMe: false
+      }
+    ]
+  })
+
+  const listedMemories = await records.list({ collection: 'memories', roomCode: 'ROOM01' })
+  assert.deepEqual(listedMemories, {
+    code: 0,
+    data: [
+      {
+        _id: 'm-theirs',
+        date: '2026-09-01',
+        note: 'their day',
+        createdByMe: false
+      }
+    ]
+  })
+
+  const added = await records.add({
+    collection: 'memories',
+    roomCode: 'ROOM01',
+    openid: 'user-a',
+    data: {
+      date: '2026-09-20',
+      note: 'my day',
+      roomCode: 'OTHER',
+      createdBy: 'attacker',
+      createdAt: 'old'
+    }
+  })
+  assert.deepEqual(added.record, {
+    _id: 'memories-2',
+    date: '2026-09-20',
+    note: 'my day',
+    createdByMe: true
+  })
+  assert.equal(db.data.memories[1].roomCode, 'ROOM01')
+  assert.equal(db.data.memories[1].createdBy, 'user-a')
+
+  const updated = await records.update({
+    collection: 'periods',
+    roomCode: 'ROOM01',
+    id: 'p-theirs',
+    data: {
+      startDate: '2026-07-01',
+      endDate: '2026-07-03',
+      status: 'known-end',
+      note: 'edited',
+      roomCode: 'OTHER',
+      createdBy: 'user-a',
+      createdAt: 'now'
+    }
+  })
+  assert.deepEqual(updated.record, {
+    _id: 'p-theirs',
+    startDate: '2026-07-01',
+    endDate: '2026-07-03',
+    status: 'known-end',
+    note: 'edited',
+    duration: 3,
+    flow: '',
+    symptoms: [],
+    createdByMe: false
+  })
+  assert.equal(db.data.periods.find(item => item._id === 'p-theirs').createdBy, 'user-b')
+  assert.equal(db.data.periods.find(item => item._id === 'p-theirs').roomCode, 'ROOM01')
+
+  for (const payload of [listedPeriods, listedMemories, added, updated]) {
+    assert.doesNotMatch(JSON.stringify(payload), /user-a|user-b|attacker|ROOM01|T00:00:00/)
+    assert.equal(JSON.stringify(payload).includes('"createdBy"'), false)
+    assert.equal(JSON.stringify(payload).includes('"roomCode"'), false)
+    assert.equal(JSON.stringify(payload).includes('"createdAt"'), false)
+  }
+})
+
+test('RoomRecords ongoing add and reopen use the same caller projection', async () => {
+  const db = createFakeDb()
+  let caller = 'user-a'
+  const records = createRoomRecords({
+    db,
+    serverDate: () => SERVER_DATE,
+    today: TODAY,
+    getOpenid: () => caller
+  })
+
+  const created = await records.add({
+    collection: 'periods',
+    roomCode: 'ROOM01',
+    openid: 'user-a',
+    data: { startDate: '2026-09-20', status: 'ongoing', note: 'mine' }
+  })
+  assert.equal(created.reopened, undefined)
+  assert.deepEqual(created.record, {
+    _id: 'periods-1',
+    startDate: '2026-09-20',
+    endDate: '',
+    status: 'ongoing',
+    note: 'mine',
+    duration: 0,
+    flow: '',
+    symptoms: [],
+    createdByMe: true
+  })
+  assert.equal(db.data.periods[0].createdBy, 'user-a')
+  assert.equal(db.data.periods[0].roomCode, 'ROOM01')
+
+  caller = 'user-b'
+  const reopened = await records.add({
+    collection: 'periods',
+    roomCode: 'ROOM01',
+    openid: 'user-b',
+    data: { startDate: '2026-09-21', status: 'ongoing', note: 'not written' }
+  })
+  assert.equal(reopened.reopened, true)
+  assert.equal(reopened.id, 'periods-1')
+  assert.deepEqual(reopened.record, {
+    _id: 'periods-1',
+    startDate: '2026-09-20',
+    endDate: '',
+    status: 'ongoing',
+    note: 'mine',
+    duration: 0,
+    flow: '',
+    symptoms: [],
+    createdByMe: false
+  })
+  assert.equal(db.data.periods[0].note, 'mine')
+  assert.equal(db.data.periods[0].createdBy, 'user-a')
+  assert.doesNotMatch(JSON.stringify(reopened.record), /user-a|user-b|ROOM01/)
+})
+
 test('RoomRecords lists legacy records without a status unchanged and without backfill', async () => {
   const legacyPeriods = [
     { _id: 'legacy-1', roomCode: 'ROOM01', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 },
@@ -445,10 +648,13 @@ test('RoomRecords lists legacy records without a status unchanged and without ba
 
   const result = await records.list({ collection: 'periods', roomCode: 'ROOM01' })
 
-  // 旧数据保守解释只发生在读取方：云端不删除、不补写 status 或结束日期、不擅自改成进行中
-  // （periods 按开始日期倒序返回，记录内容保持原样）
+  // 旧数据保守解释只发生在读取方：云端不删除、不补写 status 或结束日期、不擅自改成进行中。
+  // 返回的是客户端投影（去掉房间码），不是补写后的文档。
   assert.equal(result.code, 0)
-  assert.deepEqual(result.data, [legacyPeriods[1], legacyPeriods[0]])
+  assert.deepEqual(result.data, [
+    { _id: 'legacy-2', startDate: '2026-07-02', duration: 9 },
+    { _id: 'legacy-1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 }
+  ])
   assert.deepEqual(db.data.periods, legacyPeriods)
 })
 

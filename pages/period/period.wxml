@@ -55,6 +55,7 @@
         <view class="list-item" wx:for="{{periods}}" wx:key="_id" wx:for-index="i" bindtap="editPeriod" data-index="{{i}}" aria-role="button" aria-label="编辑经期记录 {{item.rangeSummary}}" hover-class="list-item-hover">
           <view class="item-left">
             <view class="item-date">{{item.dateLabel}}</view>
+            <view wx:if="{{item.authorLabel}}" class="item-note">{{item.authorLabel}}</view>
             <view wx:if="{{item.flowLabel || item.symptomText}}" class="item-tags">
               <text wx:if="{{item.flowLabel}}" class="item-tag flow">{{item.flowLabel}}</text>
               <text
@@ -116,6 +117,7 @@
               <text class="memory-heart">♥</text>
               <view class="memory-info">
                 <view class="memory-date">{{item.dayLabel}}</view>
+                <view wx:if="{{item.authorLabel}}" class="memory-note">{{item.authorLabel}}</view>
                 <view wx:if="{{item.note}}" class="memory-note">{{item.note}}</view>
               </view>
             </view>

@@ -7,8 +7,13 @@ const SYMPTOM_VALUES = new Set(['cramps', 'headache', 'tired', 'mood', 'sleep', 
 const PERIOD_STATUS_VALUES = new Set(['ongoing', 'unknown-end', 'known-end'])
 const MAX_NOTE_LENGTH = 500
 
-function createRoomRecords({ db, serverDate, today }) {
+function createRoomRecords({ db, serverDate, today, getOpenid }) {
   const resolveToday = buildTodayResolver(today)
+  const resolveCaller = () => {
+    if (typeof getOpenid !== 'function') return ''
+    const value = getOpenid()
+    return typeof value === 'string' && value ? value : ''
+  }
   return {
     async list({ collection, roomCode }) {
       const order = collection === 'periods'
@@ -18,7 +23,11 @@ function createRoomRecords({ db, serverDate, today }) {
         .where({ roomCode })
         .orderBy(order[0], order[1])
         .get()
-      return { code: 0, data: res.data }
+      const callerOpenid = resolveCaller()
+      return {
+        code: 0,
+        data: res.data.map(doc => projectClientRecord(collection, doc, { callerOpenid }))
+      }
     },
 
     async add({ collection, roomCode, openid, data }) {
@@ -39,7 +48,10 @@ function createRoomRecords({ db, serverDate, today }) {
       return {
         code: 0,
         id: res._id,
-        record: buildClientRecord(res._id, normalized.data)
+        record: projectClientRecord(collection, { _id: res._id, ...normalized.data }, {
+          callerOpenid: resolveCaller(),
+          createdBy: openid
+        })
       }
     },
 
@@ -72,7 +84,10 @@ function createRoomRecords({ db, serverDate, today }) {
       return {
         code: 0,
         id,
-        record: buildClientRecord(id, normalized.data)
+        record: projectClientRecord(collection, { _id: id, ...normalized.data }, {
+          callerOpenid: resolveCaller(),
+          createdBy: existing.createdBy
+        })
       }
     },
 
@@ -99,7 +114,7 @@ function createRoomRecords({ db, serverDate, today }) {
         code: 0,
         id: existing._id,
         reopened: true,
-        record: buildPersistedPeriodRecord(existing)
+        record: projectClientRecord('periods', existing, { callerOpenid: resolveCaller() })
       }
     }
 
@@ -121,14 +136,17 @@ function createRoomRecords({ db, serverDate, today }) {
         code: 0,
         id: winner._id,
         reopened: true,
-        record: buildPersistedPeriodRecord(winner)
+        record: projectClientRecord('periods', winner, { callerOpenid: resolveCaller() })
       }
     }
     await demoteOngoingRecords(roomCode, ongoingAfterInsert, [res._id])
     return {
       code: 0,
       id: res._id,
-      record: buildClientRecord(res._id, normalized.data)
+      record: projectClientRecord('periods', { _id: res._id, ...normalized.data }, {
+        callerOpenid: resolveCaller(),
+        createdBy: openid
+      })
     }
   }
 
@@ -213,20 +231,18 @@ function getUpdatedCount(result) {
   return result.updated ?? result.modified ?? result.stats?.updated ?? null
 }
 
-function buildClientRecord(id, data) {
-  return {
-    _id: id,
-    ...data
-  }
-}
-
-// 持久化文档到客户端记录投影：只暴露经期字段，不泄露 roomCode、createdBy、createdAt。
-// 重开进行中记录时返回它，而不是未经保存的新表单数据。
-function buildPersistedPeriodRecord(record) {
+// 客户端记录投影：现有记录字段，加上是否由当前调用者创建。
+// 不包含创建者 openid、房间码、创建时间。调用者身份未知时省略布尔字段，旧客户端会忽略新字段。
+function projectClientRecord(collection, record, { callerOpenid = '', createdBy } = {}) {
+  const fields = collection === 'periods' ? PERIOD_FIELDS : MEMORY_FIELDS
   const client = { _id: record._id }
-  PERIOD_FIELDS.forEach(field => {
-    if (Object.prototype.hasOwnProperty.call(record, field)) client[field] = record[field]
+  fields.forEach(field => {
+    if (record && Object.prototype.hasOwnProperty.call(record, field)) client[field] = record[field]
   })
+  if (callerOpenid) {
+    const owner = createdBy !== undefined ? createdBy : record.createdBy
+    client.createdByMe = owner === callerOpenid
+  }
   return client
 }
 

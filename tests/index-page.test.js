@@ -436,6 +436,68 @@ test('homepage shows TA 已加入 once when the room changes from waiting to pai
   }
 })
 
+test('paired day detail rows name who recorded them, and quiet rows stay blank', async () => {
+  const periods = [
+    { _id: 'p-mine', startDate: '2026-06-01', endDate: '2026-06-03', status: 'known-end', createdByMe: true },
+    { _id: 'p-old', startDate: '2026-06-02', endDate: '2026-06-02', status: 'known-end' }
+  ]
+  const memories = [
+    { _id: 'm-theirs', date: '2026-06-01', note: '散步', createdByMe: false }
+  ]
+  const client = {
+    async list(collection) {
+      return {
+        kind: 'success',
+        data: collection === 'periods' ? periods : memories
+      }
+    }
+  }
+
+  function openHarness(status) {
+    return loadPageHarness({
+      client,
+      calendarState: 'real',
+      room: {
+        async getVerifiedActiveRoom() {
+          return { kind: 'success', bound: true, roomCode: 'ROOM01', status }
+        }
+      }
+    })
+  }
+
+  const paired = openHarness('paired')
+  try {
+    await paired.page.onShow()
+    paired.page.applyHomeCalendarState({ year: 2026, month: 5, today: '2026-06-26' })
+    paired.page.showDayDetail('2026-06-01')
+    const first = paired.page.data.selectedDayDetail
+    assert.equal(first.periods.find(item => item.key === 'period:p-mine').authorLabel, '我记的')
+    assert.equal(first.memories.find(item => item.key === 'memory:m-theirs').authorLabel, 'TA 记的')
+
+    paired.page.showDayDetail('2026-06-02')
+    const second = paired.page.data.selectedDayDetail
+    assert.equal(second.periods.find(item => item.key === 'period:p-old').authorLabel, undefined)
+
+    const wxml = readIndexWxml()
+    const detail = wxml.slice(wxml.indexOf("daySheetMode == 'detail'"), wxml.indexOf('compact-actions'))
+    assert.match(detail, /wx:if="\{\{item\.authorLabel\}\}"/)
+  } finally {
+    paired.teardown()
+  }
+
+  const waiting = openHarness('waiting')
+  try {
+    await waiting.page.onShow()
+    waiting.page.applyHomeCalendarState({ year: 2026, month: 5, today: '2026-06-26' })
+    waiting.page.showDayDetail('2026-06-01')
+    const detail = waiting.page.data.selectedDayDetail
+    assert.ok(detail.periods.every(item => !item.authorLabel))
+    assert.ok(detail.memories.every(item => !item.authorLabel))
+  } finally {
+    waiting.teardown()
+  }
+})
+
 test('homepage shows one welcome line after joining and keeps marker meanings in the legend', async () => {
   const storage = new Map([['partnerWelcome', 'pending']])
   const room = {
