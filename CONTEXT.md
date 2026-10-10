@@ -24,11 +24,12 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - **Days in viewed month**: Inclusive day count of the intersection between a Period record's date range and the Monthly recap's calendar month. This is not Period duration.
 - **Memory record / happy time / 欢乐时光**: A dated note shown as a heart marker on the calendar. Several Memory records may share one date; each still counts as its own record. The user-facing name is 欢乐时光. 记忆, 特别日子, and 特别时刻 are retired.
 - **Record names**: Entities are 经期 and 欢乐时光. Actions are 记经期, 记欢乐时光, 补记经期, 补记欢乐时光, 编辑这次经期, and 记结束.
+- **Record author / 记录作者**: Whether the current member created a Period or Memory record. dataOp adds `createdByMe` on the client projection for list, add, and update, and omits the creator openid, room code, and created time. When the Room is paired, list rows and day detail say 我记的 or TA 记的. An unpaired Room does not show that label.
 - **Memory month group / 欢乐时光月份分组**: The Memory records whose dates fall in one calendar month, presented together in the 记录 tab's 欢乐时光 segment. It is a view, not a record: each Memory record keeps its own date and calendar heart, and nothing is stored per month. Its count is the number of Memory records in that month, the same number the Monthly recap / 小结 reports for that month, but it is not the Monthly recap. Avoid 统合记录 or 月度记录, which suggest a stored per-month record.
 - **Edit draft / 草稿**: Edit-form input stashed in local storage when the Period/Memory edit page is hidden or unloaded, restored with a 「已恢复上次未完成的输入」 notice on return, and cleared after a successful save. Drafts are keyed per record identity (new vs. each existing record) and never leak across records.
 - **Calendar cell**: A homepage day tile that may show date number, lunar text, holiday/workday tag, and markers.
 - **Overlap day / 重叠日**: A calendar day covered by both a Period record and the Prediction window. Projection sets `isPredict` false for that day, so the cell, day detail, and screen reader express period (and memory if present) only. The prediction window itself, the homepage status line, legend, and prediction explanation stay unchanged.
-- **Prediction**: Estimated next period range derived from previous period gaps, with confidence and reminder states. The homepage status line is how that estimate is phrased for today. It is not a Period record.
+- **Prediction / 可能开始的日子**: The estimated next period start, derived from previous period gaps. The prediction window is that start date ± the fluctuation in days. Days inside it are 下次可能开始的日子 and may show 「预」, unless the day is an Overlap day. The homepage status line is how that estimate is phrased for today. Prediction is not a Period record and is not written back onto records.
 - **Today**: Current date highlight; it should not reuse the memory heart marker.
 - **Lunar date**: Chinese lunar calendar text such as `正月初一` or `冬月十六`.
 - **Public holiday**: China official holiday range or adjusted workday label displayed in calendar cells.
@@ -37,7 +38,7 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 
 - Calendar markers must be semantically clear. A visual symbol should not mean two different things. On an Overlap day, only the period meaning is expressed; prediction is suppressed for that cell only.
 - A Period record may be saved before its end is known. The form distinguishes Ongoing, Unknown-end, and completed records instead of using an empty end date to carry multiple meanings.
-- Recorded dates cannot be in the future. The system never guesses an end date or automatically closes an Ongoing period; the user completes the same record later.
+- Recorded dates cannot be in the future. The system does not write an end date the user has not confirmed, and it does not automatically close an Ongoing period. Completing an ongoing record shows today as the end date on the form before save; the user confirms that same record.
 - Ongoing periods use the known start date for cycle prediction but do not contribute an exact duration. Unknown-end periods contribute neither an exact duration nor an inferred range.
 - A Room has at most one Ongoing period record for the period stream; a second add action reopens the existing record. Overlapping completed records remain a separate, later data-quality concern and are not merged or hard-blocked by this rule.
 - Flow and symptom allowed values stay light/normal/heavy and cramps/headache/tired/acne/mood/sleep/cravings. `utils/cycle.js` owns labels; `cloudfunctions/dataOp/roomRecords.js` keeps a self-contained copy for standalone deploy. Tests lock both allowed-value sets equal; do not invent a shared runtime module for this small list.
@@ -64,10 +65,10 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - `utils/util.js` owns date formatting, lunar conversion, official holiday metadata, base calendar-grid construction, and the month-swipe decision (`decideMonthSwipe`).
 - `utils/cycle.js` owns cycle prediction, reminder derivation, Period duration from dates (`getPeriodDuration`), flow labels, symptom labels, and the display grouping metadata (身体 / 情绪与睡眠). Allowed symptom values stay the same set as the cloud copy.
 - `utils/calendarInsights.js` owns prediction explanation copy and monthly recap text.
-- `utils/safeArea.js` owns runtime safe-area computation for status-bar top and gesture-area bottom; page roots inject `--safe-top` and `--safe-bottom`.
+- `utils/safeArea.js` owns runtime safe-area computation for status-bar top, gesture-area bottom, the capsule rectangle, nav-bar height, and the inset that clears the capsule; page roots inject `--safe-top`, `--safe-bottom`, `--nav-bar-height`, and `--capsule-right`.
 - `cloudfunctions/dataOp/index.js` is the cloud runtime adapter for room-authorized CRUD on `periods` and `memories`.
 - `cloudfunctions/dataOp/dataOpHandler.js` owns active-room membership lookup and rejects archived rooms before record dispatch.
-- `cloudfunctions/dataOp/roomRecords.js` returns canonical saved Record projections from add/update operations for optimistic homepage synchronization.
+- `cloudfunctions/dataOp/roomRecords.js` returns one client record projection from list, add, and update: the record fields plus `createdByMe` when the caller is known. The projection omits the creator openid, room code, and created time. Add and update still return that projection for optimistic homepage synchronization.
 - `cloudfunctions/_shared/roomMembershipLifecycle.js` is the canonical source for Room membership creation, lookup, join, leave, ownership transfer, archive, and recovery transactions.
 - `cloudfunctions/createRoom|joinRoom|getMyRoom|leaveRoom/index.js` are self-contained deployment adapters; each loads a byte-identical local `roomMembershipLifecycle.js` artifact generated by the deterministic `_shared/syncRoomMembershipLifecycle.js` assembly script.
 
