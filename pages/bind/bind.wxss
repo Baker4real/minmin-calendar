@@ -201,6 +201,27 @@
 .copy-btn:active {
   transform: scale(0.94);
 }
+/* 原生分享按钮（issue #140）：组件自带灰底、5px 圆角和 ::after 描边，
+   特异性要高于 .btn-premium 才能盖住。视觉仍是同一枚玫瑰主按钮。 */
+button.share-invite {
+  margin: 0 0 30rpx;
+  width: 100%;
+  padding: 26rpx 0;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--aurora-pink);
+  color: #0A0E27;
+  font-size: var(--font-size-button);
+  font-weight: var(--font-weight-control);
+  line-height: var(--line-height-body);
+}
+button.share-invite::after {
+  border: none;
+}
+.share-invite.share-invite-hover {
+  transform: scale(0.96);
+}
 /* 创建/加入被「请先解除绑定」拒绝时，当前屏直接给出的解除绑定入口（needUnbind 中间态，
    错误恢复路径；样式跟随 app 级 .btn-danger 警示红族） */
 .unbind-inline {

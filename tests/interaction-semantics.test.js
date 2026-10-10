@@ -309,6 +309,16 @@ test('bind page controls are named, tab switch exposes checked state, inert stat
   assert.equal(byHandler('joinRoom', 'btn-premium').attrs['aria-label'], '加入房间')
 })
 
+// issue #140：原生分享按钮没有 bindtap，仍要按按钮朗读，读屏名是「发给 TA」。
+test('bind page share button exposes a button role and the send-to-partner name', () => {
+  const elements = collectElements(readPage('pages/bind/bind.wxml'))
+  const shareButton = elements.find((element) => element.attrs['open-type'] === 'share')
+  assert.ok(shareButton, 'expected the native share button')
+  assert.equal(shareButton.tag, 'button')
+  assert.equal(shareButton.attrs['aria-role'], 'button')
+  assert.equal(shareButton.attrs['aria-label'], '发给 TA')
+})
+
 test('record list rows, retry affordances and settings menu entries announce their action', () => {
   const period = collectElements(readPage('pages/period/period.wxml'))
   const memory = collectElements(readPage('pages/memory/memory.wxml'))
