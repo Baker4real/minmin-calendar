@@ -514,7 +514,6 @@ function loadPageHarness({ client, calendarState, room, storage } = {}) {
     switchTab() {},
     redirectTo() {},
     navigateTo() {},
-    showToast() {},
     nextTick(callback) {
       setTimeout(callback, 0)
     }
