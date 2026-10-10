@@ -7,7 +7,13 @@ const recordDraft = require('../../utils/recordDraft')
 const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 const safeArea = require('../../utils/safeArea')
-const { createSheetLifecycle, homepageSheets, handoffSheet } = require('../../utils/sheetLifecycle')
+const {
+  createSheetLifecycle,
+  homepageSheets,
+  handoffSheet,
+  homepageSheetMounted,
+  readReducedMotionProbe
+} = require('../../utils/sheetLifecycle')
 
 // 与 pages/settings/settings.js 共享同一存储键；写入方在设置页
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
@@ -51,6 +57,7 @@ Page({
     monthPickerMounted: false,
     monthPickerPhase: 'closed',
     pageObscured: false,
+    sheetExitGuard: false,
     sheetDragClear: {
       monthPicker: { token: 0, action: '' },
       dayActions: { token: 0, action: '' },
@@ -96,6 +103,7 @@ Page({
   },
 
   onLoad() {
+    this.refreshReducedMotion()
     const now = new Date()
     this.setData({
       year: now.getFullYear(),
@@ -113,7 +121,24 @@ Page({
   onShow() {
     // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效
     this.setData({ calendarDensity: this.getSavedCalendarDensity() })
+    this.refreshReducedMotion()
     return this.loadData({ background: this.canRefreshInBackground() })
+  },
+
+  onReady() {
+    this.refreshReducedMotion()
+  },
+
+  // 微信逻辑层没有 matchMedia。探针宽度在减弱动效下是 1px，computed style 会保留这个用值。
+  refreshReducedMotion() {
+    if (typeof wx === 'undefined' || !wx || typeof wx.createSelectorQuery !== 'function') return
+    wx.createSelectorQuery()
+      .select('.reduced-motion-probe')
+      .fields({ computedStyle: ['width'] })
+      .exec((res) => {
+        const width = res && res[0] && res[0].width
+        this._reducedMotion = readReducedMotionProbe(width)
+      })
   },
 
   loadData(options = {}) {
@@ -642,6 +667,43 @@ Page({
   },
 
   noop() {},
+
+  // issue #134：page-container 吃掉系统返回后会自己离场。弹层还在时下一帧重新挂上，避免第二次返回离开页面。
+  // 把 show 设为 false 时组件会再次触发 beforeleave，用锁挡住这次重入。
+  onSheetSystemBack() {
+    if (this._sheetBackLock) return
+    this._sheetBackLock = true
+    this._dismissTopHomepageSheet()
+    const stillMounted = homepageSheetMounted(this.data)
+    this.setData({ sheetExitGuard: false })
+    if (!stillMounted) {
+      this._sheetBackLock = false
+      return
+    }
+    const rearm = () => {
+      this._sheetBackLock = false
+      if (homepageSheetMounted(this.data)) this.setData({ sheetExitGuard: true })
+    }
+    if (typeof wx !== 'undefined' && wx && typeof wx.nextTick === 'function') {
+      wx.nextTick(rearm)
+      return
+    }
+    setTimeout(rearm, 0)
+  },
+
+  _dismissTopHomepageSheet() {
+    const order = [
+      ['infoSheetMounted', 'infoSheetPhase', 'closeInfoSheet'],
+      ['monthPickerMounted', 'monthPickerPhase', 'closeMonthPicker'],
+      ['monthMenuMounted', 'monthMenuPhase', 'closeMonthMenu'],
+      ['dayActionMounted', 'dayActionPhase', 'closeDayActions']
+    ]
+    for (const [mountedKey, phaseKey, closeName] of order) {
+      if (!this.data[mountedKey] || this.data[phaseKey] === 'leaving') continue
+      this[closeName]()
+      return
+    }
+  },
 
   showDayDetail(date) {
     const selectedDay = this.data.days.find(day => day.date === date) || { date }

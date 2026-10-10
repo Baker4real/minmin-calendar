@@ -327,10 +327,10 @@ function sheetMotionExpectation(selector, prop) {
   if (normalized === '.sheet-slide' && prop === 'transform') {
     return { duration: 'var(--duration-exit)', easing: 'var(--ease-out)' }
   }
-  if (normalized === '.day-sheet-mask.sheet-open .sheet-slide' && prop === 'transform') {
+  if (normalized === '.sheet-slide.sheet-open' && prop === 'transform') {
     return { duration: 'var(--duration-sheet)', easing: 'var(--ease-out)' }
   }
-  if (normalized === '.day-sheet-mask.sheet-open .sheet-slide.sheet-reset' && prop === 'transform') {
+  if (normalized === '.sheet-slide.sheet-open.sheet-reset' && prop === 'transform') {
     return { duration: 'var(--duration-exit)', easing: 'var(--ease-out)' }
   }
   if (normalized === '.day-sheet-mask' && prop === 'opacity') {
@@ -756,8 +756,8 @@ test('reduced-motion blocks keep covering the named sheet, sync, and ambient lay
     '.sync-pill.syncing .sync-dot',
     '.day-sheet-mask',
     '.day-sheet-mask.sheet-open',
-    '.day-sheet-mask.sheet-open .sheet-slide',
-    '.day-sheet-mask.sheet-open .sheet-slide.sheet-reset',
+    '.sheet-slide.sheet-open',
+    '.sheet-slide.sheet-open.sheet-reset',
     '.sheet-slide',
     '.day-action-sheet',
     '.calendar-jump-sheet',
@@ -842,13 +842,35 @@ test('a handed-off info mask stays fully visible and does not fade in', () => {
   assert.equal(handoff.decls.opacity, '1')
   assert.equal(handoff.decls.transition, 'none')
 
-  const openSlide = index.rules.find((rule) => rule.selectors.includes('.day-sheet-mask.sheet-open .sheet-slide'))
+  const openSlide = index.rules.find((rule) => rule.selectors.includes('.sheet-slide.sheet-open'))
   assert.equal(openSlide.decls.transform, 'translateY(0)')
   assert.equal(openSlide.decls.transition, 'transform var(--duration-sheet) var(--ease-out)')
 
   const design = readRepo('DESIGN.md')
   assert.match(design, /issue #117/)
   assert.match(design, /sheet-handoff/)
+})
+
+test('reduced motion makes native tab bar hide and restore instant', () => {
+  const { readReducedMotionProbe, sheetTabBarAnimates } = require('../utils/sheetLifecycle')
+  assert.equal(readReducedMotionProbe('1px'), true)
+  assert.equal(readReducedMotionProbe('0px'), false)
+  assert.equal(readReducedMotionProbe(''), false)
+  assert.equal(sheetTabBarAnimates(true), false)
+  assert.equal(sheetTabBarAnimates(false), true)
+
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+  const probe = index.rules.find((rule) =>
+    !rule.inReducedMotion && rule.selectors.includes('.reduced-motion-probe'))
+  assert.ok(probe, 'expected a reduced-motion probe')
+  assert.equal(probe.decls.width, '0')
+  const reduced = index.reducedMotionRules.find((rule) => rule.selectors.includes('.reduced-motion-probe'))
+  assert.ok(reduced, 'reduced motion must widen the probe')
+  assert.equal(reduced.decls.width, '1px')
+  assert.equal(
+    index.reducedMotionRules.find((rule) => rule.selectors.includes('.sheet-slide.sheet-open')).decls.transition,
+    'none'
+  )
 })
 
 test('homepage sheets slide in and out with reversible transitions', () => {
@@ -863,7 +885,7 @@ test('homepage sheets slide in and out with reversible transitions', () => {
   assert.equal(slide.decls.transition, 'transform var(--duration-exit) var(--ease-out)')
   assert.doesNotMatch(slide.decls.transform, /px|rpx/)
 
-  const openSlide = index.rules.find((rule) => rule.selectors.includes('.day-sheet-mask.sheet-open .sheet-slide'))
+  const openSlide = index.rules.find((rule) => rule.selectors.includes('.sheet-slide.sheet-open'))
   assert.ok(openSlide, 'expected the open sheet pose')
   assert.equal(openSlide.decls.transform, 'translateY(0)')
   assert.equal(openSlide.decls.transition, 'transform var(--duration-sheet) var(--ease-out)')
@@ -884,7 +906,7 @@ test('homepage sheets slide in and out with reversible transitions', () => {
   assert.equal(leaving.decls['pointer-events'], 'none')
 
   const covered = new Set(index.reducedMotionRules.flatMap((rule) => rule.selectors))
-  for (const selector of ['.sheet-slide', '.day-sheet-mask.sheet-open', '.day-sheet-mask.sheet-open .sheet-slide', '.day-sheet-mask.sheet-open .sheet-slide.sheet-reset']) {
+  for (const selector of ['.sheet-slide', '.day-sheet-mask.sheet-open', '.sheet-slide.sheet-open', '.sheet-slide.sheet-open.sheet-reset']) {
     assert.ok(covered.has(selector), `reduced motion must cover ${selector}`)
     const rmRule = index.reducedMotionRules.find((rule) => rule.selectors.includes(selector))
     assert.equal(rmRule.decls.transition, 'none', `${selector} must finish immediately under reduced motion`)
@@ -894,6 +916,8 @@ test('homepage sheets slide in and out with reversible transitions', () => {
   assert.match(design, /issue #116/)
   assert.match(design, /translateY\(100%\)/)
   assert.match(design, /issue #119/)
+  assert.match(design, /原生 tabBar 在弹层处于 open 或 leaving 时隐藏/)
+  assert.match(design, /减弱动效下这次隐藏和恢复不播放动画/)
   assert.match(design, /10px/)
   assert.match(design, /25%/)
   assert.match(design, /0\.11 px\/ms/)

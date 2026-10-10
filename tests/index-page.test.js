@@ -1373,6 +1373,10 @@ test('month picker stays mounted through leave and unmounts when the exit timer 
     assert.match(wxml, /wx:if="\{\{monthPickerMounted\}\}"/)
     assert.match(wxml, /sheet-\{\{monthPickerPhase\}\}/)
     assert.match(ruleBody(readIndexWxss(), '.day-sheet-mask.sheet-leaving'), /pointer-events:\s*none/)
+    assert.match(ruleBody(readIndexWxss(), '.sheet-slide.sheet-leaving'), /pointer-events:\s*none/)
+    assert.match(ruleBody(readIndexWxss(), '.sheet-host'), /z-index:\s*60/)
+    assert.match(ruleBody(readIndexWxss(), '.sheet-host.month-jump-mask'), /z-index:\s*62/)
+    assert.match(ruleBody(readIndexWxss(), '.sheet-host.calendar-info-sheet'), /z-index:\s*64/)
 
     harness.page.onLoad()
     harness.page.setData({ year: 2020, month: 5 })
@@ -1412,6 +1416,163 @@ test('month picker stays mounted through leave and unmounts when the exit timer 
     assert.equal(harness.page.data.monthPickerVisible, false)
     assert.equal(harness.page.data.monthPickerPhase, 'leaving')
     assert.equal(harness.page.data.monthPickerMounted, true)
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #134：系统返回先关掉最上层弹层，走现有离场；离场结束前拦截还在，页面不离开。
+test('system back dismisses the top homepage sheet instead of leaving the page', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const container = /<page-container\b[^>]*>/.exec(readIndexWxml())
+    assert.ok(container, 'expected a page-container to intercept system back')
+    assert.match(container[0], /show="\{\{sheetExitGuard\}\}"/)
+    assert.match(container[0], /bindbeforeleave="onSheetSystemBack"/)
+    assert.match(container[0], /overlay="\{\{false\}\}"/)
+    assert.match(container[0], /\bduration="0"/)
+    assert.match(container[0], /\bz-index="1"/)
+
+    const navigation = []
+    global.wx.navigateBack = () => navigation.push('navigateBack')
+    global.wx.redirectTo = () => navigation.push('redirectTo')
+    global.wx.switchTab = () => navigation.push('switchTab')
+
+    harness.page.onLoad()
+    harness.page.setData({
+      year: 2020,
+      month: 5,
+      days: [{ date: '2026-06-20', weekday: '周六', isEmpty: false }]
+    })
+    assert.equal(Boolean(harness.page.data.sheetExitGuard), false)
+
+    harness.page.openMonthPicker()
+    assert.equal(harness.page.data.sheetExitGuard, true)
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.monthPickerPhase, 'open')
+
+    harness.page.onSheetSystemBack()
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
+    assert.equal(harness.page.data.monthPickerMounted, true)
+    assert.deepEqual(navigation, [])
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.sheetExitGuard, true)
+
+    harness.page.onSheetSystemBack()
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
+    assert.equal(harness.page.data.monthPickerMounted, true)
+    assert.deepEqual(navigation, [])
+
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.monthPickerMounted, false)
+    assert.equal(harness.page.data.monthPickerPhase, 'closed')
+    assert.equal(harness.page.data.sheetExitGuard, false)
+
+    harness.page.openMonthPicker()
+    mock.timers.tick(0)
+    harness.page.showDayDetail('2026-06-20')
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.monthPickerPhase, 'open')
+    assert.equal(harness.page.data.dayActionPhase, 'open')
+
+    harness.page.onSheetSystemBack()
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
+    assert.equal(harness.page.data.monthPickerMounted, true)
+    assert.equal(harness.page.data.dayActionPhase, 'open')
+    assert.equal(harness.page.data.dayActionMounted, true)
+    assert.deepEqual(navigation, [])
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #134：弹层打开后隐藏原生 tabBar，离场完成才恢复；离场途中再打开则一直藏着。
+test('an open homepage sheet hides the native tab bar until leave finishes, including a reopen', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const tabBar = []
+    global.wx.hideTabBar = (options) => tabBar.push(['hide', options && options.animation])
+    global.wx.showTabBar = (options) => tabBar.push(['show', options && options.animation])
+
+    harness.page.onLoad()
+    harness.page.setData({
+      year: 2020,
+      month: 5,
+      days: [{ date: '2026-06-20', weekday: '周六', isEmpty: false }],
+      dayDetailsByDate: {
+        '2026-06-20': { meanings: [], periods: [], memories: [], empty: true }
+      }
+    })
+    assert.deepEqual(tabBar, [])
+
+    harness.page.openMonthPicker()
+    assert.deepEqual(tabBar, [])
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.monthPickerPhase, 'open')
+    assert.deepEqual(tabBar, [['hide', true]])
+
+    harness.page.closeMonthPicker()
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
+    assert.deepEqual(tabBar, [['hide', true]])
+
+    harness.page.openMonthPicker()
+    assert.equal(harness.page.data.monthPickerPhase, 'open')
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.monthPickerMounted, true)
+    assert.deepEqual(tabBar, [['hide', true]])
+
+    harness.page.showDayDetail('2026-06-20')
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.dayActionPhase, 'open')
+    harness.page.closeDayActions()
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.dayActionMounted, false)
+    assert.equal(harness.page.data.monthPickerMounted, true)
+    assert.deepEqual(tabBar, [['hide', true]])
+
+    harness.page.closeMonthPicker()
+    mock.timers.tick(199)
+    assert.deepEqual(tabBar, [['hide', true]])
+    mock.timers.tick(1)
+    assert.equal(harness.page.data.monthPickerMounted, false)
+    assert.equal(harness.page.data.pageObscured, false)
+    assert.deepEqual(tabBar, [['hide', true], ['show', true]])
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #134：减弱动效下 tabBar 隐藏和恢复不播放动画。
+test('reduced motion hides and restores the native tab bar instantly', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const tabBar = []
+    global.wx.hideTabBar = (options) => tabBar.push(['hide', options && options.animation])
+    global.wx.showTabBar = (options) => tabBar.push(['show', options && options.animation])
+    global.wx.createSelectorQuery = () => {
+      const query = {
+        select() { return query },
+        fields() { return query },
+        exec(callback) { callback([{ width: '1px' }]) }
+      }
+      return query
+    }
+
+    harness.page.onLoad()
+    harness.page.openMonthPicker()
+    mock.timers.tick(0)
+    assert.deepEqual(tabBar, [['hide', false]])
+
+    harness.page.closeMonthPicker()
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.monthPickerMounted, false)
+    assert.deepEqual(tabBar, [['hide', false], ['show', false]])
   } finally {
     harness.teardown()
     mock.timers.reset()

@@ -635,7 +635,7 @@
 }
 
 /* ===== Calendar Month Jump Sheet ===== */
-.month-jump-mask {
+.sheet-host.month-jump-mask {
   z-index: 62;
 }
 .calendar-jump-sheet {
@@ -798,7 +798,8 @@
 }
 
 /* ===== Day Action Sheet ===== */
-.day-sheet-mask {
+/* issue #134：遮罩与面板是兄弟。宿主只负责铺满与叠层，自己不是关闭控件。 */
+.sheet-host {
   position: fixed;
   top: 0;
   right: 0;
@@ -808,6 +809,16 @@
   display: flex;
   align-items: flex-end;
   padding: 0 20rpx 0;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.day-sheet-mask {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  pointer-events: auto;
   box-sizing: border-box;
   background: rgba(10,14,39,0.88);
   /* 全屏遮罩 blur 压到 modal-overlay 登记的 8px：88% 不透明底上更大 blur 不可见，纯 GPU 开销（issue #58） */
@@ -827,18 +838,24 @@
 .day-sheet-mask.sheet-leaving {
   pointer-events: none;
 }
+.sheet-slide.sheet-leaving {
+  pointer-events: none;
+}
 .sheet-slide {
+  position: relative;
+  z-index: 1;
   width: 100%;
   padding-bottom: 20rpx;
   box-sizing: border-box;
+  pointer-events: auto;
   transform: translateY(100%);
   transition: transform var(--duration-exit) var(--ease-out);
 }
-.day-sheet-mask.sheet-open .sheet-slide {
+.sheet-slide.sheet-open {
   transform: translateY(0);
   transition: transform var(--duration-sheet) var(--ease-out);
 }
-.day-sheet-mask.sheet-open .sheet-slide.sheet-reset {
+.sheet-slide.sheet-open.sheet-reset {
   transition: transform var(--duration-exit) var(--ease-out);
 }
 .day-action-sheet {
@@ -1150,7 +1167,7 @@
 }
 
 /* ===== Calendar Info Sheet ===== */
-.calendar-info-sheet {
+.sheet-host.calendar-info-sheet {
   z-index: 64;
 }
 .calendar-info-panel {
@@ -1328,10 +1345,20 @@
 .page.page-obscured .header-gradient::after {
   animation-play-state: paused;
 }
+.reduced-motion-probe {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
 @media (prefers-reduced-motion: reduce) {
+  .reduced-motion-probe {
+    width: 1px;
+  }
   .day-sheet-mask.sheet-open,
-  .day-sheet-mask.sheet-open .sheet-slide,
-  .day-sheet-mask.sheet-open .sheet-slide.sheet-reset,
+  .sheet-slide.sheet-open,
+  .sheet-slide.sheet-open.sheet-reset,
   .sheet-slide,
   .sync-pill,
   .sync-pill.sync-open,

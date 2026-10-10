@@ -111,11 +111,48 @@ const HOMEPAGE_SHEET_PHASES = [
   'infoSheetPhase'
 ]
 
+const HOMEPAGE_SHEET_MOUNTED_KEYS = [
+  'monthPickerMounted',
+  'dayActionMounted',
+  'monthMenuMounted',
+  'infoSheetMounted'
+]
+
+function homepageSheetMounted(data) {
+  return HOMEPAGE_SHEET_MOUNTED_KEYS.some((key) => Boolean(data && data[key]))
+}
+
+function readReducedMotionProbe(width) {
+  return parseFloat(width) > 0
+}
+
+function sheetTabBarAnimates(reducedMotion) {
+  return !reducedMotion
+}
+
+function syncHomepageTabBar(page, obscured) {
+  const animation = sheetTabBarAnimates(Boolean(page._reducedMotion))
+  if (obscured) {
+    if (page._sheetTabBarHidden) return
+    page._sheetTabBarHidden = true
+    if (typeof wx !== 'undefined' && wx && typeof wx.hideTabBar === 'function') {
+      wx.hideTabBar({ animation })
+    }
+    return
+  }
+  if (!page._sheetTabBarHidden) return
+  page._sheetTabBarHidden = false
+  if (typeof wx !== 'undefined' && wx && typeof wx.showTabBar === 'function') {
+    wx.showTabBar({ animation })
+  }
+}
+
 function homepageSheetPatch(page, patch) {
   const next = { ...page.data, ...patch }
   const phaseCovered = HOMEPAGE_SHEET_PHASES.some((key) => next[key] === 'open' || next[key] === 'leaving')
   const pageObscured = phaseCovered || next.infoSheetHandoff === true
-  return { ...patch, pageObscured }
+  syncHomepageTabBar(page, pageObscured)
+  return { ...patch, pageObscured, sheetExitGuard: homepageSheetMounted(next) }
 }
 
 function homepageSheets(page) {
@@ -151,4 +188,11 @@ function homepageSheets(page) {
   return page._homepageSheets
 }
 
-module.exports = { createSheetLifecycle, homepageSheets, handoffSheet }
+module.exports = {
+  createSheetLifecycle,
+  homepageSheets,
+  handoffSheet,
+  homepageSheetMounted,
+  readReducedMotionProbe,
+  sheetTabBarAnimates
+}
