@@ -60,7 +60,7 @@ test('buildHomeCalendarState returns fallback prediction state and explicit day 
   assert.match(detail.periods[0].key, /^period:fallback:/)
   assert.deepEqual(
     { range: detail.periods[0].range, metaText: detail.periods[0].metaText },
-    { range: '2026-08-01 ~ 2026-08-05', metaText: '' }
+    { range: '8月1日–8月5日', metaText: '' }
   )
   assert.equal(detail.memories.length, 1)
   assert.match(detail.memories[0].key, /^memory:fallback:/)
@@ -272,7 +272,7 @@ test('buildHomeCalendarState aligns missing endDate period markers with detail r
   assert.deepEqual(detail.periods, [
     {
       key: 'period:p-missing-end',
-      range: '2026-08-12（结束日期不详）',
+      range: '8月12日（结束日期不详）',
       metaText: '经量 量少'
     }
   ])
@@ -308,7 +308,7 @@ test('buildHomeCalendarState projects an ongoing period from its start through t
   assert.deepEqual(detail.periods, [
     {
       key: 'period:p-ongoing',
-      range: '2026-08-10 ~ 2026-08-13（进行中）',
+      range: '8月10日–8月13日（进行中）',
       metaText: ''
     }
   ])
@@ -364,7 +364,7 @@ test('buildHomeCalendarState marks only the known start day of an unknown-end pe
   assert.deepEqual(detail.periods, [
     {
       key: 'period:p-unknown-end',
-      range: '2026-08-12（结束日期不详）',
+      range: '8月12日（结束日期不详）',
       metaText: ''
     }
   ])
@@ -717,7 +717,7 @@ test('buildHomeCalendarState ignores impossible dates in markers and details', (
   assert.match(validDetails.periods[0].key, /^period:fallback:/)
   assert.deepEqual(
     { range: validDetails.periods[0].range, metaText: validDetails.periods[0].metaText },
-    { range: '2026-03-03 ~ 2026-03-03', metaText: '' }
+    { range: '3月3日–3月3日', metaText: '' }
   )
   assert.equal(validDetails.memories.length, 1)
   assert.match(validDetails.memories[0].key, /^memory:fallback:/)
@@ -764,7 +764,7 @@ test('a single ongoing record projects start-through-today without inventing a p
   assert.equal(state.predictionWindow, null)
   assert.equal(state.days.some(day => day.isPredict), false)
   assert.equal(state.predictionExplanation.available, false)
-  assert.equal(state.monthlyRecap.highlights[0], '经期：08月10日-08月13日，进行中，本月 4 天')
+  assert.equal(state.monthlyRecap.highlights[0], '经期：8月10日–8月13日，进行中，本月 4 天')
 })
 
 test('homepage prediction keeps durations from completed history when an ongoing record exists', () => {
@@ -794,7 +794,7 @@ test('homepage prediction keeps durations from completed history when an ongoing
     state.days.filter(day => day.isPeriod).map(day => day.date),
     ['2026-08-10', '2026-08-11', '2026-08-12']
   )
-  assert.equal(state.monthlyRecap.highlights[0], '经期：08月10日-08月12日，进行中，本月 3 天')
+  assert.equal(state.monthlyRecap.highlights[0], '经期：8月10日–8月12日，进行中，本月 3 天')
 })
 
 test('homepage prediction excludes an unknown-end record from duration but marks its start day', () => {
@@ -823,7 +823,7 @@ test('homepage prediction excludes an unknown-end record from duration but marks
     ['2026-08-10']
   )
   assert.equal(state.days.find(day => day.date === '2026-08-10').isUnknownEndPeriod, true)
-  assert.equal(state.monthlyRecap.highlights[0], '经期：08月10日，结束日期不详')
+  assert.equal(state.monthlyRecap.highlights[0], '经期：8月10日，结束日期不详')
 })
 
 function assertPeriodDetailWithoutPrediction(detail) {

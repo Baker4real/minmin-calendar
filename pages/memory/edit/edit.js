@@ -8,6 +8,10 @@ const safeArea = require('../../../utils/safeArea')
 
 const DRAFT_FIELDS = ['date', 'note']
 
+function displayDateLabel(dateStr) {
+  return util.formatDisplayDate(dateStr, { today: util.formatDate(new Date()) })
+}
+
 // 与 pages/settings/settings.js、pages/period/edit/edit.js、pages/period/period.js 共享的一次性
 // 「目标分段」意图键：从首页等入口进入本页保存/删除后写键，记录 tab onShow 消费并落到欢乐时光分段（issue #103）
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
@@ -29,7 +33,11 @@ Page({
     this._draftKey = draftKey
     this._draftBaseline = recordDraft.pickDraftFields(routeState, DRAFT_FIELDS)
     this._draftDiscarded = false
-    this.setData({ ...formState, draftRestored: !!storedDraft })
+    this.setData({
+      ...formState,
+      dateLabel: displayDateLabel(formState.date),
+      draftRestored: !!storedDraft
+    })
     if (storedDraft) {
       wx.showToast({ title: '已恢复上次未完成的输入', icon: 'none' })
     }
@@ -66,7 +74,12 @@ Page({
     } catch (e) {}
   },
 
-  onDateChange(e) { this.setData({ date: e.detail.value }) },
+  onDateChange(e) {
+    this.setData({
+      date: e.detail.value,
+      dateLabel: displayDateLabel(e.detail.value)
+    })
+  },
   onNoteInput(e) { this.setData({ note: e.detail.value }) },
 
   goBack() {

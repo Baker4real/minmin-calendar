@@ -82,6 +82,7 @@ Page({
 
   async loadMemoryData() {
     const client = cloud.createRoomDataClient()
+    const today = util.formatDate(new Date())
     await recordCommands.runRecordListLoad({
       page: this,
       itemsKey: 'memories',
@@ -95,7 +96,7 @@ Page({
         this.setData({
           memoryHasLoaded: true,
           memoryGroups: memoryMonthGroups.applyMemoryMonthExpansion(
-            memoryMonthGroups.buildMemoryMonthGroups(memories),
+            memoryMonthGroups.buildMemoryMonthGroups(memories, { today }),
             this.memoryMonthChoices
           )
         })

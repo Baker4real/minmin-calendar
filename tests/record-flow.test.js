@@ -964,15 +964,17 @@ test('period and memory list templates keep the REC-03 visible row contract', ()
   const periodWxml = readPageFile('pages/period/period.wxml')
   const memoryWxml = readPageFile('pages/memory/memory.wxml')
 
-  // 日期行绑定状态化展示值：已知结束显示结束日期，进行中/不详显示状态文案
-  assert.match(periodWxml, /\{\{item\.startDate\}\}\s*~\s*\{\{item\.endDateDisplay\}\}/)
+  // 日期行走统一显示格式，不再把 ISO 起止拼进可见行
+  assert.match(periodWxml, /class="item-date">\{\{item\.dateLabel\}\}/)
+  assert.doesNotMatch(periodWxml, /\{\{item\.startDate\}\}/)
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}"/)
   assert.doesNotMatch(periodWxml, /无备注/)
   // 已完成记录仍以「N天」呈现时长；进行中/结束日期不详由状态文案占住时长位
   assert.match(periodWxml, /wx:if="\{\{item\.status === 'known-end'\}\}" class="item-duration">\{\{item\.durationText\}\}/)
   assert.match(periodWxml, /class="item-duration ongoing">\{\{item\.durationText\}\}/)
 
-  assert.match(memoryWxml, /\{\{item\.date\}\}/)
+  assert.match(memoryWxml, /class="memory-date">\{\{item\.dateLabel\}\}/)
+  assert.doesNotMatch(memoryWxml, /\{\{item\.date\}\}/)
   // 没有备注的欢乐时光不显示备注句；真实写下的备注（含与旧占位句相同的文字）照常显示
   assert.match(memoryWxml, /wx:if="\{\{item\.note\}\}"[^>]*>\{\{item\.note\}\}/)
   assert.doesNotMatch(memoryWxml, /我们的欢乐时光'/)
@@ -1357,7 +1359,7 @@ test('memory list failure marks loadFailed and recovers through the retry entry'
     await harness.page.loadData()
     assert.equal(harness.page.data.loadFailed, false)
     assert.deepEqual(harness.page.data.memories, [
-      { _id: 'm1', date: '2026-06-01', note: '一次愉快的野餐' }
+      { _id: 'm1', date: '2026-06-01', note: '一次愉快的野餐', dateLabel: '6月1日' }
     ])
   } finally {
     harness.teardown()
@@ -1435,7 +1437,7 @@ test('memory list keeps records and turns to the list-area retry row when a late
     assert.equal(harness.page.data.hasLoaded, true)
     assert.equal(harness.page.data.loading, false)
     assert.deepEqual(harness.page.data.memories, [
-      { _id: 'm1', date: '2026-06-01', note: '一次愉快的野餐' }
+      { _id: 'm1', date: '2026-06-01', note: '一次愉快的野餐', dateLabel: '6月1日' }
     ])
   } finally {
     harness.teardown()
@@ -1544,10 +1546,10 @@ test('record tab memory segment renders month cards with the grouped row contrac
   assert.match(periodWxml, /class="month-toggle">\{\{group\.toggleLabel\}\}/)
 
   // 行：收起时组内行不渲染（wx:if，不是 css 隐藏，读屏不会念出来）；
-  // 定位用记录 id（不依赖扁平下标）；显示「M月D日」，读屏仍念完整日期；无备注不渲染占位句
+  // 定位用记录 id；可见日期和读屏名都走显示格式，ISO 日期仍留在行数据里供编辑跳转
   assert.match(
     periodWxml,
-    /wx:if="\{\{group\.expanded\}\}" wx:for="\{\{group\.records\}\}" wx:key="_id" bindtap="editMemory" data-id="\{\{item\._id\}\}" aria-role="button" aria-label="编辑 \{\{item\.date\}\} 的欢乐时光"/
+    /wx:if="\{\{group\.expanded\}\}" wx:for="\{\{group\.records\}\}" wx:key="_id" bindtap="editMemory" data-id="\{\{item\._id\}\}" aria-role="button" aria-label="编辑 \{\{item\.dayLabel\}\} 的欢乐时光"/
   )
   assert.match(periodWxml, /class="memory-date">\{\{item\.dayLabel\}\}/)
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}" class="memory-note">\{\{item\.note\}\}/)
@@ -1770,7 +1772,7 @@ test('record tab memory segment groups records into newest-first month cards', a
     assert.equal(october.ariaLabel, '2026年10月，3 条欢乐时光，已展开')
     assert.equal(october.count, 3)
     assert.deepEqual(october.records.map(record => record._id), ['a1', 'a2', 'a3'])
-    // 每行显示「M月D日」；行数据保留完整日期供读屏与编辑页跳转使用
+    // 每行显示统一日期；行数据保留 ISO 日期供编辑页跳转
     assert.deepEqual(october.records.map(record => record.dayLabel), ['10月8日', '10月8日', '10月2日'])
     assert.equal(october.records[0].date, '2026-10-08')
     // 无备注的行保留空备注，由模板 wx:if 压住（不渲染占位句）
@@ -1778,7 +1780,7 @@ test('record tab memory segment groups records into newest-first month cards', a
 
     assert.equal(groups[1].title, '2026年9月 · 1 条')
     assert.equal(groups[2].title, '2025年12月 · 1 条')
-    assert.deepEqual(groups[2].records.map(record => record.dayLabel), ['12月31日'])
+    assert.deepEqual(groups[2].records.map(record => record.dayLabel), ['2025年12月31日'])
   } finally {
     harness.teardown()
   }
@@ -3522,13 +3524,15 @@ function readPageFile(relativePath) {
 }
 
 function createUtilStub() {
+  const realUtil = require(path.join(repoRoot, 'utils/util.js'))
   return {
     formatDate() {
       return '2026-09-20'
     },
     isValidDateString(value) {
       return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
-    }
+    },
+    formatDisplayDate: realUtil.formatDisplayDate
   }
 }
 

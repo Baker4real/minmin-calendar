@@ -616,7 +616,7 @@ test('status card prediction region opens the existing prediction sheet without 
   const labelExpr = /aria-label="\{\{([\s\S]+?)\}\}"/.exec(predictRegion)
   assert.ok(labelExpr, 'expected the date-aware aria label')
   const readLabel = scope => evaluateWxmlExpression(labelExpr[1], scope)
-  assert.equal(readLabel({ nextPredictDisplay: '09月30日', nextPredictWeekday: '周三' }), '查看经期预测，09月30日 周三')
+  assert.equal(readLabel({ nextPredictDisplay: '9月30日', nextPredictWeekday: '周三' }), '查看经期预测，9月30日 周三')
   assert.equal(readLabel({ nextPredictDisplay: '--', nextPredictWeekday: '' }), '查看经期预测，暂无下次日期')
 
   // -- 不是禁用态；预测区不进入经期记录页
@@ -1468,6 +1468,9 @@ test('day actions, tools menu, and the info sheet use the same enter and leave l
     assert.equal(harness.page.data.dayActionMounted, true)
     assert.equal(harness.page.data.dayActionPhase, 'closed')
     assert.equal(harness.page.data.daySheetMode, 'detail')
+    assert.match(wxml, /class="sheet-title">\{\{selectedDateLabel\}\}<\/text>\s*<text class="sheet-subtitle">/)
+    assert.equal(harness.page.data.selectedDateLabel, '6月20日')
+    assert.equal(harness.page.data.selectedDate, '2026-06-20')
     assert.equal(harness.page.data.selectedDateSubtitle, '周六 · 五月初五')
     mock.timers.tick(0)
     assert.equal(harness.page.data.dayActionPhase, 'open')

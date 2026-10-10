@@ -42,7 +42,7 @@ const CALENDAR_LEGEND_ITEMS = [
 ]
 
 function buildHomeCalendarState({ year, month, periods = [], memories = [], today = util.formatDate(new Date()) }) {
-  const prediction = cycle.predictNextPeriod(periods)
+  const prediction = cycle.predictNextPeriod(periods, { today })
   const predictionWindow = prediction.canPredict
     ? {
         rangeStart: prediction.rangeStart,
@@ -99,7 +99,7 @@ function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextP
       isMemory: memoryDates.has(day.date),
       isPredict: predictDates.has(day.date) && !isPeriod
     }
-    return { ...marked, ariaLabel: buildDayAriaLabel(marked) }
+    return { ...marked, ariaLabel: buildDayAriaLabel(marked, today) }
   })
 }
 
@@ -201,7 +201,7 @@ function buildDayDetailsByDate(days, periods, memories, today) {
         if (detail.symptomText) meta.push(detail.symptomText)
         return {
           key: periodKeys[index],
-          range: formatPeriodDetailRange(range),
+          range: formatPeriodDetailRange(range, today),
           metaText: meta.join(' · ')
         }
       })
@@ -232,10 +232,14 @@ function isPeriodActiveOnDate(range, date) {
 }
 
 // 详情行文案暴露状态：进行中写明「开始日至今天」，结束日期不详不用空白日期表达
-function formatPeriodDetailRange(range) {
-  if (range.status === 'ongoing') return `${range.startDate} ~ ${range.endDate}（进行中）`
-  if (range.status === 'unknown-end') return `${range.startDate}（结束日期不详）`
-  return `${range.startDate} ~ ${range.endDate}`
+function formatPeriodDetailRange(range, today) {
+  if (range.status === 'ongoing') {
+    return `${util.formatDisplayDateRange(range.startDate, range.endDate, { today })}（进行中）`
+  }
+  if (range.status === 'unknown-end') {
+    return `${util.formatDisplayDate(range.startDate, { today })}（结束日期不详）`
+  }
+  return util.formatDisplayDateRange(range.startDate, range.endDate, { today })
 }
 
 function buildStableDetailKeys(records, type, buildFingerprint) {
@@ -331,10 +335,9 @@ const DAY_ARIA_MEANING_TEXT = {
   workday: '调休上班'
 }
 
-function buildDayAriaLabel(day) {
+function buildDayAriaLabel(day, today) {
   if (!day || day.isEmpty || !day.date) return ''
-  const parts = [formatAriaDate(day.date)]
-  if (day.weekday) parts.push(day.weekday)
+  const parts = [util.formatDisplayDate(day.date, { today, withWeekday: true })]
   if (day.lunarText) parts.push(day.lunarText)
   buildDayMeanings(day).forEach(meaning => {
     if (meaning.key === 'holiday') {
@@ -352,11 +355,6 @@ function buildDayAriaLabel(day) {
     }
   })
   return parts.join(' ')
-}
-
-function formatAriaDate(date) {
-  const [, month, dayOfMonth] = date.split('-')
-  return `${Number(month)}月${Number(dayOfMonth)}日`
 }
 
 module.exports = {

@@ -1111,6 +1111,9 @@ test('period edit save validates real calendar dates before building a payload',
           return date.getFullYear() === year &&
             date.getMonth() === month - 1 &&
             date.getDate() === day
+        },
+        formatDisplayDate(...args) {
+          return require('../utils/util').formatDisplayDate(...args)
         }
       },
       'utils/cloud.js': {
@@ -1492,8 +1495,8 @@ test('memory page onShow executes loadData and populates sorted memories through
     await awaitPageOnShow(harness.page)
 
     assert.deepEqual(harness.page.data.memories, [
-      { _id: 'm2', date: '2026-07-03', note: 'newer' },
-      { _id: 'm1', date: '2026-06-01', note: 'older' }
+      { _id: 'm2', date: '2026-07-03', note: 'newer', dateLabel: '7月3日' },
+      { _id: 'm1', date: '2026-06-01', note: 'older', dateLabel: '6月1日' }
     ])
   } finally {
     harness.teardown()
@@ -2014,6 +2017,9 @@ function createUtilStub() {
       const normalizedEndDate = hasEndDate ? endDate : startDate
       if (startDate > normalizedEndDate) return null
       return { startDate, endDate: normalizedEndDate, hasEndDate }
+    },
+    formatDisplayDate(...args) {
+      return require('../utils/util').formatDisplayDate(...args)
     }
   }
 }

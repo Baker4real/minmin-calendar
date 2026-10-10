@@ -9,6 +9,10 @@ const safeArea = require('../../../utils/safeArea')
 
 const DRAFT_FIELDS = ['startDate', 'endDate', 'status', 'note', 'flow', 'symptoms']
 
+function displayDateLabel(dateStr) {
+  return util.formatDisplayDate(dateStr, { today: util.formatDate(new Date()) })
+}
+
 // 与 pages/settings/settings.js、pages/memory/edit/edit.js、pages/period/period.js 共享的一次性
 // 「目标分段」意图键：从首页等入口进入本页保存/删除后写键，记录 tab onShow 消费并落到经期分段（issue #103）
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
@@ -57,6 +61,8 @@ Page({
     this._draftDiscarded = false
     this.setData({
       ...formState,
+      startDateLabel: displayDateLabel(formState.startDate),
+      endDateLabel: displayDateLabel(formState.endDate),
       draftRestored: !!storedDraft,
       symptomGroups: cycle.buildSymptomOptions(formState.symptoms)
     })
@@ -97,19 +103,33 @@ Page({
   },
 
   onStartChange(e) {
-    this.setData({ startDate: e.detail.value })
+    this.setData({
+      startDate: e.detail.value,
+      startDateLabel: displayDateLabel(e.detail.value)
+    })
     if (this.data.status === 'known-end' && this.data.startDate > this.data.endDate) {
-      this.setData({ endDate: this.data.startDate })
+      this.setData({
+        endDate: this.data.startDate,
+        endDateLabel: displayDateLabel(this.data.startDate)
+      })
     }
   },
-  onEndChange(e) { this.setData({ endDate: e.detail.value }) },
+  onEndChange(e) {
+    this.setData({
+      endDate: e.detail.value,
+      endDateLabel: displayDateLabel(e.detail.value)
+    })
+  },
   selectStatus(e) {
     if (this.data.saving) return
     const status = e.currentTarget.dataset.value
     if (!cycle.isPeriodStatus(status) || status === this.data.status) return
     // 切到已知结束且还没选过结束日期时，用开始日期兜底（同日为合法单日记录）
     const update = { status }
-    if (status === 'known-end' && !this.data.endDate) update.endDate = this.data.startDate
+    if (status === 'known-end' && !this.data.endDate) {
+      update.endDate = this.data.startDate
+      update.endDateLabel = displayDateLabel(this.data.startDate)
+    }
     this.setData(update)
   },
   onNoteInput(e) { this.setData({ note: e.detail.value }) },

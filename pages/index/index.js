@@ -75,6 +75,7 @@ Page({
     daySheetMode: 'actions',
     dayDetailFade: false,
     selectedDate: '',
+    selectedDateLabel: '',
     selectedDateSubtitle: '',
     selectedDateIsFuture: false,
     selectedDayDetail: null,
@@ -603,6 +604,7 @@ Page({
       daySheetMode: 'actions',
       dayDetailFade: false,
       selectedDate: date,
+      selectedDateLabel: this.formatSelectedDateLabel(date),
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
       selectedDateIsFuture: date > util.formatDate(new Date()),
       selectedDayDetail: null
@@ -634,6 +636,7 @@ Page({
         daySheetMode: 'actions',
         dayDetailFade: false,
         selectedDate: '',
+        selectedDateLabel: '',
         selectedDateSubtitle: '',
         selectedDateIsFuture: false,
         selectedDayDetail: null
@@ -653,6 +656,7 @@ Page({
       daySheetMode: 'detail',
       dayDetailFade: fadingIn,
       selectedDate: date,
+      selectedDateLabel: this.formatSelectedDateLabel(date),
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
       selectedDateIsFuture: date > util.formatDate(new Date()),
       selectedDayDetail: this.data.dayDetailsByDate[date] || {
@@ -662,6 +666,10 @@ Page({
         empty: true
       }
     })
+  },
+
+  formatSelectedDateLabel(date) {
+    return util.formatDisplayDate(date, { today: util.formatDate(new Date()) })
   },
 
   formatDaySubtitle(day) {

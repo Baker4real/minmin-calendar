@@ -18,7 +18,7 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
   assert.deepEqual(insights.buildPredictionExplanation(prediction), {
     available: true,
     title: '预测说明',
-    summary: '预计区间 08月09日-08月11日',
+    summary: '预计区间 8月9日–8月11日',
     lines: [
       '参考最近 5 次有效周期',
       '平均周期 28 天，平均持续 5 天',
@@ -84,13 +84,13 @@ test('buildMonthlyRecap creates a gentle shareable recap for the selected month'
   assert.equal(recap.title, '2026年8月小结')
   assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 5 天')
   assert.equal(recap.memorySummary, '留下 2 条欢乐时光')
-  assert.equal(recap.predictionSummary, '下次预测 08月08日，区间 08月07日-08月09日（中）')
+  assert.equal(recap.predictionSummary, '下次预测 8月8日，区间 8月7日–8月9日（中）')
   assert.deepEqual(recap.highlights, [
-    '经期：08月09日-08月13日，5天，经量 量多，痛经',
+    '经期：8月9日–8月13日，5天，经量 量多，痛经',
     '欢乐时光：七夕晚餐；一起看电影'
   ])
   assert.deepEqual(recap.highlightItems, [
-    { key: 'recap:0', text: '经期：08月09日-08月13日，5天，经量 量多，痛经' },
+    { key: 'recap:0', text: '经期：8月9日–8月13日，5天，经量 量多，痛经' },
     { key: 'recap:1', text: '欢乐时光：七夕晚餐；一起看电影' }
   ])
   assert.match(recap.shareText, /2026年8月小结/)
@@ -112,7 +112,7 @@ test('buildMonthlyRecap keeps period duration and days in viewed month as two nu
   })
 
   assert.deepEqual(august.highlights, [
-    '经期：08月28日-09月01日，整段 5 天，本月 4 天'
+    '经期：8月28日–9月1日，整段 5 天，本月 4 天'
   ])
   assert.equal(august.periodSummary, '本月开始 1 次，本月 4 天')
 })
@@ -133,14 +133,14 @@ test('buildMonthlyRecap states period duration and days in viewed month separate
 
   assert.equal(august.periodSummary, '本月开始 1 次，本月 4 天')
   assert.deepEqual(august.highlights, [
-    '经期：08月28日-09月01日，整段 5 天，本月 4 天'
+    '经期：8月28日–9月1日，整段 5 天，本月 4 天'
   ])
   assert.equal(september.periodSummary, '从上月延续 1 次，本月 1 天')
   assert.deepEqual(september.highlights, [
-    '经期：08月28日-09月01日，整段 5 天，本月 1 天'
+    '经期：8月28日–9月1日，整段 5 天，本月 1 天'
   ])
   assert.match(august.shareText, /本月开始 1 次，本月 4 天/)
-  assert.match(august.shareText, /经期：08月28日-09月01日，整段 5 天，本月 4 天/)
+  assert.match(august.shareText, /经期：8月28日–9月1日，整段 5 天，本月 4 天/)
   assert.match(september.shareText, /从上月延续 1 次，本月 1 天/)
   assert.doesNotMatch(september.shareText, /本月记录了 1 次经期，共 1 天/)
 })
@@ -157,8 +157,8 @@ test('buildMonthlyRecap counts two periods continued from the previous month', (
 
   assert.equal(recap.periodSummary, '从上月延续 2 次，本月 4 天')
   assert.deepEqual(recap.highlights, [
-    '经期：08月28日-09月01日，整段 5 天，本月 1 天',
-    '经期：08月30日-09月03日，整段 5 天，本月 3 天'
+    '经期：8月28日–9月1日，整段 5 天，本月 1 天',
+    '经期：8月30日–9月3日，整段 5 天，本月 3 天'
   ])
 })
 
@@ -174,8 +174,8 @@ test('buildMonthlyRecap splits started and continued counts when a month has bot
 
   assert.equal(recap.periodSummary, '本月开始 1 次，从上月延续 1 次，本月 6 天')
   assert.deepEqual(recap.highlights, [
-    '经期：08月28日-09月01日，整段 5 天，本月 1 天',
-    '经期：09月20日-09月24日，5天'
+    '经期：8月28日–9月1日，整段 5 天，本月 1 天',
+    '经期：9月20日–9月24日，5天'
   ])
 })
 
@@ -185,21 +185,23 @@ test('buildMonthlyRecap uses the same started and continued copy across a year b
   const december = insights.buildMonthlyRecap({
     year: 2026,
     month: 11,
-    periods: [spanning]
+    periods: [spanning],
+    today: '2026-10-10'
   })
   const january = insights.buildMonthlyRecap({
     year: 2027,
     month: 0,
-    periods: [spanning]
+    periods: [spanning],
+    today: '2026-10-10'
   })
 
   assert.equal(december.periodSummary, '本月开始 1 次，本月 4 天')
   assert.deepEqual(december.highlights, [
-    '经期：12月28日-01月01日，整段 5 天，本月 4 天'
+    '经期：12月28日–2027年1月1日，整段 5 天，本月 4 天'
   ])
   assert.equal(january.periodSummary, '从上月延续 1 次，本月 1 天')
   assert.deepEqual(january.highlights, [
-    '经期：12月28日-01月01日，整段 5 天，本月 1 天'
+    '经期：12月28日–2027年1月1日，整段 5 天，本月 1 天'
   ])
 })
 
@@ -217,7 +219,7 @@ test('buildMonthlyRecap keeps flow and symptoms after spanning duration labels',
   })
 
   assert.deepEqual(recap.highlights, [
-    '经期：08月28日-09月01日，整段 5 天，本月 1 天，经量 量多，痛经'
+    '经期：8月28日–9月1日，整段 5 天，本月 1 天，经量 量多，痛经'
   ])
 })
 
@@ -231,7 +233,7 @@ test('buildMonthlyRecap treats a middle month of a three-month period as continu
 
   assert.equal(september.periodSummary, '从上月延续 1 次，本月 30 天')
   assert.deepEqual(september.highlights, [
-    '经期：08月28日-10月02日，整段 36 天，本月 30 天'
+    '经期：8月28日–10月2日，整段 36 天，本月 30 天'
   ])
 })
 
@@ -263,7 +265,7 @@ test('buildMonthlyRecap ignores impossible dates before deriving counts and high
   assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 3 天')
   assert.equal(recap.memorySummary, '留下 1 条欢乐时光')
   assert.deepEqual(recap.highlights, [
-    '经期：08月20日-08月22日，3天',
+    '经期：8月20日–8月22日，3天',
     '欢乐时光：有效记忆'
   ])
   assert.doesNotMatch(recap.shareText, /错误日期/)
@@ -322,12 +324,12 @@ test('buildMonthlyRecap gives duplicate highlight text unique render keys', () =
   })
 
   assert.deepEqual(recap.highlights, [
-    '经期：08月09日-08月09日，1天',
-    '经期：08月09日-08月09日，1天'
+    '经期：8月9日–8月9日，1天',
+    '经期：8月9日–8月9日，1天'
   ])
   assert.deepEqual(recap.highlightItems, [
-    { key: 'recap:0', text: '经期：08月09日-08月09日，1天' },
-    { key: 'recap:1', text: '经期：08月09日-08月09日，1天' }
+    { key: 'recap:0', text: '经期：8月9日–8月9日，1天' },
+    { key: 'recap:1', text: '经期：8月9日–8月9日，1天' }
   ])
 })
 
@@ -349,7 +351,7 @@ test('buildMonthlyRecap states an ongoing period as start-through-today without 
   })
 
   // 进行中：区间写到今天并说明进行中，只报本月天数，不写「整段 N 天」
-  assert.deepEqual(recap.highlights, ['经期：09月20日-09月24日，进行中，本月 5 天，经量 量多'])
+  assert.deepEqual(recap.highlights, ['经期：9月20日–9月24日，进行中，本月 5 天，经量 量多'])
   assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 5 天')
 })
 
@@ -366,7 +368,7 @@ test('buildMonthlyRecap states an unknown-end period as its known start day only
   })
 
   // 结束日期不详：只写已知开始日与状态，不发明时长或区间
-  assert.deepEqual(recap.highlights, ['经期：08月12日，结束日期不详'])
+  assert.deepEqual(recap.highlights, ['经期：8月12日，结束日期不详'])
   assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 1 天')
 })
 
@@ -386,9 +388,9 @@ test('buildMonthlyRecap keeps completed precision separate from ongoing and unkn
 
   // 同月三种状态各说各的事实：已完成写精确时长，不详只写开始日，进行中只写本月天数
   assert.deepEqual(recap.highlights, [
-    '经期：09月02日-09月06日，5天',
-    '经期：09月10日，结束日期不详',
-    '经期：09月20日-09月24日，进行中，本月 5 天'
+    '经期：9月2日–9月6日，5天',
+    '经期：9月10日，结束日期不详',
+    '经期：9月20日–9月24日，进行中，本月 5 天'
   ])
   // 存库的 9 天时长没有从任何未完成记录漏进文案
   assert.equal(recap.shareText.includes('9天'), false)

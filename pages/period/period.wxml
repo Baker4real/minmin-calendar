@@ -57,7 +57,7 @@
       <view wx:elif="{{periods.length > 0 && !loading}}" class="premium-card">
         <view class="list-item" wx:for="{{periods}}" wx:key="_id" wx:for-index="i" bindtap="editPeriod" data-index="{{i}}" aria-role="button" aria-label="编辑经期记录 {{item.rangeSummary}}">
           <view class="item-left">
-            <view class="item-date">{{item.startDate}} ~ {{item.endDateDisplay}}</view>
+            <view class="item-date">{{item.dateLabel}}</view>
             <view wx:if="{{item.flowLabel || item.symptomText}}" class="item-tags">
               <text wx:if="{{item.flowLabel}}" class="item-tag flow">{{item.flowLabel}}</text>
               <text
@@ -114,7 +114,7 @@
             <text class="month-header-text">{{group.title}}</text>
             <text class="month-toggle">{{group.toggleLabel}}</text>
           </view>
-          <view class="list-item" wx:if="{{group.expanded}}" wx:for="{{group.records}}" wx:key="_id" bindtap="editMemory" data-id="{{item._id}}" aria-role="button" aria-label="编辑 {{item.date}} 的欢乐时光">
+          <view class="list-item" wx:if="{{group.expanded}}" wx:for="{{group.records}}" wx:key="_id" bindtap="editMemory" data-id="{{item._id}}" aria-role="button" aria-label="编辑 {{item.dayLabel}} 的欢乐时光">
             <view class="memory-left">
               <text class="memory-heart">♥</text>
               <view class="memory-info">
