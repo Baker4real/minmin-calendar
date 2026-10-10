@@ -48,6 +48,8 @@ Two details make `watchOptions.ignore` easy to get wrong:
 - The IDE reads it only when it initializes the project watcher, so edits require reopening the project — a recompile is not enough. Confirm the loaded list in the IDE log's `new FileUtils instance dirpath = <project root>` block rather than assuming the file on disk is active.
 - The watcher emits events for bare directory paths (`.git`) as well as paths inside them. A `dir/**/*` pattern does not match the bare `dir` event, so each ignored directory needs both its bare name and its subpath glob. This matters for `.git` specifically because a plain `git status` bumps the `.git` directory mtime without modifying any file inside it, so routine git usage alone is enough to trigger the event.
 
+`packOptions.ignore` has the same reload trap: the IDE keeps the list it loaded when the project opened, and the automatic recompile after a `project.config.json` edit does not refresh it. Reopen the project, then confirm with 代码质量 → 重新扫描; an upload runs the same scan on the package it sends. Keep everything that is not mini program runtime in `packOptions.ignore` — `tests/`, `docs/`, and the root `package.json`, `package-lock.json` and `.okf-frontmatter.json`. The 图片和音频资源 item sums every image and audio file in the package against 200 KB, so a few `docs/evidence/` screenshots are enough to fail it.
+
 2026-08-14：开发者工具控制台若只有 `WAServiceMainContext.js` 的 `Error: timeout`、堆栈不含本仓库路径，视为工具内部通信噪音，不要当成 `utils/cloud.js` 或云函数超时去改业务代码。本机重新编译后该行未再出现，小程序可正常使用。
 
 The mini program initializes WeChat Cloud in `app.js` with:
