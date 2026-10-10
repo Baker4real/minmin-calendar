@@ -244,7 +244,7 @@ function normalizeRecord(collection, rawData, options = {}) {
 
   return collection === 'periods'
     ? normalizePeriodRecord(data, options)
-    : normalizeMemoryRecord(data)
+    : normalizeMemoryRecord(data, options)
 }
 
 function normalizePeriodRecord(data, { today = '' } = {}) {
@@ -286,8 +286,9 @@ function resolvePeriodStatus(data) {
   return PERIOD_STATUS_VALUES.has(data.status) ? data.status : null
 }
 
-function normalizeMemoryRecord(data) {
+function normalizeMemoryRecord(data, { today = '' } = {}) {
   if (!isValidDateString(data.date)) return { code: -1, msg: '欢乐时光日期格式不正确' }
+  if (data.date > today) return { code: -1, msg: '日期不能晚于今天' }
 
   return {
     code: 0,

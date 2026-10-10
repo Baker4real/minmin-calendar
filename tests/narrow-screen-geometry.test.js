@@ -131,6 +131,40 @@ test('bind card is border-box at width:100% and keeps a usable inner width at 32
   assert.ok(innerRpx >= 560, `bind card inner width ${innerRpx}rpx too narrow for the join form`)
 })
 
+test('room code input stays inside the card at 320px and the six glyphs fit the line', () => {
+  const rules = parseWxssRules(readRepo('pages/bind/bind.wxss'))
+  const content = findDecls(rules, '.content')
+  const card = findDecls(rules, '.premium-card')
+  const codeInput = findDecls(rules, '.code-input')
+
+  const height = rpxNumber(codeInput, 'height')
+  const lineHeight = rpxNumber(codeInput, 'line-height')
+  assert.ok(height >= 88, `code input height ${height}rpx is below the 88rpx touch step`)
+  assert.ok(lineHeight >= 88, `code input line-height ${lineHeight}rpx is below the 88rpx touch step`)
+  assert.ok(lineHeight <= height, 'the line box must sit inside the explicit height')
+
+  const contentPadX = horizontalPaddingTokens(content).map(token => Number(/(\d+)rpx/.exec(token)[1]))
+  const cardPadX = horizontalPaddingTokens(card).map(token => Number(/(\d+)rpx/.exec(token)[1]))
+  const inputPadX = horizontalPaddingTokens(codeInput).map(token => Number(/(\d+)rpx/.exec(token)[1]))
+  const innerRpx = 750 - 2 * contentPadX[0] - 2 * cardPadX[0]
+  assert.equal(codeInput.width, '100%', 'the input border box is the card inner width, so it cannot hang out of the card')
+
+  const fontSize = rpxNumber(codeInput, 'font-size')
+  const tracking = 12
+  const glyphAdvance = 6 * fontSize + 5 * tracking + tracking
+  const contentWidth = innerRpx - 2 * inputPadX[0]
+  assert.ok(
+    glyphAdvance <= contentWidth,
+    `six room-code glyphs ${glyphAdvance}rpx exceed the input content width ${contentWidth}rpx`
+  )
+
+  const viewportPx = 320
+  const inputOuterPx = (innerRpx * viewportPx) / 750
+  const cardOuterPx = ((750 - 2 * contentPadX[0]) * viewportPx) / 750
+  assert.ok(inputOuterPx <= cardOuterPx, 'the input overflows the bind card at 320px')
+  assert.ok(cardOuterPx <= viewportPx, 'the bind card overflows a 320px viewport')
+})
+
 test('edit form cards are border-box so width and padding never add up past the viewport', () => {
   for (const file of ['pages/period/edit/edit.wxss', 'pages/memory/edit/edit.wxss']) {
     const card = findDecls(parseWxssRules(readRepo(file)), '.premium-card')

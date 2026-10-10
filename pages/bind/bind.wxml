@@ -8,7 +8,7 @@
       <view class="hero-icon">♥</view>
       <block wx:if="{{revealed}}">
         <text class="hero-title">美少女的日历</text>
-        <text class="hero-desc">两个人的专属空间<br/>共享经期与欢乐时光</text>
+        <text class="hero-desc">两个人的专属空间\n共享经期与欢乐时光</text>
       </block>
     </view>
 
@@ -29,6 +29,7 @@
     </view>
 
     <view wx:else class="premium-card">
+      <text class="info-text">房间只有你们两个人能看到</text>
       <view class="tab-bar">
         <view class="tab {{tab==='create' ? 'active' : ''}}" bindtap="switchTab" data-tab="create" aria-role="radio" aria-label="创建房间" aria-checked="{{tab==='create'}}">创建房间</view>
         <view class="tab {{tab==='join' ? 'active' : ''}}" bindtap="switchTab" data-tab="join" aria-role="radio" aria-label="加入房间" aria-checked="{{tab==='join'}}">加入房间</view>

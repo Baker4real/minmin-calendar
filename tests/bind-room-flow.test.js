@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const Module = require('node:module')
 const path = require('node:path')
 const test = require('node:test')
-const { parseWxssRules } = require('./designTokens')
+const { listWxmlFiles, parseWxssRules } = require('./designTokens')
 
 // issue #78：房间码复制/解除绑定同屏可达、清除本地数据文案与行为对齐的页面接缝测试。
 // issue #102：已绑定冷启动自动 switchTab 进首页（跳转失败才留「进入应用」兜底）；校验失败留在
@@ -175,6 +175,55 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
   assert.match(errorMsg.border, /1px solid rgba\(249,\s*115,\s*115,\s*0\.24\)/)
   const unbindInline = findRule(css, '.unbind-inline')
   assert.match(unbindInline['margin-top'], /^\d+rpx$/)
+})
+
+// issue #138：加入房间时六位码完整可见、在框内居中，输入框与上方说明、下方主按钮同宽。
+test('join room-code field has an 88rpx line and lines up with the hint and the main button', () => {
+  const codeInput = findRule(readPageFile('pages/bind/bind.wxss'), '.code-input')
+
+  assert.equal(codeInput.height, '88rpx', 'the field needs an explicit height at the touch step')
+  assert.equal(codeInput['line-height'], '88rpx', 'the line box must match that height so glyphs are not clipped')
+  assert.equal(codeInput.width, '100%', 'the field spans the card, same as the hint and the main button')
+  assert.equal(codeInput['text-align'], 'center')
+  assert.equal(codeInput['box-sizing'], 'border-box')
+  assert.equal(codeInput.padding, '0 20rpx', 'vertical padding must not eat the line box')
+
+  const placeholder = findRule(readPageFile('pages/bind/bind.wxss'), '.input-placeholder')
+  assert.equal(placeholder['line-height'], '88rpx', 'the placeholder uses the same line box as the code')
+})
+
+// issue #138：首屏副标题用 text 组件认识的换行符分成两句，不用 br。
+test('bind subtitle breaks the two phrases with a newline inside the text', () => {
+  const wxml = readPageFile('pages/bind/bind.wxml')
+  const hero = /<text class="hero-desc">([\s\S]*?)<\/text>/.exec(wxml)
+  assert.ok(hero, 'the launch subtitle is a text node')
+  assert.equal(hero[1], '两个人的专属空间\\n共享经期与欢乐时光')
+  assert.doesNotMatch(hero[1], /<br\b/i)
+})
+
+// issue #138：创建 / 加入页说明房间只有两个人能看到，两个 tab 都看得到。
+test('create and join screen says the room is visible only to the two of you', () => {
+  const wxml = readPageFile('pages/bind/bind.wxml')
+  const unbound = wxml.slice(wxml.indexOf('wx:else'))
+  const sentence = unbound.indexOf('房间只有你们两个人能看到')
+  const createTab = unbound.indexOf("tab === 'create'")
+  const joinTab = unbound.indexOf("tab === 'join'")
+  assert.ok(sentence !== -1, 'the create/join screen explains who can see the room')
+  assert.ok(createTab !== -1 && joinTab !== -1)
+  assert.ok(sentence < createTab && sentence < joinTab, 'the sentence stays visible on both the create and join tabs')
+})
+
+// issue #138：模板护栏。text 节点里出现 br 时，小程序不会换行，两句会粘在一起。
+test('page templates do not put a br tag inside a text node', () => {
+  const offenders = []
+  for (const file of listWxmlFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    const wxml = fs.readFileSync(file, 'utf8').replace(/<!--[\s\S]*?-->/g, '')
+    for (const body of textNodeBodies(wxml)) {
+      if (/<br\b/i.test(body)) offenders.push(`${relative}: ${body.trim()}`)
+    }
+  }
+  assert.deepEqual(offenders, [])
 })
 
 test('copy buttons press instantly under reduced motion on both bind and settings', () => {
@@ -787,6 +836,23 @@ test('settings clear-local-data falls back to the unbound display only when re-r
     harness.teardown()
   }
 })
+
+function textNodeBodies(wxml) {
+  const bodies = []
+  const tags = /<\/?text\b[^>]*>/gi
+  const stack = []
+  let match
+  while ((match = tags.exec(wxml))) {
+    if (match[0].startsWith('</')) {
+      const start = stack.pop()
+      if (start === undefined) continue
+      bodies.push(wxml.slice(start, match.index))
+      continue
+    }
+    stack.push(match.index + match[0].length)
+  }
+  return bodies
+}
 
 function sliceBetween(text, startMarker, endMarker) {
   const start = text.indexOf(startMarker)

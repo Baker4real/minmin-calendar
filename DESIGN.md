@@ -247,7 +247,7 @@ frontmatter 的 rem 值是设计参照；实现层全部走下表 rpx 角色 tok
 
 统计数字（`.stat-num`、`.cycle-num`）按可扫读的数字信息处理，字重走 `--font-weight-control`（600）并保留 `tabular-nums` 与既有展示字号。不因历史展示例外保留 800，也不把它们升成标题。
 
-房间码（`.room-code-value`、`.bound-code`）同样走控件字重 600 与 `tabular-nums`，字距只用 `--letter-spacing-room-code`。无码占位 `.room-code-value.muted` 回到正文 400，字距复位为 0。`.code-input` 是输入文字，字重 400，字距只用 `--letter-spacing-code-input`。
+房间码（`.room-code-value`、`.bound-code`）同样走控件字重 600 与 `tabular-nums`，字距只用 `--letter-spacing-room-code`。无码占位 `.room-code-value.muted` 回到正文 400，字距复位为 0。`.code-input` 是输入文字，字重 400，字距只用 `--letter-spacing-code-input`。它的盒高和行高都是 88rpx，纵向 padding 为 0，六位码在框内完整可见并水平居中；输入框通栏，与上方说明和下方主按钮对齐。占位符走同一行高。
 
 流式辅助说明在有水平余量时使用 `--letter-spacing-assist`。格内农历、节日/调休/预测胶囊、单字周标题、按钮标签和标题保持自然字距，不靠加字距或缩小字号制造轻盈。胶囊盒高、农历完整显示和日历格留白不在本角色表里改。格内农历保持单行且不用省略号；五字闰月名在窄列放不下时不换到第二行，完整字符串留在日历格无障碍名称和日详情里。
 
