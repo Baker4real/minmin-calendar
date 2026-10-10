@@ -543,6 +543,43 @@ test('full density first-screen stack stays within the ratcheted budget', () => 
   )
 })
 
+test('period band connects across a week and caps the open end without animating', () => {
+  const wxss = readWxss()
+  const band = ruleBody(wxss, '.period-band')
+  assert.match(band, /inset:\s*0/)
+  assert.match(band, /background:\s*rgba\(232,\s*144,\s*158,\s*0\.(?:1[89]|2[0-4])\)/)
+  assert.doesNotMatch(band, /transition\s*:/)
+  assert.doesNotMatch(band, /animation\s*:/)
+
+  const start = ruleBody(wxss, '.day-cell.period-start')
+  assert.match(start, /border-top-left-radius:\s*var\(--radius-full\)/)
+  assert.match(start, /border-bottom-left-radius:\s*var\(--radius-full\)/)
+  assert.match(start, /border-top-right-radius:\s*0/)
+  assert.match(start, /border-bottom-right-radius:\s*0/)
+
+  const middle = ruleBody(wxss, '.day-cell.period-middle')
+  assert.match(middle, /border-radius:\s*0/)
+
+  const end = ruleBody(wxss, '.day-cell.period-end')
+  assert.match(end, /border-top-right-radius:\s*var\(--radius-full\)/)
+  assert.match(end, /border-bottom-right-radius:\s*var\(--radius-full\)/)
+  assert.match(end, /border-top-left-radius:\s*0/)
+  assert.match(end, /border-bottom-left-radius:\s*0/)
+
+  const single = ruleBody(wxss, '.day-cell.period-single')
+  assert.match(single, /border-radius:\s*var\(--radius-full\)/)
+
+  const openEnd = ruleBody(wxss, '.day-cell.period-open.period-end')
+  assert.match(openEnd, /border-top-right-radius:\s*0/)
+  assert.match(openEnd, /border-bottom-right-radius:\s*0/)
+  const openSingle = ruleBody(wxss, '.day-cell.period-open.period-single')
+  assert.match(openSingle, /border-top-right-radius:\s*0/)
+  assert.match(openSingle, /border-bottom-right-radius:\s*0/)
+
+  const ring = ruleBody(wxss, '.day-cell.today.period::after')
+  assert.match(ring, /inset\s+0\s+0\s+0\s+3rpx\s+rgba\(196,\s*160,\s*210,\s*0\.55\)/)
+})
+
 function verticalBox(body, property) {
   const match = body.match(new RegExp(`(?:^|[\\n;])\\s*${property}:\\s*([^;]+);`))
   if (!match) return 0
