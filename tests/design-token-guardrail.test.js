@@ -383,8 +383,7 @@ const INDEX_GOLD_ALLOWLIST = new Set([
   '.detail-meaning.holiday',
   '.legend-row.predict .legend-symbol',
   '.legend-row.holiday .legend-symbol',
-  '.legend-row.workday .legend-symbol',
-  '.prediction-summary'
+  '.legend-row.workday .legend-symbol'
 ])
 
 test('home page reserves gold for prediction, range, certainty, and calendar metadata', () => {

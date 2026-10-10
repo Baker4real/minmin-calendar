@@ -140,15 +140,17 @@ test('buildCycleReminders returns upcoming and overdue reminder states', () => {
     }
   ])
 
-  assert.deepEqual(cycle.buildCycleReminders(prediction, periods, { today: '2026-08-13' }), [
+  const late = cycle.buildCycleReminders(prediction, periods, { today: '2026-08-13' })
+  assert.deepEqual(late, [
     {
       type: 'overdue',
-      title: '预测已过',
-      text: '预测区间已过 2 天，如已开始可以补记',
+      title: '周期有波动很正常',
+      text: '如果已经开始，可以补记',
       action: 'quickPeriod',
       date: '2026-08-13'
     }
   ])
+  assert.equal(`${late[0].title}；${late[0].text}`, '周期有波动很正常；如果已经开始，可以补记')
 })
 
 test('period duration is the inclusive day count when stored duration conflicts with the dates', () => {
