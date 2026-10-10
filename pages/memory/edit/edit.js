@@ -76,6 +76,7 @@ Page({
   async save() {
     if (this.data.saving || this.data.deleting || this.data.submitted) return
     const { id, date, note, isEdit } = this.data
+    const today = util.formatDate(new Date())
     const client = cloud.createRoomDataClient()
     const outcome = await recordCommands.runRecordSave({
       page: this,
@@ -88,6 +89,7 @@ Page({
       validate: () => {
         if (!date) return '请选择日期'
         if (!util.isValidDateString(date)) return '请选择有效日期'
+        if (date > today) return '日期不能晚于今天'
         return ''
       },
       successTitle: '已存进你们的欢乐时光',
