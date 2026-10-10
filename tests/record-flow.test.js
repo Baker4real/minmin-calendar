@@ -3539,6 +3539,145 @@ function stubGetPeriodDuration(period) {
   return util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
 }
 
+test('record tab pull-to-refresh reloads the visible period list and stops on success or failure', async () => {
+  const periodJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'pages/period/period.json'), 'utf8'))
+  assert.equal(periodJson.enablePullDownRefresh, true)
+  const periodWxml = fs.readFileSync(path.join(repoRoot, 'pages/period/period.wxml'), 'utf8')
+  assert.match(periodWxml, /刷新失败，正在显示上次的内容/)
+
+  let releaseRefresh
+  const refreshGate = new Promise(resolve => { releaseRefresh = resolve })
+  let call = 0
+  const pull = { stops: 0 }
+  const harness = loadRecordPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list() {
+              call += 1
+              if (call === 1) {
+                return {
+                  kind: 'success',
+                  data: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03' }]
+                }
+              }
+              if (call === 2) {
+                await refreshGate
+                return {
+                  kind: 'success',
+                  data: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03' }]
+                }
+              }
+              return { kind: 'retryable-failure', message: 'network down' }
+            }
+          }
+        }
+      }
+    },
+    wxOverrides: {
+      showModal(options) {
+        options.success({ confirm: false, cancel: true })
+      },
+      stopPullDownRefresh() {
+        pull.stops += 1
+      }
+    }
+  })
+
+  try {
+    await harness.page.onShow()
+    assert.equal(harness.page.data.hasLoaded, true)
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(harness.page.data.periods[0]._id, 'p1')
+
+    const refreshing = harness.page.onPullDownRefresh()
+    assert.equal(harness.page.data.loading, true)
+    assert.equal(pull.stops, 0)
+    releaseRefresh()
+    await refreshing
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(harness.page.data.loadFailed, false)
+    assert.equal(harness.page.data.periods[0]._id, 'p1')
+    assert.equal(pull.stops, 1)
+
+    await harness.page.onPullDownRefresh()
+    assert.equal(pull.stops, 2)
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(harness.page.data.loadFailed, true)
+    assert.equal(harness.page.data.hasLoaded, true)
+    assert.equal(harness.page.data.periods[0]._id, 'p1')
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('record tab pull-to-refresh reloads the visible memory list and stops on success or failure', async () => {
+  let releaseRefresh
+  const refreshGate = new Promise(resolve => { releaseRefresh = resolve })
+  let memoryCalls = 0
+  const pull = { stops: 0 }
+  const harness = loadRecordPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list(collection) {
+              if (collection === 'periods') return { kind: 'success', data: [] }
+              memoryCalls += 1
+              if (memoryCalls === 1) {
+                return { kind: 'success', data: [{ _id: 'm1', date: '2026-06-02', note: '野餐' }] }
+              }
+              if (memoryCalls === 2) {
+                await refreshGate
+                return { kind: 'success', data: [{ _id: 'm1', date: '2026-06-02', note: '野餐' }] }
+              }
+              return { kind: 'retryable-failure', message: 'network down' }
+            }
+          }
+        }
+      }
+    },
+    wxOverrides: {
+      showModal(options) {
+        options.success({ confirm: false, cancel: true })
+      },
+      stopPullDownRefresh() {
+        pull.stops += 1
+      }
+    }
+  })
+
+  try {
+    await harness.page.onShow()
+    await harness.page.selectSegment({ currentTarget: { dataset: { segment: 'memory' } } })
+    assert.equal(harness.page.data.segment, 'memory')
+    assert.equal(harness.page.data.memoryHasLoaded, true)
+    assert.equal(harness.page.data.memories[0]._id, 'm1')
+    assert.equal(harness.page.data.memoryLoading, false)
+
+    const refreshing = harness.page.onPullDownRefresh()
+    assert.equal(harness.page.data.memoryLoading, true)
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(pull.stops, 0)
+    releaseRefresh()
+    await refreshing
+    assert.equal(harness.page.data.memoryLoading, false)
+    assert.equal(harness.page.data.memoryLoadFailed, false)
+    assert.equal(harness.page.data.memories[0]._id, 'm1')
+    assert.equal(pull.stops, 1)
+
+    await harness.page.onPullDownRefresh()
+    assert.equal(pull.stops, 2)
+    assert.equal(harness.page.data.memoryLoading, false)
+    assert.equal(harness.page.data.memoryLoadFailed, true)
+    assert.equal(harness.page.data.memoryHasLoaded, true)
+    assert.equal(harness.page.data.memories[0]._id, 'm1')
+  } finally {
+    harness.teardown()
+  }
+})
+
 // 与 tests/record-draft.test.js 同形的页面 harness：加载真实页面 JS，
 // 用 Module._load 换掉依赖接缝，实例化 Page 定义后直接驱动页面方法。
 function loadRecordPageHarness(relativePath, { mocks = {}, wxOverrides = {} } = {}) {

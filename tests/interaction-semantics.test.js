@@ -196,11 +196,11 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
     .map((element) => element.attrs['aria-label'])
   assert.deepEqual(dayActions, ['记录经期', '记录欢乐时光', '查看详情', '补经期', '补欢乐时光'])
 
-  // 月份选择与确认
+  // 月份格点一下即跳转，不再有确认按钮
   const jumpOption = byHandler('selectJumpMonth', 'jump-option')
   assert.equal(jumpOption.attrs['aria-role'], 'radio')
   assert.equal(jumpOption.attrs['aria-label'], '选择{{item.label}}')
-  assert.equal(byHandler('confirmMonthJump', 'jump-confirm').attrs['aria-role'], 'button')
+  assert.equal(byHandler('confirmMonthJump', 'jump-confirm'), undefined)
 
   // 复制小结
   const copyRecap = byHandler('copyMonthlyRecap', 'copy-recap')
