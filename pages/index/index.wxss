@@ -87,7 +87,8 @@
   border: 1px solid rgba(255,255,255,0.1);
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-press) ease;
 }
-.refresh-retry:active {
+.refresh-retry:active,
+.refresh-retry.refresh-retry-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.09);
 }
@@ -146,7 +147,8 @@
   border: 1px solid rgba(232,144,158,0.22);
   transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-.month-title-trigger:active {
+.month-title-trigger:active,
+.month-title-trigger.month-title-trigger-hover {
   transform: scale(0.97);
   background: rgba(232,144,158,0.16);
 }
@@ -164,16 +166,32 @@
   font-size: 42rpx;
   color: #fff;
   border-radius: var(--radius-circle);
-  background: linear-gradient(rgba(255,255,255,0.1), rgba(255,255,255,0.1)), var(--glass-fallback);
+  background: var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.2);
   position: relative;
   z-index: 1;
-  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.nav-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-circle);
+  background-color: rgba(255,255,255,0.1);
+  transition: background-color var(--duration-press) ease;
+  pointer-events: none;
+  z-index: -1;
 }
 .nav-btn:active,
 .nav-btn.nav-btn-hover {
   transform: scale(0.96);
-  background: linear-gradient(rgba(255,255,255,0.2), rgba(255,255,255,0.2)), var(--glass-fallback);
+}
+.nav-btn:active::before,
+.nav-btn.nav-btn-hover::before {
+  background-color: rgba(255,255,255,0.2);
 }
 
 /* ===== Week Header ===== */
@@ -220,7 +238,8 @@
   box-sizing: border-box;
   transition: transform var(--duration-press) var(--ease-out);
 }
-.day-cell:active {
+.day-cell:active,
+.day-cell.day-cell-hover {
   transform: scale(0.94);
 }
 .day-cell.empty {
@@ -461,7 +480,8 @@
   min-width: 0;
   transition: transform var(--duration-press) var(--ease-out);
 }
-.stat-item:active {
+.stat-item:active,
+.stat-item.stat-item-hover {
   transform: scale(0.98);
 }
 /* 数据实色化：玫瑰=经期数据 */
@@ -524,7 +544,8 @@
   box-sizing: border-box;
   transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-.reminder-card:active {
+.reminder-card:active,
+.reminder-card.reminder-card-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.12);
 }
@@ -567,7 +588,7 @@
   height: 60rpx;
   line-height: 60rpx;
   text-align: center;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
   color: #0A0E27;
@@ -597,7 +618,8 @@
   border: 1px solid rgba(255,255,255,0.16);
   transition: transform var(--duration-press) var(--ease-out);
 }
-.quick-btn:active {
+.quick-btn:active,
+.quick-btn.quick-btn-hover {
   transform: scale(0.96);
   box-shadow: 0 4rpx 14rpx rgba(232,144,158,0.18);
 }
@@ -711,7 +733,8 @@
   border: 1px solid rgba(232,144,158,0.24);
   transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-.jump-today:active {
+.jump-today:active,
+.jump-today.jump-today-hover {
   transform: scale(0.98);
   background: rgba(232,144,158,0.18);
 }
@@ -761,14 +784,16 @@
   border: 1px solid rgba(255,255,255,0.11);
   transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out), opacity var(--duration-state) ease;
 }
-.jump-year-step:active {
+.jump-year-step:active,
+.jump-year-step.jump-year-step-hover {
   transform: scale(0.94);
   background: rgba(255,255,255,0.14);
 }
 .jump-year-step.disabled {
   opacity: 0.35;
 }
-.jump-year-step.disabled:active {
+.jump-year-step:active.disabled,
+.jump-year-step.jump-year-step-hover.disabled{
   transform: none;
   background: rgba(255,255,255,0.075);
 }
@@ -804,7 +829,8 @@
   border: 1px solid rgba(255,255,255,0.1);
   transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-.jump-option:active {
+.jump-option:active,
+.jump-option.jump-option-hover {
   transform: scale(0.97);
   background: rgba(255,255,255,0.13);
 }
@@ -844,6 +870,21 @@
   -webkit-backdrop-filter: blur(8px);
   opacity: 0;
   transition: opacity var(--duration-exit) var(--ease-out);
+}
+.day-sheet-mask::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-color: rgba(10,14,39,0);
+  transition: background-color var(--duration-press) ease;
+  pointer-events: none;
+}
+.day-sheet-mask:active::after,
+.day-sheet-mask.day-sheet-mask-hover::after {
+  background-color: rgba(10,14,39,0.28);
 }
 .day-sheet-mask.sheet-open {
   opacity: 1;
@@ -946,7 +987,8 @@
   background: var(--glass-bg);
   border: 1px solid rgba(255,255,255,0.12);
 }
-.sheet-close:active {
+.sheet-close:active,
+.sheet-close.sheet-close-hover {
   transform: scale(0.96);
   background: rgba(255,255,255,0.14);
 }
@@ -967,7 +1009,8 @@
   border: 1px solid rgba(255,255,255,0.11);
   transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-.sheet-action:active {
+.sheet-action:active,
+.sheet-action.sheet-action-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.13);
 }
@@ -1345,7 +1388,7 @@
   margin-top: 4rpx;
   box-sizing: border-box;
   padding: 0 28rpx;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-control);
   white-space: nowrap;
@@ -1353,7 +1396,8 @@
   background: var(--aurora-pink);
   box-shadow: 0 14rpx 34rpx rgba(232,144,158,0.18);
 }
-.copy-recap:active {
+.copy-recap:active,
+.copy-recap.copy-recap-hover {
   transform: scale(0.98);
 }
 /* issue #118：弹层盖住首页时暂停这五层装饰，卸掉标记后从当前帧继续。减弱动效仍是 animation: none。 */
@@ -1383,10 +1427,12 @@
   .sync-pill.syncing .sync-dot,
   .refresh-retry,
   .day-sheet-mask,
+  .day-sheet-mask::after,
   .day-action-sheet,
   .calendar-jump-sheet,
   .month-title-trigger,
   .nav-btn,
+  .nav-btn::before,
   .jump-option,
   .jump-year-step,
   .sheet-action,

@@ -1257,7 +1257,7 @@ test('period list failure retry is a recognizable operation, distinct from the q
     /wx:if="\{\{loadFailed && !hasLoaded && !loading\}\}" class="empty-state load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(periodWxml, /class="load-failed-text">经期记录加载失败</)
-  assert.match(periodWxml, /class="retry-btn">重试</)
+  assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 真空态仍是安静说明：不带重试按钮，也不可点；失败期间不显示断言式空态句（!loadFailed）
   const emptyBlock = /wx:elif="\{\{periods\.length === 0 && !loading && !loadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
@@ -1284,7 +1284,7 @@ test('period list keeps last data on refresh failure and offers retry in the lis
     /wx:if="\{\{loadFailed && hasLoaded && !loading\}\}" class="list-retry" bindtap="loadData" aria-role="button" aria-label="刷新失败，点按重试"/
   )
   assert.match(periodWxml, /class="list-retry-text">刷新失败，正在显示上次的内容</)
-  assert.match(periodWxml, /class="retry-btn">重试</)
+  assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 重试行可点高度 ≥44px，说明句保持次级文字色（可读但不抢操作）
   const retryRow = /\.list-retry\s*\{[^}]*\}/.exec(periodWxss)
@@ -1306,7 +1306,7 @@ test('memory list failure retry reads as an operation, not the quiet empty note'
     /wx:if="\{\{loadFailed && !hasLoaded && !loading\}\}" class="empty-state load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(memoryWxml, /class="load-failed-text">欢乐时光加载失败</)
-  assert.match(memoryWxml, /class="retry-btn">重试</)
+  assert.match(memoryWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 空列表说明保持安静：没有按钮、不可点；失败期间不显示断言式空态句（与经期列表一致）
   const emptyBlock = /wx:elif="\{\{memories\.length === 0 && !loading && !loadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(memoryWxml)
@@ -1736,7 +1736,7 @@ test('record tab memory segment mirrors the standalone memory list state contrac
     /wx:if="\{\{memoryLoadFailed && !memoryHasLoaded && !memoryLoading\}\}" class="empty-state load-failed" bindtap="loadMemoryData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(periodWxml, /class="load-failed-text">欢乐时光加载失败</)
-  assert.match(periodWxml, /class="retry-btn">重试</)
+  assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 空列表说明保持安静：没有按钮、不可点；失败期间不显示断言式空态句
   const emptyBlock = /wx:elif="\{\{memories\.length === 0 && !memoryLoading && !memoryLoadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
@@ -2610,12 +2610,102 @@ test('record edit notes are multi-line textareas with the unchanged 500-char cap
   }
 })
 
+test('period edit fields run start, status, end date, flow, symptoms, then note', () => {
+  const wxml = readPageFile('pages/period/edit/edit.wxml')
+  const labels = [...wxml.matchAll(/<text class="form-label">([^<]+)<\/text>/g)].map(match => match[1])
+  assert.deepEqual(labels, ['开始日期', '经期状态', '结束日期', '经量', '症状', '备注'])
+})
+
+test('period edit status hint changes with the selected status', () => {
+  const wxml = readPageFile('pages/period/edit/edit.wxml')
+  assert.match(wxml, /经期状态[\s\S]*class="form-hint">\{\{statusHint\}\}/)
+
+  const ongoing = '进行中可稍后补结束日期'
+  const knownEnd = '选好结束日期，这次经期才有确定的天数'
+  const unknownEnd = '结束日不清楚，日历只标开始那天'
+  assert.equal(new Set([ongoing, knownEnd, unknownEnd]).size, 3)
+
+  const env = createPeriodEditSaveEnv()
+  try {
+    env.harness.page.onLoad({})
+    assert.equal(env.harness.page.data.status, 'ongoing')
+    assert.equal(env.harness.page.data.statusHint, ongoing)
+
+    env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'unknown-end' } } })
+    assert.equal(env.harness.page.data.status, 'unknown-end')
+    assert.equal(env.harness.page.data.statusHint, unknownEnd)
+
+    env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'known-end' } } })
+    assert.equal(env.harness.page.data.status, 'known-end')
+    assert.equal(env.harness.page.data.statusHint, knownEnd)
+
+    env.harness.page.onLoad({
+      id: 'p1',
+      startDate: '2026-09-01',
+      endDate: '2026-09-03',
+      status: 'known-end'
+    })
+    assert.equal(env.harness.page.data.statusHint, knownEnd)
+  } finally {
+    env.harness.teardown()
+  }
+})
+
 test('record edit pages confirm deletes with type-specific shared consequence copy', () => {
   const periodEditJs = readPageFile('pages/period/edit/edit.js')
   const memoryEditJs = readPageFile('pages/memory/edit/edit.js')
 
   assert.match(periodEditJs, /confirmContent:\s*'删除后你们两人的日历都会移除这条经期记录，且不可恢复'/)
   assert.match(memoryEditJs, /confirmContent:\s*'删除后你们两人的日历都会移除这条欢乐时光，且不可恢复'/)
+})
+
+test('both edit pages keep the delete area apart from save', () => {
+  for (const [wxmlPath, wxssPath] of [
+    ['pages/period/edit/edit.wxml', 'pages/period/edit/edit.wxss'],
+    ['pages/memory/edit/edit.wxml', 'pages/memory/edit/edit.wxss']
+  ]) {
+    const wxml = readPageFile(wxmlPath)
+    const wxss = readPageFile(wxssPath)
+    assert.match(
+      wxml,
+      /<view class="btns">[\s\S]*<\/view>\s*<view wx:if="\{\{isEdit\}\}" class="delete-zone">[\s\S]*bindtap="delete"[\s\S]*删除此记录<\/view>/
+    )
+    const zone = /\.delete-zone\s*\{([^}]*)\}/.exec(wxss)
+    assert.ok(zone, `${wxssPath} should define .delete-zone`)
+    assert.match(zone[1], /margin-top:\s*var\(--space-xxl\)/)
+    assert.match(zone[1], /padding-top:\s*var\(--space-md\)/)
+    assert.match(zone[1], /border-top:\s*1px solid var\(--glass-border\)/)
+  }
+})
+
+test('both edit pages confirm deletion with a danger-colored 删除 button', async () => {
+  const cases = [
+    {
+      page: 'pages/period/edit/edit.js',
+      load: { id: 'p1', startDate: '2026-09-01', endDate: '2026-09-03', status: 'known-end' },
+      content: '删除后你们两人的日历都会移除这条经期记录，且不可恢复'
+    },
+    {
+      page: 'pages/memory/edit/edit.js',
+      load: { id: 'm1', date: '2026-09-01', note: '野餐' },
+      content: '删除后你们两人的日历都会移除这条欢乐时光，且不可恢复'
+    }
+  ]
+
+  for (const spec of cases) {
+    const env = createEditDeleteEnv(spec.page, spec.load)
+    try {
+      const pending = env.harness.page.delete()
+      assert.equal(env.modals.length, 1)
+      assert.equal(env.modals[0].confirmText, '删除')
+      assert.equal(env.modals[0].confirmColor, '#F97373')
+      assert.equal(env.modals[0].content, spec.content)
+      env.modals[0].success({ confirm: false, cancel: true })
+      assert.deepEqual(await pending, { kind: 'cancelled' })
+    } finally {
+      env.harness.teardown()
+    }
+  }
 })
 
 test('memory edit page greets a saved happy time with warm two-person feedback', () => {
@@ -2864,6 +2954,9 @@ test('period edit keeps fields and delete unavailable until the save finishes', 
         notifyPreviousPageRecordChange() {}
       },
       'utils/cycle.js': {
+        periodStatusHint() {
+          return ''
+        },
         FLOW_OPTIONS: [{ value: 'heavy', label: '量大' }, { value: 'light', label: '量少' }],
         PERIOD_STATUS_OPTIONS: [
           { value: 'ongoing', label: '进行中' },

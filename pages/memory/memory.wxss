@@ -29,7 +29,8 @@
 .list-item:last-child {
   border-bottom: none;
 }
-.list-item:active {
+.list-item:active,
+.list-item.list-item-hover {
   background: rgba(255,255,255,0.05);
 }
 
@@ -121,6 +122,9 @@
   .skeleton-line {
     animation: none;
   }
+  .load-failed {
+    transition: none;
+  }
 }
 
 /* Empty State */
@@ -142,6 +146,11 @@
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.load-failed:active,
+.load-failed.load-failed-hover {
+  transform: scale(0.98);
 }
 .retry-btn {
   min-height: 88rpx;
@@ -155,6 +164,7 @@
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
 }
-.retry-btn:active {
+.retry-btn:active,
+.retry-btn.retry-btn-hover {
   transform: scale(0.96);
 }

@@ -741,7 +741,7 @@ test('buildPeriodQuickAction names the ongoing period day and otherwise stays a 
   assert.equal(periods[1].status, 'ongoing')
 })
 
-test('buildSymptomOptions groups every symptom into exactly one body or emotion group', () => {
+test('buildSymptomOptions groups every symptom into body or mood-and-sleep', () => {
   assert.equal(typeof cycle.buildSymptomOptions, 'function')
 
   const groups = cycle.buildSymptomOptions(['mood'])
@@ -750,9 +750,10 @@ test('buildSymptomOptions groups every symptom into exactly one body or emotion 
     groups.map(group => ({ key: group.key, label: group.label })),
     [
       { key: 'body', label: '身体' },
-      { key: 'emotion', label: '情绪' }
+      { key: 'emotion', label: '情绪与睡眠' }
     ]
   )
+  assert.equal(groups.some(group => group.label === '情绪'), false)
 
   const flattened = groups.flatMap(group => group.options)
   assert.deepEqual(
