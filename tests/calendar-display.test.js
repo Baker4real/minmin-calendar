@@ -609,7 +609,7 @@ function loadSettingsHarness() {
       { buildRoomDisplayState: () => ({ roomCode: '', roomCodeDisplay: '未绑定' }) }
     ],
     [path.join(repoRoot, 'utils/settingsFlow.js'), {}],
-    [path.join(repoRoot, 'utils/safeArea.js'), { getSafeTop: () => 0, getSafeBottom: () => 0 }]
+    [path.join(repoRoot, 'utils/safeArea.js'), { getSafeTop: () => 0, getSafeBottom: () => 0, getNavBarHeight: () => 44, getCapsuleRightInset: () => 94 }]
   ])
   const originalPage = global.Page
   const originalWx = global.wx

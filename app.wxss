@@ -152,10 +152,17 @@ page {
 .nav-bar {
   display: flex;
   align-items: center;
-  padding: 0 30rpx;
-  height: 88rpx;
-  position: relative;
+  box-sizing: border-box;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 10;
+  height: var(--nav-bar-height, calc(env(safe-area-inset-top, 44px) + 44px));
+  padding-top: var(--safe-top, env(safe-area-inset-top, 44px));
+  padding-right: var(--capsule-right, 96px);
+  padding-bottom: 0;
+  padding-left: 30rpx;
 }
 .nav-title {
   flex: 1;
@@ -292,7 +299,6 @@ page {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255,255,255,0.1);
-  position: relative;
   overflow: hidden;
   z-index: 10;
 }
@@ -366,9 +372,10 @@ page {
   transition: opacity var(--duration-state) ease;
 }
 
-/* Safe Area：--safe-top 由页面根节点内联注入（utils/safeArea.js），
+/* 共享顶栏：--safe-top、--nav-bar-height、--capsule-right、--safe-bottom
+   由页面根节点内联注入（utils/safeArea.js）。顶栏固定，内容从顶栏底边开始。
    env() 在部分 Android 设备解析为 0，仅作兜底 */
-.safe-top { padding-top: var(--safe-top, env(safe-area-inset-top, 88rpx)); }
+.safe-top { padding-top: var(--nav-bar-height, calc(env(safe-area-inset-top, 44px) + 44px)); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 20rpx); }
 
 /* ===== Input Placeholder ===== */

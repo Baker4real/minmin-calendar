@@ -1,4 +1,4 @@
-<view class="page safe-top {{pageObscured ? 'page-obscured' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
+<view class="page safe-top {{pageObscured ? 'page-obscured' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
 <wxs module="sheetDrag" src="../../utils/sheetDrag.wxs"></wxs>
   <!-- Aurora Decorative Orbs -->
   <view class="glow-orb glow-orb-1"></view>
@@ -7,7 +7,6 @@
   <view class="nav-bar header-gradient">
     <view class="nav-placeholder"></view>
     <view class="nav-title">美少女的日历</view>
-    <view class="nav-placeholder"></view>
   </view>
 
   <view wx:if="{{noRoom}}" class="no-room">
