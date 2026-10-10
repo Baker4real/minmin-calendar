@@ -397,8 +397,9 @@ test('record list rows, retry affordances and settings menu entries announce the
   // 经期行读屏名称带状态：日期走统一显示格式，进行中/结束日期不详由 rangeSummary 表达
   assert.equal(byHandler(period, 'editPeriod', 'list-item').attrs['aria-label'], '编辑经期记录 {{item.rangeSummary}}')
   assert.equal(byHandler(period, 'loadData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
-  assert.equal(byHandler(memory, 'editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dateLabel}} 的欢乐时光')
-  assert.equal(byHandler(memory, 'loadData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
+  assert.equal(byHandler(period, 'editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dayLabel}} 的欢乐时光')
+  assert.equal(byHandler(memory, 'editMemory', 'list-item'), undefined)
+  assert.equal(byHandler(memory, 'loadData', 'empty-state'), undefined)
 
   assert.equal(byHandler(settings, 'copyRoomCode', 'copy-btn').attrs['aria-label'], '复制房间码')
   assert.equal(byHandler(settings, 'goMemory', 'menu-item'), undefined)
@@ -446,7 +447,7 @@ test('record tab segment control reads as a radio group with a perceivable check
   assert.equal(byHandler('loadMemoryData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
   assert.equal(byHandler('addMemory', 'btn-premium').attrs['aria-label'], '记欢乐时光')
   assert.match(readPage('pages/period/period.wxml'), />＋ 记欢乐时光</)
-  assert.match(readPage('pages/memory/memory.wxml'), />＋ 记欢乐时光</)
+  assert.doesNotMatch(readPage('pages/memory/memory.wxml'), /wx:for="\{\{memories\}\}"/)
 
   // 月份卡头（issue #109）：点按切换展开/收起，按 button 朗读；
   // 读屏名「YYYY年M月，N 条欢乐时光，已展开/已收起」由分组数据绑定，
@@ -562,7 +563,8 @@ test('happy-time list rows show only the light heart, no second rose dot', () =>
   assert.match(readPage('pages/memory/memory.wxss'), /\.memory-heart\s*\{[^}]*color:\s*#F0C4C0/i)
 
   // 行内唯一标记是浅色心
-  assert.match(readPage('pages/memory/memory.wxml'), /class="memory-heart">♥</)
+  assert.match(readPage('pages/period/period.wxml'), /class="memory-heart">♥</)
+  assert.doesNotMatch(readPage('pages/memory/memory.wxml'), /class="memory-heart"/)
 })
 
 test('bind success is stated in rose text without a green checkmark', () => {
