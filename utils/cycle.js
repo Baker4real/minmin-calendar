@@ -206,6 +206,11 @@ function decoratePeriod(period, { today } = {}) {
     ? util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
     : 0
 
+  const endDateDisplay = range
+    ? range.endDate
+    : status === 'ongoing' ? (isDateString(today) ? today : '') : '结束日期不详'
+  const listStart = range ? range.startDate : (period.startDate || '')
+
   return {
     ...period,
     status,
@@ -218,10 +223,10 @@ function decoratePeriod(period, { today } = {}) {
     flowLabel,
     symptomLabels,
     symptomText: symptomLabels.join('、'),
-    endDateDisplay: range
-      ? range.endDate
-      : status === 'ongoing' ? (isDateString(today) ? today : '') : '结束日期不详',
+    endDateDisplay,
     durationText: range ? `${duration}天` : PERIOD_STATUS_LABELS[status] || '',
+    // 列表日期行不再重复状态词：结束日期不详只留在时长位，其余仍是「开始 ~ 结束展示」
+    listDateText: status === 'unknown-end' ? listStart : `${listStart} ~ ${endDateDisplay}`,
     rangeSummary: range
       ? `${range.startDate} 至 ${range.endDate}`
       : status === 'ongoing'
@@ -349,6 +354,52 @@ function projectPeriodRange(period, today) {
   }
   const range = util.normalizeDateRange(period)
   return range ? { startDate: range.startDate, endDate: range.endDate, status } : null
+}
+
+const ONGOING_PERIOD_NOTICE = '已有进行中的经期，继续编辑它'
+
+// 某一天落在哪条记录的投影里。进行中投到今天，结束日期不详只投开始日，已知结束含首尾。
+// 同一天被多条盖住时取开始日最晚的那条。
+function findPeriodCoveringDate(periods, date, today) {
+  if (!isDateString(date)) return null
+  const list = Array.isArray(periods) ? periods : []
+  let match = null
+  list.forEach(period => {
+    if (!period) return
+    const range = projectPeriodRange(period, today)
+    if (!range || date < range.startDate || date > range.endDate) return
+    if (!match || (period.startDate || '') > (match.startDate || '')) match = period
+  })
+  return match
+}
+
+// 为某一天记经期：先让进行中记录接手，再打开投影盖住这一天的记录，否则以这一天为开始日新建。
+function decidePeriodRecordForDate(periods, date, options = {}) {
+  const today = options.today || ''
+  const ongoing = findOngoingPeriod(periods)
+  if (ongoing) {
+    return {
+      action: 'open',
+      record: ongoing,
+      startDate: ongoing.startDate || '',
+      notice: ONGOING_PERIOD_NOTICE
+    }
+  }
+  const covering = findPeriodCoveringDate(periods, date, today)
+  if (covering) {
+    return {
+      action: 'open',
+      record: covering,
+      startDate: covering.startDate || '',
+      notice: ''
+    }
+  }
+  return {
+    action: 'create',
+    record: null,
+    startDate: date,
+    notice: ''
+  }
 }
 
 // 结束日期存在但不是合法日期（如 2026-01-32）是损坏数据，不当作结束日期不详
@@ -537,6 +588,8 @@ module.exports = {
   getPeriodStatus,
   isPeriodStatus,
   findOngoingPeriod,
+  findPeriodCoveringDate,
+  decidePeriodRecordForDate,
   buildPeriodQuickAction,
   projectPeriodRange,
   getPeriodDuration,

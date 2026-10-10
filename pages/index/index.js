@@ -680,26 +680,29 @@ Page({
     return parts.join(' · ')
   },
 
-  // 日历日动作与周期提醒：已有进行中的经期时打开原记录，不建第二条；
-  // 否则按给定日期新增。首页「记结束」不走这里，它预选已结束且结束日为今天。
-  openPeriodForDate(date) {
-    const ongoing = cycle.findOngoingPeriod(this.data.periods)
-    if (ongoing) {
-      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(ongoing) })
-      return
-    }
-    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: date }) })
-  },
-  quickPeriod() {
+  // 首页按钮、当日弹层和周期提醒共用「为这一天记经期」：
+  // 进行中记录优先打开并提示；这一天落在已有投影里就打开那条；否则以这一天为开始日新建。
+  // 首页「记结束」在打开进行中记录时仍预选已结束、结束日为今天。
+  openPeriodForDate(date, options = {}) {
     const today = util.formatDate(new Date())
-    const ongoing = cycle.findOngoingPeriod(this.data.periods)
-    if (ongoing) {
+    const decision = cycle.decidePeriodRecordForDate(this.data.periods, date, { today })
+    if (decision.notice) {
+      wx.showToast({ title: decision.notice, icon: 'none' })
+    }
+    if (decision.action === 'open') {
+      const completing = options.completeOngoing && cycle.getPeriodStatus(decision.record) === 'ongoing'
       wx.navigateTo({
-        url: recordEditRoute.buildPeriodEditUrl(ongoing, { intent: 'complete', today })
+        url: recordEditRoute.buildPeriodEditUrl(
+          decision.record,
+          completing ? { intent: 'complete', today } : undefined
+        )
       })
       return
     }
-    this.openPeriodForDate(today)
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: decision.startDate || date }) })
+  },
+  quickPeriod() {
+    this.openPeriodForDate(util.formatDate(new Date()), { completeOngoing: true })
   },
   onReminderTap(e) {
     const reminder = this.data.cycleReminders[e.currentTarget.dataset.index]

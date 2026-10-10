@@ -229,6 +229,7 @@ test('buildPeriodPayload and decoratePeriod normalize optional flow and symptom 
     symptomText: '痛经、头痛',
     endDateDisplay: '2026-06-12',
     durationText: '3天',
+    listDateText: '2026-06-10 ~ 2026-06-12',
     rangeSummary: '2026-06-10 至 2026-06-12'
   })
 })
@@ -318,6 +319,68 @@ test('findOngoingPeriod returns the ongoing record and projectPeriodRange never 
   )
   // 开始日期晚于今天的进行中数据不投影未来
   assert.equal(cycle.projectPeriodRange({ startDate: '2026-09-30', status: 'ongoing' }, '2026-09-24'), null)
+})
+
+test('decidePeriodRecordForDate opens an ongoing record, a day inside an existing record, or creates', () => {
+  assert.equal(typeof cycle.decidePeriodRecordForDate, 'function')
+
+  const today = '2026-06-26'
+  const finished = { _id: 'finished', startDate: '2026-06-01', endDate: '2026-06-05', status: 'known-end' }
+  const ongoing = { _id: 'ongoing', startDate: '2026-06-20', endDate: '', status: 'ongoing' }
+
+  // 有进行中记录时，即使所选日落在另一条已结束记录里，也打开进行中那条并给出记录页同款提示
+  const duringOngoing = cycle.decidePeriodRecordForDate([finished, ongoing], '2026-06-03', { today })
+  assert.equal(duringOngoing.action, 'open')
+  assert.equal(duringOngoing.record._id, 'ongoing')
+  assert.equal(duringOngoing.notice, '已有进行中的经期，继续编辑它')
+
+  const insideFinished = cycle.decidePeriodRecordForDate([finished], '2026-06-03', { today })
+  assert.equal(insideFinished.action, 'open')
+  assert.equal(insideFinished.record._id, 'finished')
+  assert.equal(insideFinished.notice, '')
+
+  const freeDay = cycle.decidePeriodRecordForDate([finished], '2026-06-10', { today })
+  assert.deepEqual(
+    {
+      action: freeDay.action,
+      startDate: freeDay.startDate,
+      notice: freeDay.notice,
+      record: freeDay.record
+    },
+    { action: 'create', startDate: '2026-06-10', notice: '', record: null }
+  )
+})
+
+test('period record projection crosses months, keeps an unknown end on its start day, and runs ongoing through today', () => {
+  const today = '2026-06-26'
+  const crossMonth = {
+    _id: 'cross',
+    startDate: '2026-01-30',
+    endDate: '2026-02-02',
+    status: 'known-end'
+  }
+  assert.equal(cycle.decidePeriodRecordForDate([crossMonth], '2026-01-30', { today }).record._id, 'cross')
+  assert.equal(cycle.decidePeriodRecordForDate([crossMonth], '2026-01-31', { today }).record._id, 'cross')
+  assert.equal(cycle.decidePeriodRecordForDate([crossMonth], '2026-02-01', { today }).record._id, 'cross')
+  assert.equal(cycle.decidePeriodRecordForDate([crossMonth], '2026-02-02', { today }).record._id, 'cross')
+  assert.equal(cycle.decidePeriodRecordForDate([crossMonth], '2026-01-29', { today }).action, 'create')
+  assert.equal(cycle.decidePeriodRecordForDate([crossMonth], '2026-02-03', { today }).startDate, '2026-02-03')
+
+  const unknownEnd = { _id: 'unknown', startDate: '2026-08-12', endDate: '', status: 'unknown-end' }
+  assert.equal(cycle.decidePeriodRecordForDate([unknownEnd], '2026-08-12', { today }).record._id, 'unknown')
+  assert.equal(cycle.decidePeriodRecordForDate([unknownEnd], '2026-08-13', { today }).action, 'create')
+  assert.equal(cycle.decidePeriodRecordForDate([unknownEnd], '2026-09-12', { today }).action, 'create')
+
+  const ongoing = { _id: 'ongoing', startDate: '2026-05-28', endDate: '', status: 'ongoing' }
+  assert.equal(cycle.findPeriodCoveringDate([ongoing], '2026-05-28', today)._id, 'ongoing')
+  assert.equal(cycle.findPeriodCoveringDate([ongoing], '2026-06-26', today)._id, 'ongoing')
+  assert.equal(cycle.findPeriodCoveringDate([ongoing], '2026-06-27', today), null)
+  assert.equal(cycle.findPeriodCoveringDate([ongoing], '2026-05-27', today), null)
+
+  const outsideProjection = cycle.decidePeriodRecordForDate([ongoing], '2026-04-01', { today })
+  assert.equal(outsideProjection.action, 'open')
+  assert.equal(outsideProjection.record._id, 'ongoing')
+  assert.equal(outsideProjection.notice, '已有进行中的经期，继续编辑它')
 })
 
 test('decoratePeriod exposes ongoing and unknown-end status copy instead of a blank date', () => {

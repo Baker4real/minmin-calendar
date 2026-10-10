@@ -426,6 +426,7 @@ function loadPageHarness({ client, calendarState } = {}) {
     switchTab() {},
     redirectTo() {},
     navigateTo() {},
+    showToast() {},
     nextTick(callback) {
       setTimeout(callback, 0)
     }
@@ -720,6 +721,58 @@ test('calendar day period action reopens the ongoing record or creates for the s
     assert.deepEqual(navigation, [
       '/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing',
       '/pages/period/edit/edit?startDate=2026-06-10'
+    ])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('home period entries share one record decision and the same ongoing notice', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const navigation = []
+    const toasts = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+    global.wx.showToast = options => toasts.push(options)
+    const notice = { title: '已有进行中的经期，继续编辑它', icon: 'none' }
+    const ongoing = { _id: 'p2', startDate: '2026-06-20', endDate: '', status: 'ongoing' }
+    const finished = { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', status: 'known-end' }
+
+    harness.page.setData({ periods: [finished, ongoing] })
+    harness.page.quickPeriod()
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-03' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.setData({
+      cycleReminders: [{ type: 'due', action: 'quickPeriod', date: '2026-06-26' }]
+    })
+    harness.page.onReminderTap({ currentTarget: { dataset: { index: 0 } } })
+
+    assert.deepEqual(toasts, [notice, notice, notice])
+    assert.deepEqual(navigation, [
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end',
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing',
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing'
+    ])
+
+    navigation.length = 0
+    toasts.length = 0
+    harness.page.setData({ periods: [finished] })
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-03' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-10' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.quickPeriod()
+    harness.page.setData({
+      cycleReminders: [{ type: 'due', action: 'quickPeriod', date: '2026-06-04' }]
+    })
+    harness.page.onReminderTap({ currentTarget: { dataset: { index: 0 } } })
+
+    assert.deepEqual(toasts, [])
+    assert.deepEqual(navigation, [
+      '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&status=known-end',
+      '/pages/period/edit/edit?startDate=2026-06-10',
+      '/pages/period/edit/edit?startDate=2026-06-26',
+      '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&status=known-end'
     ])
   } finally {
     harness.teardown()
