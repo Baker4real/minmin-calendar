@@ -97,8 +97,10 @@
 .btn-danger {
   line-height: var(--line-height-assist);
 }
-.btn-premium {
-  margin-bottom: 20rpx;
+.delete-zone {
+  margin-top: var(--space-xxl);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--glass-border);
 }
 
 /* 减弱动效：边框过渡即时切换，不做渐进

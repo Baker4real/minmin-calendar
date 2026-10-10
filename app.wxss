@@ -53,6 +53,7 @@ page {
   --text-white: #FFFFFF;
   --text-primary: rgba(255,255,255,0.85);
   --text-secondary: rgba(255,255,255,0.6);
+  --text-placeholder: rgba(255,255,255,0.6);
   --text-tertiary: rgba(255,255,255,0.35);
 
   /* Gradients 已全部退役：--gradient-gold（玫瑰 → 金，CTA 误用形态，issue #55）、
@@ -410,7 +411,8 @@ page {
 
 /* ===== Input Placeholder ===== */
 .input-placeholder {
-  color: var(--text-tertiary);
+  color: var(--text-placeholder);
+  font-size: var(--font-size-input);
 }
 
 /* ===== Reduced Motion — 全局兜底 =====
