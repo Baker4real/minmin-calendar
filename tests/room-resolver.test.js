@@ -44,7 +44,7 @@ test('getActiveRoom errors become retryable failures', async () => {
 
   assert.deepEqual(outcome, {
     kind: 'retryable-failure',
-    message: 'network down'
+    message: '网络不太稳定，请重试'
   })
 })
 

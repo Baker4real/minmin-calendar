@@ -26,7 +26,7 @@ function copyRoomCode(options = {}) {
       },
       fail: error => {
         showToast(wxApi, { title: '复制失败', icon: 'error' })
-        resolve({ kind: 'copy-failed', message: getErrorMessage(error) })
+        resolve({ kind: 'copy-failed', message: roomAccessOutcome.presentUserFailure(getErrorMessage(error)) })
       }
     })
   })
@@ -79,7 +79,7 @@ async function exportRecordsAsJson(options = {}) {
     showToast(wxApi, { title: '导出失败', icon: 'error' })
     return {
       kind: 'export-failed',
-      message: getErrorMessage(error)
+      message: roomAccessOutcome.presentUserFailure(getErrorMessage(error))
     }
   }
 }
@@ -161,7 +161,9 @@ function getRoomRepairMessage(repair) {
   if (repair && repair.kind === 'success' && !repair.bound) {
     return '房间状态已变化，请重新绑定'
   }
-  return repair && repair.message ? repair.message : '同步房间状态失败，请稍后重试'
+  return roomAccessOutcome.presentUserFailure(
+    repair && repair.message ? repair.message : '同步房间状态失败，请稍后重试'
+  )
 }
 
 function createLoadingGuard(wxApi) {

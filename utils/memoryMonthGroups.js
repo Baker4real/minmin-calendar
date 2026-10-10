@@ -1,3 +1,5 @@
+const util = require('./util')
+
 /**
  * 月份键（issue #107）：记录日期（合法 YYYY-MM-DD）所属的公历月份 = 日期前 7 位（YYYY-MM）。
  * 分组模块与页面保存通知（period.js applyRecordChange）共用，避免各自内联日期切片
@@ -19,7 +21,8 @@ const COLLAPSED = 'collapsed'
  * 分组前提与列表一致：日期都是云端写入时校验过的合法 YYYY-MM-DD。
  * 读屏名（ariaLabel）带展开状态，由 applyMemoryMonthExpansion 独家产出；build 不写死。
  */
-function buildMemoryMonthGroups(memories) {
+function buildMemoryMonthGroups(memories, options = {}) {
+  const today = options.today
   const records = Array.isArray(memories) ? memories : []
   const groupsByKey = new Map()
 
@@ -42,7 +45,7 @@ function buildMemoryMonthGroups(memories) {
       _id: memory._id,
       date,
       note: memory.note || '',
-      dayLabel: `${Number(date.slice(5, 7))}月${Number(date.slice(8, 10))}日`
+      dayLabel: util.formatDisplayDate(date, { today })
     })
   }
 

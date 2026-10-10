@@ -37,8 +37,6 @@
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.13);
   box-shadow: 0 8rpx 26rpx rgba(0,0,0,0.14);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   pointer-events: none;
   opacity: 0;
   transform: translateY(-8rpx);
@@ -54,7 +52,6 @@
   height: 10rpx;
   border-radius: var(--radius-circle);
   background: var(--aurora-gold);
-  box-shadow: 0 0 12rpx rgba(212,165,116,0.5);
 }
 .sync-pill.syncing .sync-dot {
   background: #E8909E;
@@ -108,12 +105,8 @@
   align-items: center;
   padding: 12rpx 24rpx;
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,0.15);
-  box-shadow:
-    0 8px 32px rgba(232,144,158,0.15),
-    inset 0 1px 0 rgba(255,255,255,0.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
   border-radius: var(--radius-card);
   margin: 10rpx 0 8rpx;
   position: relative;
@@ -189,8 +182,6 @@
   padding: 8rpx 10rpx;
   margin-bottom: 0;
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--radius-card) var(--radius-card) 0 0;
 }
@@ -207,8 +198,6 @@
   display: flex;
   flex-wrap: wrap;
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 0 0 var(--radius-card) var(--radius-card);
   padding: 6rpx 10rpx;
@@ -681,7 +670,7 @@
 }
 
 /* ===== Calendar Month Jump Sheet ===== */
-.month-jump-mask {
+.sheet-host.month-jump-mask {
   z-index: 62;
 }
 .calendar-jump-sheet {
@@ -823,7 +812,8 @@
 }
 
 /* ===== Day Action Sheet ===== */
-.day-sheet-mask {
+/* issue #134：遮罩与面板是兄弟。宿主只负责铺满与叠层，自己不是关闭控件。 */
+.sheet-host {
   position: fixed;
   top: 0;
   right: 0;
@@ -833,6 +823,16 @@
   display: flex;
   align-items: flex-end;
   padding: 0 20rpx 0;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.day-sheet-mask {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  pointer-events: auto;
   box-sizing: border-box;
   background: rgba(10,14,39,0.88);
   /* 全屏遮罩 blur 压到 modal-overlay 登记的 8px：88% 不透明底上更大 blur 不可见，纯 GPU 开销（issue #58） */
@@ -852,18 +852,24 @@
 .day-sheet-mask.sheet-leaving {
   pointer-events: none;
 }
+.sheet-slide.sheet-leaving {
+  pointer-events: none;
+}
 .sheet-slide {
+  position: relative;
+  z-index: 1;
   width: 100%;
   padding-bottom: 20rpx;
   box-sizing: border-box;
+  pointer-events: auto;
   transform: translateY(100%);
   transition: transform var(--duration-exit) var(--ease-out);
 }
-.day-sheet-mask.sheet-open .sheet-slide {
+.sheet-slide.sheet-open {
   transform: translateY(0);
   transition: transform var(--duration-sheet) var(--ease-out);
 }
-.day-sheet-mask.sheet-open .sheet-slide.sheet-reset {
+.sheet-slide.sheet-open.sheet-reset {
   transition: transform var(--duration-exit) var(--ease-out);
 }
 .day-action-sheet {
@@ -1175,7 +1181,7 @@
 }
 
 /* ===== Calendar Info Sheet ===== */
-.calendar-info-sheet {
+.sheet-host.calendar-info-sheet {
   z-index: 64;
 }
 .calendar-info-panel {
@@ -1324,10 +1330,20 @@
 .page.page-obscured .header-gradient::after {
   animation-play-state: paused;
 }
+.reduced-motion-probe {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
 @media (prefers-reduced-motion: reduce) {
+  .reduced-motion-probe {
+    width: 1px;
+  }
   .day-sheet-mask.sheet-open,
-  .day-sheet-mask.sheet-open .sheet-slide,
-  .day-sheet-mask.sheet-open .sheet-slide.sheet-reset,
+  .sheet-slide.sheet-open,
+  .sheet-slide.sheet-open.sheet-reset,
   .sheet-slide,
   .sync-pill,
   .sync-pill.sync-open,
