@@ -773,7 +773,7 @@ test('homepage quick period action names the ongoing day and opens that record e
   }
 })
 
-// issue #100：日历日动作 sheet 的「记录经期」与快捷入口同一决策——
+// issue #100：日历日动作 sheet 的「记经期」与快捷入口同一决策——
 // 房间已有进行中记录时打开那条记录，否则按所选日期新增（默认状态由路由按开始日期推导）
 test('calendar day period action reopens the ongoing record or creates for the selected date', () => {
   const harness = loadPageHarness({ client: createQueuedClient([]) })
@@ -781,7 +781,7 @@ test('calendar day period action reopens the ongoing record or creates for the s
     const navigation = []
     global.wx.navigateTo = options => navigation.push(options.url)
 
-    // 已有进行中记录：从日历选过去某天点「记录经期」，打开那条进行中记录
+    // 已有进行中记录：从日历选过去某天点「记经期」，打开那条进行中记录
     harness.page._homeRecords = {
       periods: [
         { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 },
@@ -867,7 +867,7 @@ test('home period entries share one record decision and the same ongoing notice'
   }
 })
 
-// issue #100：晚于今天的日期不提供可用的「记录经期」——动作 sheet 隐藏该入口（DESIGN.md 已登记），
+// issue #100：晚于今天的日期不提供可用的「记经期」——动作 sheet 隐藏该入口（DESIGN.md 已登记），
 // 处理器侧保留不导航的兜底防线；编辑页日期上限与保存校验仍是最后防线
 test('calendar day period action is not usable for future dates', () => {
   const harness = loadPageHarness({ client: createQueuedClient([]) })

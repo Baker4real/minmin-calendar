@@ -705,7 +705,7 @@ Page({
     if (!date) return
 
     if (action === 'period') {
-      // 未来日期不提供记录经期（模板已隐藏入口，这里是不导航的兜底防线）
+      // 未来日期不提供记经期（模板已隐藏入口，这里是不导航的兜底防线）
       if (this.data.selectedDateIsFuture) return
       this.closeDayActions()
       this.openPeriodForDate(date)
