@@ -2859,9 +2859,18 @@ test('period edit completes the same ongoing record by filling an end date', asy
     assert.equal(env.harness.page.data.status, 'ongoing')
     assert.equal(env.harness.page.data.endDate, '')
 
-    // 切到已结束：结束日期选择器出现，缺省用开始日（同日是合法单日记录）
+    // 完成进行中记录：结束日兜底为今天，并实时显示含首尾天数；超预期只提示，不改选择
     env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'known-end' } } })
-    assert.equal(env.harness.page.data.endDate, '2026-09-10')
+    assert.equal(env.harness.page.data.status, 'known-end')
+    assert.equal(env.harness.page.data.endDate, '2026-09-20')
+    assert.equal(env.harness.page.data.periodDayCountText, '共 11 天')
+    assert.equal(env.harness.page.data.periodLengthHint, '超过预期的 5 天，请核对结束日期')
+    const periodEditWxml = readPageFile('pages/period/edit/edit.wxml')
+    const endLabel = periodEditWxml.indexOf('结束日期')
+    const dayText = periodEditWxml.indexOf('{{periodDayCountText}}')
+    const lengthHint = periodEditWxml.indexOf('{{periodLengthHint}}')
+    const noteLabel = periodEditWxml.indexOf('备注')
+    assert.ok(endLabel !== -1 && endLabel < dayText && dayText < lengthHint && lengthHint < noteLabel)
 
     env.harness.page.onEndChange({ detail: { value: '2026-09-14' } })
     const outcome = await env.harness.page.save()
@@ -2880,6 +2889,55 @@ test('period edit completes the same ongoing record by filling an end date', asy
       flow: '',
       symptoms: []
     })
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('period edit backfills a past period with an empty end date until the user chooses one', async () => {
+  const env = createPeriodEditSaveEnv()
+
+  try {
+    env.harness.page.onLoad({ startDate: '2026-06-10' })
+    assert.equal(env.harness.page.data.status, 'known-end')
+    assert.equal(env.harness.page.data.endDate, '')
+    assert.equal(env.harness.page.data.periodDayCountText, '')
+
+    env.harness.page.onStartChange({ detail: { value: '2026-06-12' } })
+    assert.equal(env.harness.page.data.startDate, '2026-06-12')
+    assert.equal(env.harness.page.data.endDate, '')
+
+    const outcome = await env.harness.page.save()
+    assert.deepEqual(outcome, {
+      kind: 'validation',
+      message: '请选择结束日期；还没结束可以选「进行中」'
+    })
+    assert.equal(env.adds.length, 0)
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('period edit length hint uses completed history instead of the five-day default', async () => {
+  const env = createPeriodEditSaveEnv({
+    periods: [
+      { startDate: '2026-05-01', endDate: '2026-05-03', status: 'known-end' },
+      { startDate: '2026-06-01', endDate: '2026-06-03', status: 'known-end' }
+    ]
+  })
+
+  try {
+    await env.harness.page.onLoad({
+      id: 'p9',
+      startDate: '2026-08-01',
+      endDate: '2026-08-04',
+      status: 'known-end'
+    })
+
+    assert.equal(env.harness.page.data.endDate, '2026-08-04')
+    assert.equal(env.harness.page.data.status, 'known-end')
+    assert.equal(env.harness.page.data.periodDayCountText, '共 4 天')
+    assert.equal(env.harness.page.data.periodLengthHint, '超过预期的 3 天，请核对结束日期')
   } finally {
     env.harness.teardown()
   }
@@ -2951,10 +3009,13 @@ test('period edit completes an unknown-end record with an exact duration by fill
     assert.equal(env.harness.page.data.status, 'unknown-end')
     assert.equal(env.harness.page.data.endDate, '')
 
-    // 想起结束日期：切到已结束并补填，同一条记录转为有结束日期的已完成记录
+    // 从结束日期不详切到已结束：结束日保持为空，不再兜底为开始日
     env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'known-end' } } })
-    assert.equal(env.harness.page.data.endDate, '2026-08-01')
+    assert.equal(env.harness.page.data.endDate, '')
+    assert.equal(env.harness.page.data.periodDayCountText, '')
     env.harness.page.onEndChange({ detail: { value: '2026-08-04' } })
+    assert.equal(env.harness.page.data.periodDayCountText, '共 4 天')
+    assert.equal(env.harness.page.data.periodLengthHint, '')
 
     const outcome = await env.harness.page.save()
 
@@ -3241,7 +3302,7 @@ test('period list reopens the existing ongoing record when the add button is tap
 // 进行中/已知结束两条主路径共用的编辑页保存环境：
 // 真实 cycle 与 recordEditRoute，云端与命令层用可捕获的桩。
 // util 只固定「今天」，其余日期能力委托真实模块，保证真实 cycle 拿到完整接缝。
-function createPeriodEditSaveEnv() {
+function createPeriodEditSaveEnv({ periods = null } = {}) {
   const toasts = []
   const adds = []
   const updates = []
@@ -3252,7 +3313,7 @@ function createPeriodEditSaveEnv() {
       'utils/util.js': { ...realUtil, formatDate: () => '2026-09-20' },
       'utils/cloud.js': {
         createRoomDataClient() {
-          return {
+          const client = {
             async add(collection, payload) {
               adds.push({ collection, payload })
               return { kind: 'success', result: { record: { _id: 'new-1', ...payload } } }
@@ -3262,6 +3323,13 @@ function createPeriodEditSaveEnv() {
               return { kind: 'success', result: { record: { _id: id, ...payload } } }
             }
           }
+          if (periods) {
+            client.list = async (collection) => {
+              if (collection !== 'periods') throw new Error(`unexpected list ${collection}`)
+              return { kind: 'success', data: periods }
+            }
+          }
+          return client
         }
       },
       'utils/recordCommands.js': {

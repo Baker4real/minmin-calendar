@@ -48,6 +48,8 @@
             <text class="form-picker-arrow">›</text>
           </view>
         </picker>
+        <text wx:if="{{periodDayCountText}}" class="form-hint period-length-hint">{{periodDayCountText}}</text>
+        <text wx:if="{{periodLengthHint}}" class="form-hint period-length-hint">{{periodLengthHint}}</text>
       </view>
       <view class="form-item">
         <text class="form-label">备注</text>
