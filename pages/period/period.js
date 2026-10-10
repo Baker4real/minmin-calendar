@@ -23,6 +23,14 @@ Page({
     return this.data.segment === 'memory' ? this.loadMemoryData() : this.loadData()
   },
 
+  onPullDownRefresh() {
+    const task = this.data.segment === 'memory' ? this.loadMemoryData() : this.loadData()
+    const stop = () => {
+      if (typeof wx.stopPullDownRefresh === 'function') wx.stopPullDownRefresh()
+    }
+    return Promise.resolve(task).then(stop, stop)
+  },
+
   consumeSegmentIntent() {
     let segment = ''
     try {
@@ -82,6 +90,7 @@ Page({
 
   async loadMemoryData() {
     const client = cloud.createRoomDataClient()
+    const today = util.formatDate(new Date())
     await recordCommands.runRecordListLoad({
       page: this,
       itemsKey: 'memories',
@@ -95,7 +104,7 @@ Page({
         this.setData({
           memoryHasLoaded: true,
           memoryGroups: memoryMonthGroups.applyMemoryMonthExpansion(
-            memoryMonthGroups.buildMemoryMonthGroups(memories),
+            memoryMonthGroups.buildMemoryMonthGroups(memories, { today }),
             this.memoryMonthChoices
           )
         })

@@ -73,7 +73,8 @@ function predictNextPeriod(periods, options = {}) {
       confidence,
       usedCycleCount: recentCycles.length,
       ignoredCycleCount,
-      source: 'history'
+      source: 'history',
+      today: options.today
     })
   }
 
@@ -87,7 +88,8 @@ function predictNextPeriod(periods, options = {}) {
       confidence: 'low',
       usedCycleCount: 1,
       ignoredCycleCount,
-      source: 'history'
+      source: 'history',
+      today: options.today
     })
   }
 
@@ -102,7 +104,8 @@ function predictNextPeriod(periods, options = {}) {
       confidence: 'low',
       usedCycleCount: 0,
       ignoredCycleCount,
-      source: 'manual'
+      source: 'manual',
+      today: options.today
     })
   }
 
@@ -196,6 +199,27 @@ function buildPeriodPayload({ startDate, endDate = '', status, note = '', flow =
   }
 }
 
+function periodDateLabel(status, range, period, today) {
+  if (range) return util.formatDisplayDateRange(range.startDate, range.endDate, { today })
+  if (status === 'ongoing') {
+    if (isDateString(today) && isDateString(period.startDate)) {
+      return util.formatDisplayDateRange(period.startDate, today, { today })
+    }
+    return util.formatDisplayDate(period.startDate, { today })
+  }
+  return util.formatDisplayDate(period.startDate, { today })
+}
+
+function periodRangeSummary(status, range, period, today) {
+  if (range) return util.formatDisplayDateRange(range.startDate, range.endDate, { today })
+  if (status === 'ongoing') {
+    const label = periodDateLabel(status, range, period, today)
+    return label ? `${label}，进行中` : '进行中'
+  }
+  const start = periodDateLabel(status, range, period, today)
+  return start ? `${start}，结束日期不详` : '结束日期不详'
+}
+
 function decoratePeriod(period, { today } = {}) {
   const status = getPeriodStatus(period)
   const range = status === 'known-end' ? util.normalizeDateRange(period) : null
@@ -205,11 +229,6 @@ function decoratePeriod(period, { today } = {}) {
   const duration = range
     ? util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
     : 0
-
-  const endDateDisplay = range
-    ? range.endDate
-    : status === 'ongoing' ? (isDateString(today) ? today : '') : '结束日期不详'
-  const listStart = range ? range.startDate : (period.startDate || '')
 
   return {
     ...period,
@@ -223,15 +242,12 @@ function decoratePeriod(period, { today } = {}) {
     flowLabel,
     symptomLabels,
     symptomText: symptomLabels.join('、'),
-    endDateDisplay,
+    endDateDisplay: range
+      ? util.formatDisplayDate(range.endDate, { today })
+      : status === 'ongoing' ? (isDateString(today) ? util.formatDisplayDate(today, { today }) : '') : '结束日期不详',
     durationText: range ? `${duration}天` : PERIOD_STATUS_LABELS[status] || '',
-    // 列表日期行不再重复状态词：结束日期不详只留在时长位，其余仍是「开始 ~ 结束展示」
-    listDateText: status === 'unknown-end' ? listStart : `${listStart} ~ ${endDateDisplay}`,
-    rangeSummary: range
-      ? `${range.startDate} 至 ${range.endDate}`
-      : status === 'ongoing'
-        ? (isDateString(today) ? `${period.startDate} 至 ${today}，进行中` : `${period.startDate}，进行中`)
-        : `${period.startDate}，结束日期不详`
+    dateLabel: periodDateLabel(status, range, period, today),
+    rangeSummary: periodRangeSummary(status, range, period, today)
   }
 }
 
@@ -249,9 +265,9 @@ function buildSymptomOptions(selectedSymptoms = []) {
   }))
 }
 
-function formatPredictionRange(prediction) {
+function formatPredictionRange(prediction, today) {
   if (!prediction || !prediction.canPredict) return ''
-  return `${formatMonthDay(prediction.rangeStart)}-${formatMonthDay(prediction.rangeEnd)}`
+  return util.formatDisplayDateRange(prediction.rangeStart, prediction.rangeEnd, { today })
 }
 
 function buildPrediction({
@@ -263,13 +279,13 @@ function buildPrediction({
   confidence,
   usedCycleCount,
   ignoredCycleCount,
-  source
+  source,
+  today
 }) {
   const nextStart = addDays(lastStart, avgCycle)
   const nextEnd = addDays(nextStart, Math.max(1, avgDuration) - 1)
   const rangeStart = addDays(nextStart, -rangeDays)
   const rangeEnd = addDays(nextStart, rangeDays)
-  const display = util.formatPredictDisplay(nextStart)
   const prediction = {
     canPredict: true,
     avgCycle,
@@ -284,10 +300,10 @@ function buildPrediction({
     usedCycleCount,
     ignoredCycleCount,
     source,
-    nextDisplay: display.date,
-    nextWeekday: display.weekday
+    nextDisplay: util.formatDisplayDate(nextStart, { today }),
+    nextWeekday: util.getChineseDateMeta(nextStart).weekday
   }
-  prediction.rangeDisplay = formatPredictionRange(prediction)
+  prediction.rangeDisplay = formatPredictionRange(prediction, today)
   return prediction
 }
 
@@ -549,12 +565,6 @@ function addDays(dateStr, days) {
   const date = util.parseDate(dateStr)
   date.setDate(date.getDate() + days)
   return util.formatDate(date)
-}
-
-function formatMonthDay(dateStr) {
-  if (!isDateString(dateStr)) return ''
-  const date = util.parseDate(dateStr)
-  return `${String(date.getMonth() + 1).padStart(2, '0')}月${String(date.getDate()).padStart(2, '0')}日`
 }
 
 function clamp(value, min, max) {

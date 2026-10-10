@@ -28,7 +28,7 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 - `utils/roomAccessOutcome.js` - client-side classification of room access failures plus outcome presentation mapping.
 - `utils/homeCalendarState.js` - pure homepage calendar state, marker meanings, and marker composition.
 - `utils/safeArea.js` - runtime safe-area top/bottom computation; every page root injects `--safe-top` and `--safe-bottom`.
-- `utils/util.js` - date, lunar, holiday, and base calendar-grid helpers.
+- `utils/util.js` - date, lunar, holiday, base calendar-grid helpers, and the month-swipe decision.
 - `utils/chinaHolidays.js` - official China holiday and adjusted-workday data table (2001-2026).
 - `utils/cycle.js` - cycle prediction, reminders, and period metadata labels.
 - `utils/calendarInsights.js` - prediction explanation and monthly recap copy.

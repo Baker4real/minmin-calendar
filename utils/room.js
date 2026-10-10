@@ -29,7 +29,7 @@ function createRoomSession(options = {}) {
           kind: 'retryable-failure',
           bound: false,
           roomCode: '',
-          errorMsg: '同步房间状态失败：' + getErrorMessage(error)
+          errorMsg: roomAccessOutcome.presentUserFailure(getErrorMessage(error), logger)
         }
       }
 
@@ -54,7 +54,9 @@ function createRoomSession(options = {}) {
         kind: 'retryable-failure',
         bound: false,
         roomCode: '',
-        errorMsg: repair && repair.message ? repair.message : '同步房间状态失败，请稍后重试'
+        errorMsg: repair && repair.message
+          ? roomAccessOutcome.presentUserFailure(repair.message, logger)
+          : '同步房间状态失败，请稍后重试'
       }
     },
 
@@ -85,12 +87,15 @@ function createRoomSession(options = {}) {
 
         return {
           kind: 'retryable-failure',
-          message: '同步房间状态失败：' + getFailureMessage(res.result)
+          message: roomAccessOutcome.presentUserFailure(
+            '同步房间状态失败：' + getFailureMessage(res.result),
+            logger
+          )
         }
       } catch (error) {
         return {
           kind: 'retryable-failure',
-          message: '同步房间状态失败：' + getErrorMessage(error)
+          message: roomAccessOutcome.presentUserFailure(getErrorMessage(error), logger)
         }
       }
     },
@@ -99,21 +104,19 @@ function createRoomSession(options = {}) {
       try {
         const res = await cloud.callFunction({ name: 'createRoom' })
         if (res.result?.code !== 0) {
-          return { code: -1, msg: presentRoomActionMessage(res.result?.msg, logger) }
+          return { code: -1, msg: roomAccessOutcome.presentUserFailure(res.result?.msg, logger) }
         }
 
         const room = res.result.room || {}
         const roomCode = normalizeRoomCode(room.roomCode)
         if (!roomCode) {
-          logger.error('创建失败：房间码为空')
-          return { code: -1, msg: '这次没有完成，请重试' }
+          return { code: -1, msg: roomAccessOutcome.presentUserFailure('创建失败：房间码为空', logger) }
         }
 
         storage.set(ROOM_CODE_KEY, roomCode)
         return { code: 0, roomCode, room: { ...room, roomCode } }
       } catch (error) {
-        logger.error(error)
-        return { code: -1, msg: presentRoomActionFailure(error) }
+        return { code: -1, msg: roomAccessOutcome.presentUserFailure(getErrorMessage(error), logger) }
       }
     },
 
@@ -129,15 +132,14 @@ function createRoomSession(options = {}) {
           data: { roomCode }
         })
         if (res.result?.code !== 0) {
-          return { code: -1, msg: presentRoomActionMessage(res.result?.msg, logger) }
+          return { code: -1, msg: roomAccessOutcome.presentUserFailure(res.result?.msg, logger) }
         }
 
         const joinedRoomCode = normalizeRoomCode(res.result.roomCode) || roomCode
         storage.set(ROOM_CODE_KEY, joinedRoomCode)
         return { code: 0, roomCode: joinedRoomCode }
       } catch (error) {
-        logger.error(error)
-        return { code: -1, msg: presentRoomActionFailure(error) }
+        return { code: -1, msg: roomAccessOutcome.presentUserFailure(getErrorMessage(error), logger) }
       }
     },
 
@@ -149,13 +151,13 @@ function createRoomSession(options = {}) {
       try {
         const res = await cloud.callFunction({ name: 'leaveRoom' })
         if (res.result?.code !== 0) {
-          return { code: -1, msg: res.result?.msg || '解除绑定失败' }
+          return { code: -1, msg: roomAccessOutcome.presentUserFailure(res.result?.msg, logger) }
         }
 
         storage.remove(ROOM_CODE_KEY)
         return { code: 0 }
       } catch (error) {
-        return { code: -1, msg: '解除绑定失败：' + getErrorMessage(error) }
+        return { code: -1, msg: roomAccessOutcome.presentUserFailure(getErrorMessage(error), logger) }
       }
     }
   }

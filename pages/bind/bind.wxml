@@ -23,6 +23,7 @@
       </view>
       <!-- issue #102：创建成功后的下一步引导；复制键仍是唯一复制入口，不新增第二个 -->
       <text wx:if="{{justCreated}}" class="info-text">把房间码发给 TA</text>
+      <button wx:if="{{justCreated}}" class="btn-premium share-invite" open-type="share" hover-class="share-invite-hover" aria-role="button" aria-label="发给 TA">发给 TA</button>
       <!-- issue #102：已绑定冷启动由 checkRoom 自动进首页，「进入应用」只在跳转失败或刚创建房间时出现；
            「解除绑定」移到设置页房间卡，本卡不再提供 -->
       <view wx:if="{{justCreated || homeJumpFailed}}" class="btn-premium" bindtap="goHome" aria-role="button" aria-label="进入应用">进入应用</view>

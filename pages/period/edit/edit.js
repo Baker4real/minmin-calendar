@@ -9,6 +9,10 @@ const safeArea = require('../../../utils/safeArea')
 
 const DRAFT_FIELDS = ['startDate', 'endDate', 'status', 'note', 'flow', 'symptoms']
 
+function displayDateLabel(dateStr) {
+  return util.formatDisplayDate(dateStr, { today: util.formatDate(new Date()) })
+}
+
 // 与 pages/memory/edit/edit.js、pages/period/period.js 共享的一次性
 // 「目标分段」意图键：从首页等入口进入本页保存/删除后写键，记录 tab onShow 消费并落到经期分段（issue #103）
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
@@ -62,6 +66,8 @@ Page({
     this._periodHistory = []
     this.setData({
       ...formState,
+      startDateLabel: displayDateLabel(formState.startDate),
+      endDateLabel: displayDateLabel(formState.endDate),
       draftRestored: !!storedDraft,
       symptomGroups: cycle.buildSymptomOptions(formState.symptoms)
     })
@@ -104,14 +110,23 @@ Page({
   },
 
   onStartChange(e) {
-    this.setData({ startDate: e.detail.value })
+    this.setData({
+      startDate: e.detail.value,
+      startDateLabel: displayDateLabel(e.detail.value)
+    })
     if (this.data.status === 'known-end' && this.data.endDate && this.data.startDate > this.data.endDate) {
-      this.setData({ endDate: this.data.startDate })
+      this.setData({
+        endDate: this.data.startDate,
+        endDateLabel: displayDateLabel(this.data.startDate)
+      })
     }
     this.syncPeriodLengthHint()
   },
   onEndChange(e) {
-    this.setData({ endDate: e.detail.value })
+    this.setData({
+      endDate: e.detail.value,
+      endDateLabel: displayDateLabel(e.detail.value)
+    })
     this.syncPeriodLengthHint()
   },
   selectStatus(e) {
@@ -122,7 +137,10 @@ Page({
     // 只有完成进行中记录才把空结束日兜底为今天；其他切换保持为空
     if (status === 'known-end' && !this.data.endDate && this.data.status === 'ongoing') {
       const today = this.data.maxDate || util.formatDate(new Date())
-      if (!this.data.startDate || today >= this.data.startDate) update.endDate = today
+      if (!this.data.startDate || today >= this.data.startDate) {
+        update.endDate = today
+        update.endDateLabel = displayDateLabel(today)
+      }
     }
     this.setData(update)
     this.syncPeriodLengthHint()
@@ -158,14 +176,19 @@ Page({
     const { id, startDate, endDate, status, note, flow, symptoms, isEdit } = this.data
     const today = util.formatDate(new Date())
     const client = cloud.createRoomDataClient()
+    let submitted = null
     const outcome = await recordCommands.runRecordSave({
       page: this,
       action: () => {
-        const payload = cycle.buildPeriodPayload({ startDate, endDate, status, note, flow, symptoms })
-        if (isEdit) {
-          return client.update('periods', id, payload)
+        submitted = cycle.buildPeriodPayload({ startDate, endDate, status, note, flow, symptoms })
+        return isEdit ? client.update('periods', id, submitted) : client.add('periods', submitted)
+      },
+      refetch: () => client.list('periods'),
+      reconcile: {
+        id: isEdit ? id : '',
+        get fields() {
+          return submitted || {}
         }
-        return client.add('periods', payload)
       },
       validate: () => {
         if (!startDate) return '请选择日期'

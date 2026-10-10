@@ -7,14 +7,46 @@ const test = require('node:test')
 const chinaHolidays = require('../utils/chinaHolidays')
 const util = require('../utils/util')
 
-test('formatPredictDisplay returns a compact date with weekday', () => {
-  assert.deepEqual(util.formatPredictDisplay('2026-06-24'), {
-    date: '06月24日',
-    weekday: '周三'
-  })
-  assert.deepEqual(util.formatPredictDisplay(null), { date: '--', weekday: '' })
-  assert.deepEqual(util.formatPredictDisplay('--'), { date: '--', weekday: '' })
-  assert.deepEqual(util.formatPredictDisplay('2026-02-31'), { date: '--', weekday: '' })
+test('formatDisplayDate writes a date in the current year as month and day', () => {
+  assert.equal(util.formatDisplayDate('2026-06-24', { today: '2026-10-10' }), '6月24日')
+})
+
+test('formatDisplayDate includes the year when the date is not in the current year', () => {
+  assert.equal(util.formatDisplayDate('2025-06-24', { today: '2026-10-10' }), '2025年6月24日')
+})
+
+test('formatDisplayDate appends the weekday when a date needs it', () => {
+  assert.equal(
+    util.formatDisplayDate('2026-06-24', { today: '2026-10-10', withWeekday: true }),
+    '6月24日 周三'
+  )
+  assert.equal(
+    util.formatDisplayDate('2025-06-24', { today: '2026-10-10', withWeekday: true }),
+    '2025年6月24日 周二'
+  )
+})
+
+test('formatDisplayDateRange joins the two ends with an en dash', () => {
+  assert.equal(
+    util.formatDisplayDateRange('2026-09-26', '2026-10-01', { today: '2026-10-10' }),
+    '9月26日–10月1日'
+  )
+})
+
+test('formatDisplayDateRange puts a year on each end that is not the current year', () => {
+  assert.equal(
+    util.formatDisplayDateRange('2025-12-28', '2026-01-03', { today: '2026-10-10' }),
+    '2025年12月28日–1月3日'
+  )
+  assert.equal(
+    util.formatDisplayDateRange('2024-12-28', '2025-01-03', { today: '2026-10-10' }),
+    '2024年12月28日–2025年1月3日'
+  )
+})
+
+test('formatDisplayDate leaves an invalid date blank', () => {
+  assert.equal(util.formatDisplayDate('2026-02-31', { today: '2026-10-10' }), '')
+  assert.equal(util.formatDisplayDateRange('2026-06-01', '2026-02-31', { today: '2026-10-10' }), '')
 })
 
 test('isValidDateString rejects dates that only look valid', () => {
@@ -262,7 +294,13 @@ test('index calendar keeps marker and tag semantics explicit for each meaning', 
   assert.match(wxml, /item\.isPredict \? 'predict' : ''/)
   assert.match(wxml, /item\.isHoliday \? 'holiday' : ''/)
   assert.match(wxml, /item\.isWorkday \? 'workday' : ''/)
-  assert.match(wxml, /wx:if="{{item\.isPeriod}}" class="mark period-mark"/)
+  assert.doesNotMatch(wxml, /class="mark period-mark"/)
+  assert.match(wxml, /wx:if="{{item\.periodSegment != 'none'}}" class="period-band"/)
+  assert.match(wxml, /item\.periodSegment === 'start' \? 'period-start' : ''/)
+  assert.match(wxml, /item\.periodSegment === 'middle' \? 'period-middle' : ''/)
+  assert.match(wxml, /item\.periodSegment === 'end' \? 'period-end' : ''/)
+  assert.match(wxml, /item\.periodSegment === 'single' \? 'period-single' : ''/)
+  assert.match(wxml, /item\.periodOpenEnd \? 'period-open' : ''/)
   assert.match(wxml, /wx:if="{{item\.isMemory}}" class="mark memory-mark"/)
   assert.match(wxml, /wx:if="{{item\.holidayName}}" class="day-tag holiday-tag"/)
   assert.match(wxml, /wx:elif="{{item\.isWorkday}}" class="day-tag workday-tag"/)
@@ -347,8 +385,8 @@ test('index month title opens a themed year-month jump sheet', () => {
   assert.match(js, /buildJumpYearState\(/)
   assert.match(js, /openMonthPicker\(\)\s*{[\s\S]*buildJumpYearState/)
   assert.match(js, /shiftJumpYear\(e\)\s*{[\s\S]*dataset\.delta/)
-  assert.match(js, /selectJumpMonth\(e\)\s*{[\s\S]*dataset\.month/)
-  assert.match(js, /confirmMonthJump\(\)\s*{[\s\S]*year:\s*this\.data\.jumpYear[\s\S]*month:\s*this\.data\.jumpMonth/)
+  assert.match(js, /selectJumpMonth\(e\)\s*{[\s\S]*dataset\.month[\s\S]*year:\s*this\.data\.jumpYear[\s\S]*monthPickerVisible:\s*false/)
+  assert.doesNotMatch(js, /confirmMonthJump/)
   assert.match(js, /jumpToToday\(\)\s*{[\s\S]*new Date\(\)[\s\S]*monthPickerVisible:\s*false[\s\S]*renderCalendar/)
   assert.match(js, /closeMonthPicker\(\)\s*{[\s\S]*monthPickerVisible:\s*false/)
   assert.doesNotMatch(js, /buildMonthJumpYears|shiftJumpYears|selectJumpYear|jumpYears/)
@@ -362,7 +400,7 @@ test('index month title opens a themed year-month jump sheet', () => {
   assert.match(wxml, /aria-label="回到今天所在月份"/)
   assert.match(wxml, /jump-year-stepper/)
   assert.match(wxml, /jump-month-grid/)
-  assert.match(wxml, /bindtap="confirmMonthJump"/)
+  assert.doesNotMatch(wxml, /confirmMonthJump|jump-confirm/)
   assert.doesNotMatch(wxml, /jump-year-grid|year-option|jump-nav-btn/)
 
   assert.match(wxss, /\.month-title-trigger\s*{[\s\S]*min-height:\s*88rpx/)
@@ -370,7 +408,7 @@ test('index month title opens a themed year-month jump sheet', () => {
   assert.match(wxss, /\.jump-today\s*{[\s\S]*min-height:\s*88rpx/)
   assert.match(wxss, /\.jump-year-step\s*{[\s\S]*min-height:\s*88rpx/)
   assert.match(wxss, /\.jump-option\s*{[\s\S]*min-height:\s*88rpx/)
-  assert.match(wxss, /\.jump-confirm\s*{[\s\S]*min-height:\s*88rpx/)
+  assert.doesNotMatch(wxss, /\.jump-confirm/)
 })
 
 test('index calendar applies the persisted density without hosting the control', () => {
@@ -461,8 +499,8 @@ test('index exposes calendar meaning and monthly recap sheets', () => {
   assert.match(js, /openPredictionSheet\(\)/)
   assert.match(js, /openMonthlyRecap\(\)/)
   assert.match(js, /copyMonthlyRecap\(\)/)
-  assert.match(js, /dayDetailsByDate:\s*\{\}/)
-  assert.match(js, /selectedDayDetail:\s*this\.data\.dayDetailsByDate\[date\]\s*\|\|\s*{[\s\S]*meanings:\s*\[\]/)
+  assert.doesNotMatch(js, /dayDetailsByDate:\s*\{\}/)
+  assert.match(js, /selectedDayDetail:\s*this\._dayDetail\(date\)/)
 
   // issue #105：图例/预测说明/小结入口从常驻工具条收进月份标题旁的「…」菜单，
   // 菜单项经 onMonthMenuTap 分发到既有打开函数；预测说明同时仍可从合并状态卡直接打开
@@ -528,6 +566,18 @@ test('home calendar state is the only public seam for calendar markers', () => {
 
   assert.equal(fs.existsSync(path.join(root, 'utils/calendarCells.js')), false)
   assert.doesNotMatch(homeState, /require\(['"]\.\/calendarCells['"]\)/)
+})
+
+test('edit pages echo a display date and keep the picker value as ISO', () => {
+  const period = fs.readFileSync(path.join(__dirname, '..', 'pages/period/edit/edit.wxml'), 'utf8')
+  const memory = fs.readFileSync(path.join(__dirname, '..', 'pages/memory/edit/edit.wxml'), 'utf8')
+
+  assert.match(period, /value="\{\{startDate\}\}"[\s\S]*?<text>\{\{startDateLabel\}\}<\/text>/)
+  assert.match(period, /value="\{\{endDate\}\}"[\s\S]*?<text>\{\{endDateLabel\}\}<\/text>/)
+  assert.doesNotMatch(period, /<text>\{\{startDate\}\}<\/text>/)
+  assert.doesNotMatch(period, /<text>\{\{endDate\}\}<\/text>/)
+  assert.match(memory, /value="\{\{date\}\}"[\s\S]*?<text>\{\{dateLabel\}\}<\/text>/)
+  assert.doesNotMatch(memory, /<text>\{\{date\}\}<\/text>/)
 })
 
 test('period edit page exposes flow and symptom controls', () => {

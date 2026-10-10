@@ -1,5 +1,7 @@
 <view class="page safe-top {{pageObscured ? 'page-obscured' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
 <wxs module="sheetDrag" src="../../utils/sheetDrag.wxs"></wxs>
+<wxs module="monthSwipe" src="../../utils/monthSwipe.wxs"></wxs>
+  <view class="reduced-motion-probe" aria-hidden="true"></view>
   <!-- Aurora Decorative Orbs -->
   <view class="glow-orb glow-orb-1"></view>
   <view class="glow-orb glow-orb-2"></view>
@@ -48,13 +50,20 @@
       <text class="refresh-retry-text">刷新失败，点按重试</text>
     </view>
 
+    <view
+      class="calendar-swipe"
+      bindtouchstart="{{monthSwipe.touchStart}}"
+      bindtouchmove="{{monthSwipe.touchMove}}"
+      bindtouchend="{{monthSwipe.touchEnd}}"
+      bindtouchcancel="{{monthSwipe.touchEnd}}"
+    >
     <view class="week-header">
       <view class="week-cell" wx:for="{{weekDays}}" wx:key="*this">{{item}}</view>
     </view>
 
     <view class="calendar-grid calendar-density-{{calendarDensity}}">
       <view
-        class="day-cell {{item.isToday ? 'today' : ''}} {{item.isPeriod ? 'period' : ''}} {{item.isMemory ? 'memory' : ''}} {{item.isPredict ? 'predict' : ''}} {{item.isHoliday ? 'holiday' : ''}} {{item.isWorkday ? 'workday' : ''}} {{item.isEmpty ? 'empty' : ''}}"
+        class="day-cell {{item.isToday ? 'today' : ''}} {{item.isPeriod ? 'period' : ''}} {{item.periodSegment === 'start' ? 'period-start' : ''}} {{item.periodSegment === 'middle' ? 'period-middle' : ''}} {{item.periodSegment === 'end' ? 'period-end' : ''}} {{item.periodSegment === 'single' ? 'period-single' : ''}} {{item.periodOpenEnd ? 'period-open' : ''}} {{item.isMemory ? 'memory' : ''}} {{item.isPredict ? 'predict' : ''}} {{item.isHoliday ? 'holiday' : ''}} {{item.isWorkday ? 'workday' : ''}} {{item.isEmpty ? 'empty' : ''}}"
         wx:for="{{days}}"
         wx:key="index"
         bindtap="onDayTap"
@@ -63,6 +72,7 @@
         aria-hidden="{{item.isEmpty}}"
         aria-label="{{item.ariaLabel}}"
       >
+        <view wx:if="{{item.periodSegment != 'none'}}" class="period-band"></view>
         <view class="day-num">{{item.day}}</view>
         <view wx:if="{{!item.isEmpty && calendarDensity == 'full'}}" class="day-lunar">{{item.lunarText}}</view>
         <view wx:if="{{!item.isEmpty}}" class="day-tag-line">
@@ -70,11 +80,11 @@
           <text wx:elif="{{item.isWorkday}}" class="day-tag workday-tag">班</text>
         </view>
         <view class="day-marks">
-          <view wx:if="{{item.isPeriod}}" class="mark period-mark"></view>
           <view wx:if="{{item.isMemory}}" class="mark memory-mark">♥</view>
           <view wx:if="{{item.isPredict}}" class="mark predict-mark">预</view>
         </view>
       </view>
+    </view>
     </view>
 
     <!-- 首页记录入口：图标用日历图例的经期圆点与欢乐时光浅色心（海军圆盘承载），不用表情 -->
@@ -91,10 +101,10 @@
 
     <!-- issue #105：合并状态卡——经期记录条数（不可点现状）+ 下次预测，卡内并入超期进行中与周期提醒；
          经期/欢乐时光列表由「记录」tab 分段承接，首页不再放列表入口 -->
-    <view wx:if="{{periods.length || memories.length}}" class="status-card premium-card">
+    <view wx:if="{{hasRecords}}" class="status-card premium-card">
       <view class="status-row">
         <view class="status-figure">
-          <text class="stat-num">{{periods ? periods.length : 0}}</text>
+          <text class="stat-num">{{periodCount}}</text>
           <text class="stat-label">经期记录</text>
         </view>
         <view class="stat-divider"></view>
@@ -153,8 +163,9 @@
     </view>
   </view>
 
-  <view wx:if="{{monthPickerMounted}}" class="day-sheet-mask month-jump-mask sheet-{{monthPickerPhase}}" bindtap="closeMonthPicker" aria-role="button" aria-label="关闭月份选择">
-    <view class="sheet-slide sheet-slide-monthPicker" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.monthPicker}}">
+  <view wx:if="{{monthPickerMounted}}" class="sheet-host month-jump-mask">
+    <view class="day-sheet-mask sheet-{{monthPickerPhase}}" bindtap="closeMonthPicker" aria-role="button" aria-label="关闭月份选择"></view>
+    <view class="sheet-slide sheet-slide-monthPicker sheet-{{monthPickerPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.monthPicker}}">
     <view class="calendar-jump-sheet safe-bottom" catchtap="noop">
       <view class="sheet-drag-zone" data-sheet="monthPicker" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
@@ -215,20 +226,19 @@
           >{{item.label}}</view>
         </view>
       </view>
-
-      <view class="jump-confirm" bindtap="confirmMonthJump" aria-role="button" aria-label="跳转到 {{jumpYear}}年{{jumpMonth + 1}}月">跳转到 {{jumpYear}}年{{jumpMonth + 1}}月</view>
     </view>
     </view>
   </view>
 
-  <view wx:if="{{dayActionMounted}}" class="day-sheet-mask sheet-{{dayActionPhase}}" bindtap="closeDayActions" aria-role="button" aria-label="关闭当日操作">
-    <view class="sheet-slide sheet-slide-dayActions" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.dayActions}}">
+  <view wx:if="{{dayActionMounted}}" class="sheet-host">
+    <view class="day-sheet-mask sheet-{{dayActionPhase}}" bindtap="closeDayActions" aria-role="button" aria-label="关闭当日操作"></view>
+    <view class="sheet-slide sheet-slide-dayActions sheet-{{dayActionPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.dayActions}}">
     <view class="day-action-sheet safe-bottom" catchtap="noop">
       <view class="sheet-drag-zone" data-sheet="dayActions" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
         <view class="sheet-date-copy">
-          <text class="sheet-title">{{selectedDate}}</text>
+          <text class="sheet-title">{{selectedDateLabel}}</text>
           <text class="sheet-subtitle">{{selectedDateSubtitle}}</text>
         </view>
         <view class="sheet-close" bindtap="closeDayActions" aria-role="button" aria-label="关闭">×</view>
@@ -324,8 +334,9 @@
   </view>
 
   <!-- issue #105：月份工具菜单——图例 / 预测说明 / 本月小结的常驻入口从工具条收进这里，sheet 本体复用 -->
-  <view wx:if="{{monthMenuMounted}}" class="day-sheet-mask sheet-{{monthMenuPhase}}" bindtap="closeMonthMenu" aria-role="button" aria-label="关闭工具菜单">
-    <view class="sheet-slide sheet-slide-toolsMenu" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.toolsMenu}}">
+  <view wx:if="{{monthMenuMounted}}" class="sheet-host">
+    <view class="day-sheet-mask sheet-{{monthMenuPhase}}" bindtap="closeMonthMenu" aria-role="button" aria-label="关闭工具菜单"></view>
+    <view class="sheet-slide sheet-slide-toolsMenu sheet-{{monthMenuPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.toolsMenu}}">
     <view class="day-action-sheet safe-bottom" catchtap="noop">
       <view class="sheet-drag-zone" data-sheet="toolsMenu" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
@@ -368,8 +379,9 @@
     </view>
   </view>
 
-  <view wx:if="{{infoSheetMounted}}" class="day-sheet-mask calendar-info-sheet sheet-{{infoSheetPhase}}{{infoSheetHandoff ? ' sheet-handoff' : ''}}" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭面板">
-    <view class="sheet-slide sheet-slide-info" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.info}}">
+  <view wx:if="{{infoSheetMounted}}" class="sheet-host calendar-info-sheet">
+    <view class="day-sheet-mask sheet-{{infoSheetPhase}}{{infoSheetHandoff ? ' sheet-handoff' : ''}}" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭面板"></view>
+    <view class="sheet-slide sheet-slide-info sheet-{{infoSheetPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.info}}">
     <view class="day-action-sheet calendar-info-panel safe-bottom" catchtap="noop">
       <view class="sheet-drag-zone" data-sheet="info" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
@@ -423,4 +435,13 @@
     </view>
     </view>
   </view>
+  <page-container
+    show="{{sheetExitGuard}}"
+    overlay="{{false}}"
+    duration="0"
+    z-index="1"
+    position="bottom"
+    custom-style="height:0;width:0;overflow:hidden;opacity:0;pointer-events:none;background:transparent;"
+    bindbeforeleave="onSheetSystemBack"
+  ></page-container>
 </view>

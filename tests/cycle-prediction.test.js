@@ -227,10 +227,10 @@ test('buildPeriodPayload and decoratePeriod normalize optional flow and symptom 
     flowLabel: '量多',
     symptomLabels: ['痛经', '头痛'],
     symptomText: '痛经、头痛',
-    endDateDisplay: '2026-06-12',
+    endDateDisplay: '6月12日',
     durationText: '3天',
-    listDateText: '2026-06-10 ~ 2026-06-12',
-    rangeSummary: '2026-06-10 至 2026-06-12'
+    dateLabel: '6月10日–6月12日',
+    rangeSummary: '6月10日–6月12日'
   })
 })
 
@@ -389,16 +389,18 @@ test('decoratePeriod exposes ongoing and unknown-end status copy instead of a bl
     { today: '2026-09-24' }
   )
   assert.equal(ongoing.statusLabel, '进行中')
-  assert.equal(ongoing.endDateDisplay, '2026-09-24')
+  assert.equal(ongoing.endDateDisplay, '9月24日')
   assert.equal(ongoing.durationText, '进行中')
-  assert.equal(ongoing.rangeSummary, '2026-09-20 至 2026-09-24，进行中')
+  assert.equal(ongoing.dateLabel, '9月20日–9月24日')
+  assert.equal(ongoing.rangeSummary, '9月20日–9月24日，进行中')
   assert.equal(ongoing.duration, 0)
 
   const unknownEnd = cycle.decoratePeriod({ _id: 'p3', startDate: '2026-08-01', endDate: '' })
   assert.equal(unknownEnd.statusLabel, '结束日期不详')
   assert.equal(unknownEnd.endDateDisplay, '结束日期不详')
   assert.equal(unknownEnd.durationText, '结束日期不详')
-  assert.equal(unknownEnd.rangeSummary, '2026-08-01，结束日期不详')
+  assert.equal(unknownEnd.dateLabel, '8月1日')
+  assert.equal(unknownEnd.rangeSummary, '8月1日，结束日期不详')
   assert.equal(unknownEnd.duration, 0)
 })
 
