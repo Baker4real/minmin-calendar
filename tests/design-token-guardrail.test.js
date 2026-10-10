@@ -176,10 +176,9 @@ const CTA_FILL_SELECTORS = [
   ['pages/settings/settings.wxss', '.copy-btn'],
   // issue #104：绑定页复制键回归玫瑰填充。创建/加入是分段控件，选中态不走实色填充（issue #145）。
   ['pages/bind/bind.wxss', '.copy-btn'],
-  // issue #55：首页主操作同构——快速记录、提醒记录、月份确认、月份选中态、复制小结
+  // issue #145：创建/加入是分段控件，选中态不走实色填充。issue #137：选月确认按钮已退役。
   ['pages/index/index.wxss', '.quick-btn'],
   ['pages/index/index.wxss', '.reminder-action'],
-  ['pages/index/index.wxss', '.jump-confirm'],
   ['pages/index/index.wxss', '.jump-option.active'],
   ['pages/index/index.wxss', '.copy-recap']
 ]
@@ -227,7 +226,6 @@ const PRIMARY_BUTTONS = [
   ['app.wxss', '.btn-premium'],
   ['pages/index/index.wxss', '.quick-btn'],
   ['pages/index/index.wxss', '.reminder-action'],
-  ['pages/index/index.wxss', '.jump-confirm'],
   ['pages/index/index.wxss', '.copy-recap']
 ]
 
@@ -344,7 +342,6 @@ const SOLID_ROSE_FILL_ALLOWLIST = new Set(
   [
     // 状态点/日历标记/卡片 rail：装饰性玫瑰实色小块，非可操作填充
     ['pages/index/index.wxss', '.sync-pill.syncing .sync-dot'],
-    ['pages/index/index.wxss', '.period-mark'],
     ['pages/index/index.wxss', '.reminder-card.due .reminder-rail'],
     ['pages/index/index.wxss', '.detail-rail'],
     ['pages/memory/memory.wxss', '.list-item::before']
@@ -548,4 +545,41 @@ test('every box-shadow/text-shadow color stays inside the DESIGN.md shadow regis
   }
 
   assert.deepEqual(violations, [])
+})
+
+function declsFor(relative, selector) {
+  const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
+  const rule = rules.find((item) => item.selectors.includes(selector))
+  assert.ok(rule, `expected ${relative} ${selector}`)
+  return rule.decls
+}
+
+// issue #146：辉光只留在主按钮和复制键上。月份导航、加载圈、同步点不发光；
+// 绑定页爱心只留一层字阴影。提醒和详情的彩色 rail 继续承载状态色。
+test('glow stays on primary buttons and the copy control', () => {
+  const roseGlow = '0 4px 15px rgba(232,144,158,0.28)'
+  assert.equal(declsFor('app.wxss', '.btn-premium')['box-shadow'], roseGlow)
+  assert.equal(declsFor('pages/settings/settings.wxss', '.copy-btn')['box-shadow'], roseGlow)
+  assert.equal(declsFor('pages/bind/bind.wxss', '.copy-btn')['box-shadow'], roseGlow)
+
+  const monthNav = declsFor('pages/index/index.wxss', '.month-nav')['box-shadow'] || ''
+  assert.doesNotMatch(monthNav, /232,\s*144,\s*158/)
+  assert.equal(declsFor('app.wxss', '.loading-spinner')['box-shadow'], undefined)
+  assert.equal(declsFor('pages/index/index.wxss', '.sync-dot')['box-shadow'], undefined)
+
+  const heart = declsFor('pages/bind/bind.wxss', '.hero-icon')['text-shadow']
+  assert.equal(heart, '0 0 18rpx rgba(240,196,192,0.32)')
+
+  assert.equal(
+    declsFor('pages/index/index.wxss', '.reminder-rail')['box-shadow'],
+    '0 0 14rpx rgba(212,165,116,0.36)'
+  )
+  assert.equal(
+    declsFor('pages/index/index.wxss', '.detail-rail')['box-shadow'],
+    '0 0 16rpx rgba(232,144,158,0.35)'
+  )
+
+  const design = fs.readFileSync(path.join(repoRoot, 'DESIGN.md'), 'utf8')
+  assert.match(design, /不可点元素不再发光/)
+  assert.match(design, /0 0 18rpx rgba\(240,196,192,0\.32\)/)
 })

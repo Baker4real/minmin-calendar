@@ -1,4 +1,4 @@
-<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
+<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
   <view class="nav-bar header-gradient">
     <view class="nav-back" hover-class="nav-back-hover" bindtap="goBack" aria-role="button" aria-label="返回">
       <view class="nav-back-surface"></view>
@@ -6,7 +6,6 @@
     </view>
     <view wx:if="{{isEdit}}" class="nav-title">编辑经期</view>
     <view wx:else class="nav-title">新增经期</view>
-    <view class="nav-placeholder"></view>
   </view>
 
   <view class="content">
@@ -47,6 +46,8 @@
             <text class="form-picker-arrow">›</text>
           </view>
         </picker>
+        <text wx:if="{{periodDayCountText}}" class="form-hint period-length-hint">{{periodDayCountText}}</text>
+        <text wx:if="{{periodLengthHint}}" class="form-hint period-length-hint">{{periodLengthHint}}</text>
       </view>
       <view class="form-item">
         <text class="form-label">备注</text>

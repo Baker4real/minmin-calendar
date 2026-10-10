@@ -60,7 +60,7 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - `utils/recordEditRoute.js` owns Period record and Memory record edit URL construction plus edit-page route option hydration, including the Memory date ceiling at today.
 - `utils/recordDraft.js` owns edit-form draft save/restore/clear as pure functions keyed per record identity; `createWxDraftStorage` is the only wx local-storage seam.
 - `utils/room.js` owns room-code cache, recovery, create/join, local clear, and server-side leave calls.
-- `utils/util.js` owns date formatting, lunar conversion, official holiday metadata, and base calendar-grid construction.
+- `utils/util.js` owns date formatting, lunar conversion, official holiday metadata, base calendar-grid construction, and the month-swipe decision (`decideMonthSwipe`).
 - `utils/cycle.js` owns cycle prediction, reminder derivation, Period duration from dates (`getPeriodDuration`), flow labels, symptom labels, and the body/emotion symptom grouping metadata.
 - `utils/calendarInsights.js` owns prediction explanation copy and monthly recap text.
 - `utils/safeArea.js` owns runtime safe-area computation for status-bar top and gesture-area bottom; page roots inject `--safe-top` and `--safe-bottom`.

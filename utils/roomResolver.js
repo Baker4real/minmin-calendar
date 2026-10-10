@@ -1,4 +1,5 @@
 const roomSession = require('./room')
+const roomAccessOutcome = require('./roomAccessOutcome')
 
 const DEFAULT_RETRYABLE_MESSAGE = '同步房间状态失败，请稍后重试'
 
@@ -40,7 +41,7 @@ function createRoomResolver(options = {}) {
       } catch (error) {
         return {
           kind: 'retryable-failure',
-          message: getErrorMessage(error)
+          message: roomAccessOutcome.presentUserFailure(getErrorMessage(error))
         }
       }
 

@@ -1,94 +1,97 @@
-<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
+<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
   <view class="nav-bar header-gradient">
     <view class="nav-placeholder"></view>
     <view class="nav-title">设置</view>
-    <view class="nav-placeholder"></view>
   </view>
 
   <view class="content">
-    <!-- 用户卡片：品牌心是文本字形（颜色走 wxss），不用红色心形表情（issue #77） -->
-    <view class="profile-card premium-card">
-      <view class="profile-avatar">♥</view>
-      <view class="profile-name">美少女的日历</view>
-      <text class="profile-desc">记录属于你们的每一天</text>
+    <view class="settings-group">
+      <text class="settings-group-title">房间</text>
+      <view class="premium-card">
+        <view class="menu-item room-code-item non-interactive">
+          <view class="room-code-content">
+            <text class="room-code-label">我的房间码</text>
+            <text class="room-code-value {{roomCode ? '' : 'muted'}}">{{roomCodeDisplay || roomCode || '未绑定'}}</text>
+          </view>
+          <view wx:if="{{roomCode}}" class="copy-btn" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码" hover-class="copy-btn-hover">复制</view>
+        </view>
+        <view wx:if="{{roomCodeLoaded && !roomCode}}" class="room-code-actions">
+          <view class="room-action-btn" bindtap="retryRoomResolve" aria-role="button" aria-label="重试获取房间码" hover-class="room-action-btn-hover">重试</view>
+          <view class="room-action-btn" bindtap="goBind" aria-role="button" aria-label="去绑定房间" hover-class="room-action-btn-hover">去绑定</view>
+        </view>
+      </view>
     </view>
 
-    <!-- 房间号（菜单表情只重复标签，不再使用，issue #77） -->
-    <view class="premium-card">
-      <view class="menu-item room-code-item non-interactive">
-        <view class="room-code-content">
-          <text class="room-code-label">我的房间码</text>
-          <text class="room-code-value {{roomCode ? '' : 'muted'}}">{{roomCodeDisplay || roomCode || '未绑定'}}</text>
+    <view class="settings-group">
+      <text class="settings-group-title">日历显示</text>
+      <view class="premium-card">
+        <text class="density-menu-desc">清爽只看日期与标记，完整加显农历与节日</text>
+        <view class="density-control" aria-label="日历信息密度">
+          <view
+            class="density-option {{calendarDensity == 'compact' ? 'active' : ''}}"
+            data-density="compact"
+            bindtap="setCalendarDensity"
+            aria-role="radio"
+            aria-label="清爽显示日历"
+            aria-checked="{{calendarDensity == 'compact'}}"
+            hover-class="density-option-hover"
+          >清爽</view>
+          <view
+            class="density-option {{calendarDensity == 'full' ? 'active' : ''}}"
+            data-density="full"
+            bindtap="setCalendarDensity"
+            aria-role="radio"
+            aria-label="完整显示农历和节假日"
+            aria-checked="{{calendarDensity == 'full'}}"
+            hover-class="density-option-hover"
+          >完整</view>
         </view>
-        <view wx:if="{{roomCode}}" class="copy-btn" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码" hover-class="copy-btn-hover">复制</view>
       </view>
-      <!-- 拿不到房间码时给下一步：重试解析或去绑定，不再是死句子（issue #79） -->
-      <view wx:if="{{roomCodeLoaded && !roomCode}}" class="room-code-actions">
-        <view class="room-action-btn" bindtap="retryRoomResolve" aria-role="button" aria-label="重试获取房间码" hover-class="room-action-btn-hover">重试</view>
-        <view class="room-action-btn" bindtap="goBind" aria-role="button" aria-label="去绑定房间" hover-class="room-action-btn-hover">去绑定</view>
+    </view>
+
+    <view class="settings-group">
+      <text class="settings-group-title">数据</text>
+      <view class="premium-card">
+        <view class="menu-item" bindtap="exportData" aria-role="button" aria-label="导出数据" hover-class="menu-item-hover">
+          <text class="menu-text">导出数据</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-item" bindtap="clearData" aria-role="button" aria-label="重新同步房间" hover-class="menu-item-hover">
+          <text class="menu-text">重新同步房间</text>
+          <text class="menu-arrow">›</text>
+        </view>
       </view>
-      <!-- issue #102：「解除绑定」从绑定页已绑定卡移到本卡，警示红菜单行族，二次确认文案不变 -->
+    </view>
+
+    <view class="settings-group">
+      <text class="settings-group-title">关于</text>
+      <view class="premium-card">
+        <view class="menu-item non-interactive">
+          <text class="menu-text">版本</text>
+          <text class="settings-version">v1.0.0</text>
+        </view>
+        <view class="menu-item" bindtap="openHelp" aria-role="button" aria-label="使用说明" hover-class="menu-item-hover">
+          <text class="menu-text">使用说明</text>
+          <text class="menu-arrow">›</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="settings-danger-zone">
       <view wx:if="{{roomCode}}" class="menu-item danger" hover-class="danger-hover" bindtap="unbind" aria-role="button" aria-label="解除绑定">
         <text class="menu-text">解除绑定</text>
         <text class="menu-arrow">›</text>
       </view>
     </view>
+  </view>
 
-    <!-- 日历显示密度（首页日历的密度偏好入口） -->
-    <view class="premium-card">
-      <view class="menu-item non-interactive">
-        <view class="density-menu-copy">
-          <text class="menu-text">日历显示</text>
-          <text class="density-menu-desc">清爽只看日期与标记，完整加显农历与节日</text>
-        </view>
-      </view>
-      <view class="density-control" aria-label="日历信息密度">
-        <view
-          class="density-option {{calendarDensity == 'compact' ? 'active' : ''}}"
-          data-density="compact"
-          bindtap="setCalendarDensity"
-          aria-role="radio"
-          aria-label="清爽显示日历"
-          aria-checked="{{calendarDensity == 'compact'}}" hover-class="density-option-hover">清爽</view>
-        <view
-          class="density-option {{calendarDensity == 'full' ? 'active' : ''}}"
-          data-density="full"
-          bindtap="setCalendarDensity"
-          aria-role="radio"
-          aria-label="完整显示农历和节假日"
-          aria-checked="{{calendarDensity == 'full'}}" hover-class="density-option-hover">完整</view>
-      </view>
-    </view>
-
-    <!-- 功能菜单：欢乐时光入口用欢乐时光标记的浅色心，不用表情（issue #77） -->
-    <view class="premium-card">
-      <view class="menu-item" bindtap="goMemory" aria-role="button" aria-label="查看欢乐时光" hover-class="menu-item-hover">
-        <text class="menu-icon menu-heart">♥</text>
-        <text class="menu-text">欢乐时光</text>
-        <text class="menu-arrow">›</text>
-      </view>
-    </view>
-
-    <view class="premium-card">
-      <view class="menu-item" bindtap="exportData" aria-role="button" aria-label="导出数据" hover-class="menu-item-hover">
-        <text class="menu-text">导出数据</text>
-        <text class="menu-arrow">›</text>
-      </view>
-    </view>
-
-    <!-- 清除本地数据：点之前就是危险样式——警告红字 + 警告红描边（issue #77） -->
-    <view class="premium-card">
-      <view class="menu-item danger" hover-class="danger-hover" bindtap="clearData" aria-role="button" aria-label="清除本地数据">
-        <text class="menu-text">清除本地数据</text>
-        <text class="menu-arrow">›</text>
-      </view>
-    </view>
-
-    <view class="premium-card">
-      <view class="menu-item" bindtap="about" aria-role="button" aria-label="关于" hover-class="menu-item-hover">
-        <text class="menu-text">关于</text>
-        <text class="menu-arrow">›</text>
-      </view>
+  <view wx:if="{{helpOpen}}" class="help-layer">
+    <view class="help-mask" bindtap="closeHelp" aria-role="button" aria-label="关闭使用说明" hover-class="help-mask-hover"></view>
+    <view class="help-sheet premium-card" catchtap="noop">
+      <text class="help-title">使用说明</text>
+      <text class="help-copy">房间是你们两个人共用的日历。把房间码发给对方，对方加入后就能一起看同一份经期和欢乐时光。</text>
+      <text class="help-copy">解除绑定后你退出房间。对方还在时，对方留在房间里。房间里只剩你时，房间会归档，记录还在。之后在绑定页点「创建」可以恢复。</text>
+      <text class="help-copy">预测是根据已有记录做的估算，不是医疗建议。</text>
     </view>
   </view>
 </view>
