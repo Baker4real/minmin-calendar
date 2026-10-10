@@ -369,7 +369,7 @@ test('index page shows available memories when periods fail on the first load', 
     assert.equal(harness.page.data.hasLoadedHomeData, true)
     assert.equal(harness.page.data.noRoom, false)
     assert.equal(harness.page.data.syncStatusVisible, true)
-    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已显示记忆数据')
+    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已显示欢乐时光')
     assert.deepEqual(harness.page._homeRecords.periods, [])
     assert.deepEqual(harness.page._homeRecords.memories, [{ _id: 'm1', date: '2026-06-03' }])
     assert.deepEqual(calls, ['periods', 'memories'])
@@ -413,7 +413,7 @@ test('index page starts period and memory loads together so one timeout does not
 
     resolvePeriods()
     await loadPromise
-    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已显示记忆数据')
+    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已显示欢乐时光')
   } finally {
     if (resolvePeriods) resolvePeriods()
     if (loadPromise) await loadPromise.catch(() => {})
@@ -684,7 +684,7 @@ test('index page updates successful collections and preserves failed ones during
     assert.equal(harness.page.data.refreshing, false)
     assert.equal(harness.page.data.hasLoadedHomeData, true)
     assert.equal(harness.page.data.noRoom, false)
-    assert.equal(harness.page.data.syncStatusText, '记忆同步失败，已保留旧记忆数据')
+    assert.equal(harness.page.data.syncStatusText, '欢乐时光同步失败，已保留上次的欢乐时光')
     assert.equal(harness.page.data.syncStatusVisible, true)
     assert.deepEqual(harness.page._homeRecords.periods, [{ _id: 'p2', startDate: '2026-07-01', endDate: '2026-07-02', duration: 2 }])
     assert.deepEqual(harness.page._homeRecords.memories, [{ _id: 'm1', date: '2026-06-02', note: 'first' }])

@@ -173,7 +173,7 @@ function formatMemoryHighlight(memories) {
   })
 
   if (defaultNotePartIndex !== -1) {
-    parts[defaultNotePartIndex] = defaultNoteCount === 1 ? '特别日子' : `${defaultNoteCount} 个特别日子`
+    parts[defaultNotePartIndex] = defaultNoteCount === 1 ? '欢乐时光' : `${defaultNoteCount} 个欢乐时光`
   }
 
   return `欢乐时光：${parts.join('；')}`
@@ -183,7 +183,7 @@ function normalizeMemoryNote(memory) {
   const note = typeof memory.note === 'string' ? memory.note.trim() : ''
   return note
     ? { text: note, isDefault: false }
-    : { text: '特别日子', isDefault: true }
+    : { text: '欢乐时光', isDefault: true }
 }
 
 function overlapsMonth(period, monthStart, monthEnd, today) {

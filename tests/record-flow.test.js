@@ -1208,7 +1208,7 @@ test('period list failure retry is a recognizable operation, distinct from the q
     /wx:if="\{\{loadFailed && !hasLoaded && !loading\}\}" class="empty-state load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(periodWxml, /class="load-failed-text">经期记录加载失败</)
-  assert.match(periodWxml, /class="retry-btn">重试</)
+  assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 真空态仍是安静说明：不带重试按钮，也不可点；失败期间不显示断言式空态句（!loadFailed）
   const emptyBlock = /wx:elif="\{\{periods\.length === 0 && !loading && !loadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
@@ -1235,7 +1235,7 @@ test('period list keeps last data on refresh failure and offers retry in the lis
     /wx:if="\{\{loadFailed && hasLoaded && !loading\}\}" class="list-retry" bindtap="loadData" aria-role="button" aria-label="刷新失败，点按重试"/
   )
   assert.match(periodWxml, /class="list-retry-text">刷新失败，正在显示上次的内容</)
-  assert.match(periodWxml, /class="retry-btn">重试</)
+  assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 重试行可点高度 ≥44px，说明句保持次级文字色（可读但不抢操作）
   const retryRow = /\.list-retry\s*\{[^}]*\}/.exec(periodWxss)
@@ -1257,7 +1257,7 @@ test('memory list failure retry reads as an operation, not the quiet empty note'
     /wx:if="\{\{loadFailed && !hasLoaded && !loading\}\}" class="empty-state load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(memoryWxml, /class="load-failed-text">欢乐时光加载失败</)
-  assert.match(memoryWxml, /class="retry-btn">重试</)
+  assert.match(memoryWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 空列表说明保持安静：没有按钮、不可点；失败期间不显示断言式空态句（与经期列表一致）
   const emptyBlock = /wx:elif="\{\{memories\.length === 0 && !loading && !loadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(memoryWxml)
@@ -1687,7 +1687,7 @@ test('record tab memory segment mirrors the standalone memory list state contrac
     /wx:if="\{\{memoryLoadFailed && !memoryHasLoaded && !memoryLoading\}\}" class="empty-state load-failed" bindtap="loadMemoryData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(periodWxml, /class="load-failed-text">欢乐时光加载失败</)
-  assert.match(periodWxml, /class="retry-btn">重试</)
+  assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 空列表说明保持安静：没有按钮、不可点；失败期间不显示断言式空态句
   const emptyBlock = /wx:elif="\{\{memories\.length === 0 && !memoryLoading && !memoryLoadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
