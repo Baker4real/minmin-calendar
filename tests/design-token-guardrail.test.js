@@ -470,13 +470,27 @@ const INDEX_GOLD_ALLOWLIST = new Set([
   '.sync-dot',
   '.holiday-tag',
   '.predict-mark',
-  '.predict-date',
   '.reminder-rail',
-  '.detail-title',
+  '.predict-date',
   '.detail-meaning.predict',
   '.detail-meaning.holiday',
-  '.prediction-summary'
+  '.detail-meaning.predict .detail-meaning-title',
+  '.detail-meaning.holiday .detail-meaning-title'
 ])
+
+test('day detail record tags use rose and light pink, not gold', () => {
+  const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, 'pages/index/index.wxss'), 'utf8'))
+  const colorOf = (selector) => {
+    const rule = rules.find((item) => item.selectors.includes(selector))
+    assert.ok(rule, `expected ${selector}`)
+    return rule.decls.color || ''
+  }
+  assert.match(colorOf('.period-detail .detail-title'), /#E8909E|var\(--aurora-pink\)/)
+  assert.match(colorOf('.memory-detail .detail-title'), /#F0C4C0/)
+  assert.equal(INDEX_GOLD_ALLOWLIST.has('.detail-title'), false)
+  assert.match(colorOf('.detail-meaning.predict .detail-meaning-title'), /var\(--aurora-gold\)/)
+  assert.match(colorOf('.detail-meaning.holiday .detail-meaning-title'), /var\(--aurora-gold\)/)
+})
 
 test('home page reserves gold for prediction, range, certainty, and calendar metadata', () => {
   const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, 'pages/index/index.wxss'), 'utf8'))

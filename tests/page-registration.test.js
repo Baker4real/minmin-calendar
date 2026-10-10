@@ -1481,42 +1481,30 @@ test('memory edit onLoad tolerates malformed route encoding', () => {
   }
 })
 
-test('memory page onShow executes loadData and populates sorted memories through the page harness', async () => {
+test('memory page writes the segment intent and switches to the record tab', async () => {
+  const storage = {}
+  const tabs = []
   const harness = loadPageHarness('pages/memory/memory.js', {
-    mocks: {
-      'utils/cloud.js': {
-        createRoomDataClient() {
-          return {
-            async list() {
-              await waitForTimerTick()
-              return {
-                kind: 'success',
-                data: [
-                  { _id: 'm1', date: '2026-06-01', note: 'older' },
-                  { _id: 'm2', date: '2026-07-03', note: 'newer' }
-                ]
-              }
-            }
-          }
-        }
+    wxOverrides: {
+      setStorageSync(key, value) {
+        storage[key] = value
       },
-      'utils/util.js': createUtilStub()
+      switchTab(options) {
+        tabs.push(options.url)
+      }
     }
   })
 
   try {
     await awaitPageOnShow(harness.page)
-
-    assert.deepEqual(harness.page.data.memories, [
-      { _id: 'm2', date: '2026-07-03', note: 'newer', dateLabel: '7月3日' },
-      { _id: 'm1', date: '2026-06-01', note: 'older', dateLabel: '6月1日' }
-    ])
+    assert.equal(storage.recordTabSegment, 'memory')
+    assert.deepEqual(tabs, ['/pages/period/period'])
   } finally {
     harness.teardown()
   }
 })
 
-test('period and memory pages keep a visible retry action when room repair sync fails during list load', async () => {
+test('period page keeps a visible retry action when room repair sync fails during list load', async () => {
   await assertListPageRepairRetry('pages/period/period.js', {
     'utils/cloud.js': {
       createRoomDataClient() {
@@ -1548,25 +1536,6 @@ test('period and memory pages keep a visible retry action when room repair sync 
     }
   })
 
-  await assertListPageRepairRetry('pages/memory/memory.js', {
-    'utils/cloud.js': {
-      createRoomDataClient() {
-        return {
-          async list() {
-            return {
-              kind: 'room-repair',
-              roomCode: 'ROOM01',
-              repair: {
-                kind: 'retryable-failure',
-                message: '同步房间状态失败：network down'
-              }
-            }
-          }
-        }
-      }
-    },
-    'utils/util.js': createUtilStub()
-  })
 })
 
 test('settings page onShow uses verified room lookup, keeps retryable sync failures visible, and syncs repaired room codes on export', async () => {

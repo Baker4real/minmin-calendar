@@ -6,6 +6,7 @@ const recordEditRoute = require('../../utils/recordEditRoute')
 const recordDraft = require('../../utils/recordDraft')
 const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
+const { computeCalendarRowHeight } = require('../../utils/calendarRowHeight')
 const safeArea = require('../../utils/safeArea')
 const roomSession = require('../../utils/room')
 const roomPresence = require('../../utils/roomPresence')
@@ -31,6 +32,39 @@ const INITIAL_HOME_STATE = buildHomeCalendarState({
   month: INITIAL_VIEW_DATE.getMonth(),
   today: util.formatDate(INITIAL_VIEW_DATE)
 })
+function readPageViewport() {
+  try {
+    if (typeof wx !== 'undefined' && wx && typeof wx.getWindowInfo === 'function') {
+      const info = wx.getWindowInfo()
+      if (info && info.windowWidth > 0 && info.windowHeight > 0) {
+        return { viewportWidth: info.windowWidth, viewportHeight: info.windowHeight }
+      }
+    }
+  } catch (e) {
+    // 拿不到窗口时用 390 宽、去掉底栏后的常见页高
+  }
+  return { viewportWidth: 390, viewportHeight: 761 }
+}
+
+function isViewingCurrentMonth(year, month, now = new Date()) {
+  return year === now.getFullYear() && month === now.getMonth()
+}
+
+function calendarRowCount(days) {
+  return Math.max(1, Math.ceil((Array.isArray(days) ? days.length : 0) / 7))
+}
+
+function calendarRowHeightPx({ days, density, navBarHeightPx, showBackToToday }) {
+  const viewport = readPageViewport()
+  return computeCalendarRowHeight({
+    viewportWidth: viewport.viewportWidth,
+    viewportHeight: viewport.viewportHeight,
+    navBarHeightPx,
+    density: density === 'full' ? 'full' : 'compact',
+    rowCount: calendarRowCount(days),
+    showBackToToday
+  }).heightPx
+}
 
 function calendarRenderState(state) {
   const render = { ...state }
@@ -45,6 +79,7 @@ function emptyDayDetail() {
     meanings: [],
     periods: [],
     memories: [],
+    actions: [],
     empty: true
   }
 }
@@ -93,7 +128,14 @@ Page({
     monthMenuPhase: 'closed',
     calendarDensity: 'compact',
     ...calendarRenderState(INITIAL_HOME_STATE),
-    periodCount: 0,
+    showBackToToday: !isViewingCurrentMonth(INITIAL_VIEW_DATE.getFullYear(), INITIAL_VIEW_DATE.getMonth()),
+    calendarRowHeightPx: calendarRowHeightPx({
+      days: INITIAL_HOME_STATE.days,
+      density: 'compact',
+      navBarHeightPx: safeArea.getNavBarHeight(),
+      showBackToToday: !isViewingCurrentMonth(INITIAL_VIEW_DATE.getFullYear(), INITIAL_VIEW_DATE.getMonth())
+    }),
+    skeletonCells: Array.from({ length: 35 }, (_, index) => index),
     hasRecords: false,
     infoSheetVisible: false,
     infoSheetMounted: false,
@@ -133,10 +175,19 @@ Page({
   onLoad() {
     this.refreshReducedMotion()
     const now = new Date()
+    const calendarDensity = this.getSavedCalendarDensity()
+    const showBackToToday = !isViewingCurrentMonth(now.getFullYear(), now.getMonth())
     this.setData({
       year: now.getFullYear(),
       month: now.getMonth(),
-      calendarDensity: this.getSavedCalendarDensity()
+      calendarDensity,
+      showBackToToday,
+      calendarRowHeightPx: calendarRowHeightPx({
+        days: this.data.days,
+        density: calendarDensity,
+        navBarHeightPx: this.data.navBarHeight,
+        showBackToToday
+      })
     })
     this._syncState = {
       revisions: { periods: 0, memories: 0 },
@@ -408,17 +459,25 @@ Page({
     this._dayDetailsByDate = state.dayDetailsByDate || {}
     const quickAction = cycle.buildPeriodQuickAction(periods, { today })
 
+    const showBackToToday = !isViewingCurrentMonth(year, month)
+    const calendarDensity = this.data.calendarDensity === 'full' ? 'full' : 'compact'
     const update = {
       ...calendarRenderState(state),
-      periodCount: this._homeRecords.periods.length,
       hasRecords: this._homeRecords.periods.length > 0 || this._homeRecords.memories.length > 0,
       periodQuickLabel: quickAction.label,
       periodQuickAriaLabel: quickAction.ariaLabel,
+      showBackToToday,
+      calendarRowHeightPx: calendarRowHeightPx({
+        days: state.days,
+        density: calendarDensity,
+        navBarHeightPx: this.data.navBarHeight,
+        showBackToToday
+      }),
       year,
       month
     }
     if (hasOwn('monthPickerVisible')) update.monthPickerVisible = overrides.monthPickerVisible
-    if (this.data.daySheetMode === 'detail' && this.data.selectedDate) {
+    if (this.data.selectedDate && this.data.dayActionMounted) {
       update.selectedDayDetail = this._dayDetail(this.data.selectedDate)
     }
     this.setData(update)
@@ -724,6 +783,11 @@ Page({
   onDayTap(e) {
     const date = e.currentTarget.dataset.date
     if (!date) return
+    const detail = this._dayDetail(date)
+    if (detail.periods.length || detail.memories.length) {
+      this.showDayDetail(date)
+      return
+    }
     const selectedDay = this.data.days.find(day => day.date === date) || { date }
     homepageSheets(this).dayActions.open(this, {
       daySheetMode: 'actions',
@@ -732,7 +796,7 @@ Page({
       selectedDateLabel: this.formatSelectedDateLabel(date),
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
       selectedDateIsFuture: date > util.formatDate(new Date()),
-      selectedDayDetail: null
+      selectedDayDetail: detail
     })
   },
 
@@ -741,17 +805,35 @@ Page({
     const date = this.data.selectedDate
     if (!date) return
 
+    if (action === 'detail') {
+      this.showDayDetail(date)
+      return
+    }
+    // 未来日期不提供记录动作。动作列表本身是空的，这里是不导航的兜底防线。
+    if (this.data.selectedDateIsFuture) return
     if (action === 'period') {
-      // 未来日期不提供记经期（模板已隐藏入口，这里是不导航的兜底防线）
-      if (this.data.selectedDateIsFuture) return
       this.closeDayActions()
       this.openPeriodForDate(date)
     } else if (action === 'memory') {
       this.closeDayActions()
       wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl({ date }) })
-    } else if (action === 'detail') {
-      this.showDayDetail(date)
     }
+  },
+
+  onDayRecordTap(e) {
+    if (this.data.selectedDateIsFuture) return
+    const kind = e.currentTarget.dataset.kind
+    const recordId = e.currentTarget.dataset.id
+    if (!recordId) return
+    const collection = kind === 'memory' ? 'memories' : 'periods'
+    const record = this._recordList(collection).find(item => (item._id || item.id) === recordId)
+    if (!record) return
+    this.closeDayActions()
+    wx.navigateTo({
+      url: kind === 'memory'
+        ? recordEditRoute.buildMemoryEditUrl(record)
+        : recordEditRoute.buildPeriodEditUrl(record)
+    })
   },
 
   closeDayActions() {
@@ -826,15 +908,16 @@ Page({
   },
 
   formatSelectedDateLabel(date) {
-    return util.formatDisplayDate(date, { today: util.formatDate(new Date()) })
+    return util.formatDisplayDate(date, {
+      today: util.formatDate(new Date()),
+      withWeekday: true
+    })
   },
 
   formatDaySubtitle(day) {
     const parts = []
-    if (day.weekday) parts.push(day.weekday)
     if (day.lunarText) parts.push(day.lunarText)
     if (day.holidayName) parts.push(day.holidayName)
-    else if (day.isWorkday) parts.push('调休上班')
     return parts.join(' · ')
   },
 

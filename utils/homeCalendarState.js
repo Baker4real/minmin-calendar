@@ -64,6 +64,7 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
     predictionWindow,
     today
   })
+  const monthlyRecap = calendarInsights.buildMonthlyRecap({ year, month, periods, memories, prediction, today })
 
   return {
     avgCycle: prediction.canPredict ? prediction.avgCycle : null,
@@ -77,8 +78,11 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
     predictionDetail: prediction,
     legendItems: CALENDAR_LEGEND_ITEMS,
     predictionExplanation: calendarInsights.buildPredictionExplanation(prediction),
+    homeStatus: cycle.buildHomeStatusLine(periods, { today, prediction }),
+    monthPeriodDays: monthlyRecap.periodDays,
+    monthMemoryCount: monthlyRecap.memoryCount,
     cycleReminders: prediction.canPredict ? cycle.buildCycleReminders(prediction, periods, { today }) : [],
-    monthlyRecap: calendarInsights.buildMonthlyRecap({ year, month, periods, memories, prediction, today }),
+    monthlyRecap,
     days,
     dayDetailsByDate: buildDayDetailsByDate(days, periods, memories, today, roomPaired)
   }
@@ -236,6 +240,7 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
         if (detail.symptomText) meta.push(detail.symptomText)
         return withAuthorLabel({
           key: periodKeys[index],
+          recordId: recordIdentity(period),
           range: formatPeriodDetailRange(range, today),
           metaText: meta.join(' · ')
         }, cycle.recordAuthorLabel(period, { paired: roomPaired === true }))
@@ -246,14 +251,16 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
       .filter(({ memory }) => isDateString(memory.date) && memory.date === day.date)
       .map(({ memory, index }) => withAuthorLabel({
         key: memoryKeys[index],
+        recordId: recordIdentity(memory),
         note: memory.note || '欢乐时光'
       }, cycle.recordAuthorLabel(memory, { paired: roomPaired === true })))
-    const meanings = buildDayMeanings(day)
+    const meanings = buildDayMeanings(day).filter(isDayDetailSentence)
 
     details[day.date] = {
       meanings,
       periods: periodDetails,
       memories: memoryDetails,
+      actions: buildDayRecordActions(day, today),
       empty: !meanings.length && !periodDetails.length && !memoryDetails.length
     }
   })
@@ -264,6 +271,29 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
 function withAuthorLabel(row, authorLabel) {
   if (!authorLabel) return row
   return { ...row, authorLabel }
+}
+
+function recordIdentity(record) {
+  if (!record) return ''
+  return record._id || record.id || ''
+}
+
+function isDayDetailSentence(meaning) {
+  return meaning.key === 'predict' || meaning.key === 'holiday' || meaning.key === 'workday'
+}
+
+function buildDayRecordActions(day, today) {
+  if (!day.date || day.date > today) return []
+  return [
+    {
+      key: 'period',
+      label: day.isPeriod ? '编辑这次经期' : (day.date === today ? '记经期' : '补记经期')
+    },
+    {
+      key: 'memory',
+      label: day.date === today ? '记欢乐时光' : '补记欢乐时光'
+    }
+  ]
 }
 
 function isPeriodActiveOnDate(range, date) {

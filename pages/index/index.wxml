@@ -7,7 +7,7 @@
   <view class="glow-orb glow-orb-2"></view>
 
   <view class="nav-bar header-gradient">
-    <view class="nav-placeholder"></view>
+    <view class="nav-tool" hover-class="nav-tool-hover" bindtap="openMonthMenu" aria-role="button" aria-label="打开工具菜单">工具</view>
     <view class="nav-title">美少女的日历</view>
   </view>
 
@@ -19,8 +19,14 @@
     <view class="btn-premium" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}" hover-class="btn-premium-hover">{{roomStatusActionText}}</view>
   </view>
 
-  <view wx:elif="{{loading && !hasLoadedHomeData}}" class="loading-view">
-    <view class="loading-spinner" aria-label="正在加载"></view>
+  <view wx:elif="{{loading && !hasLoadedHomeData}}" class="calendar-skeleton" aria-label="正在加载">
+    <view class="skeleton-month-bar"></view>
+    <view class="skeleton-week">
+      <view class="skeleton-week-cell" wx:for="{{[0, 1, 2, 3, 4, 5, 6]}}" wx:key="*this"></view>
+    </view>
+    <view class="skeleton-grid">
+      <view class="skeleton-cell" wx:for="{{skeletonCells}}" wx:key="*this"></view>
+    </view>
   </view>
 
   <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}">
@@ -30,20 +36,40 @@
       <text class="sync-text">{{syncStatusText}}</text>
     </view>
 
-    <view class="month-nav">
-      <view class="nav-btn" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月">‹</view>
-      <view
-        class="month-title month-title-trigger"
-        bindtap="openMonthPicker"
-        aria-role="button"
-        aria-label="选择年份和月份" hover-class="month-title-trigger-hover">
-        <text>{{year}}年{{month + 1}}月</text>
-        <text class="month-title-caret">⌄</text>
+    <view class="home-sticky">
+      <view class="month-nav">
+        <view class="nav-btn" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月">‹</view>
+        <view
+          class="month-title month-title-trigger"
+          bindtap="openMonthPicker"
+          aria-role="button"
+          aria-label="选择年份和月份"
+          hover-class="month-title-trigger-hover"
+        >
+          <text>{{year}}年{{month + 1}}月</text>
+          <text class="month-title-caret">⌄</text>
+        </view>
+        <view class="nav-btn" hover-class="nav-btn-hover" bindtap="nextMonth" aria-role="button" aria-label="下一个月">›</view>
       </view>
-      <!-- issue #105：图例/预测说明/本月小结收进月份标题旁的「…」菜单（⌄ 已用于选月 caret，不重复占用） -->
-      <view class="nav-btn month-menu-trigger" bindtap="openMonthMenu" aria-role="button" aria-label="打开工具菜单" hover-class="nav-btn-hover">…</view>
-      <view class="nav-btn" hover-class="nav-btn-hover" bindtap="nextMonth" aria-role="button" aria-label="下一个月">›</view>
+      <view
+        wx:if="{{showBackToToday}}"
+        class="back-today"
+        hover-class="back-today-hover"
+        bindtap="jumpToToday"
+        aria-role="button"
+        aria-label="回到今天"
+      >回到今天</view>
+      <view
+        class="home-status {{homeStatus.tone == 'neutral' ? 'neutral' : ''}}"
+        hover-class="home-status-hover"
+        bindtap="openPredictionSheet"
+        aria-role="button"
+        aria-label="{{homeStatus.text}}"
+      >
+        <text class="home-status-text">{{homeStatus.text}}</text>
+      </view>
     </view>
+    <view class="home-sticky-spacer {{showBackToToday ? 'with-back-today' : ''}}"></view>
 
     <!-- 刷新失败重试句：正常文档流放在月份导航与日历之间，不遮月份标题；留驻到重试成功（issue #79） -->
     <view wx:if="{{refreshRetryVisible}}" class="refresh-retry" bindtap="retryRefresh" aria-role="button" aria-label="日历刷新失败，点按重试" hover-class="refresh-retry-hover">
@@ -61,7 +87,7 @@
       <view class="week-cell" wx:for="{{weekDays}}" wx:key="*this">{{item}}</view>
     </view>
 
-    <view class="calendar-grid calendar-density-{{calendarDensity}}">
+    <view class="calendar-grid calendar-density-{{calendarDensity}}" style="--calendar-row-height: {{calendarRowHeightPx}}px">
       <view
         class="day-cell {{item.isToday ? 'today' : ''}} {{item.isPeriod ? 'period' : ''}} {{item.periodSegment === 'start' ? 'period-start' : ''}} {{item.periodSegment === 'middle' ? 'period-middle' : ''}} {{item.periodSegment === 'end' ? 'period-end' : ''}} {{item.periodSegment === 'single' ? 'period-single' : ''}} {{item.periodOpenEnd ? 'period-open' : ''}} {{item.isMemory ? 'memory' : ''}} {{item.isPredict ? 'predict' : ''}} {{item.isHoliday ? 'holiday' : ''}} {{item.isWorkday ? 'workday' : ''}} {{item.isEmpty ? 'empty' : ''}}"
         wx:for="{{days}}"
@@ -100,63 +126,55 @@
       </view>
     </view>
 
-    <!-- issue #105：合并状态卡——经期记录条数（不可点现状）+ 下次预测，卡内并入超期进行中与周期提醒；
-         经期/欢乐时光列表由「记录」tab 分段承接，首页不再放列表入口 -->
-    <view wx:if="{{hasRecords}}" class="status-card premium-card">
-      <view class="status-row">
-        <view class="status-figure">
-          <text class="stat-num">{{periodCount}}</text>
-          <text class="stat-label">经期记录</text>
-        </view>
-        <view class="stat-divider"></view>
-        <view
-          class="stat-item predict-item"
-          bindtap="openPredictionSheet"
-          aria-role="button"
-          aria-label="{{nextPredictWeekday ? '查看经期预测，' + nextPredictDisplay + ' ' + nextPredictWeekday : '查看经期预测，暂无下次日期'}}" hover-class="stat-item-hover">
-          <view class="predict-value">
-            <text class="predict-date">{{nextPredictDisplay || '--'}}</text>
-            <text wx:if="{{nextPredictWeekday}}" class="predict-weekday">{{nextPredictWeekday}}</text>
-          </view>
-          <text class="stat-label">预测下次</text>
-        </view>
-      </view>
-
-      <!-- issue #98：超期进行中记录的一次非阻塞完成提示：同一记录只提示一次，点击打开同一条记录补填结束日期 -->
-      <view wx:if="{{ongoingCompletionReminder}}" class="status-reminders">
-        <view
-          class="reminder-card {{ongoingCompletionReminder.type}}"
-          bindtap="onOngoingReminderTap"
-          aria-role="button"
-          aria-label="{{ongoingCompletionReminder.title}}，{{ongoingCompletionReminder.text}}，点按去补填" hover-class="reminder-card-hover">
-          <view class="reminder-rail"></view>
-          <view class="reminder-copy">
-            <text class="reminder-title">{{ongoingCompletionReminder.title}}</text>
-            <text class="reminder-text">{{ongoingCompletionReminder.text}}</text>
-          </view>
-          <text class="reminder-action">去补填</text>
-        </view>
-      </view>
-
-      <view wx:if="{{cycleReminders.length}}" class="status-reminders">
-        <view
-          class="reminder-card {{item.type}}"
-          wx:for="{{cycleReminders}}"
-          wx:key="type"
-          data-index="{{index}}"
-          bindtap="onReminderTap"
-          aria-role="button"
-          aria-label="{{item.title}}，{{item.text}}，点按记录" hover-class="reminder-card-hover">
-          <view class="reminder-rail"></view>
-          <view class="reminder-copy">
-            <text class="reminder-title">{{item.title}}</text>
-            <text class="reminder-text">{{item.text}}</text>
-          </view>
-          <text class="reminder-action">记录</text>
-        </view>
-      </view>
+    <view
+      wx:if="{{hasRecords}}"
+      class="month-summary"
+      hover-class="month-summary-hover"
+      bindtap="openMonthlyRecap"
+      aria-role="button"
+      aria-label="查看本月小结，本月 经期 {{monthPeriodDays}} 天 · 欢乐时光 {{monthMemoryCount}} 条"
+    >
+      <text class="month-summary-text">本月 经期 {{monthPeriodDays}} 天 · 欢乐时光 {{monthMemoryCount}} 条</text>
+      <text class="month-summary-arrow">›</text>
     </view>
-    <view wx:else class="empty-guide">
+
+    <!-- issue #98：超期进行中记录的一次非阻塞完成提示。整行，不再套在状态卡里。 -->
+    <view
+      wx:if="{{ongoingCompletionReminder}}"
+      class="reminder-card {{ongoingCompletionReminder.type}}"
+      bindtap="onOngoingReminderTap"
+      aria-role="button"
+      aria-label="{{ongoingCompletionReminder.title}}，{{ongoingCompletionReminder.text}}，点按去补填"
+      hover-class="reminder-card-hover"
+    >
+      <view class="reminder-rail"></view>
+      <view class="reminder-copy">
+        <text class="reminder-title">{{ongoingCompletionReminder.title}}</text>
+        <text class="reminder-text">{{ongoingCompletionReminder.text}}</text>
+      </view>
+      <text class="reminder-action">去补填</text>
+    </view>
+
+    <view
+      wx:if="{{cycleReminders.length}}"
+      class="reminder-card {{item.type}}"
+      wx:for="{{cycleReminders}}"
+      wx:key="type"
+      data-index="{{index}}"
+      bindtap="onReminderTap"
+      aria-role="button"
+      aria-label="{{item.title}}，{{item.text}}，点按记录"
+      hover-class="reminder-card-hover"
+    >
+      <view class="reminder-rail"></view>
+      <view class="reminder-copy">
+        <text class="reminder-title">{{item.title}}</text>
+        <text class="reminder-text">{{item.text}}</text>
+      </view>
+      <text class="reminder-action">记录</text>
+    </view>
+
+    <view wx:if="{{!hasRecords}}" class="empty-guide">
       <text class="empty-guide-text">点日历任意一天开始记录</text>
     </view>
   </view>
@@ -239,90 +257,79 @@
       </view>
       </view>
 
-      <block wx:if="{{daySheetMode == 'actions'}}">
-        <view class="sheet-actions">
-          <view wx:if="{{!selectedDateIsFuture}}" class="sheet-action" data-action="period" bindtap="onDayActionTap" aria-role="button" aria-label="记经期" hover-class="sheet-action-hover">
-            <text class="sheet-action-icon period-tone">●</text>
-            <view class="sheet-action-copy">
-              <text class="sheet-action-title">记经期</text>
-              <text class="sheet-action-desc">添加这一天的经期记录</text>
-            </view>
-            <text class="sheet-action-arrow">›</text>
-          </view>
-          <view class="sheet-action" data-action="memory" bindtap="onDayActionTap" aria-role="button" aria-label="记欢乐时光" hover-class="sheet-action-hover">
-            <text class="sheet-action-icon memory-tone">♥</text>
-            <view class="sheet-action-copy">
-              <text class="sheet-action-title">记欢乐时光</text>
-              <text class="sheet-action-desc">写下这一天的欢乐时光</text>
-            </view>
-            <text class="sheet-action-arrow">›</text>
-          </view>
-          <view class="sheet-action" data-action="detail" bindtap="onDayActionTap" aria-role="button" aria-label="查看详情" hover-class="sheet-action-hover">
-            <text class="sheet-action-icon detail-tone">i</text>
-            <view class="sheet-action-copy">
-              <text class="sheet-action-title">查看详情</text>
-              <text class="sheet-action-desc">经期与欢乐时光都在这里</text>
-            </view>
-            <text class="sheet-action-arrow">›</text>
-          </view>
+      <view wx:if="{{selectedDayDetail.meanings && selectedDayDetail.meanings.length}}" class="detail-meaning-list">
+        <view
+          wx:for="{{selectedDayDetail.meanings}}"
+          wx:key="key"
+          class="detail-meaning {{item.key}}"
+        >
+          <text class="detail-meaning-title">{{item.title}}</text>
+          <text class="detail-meaning-text">{{item.text}}</text>
         </view>
-      </block>
+      </view>
 
-      <view wx:elif="{{daySheetMode == 'detail'}}" class="{{dayDetailFade ? 'day-detail-fade' : ''}}">
-        <view class="day-detail-list">
-          <view wx:if="{{selectedDayDetail.meanings && selectedDayDetail.meanings.length}}" class="detail-meaning-list">
-            <view
-              wx:for="{{selectedDayDetail.meanings}}"
-              wx:key="key"
-              class="detail-meaning {{item.key}}"
-            >
-              <text class="detail-meaning-title">{{item.title}}</text>
-              <text class="detail-meaning-text">{{item.text}}</text>
-            </view>
-          </view>
+      <view wx:if="{{daySheetMode == 'detail'}}" class="day-detail-list {{dayDetailFade ? 'day-detail-fade' : ''}}">
+        <view wx:if="{{selectedDayDetail.empty}}" class="day-detail-empty">
+          <text class="detail-empty-title">当天无记录</text>
+          <text class="detail-empty-desc">可以从这里补一条经期或欢乐时光</text>
+        </view>
 
-          <view wx:if="{{selectedDayDetail.empty}}" class="day-detail-empty">
-            <text class="detail-empty-title">当天无记录</text>
-            <text class="detail-empty-desc">可以从这里补一条经期或欢乐时光</text>
-          </view>
-
-          <view
-            wx:for="{{selectedDayDetail.periods}}"
-            wx:key="key"
-            class="day-detail-row period-detail"
-          >
-            <view class="detail-rail"></view>
-            <view class="detail-copy">
-              <text class="detail-title">经期</text>
-              <text class="detail-main">{{item.range}}</text>
-              <text wx:if="{{item.metaText}}" class="detail-meta">{{item.metaText}}</text>
-              <text wx:if="{{item.authorLabel}}" class="detail-meta">{{item.authorLabel}}</text>
-            </view>
-          </view>
-
-          <view
-            wx:for="{{selectedDayDetail.memories}}"
-            wx:key="key"
-            class="day-detail-row memory-detail"
-          >
-            <view class="detail-rail"></view>
-            <view class="detail-copy">
-              <text class="detail-title">欢乐时光</text>
-              <text class="detail-main">{{item.note}}</text>
-              <text wx:if="{{item.authorLabel}}" class="detail-meta">{{item.authorLabel}}</text>
-            </view>
+        <view
+          wx:for="{{selectedDayDetail.periods}}"
+          wx:key="key"
+          class="day-detail-row period-detail"
+          data-kind="period"
+          data-id="{{item.recordId}}"
+          bindtap="onDayRecordTap"
+          aria-role="button"
+          aria-label="编辑经期"
+          hover-class="day-detail-row-hover"
+        >
+          <view class="detail-rail"></view>
+          <view class="detail-copy">
+            <text class="detail-title">经期</text>
+            <text class="detail-main">{{item.range}}</text>
+            <text wx:if="{{item.metaText}}" class="detail-meta">{{item.metaText}}</text>
+            <text wx:if="{{item.authorLabel}}" class="detail-meta">{{item.authorLabel}}</text>
           </view>
         </view>
 
-        <view class="sheet-actions compact-actions">
-          <view wx:if="{{!selectedDateIsFuture}}" class="sheet-action compact" data-action="period" bindtap="onDayActionTap" aria-role="button" aria-label="补记经期" hover-class="sheet-action-hover">
-            <text class="sheet-action-icon period-tone">●</text>
-            <text class="sheet-action-title">补记经期</text>
+        <view
+          wx:for="{{selectedDayDetail.memories}}"
+          wx:key="key"
+          class="day-detail-row memory-detail"
+          data-kind="memory"
+          data-id="{{item.recordId}}"
+          bindtap="onDayRecordTap"
+          aria-role="button"
+          aria-label="编辑欢乐时光"
+          hover-class="day-detail-row-hover"
+        >
+          <view class="detail-rail"></view>
+          <view class="detail-copy">
+            <text class="detail-title">欢乐时光</text>
+            <text class="detail-main">{{item.note}}</text>
+            <text wx:if="{{item.authorLabel}}" class="detail-meta">{{item.authorLabel}}</text>
           </view>
-          <view class="sheet-action compact" data-action="memory" bindtap="onDayActionTap" aria-role="button" aria-label="补记欢乐时光" hover-class="sheet-action-hover">
-            <text class="sheet-action-icon memory-tone">♥</text>
-            <text class="sheet-action-title">补记欢乐时光</text>
+        </view>
+      </view>
+
+      <view wx:if="{{selectedDayDetail.actions && selectedDayDetail.actions.length}}" class="sheet-actions {{daySheetMode == 'detail' ? 'compact-actions' : ''}}">
+        <view
+          wx:for="{{selectedDayDetail.actions}}"
+          wx:key="key"
+          class="sheet-action {{daySheetMode == 'detail' ? 'compact' : ''}}"
+          data-action="{{item.key}}"
+          bindtap="onDayActionTap"
+          aria-role="button"
+          aria-label="{{item.label}}"
+          hover-class="sheet-action-hover"
+        >
+          <text class="sheet-action-icon {{item.key == 'period' ? 'period-tone' : 'memory-tone'}}">{{item.key == 'period' ? '●' : '♥'}}</text>
+          <view class="sheet-action-copy">
+            <text class="sheet-action-title">{{item.label}}</text>
           </view>
+          <text wx:if="{{daySheetMode != 'detail'}}" class="sheet-action-arrow">›</text>
         </view>
       </view>
     </view>
@@ -386,7 +393,7 @@
           <text wx:if="{{infoSheetMode == 'legend'}}" class="sheet-title">日历图例</text>
           <text wx:elif="{{infoSheetMode == 'prediction'}}" class="sheet-title">{{predictionExplanation.title}}</text>
           <text wx:elif="{{infoSheetMode == 'recap' && monthlyRecap}}" class="sheet-title">{{monthlyRecap.title}}</text>
-          <text class="sheet-subtitle">{{year}}年{{month + 1}}月</text>
+          <text wx:if="{{infoSheetMode != 'recap'}}" class="sheet-subtitle">{{year}}年{{month + 1}}月</text>
         </view>
         <view class="sheet-close" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">×</view>
       </view>
@@ -409,11 +416,11 @@
 
       <view wx:elif="{{infoSheetMode == 'prediction'}}" class="prediction-explanation">
         <text class="prediction-summary">{{predictionExplanation.summary}}</text>
-        <view
+        <text
           wx:for="{{predictionExplanation.lineItems}}"
           wx:key="key"
           class="explain-line"
-        >{{item.text}}</view>
+        >{{item.text}}</text>
       </view>
 
       <view wx:elif="{{infoSheetMode == 'recap' && monthlyRecap}}" class="monthly-recap">
@@ -421,11 +428,11 @@
         <text class="recap-summary">{{monthlyRecap.memorySummary}}</text>
         <text class="recap-summary">{{monthlyRecap.predictionSummary}}</text>
         <view wx:if="{{monthlyRecap.highlightItems.length}}" class="recap-highlights">
-          <view
+          <text
             wx:for="{{monthlyRecap.highlightItems}}"
             wx:key="key"
             class="recap-highlight"
-          >{{item.text}}</view>
+          >{{item.text}}</text>
         </view>
         <view class="copy-recap" bindtap="copyMonthlyRecap" aria-role="button" aria-label="复制小结" hover-class="copy-recap-hover">复制小结</view>
       </view>

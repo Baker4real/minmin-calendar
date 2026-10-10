@@ -679,17 +679,17 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
   }
 }
 
-test('homepage places quick record actions after the calendar grid and before the merged status card', () => {
+test('homepage places quick record actions after the calendar grid and before the month summary', () => {
   const wxml = readIndexWxml()
   const gridIndex = wxml.indexOf('class="calendar-grid')
   const quickIndex = wxml.indexOf('class="quick-actions"')
-  const statusIndex = wxml.indexOf('class="status-card')
+  const summaryIndex = wxml.indexOf('class="month-summary"')
 
   assert.ok(gridIndex !== -1, 'expected the calendar grid')
   assert.ok(quickIndex !== -1, 'expected quick record actions')
-  assert.ok(statusIndex !== -1, 'expected the merged status card')
+  assert.ok(summaryIndex !== -1, 'expected the month summary row')
   assert.ok(gridIndex < quickIndex, 'record actions should directly follow the calendar grid')
-  assert.ok(quickIndex < statusIndex, 'record actions should precede the merged status card')
+  assert.ok(quickIndex < summaryIndex, 'record actions should precede the month summary')
 })
 
 test('homepage render data omits record arrays and the per-day detail map', async () => {
@@ -740,7 +740,7 @@ test('homepage render data omits record arrays and the per-day detail map', asyn
     assert.equal(harness.page.data.periods, undefined)
     assert.equal(harness.page.data.memories, undefined)
     assert.equal(harness.page.data.dayDetailsByDate, undefined)
-    assert.equal(harness.page.data.periodCount, 1)
+    assert.equal(harness.page.data.periodCount, undefined)
     assert.equal(harness.page.data.hasRecords, true)
     assert.equal(harness.page.data.days.find((day) => day.date === '2026-06-01').isPeriod, true)
     assert.equal(harness.page.data.days.find((day) => day.date === '2026-06-04').isMemory, true)
@@ -760,19 +760,19 @@ test('homepage render data omits record arrays and the per-day detail map', asyn
     assert.equal(harness.page._dayDetailsByDate['2026-06-04'].memories[0].note, '只有四号的备注')
 
     const wxml = readIndexWxml()
-    assert.match(wxml, /wx:if="\{\{hasRecords\}\}" class="status-card/)
-    assert.match(wxml, /class="stat-num">\{\{periodCount\}\}<\/text>/)
+    assert.match(wxml, /class="month-summary-text">本月 经期 \{\{monthPeriodDays\}\} 天 · 欢乐时光 \{\{monthMemoryCount\}\} 条<\/text>/)
+    assert.doesNotMatch(wxml, /periodCount|status-card|stat-label">经期记录/)
     assert.doesNotMatch(wxml, /periods\.length|memories\.length|dayDetailsByDate/)
   } finally {
     harness.teardown()
   }
 })
 
-test('homepage shows a first-record guide instead of the status card when the room has no records', () => {
+test('homepage shows a first-record guide instead of the month summary when the room has no records', () => {
   const wxml = readIndexWxml()
 
-  assert.match(wxml, /wx:if="\{\{hasRecords\}\}" class="status-card/)
-  assert.match(wxml, /wx:else class="empty-guide"/)
+  assert.match(wxml, /wx:if="\{\{hasRecords\}\}"[\s\S]*class="month-summary"/)
+  assert.match(wxml, /wx:if="\{\{!hasRecords\}\}" class="empty-guide"/)
   assert.match(wxml, /点日历任意一天开始记录/)
 })
 
@@ -804,61 +804,43 @@ test('empty-state guide text meets the secondary-text contrast floor on its comp
   )
 })
 
-test('homepage status card merges prediction and both reminders, leaving range and confidence to the prediction sheet', () => {
+test('homepage status line and month summary sit above full-width reminder rows', () => {
   const wxml = readIndexWxml()
-  const cardBlock = sliceStatusCard(wxml)
+  const sticky = wxml.slice(wxml.indexOf('class="home-sticky"'), wxml.indexOf('class="home-sticky-spacer'))
+  const summary = wxml.indexOf('class="month-summary"')
+  const ongoing = wxml.indexOf('onOngoingReminderTap')
+  const cycleReminder = wxml.indexOf('onReminderTap')
 
-  assert.match(cardBlock, /nextPredictDisplay/)
-  assert.match(cardBlock, /bindtap="onOngoingReminderTap"/)
-  assert.match(cardBlock, /bindtap="onReminderTap"/)
-  assert.doesNotMatch(cardBlock, /avgCycle|predictionRangeDisplay|predictConfidence/)
+  assert.match(sticky, /class="month-nav"/)
+  assert.match(sticky, /wx:if="\{\{showBackToToday\}\}"/)
+  assert.match(sticky, /class="back-today"/)
+  assert.match(sticky, /bindtap="openPredictionSheet"/)
+  assert.match(sticky, /class="home-status-text">\{\{homeStatus\.text\}\}<\/text>/)
+  assert.doesNotMatch(sticky, /month-menu-trigger|nav-placeholder/)
+  assert.ok(summary !== -1 && summary < ongoing && ongoing < cycleReminder)
+  assert.doesNotMatch(wxml, /status-card|status-reminders|stat-label">经期记录/)
   assert.match(wxml, /predictionExplanation\.summary/)
   assert.match(wxml, /predictionExplanation\.lineItems/)
 })
 
-test('status card keeps the period record count as plain status text, not a list entry', () => {
+test('homepage drops the period record count', () => {
   const wxml = readIndexWxml()
-  const cardBlock = sliceStatusCard(wxml)
-  const figure = cardBlock.slice(cardBlock.indexOf('class="status-figure"'), cardBlock.indexOf('stat-divider'))
-
-  // issue #105：条数仍是现状的一部分，但经期记录列表由「记录」tab 分段承接，
-  // 卡上不再有点按跳转（issue #68 的左半入口随本 ticket 退役）
-  assert.match(figure, /class="stat-num">\{\{periodCount\}\}<\/text>/)
-  assert.match(figure, /class="stat-label">经期记录<\/text>/)
-  assert.doesNotMatch(figure, /bindtap|aria-role|›|arrow|条</)
-  assert.doesNotMatch(cardBlock, /goPeriodList|goMemoryList/)
-  assert.doesNotMatch(cardBlock, /class="stat-divider"[^>]*bindtap/)
-  assert.doesNotMatch(cardBlock, /class="status-card[^"]*"[^>]*bindtap/)
+  assert.doesNotMatch(wxml, /periodCount|stat-num|stat-label">经期记录/)
+  assert.doesNotMatch(wxml, /goPeriodList|goMemoryList/)
 })
 
-test('status card prediction region opens the existing prediction sheet without leaving the home page', () => {
+test('status line opens the existing prediction sheet without leaving the home page', () => {
   const wxml = readIndexWxml()
-  const cardBlock = sliceStatusCard(wxml)
-  const predictRegion = cardBlock.slice(cardBlock.indexOf('predict-item'), cardBlock.indexOf('status-reminders'))
+  const sticky = wxml.slice(wxml.indexOf('class="home-status'), wxml.indexOf('class="home-sticky-spacer'))
 
-  // issue #70：预测区整块接现有 openPredictionSheet 动作（原工具栏「预测」入口现由月份菜单承接）
-  assert.match(predictRegion, /bindtap="openPredictionSheet"[\s\S]*?aria-role="button"/)
+  assert.match(sticky, /bindtap="openPredictionSheet"[\s\S]*?aria-role="button"/)
+  assert.match(sticky, /aria-label="\{\{homeStatus\.text\}\}"/)
+  assert.doesNotMatch(sticky, /disabled|goPeriodList/)
 
-  // 有日期：月日 + 一个空格 + 星期；无日期：固定暂无文案（可见文字仍是 --）
-  const labelExpr = /aria-label="\{\{([\s\S]+?)\}\}"/.exec(predictRegion)
-  assert.ok(labelExpr, 'expected the date-aware aria label')
-  const readLabel = scope => evaluateWxmlExpression(labelExpr[1], scope)
-  assert.equal(readLabel({ nextPredictDisplay: '9月30日', nextPredictWeekday: '周三' }), '查看经期预测，9月30日 周三')
-  assert.equal(readLabel({ nextPredictDisplay: '--', nextPredictWeekday: '' }), '查看经期预测，暂无下次日期')
-
-  // -- 不是禁用态；预测区不进入经期记录页
-  assert.doesNotMatch(predictRegion, /disabled/)
-  assert.doesNotMatch(predictRegion, /goPeriodList/)
-  assert.match(predictRegion, /class="predict-date">\{\{nextPredictDisplay \|\| '--'\}\}<\/text>/)
-  assert.match(predictRegion, /wx:if="\{\{nextPredictWeekday\}\}"[\s\S]*?\{\{nextPredictWeekday\}\}<\/text>/)
-  assert.doesNotMatch(predictRegion, /›|arrow/)
-
-  // 说明面板的标题、正文与查看月份副标题保持现状
   assert.match(wxml, /predictionExplanation\.title/)
   assert.match(wxml, /predictionExplanation\.summary/)
   assert.match(wxml, /predictionExplanation\.lineItems/)
   assert.match(wxml, /class="sheet-subtitle">\{\{year\}\}年\{\{month \+ 1\}\}月<\/text>/)
-  assert.doesNotMatch(cardBlock, /avgCycle|predictionRangeDisplay|predictConfidence/)
 
   // 行为：留在首页、日历不跳转，只打开预测说明
   const harness = loadPageHarness({ client: createQueuedClient([]) })
@@ -874,6 +856,43 @@ test('status card prediction region opens the existing prediction sheet without 
     assert.deepEqual(navigation, [])
     assert.equal(harness.page.data.year, viewBefore.year)
     assert.equal(harness.page.data.month, viewBefore.month)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('viewed records supply the status line, the month summary, and back-to-today', async () => {
+  const harness = loadPageHarness({
+    calendarState: 'real',
+    client: createQueuedClient([
+      {
+        kind: 'success',
+        data: [
+          { _id: 'p1', startDate: '2026-05-18', endDate: '2026-05-22', status: 'known-end' },
+          { _id: 'p2', startDate: '2026-06-15', endDate: '2026-06-19', status: 'known-end' },
+          { _id: 'p3', startDate: '2026-06-24', endDate: '', status: 'ongoing' }
+        ]
+      },
+      { kind: 'success', data: [{ _id: 'm1', date: '2026-06-04', note: '散步' }] }
+    ])
+  })
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+    harness.page.applyHomeCalendarState({ year: 2026, month: 5, today: '2026-06-26' })
+
+    assert.equal(harness.page.data.homeStatus.text, '经期第 3 天')
+    assert.equal(harness.page.data.homeStatus.tone, 'default')
+    assert.equal(harness.page.data.monthPeriodDays, 8)
+    assert.equal(harness.page.data.monthMemoryCount, 1)
+    assert.equal(harness.page.data.showBackToToday, true)
+
+    harness.page.openMonthlyRecap()
+    assert.equal(harness.page.data.infoSheetMode, 'recap')
+    assert.equal(harness.page.data.infoSheetVisible, true)
+
+    harness.page.jumpToToday()
+    assert.equal(harness.page.data.showBackToToday, false)
   } finally {
     harness.teardown()
   }
@@ -1028,6 +1047,7 @@ test('calendar day period action is not usable for future dates', () => {
     harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-30' } } })
     assert.equal(harness.page.data.selectedDateIsFuture, true)
     harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'memory' } } })
     assert.deepEqual(navigation, [])
 
     // 详情模式同一天同样被标记
@@ -1044,12 +1064,201 @@ test('calendar day period action is not usable for future dates', () => {
   }
 })
 
-test('day action sheet hides both period entries for future dates in the template', () => {
+test('day sheet record actions are the detail action list and not a view-detail menu', () => {
   const wxml = readIndexWxml()
-  const periodActions = wxml.match(/<view[^>]*data-action="period"[^>]*>/g) || []
-  assert.equal(periodActions.length, 2, 'expected the actions-mode and detail-mode period entries')
-  for (const tag of periodActions) {
-    assert.match(tag, /wx:if="\{\{!selectedDateIsFuture\}\}"/, 'period entry must be hidden on future dates')
+  assert.match(wxml, /wx:for="\{\{selectedDayDetail\.actions\}\}"/)
+  assert.match(wxml, /bindtap="onDayRecordTap"/)
+  assert.doesNotMatch(wxml, /查看详情/)
+  assert.doesNotMatch(wxml, /data-action="detail"/)
+})
+
+function daySheetDetail(overrides = {}) {
+  return {
+    meanings: [],
+    periods: [],
+    memories: [],
+    actions: [],
+    empty: true,
+    ...overrides
+  }
+}
+
+function loadDaySheetHarness() {
+  return loadPageHarness({
+    client: createQueuedClient([]),
+    calendarState() {
+      return {
+        days: [
+          { date: '2026-06-03', isEmpty: false },
+          { date: '2026-06-10', isEmpty: false },
+          { date: '2026-06-19', isEmpty: false, lunarText: '五月初五', holidayName: '端午' },
+          { date: '2026-06-20', isEmpty: false },
+          { date: '2026-06-26', isEmpty: false },
+          { date: '2026-10-01', isEmpty: false, lunarText: '八月廿一', holidayName: '国庆' }
+        ],
+        dayDetailsByDate: {
+          '2026-06-03': daySheetDetail({
+            periods: [{ key: 'period:p1', recordId: 'p1', range: '6月1日–6月5日', metaText: '' }],
+            actions: [
+              { key: 'period', label: '编辑这次经期' },
+              { key: 'memory', label: '补记欢乐时光' }
+            ],
+            empty: false
+          }),
+          '2026-06-10': daySheetDetail({
+            actions: [
+              { key: 'period', label: '补记经期' },
+              { key: 'memory', label: '补记欢乐时光' }
+            ]
+          }),
+          '2026-06-19': daySheetDetail({
+            meanings: [{ key: 'holiday', title: '节日', text: '端午。' }],
+            actions: [
+              { key: 'period', label: '补记经期' },
+              { key: 'memory', label: '补记欢乐时光' }
+            ],
+            empty: false
+          }),
+          '2026-06-20': daySheetDetail({
+            memories: [{ key: 'memory:m1', recordId: 'm1', note: '散步' }],
+            actions: [
+              { key: 'period', label: '补记经期' },
+              { key: 'memory', label: '补记欢乐时光' }
+            ],
+            empty: false
+          }),
+          '2026-06-26': daySheetDetail({
+            actions: [
+              { key: 'period', label: '记经期' },
+              { key: 'memory', label: '记欢乐时光' }
+            ]
+          }),
+          '2026-10-01': daySheetDetail({
+            meanings: [{ key: 'holiday', title: '节日', text: '国庆。' }]
+          })
+        }
+      }
+    }
+  })
+}
+
+test('a recorded day opens its detail and a blank day opens dated actions', () => {
+  const harness = loadDaySheetHarness()
+  try {
+    harness.page.applyHomeCalendarState({
+      year: 2026,
+      month: 5,
+      periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', status: 'known-end' }],
+      memories: [{ _id: 'm1', date: '2026-06-20', note: '散步' }],
+      today: '2026-06-26'
+    })
+
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-03' } } })
+    assert.equal(harness.page.data.daySheetMode, 'detail')
+    assert.equal(harness.page.data.dayDetailFade, false)
+    assert.equal(harness.page.data.selectedDateLabel, '6月3日 周三')
+    assert.equal(harness.page.data.selectedDayDetail.periods[0].recordId, 'p1')
+
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-20' } } })
+    assert.equal(harness.page.data.daySheetMode, 'detail')
+    assert.equal(harness.page.data.dayDetailFade, false)
+    assert.equal(harness.page.data.selectedDayDetail.memories[0].recordId, 'm1')
+
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-10' } } })
+    assert.equal(harness.page.data.daySheetMode, 'actions')
+    assert.equal(harness.page.data.dayDetailFade, false)
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions, [
+      { key: 'period', label: '补记经期' },
+      { key: 'memory', label: '补记欢乐时光' }
+    ])
+
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-26' } } })
+    assert.equal(harness.page.data.daySheetMode, 'actions')
+    assert.deepEqual(
+      harness.page.data.selectedDayDetail.actions.map(item => item.label),
+      ['记经期', '记欢乐时光']
+    )
+
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-19' } } })
+    assert.equal(harness.page.data.selectedDateLabel, '6月19日 周五')
+    assert.equal(harness.page.data.selectedDateSubtitle, '五月初五 · 端午')
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('tapping a day detail row opens that record in the editor', () => {
+  const harness = loadDaySheetHarness()
+  try {
+    const navigation = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+    harness.page.applyHomeCalendarState({
+      year: 2026,
+      month: 5,
+      periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', status: 'known-end' }],
+      memories: [{ _id: 'm1', date: '2026-06-20', note: '散步' }],
+      today: '2026-06-26'
+    })
+
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-03' } } })
+    harness.page.onDayRecordTap({ currentTarget: { dataset: { kind: 'period', id: 'p1' } } })
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-20' } } })
+    harness.page.onDayRecordTap({ currentTarget: { dataset: { kind: 'memory', id: 'm1' } } })
+
+    assert.deepEqual(navigation, [
+      '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&status=known-end',
+      `/pages/memory/edit/edit?id=m1&date=2026-06-20&note=${encodeURIComponent('散步')}`
+    ])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('a period day action edits the covering record instead of creating an overlap', () => {
+  const harness = loadDaySheetHarness()
+  try {
+    const navigation = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+    harness.page.applyHomeCalendarState({
+      year: 2026,
+      month: 5,
+      periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', status: 'known-end' }],
+      today: '2026-06-26'
+    })
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-03' } } })
+    assert.equal(harness.page.data.daySheetMode, 'detail')
+    assert.equal(harness.page.data.selectedDayDetail.actions[0].label, '编辑这次经期')
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    assert.deepEqual(navigation, [
+      '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&status=known-end'
+    ])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('a future day keeps holiday information and offers no record actions', () => {
+  const harness = loadDaySheetHarness()
+  try {
+    const navigation = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+    harness.page.applyHomeCalendarState({})
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-10-01' } } })
+    assert.equal(harness.page.data.daySheetMode, 'actions')
+    assert.equal(harness.page.data.selectedDateIsFuture, true)
+    assert.equal(harness.page.data.selectedDateLabel, '10月1日 周四')
+    assert.equal(harness.page.data.selectedDateSubtitle, '八月廿一 · 国庆')
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions, [])
+    assert.deepEqual(
+      harness.page.data.selectedDayDetail.meanings.map(item => item.text),
+      ['国庆。']
+    )
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'memory' } } })
+    harness.page.onDayRecordTap({ currentTarget: { dataset: { kind: 'memory', id: 'm-future' } } })
+    assert.deepEqual(navigation, [])
+  } finally {
+    harness.teardown()
   }
 })
 
@@ -1239,47 +1448,49 @@ test('the completion reminder is an in-flow non-blocking card with a readable na
   // 非阻塞：不是遮罩弹层，不用 modal/sheet 容器
   assert.doesNotMatch(block, /mask|sheet|modal|fixed/)
 
-  // 位置：合并状态卡内、周期提醒卡之前，一张卡看完现状
-  const statusIndex = wxml.indexOf('class="status-card')
+  const summaryIndex = wxml.indexOf('class="month-summary"')
   const cycleReminderIndex = wxml.indexOf('onReminderTap')
-  assert.ok(statusIndex !== -1 && statusIndex < gateIndex, 'reminder card lives inside the merged status card')
-  assert.ok(cycleReminderIndex !== -1 && cardIndex < cycleReminderIndex, 'reminder card sits before the cycle reminders')
+  assert.ok(summaryIndex !== -1 && summaryIndex < gateIndex, 'the completion reminder follows the month summary')
+  assert.equal(wxml.includes('status-card'), false, 'reminders are not nested in a status card')
+  assert.ok(cycleReminderIndex !== -1 && cardIndex < cycleReminderIndex, 'reminder row sits before the cycle reminders')
 
   // 样式复用周期提醒卡，不新增视觉系统；无新增 wxss 规则要求
   const wxss = readIndexWxss()
   assert.match(ruleBody(wxss, '.reminder-card'), /min-height:\s*88rpx/)
 })
 
-test('stats halves press with the shared card scale-down and reduced-motion policy', () => {
+test('status line and month summary press with the shared scale-down and reduced-motion policy', () => {
   const wxss = readIndexWxss()
 
-  // 按下只缩小该半块（与首页其他卡片的 0.98 按压一致），不改颜色
-  const active = ruleBody(wxss, '.stat-item:active')
-  assert.match(active, /transform:\s*scale\(0\.98\)/)
-  assert.doesNotMatch(active, /background|color/)
-  assert.match(ruleBody(wxss, '.stat-item'), /transition:\s*transform/)
-
-  // 系统减弱动效沿用首页现成名单，不新增动画
+  assert.match(wxss, /\.home-status:active,\s*\.home-status\.home-status-hover\s*\{[^}]*transform:\s*scale\(0\.98\)/)
+  assert.match(wxss, /\.month-summary:active,\s*\.month-summary\.month-summary-hover\s*\{[^}]*transform:\s*scale\(0\.98\)/)
   const reduced = wxss.slice(wxss.indexOf('@media (prefers-reduced-motion: reduce)'))
-  assert.match(reduced, /\.stat-item\b/)
+  assert.match(reduced, /\.home-status\b/)
+  assert.match(reduced, /\.month-summary\b/)
 })
 
-test('homepage stacks month navigation, calendar, record actions, then the merged status card or empty guide', () => {
+test('homepage stacks navbar tools, sticky month and status, calendar, record actions, summary, then the empty guide', () => {
   const wxml = readIndexWxml()
+  const navIndex = wxml.indexOf('class="nav-tool"')
+  const stickyIndex = wxml.indexOf('class="home-sticky"')
   const monthNavIndex = wxml.indexOf('class="month-nav"')
+  const statusIndex = wxml.indexOf('class="home-status')
   const weekHeaderIndex = wxml.indexOf('class="week-header"')
   const gridIndex = wxml.indexOf('class="calendar-grid')
   const quickIndex = wxml.indexOf('class="quick-actions"')
-  const statusIndex = wxml.indexOf('class="status-card')
+  const summaryIndex = wxml.indexOf('class="month-summary"')
   const emptyGuideIndex = wxml.indexOf('class="empty-guide"')
 
-  assert.ok(monthNavIndex !== -1 && weekHeaderIndex !== -1 && gridIndex !== -1, 'expected month nav, week header, and calendar grid')
-  assert.ok(quickIndex !== -1 && statusIndex !== -1 && emptyGuideIndex !== -1, 'expected quick actions, the status card, and the empty guide')
-  assert.ok(monthNavIndex < weekHeaderIndex, 'month navigation leads the calendar')
+  assert.ok(navIndex !== -1 && stickyIndex !== -1 && monthNavIndex !== -1, 'expected the navbar tool and sticky month nav')
+  assert.ok(weekHeaderIndex !== -1 && gridIndex !== -1, 'expected the week header and calendar grid')
+  assert.ok(quickIndex !== -1 && summaryIndex !== -1 && emptyGuideIndex !== -1, 'expected quick actions, the summary, and the empty guide')
+  assert.ok(navIndex < stickyIndex && stickyIndex < monthNavIndex && monthNavIndex < statusIndex)
+  assert.ok(statusIndex < weekHeaderIndex, 'the status line stays with the sticky month nav, above the calendar')
+  assert.match(wxml, /class="home-sticky"[\s\S]*position:\s*fixed|class="home-sticky"/)
   assert.ok(weekHeaderIndex < gridIndex, 'week header sits directly above the calendar grid')
   assert.ok(gridIndex < quickIndex, 'record actions directly follow the calendar grid')
-  assert.ok(quickIndex < statusIndex, 'the merged status card follows the record actions')
-  assert.ok(statusIndex < emptyGuideIndex, 'the empty-state guide takes the card slot when there is nothing to show')
+  assert.ok(quickIndex < summaryIndex, 'the month summary follows the record actions')
+  assert.ok(summaryIndex < emptyGuideIndex, 'the empty-state guide follows the summary slot')
 
   // issue #105：低频工具收进月份菜单、列表入口由「记录」tab 分段承接，日历下方不再有工具条与底部入口
   assert.equal(wxml.includes('meaning-toolbar'), false, 'the meaning toolbar moves into the month tools menu')
@@ -1289,28 +1500,25 @@ test('homepage stacks month navigation, calendar, record actions, then the merge
 })
 
 // issue #105：图例 / 预测说明 / 本月小结收进月份标题旁的「…」菜单（⌄ 已是选月 caret，不重复占用）
-test('month navigation offers a tools menu trigger beside the month title', () => {
+test('navbar tools entry is distinct from the month arrows', () => {
   const wxml = readIndexWxml()
-  const monthNav = wxml.slice(wxml.indexOf('class="month-nav"'), wxml.indexOf('class="week-header"'))
-  const titleIndex = monthNav.indexOf('month-title-trigger')
-  const menuIndex = monthNav.indexOf('month-menu-trigger')
-  const nextIndex = monthNav.indexOf('nextMonth')
+  const nav = wxml.slice(wxml.indexOf('class="nav-bar'), wxml.indexOf('class="no-room"'))
+  const monthNav = wxml.slice(wxml.indexOf('class="month-nav"'), wxml.indexOf('class="home-status'))
 
-  assert.ok(titleIndex !== -1, 'expected the month title picker trigger')
-  assert.ok(menuIndex !== -1, 'expected the month tools menu trigger')
-  assert.ok(titleIndex < menuIndex && menuIndex < nextIndex, 'the tools menu trigger sits between the month title and the next-month arrow')
+  assert.match(nav, /class="nav-tool"/)
+  assert.match(nav, /bindtap="openMonthMenu"/)
+  assert.match(nav, /aria-label="打开工具菜单"/)
+  assert.match(nav, />工具<\/view>/)
+  assert.doesNotMatch(monthNav, /openMonthMenu|month-menu-trigger|…/)
+  assert.match(monthNav, /bindtap="prevMonth"/)
+  assert.match(monthNav, /bindtap="nextMonth"/)
 
-  const triggerTag = monthNav.slice(monthNav.lastIndexOf('<view', menuIndex), monthNav.indexOf('</view>', menuIndex))
-  assert.match(triggerTag, /bindtap="openMonthMenu"/)
-  assert.match(triggerTag, /aria-role="button"/)
-  assert.match(triggerTag, /aria-label="打开工具菜单"/)
-  assert.match(triggerTag, /…/)
-  // 触发器与翻月箭头同族触控几何（88rpx 圆钮），不缩小吸收
   const wxss = readIndexWxss()
-  const navBtn = ruleBody(wxss, '.nav-btn')
-  assert.match(triggerTag, /class="nav-btn month-menu-trigger"/)
-  assert.match(navBtn, /width:\s*88rpx/)
-  assert.match(navBtn, /height:\s*88rpx/)
+  const tool = ruleBody(wxss, '.nav-tool')
+  assert.match(tool, /height:\s*88rpx/)
+  assert.match(tool, /border-radius:\s*var\(--radius-md\)/)
+  assert.doesNotMatch(tool, /border-radius:\s*var\(--radius-circle\)/)
+  assert.match(ruleBody(wxss, '.nav-btn'), /border-radius:\s*var\(--radius-circle\)/)
 })
 
 test('month tools menu reuses the existing legend, prediction, and recap sheets', () => {
@@ -1385,7 +1593,7 @@ test('quick record buttons use the calendar legend marks, not emoji, and reach 4
 
   // issue #73：图标 = 日历图例的经期玫瑰圆点与欢乐时光浅色心，画在海军圆盘上
   const quickStart = wxml.indexOf('class="quick-actions"')
-  const quickEnd = wxml.indexOf('class="status-card')
+  const quickEnd = wxml.indexOf('class="month-summary"')
   const quickBlock = wxml.slice(quickStart, quickEnd)
   assert.match(quickBlock, /class="quick-icon period-tone">●<\/text>/)
   assert.match(quickBlock, /class="quick-icon memory-tone">♥<\/text>/)
@@ -1408,40 +1616,27 @@ test('quick record buttons use the calendar legend marks, not emoji, and reach 4
   assert.match(ruleBody(wxss, '.quick-text'), /font-size:\s*var\(--font-size-body\)/)
 })
 
-test('compact density keeps the record actions inside the 1334rpx first-screen budget', () => {
+test('compact density keeps record actions on a 375×667 screen for a 6-row month', () => {
+  const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
   const wxss = readIndexWxss()
-  // issue #37 验收口径：750rpx 宽 × 667px 高视口 ≈ 1334rpx；状态栏与自定义导航栏为固定值。
-  // issue #55 起图例/预测/小结工具行与密度偏好退出首屏路径（密度迁入设置页），
-  // 栈深只剩 月份导航 → 日历 → 记录入口。
-  const SAFE_TOP_RPX = 88
-  const NAV_BAR_RPX = 88
-  const MONTH_NAV_CONTENT_RPX = 88
-  const WEEK_TEXT_RPX = 34
-  const QUICK_CONTENT_RPX = 40
-  const SIX_ROWS = 6
+  assert.match(ruleBody(wxss, '.calendar-density-compact .day-cell'), /height:\s*var\(--calendar-row-height,\s*140rpx\)/)
+  assert.match(ruleBody(wxss, '.home-sticky'), /position:\s*fixed/)
+  assert.match(ruleBody(wxss, '.home-status\.neutral'), /color:\s*var\(--text-secondary\)/)
+  assert.doesNotMatch(ruleBody(wxss, '.home-status.neutral'), /#F97373|249,\s*115,\s*115/)
 
-  const monthNavBody = ruleBody(wxss, '.month-nav')
-  const monthNav = MONTH_NAV_CONTENT_RPX +
-    shorthandVertical(monthNavBody, 'padding') +
-    shorthandVertical(monthNavBody, 'margin')
-  const weekHeader = shorthandVertical(ruleBody(wxss, '.week-header'), 'padding') + WEEK_TEXT_RPX
-  const gridPadding = shorthandVertical(ruleBody(wxss, '.calendar-grid'), 'padding')
-  const compactCell = numberDecl(ruleBody(wxss, '.calendar-density-compact .day-cell'), 'height')
-  // 记录按钮行高 = max(min-height, 纵向内边距 + 内容行)：issue #73 抬到 104rpx 后按真实高度记账
-  const quickBody = ruleBody(wxss, '.quick-btn')
-  const quickRow = Math.max(
-    numberDecl(quickBody, 'min-height'),
-    shorthandVertical(quickBody, 'padding') + QUICK_CONTENT_RPX
-  )
-  const quickActions = numberDecl(ruleBody(wxss, '.quick-actions'), 'margin-top') + quickRow
-
-  const stack = SAFE_TOP_RPX + NAV_BAR_RPX + monthNav +
-    weekHeader + gridPadding + SIX_ROWS * compactCell + quickActions
-
-  assert.ok(
-    stack <= 1334,
-    `compact first-screen stack ${stack}rpx exceeds the 1334rpx (667px) budget`
-  )
+  // 375×667，底栏 48px，页高 619；顶栏 64px。清爽密度、6 行、不在当月。
+  const row = computeCalendarRowHeight({
+    viewportWidth: 375,
+    viewportHeight: 619,
+    navBarHeightPx: 64,
+    density: 'compact',
+    rowCount: 6,
+    showBackToToday: true
+  })
+  assert.equal(row.heightPx, 52)
+  assert.equal(row.actionsFit, true)
+  assert.ok(row.heightPx >= 44)
+  assert.ok(row.heightPx <= 70)
 })
 
 test('homepage keeps a navbar slot when the capsule rect is missing', () => {
@@ -1485,9 +1680,10 @@ test('homepage re-reads the persisted calendar density every time it shows', asy
 test('day detail keeps the full leap-month lunar string in the sheet subtitle', () => {
   const wxml = readIndexWxml()
   const subtitleAt = wxml.indexOf('selectedDateSubtitle')
-  const actionsAt = wxml.indexOf("daySheetMode == 'actions'")
+  const actionsAt = wxml.indexOf('selectedDayDetail.actions')
   const detailAt = wxml.indexOf("daySheetMode == 'detail'")
-  assert.ok(subtitleAt !== -1 && subtitleAt < actionsAt && subtitleAt < detailAt,
+  assert.ok(subtitleAt !== -1 && actionsAt !== -1 && detailAt !== -1
+    && subtitleAt < actionsAt && subtitleAt < detailAt,
     'day detail must show the shared subtitle, not only the action list')
 
   const harness = loadPageHarness({ client: createQueuedClient([]) })
@@ -1505,7 +1701,8 @@ test('day detail keeps the full leap-month lunar string in the sheet subtitle', 
     })
     harness.page.showDayDetail('2020-05-23')
     assert.equal(harness.page.data.daySheetMode, 'detail')
-    assert.equal(harness.page.data.selectedDateSubtitle, '周六 · 闰四月初一')
+    assert.equal(harness.page.data.selectedDateLabel, '2020年5月23日 周六')
+    assert.equal(harness.page.data.selectedDateSubtitle, '闰四月初一')
   } finally {
     harness.teardown()
   }
@@ -1961,9 +2158,9 @@ test('day actions, tools menu, and the info sheet use the same enter and leave l
     assert.equal(harness.page.data.dayActionPhase, 'closed')
     assert.equal(harness.page.data.daySheetMode, 'detail')
     assert.match(wxml, /class="sheet-title">\{\{selectedDateLabel\}\}<\/text>\s*<text class="sheet-subtitle">/)
-    assert.equal(harness.page.data.selectedDateLabel, '6月20日')
+    assert.equal(harness.page.data.selectedDateLabel, '6月20日 周六')
     assert.equal(harness.page.data.selectedDate, '2026-06-20')
-    assert.equal(harness.page.data.selectedDateSubtitle, '周六 · 五月初五')
+    assert.equal(harness.page.data.selectedDateSubtitle, '五月初五')
     mock.timers.tick(0)
     assert.equal(harness.page.data.dayActionPhase, 'open')
 
@@ -2123,7 +2320,7 @@ test('tapping view detail marks the new content to fade in without leaving the s
     harness.page.showDayDetail('2026-06-20')
     assert.equal(harness.page.data.daySheetMode, 'detail')
     assert.equal(harness.page.data.dayDetailFade, false)
-    assert.equal(harness.page.data.selectedDateSubtitle, '周六 · 五月初五')
+    assert.equal(harness.page.data.selectedDateSubtitle, '五月初五')
     harness.page.closeDayActions()
     mock.timers.tick(200)
     assert.equal(harness.page.data.dayActionMounted, false)

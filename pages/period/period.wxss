@@ -134,10 +134,11 @@
   padding: 4rpx 16rpx;
   border-radius: var(--radius-md);
 }
-/* 进行中/结束日期不详：状态文案占住时长位置，语义不靠空白日期表达 */
+/* 进行中/结束日期不详：状态文案占住时长位置。
+   胶囊用海军字叠 92% 玫瑰，与经量标签同一对色，列表卡合成面上 ≥4.5:1（issue #143） */
 .item-duration.ongoing {
-  color: #E8909E;
-  background: rgba(232,144,158,0.28);
+  color: #0A0E27;
+  background: rgba(232,144,158,0.92);
 }
 .item-arrow {
   font-size: 32rpx;
@@ -255,12 +256,28 @@
 .month-header.month-header-hover {
   background: rgba(255,255,255,0.05);
 }
+.month-header-main {
+  flex: 1;
+  min-width: 0;
+}
 .month-header-text {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.85);
   white-space: nowrap;
+}
+/* 收起卡头的备注摘要：单行，超出截断。读屏名在 aria-label 里，这里不再念一遍 */
+.month-excerpt {
+  display: block;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* 次级可点入口：caption 字号 + 不弱于 --text-secondary 的文字色（登记见 DESIGN.md 与对比度护栏） */
 .month-toggle {

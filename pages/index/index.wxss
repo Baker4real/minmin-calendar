@@ -13,7 +13,8 @@
   z-index: 1;
 }
 .content-refreshing .calendar-grid,
-.content-refreshing .status-card,
+.content-refreshing .month-summary,
+.content-refreshing .reminder-card,
 .content-refreshing .empty-guide,
 .content-refreshing .quick-actions {
   opacity: 0.94;
@@ -204,6 +205,97 @@
   background-color: rgba(255,255,255,0.2);
 }
 
+/* 顶栏左侧工具入口：矩形文字钮，不跟月份箭头共用圆钮。 */
+.nav-tool {
+  min-width: 88rpx;
+  height: 88rpx;
+  padding: 0 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255,255,255,0.28);
+  background: transparent;
+  color: rgba(255,255,255,0.92);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-control);
+  line-height: 1;
+  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
+}
+.nav-tool:active,
+.nav-tool.nav-tool-hover {
+  transform: scale(0.96);
+  background: rgba(255,255,255,0.12);
+}
+
+/* 月份导航和状态行固定在顶栏下。页面根有 overflow:hidden，sticky 不可靠。 */
+.home-sticky {
+  position: fixed;
+  top: var(--nav-bar-height, calc(env(safe-area-inset-top, 44px) + 44px));
+  left: 0;
+  right: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 0 24rpx;
+  background: #0A0E27;
+}
+.home-sticky-spacer {
+  height: 218rpx;
+  flex-shrink: 0;
+}
+.home-sticky-spacer.with-back-today {
+  height: 306rpx;
+}
+.back-today {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255,255,255,0.28);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-control);
+  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
+}
+.back-today:active,
+.back-today.back-today-hover {
+  transform: scale(0.98);
+  background: rgba(255,255,255,0.08);
+}
+.home-status {
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 8rpx;
+  color: var(--text-primary);
+  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
+}
+.home-status.neutral {
+  color: var(--text-secondary);
+}
+.home-status-text {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-status:active,
+.home-status.home-status-hover {
+  transform: scale(0.98);
+  background: rgba(255,255,255,0.06);
+}
+
 /* ===== Week Header ===== */
 .week-header {
   display: flex;
@@ -235,7 +327,7 @@
 /* Day Cells */
 .day-cell {
   width: 14.28%;
-  height: 160rpx;
+  height: var(--calendar-row-height, 160rpx);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -256,7 +348,7 @@
   visibility: hidden;
 }
 .calendar-density-compact .day-cell {
-  height: 140rpx;
+  height: var(--calendar-row-height, 140rpx);
   justify-content: center;
   padding: 10rpx 0 12rpx;
 }
@@ -454,91 +546,44 @@
   border: 1px solid rgba(212,165,116,0.55);
 }
 
-/* ===== Status Card – Glass Card（issue #105 合并状态卡：条数现状 + 预测 + 提醒） ===== */
-.status-card {
-  margin-top: 20rpx;
-  padding: 28rpx 20rpx;
-}
-.status-row {
+.month-summary {
+  min-height: 88rpx;
+  margin-top: 16rpx;
+  padding: 0 8rpx 0 4rpx;
   display: flex;
   align-items: center;
-  justify-content: space-around;
-  gap: 10rpx;
+  gap: 12rpx;
+  box-sizing: border-box;
+  color: var(--text-primary);
+  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
-.status-figure {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.month-summary-text {
   flex: 1;
   min-width: 0;
-}
-.status-reminders {
-  display: flex;
-  flex-direction: column;
-  gap: 14rpx;
-  margin-top: 18rpx;
-}
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
-  transition: transform var(--duration-press) var(--ease-out);
-}
-.stat-item:active,
-.stat-item.stat-item-hover {
-  transform: scale(0.98);
-}
-/* 数据实色化：玫瑰=经期数据 */
-.stat-num {
-  font-size: 36rpx;
-  font-weight: var(--font-weight-control);
-  color: #E8909E;
-  font-variant-numeric: tabular-nums;
-}
-.predict-item {
-  flex: 1.35;
-}
-.predict-value {
-  min-height: 40rpx;
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 8rpx;
-  max-width: 100%;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-/* 柔金=预测元数据 */
-.predict-date {
-  font-size: var(--font-size-body-lg);
-  font-weight: var(--font-weight-control);
-  line-height: 1.15;
-  color: var(--aurora-gold);
-  font-variant-numeric: tabular-nums;
-}
-.predict-weekday {
+.month-summary-arrow {
   flex: 0 0 auto;
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-assist);
-  line-height: 1.15;
-  color: rgba(255,255,255,0.72);
+  font-size: 32rpx;
+  line-height: 1;
+  color: var(--text-secondary);
 }
-.stat-label {
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-assist);
-  color: rgba(255,255,255,0.5);
-  margin-top: 6rpx;
-}
-.stat-divider {
-  width: 1rpx;
-  height: 40rpx;
-  background: rgba(255,255,255,0.1);
+.month-summary:active,
+.month-summary.month-summary-hover {
+  transform: scale(0.98);
+  background: rgba(255,255,255,0.06);
 }
 
 /* ===== Cycle Reminders ===== */
 .reminder-card {
+  width: 100%;
   min-height: 88rpx;
+  margin-top: 16rpx;
   display: flex;
   align-items: center;
   gap: 18rpx;
@@ -568,8 +613,8 @@
   box-shadow: 0 0 14rpx rgba(232,144,158,0.4);
 }
 .reminder-card.overdue .reminder-rail {
-  background: #F97373;
-  box-shadow: 0 0 14rpx rgba(249,115,115,0.38);
+  background: #FFFFFF;
+  box-shadow: none;
 }
 .reminder-copy {
   flex: 1;
@@ -1126,6 +1171,12 @@
   border-radius: var(--radius-md);
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1);
+  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
+}
+.day-detail-row:active,
+.day-detail-row.day-detail-row-hover {
+  transform: scale(0.98);
+  background: rgba(255,255,255,0.13);
 }
 .detail-meaning-list {
   display: flex;
@@ -1153,6 +1204,10 @@
 .detail-meaning.predict,
 .detail-meaning.holiday {
   border-color: rgba(212,165,116,0.24);
+}
+.detail-meaning.predict .detail-meaning-title,
+.detail-meaning.holiday .detail-meaning-title {
+  color: var(--aurora-gold);
 }
 .detail-meaning-title {
   display: block;
@@ -1199,7 +1254,13 @@
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
-  color: var(--aurora-gold);
+  color: rgba(255,255,255,0.86);
+}
+.period-detail .detail-title {
+  color: #E8909E;
+}
+.memory-detail .detail-title {
+  color: #F0C4C0;
 }
 .detail-main {
   display: block;
@@ -1296,45 +1357,32 @@
 .prediction-summary {
   display: block;
   min-width: 0;
-  padding: 22rpx 20rpx;
-  border-radius: var(--radius-md);
   font-size: var(--font-size-body-lg);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.9);
-  background: rgba(212,165,116,0.12);
-  border: 1px solid rgba(212,165,116,0.18);
   word-break: break-all;
   overflow-wrap: anywhere;
 }
 .explain-line {
+  display: block;
   min-width: 0;
-  min-height: 64rpx;
-  padding: 16rpx 18rpx;
-  box-sizing: border-box;
-  border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
-  background: rgba(255,255,255,0.065);
-  border: 1px solid rgba(255,255,255,0.09);
   word-break: break-all;
   overflow-wrap: anywhere;
 }
 .recap-summary {
   display: block;
   min-width: 0;
-  padding: 18rpx 20rpx;
-  border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.82);
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.1);
   word-break: break-all;
   overflow-wrap: anywhere;
 }
@@ -1344,16 +1392,13 @@
   gap: 10rpx;
 }
 .recap-highlight {
+  display: block;
   min-width: 0;
-  padding: 16rpx 18rpx;
-  border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.78);
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
   word-break: break-all;
   overflow-wrap: anywhere;
 }
@@ -1384,6 +1429,42 @@
 .page.page-obscured .header-gradient::after {
   animation-play-state: paused;
 }
+.calendar-skeleton {
+  padding: 10rpx 0 0;
+}
+.skeleton-month-bar,
+.skeleton-week-cell,
+.skeleton-cell {
+  background: rgba(255,255,255,0.08);
+  border-radius: var(--radius-md);
+  animation: skeletonPulse 2.4s ease-in-out infinite;
+}
+.skeleton-month-bar {
+  height: 88rpx;
+  margin: 10rpx 0 8rpx;
+}
+.skeleton-week {
+  display: flex;
+  gap: 8rpx;
+  margin-bottom: 8rpx;
+}
+.skeleton-week-cell {
+  flex: 1;
+  height: 36rpx;
+}
+.skeleton-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+.skeleton-cell {
+  width: 14.28%;
+  height: 88rpx;
+  box-sizing: border-box;
+}
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
 .reduced-motion-probe {
   position: absolute;
   width: 0;
@@ -1413,10 +1494,17 @@
   .jump-option,
   .jump-year-step,
   .sheet-action,
+  .day-detail-row,
   .sheet-close,
   .day-detail-fade,
   .day-cell,
-  .stat-item,
+  .nav-tool,
+  .back-today,
+  .home-status,
+  .month-summary,
+  .skeleton-month-bar,
+  .skeleton-week-cell,
+  .skeleton-cell,
   .reminder-card,
   .quick-btn,
   .no-room-icon {
