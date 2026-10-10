@@ -1,42 +1,22 @@
-const cloud = require('../../utils/cloud')
-const util = require('../../utils/util')
-const recordCommands = require('../../utils/recordCommands')
-const recordEditRoute = require('../../utils/recordEditRoute')
 const safeArea = require('../../utils/safeArea')
 
+// 与 pages/period/period.js 及两个记录编辑页共享的一次性「目标分段」意图键。
+// 旧欢乐时光页是兼容路由：switchTab 不能带 query，先写键再切到记录 tab（issue #143）
+const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
+
 Page({
-  goBack() { wx.navigateBack() },
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), memories: [], loading: true, loadFailed: false, hasLoaded: false },
-
-  onShow() { return this.loadData() },
-
-  async loadData() {
-    const client = cloud.createRoomDataClient()
-    await recordCommands.runRecordListLoad({
-      page: this,
-      itemsKey: 'memories',
-      action: () => client.list('memories'),
-      mapRecords: memories => [...memories]
-        .sort((a, b) => b.date.localeCompare(a.date))
-        .map(memory => ({
-          ...memory,
-          dateLabel: util.formatDisplayDate(memory.date, { today: util.formatDate(new Date()) })
-        })),
-      onLoaded: () => {
-        this.setData({ hasLoaded: true })
-      },
-      retryableTitle: '加载失败，请检查网络',
-      failureTitle: '加载失败'
-    })
+  data: {
+    safeTop: safeArea.getSafeTop(),
+    safeBottom: safeArea.getSafeBottom(),
+    navBarHeight: safeArea.getNavBarHeight(),
+    capsuleRight: safeArea.getCapsuleRightInset()
   },
 
-  addMemory() {
-    const today = util.formatDate(new Date())
-    wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl({ date: today }) })
-  },
-
-  editMemory(e) {
-    const m = this.data.memories[e.currentTarget.dataset.index]
-    wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl(m) })
+  onShow() {
+    try {
+      wx.setStorageSync(RECORD_TAB_SEGMENT_STORAGE_KEY, 'memory')
+    } catch (e) {}
+    wx.switchTab({ url: '/pages/period/period' })
+    return Promise.resolve()
   }
 })

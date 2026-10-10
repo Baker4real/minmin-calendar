@@ -365,9 +365,10 @@ test('memory list heart matches the calendar heart glyph system', () => {
   const memoryWxss = fs.readFileSync(path.join(__dirname, '..', 'pages/memory/memory.wxss'), 'utf8')
   const indexWxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
 
+  const periodWxml = fs.readFileSync(path.join(__dirname, '..', 'pages/period/period.wxml'), 'utf8')
   assert.match(indexWxml, /class="mark memory-mark">♥</)
-  assert.match(memoryWxml, /class="memory-heart">♥</)
-  assert.doesNotMatch(memoryWxml, /class="memory-heart">❤/)
+  assert.match(periodWxml, /class="memory-heart">♥</)
+  assert.doesNotMatch(memoryWxml, /class="memory-heart"/)
   assert.match(memoryWxss, /\.memory-heart\s*\{[^}]*color:\s*#F0C4C0/i)
 })
 

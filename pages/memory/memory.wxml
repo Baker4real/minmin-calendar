@@ -1,52 +1,6 @@
 <view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
   <view class="nav-bar header-gradient">
-    <view class="nav-back" hover-class="nav-back-hover" bindtap="goBack" aria-role="button" aria-label="返回">
-      <view class="nav-back-surface"></view>
-      <text class="nav-back-icon">‹</text>
-    </view>
+    <view class="nav-placeholder"></view>
     <view class="nav-title">欢乐时光</view>
-  </view>
-
-  <view class="content">
-    <view class="btn-premium" bindtap="addMemory" aria-role="button" aria-label="记欢乐时光" hover-class="btn-premium-hover">＋ 记欢乐时光</view>
-
-    <!-- 从未成功加载就失败：重试是可识别的操作，不是与空列表一样的安静说明 -->
-    <view wx:if="{{loadFailed && !hasLoaded && !loading}}" class="empty-state load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试" hover-class="load-failed-hover">
-      <text class="load-failed-text">欢乐时光加载失败</text>
-      <view class="retry-btn" hover-class="retry-btn-hover">重试</view>
-    </view>
-    <view wx:elif="{{memories.length > 0 && !loading}}" class="premium-card">
-      <view class="list-item" wx:for="{{memories}}" wx:key="_id" wx:for-index="i" bindtap="editMemory" data-index="{{i}}" aria-role="button" aria-label="编辑 {{item.dateLabel}} 的欢乐时光" hover-class="list-item-hover">
-        <view class="memory-left">
-          <text class="memory-heart">♥</text>
-          <view class="memory-info">
-            <view class="memory-date">{{item.dateLabel}}</view>
-            <view wx:if="{{item.note}}" class="memory-note">{{item.note}}</view>
-          </view>
-        </view>
-        <view class="memory-arrow">›</view>
-      </view>
-    </view>
-
-    <!-- 空态断言句只在确认没有失败时出现，与经期列表的失败语境规则一致 -->
-    <view wx:elif="{{memories.length === 0 && !loading && !loadFailed}}" class="empty-state">
-      <text>还没有记录\n点上面按钮新增</text>
-    </view>
-
-    <!-- 已成功加载过再失败：保留上次列表，重试留在列表区域 -->
-    <view wx:if="{{loadFailed && hasLoaded && !loading}}" class="list-item" bindtap="loadData" aria-role="button" aria-label="刷新失败，点按重试" hover-class="list-item-hover">
-      <text class="memory-note">刷新失败，正在显示上次的内容</text>
-      <view class="retry-btn" hover-class="retry-btn-hover">重试</view>
-    </view>
-
-    <view wx:if="{{loading}}" class="skeleton-card">
-      <view class="skeleton-item" wx:for="{{[0, 1, 2]}}" wx:key="*this">
-        <view class="skeleton-dot"></view>
-        <view class="skeleton-body">
-          <view class="skeleton-line skeleton-line-title"></view>
-          <view class="skeleton-line skeleton-line-sub"></view>
-        </view>
-      </view>
-    </view>
   </view>
 </view>
