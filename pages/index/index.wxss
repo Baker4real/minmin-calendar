@@ -22,7 +22,7 @@
   width: 300rpx;
   min-height: 52rpx;
   position: fixed;
-  top: calc(var(--safe-top, env(safe-area-inset-top, 88rpx)) + 92rpx);
+  top: calc(var(--nav-bar-height, calc(env(safe-area-inset-top, 44px) + 44px)) + 12rpx);
   left: 50%;
   z-index: 50;
   margin: 0 0 0 -150rpx;
@@ -267,6 +267,17 @@
   background: rgba(232,144,158,0.16);
   box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
 }
+.day-cell.today.period {
+  box-shadow: none;
+}
+.day-cell.today.period::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
+}
 .day-cell.holiday:not(.today) {
   background: rgba(212,165,116,0.08);
 }
@@ -287,6 +298,9 @@
 .day-cell.today .day-num {
   color: #E8909E;
   font-weight: var(--font-weight-title);
+}
+.day-cell.today.period .day-num {
+  color: rgba(255,255,255,0.92);
 }
 
 .day-lunar {
@@ -351,10 +365,46 @@
   border-radius: var(--radius-circle);
 }
 
-/* Period Mark – 静态玫瑰点，柔光 */
-.period-mark {
-  background: #E8909E;
-  box-shadow: 0 0 10rpx rgba(232,144,158,0.45);
+/* Period band: 22% rose wash. Caps live on the cell so a row connects; no transition. */
+.period-band {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: rgba(232,144,158,0.22);
+}
+.day-num,
+.day-lunar,
+.day-tag-line,
+.day-marks {
+  position: relative;
+  z-index: 1;
+}
+.day-cell.period-start {
+  border-top-left-radius: var(--radius-full);
+  border-bottom-left-radius: var(--radius-full);
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.day-cell.period-middle {
+  border-radius: 0;
+}
+.day-cell.period-end {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-top-right-radius: var(--radius-full);
+  border-bottom-right-radius: var(--radius-full);
+}
+.day-cell.period-single {
+  border-radius: var(--radius-full);
+}
+.day-cell.period-open.period-end {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.day-cell.period-open.period-single {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 /* Memory Mark */
@@ -774,27 +824,6 @@
   background: var(--aurora-pink);
   border-color: rgba(255,255,255,0.18);
   box-shadow: 0 12rpx 28rpx rgba(232,144,158,0.18);
-}
-.jump-confirm {
-  min-height: 88rpx;
-  margin-top: 22rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  padding: 0 28rpx;
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-control);
-  white-space: nowrap;
-  color: #0A0E27;
-  background: var(--aurora-pink);
-  box-shadow: 0 14rpx 36rpx rgba(232,144,158,0.2);
-  transition: transform var(--duration-press) var(--ease-out);
-}
-.jump-confirm:active {
-  transform: scale(0.98);
-  box-shadow: 0 8rpx 24rpx rgba(232,144,158,0.16);
 }
 
 /* ===== Day Action Sheet ===== */
@@ -1343,7 +1372,6 @@
   .month-title-trigger,
   .nav-btn,
   .jump-option,
-  .jump-confirm,
   .jump-year-step,
   .sheet-action,
   .sheet-close,

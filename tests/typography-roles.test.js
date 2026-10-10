@@ -50,8 +50,6 @@ const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'pages/bind/bind.wxss', selector: '.hero-icon', kind: 'glyph', value: '120rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-title', kind: 'display', value: '48rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.code-input', kind: 'display', value: '40rpx' },
-  { file: 'pages/settings/settings.wxss', selector: '.profile-avatar', kind: 'glyph', value: '72rpx' },
-  { file: 'pages/settings/settings.wxss', selector: '.menu-icon', kind: 'glyph', value: '32rpx' },
   { file: 'pages/settings/settings.wxss', selector: '.menu-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/settings/settings.wxss', selector: '.room-code-value', kind: 'display', value: '36rpx' }
 ]
@@ -196,7 +194,6 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/index/index.wxss', '.jump-section-title', 'assist'],
   ['pages/index/index.wxss', '.jump-year-value', 'control'],
   ['pages/index/index.wxss', '.jump-option', 'control'],
-  ['pages/index/index.wxss', '.jump-confirm', 'control'],
   ['pages/index/index.wxss', '.sheet-subtitle', 'assist'],
   ['pages/index/index.wxss', '.sheet-action-title', 'body'],
   ['pages/index/index.wxss', '.sheet-action-desc', 'assist'],
@@ -224,8 +221,7 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/bind/bind.wxss', '.bound-status', 'body'],
   ['pages/bind/bind.wxss', '.bound-code', 'control'],
   ['pages/bind/bind.wxss', '.error-msg', 'assist'],
-  ['pages/settings/settings.wxss', '.profile-name', 'title'],
-  ['pages/settings/settings.wxss', '.profile-desc', 'assist'],
+  ['pages/settings/settings.wxss', '.settings-group-title', 'assist'],
   ['pages/settings/settings.wxss', '.menu-text', 'body'],
   ['pages/settings/settings.wxss', '.room-code-label', 'assist'],
   ['pages/settings/settings.wxss', '.room-code-value', 'control'],
@@ -279,7 +275,7 @@ const ASSIST_TRACKING = [
   ['pages/memory/edit/edit.wxss', '.form-label'],
   ['pages/period/edit/edit.wxss', '.form-hint'],
   ['pages/period/edit/edit.wxss', '.symptom-group-label'],
-  ['pages/settings/settings.wxss', '.profile-desc'],
+  ['pages/settings/settings.wxss', '.settings-group-title'],
   ['pages/settings/settings.wxss', '.room-code-label'],
   ['pages/period/period.wxss', '.card-label'],
   ['pages/index/index.wxss', '.empty-guide-text']

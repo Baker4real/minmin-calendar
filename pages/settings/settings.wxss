@@ -5,36 +5,23 @@
   z-index: 1;
 }
 
-/* Profile Card */
-.profile-card {
-  padding: 40rpx;
-  text-align: center;
-  margin: 24rpx 0;
+.settings-group {
+  margin-bottom: 28rpx;
 }
-.profile-avatar {
-  font-size: 72rpx;
-  /* 品牌心：玫瑰文本字形，不再用红色心形表情（issue #77） */
-  color: #E8909E;
-  margin-bottom: 16rpx;
-  filter: drop-shadow(0 0 20px rgba(232,144,158,0.3));
-}
-.profile-name {
-  font-size: var(--font-size-title);
-  font-weight: var(--font-weight-title);
-  line-height: var(--line-height-title);
-  color: rgba(255,255,255,0.9);
-}
-.profile-desc {
+.settings-group-title {
+  display: block;
+  padding: 8rpx 8rpx 12rpx;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
-  color: rgba(255,255,255,0.78);
-  margin-top: 8rpx;
-  display: block;
+  color: rgba(255,255,255,0.92);
+}
+.settings-danger-zone {
+  margin-top: 12rpx;
 }
 .premium-card {
-  margin-bottom: 20rpx;
+  margin-bottom: 0;
 }
 
 /* Menu Items */
@@ -51,10 +38,6 @@
 .menu-item:not(.non-interactive):active {
   background: rgba(255,255,255,0.05);
 }
-.menu-icon {
-  font-size: 32rpx;
-  margin-right: 20rpx;
-}
 .menu-text {
   flex: 1;
   min-width: 0;
@@ -66,21 +49,65 @@
   font-size: 32rpx;
   color: var(--text-secondary);
 }
+.settings-version {
+  flex-shrink: 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  color: rgba(255,255,255,0.85);
+}
+.help-layer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+}
+.help-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(10,14,39,0.88);
+}
+.help-sheet {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 32rpx 32rpx calc(32rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+}
+.help-title {
+  display: block;
+  margin-bottom: 16rpx;
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-title);
+  line-height: var(--line-height-title);
+  color: rgba(255,255,255,0.92);
+}
+.help-copy {
+  display: block;
+  margin-bottom: 16rpx;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
+  color: rgba(255,255,255,0.85);
+}
 
 /* 导航标题不可点：中性文字色（共享基类在 app.wxss，页面侧覆盖颜色，issue #77） */
 .nav-title {
   color: rgba(255,255,255,0.92);
 }
 
-/* 欢乐时光入口的浅色心 = 日历欢乐时光标记色（issue #77） */
-.menu-heart {
-  color: #F0C4C0;
-}
-
-/* 清除本地数据：点之前就是危险样式（issue #77）——警告红字 + 警告红描边，
+/* 页底危险区：解除绑定在点之前就是危险样式（issue #77 / #139）——警告红字 + 警告红描边，
    与 .btn-danger 同族同红，不是第二种红；导出保持上面的普通行 */
 .menu-item.danger {
-  margin: 20rpx 20rpx 24rpx;
+  margin: 0;
   border: 1px solid rgba(249,115,115,0.28);
   border-radius: var(--radius-md);
   box-sizing: border-box;
@@ -179,14 +206,9 @@
 }
 
 /* Calendar Density Preference — 首页日历密度的设置入口（issue #55 迁入） */
-.density-menu-copy {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4rpx;
-}
 .density-menu-desc {
+  display: block;
+  padding: 28rpx 30rpx 8rpx;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
@@ -198,12 +220,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10rpx;
   margin: 0 30rpx 28rpx;
-  padding: 4rpx;
   box-sizing: border-box;
-  border-radius: var(--radius-card);
-  background: rgba(255,255,255,0.055);
-  border: 1px solid rgba(255,255,255,0.11);
-  box-shadow: inset 0 1rpx 0 rgba(255,255,255,0.09);
 }
 .density-option {
   min-height: 88rpx;
