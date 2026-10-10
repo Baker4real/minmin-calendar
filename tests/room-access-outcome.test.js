@@ -37,7 +37,7 @@ test('buildRoomRepairAction maps repaired membership to retry and rebind actions
     }, { rebindMessage: '房间状态已变化，请重新绑定' }), {
       kind: 'room-repair',
       action: 'repair-retry',
-      message: '网络不稳定，请检查网络后重试',
+      message: '网络不太稳定，请重试',
       roomCode: ''
     })
     assert.match(errors.join('\n'), /云函数超时/)
@@ -56,11 +56,11 @@ test('presentUserFailure maps technical failures to a next step and leaves produ
   try {
     assert.equal(
       roomAccess.presentUserFailure('云数据库查询超时 (15000ms)'),
-      '网络不稳定，请检查网络后重试'
+      '网络不太稳定，请重试'
     )
     assert.equal(
       roomAccess.presentUserFailure('同步房间状态失败：network down'),
-      '网络不稳定，请检查网络后重试'
+      '网络不太稳定，请重试'
     )
     assert.equal(
       roomAccess.presentUserFailure('无权访问该房间'),

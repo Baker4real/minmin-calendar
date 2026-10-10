@@ -215,7 +215,7 @@ test('RoomDataClient keeps active-room recovery failures retryable instead of fl
 
   assert.deepEqual(outcome, {
     kind: 'retryable-failure',
-    message: '网络不稳定，请检查网络后重试',
+    message: '网络不太稳定，请重试',
     retryDescriptor: {
       action: 'list',
       mode: 'auto-retry',
@@ -267,7 +267,7 @@ test('RoomDataClient classifies rejected cloud calls as retryable failures and k
   const outcome = await client.list('memories')
 
   assert.equal(outcome.kind, 'retryable-failure')
-  assert.equal(outcome.message, '网络不稳定，请检查网络后重试')
+  assert.equal(outcome.message, '网络不太稳定，请重试')
   assert.doesNotMatch(outcome.message, /network down/)
   assert.deepEqual(outcome.retryDescriptor, {
     action: 'list',
@@ -297,7 +297,7 @@ test('RoomDataClient classifies cloud timeouts as retryable failures', async () 
   const outcome = await client.list('periods')
 
   assert.equal(outcome.kind, 'retryable-failure')
-  assert.equal(outcome.message, '网络不稳定，请检查网络后重试')
+  assert.equal(outcome.message, '网络不太稳定，请重试')
   assert.doesNotMatch(outcome.message, /云数据库查询超时/)
   assert.deepEqual(outcome.retryDescriptor, {
     action: 'list',
@@ -381,7 +381,7 @@ test('RoomDataClient mutation transport failures expose a manual retry descripto
 
   assert.deepEqual(outcome, {
     kind: 'retryable-failure',
-    message: '网络不稳定，请检查网络后重试',
+    message: '网络不太稳定，请重试',
     retryDescriptor: {
       action: 'add',
       mode: 'confirm-before-retry',

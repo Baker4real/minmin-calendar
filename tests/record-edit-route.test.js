@@ -98,11 +98,11 @@ test('parsePeriodEditOptions hydrates period edit page state from route options'
 })
 
 test('parsePeriodEditOptions derives the new-record default status from the effective start date', () => {
-  // 补记过去某天：默认已结束，结束日期缺省落在开始日期（起止同日的单日记录）
+  // 补记过去某天：默认已结束，结束日留空，等用户自己选
   assert.deepEqual(route.parsePeriodEditOptions({ startDate: '2026-06-01' }, { today: '2026-06-26' }), {
     id: '',
     startDate: '2026-06-01',
-    endDate: '2026-06-01',
+    endDate: '',
     status: 'known-end',
     note: '',
     flow: '',
@@ -134,6 +134,39 @@ test('parsePeriodEditOptions derives the new-record default status from the effe
     flow: '',
     symptoms: [],
     isEdit: false,
+    maxDate: '2026-06-26'
+  })
+})
+
+test('buildPeriodEditUrl opens an ongoing record as ended today when the caller is finishing it', () => {
+  const url = route.buildPeriodEditUrl({
+    _id: 'p2',
+    startDate: '2026-06-20',
+    endDate: '',
+    status: 'ongoing',
+    note: '腹痛'
+  }, { intent: 'complete', today: '2026-06-26' })
+
+  assert.equal(
+    url,
+    '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end&note=%E8%85%B9%E7%97%9B'
+  )
+
+  assert.deepEqual(route.parsePeriodEditOptions({
+    id: 'p2',
+    startDate: '2026-06-20',
+    endDate: '2026-06-26',
+    status: 'known-end',
+    note: '%E8%85%B9%E7%97%9B'
+  }, { today: '2026-06-26' }), {
+    id: 'p2',
+    startDate: '2026-06-20',
+    endDate: '2026-06-26',
+    status: 'known-end',
+    note: '腹痛',
+    flow: '',
+    symptoms: [],
+    isEdit: true,
     maxDate: '2026-06-26'
   })
 })

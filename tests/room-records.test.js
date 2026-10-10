@@ -484,6 +484,43 @@ test('RoomRecords rejects an unsupported Period status before writing', async ()
   assert.deepEqual(db.data.periods, [])
 })
 
+test('RoomRecords rejects a future Memory date and accepts today', async () => {
+  const db = createFakeDb()
+  const records = createRoomRecords({ db, serverDate: () => SERVER_DATE, today: TODAY })
+
+  const future = await records.add({
+    collection: 'memories',
+    roomCode: 'ROOM01',
+    openid: 'user-a',
+    data: { date: '2026-09-30', note: '还没到' }
+  })
+  assert.equal(future.code, -1)
+  assert.equal(future.msg, '日期不能晚于今天')
+  assert.deepEqual(db.data.memories, [])
+
+  const today = await records.add({
+    collection: 'memories',
+    roomCode: 'ROOM01',
+    openid: 'user-a',
+    data: { date: TODAY, note: '今天' }
+  })
+  assert.equal(today.code, 0)
+  assert.equal(today.record.date, TODAY)
+  assert.equal(db.data.memories.length, 1)
+  assert.equal(db.data.memories[0].date, TODAY)
+
+  const movedForward = await records.update({
+    collection: 'memories',
+    roomCode: 'ROOM01',
+    id: today.id,
+    data: { date: '2026-09-30', note: '改到未来' }
+  })
+  assert.equal(movedForward.code, -1)
+  assert.equal(movedForward.msg, '日期不能晚于今天')
+  assert.equal(db.data.memories[0].date, TODAY)
+  assert.equal(db.data.memories[0].note, '今天')
+})
+
 test('RoomRecords rejects future start and end dates before writing', async () => {
   const db = createFakeDb()
   const records = createRoomRecords({ db, serverDate: () => SERVER_DATE, today: TODAY })

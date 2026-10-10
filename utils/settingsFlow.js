@@ -102,7 +102,7 @@ function confirmExport(options = {}) {
   return new Promise(resolve => {
     wxApi.showModal({
       title: '导出数据',
-      content: '将导出房间里的全部经期记录和欢乐时光，打包成一个 JSON 文件（通用的数据备份格式，手机和电脑都能打开查看）。\n\n你可以把文件转发给微信好友保存，或复制内容自己留存，作为一份数据备份。\n\n导出只是复制一份数据，不会改动或删除云端记录。',
+      content: '会导出全部经期和欢乐时光。建议发到「文件传输助手」保存。目前还不能导入恢复。',
       confirmText: '开始导出',
       cancelText: '取消',
       success: result => {

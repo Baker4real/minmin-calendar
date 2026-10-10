@@ -177,10 +177,9 @@ const CTA_FILL_SELECTORS = [
   // issue #104：绑定页收敛回 Aurora，复制键与选中 tab 回归玫瑰填充钉点表（与设置页同款）
   ['pages/bind/bind.wxss', '.copy-btn'],
   ['pages/bind/bind.wxss', '.tab.active'],
-  // issue #55：首页主操作同构——快速记录、提醒记录、月份确认、月份选中态、复制小结
+  // issue #55：首页主操作同构——快速记录、提醒记录、月份选中态、复制小结。确认按钮已退役（issue #137）
   ['pages/index/index.wxss', '.quick-btn'],
   ['pages/index/index.wxss', '.reminder-action'],
-  ['pages/index/index.wxss', '.jump-confirm'],
   ['pages/index/index.wxss', '.jump-option.active'],
   ['pages/index/index.wxss', '.copy-recap']
 ]
@@ -248,7 +247,6 @@ const SOLID_ROSE_FILL_ALLOWLIST = new Set(
   [
     // 状态点/日历标记/卡片 rail：装饰性玫瑰实色小块，非可操作填充
     ['pages/index/index.wxss', '.sync-pill.syncing .sync-dot'],
-    ['pages/index/index.wxss', '.period-mark'],
     ['pages/index/index.wxss', '.reminder-card.due .reminder-rail'],
     ['pages/index/index.wxss', '.detail-rail'],
     ['pages/memory/memory.wxss', '.list-item::before']

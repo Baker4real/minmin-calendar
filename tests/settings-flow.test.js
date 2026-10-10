@@ -437,7 +437,7 @@ test('exportRecordsAsJson keeps room repair retryable failures on the retry path
   await waitForAsyncTurn()
   assert.equal(env.wx.modals.length, 1)
   assert.equal(env.wx.modals[0].title, '房间同步失败')
-  assert.equal(env.wx.modals[0].content, '网络不稳定，请检查网络后重试')
+  assert.equal(env.wx.modals[0].content, '网络不太稳定，请重试')
   assert.doesNotMatch(env.wx.modals[0].content, /network down/)
   assert.equal(env.wx.modals[0].confirmText, '重试')
 
@@ -605,23 +605,28 @@ test('settings page delegates copy/export/clear flows to settingsFlow and keeps 
   assert.doesNotMatch(source, /deleteMemory\(/)
 })
 
-test('settings page clear-local-data confirm explains the narrow local-only scope, cloud retention, and no room exit', () => {
+test('settings page resync confirm explains it will not delete records or leave the room', () => {
   const source = readPageFile('pages/settings/settings.js')
+  const wxml = readPageFile('pages/settings/settings.wxml')
 
-  // issue #106：清除只动本机房间码，语气和实际风险相称——确认标题不带警示表情
-  assert.match(source, /wx\.showModal\(\{[\s\S]*?title:\s*'确认清除'/)
+  assert.match(wxml, /aria-label="重新同步房间"/)
+  assert.match(wxml, />重新同步房间<\//)
+  assert.doesNotMatch(wxml, /清除本地数据/)
+  assert.doesNotMatch(wxml, /bindtap="clearData"[^>]*danger/)
+
+  // 确认标题不带警示表情；行为仍是清本机房间码再重新获取
+  assert.match(source, /wx\.showModal\(\{[\s\S]*?title:\s*'重新同步房间'/)
+  assert.match(source, /settingsFlow\.clearLocalCache\(/)
   assert.doesNotMatch(source, /⚠/)
-  // 锚定清除确认弹窗本身（页面上已有多个 modal，不能再取全文第一个 content）
-  const content = /title:\s*'确认清除'[\s\S]*?content:\s*'([^']+)'/.exec(source)
-  assert.ok(content, 'expected the clear-confirm modal content')
+  const content = /title:\s*'重新同步房间'[\s\S]*?content:\s*'([^']+)'/.exec(source)
+  assert.ok(content, 'expected the resync confirm modal content')
   const copy = content[1]
-  assert.match(copy, /只清除保存在本机的房间码/)
-  assert.match(copy, /云端记录会保留/)
-  assert.match(copy, /不会退出当前房间/)
+  assert.match(copy, /不会删除记录/)
+  assert.match(copy, /不会退出房间/)
   assert.doesNotMatch(copy, /所有本地缓存/)
 })
 
-test('confirmExport explains what will be exported, the JSON format, and how to use it before exporting', async () => {
+test('confirmExport explains the export is complete, should be saved to 文件传输助手, and cannot be imported', async () => {
   assert.equal(typeof settingsFlow.confirmExport, 'function')
 
   const env = createFakeSettingsEnv()
@@ -631,10 +636,10 @@ test('confirmExport explains what will be exported, the JSON format, and how to 
   await waitForAsyncTurn()
   assert.equal(env.wx.modals.length, 1)
   const modal = env.wx.modals[0]
-  assert.match(modal.content, /经期记录/)
-  assert.match(modal.content, /欢乐时光/)
-  assert.match(modal.content, /JSON/)
-  assert.match(modal.content, /备份/)
+  assert.match(modal.content, /全部经期和欢乐时光/)
+  assert.match(modal.content, /文件传输助手/)
+  assert.match(modal.content, /不能导入恢复/)
+  assert.doesNotMatch(modal.content, /JSON/)
 
   const result = await env.wx.resolveModal(true, promise)
 
@@ -663,15 +668,37 @@ test('confirmExport proceeds when the modal api is unavailable', async () => {
   assert.deepEqual(await settingsFlow.confirmExport({ wx: {} }), { kind: 'confirmed' })
 })
 
-test('settings page shows the version exactly once, owned by the about modal', () => {
+test('settings about group shows the version once and opens a short help sheet', async () => {
   const pageSource = readPageFile('pages/settings/settings.js')
-  const wxmlSource = readPageFile('pages/settings/settings.wxml')
+  const wxml = readPageFile('pages/settings/settings.wxml')
+  const about = wxml.slice(wxml.indexOf('>关于<'), wxml.indexOf('settings-danger-zone'))
 
-  const versionMentions = pageSource.match(/1\.0\.0/g) || []
-  assert.equal(versionMentions.length, 1)
-  assert.match(pageSource, /title: '关于'/)
-  assert.doesNotMatch(wxmlSource, /1\.0\.0/)
-  assert.doesNotMatch(wxmlSource, /class="version"/)
+  assert.equal((pageSource.match(/1\.0\.0/g) || []).length, 0)
+  assert.equal((wxml.match(/1\.0\.0/g) || []).length, 1)
+  assert.match(about, /v1\.0\.0/)
+  assert.match(about, /bindtap="openHelp"/)
+  assert.match(about, /aria-label="使用说明"/)
+
+  const helpStart = wxml.indexOf('class="help-sheet')
+  assert.ok(helpStart !== -1, 'expected the help sheet')
+  const help = wxml.slice(helpStart)
+  assert.match(help, /房间是你们两个人共用的日历/)
+  assert.match(help, /房间会归档/)
+  assert.match(help, /不是医疗建议/)
+  assert.match(wxml, /aria-label="关闭使用说明"/)
+
+  const harness = loadSettingsPageHarness({
+    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+  try {
+    assert.equal(harness.page.data.helpOpen, false)
+    harness.page.openHelp()
+    assert.equal(harness.page.data.helpOpen, true)
+    harness.page.closeHelp()
+    assert.equal(harness.page.data.helpOpen, false)
+  } finally {
+    harness.teardown()
+  }
 })
 
 test('exportRecordsAsJson explains the export and proceeds after confirmation when confirmBeforeExport is set', async () => {
@@ -689,10 +716,10 @@ test('exportRecordsAsJson explains the export and proceeds after confirmation wh
   await waitForAsyncTurn()
   assert.equal(env.wx.modals.length, 1)
   const modal = env.wx.modals[0]
-  assert.match(modal.content, /经期记录/)
-  assert.match(modal.content, /欢乐时光/)
-  assert.match(modal.content, /JSON/)
-  assert.match(modal.content, /备份/)
+  assert.match(modal.content, /全部经期和欢乐时光/)
+  assert.match(modal.content, /文件传输助手/)
+  assert.match(modal.content, /不能导入恢复/)
+  assert.doesNotMatch(modal.content, /JSON/)
   assert.deepEqual(env.wx.loadingCalls, [])
   assert.deepEqual(client.calls, [])
 
@@ -814,7 +841,7 @@ test('settings page shows the cached room code before verification, with copy an
     const cardEnd = wxml.indexOf('日历显示')
     const card = wxml.slice(cardStart, cardEnd)
     assert.match(card, /wx:if="\{\{roomCode\}\}" class="copy-btn"/)
-    assert.match(card, /wx:if="\{\{roomCode\}\}" class="menu-item danger" hover-class="danger-hover" bindtap="unbind"/)
+    assert.doesNotMatch(card, /bindtap="unbind"/)
 
     await harness.page.onShow()
     assert.equal(harness.resolveCalls(), 1)
@@ -926,38 +953,38 @@ test('settings room actions are rose tappable rows with the shared small-action 
 
 // ===== issue #102：「解除绑定」从绑定页已绑定卡移到设置页房间卡 =====
 
-test('settings room card exposes the moved unbind entry as a danger menu row while bound', () => {
+test('settings room group keeps copy and retry, and does not host unbind', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
   const cardStart = wxml.indexOf('class="menu-item room-code-item')
   const cardEnd = wxml.indexOf('日历显示')
   assert.ok(cardStart !== -1 && cardEnd > cardStart, 'expected the room-code card')
   const card = wxml.slice(cardStart, cardEnd)
 
-  // 警示红菜单行族（与「清除本地数据」同款 .menu-item.danger），有码时才可解
-  assert.match(
-    card,
-    /wx:if="\{\{roomCode\}\}" class="menu-item danger" hover-class="danger-hover" bindtap="unbind" aria-role="button" aria-label="解除绑定"/
-  )
-  assert.match(card, />解除绑定<\//)
+  assert.match(card, /wx:if="\{\{roomCode\}\}" class="copy-btn"/)
+  assert.doesNotMatch(card, /bindtap="unbind"|解除绑定/)
 })
 
-test('settings unbind reuses the bind page secondary-confirm copy verbatim', () => {
+test('settings unbind confirm explains leaving, the partner, archive, and recovery on the bind page', () => {
   const settingsSource = readPageFile('pages/settings/settings.js')
   const bindSource = readPageFile('pages/bind/bind.js')
 
-  const settingsUnbind = /unbind\(\)\s*\{[\s\S]*?wx\.showModal\(\{\s*title:\s*'([^']+)',\s*content:\s*'([^']+)'/.exec(settingsSource)
-  assert.ok(settingsUnbind, 'settings.js must hold the moved unbind flow with its modal')
+  const settingsUnbind = /unbind\(\)\s*\{[\s\S]*?wx\.showModal\(\{\s*title:\s*'([^']+)',\s*content:\s*'([^']+)',\s*confirmText:\s*'([^']+)',\s*confirmColor:\s*'([^']+)'/.exec(settingsSource)
+  assert.ok(settingsUnbind, 'settings.js must hold the unbind confirm')
   const bindUnbind = /unbind\(\)\s*\{[\s\S]*?wx\.showModal\(\{\s*title:\s*'([^']+)',\s*content:\s*'([^']+)'/.exec(bindSource)
   assert.ok(bindUnbind, 'bind.js keeps the same-screen unbind flow for the needUnbind state')
 
-  // 二次确认文案逐字相等：标题「解除绑定」+ 退出/归档/恢复说明
-  assert.equal(settingsUnbind[1], bindUnbind[1])
-  assert.equal(settingsUnbind[2], bindUnbind[2])
   assert.equal(settingsUnbind[1], '解除绑定')
-  assert.match(settingsUnbind[2], /解除后将退出当前房间/)
-  assert.match(settingsUnbind[2], /若你是最后一人，数据会归档/)
-  assert.match(settingsUnbind[2], /可在本页重新创建恢复/)
-  assert.match(settingsUnbind[2], /确定解除？/)
+  assert.match(settingsUnbind[2], /你会退出/)
+  assert.match(settingsUnbind[2], /留在房间里/)
+  assert.match(settingsUnbind[2], /房间会归档/)
+  assert.match(settingsUnbind[2], /绑定页/)
+  assert.match(settingsUnbind[2], /创建/)
+  assert.doesNotMatch(settingsUnbind[2], /本页/)
+  assert.equal(settingsUnbind[3], '解除绑定')
+  assert.equal(settingsUnbind[4], '#F97373')
+  // 绑定页 needUnbind 仍在本页恢复；设置页不能再沿用那句
+  assert.match(bindUnbind[2], /本页/)
+  assert.notEqual(settingsUnbind[2], bindUnbind[2])
 })
 
 test('confirming settings unbind leaves the room and reLaunches to the bind page', async () => {
@@ -979,6 +1006,7 @@ test('confirming settings unbind leaves the room and reLaunches to the bind page
 
     assert.equal(harness.leaveRoomCalls(), 1)
     // bind 非 tab 页，解绑后回绑定页只能 reLaunch，不能 switchTab
+    assert.deepEqual(harness.storageWrites, [{ key: 'bindUnbindNotice', value: '1' }])
     assert.deepEqual(harness.navigation, [{ type: 'reLaunch', url: '/pages/bind/bind' }])
   } finally {
     harness.teardown()
@@ -1028,23 +1056,56 @@ test('settings unbind stays on the page with failure feedback when leaving the r
   }
 })
 
+// issue #139：设置页按房间、日历显示、数据、关于分组，解除绑定单独在页底危险区
+test('settings page leads with room info in named groups and keeps unbind in the bottom danger zone', () => {
+  const wxml = readPageFile('pages/settings/settings.wxml')
+
+  assert.doesNotMatch(wxml, /profile-card|profile-avatar|goMemory|查看欢乐时光/)
+
+  const titles = [...wxml.matchAll(/class="settings-group-title">([^<]+)</g)].map((match) => match[1])
+  assert.deepEqual(titles, ['房间', '日历显示', '数据', '关于'])
+
+  const room = wxml.slice(wxml.indexOf('>房间<'), wxml.indexOf('>日历显示<'))
+  assert.match(room, /class="menu-item room-code-item/)
+  assert.match(room, /bindtap="copyRoomCode"/)
+  assert.doesNotMatch(room, /bindtap="unbind"/)
+
+  const calendar = wxml.slice(wxml.indexOf('>日历显示<'), wxml.indexOf('>数据<'))
+  assert.match(calendar, /class="density-control"/)
+  assert.match(calendar, /data-density="compact"[\s\S]*清爽/)
+  assert.match(calendar, /data-density="full"[\s\S]*完整/)
+  assert.doesNotMatch(calendar, /class="menu-item/)
+
+  const data = wxml.slice(wxml.indexOf('>数据<'), wxml.indexOf('>关于<'))
+  assert.match(data, /bindtap="exportData"/)
+  assert.match(data, /bindtap="clearData"/)
+  assert.doesNotMatch(data, /class="[^"]*danger/)
+
+  const aboutAt = wxml.indexOf('>关于<')
+  const dangerAt = wxml.indexOf('settings-danger-zone')
+  assert.ok(dangerAt > aboutAt, 'the danger zone sits after the about group')
+  const danger = wxml.slice(dangerAt)
+  assert.match(danger, /wx:if="\{\{roomCode\}\}" class="menu-item danger" hover-class="danger-hover" bindtap="unbind"/)
+  assert.match(danger, />解除绑定<\//)
+  assert.doesNotMatch(wxml.slice(0, dangerAt), /bindtap="unbind"/)
+
+  const density = wxssRuleBody(readPageFile('pages/settings/settings.wxss'), '.density-control')
+  assert.doesNotMatch(density, /background\s*:/)
+  assert.doesNotMatch(density, /\bborder\s*:/)
+  assert.doesNotMatch(density, /border-radius\s*:/)
+  assert.doesNotMatch(density, /box-shadow\s*:/)
+})
+
 // ===== issue #103：「查看欢乐时光」→ 记录 tab 的欢乐时光分段 =====
 
-test('settings memory entry writes the one-shot segment intent and switchTabs into the record tab memory segment', async () => {
-  const harness = loadSettingsPageHarness({
-    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01' }
-  })
+test('settings page no longer offers a second happy-time entry', () => {
+  const source = readPageFile('pages/settings/settings.js')
+  const wxml = readPageFile('pages/settings/settings.wxml')
 
-  try {
-    await harness.page.onShow()
-
-    // switchTab 不能带 query：先写一次性「目标分段」意图，再切到记录 tab（issue #103）
-    harness.page.goMemory()
-    assert.deepEqual(harness.storageWrites, [{ key: 'recordTabSegment', value: 'memory' }])
-    assert.deepEqual(harness.navigation, [{ type: 'switchTab', url: '/pages/period/period' }])
-  } finally {
-    harness.teardown()
-  }
+  assert.doesNotMatch(source, /goMemory\s*\(/)
+  assert.doesNotMatch(source, /recordTabSegment/)
+  assert.doesNotMatch(wxml, /goMemory|查看欢乐时光/)
+  assert.doesNotMatch(wxml, /class="menu-text">欢乐时光</)
 })
 
 function wxssRuleBody(wxss, selector) {
@@ -1079,7 +1140,7 @@ function loadSettingsPageHarness({ roomOutcome, leaveRoom, cachedRoomCode } = {}
         return leaveRoom || { code: 0 }
       }
     }],
-    [path.join(__dirname, '..', 'utils/safeArea.js'), { getSafeTop: () => 44, getSafeBottom: () => 0 }]
+    [path.join(__dirname, '..', 'utils/safeArea.js'), { getSafeTop: () => 44, getSafeBottom: () => 0, getNavBarHeight: () => 84, getCapsuleRightInset: () => 94 }]
   ])
   const originalPage = global.Page
   const originalWx = global.wx

@@ -38,18 +38,22 @@ function getErrorCode(result) {
 }
 
 const USER_FAILURE_COPY = {
-  network: '网络不稳定，请检查网络后重试',
+  network: '网络不太稳定，请重试',
   room: '房间状态已变化，请重新绑定',
   missing: '这条记录已经不在了，请返回列表查看',
   unknown: '这次没有完成，请重试'
 }
 
-function presentUserFailure(raw) {
-  const text = raw == null ? '' : String(raw)
-  if (!text) return ''
+function presentUserFailure(raw, logger) {
+  const text = raw == null ? '' : String(raw).trim()
+  const sink = logger && typeof logger.error === 'function' ? logger : console
+  if (!text) {
+    sink.error(raw || 'room action failed')
+    return USER_FAILURE_COPY.unknown
+  }
   const category = classifyUserFailure(text)
   if (!category) return text
-  console.error(text)
+  sink.error(text)
   return USER_FAILURE_COPY[category]
 }
 
@@ -66,7 +70,6 @@ function classifyUserFailure(text) {
 
 function isSafeProductCopy(text) {
   if (Object.values(USER_FAILURE_COPY).indexOf(text) !== -1) return true
-  if (text === '创建失败：房间码为空') return true
   if (hasTechnicalMarker(text)) return false
   return /请(重试|检查|重新绑定|先|返回|稍后|输入|选择|编辑|确认)/.test(text)
 }

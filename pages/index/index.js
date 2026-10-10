@@ -28,6 +28,8 @@ Page({
   data: {
     safeTop: safeArea.getSafeTop(),
     safeBottom: safeArea.getSafeBottom(),
+    navBarHeight: safeArea.getNavBarHeight(),
+    capsuleRight: safeArea.getCapsuleRightInset(),
     year: INITIAL_VIEW_DATE.getFullYear(),
     month: INITIAL_VIEW_DATE.getMonth(),
     weekDays: ['日','一','二','三','四','五','六'],
@@ -80,6 +82,8 @@ Page({
     selectedDayDetail: null,
     dayDetailsByDate: {},
     ongoingCompletionReminder: null,
+    periodQuickLabel: '记经期',
+    periodQuickAriaLabel: '记经期',
     loading: true,
     refreshing: false,
     hasLoadedHomeData: false,
@@ -299,10 +303,13 @@ Page({
     const month = hasOwn('month') ? overrides.month : this.data.month
     const today = hasOwn('today') ? overrides.today : util.formatDate(new Date())
 
+    const quickAction = cycle.buildPeriodQuickAction(periods, { today })
     const update = {
       periods,
       memories,
       ...buildHomeCalendarState({ year, month, periods, memories, today }),
+      periodQuickLabel: quickAction.label,
+      periodQuickAriaLabel: quickAction.ariaLabel,
       year,
       month
     }
@@ -434,6 +441,13 @@ Page({
     this.applyHomeCalendarState({ year, month, monthPickerVisible: false })
   },
 
+  // 日历滑动松手：判定在纯函数里，页面只做一次既有翻月更新，不跟手。
+  onCalendarSwipe(detail) {
+    const decision = util.decideMonthSwipe(detail && detail.dx, detail && detail.dy)
+    if (decision === 'next') this.nextMonth()
+    else if (decision === 'prev') this.prevMonth()
+  },
+
   openMonthPicker() {
     const { year, month } = this.data
     homepageSheets(this).monthPicker.open(this, {
@@ -519,14 +533,11 @@ Page({
 
   selectJumpMonth(e) {
     const month = Number(e.currentTarget.dataset.month)
-    if (Number.isNaN(month)) return
-    this.setData({ jumpMonth: month })
-  },
-
-  confirmMonthJump() {
+    if (!Number.isInteger(month) || month < 0 || month > 11) return
     this.setData({
       year: this.data.jumpYear,
-      month: this.data.jumpMonth,
+      month,
+      jumpMonth: month,
       monthPickerVisible: false
     }, () => this.renderCalendar())
     homepageSheets(this).monthPicker.leave(this)
@@ -560,6 +571,14 @@ Page({
   // 不把已显示的日历换回整页失败画面
   retryRefresh() {
     return this.loadData({ background: true })
+  },
+
+  onPullDownRefresh() {
+    const task = this.loadData({ background: true })
+    const stop = () => {
+      if (typeof wx.stopPullDownRefresh === 'function') wx.stopPullDownRefresh()
+    }
+    return Promise.resolve(task).then(stop, stop)
   },
 
   goBind() { wx.redirectTo({ url: '/pages/bind/bind' }) },
@@ -673,10 +692,8 @@ Page({
     return parts.join(' · ')
   },
 
-  // 快速操作
-  // 「记录经期」统一决策：已有进行中的经期时重开原记录，不建第二条；
-  // 否则按给定日期新增（新增默认状态由 recordEditRoute 按开始日期推导）。
-  // 快捷入口、提醒入口与日历日动作 sheet 共用这一条页内逻辑。
+  // 日历日动作与周期提醒：已有进行中的经期时打开原记录，不建第二条；
+  // 否则按给定日期新增。首页「记结束」不走这里，它预选已结束且结束日为今天。
   openPeriodForDate(date) {
     const ongoing = cycle.findOngoingPeriod(this.data.periods)
     if (ongoing) {
@@ -686,7 +703,15 @@ Page({
     wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: date }) })
   },
   quickPeriod() {
-    this.openPeriodForDate(util.formatDate(new Date()))
+    const today = util.formatDate(new Date())
+    const ongoing = cycle.findOngoingPeriod(this.data.periods)
+    if (ongoing) {
+      wx.navigateTo({
+        url: recordEditRoute.buildPeriodEditUrl(ongoing, { intent: 'complete', today })
+      })
+      return
+    }
+    this.openPeriodForDate(today)
   },
   onReminderTap(e) {
     const reminder = this.data.cycleReminders[e.currentTarget.dataset.index]
