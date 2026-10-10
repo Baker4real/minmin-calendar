@@ -215,7 +215,8 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(byHandler('prevMonth', 'nav-btn').attrs['aria-label'], '上一个月')
   assert.equal(byHandler('nextMonth', 'nav-btn').attrs['aria-label'], '下一个月')
   assert.equal(byHandler('quickPeriod', 'quick-btn').attrs['aria-label'], '{{periodQuickAriaLabel}}')
-  assert.equal(byHandler('quickMemory', 'quick-btn').attrs['aria-label'], '记录欢乐时光')
+  assert.equal(byHandler('quickMemory', 'quick-btn').attrs['aria-label'], '记欢乐时光')
+  assert.match(readPage('pages/index/index.wxml'), /class="quick-text">记欢乐时光</)
 
   // 弹层遮罩本身是可点的「关闭」操作，必须带角色与可读名称
   assert.equal(byHandler('closeMonthPicker', 'day-sheet-mask').attrs['aria-label'], '关闭月份选择')
@@ -234,7 +235,12 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   const dayActions = elements
     .filter((element) => element.attrs.bindtap === 'onDayActionTap')
     .map((element) => element.attrs['aria-label'])
-  assert.deepEqual(dayActions, ['记录经期', '记录欢乐时光', '查看详情', '补经期', '补欢乐时光'])
+  assert.deepEqual(dayActions, ['记经期', '记欢乐时光', '查看详情', '补记经期', '补记欢乐时光'])
+  const indexWxml = readPage('pages/index/index.wxml')
+  assert.match(indexWxml, /sheet-action-title">记经期</)
+  assert.match(indexWxml, /sheet-action-title">记欢乐时光</)
+  assert.match(indexWxml, /sheet-action-title">补记经期</)
+  assert.match(indexWxml, /sheet-action-title">补记欢乐时光</)
 
   // 月份格点一下即跳转，不再有确认按钮
   const jumpOption = byHandler('selectJumpMonth', 'jump-option')
@@ -450,7 +456,9 @@ test('record tab segment control reads as a radio group with a perceivable check
       element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
   assert.equal(byHandler('editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dayLabel}} 的欢乐时光')
   assert.equal(byHandler('loadMemoryData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
-  assert.equal(byHandler('addMemory', 'btn-premium').attrs['aria-label'], '记录欢乐时光')
+  assert.equal(byHandler('addMemory', 'btn-premium').attrs['aria-label'], '记欢乐时光')
+  assert.match(readPage('pages/period/period.wxml'), />＋ 记欢乐时光</)
+  assert.match(readPage('pages/memory/memory.wxml'), />＋ 记欢乐时光</)
 
   // 月份卡头（issue #109）：点按切换展开/收起，按 button 朗读；
   // 读屏名「YYYY年M月，N 条欢乐时光，已展开/已收起」由分组数据绑定，

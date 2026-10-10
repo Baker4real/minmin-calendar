@@ -93,9 +93,9 @@
         <text class="quick-icon period-tone">●</text>
         <text class="quick-text">{{periodQuickLabel}}</text>
       </view>
-      <view class="quick-btn" bindtap="quickMemory" aria-role="button" aria-label="记录欢乐时光" hover-class="quick-btn-hover">
+      <view class="quick-btn" bindtap="quickMemory" aria-role="button" aria-label="记欢乐时光" hover-class="quick-btn-hover">
         <text class="quick-icon memory-tone">♥</text>
-        <text class="quick-text">欢乐时光</text>
+        <text class="quick-text">记欢乐时光</text>
       </view>
     </view>
 
@@ -240,18 +240,18 @@
 
       <block wx:if="{{daySheetMode == 'actions'}}">
         <view class="sheet-actions">
-          <view wx:if="{{!selectedDateIsFuture}}" class="sheet-action" data-action="period" bindtap="onDayActionTap" aria-role="button" aria-label="记录经期" hover-class="sheet-action-hover">
+          <view wx:if="{{!selectedDateIsFuture}}" class="sheet-action" data-action="period" bindtap="onDayActionTap" aria-role="button" aria-label="记经期" hover-class="sheet-action-hover">
             <text class="sheet-action-icon period-tone">●</text>
             <view class="sheet-action-copy">
-              <text class="sheet-action-title">记录经期</text>
+              <text class="sheet-action-title">记经期</text>
               <text class="sheet-action-desc">添加这一天的经期记录</text>
             </view>
             <text class="sheet-action-arrow">›</text>
           </view>
-          <view class="sheet-action" data-action="memory" bindtap="onDayActionTap" aria-role="button" aria-label="记录欢乐时光" hover-class="sheet-action-hover">
+          <view class="sheet-action" data-action="memory" bindtap="onDayActionTap" aria-role="button" aria-label="记欢乐时光" hover-class="sheet-action-hover">
             <text class="sheet-action-icon memory-tone">♥</text>
             <view class="sheet-action-copy">
-              <text class="sheet-action-title">欢乐时光</text>
+              <text class="sheet-action-title">记欢乐时光</text>
               <text class="sheet-action-desc">写下这一天的欢乐时光</text>
             </view>
             <text class="sheet-action-arrow">›</text>
@@ -312,13 +312,13 @@
         </view>
 
         <view class="sheet-actions compact-actions">
-          <view wx:if="{{!selectedDateIsFuture}}" class="sheet-action compact" data-action="period" bindtap="onDayActionTap" aria-role="button" aria-label="补经期" hover-class="sheet-action-hover">
+          <view wx:if="{{!selectedDateIsFuture}}" class="sheet-action compact" data-action="period" bindtap="onDayActionTap" aria-role="button" aria-label="补记经期" hover-class="sheet-action-hover">
             <text class="sheet-action-icon period-tone">●</text>
-            <text class="sheet-action-title">补经期</text>
+            <text class="sheet-action-title">补记经期</text>
           </view>
-          <view class="sheet-action compact" data-action="memory" bindtap="onDayActionTap" aria-role="button" aria-label="补欢乐时光" hover-class="sheet-action-hover">
+          <view class="sheet-action compact" data-action="memory" bindtap="onDayActionTap" aria-role="button" aria-label="补记欢乐时光" hover-class="sheet-action-hover">
             <text class="sheet-action-icon memory-tone">♥</text>
-            <text class="sheet-action-title">补欢乐时光</text>
+            <text class="sheet-action-title">补记欢乐时光</text>
           </view>
         </view>
       </view>
