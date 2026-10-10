@@ -286,6 +286,199 @@ test('runRecordSave does not replay unknown save mutations after retryable failu
   assert.equal(actionCalls, 1)
 })
 
+test('runRecordSave says 已保存 when an unconfirmed edit is found by record identity', async () => {
+  assert.equal(typeof recordCommands.runRecordSave, 'function')
+
+  const page = createFakePage({ saving: false })
+  const env = createFakeCommandEnv()
+  let actionCalls = 0
+  let refetchCalls = 0
+
+  const result = await recordCommands.runRecordSave({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => {
+      actionCalls += 1
+      return {
+        kind: 'retryable-failure',
+        message: '云数据库查询超时 (15000ms)'
+      }
+    },
+    refetch: async () => {
+      refetchCalls += 1
+      return {
+        kind: 'success',
+        data: [
+          { _id: 'other', startDate: '2026-06-01', note: '已写入' },
+          { _id: 'p1', startDate: '2026-06-01', note: '已写入', duration: 3 }
+        ]
+      }
+    },
+    reconcile: {
+      id: 'p1',
+      fields: { startDate: '2026-06-01', note: '已写入' }
+    },
+    validate: null,
+    successTitle: '保存成功',
+    failureTitle: '保存失败',
+    successDelay: 1000
+  })
+
+  assert.equal(actionCalls, 1)
+  assert.equal(refetchCalls, 1)
+  assert.equal(result.kind, 'success')
+  assert.equal(result.result.record._id, 'p1')
+  assert.deepEqual(env.wx.toasts, [{ title: '已保存' }])
+  assert.deepEqual(env.wx.modals, [])
+  assert.deepEqual(env.timer.calls.map(call => call.delay), [1000])
+  assert.deepEqual(page.setDataCalls, [
+    { saving: true },
+    { saving: false, submitted: true }
+  ])
+})
+
+test('runRecordSave says the save did not land when the refetched record does not match', async () => {
+  assert.equal(typeof recordCommands.runRecordSave, 'function')
+
+  const page = createFakePage({ saving: false })
+  const env = createFakeCommandEnv()
+  let actionCalls = 0
+  let refetchCalls = 0
+
+  const promise = recordCommands.runRecordSave({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => {
+      actionCalls += 1
+      return { kind: 'retryable-failure', message: 'network down' }
+    },
+    refetch: async () => {
+      refetchCalls += 1
+      return {
+        kind: 'success',
+        data: [
+          { _id: 'p1', startDate: '2026-06-01', note: '旧备注' },
+          { _id: 'other', startDate: '2026-06-01', note: '新备注' }
+        ]
+      }
+    },
+    reconcile: {
+      id: 'p1',
+      fields: { startDate: '2026-06-01', note: '新备注' }
+    },
+    validate: null,
+    successTitle: '保存成功',
+    failureTitle: '保存失败'
+  })
+
+  for (let turn = 0; turn < 8 && env.wx.modals.length === 0; turn += 1) {
+    await Promise.resolve()
+  }
+  assert.equal(env.wx.modals.length, 1)
+  const modal = env.wx.modals[0]
+  const result = await env.wx.resolveModal(true, promise)
+
+  assert.equal(actionCalls, 1)
+  assert.equal(refetchCalls, 1)
+  assert.equal(modal.content, '没有保存成功，请重试')
+  assert.equal(result.message, '没有保存成功，请重试')
+  assert.doesNotMatch(modal.content, /network down/)
+  assert.deepEqual(env.wx.toasts, [])
+  assert.equal(env.timer.calls.length, 0)
+  assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
+})
+
+test('runRecordSave says 已保存 when an unconfirmed add matches date and content', async () => {
+  const page = createFakePage({ saving: false })
+  const env = createFakeCommandEnv()
+  let refetchCalls = 0
+
+  const result = await recordCommands.runRecordSave({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => ({ kind: 'retryable-failure', message: 'network down' }),
+    refetch: async () => {
+      refetchCalls += 1
+      return {
+        kind: 'success',
+        data: [
+          { _id: 'm-old', date: '2026-06-03', note: '别的' },
+          { _id: 'm1', date: '2026-06-03', note: '电影' }
+        ]
+      }
+    },
+    reconcile: {
+      fields: { date: '2026-06-03', note: '电影' }
+    },
+    validate: null,
+    successTitle: '保存成功',
+    failureTitle: '保存失败',
+    successDelay: 1000
+  })
+
+  assert.equal(refetchCalls, 1)
+  assert.equal(result.kind, 'success')
+  assert.equal(result.result.record._id, 'm1')
+  assert.deepEqual(env.wx.toasts, [{ title: '已保存' }])
+  assert.deepEqual(env.wx.modals, [])
+})
+
+test('runRecordSave keeps the unconfirmed explanation when the refetch also fails', async () => {
+  const page = createFakePage({ saving: false })
+  const env = createFakeCommandEnv()
+  const errors = []
+  const originalError = console.error
+  console.error = (...args) => {
+    errors.push(args.map(item => String(item)).join(' '))
+  }
+  let actionCalls = 0
+  let refetchCalls = 0
+
+  try {
+    const promise = recordCommands.runRecordSave({
+      page,
+      wx: env.wx,
+      timer: env.timer,
+      action: async () => {
+        actionCalls += 1
+        return { kind: 'retryable-failure', message: '云数据库查询超时 (15000ms)' }
+      },
+      refetch: async () => {
+        refetchCalls += 1
+        return { kind: 'retryable-failure', message: 'list timeout 15000ms' }
+      },
+      reconcile: {
+        fields: { date: '2026-06-03', note: '电影' }
+      },
+      validate: null,
+      successTitle: '保存成功',
+      failureTitle: '保存失败'
+    })
+
+    for (let turn = 0; turn < 8 && env.wx.modals.length === 0; turn += 1) {
+      await Promise.resolve()
+    }
+    assert.equal(env.wx.modals.length, 1)
+    const modal = env.wx.modals[0]
+    const result = await env.wx.resolveModal(true, promise)
+
+    assert.equal(actionCalls, 1)
+    assert.equal(refetchCalls, 1)
+    assert.equal(modal.content, '保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交')
+    assert.equal(result.message, modal.content)
+    assert.doesNotMatch(`${modal.content}\n${result.message}`, /15000|timeout|云数据库/)
+    assert.match(errors.join('\n'), /云数据库查询超时 \(15000ms\)/)
+    assert.match(errors.join('\n'), /list timeout 15000ms/)
+    assert.deepEqual(env.wx.toasts, [])
+    assert.equal(env.timer.calls.length, 0)
+  } finally {
+    console.error = originalError
+  }
+})
+
 test('runRecordSave returns acknowledge fallback when modal and toast are unavailable', async () => {
   assert.equal(typeof recordCommands.runRecordSave, 'function')
 
@@ -399,7 +592,7 @@ test('runRecordSave keeps room repair sync failures visible without replaying th
   assert.deepEqual(result, {
     kind: 'room-repair',
     action: 'refresh-check',
-    message: '同步房间状态失败：network down\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
+    message: '网络不太稳定，请重试\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
     roomCode: 'ROOM01',
     repair: {
       kind: 'retryable-failure',
@@ -409,7 +602,7 @@ test('runRecordSave keeps room repair sync failures visible without replaying th
   assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
   assert.deepEqual(modal, {
     title: '保存失败',
-    content: '同步房间状态失败：network down\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
+    content: '网络不太稳定，请重试\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
     confirmText: '知道了',
     showCancel: false,
     success: modal.success
@@ -643,7 +836,7 @@ test('runRecordDelete keeps room repair sync failures visible without replaying 
   assert.deepEqual(result, {
     kind: 'room-repair',
     action: 'refresh-check',
-    message: '同步房间状态失败：network down\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
+    message: '网络不太稳定，请重试\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
     roomCode: 'ROOM01',
     repair: {
       kind: 'retryable-failure',
@@ -654,7 +847,7 @@ test('runRecordDelete keeps room repair sync failures visible without replaying 
   assert.deepEqual(page.setDataCalls, [{ deleting: true }, { deleting: false }])
   assert.deepEqual(modal, {
     title: '删除失败',
-    content: '同步房间状态失败：network down\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
+    content: '网络不太稳定，请重试\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
     confirmText: '知道了',
     showCancel: false,
     success: modal.success
@@ -887,7 +1080,7 @@ test('runRecordListLoad keeps room repair sync failures retryable when the user 
   assert.deepEqual(result, { kind: 'success', data: [] })
   assert.deepEqual(modal, {
     title: '加载失败',
-    content: '同步房间状态失败：network down',
+    content: '网络不太稳定，请重试',
     confirmText: '重试',
     cancelText: '取消',
     success: modal.success
@@ -2391,10 +2584,14 @@ test('record pages delegate feedback to shared record command helpers', () => {
   const memoryListJs = readPageFile('pages/memory/memory.js')
 
   assert.match(periodEditJs, /runRecordSave\(/)
+  assert.match(periodEditJs, /refetch:\s*\(\)\s*=>\s*client\.list\('periods'\)/)
+  assert.match(periodEditJs, /reconcile:\s*\{/)
   assert.match(periodEditJs, /runRecordDelete\(/)
   assert.doesNotMatch(periodEditJs, /res\.result/)
 
   assert.match(memoryEditJs, /runRecordSave\(/)
+  assert.match(memoryEditJs, /refetch:\s*\(\)\s*=>\s*client\.list\('memories'\)/)
+  assert.match(memoryEditJs, /reconcile:\s*\{/)
   assert.match(memoryEditJs, /runRecordDelete\(/)
   assert.doesNotMatch(memoryEditJs, /res\.result/)
 

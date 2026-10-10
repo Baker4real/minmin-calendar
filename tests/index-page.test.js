@@ -846,11 +846,13 @@ test('day action sheet hides both period entries for future dates in the templat
   }
 })
 
-// issue #98：超期进行中记录的一次非阻塞完成提示——同一记录只提示一次（今天由 util stub 固定为 2026-06-26）
-test('an overdue ongoing record shows one completion reminder and never repeats it on refresh', async () => {
+// issue #129：超期完成提醒不在渲染时记为已提醒。刷新仍可见；离开首页后才持久化，回来不再出现。
+test('an overdue completion reminder stays visible until the home page is left', async () => {
   const ongoing = { _id: 'p2', startDate: '2026-06-20', endDate: '', status: 'ongoing' }
   const client = createQueuedClient([
     { kind: 'success', data: [ongoing] },
+    { kind: 'success', data: [] },
+    { kind: 'success', data: [{ ...ongoing }] },
     { kind: 'success', data: [] },
     { kind: 'success', data: [{ ...ongoing }] },
     { kind: 'success', data: [] }
@@ -876,14 +878,19 @@ test('an overdue ongoing record shows one completion reminder and never repeats 
     assert.equal(reminder.recordKey, 'p2')
     assert.equal(reminder.expectedDays, 5)
     assert.equal(reminder.title, '经期还未结束')
-    // 提示出现即写入一次性标记（经本地存储持久化，跨天/重进应用同受它约束）
-    assert.deepEqual(markerWrites, ['p2'])
+    assert.deepEqual(markerWrites, [], 'showing the reminder must not mark it seen')
 
-    // 之后刷新（同一条记录）：不再重复弹出
+    await harness.page.onShow()
+    assert.equal(harness.page.data.ongoingCompletionReminder.recordKey, 'p2')
+    assert.deepEqual(markerWrites, [])
+
+    harness.page.onHide()
+    assert.deepEqual(markerWrites, ['p2'])
+    assert.equal(storedMarker, 'p2')
+
     await harness.page.onShow()
     assert.equal(harness.page.data.ongoingCompletionReminder, null)
     assert.deepEqual(markerWrites, ['p2'])
-    assert.equal(storedMarker, 'p2')
   } finally {
     harness.teardown()
   }
@@ -926,6 +933,8 @@ test('a fresh session does not re-show the reminder for a record already marked 
       record: { _id: 'p3', startDate: '2026-06-18', endDate: '', status: 'ongoing' }
     })
     assert.equal(harness.page.data.ongoingCompletionReminder.recordKey, 'p3')
+    assert.deepEqual(markerWrites, [], 'a newly shown reminder waits until the page is left')
+    harness.page.onHide()
     assert.deepEqual(markerWrites, ['p3'])
   } finally {
     harness.teardown()
@@ -952,7 +961,8 @@ test('no completion reminder before the expected duration, and none is invented 
     await harness.page.onShow()
     // 第 3 天（06-24 → 06-26）未超过默认预期 5 天
     assert.equal(harness.page.data.ongoingCompletionReminder, null)
-    assert.deepEqual(markerWrites, [])
+    harness.page.onHide()
+    assert.deepEqual(markerWrites, [], 'leaving without a reminder does not mark anything seen')
 
     // 记录被补填结束日期完成（经编辑页保存回流）：没有进行中记录，同样没有提示
     harness.page.applyRecordChange({
@@ -978,15 +988,20 @@ test('tapping the completion reminder opens the same ongoing record to fill its 
 
   try {
     const navigation = []
+    const markerWrites = []
     global.wx.getStorageSync = () => ''
-    global.wx.setStorageSync = () => {}
+    global.wx.setStorageSync = (key, value) => {
+      if (key === 'ongoingPeriodReminderShown') markerWrites.push(value)
+    }
     global.wx.navigateTo = options => navigation.push(options.url)
 
     harness.page.onLoad()
     await harness.page.onShow()
     assert.ok(harness.page.data.ongoingCompletionReminder)
+    assert.deepEqual(markerWrites, [])
 
     harness.page.onOngoingReminderTap()
+    assert.deepEqual(markerWrites, ['p9'])
     assert.deepEqual(navigation, ['/pages/period/edit/edit?id=p9&startDate=2026-06-18&status=ongoing'])
 
     // 点击只打开原记录：不写结束日期、不关闭状态

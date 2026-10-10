@@ -820,9 +820,9 @@ Page({
     this.openPeriodForDate(reminder.date)
   },
 
-  // issue #98：超期进行中记录的一次非阻塞完成提示。同一条记录只提示一次：
-  // 提示出现即把记录标识经本地存储接缝持久化，之后刷新、跨天、重进应用都不再弹出；
-  // 提示本身绝不写结束日期、绝不关闭状态，点击只打开同一条记录补填。
+  // issue #129：同一条记录只提示一次，但渲染本身不记「已提醒」。
+  // 用户点过它，或首页在显示过它之后被离开，才经本地存储接缝持久化。
+  // 提示绝不写结束日期、绝不关闭状态，点击只打开同一条记录补填。
   syncOngoingCompletionReminder() {
     const reminder = cycle.buildOngoingCompletionReminder(this._recordList('periods'), {
       today: util.formatDate(new Date())
@@ -836,16 +836,36 @@ Page({
 
     const storage = recordDraft.createWxDraftStorage(wx)
     if (storage.get(ONGOING_REMINDER_STORAGE_KEY) === reminder.recordKey) {
+      this._ongoingReminderShownKey = ''
       return hideReminder()
     }
 
+    this._ongoingReminderShownKey = reminder.recordKey
     this.setData({ ongoingCompletionReminder: reminder })
-    storage.set(ONGOING_REMINDER_STORAGE_KEY, reminder.recordKey)
+  },
+
+  persistOngoingReminderSeen() {
+    const recordKey = this._ongoingReminderShownKey
+    if (!recordKey) return
+    const storage = recordDraft.createWxDraftStorage(wx)
+    if (storage.get(ONGOING_REMINDER_STORAGE_KEY) !== recordKey) {
+      storage.set(ONGOING_REMINDER_STORAGE_KEY, recordKey)
+    }
+    this._ongoingReminderShownKey = ''
+  },
+
+  onHide() {
+    this.persistOngoingReminderSeen()
+  },
+
+  onUnload() {
+    this.persistOngoingReminderSeen()
   },
 
   onOngoingReminderTap() {
     const reminder = this.data.ongoingCompletionReminder
     if (!reminder || !reminder.record) return
+    this.persistOngoingReminderSeen()
     wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(reminder.record) })
   },
   quickMemory() {

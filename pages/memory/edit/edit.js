@@ -78,13 +78,19 @@ Page({
     const { id, date, note, isEdit } = this.data
     const today = util.formatDate(new Date())
     const client = cloud.createRoomDataClient()
+    let submitted = null
     const outcome = await recordCommands.runRecordSave({
       page: this,
       action: () => {
-        if (isEdit) {
-          return client.update('memories', id, { date, note })
+        submitted = { date, note }
+        return isEdit ? client.update('memories', id, submitted) : client.add('memories', submitted)
+      },
+      refetch: () => client.list('memories'),
+      reconcile: {
+        id: isEdit ? id : '',
+        get fields() {
+          return submitted || {}
         }
-        return client.add('memories', { date, note })
       },
       validate: () => {
         if (!date) return '请选择日期'

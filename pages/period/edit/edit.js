@@ -155,14 +155,19 @@ Page({
     const { id, startDate, endDate, status, note, flow, symptoms, isEdit } = this.data
     const today = util.formatDate(new Date())
     const client = cloud.createRoomDataClient()
+    let submitted = null
     const outcome = await recordCommands.runRecordSave({
       page: this,
       action: () => {
-        const payload = cycle.buildPeriodPayload({ startDate, endDate, status, note, flow, symptoms })
-        if (isEdit) {
-          return client.update('periods', id, payload)
+        submitted = cycle.buildPeriodPayload({ startDate, endDate, status, note, flow, symptoms })
+        return isEdit ? client.update('periods', id, submitted) : client.add('periods', submitted)
+      },
+      refetch: () => client.list('periods'),
+      reconcile: {
+        id: isEdit ? id : '',
+        get fields() {
+          return submitted || {}
         }
-        return client.add('periods', payload)
       },
       validate: () => {
         if (!startDate) return '请选择日期'
