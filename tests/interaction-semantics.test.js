@@ -648,6 +648,17 @@ test('every tappable control carries a hover-class painted with its :active rule
   assert.deepEqual(failures, [])
 })
 
+test('header decorations cannot intercept taps on navigation controls', () => {
+  const { parseWxssRules } = require('./designTokens')
+  const rules = parseWxssRules(readPage('app.wxss'))
+  for (const selector of ['.header-gradient::before', '.header-gradient::after']) {
+    const declarations = Object.assign({}, ...rules
+      .filter(rule => rule.selectors.includes(selector))
+      .map(rule => rule.decls))
+    assert.equal(declarations['pointer-events'], 'none', `${selector} must let taps reach navigation controls`)
+  }
+})
+
 test('glass cards are not press targets', () => {
   // 玻璃卡本身不可点（issue #113）。按压从基类拿掉，不再靠各页 transform:none 抵消。
   const card = wxssRuleBody('app.wxss', '.premium-card')

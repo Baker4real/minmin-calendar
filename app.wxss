@@ -334,6 +334,7 @@ page {
 }
 .header-gradient::before {
   content: '';
+  pointer-events: none;
   position: absolute;
   top: -40%;
   right: -30%;
@@ -345,6 +346,7 @@ page {
 }
 .header-gradient::after {
   content: '';
+  pointer-events: none;
   position: absolute;
   bottom: -20%;
   left: -10%;

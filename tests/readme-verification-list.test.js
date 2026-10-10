@@ -4,23 +4,29 @@ const path = require('node:path')
 const test = require('node:test')
 
 const repoRoot = path.join(__dirname, '..')
-const testsRoot = path.join(repoRoot, 'tests')
+const { sourceFiles, runLogged } = require('./tools/verify.cjs')
 
-test('README verification command lists exactly the tests on disk', () => {
-  const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf8')
-  const commandLine = readme.split(/\r?\n/).find(line => line.startsWith('node --test '))
-  assert.ok(commandLine, 'README.md must keep a node --test verification command line')
+test('README, CI and pre-commit use the same verification entry', () => {
+  for (const file of ['README.md', '.github/workflows/ci.yml', '.githooks/pre-commit']) {
+    assert.match(fs.readFileSync(path.join(repoRoot, file), 'utf8'), /npm run verify/, file)
+  }
+  assert.equal(require('../package.json').scripts.verify, 'node tests/tools/verify.cjs')
+})
 
-  const listed = [...commandLine.matchAll(/tests\\([a-z0-9-]+\.test\.js)/g)]
-    .map(match => match[1])
-    .sort()
-  const onDisk = fs.readdirSync(testsRoot)
-    .filter(name => name.endsWith('.test.js'))
-    .sort()
+test('syntax discovery excludes dependencies and finds nested source and tools', () => {
+  const files = sourceFiles(path.join(repoRoot, 'cloudfunctions'))
+  assert.ok(files.some(file => file.endsWith(path.join('dataOp', 'index.js'))))
+  assert.ok(files.every(file => !file.includes(`${path.sep}node_modules${path.sep}`)))
+  assert.ok(sourceFiles(__dirname).some(file => file.endsWith('verify.cjs')))
+})
 
-  assert.deepEqual(
-    listed,
-    onDisk,
-    'README node --test list must stay in sync with tests/*.test.js'
-  )
+test('logged checks reject syntax errors and retain diagnostics', () => {
+  const scratch = path.join(repoRoot, '.scratch', 'verify-tests')
+  fs.mkdirSync(scratch, { recursive: true })
+  const dir = fs.mkdtempSync(path.join(scratch, 'negative-'))
+  const invalid = path.join(dir, 'invalid.js')
+  fs.writeFileSync(invalid, 'const broken = ;')
+  assert.equal(runLogged('invalid', ['--check', invalid], dir), false)
+  assert.match(fs.readFileSync(path.join(dir, 'invalid.log'), 'utf8'), /SyntaxError/)
+  assert.equal(runLogged('exit', ['-e', 'process.exit(7)'], dir), false)
 })

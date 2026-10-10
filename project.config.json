@@ -32,6 +32,10 @@
   "packOptions": {
     "ignore": [
       {
+        "value": "tests",
+        "type": "folder"
+      },
+      {
         "value": "cloudfunctions",
         "type": "folder"
       },

@@ -80,56 +80,19 @@ Cloud functions live under `cloudfunctions/`; each function has its own `package
 
 ## Verification
 
-Run the lightweight local checks after changing date, prediction, room, calendar, or page behavior:
-
-下列命令假设当前目录是项目根；通过 Codex Desktop shell 执行时，应把测试和源码路径展开为绝对路径。
+使用 Node.js 24，在项目根运行：
 
 ```powershell
-node --test tests\page-registration.test.js tests\room-data-client.test.js tests\room-resolver.test.js tests\index-page.test.js tests\record-edit-route.test.js tests\record-flow.test.js tests\record-draft.test.js tests\settings-flow.test.js tests\room-records-snapshot.test.js tests\room-access-outcome.test.js tests\home-calendar-state.test.js tests\data-op-auth.test.js tests\calendar-display.test.js tests\calendar-insights.test.js tests\calendar-micro-labels.test.js tests\chip-contrast.test.js tests\contrast-guardrail.test.js tests\design-token-guardrail.test.js tests\filled-cta-contrast.test.js tests\glass-fallback.test.js tests\no-hover-tokens.test.js tests\form-entrance-animation.test.js tests\tabbar-contrast.test.js tests\tab-icons.test.js tests\cycle-prediction.test.js tests\room-lifecycle.test.js tests\room-records.test.js tests\room-session.test.js tests\room-binding.test.js tests\cloudfunction-dependencies.test.js tests\typography-roles.test.js tests\typography-hierarchy.test.js tests\narrow-screen-geometry.test.js tests\interaction-semantics.test.js tests\secondary-affordance-contrast.test.js tests\motion-performance.test.js tests\bind-room-flow.test.js tests\readme-verification-list.test.js
-node --check cloudfunctions\_shared\roomMembershipLifecycle.js
-node --check cloudfunctions\_shared\syncRoomMembershipLifecycle.js
-node --check cloudfunctions\createRoom\roomMembershipLifecycle.js
-node --check cloudfunctions\createRoom\index.js
-node --check cloudfunctions\joinRoom\roomMembershipLifecycle.js
-node --check cloudfunctions\joinRoom\index.js
-node --check cloudfunctions\getMyRoom\roomMembershipLifecycle.js
-node --check cloudfunctions\getMyRoom\index.js
-node --check cloudfunctions\leaveRoom\roomMembershipLifecycle.js
-node --check cloudfunctions\leaveRoom\index.js
-node --check cloudfunctions\dataOp\dataOpHandler.js
-node --check cloudfunctions\dataOp\roomRecords.js
-node --check cloudfunctions\dataOp\index.js
-node --check utils\room.js
-node --check utils\cloud.js
-node --check utils\roomResolver.js
-node --check utils\roomAccessOutcome.js
-node --check utils\recordCommands.js
-node --check utils\recordDraft.js
-node --check utils\recordPageSync.js
-node --check utils\recordEditRoute.js
-node --check utils\settingsFlow.js
-node --check utils\roomRecordsSnapshot.js
-node --check utils\homeCalendarState.js
-node --check utils\safeArea.js
-node --check utils\util.js
-node --check utils\cycle.js
-node --check utils\chinaHolidays.js
-node --check utils\calendarInsights.js
-node --check pages\bind\bind.js
-node --check pages\settings\settings.js
-node --check pages\index\index.js
-node --check pages\memory\memory.js
-node --check pages\memory\edit\edit.js
-node --check pages\period\period.js
-node --check pages\period\edit\edit.js
-node cloudfunctions\_shared\syncRoomMembershipLifecycle.js --check
+npm ci
+npm run browser:install
+npm run verify
 ```
 
-For UI changes, also verify in WeChat Developer Tools at a small-phone width. `node tests/devtoolsCapture.mjs`（根 `npm install` 后可用）可按需把模拟器截图落到 `.scratch/screenshots/`：先运行 `cli.bat auto --project <repo> --auto-port 9420 --trust-project`（`--trust-project` 必带，否则 CLI 首开项目停在 preparing、端口不监听；有残留无响应 IDE 实例时先 `cli.bat quit`），再 `node tests/devtoolsCapture.mjs --ws ws://127.0.0.1:9420`（支持 `--pages`、`--tap-text 欢乐时光`，以及 `--states all` 按具名状态截首页、弹层、记录、编辑、设置和假房间码的绑定页）；前置是 IDE 已登录且「设置 → 安全设置 → 服务端口」已开启。2026-10-09 本机实测走通：首页、记录 tab 经期/欢乐时光分段三张截图均正常渲染（约 375px 视口；320px 口径由 narrow-screen-geometry 静态账本钉住）。
+`npm run verify` 是本地、提交钩子与 CI 的共同入口：检查 app、pages、utils、cloudfunctions、tests 中的 JavaScript 语法，自动发现全部 `tests/*.test.js`，核对 Room artifact，再运行 320/375/430 宽度的坐标命中回归。依赖和临时目录不进入语法清单；新增源文件无需维护 README 清单。
 
-在 bash（含 ZCode 本机 shell）下，上面的 PowerShell 反斜杠形态会被 shell 吃掉；等价入口是 `npm test`（即 `node --test tests/*.test.js`，Node 21+ 的测试运行器自行展开 glob，清单同步仍由 `tests/readme-verification-list.test.js` 钉住）与 `npm run check`（代替上面最后一行 sync 检查）。`node --check` 各行在 bash 下改用正斜杠路径执行。push 到远端 `main` 时，GitHub Actions（`.github/workflows/ci.yml`）会跑 `npm ci` + 同一组命令作为 guardrail。
+首次安装及 Playwright 版本升级后运行 `browser:install`，浏览器保存在项目 `.scratch/browsers/`。日常输出只显示结果和日志路径；完整日志在 `.scratch/verify/`，坐标与截图证据在 `.scratch/coordinate-hit/`。任何检查失败均退出非零；CI 失败时保留这些诊断产物。`npm test`、`npm run check`、`npm run test:hit` 可用于单独定位，不能代替完整验收。
 
-上面的 `node --test` 清单与 `tests/` 目录下的 `*.test.js` 一一对应（`tests/contrast.js`、`tests/designTokens.js` 是共享 helper，不是测试）；该同步由 `tests/readme-verification-list.test.js` 钉住，新增或删除测试文件时必须同步更新本清单，否则该测试变红。
+UI 改动仍需微信开发者工具验证。连接预检、MCP 备用路径、截图与视口记录见 [开发者工具验证](docs/devtools-verification.md)。选择器 `tap()` 可以绕过遮挡，不能证明实际点击可达；Chromium 坐标回归只验证提取的导航栏 CSS，微信验收另行记录实际视口。2026-10-10 本次微信运行态为 430×932，工具菜单打开、图例交接与关闭已验证，用户手动点击确认恢复；320px 微信视口未验证。
 
 2026-08-13：`page` 上的 `auroraFlow` 已删除，理由是全屏 `background-position` 动画会每帧触发整页 repaint，页面动感改由 `.page::before` 的 `auroraPulse` 承担。`tabBar.borderStyle` 经审查保持 `white`。tab 图标 81×81 缺设计源，未做。
 2026-08-14：微信开发者工具重新编译通过，启动可用；此前控制台单独出现的 `WAServiceMainContext.js` `Error: timeout` 未再复现。真机小屏目检和 tab 图标重出仍未做。

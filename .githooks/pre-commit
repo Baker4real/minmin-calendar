@@ -6,17 +6,7 @@ set -e
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 
-echo "pre-commit: node --test tests/*.test.js"
-node --test tests/*.test.js > /dev/null 2>&1 || {
-  echo "pre-commit: tests failed. Run 'npm test' to see which ones." >&2
-  exit 1
-}
-
-echo "pre-commit: room lifecycle artifact sync check"
-node cloudfunctions/_shared/syncRoomMembershipLifecycle.js --check > /dev/null || {
-  echo "pre-commit: room lifecycle artifacts drifted. Run 'node cloudfunctions/_shared/syncRoomMembershipLifecycle.js --write'." >&2
-  exit 1
-}
+npm run verify
 
 echo "pre-commit: git diff --cached --check"
 git diff --cached --check

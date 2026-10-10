@@ -1,12 +1,18 @@
 {
   "name": "minmin-calendar",
   "private": true,
-  "description": "Local verification entry for the Minmin Calendar mini program repo. The mini program itself has no build step; these scripts only wire the existing node --test checklist to one command.",
+  "description": "Local syntax, behavior, artifact and coordinate-hit verification for the Minmin Calendar mini program.",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node cloudfunctions/_shared/syncRoomMembershipLifecycle.js --check"
+    "check": "node cloudfunctions/_shared/syncRoomMembershipLifecycle.js --check",
+    "verify": "node tests/tools/verify.cjs",
+    "browser:install": "node tests/tools/installBrowser.cjs",
+    "test:hit": "node tests/tools/navHitTest.cjs",
+    "devtools:preflight": "node tests/tools/devtoolsPreflight.mjs",
+    "devtools:mcp": "node tests/tools/wechatMcp.mjs"
   },
   "devDependencies": {
-    "miniprogram-automator": "^0.12.1"
+    "miniprogram-automator": "^0.12.1",
+    "playwright": "1.64.0"
   }
 }

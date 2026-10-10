@@ -15,5 +15,13 @@ jobs:
         with:
           node-version: 24
       - run: npm ci
-      - run: npm test
-      - run: npm run check
+      - run: npm run browser:install
+      - run: npm run verify
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: verification-failure
+          path: |
+            .scratch/verify/
+            .scratch/coordinate-hit/
+          include-hidden-files: true
