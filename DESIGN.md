@@ -97,7 +97,7 @@ components:
     todayBg: "rgba(232,144,158,0.16)"
     todayRing: "inset 0 0 0 3rpx rgba(196,160,210,0.55)"
     todayText: "#E8909E"
-    periodMark: "#E8909E"
+    periodBand: "rgba(232,144,158,0.22)"
     memoryMark: "#F0C4C0"
     predictMark: "#D4A574"
     holidayTagBg: "rgba(212,165,116,0.9)"
@@ -163,7 +163,7 @@ components:
 - `page` 没有 `auroraFlow`；全屏动感只保留 `.page::before` 的 `auroraPulse`（8s）。画布底为 `#0A0E27`。
 - 各页 0.62–0.94 信息文本透明度是逐元素调校，不要机械归并。
 - 可点控件只描述 Default 与 Pressed。Pressed 用 `:active` `scale(0.94–0.98)`；主按钮 `.btn-premium` 为 `0.96`。
-- `calendar-cell` 与下文日历状态表对齐 `pages/index` 与 `CALENDAR_LEGEND_ITEMS`。没有「整格选中底 = 经期」。
+- `calendar-cell` 与下文日历状态表对齐 `pages/index`。经期是 22% 玫瑰连续色带，不是实色整格选中底。
 - 日历微字 `.day-tag` / `.predict-mark` 字号为 `26rpx`（caption 量级）。节日/调休 `.day-tag` 与 `.day-tag-line` 盒高 `38rpx`（大于字号，覆盖 caption 行高），避免 CJK 被裁切。compact 密度下仍放进日期与标记，不把微字再缩小。
 
 主填充按钮是玫瑰底 `#E8909E` + 画布海军字 `#0A0E27`，玫瑰填充一律写 `var(--aurora-pink)`（`.btn-premium`、`.copy-btn` 与首页的 `.quick-btn`、`.reminder-action`、`.jump-confirm`、`.jump-option.active`、`.copy-recap` 由 `tests/design-token-guardrail.test.js` 钉住单一来源，`tests/filled-cta-contrast.test.js` 钉住玫瑰底海军字 4.5:1 对比度）。全页面（含绑定页）同一套玫瑰主操作，无页面级例外。护栏为 deny-by-default：任何选择器的渐变填充（linear/radial/conic）与实色玫瑰字面量填充（`#E8909E` / `rgb(232,144,158)` / `rgba(232,144,158,1)`）都必须落在测试登记的装饰例外白名单内，新增主操作按钮写字面量玫瑰或渐变填充会被直接拒绝。同结构的复制键和选中块走同一对色。不要把白字叠玫瑰写成规范。
@@ -308,8 +308,8 @@ Prediction metadata, reminder cards, and period tag chips stay compact and low-n
 
 | 状态 | 标记 | 格子 |
 |---|---|---|
-| 今天 | 玫瑰色光圈，不用爱心 | `todayBg` + 薰衣草内描边；日期字 `#E8909E` |
-| 经期 | 玫瑰圆点 ● | 只用点，不铺整格底 |
+| 今天 | 玫瑰色光圈，不用爱心 | `todayBg` + 薰衣草内描边，描边画在色带之上；非经期日期字 `#E8909E`；经期色带上的日期字 `rgba(255,255,255,0.92)` |
+| 经期 | 22% 玫瑰连续色带 `rgba(232,144,158,0.22)` | 起点与终点用整圆头，中段在行内直角相连，换行在行首行尾收口；单日是圆块；进行中投影到今天的一端开口。不铺实色整格底。重叠日只表达经期。色带无过渡，减弱动效下立即出现。♥ 画在色带之上 |
 | 欢乐时光 | ♥ `#F0C4C0` | 仅记忆日 |
 | 预测区间 | 金色「预」 | 已是经期日时不叠「预」字 |
 | 节日 | 金底海军字标签 | 浅金底，今天仍用今天光圈 |

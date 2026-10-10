@@ -248,7 +248,6 @@ const SOLID_ROSE_FILL_ALLOWLIST = new Set(
   [
     // 状态点/日历标记/卡片 rail：装饰性玫瑰实色小块，非可操作填充
     ['pages/index/index.wxss', '.sync-pill.syncing .sync-dot'],
-    ['pages/index/index.wxss', '.period-mark'],
     ['pages/index/index.wxss', '.reminder-card.due .reminder-rail'],
     ['pages/index/index.wxss', '.detail-rail'],
     ['pages/memory/memory.wxss', '.list-item::before']

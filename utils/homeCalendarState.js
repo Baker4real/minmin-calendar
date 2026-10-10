@@ -87,7 +87,7 @@ function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextP
     .filter(isDateString))
   const predictDates = collectPredictDates(nextPredict, year, month, predictionWindow)
 
-  return util.buildCalendarDays({ year, month }).map(day => {
+  const days = util.buildCalendarDays({ year, month }).map(day => {
     if (!day || day.isEmpty) return { ...day, ariaLabel: '' }
     const isPeriod = periodDates.has(day.date)
     const marked = {
@@ -97,9 +97,37 @@ function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextP
       isOngoingPeriod: ongoingPeriodDates.has(day.date),
       isUnknownEndPeriod: unknownEndPeriodDates.has(day.date),
       isMemory: memoryDates.has(day.date),
-      isPredict: predictDates.has(day.date) && !isPeriod
+      isPredict: predictDates.has(day.date) && !isPeriod,
+      periodDayCount: isPeriod ? countPeriodDay(day.date, periods, today) : 0
     }
     return { ...marked, ariaLabel: buildDayAriaLabel(marked) }
+  })
+  return applyPeriodSegments(days, today)
+}
+
+// 同一行里相邻的经期日连成一段；换行处不跨行相连，行首行尾因此收口。
+// 开放端只打在进行中经期投影到今天的那一格。
+function applyPeriodSegments(days, today) {
+  const periodSlots = new Set()
+  days.forEach((day, index) => {
+    if (day && !day.isEmpty && day.isPeriod) periodSlots.add(index)
+  })
+  return days.map((day, index) => {
+    if (!day || day.isEmpty || !day.isPeriod) {
+      return { ...day, periodSegment: 'none', periodOpenEnd: false }
+    }
+    const row = Math.floor(index / 7)
+    const prevContinues = index > 0 && periodSlots.has(index - 1) && Math.floor((index - 1) / 7) === row
+    const nextContinues = periodSlots.has(index + 1) && Math.floor((index + 1) / 7) === row
+    let periodSegment = 'single'
+    if (prevContinues && nextContinues) periodSegment = 'middle'
+    else if (nextContinues) periodSegment = 'start'
+    else if (prevContinues) periodSegment = 'end'
+    return {
+      ...day,
+      periodSegment,
+      periodOpenEnd: Boolean(day.isOngoingPeriod && day.date === today)
+    }
   })
 }
 
@@ -323,12 +351,27 @@ function buildDayMeanings(day = {}) {
 
 const DAY_ARIA_MEANING_TEXT = {
   today: '今天',
-  period: '经期',
   'period-ongoing': '经期进行中',
   'period-unknown-end': '结束日期不详',
   memory: '欢乐时光',
   predict: '预测区间',
   workday: '调休上班'
+}
+
+function countPeriodDay(date, periods, today) {
+  let chosenStart = ''
+  let chosenRank = 3
+  periods.forEach(period => {
+    const range = cycle.projectPeriodRange(period, today)
+    if (!range || date < range.startDate || date > range.endDate) return
+    const rank = range.status === 'ongoing' ? 0 : range.status === 'known-end' ? 1 : 2
+    if (rank < chosenRank || (rank === chosenRank && range.startDate > chosenStart)) {
+      chosenRank = rank
+      chosenStart = range.startDate
+    }
+  })
+  if (!chosenStart) return 0
+  return util.daysBetween(util.parseDate(chosenStart), util.parseDate(date)) + 1
 }
 
 function buildDayAriaLabel(day) {
@@ -341,15 +384,14 @@ function buildDayAriaLabel(day) {
       if (day.holidayName) parts.push(day.holidayName)
       return
     }
+    if (meaning.key === 'period') {
+      parts.push(`经期第${day.periodDayCount}天`)
+      if (day.isOngoingPeriod) parts.push(DAY_ARIA_MEANING_TEXT['period-ongoing'])
+      else if (day.isUnknownEndPeriod) parts.push(DAY_ARIA_MEANING_TEXT['period-unknown-end'])
+      return
+    }
     const text = DAY_ARIA_MEANING_TEXT[meaning.key]
     if (text) parts.push(text)
-    // 进行中的经期在读屏里明确说出「进行中」，不与已结束的经期混淆
-    if (meaning.key === 'period' && day.isOngoingPeriod) {
-      parts.push(DAY_ARIA_MEANING_TEXT['period-ongoing'])
-    } else if (meaning.key === 'period' && day.isUnknownEndPeriod) {
-      // 结束日期不详的开始日同样说出状态，读屏可与「进行中」区分
-      parts.push(DAY_ARIA_MEANING_TEXT['period-unknown-end'])
-    }
   })
   return parts.join(' ')
 }

@@ -55,7 +55,7 @@
 
     <view class="calendar-grid calendar-density-{{calendarDensity}}">
       <view
-        class="day-cell {{item.isToday ? 'today' : ''}} {{item.isPeriod ? 'period' : ''}} {{item.isMemory ? 'memory' : ''}} {{item.isPredict ? 'predict' : ''}} {{item.isHoliday ? 'holiday' : ''}} {{item.isWorkday ? 'workday' : ''}} {{item.isEmpty ? 'empty' : ''}}"
+        class="day-cell {{item.isToday ? 'today' : ''}} {{item.isPeriod ? 'period' : ''}} {{item.periodSegment === 'start' ? 'period-start' : ''}} {{item.periodSegment === 'middle' ? 'period-middle' : ''}} {{item.periodSegment === 'end' ? 'period-end' : ''}} {{item.periodSegment === 'single' ? 'period-single' : ''}} {{item.periodOpenEnd ? 'period-open' : ''}} {{item.isMemory ? 'memory' : ''}} {{item.isPredict ? 'predict' : ''}} {{item.isHoliday ? 'holiday' : ''}} {{item.isWorkday ? 'workday' : ''}} {{item.isEmpty ? 'empty' : ''}}"
         wx:for="{{days}}"
         wx:key="index"
         bindtap="onDayTap"
@@ -64,6 +64,7 @@
         aria-hidden="{{item.isEmpty}}"
         aria-label="{{item.ariaLabel}}"
       >
+        <view wx:if="{{item.periodSegment != 'none'}}" class="period-band"></view>
         <view class="day-num">{{item.day}}</view>
         <view wx:if="{{!item.isEmpty && calendarDensity == 'full'}}" class="day-lunar">{{item.lunarText}}</view>
         <view wx:if="{{!item.isEmpty}}" class="day-tag-line">
@@ -71,7 +72,6 @@
           <text wx:elif="{{item.isWorkday}}" class="day-tag workday-tag">班</text>
         </view>
         <view class="day-marks">
-          <view wx:if="{{item.isPeriod}}" class="mark period-mark"></view>
           <view wx:if="{{item.isMemory}}" class="mark memory-mark">♥</view>
           <view wx:if="{{item.isPredict}}" class="mark predict-mark">预</view>
         </view>
