@@ -1043,3 +1043,29 @@ test('month navigation does not blur, and the homepage glass cap is 1', () => {
   const design = readRepo('DESIGN.md')
   assert.match(design, /玻璃面数量上限收紧为 1/)
 })
+
+// issue #137：滑动翻月不跟手、没有翻页动画；减弱动效下同样是一次即时替换。
+test('calendar month swipe stays instant under reduced motion', () => {
+  const design = readRepo('DESIGN.md')
+  assert.match(design, /滑动翻月（issue #137）/)
+  assert.match(design, /水平位移超过 48px 且大于竖直位移才翻月/)
+  assert.match(design, /不跟手、不加翻页动画/)
+  assert.match(design, /减弱动效下同样即时/)
+
+  const wxs = readRepo('utils/monthSwipe.wxs')
+  assert.doesNotMatch(wxs, /setStyle|translate|animation/)
+
+  const app = analyzeFile(readRepo('app.wxss'))
+  const grid = app.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.calendar-grid'))
+  assert.equal(grid.decls.transition, 'opacity var(--duration-state) ease')
+  const reducedGrid = app.reducedMotionRules.find((rule) => rule.selectors.includes('.calendar-grid'))
+  assert.ok(reducedGrid, 'reduced motion must cover .calendar-grid')
+  assert.equal(reducedGrid.decls.transition, 'none')
+  assert.equal(reducedGrid.decls.animation, 'none')
+
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+  const swipeRule = index.rules.find((rule) =>
+    rule.selectors.some((selector) => selector.includes('calendar-swipe'))
+  )
+  assert.equal(swipeRule, undefined)
+})

@@ -14,6 +14,8 @@ Page({
   data: {
     safeTop: safeArea.getSafeTop(),
     safeBottom: safeArea.getSafeBottom(),
+    navBarHeight: safeArea.getNavBarHeight(),
+    capsuleRight: safeArea.getCapsuleRightInset(),
     tab: 'create',
     bound: false,
     roomCode: '',
@@ -30,7 +32,21 @@ Page({
   },
 
   onShow() {
+    this.consumeUnbindNotice()
     return this.checkRoom()
+  },
+
+  // issue #139：设置页解绑成功后，绑定页提示一次「已解除绑定」
+  consumeUnbindNotice() {
+    let notice = ''
+    try {
+      notice = wx.getStorageSync('bindUnbindNotice')
+    } catch (e) {}
+    if (!notice) return
+    try {
+      wx.removeStorageSync('bindUnbindNotice')
+    } catch (e) {}
+    wx.showToast({ title: '已解除绑定', icon: 'none' })
   },
 
   async checkRoom() {

@@ -347,8 +347,8 @@ test('index month title opens a themed year-month jump sheet', () => {
   assert.match(js, /buildJumpYearState\(/)
   assert.match(js, /openMonthPicker\(\)\s*{[\s\S]*buildJumpYearState/)
   assert.match(js, /shiftJumpYear\(e\)\s*{[\s\S]*dataset\.delta/)
-  assert.match(js, /selectJumpMonth\(e\)\s*{[\s\S]*dataset\.month/)
-  assert.match(js, /confirmMonthJump\(\)\s*{[\s\S]*year:\s*this\.data\.jumpYear[\s\S]*month:\s*this\.data\.jumpMonth/)
+  assert.match(js, /selectJumpMonth\(e\)\s*{[\s\S]*dataset\.month[\s\S]*year:\s*this\.data\.jumpYear[\s\S]*monthPickerVisible:\s*false/)
+  assert.doesNotMatch(js, /confirmMonthJump/)
   assert.match(js, /jumpToToday\(\)\s*{[\s\S]*new Date\(\)[\s\S]*monthPickerVisible:\s*false[\s\S]*renderCalendar/)
   assert.match(js, /closeMonthPicker\(\)\s*{[\s\S]*monthPickerVisible:\s*false/)
   assert.doesNotMatch(js, /buildMonthJumpYears|shiftJumpYears|selectJumpYear|jumpYears/)
@@ -362,7 +362,7 @@ test('index month title opens a themed year-month jump sheet', () => {
   assert.match(wxml, /aria-label="回到今天所在月份"/)
   assert.match(wxml, /jump-year-stepper/)
   assert.match(wxml, /jump-month-grid/)
-  assert.match(wxml, /bindtap="confirmMonthJump"/)
+  assert.doesNotMatch(wxml, /confirmMonthJump|jump-confirm/)
   assert.doesNotMatch(wxml, /jump-year-grid|year-option|jump-nav-btn/)
 
   assert.match(wxss, /\.month-title-trigger\s*{[\s\S]*min-height:\s*88rpx/)
@@ -370,7 +370,7 @@ test('index month title opens a themed year-month jump sheet', () => {
   assert.match(wxss, /\.jump-today\s*{[\s\S]*min-height:\s*88rpx/)
   assert.match(wxss, /\.jump-year-step\s*{[\s\S]*min-height:\s*88rpx/)
   assert.match(wxss, /\.jump-option\s*{[\s\S]*min-height:\s*88rpx/)
-  assert.match(wxss, /\.jump-confirm\s*{[\s\S]*min-height:\s*88rpx/)
+  assert.doesNotMatch(wxss, /\.jump-confirm/)
 })
 
 test('index calendar applies the persisted density without hosting the control', () => {
@@ -609,7 +609,7 @@ function loadSettingsHarness() {
       { buildRoomDisplayState: () => ({ roomCode: '', roomCodeDisplay: '未绑定' }) }
     ],
     [path.join(repoRoot, 'utils/settingsFlow.js'), {}],
-    [path.join(repoRoot, 'utils/safeArea.js'), { getSafeTop: () => 0, getSafeBottom: () => 0 }]
+    [path.join(repoRoot, 'utils/safeArea.js'), { getSafeTop: () => 0, getSafeBottom: () => 0, getNavBarHeight: () => 44, getCapsuleRightInset: () => 94 }]
   ])
   const originalPage = global.Page
   const originalWx = global.wx

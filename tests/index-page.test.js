@@ -730,31 +730,41 @@ test('status card prediction region opens the existing prediction sheet without 
   }
 })
 
-test('homepage quick period action reopens the existing ongoing record instead of a blank form', () => {
+test('homepage quick period action names the ongoing day and opens that record ended today', () => {
   const harness = loadPageHarness({ client: createQueuedClient([]) })
   try {
     const navigation = []
     global.wx.navigateTo = options => navigation.push(options.url)
+    const wxml = readIndexWxml()
+    assert.match(wxml, /aria-label="\{\{periodQuickAriaLabel\}\}"/)
+    assert.match(wxml, /class="quick-text">\{\{periodQuickLabel\}\}/)
+    assert.equal(harness.page.data.periodQuickLabel, '记经期')
 
-    // 已有进行中记录：快速记录经期进入原记录编辑页（重开），不是空白新增表单
-    harness.page._homeRecords = {
+    // 已有进行中记录：按钮写成第 N 天，点开那条记录并预选已结束、结束日为今天
+    harness.page.applyHomeCalendarState({
       periods: [
         { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 },
         { _id: 'p2', startDate: '2026-06-20', endDate: '', status: 'ongoing' }
       ],
-      memories: []
-    }
-    harness.page.quickPeriod()
-    assert.deepEqual(navigation, ['/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing'])
-
-    // 没有进行中记录：进入默认进行中的新增表单（只带开始日期，不带结束日期）
-    harness.page._homeRecords = {
-      periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 }],
-      memories: []
-    }
+      today: '2026-06-26'
+    })
+    assert.equal(harness.page.data.periodQuickLabel, '经期第 7 天 · 记结束')
+    assert.equal(harness.page.data.periodQuickAriaLabel, '经期第 7 天 · 记结束')
     harness.page.quickPeriod()
     assert.deepEqual(navigation, [
-      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing',
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end'
+    ])
+
+    // 没有进行中记录：回到「记经期」，进入只带开始日期的新增表单
+    harness.page.applyHomeCalendarState({
+      periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 }],
+      today: '2026-06-26'
+    })
+    assert.equal(harness.page.data.periodQuickLabel, '记经期')
+    assert.equal(harness.page.data.periodQuickAriaLabel, '记经期')
+    harness.page.quickPeriod()
+    assert.deepEqual(navigation, [
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end',
       '/pages/period/edit/edit?startDate=2026-06-26'
     ])
   } finally {
@@ -782,11 +792,11 @@ test('calendar day period action reopens the ongoing record or creates for the s
     harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
     assert.deepEqual(navigation, ['/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing'])
 
-    // 没有进行中记录：按所选日期新增；URL 不带状态与结束日期，由路由推导为已结束起止同日
-    harness.page._homeRecords = {
+    // 没有进行中记录：按所选日期新增；URL 不带状态与结束日期，由路由推导为已结束且结束日留空
+    harness.page.applyHomeCalendarState({
       periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 }],
-      memories: []
-    }
+      today: '2026-06-26'
+    })
     harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-10' } } })
     harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
     assert.deepEqual(navigation, [
@@ -1212,6 +1222,21 @@ test('compact density keeps the record actions inside the 1334rpx first-screen b
   )
 })
 
+test('homepage keeps a navbar slot when the capsule rect is missing', () => {
+  const safeAreaPath = path.join(repoRoot, 'utils/safeArea.js')
+  delete require.cache[require.resolve(safeAreaPath)]
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    // 拿不到胶囊时：状态栏 44，顶栏 84，右侧占位 94
+    assert.equal(harness.page.data.safeTop, 44)
+    assert.equal(harness.page.data.navBarHeight, 84)
+    assert.equal(harness.page.data.capsuleRight, 94)
+  } finally {
+    harness.teardown()
+    delete require.cache[require.resolve(safeAreaPath)]
+  }
+})
+
 test('homepage re-reads the persisted calendar density every time it shows', async () => {
   let storedDensity = 'full'
   const harness = loadPageHarness({
@@ -1401,7 +1426,7 @@ test('month arrows publish the new month and its calendar grid in one update', (
   }
 })
 
-test('month selection, confirm jump, and back-to-today keep their behavior', () => {
+test('month selection jumps immediately, and back-to-today keeps its behavior', () => {
   const harness = loadPageHarness({ client: createQueuedClient([]) })
   try {
     harness.page.onLoad()
@@ -1409,11 +1434,9 @@ test('month selection, confirm jump, and back-to-today keep their behavior', () 
     harness.page.openMonthPicker()
     harness.page.shiftJumpYear({ currentTarget: { dataset: { delta: '1' } } })
     harness.page.selectJumpMonth({ currentTarget: { dataset: { month: '11' } } })
-    assert.equal(harness.page.data.jumpMonth, 11)
-
-    harness.page.confirmMonthJump()
     assert.equal(harness.page.data.year, 2021)
     assert.equal(harness.page.data.month, 11)
+    assert.equal(harness.page.data.jumpMonth, 11)
     assert.equal(harness.page.data.monthPickerVisible, false)
 
     harness.page.openMonthPicker()
@@ -1481,8 +1504,8 @@ test('month picker stays mounted through leave and unmounts when the exit timer 
 
     harness.page.openMonthPicker()
     mock.timers.tick(0)
-    harness.page.setData({ jumpYear: 2021, jumpMonth: 11 })
-    harness.page.confirmMonthJump()
+    harness.page.setData({ jumpYear: 2021 })
+    harness.page.selectJumpMonth({ currentTarget: { dataset: { month: '11' } } })
     assert.equal(harness.page.data.year, 2021)
     assert.equal(harness.page.data.month, 11)
     assert.equal(harness.page.data.monthPickerVisible, false)
@@ -2235,6 +2258,219 @@ test('month jump sheet uses a bounded year stepper instead of a year grid', () =
   // 步进按钮保持 88rpx 触控目标
   assert.match(ruleBody(wxss, '.jump-year-step'), /min-height:\s*88rpx/)
   assert.match(ruleBody(wxss, '.jump-year-step.disabled'), /opacity/)
+})
+
+// issue #137：水平位移超过 48px 且大于竖直位移才翻月。左滑下一月，右滑上一月。
+// 等于阈值、竖直不小于水平、以及轻点量级都不翻月，竖向滚动优先。
+test('month swipe changes month only when horizontal travel wins', () => {
+  const { decideMonthSwipe } = require('../utils/util')
+
+  assert.equal(decideMonthSwipe(-49, 0), 'next')
+  assert.equal(decideMonthSwipe(49, 0), 'prev')
+  assert.equal(decideMonthSwipe(-80, 79), 'next')
+  assert.equal(decideMonthSwipe(80, 10), 'prev')
+
+  assert.equal(decideMonthSwipe(-48, 0), 'none')
+  assert.equal(decideMonthSwipe(48, 0), 'none')
+  assert.equal(decideMonthSwipe(-49, 49), 'none')
+  assert.equal(decideMonthSwipe(-49, 50), 'none')
+  assert.equal(decideMonthSwipe(10, 0), 'none')
+  assert.equal(decideMonthSwipe(0, 80), 'none')
+  assert.equal(decideMonthSwipe(undefined, undefined), 'none')
+})
+
+test('releasing a winning calendar swipe publishes one month change and ignores vertical travel', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]), calendarState: 'real' })
+  const originalSetTimeout = global.setTimeout
+  const timerDelays = []
+  global.setTimeout = (fn, delay, ...args) => {
+    timerDelays.push(delay)
+    return originalSetTimeout(fn, delay, ...args)
+  }
+  try {
+    harness.page.onLoad()
+    const updates = []
+    const setData = harness.page.setData.bind(harness.page)
+    harness.page.setData = (update, callback) => {
+      updates.push(update)
+      setData(update, callback)
+    }
+
+    // 2019-12-01 是周日，翻到 12 月时网格第一格就是该月 1 日
+    harness.page.setData({ year: 2019, month: 10, days: [{ date: 'stale-grid' }] })
+    updates.length = 0
+    timerDelays.length = 0
+    harness.page.onCalendarSwipe({ dx: -49, dy: 0 })
+    assert.equal(timerDelays.length, 0)
+    assert.equal(updates.length, 1)
+    assert.equal(updates[0].year, 2019)
+    assert.equal(updates[0].month, 11)
+    assert.equal(updates[0].days[0].date, '2019-12-01')
+
+    updates.length = 0
+    harness.page.onCalendarSwipe({ dx: 49, dy: 10 })
+    assert.equal(updates.length, 1)
+    assert.equal(harness.page.data.year, 2019)
+    assert.equal(harness.page.data.month, 10)
+
+    updates.length = 0
+    harness.page.onCalendarSwipe({ dx: -20, dy: 80 })
+    assert.equal(updates.length, 0)
+    assert.equal(harness.page.data.month, 10)
+
+    harness.page.setData({ year: 2035, month: 11 })
+    updates.length = 0
+    harness.page.onCalendarSwipe({ dx: -80, dy: 0 })
+    assert.equal(updates.length, 0)
+    assert.equal(harness.page.data.year, 2035)
+    assert.equal(harness.page.data.month, 11)
+  } finally {
+    global.setTimeout = originalSetTimeout
+    harness.teardown()
+  }
+})
+
+test('the calendar area tracks month swipes in WXS and does not follow the finger', () => {
+  const wxml = readIndexWxml()
+  const swipeStart = wxml.indexOf('class="calendar-swipe"')
+  const weekHeader = wxml.indexOf('class="week-header"')
+  const grid = wxml.indexOf('class="calendar-grid')
+  const quick = wxml.indexOf('class="quick-actions"')
+  assert.ok(swipeStart !== -1, 'expected a calendar swipe region')
+  assert.ok(swipeStart < weekHeader && weekHeader < grid && grid < quick, 'the swipe region wraps the week header and calendar grid')
+
+  const region = wxml.slice(swipeStart, quick)
+  assert.match(region, /bindtouchstart="\{\{monthSwipe\.touchStart\}\}"/)
+  assert.match(region, /bindtouchmove="\{\{monthSwipe\.touchMove\}\}"/)
+  assert.match(region, /bindtouchend="\{\{monthSwipe\.touchEnd\}\}"/)
+  assert.match(region, /bindtouchcancel="\{\{monthSwipe\.touchEnd\}\}"/)
+  assert.match(region, /bindtap="onDayTap"/)
+  assert.match(wxml, /<wxs module="monthSwipe" src="\.\.\/\.\.\/utils\/monthSwipe\.wxs"><\/wxs>/)
+
+  const wxs = fs.readFileSync(path.join(repoRoot, 'utils/monthSwipe.wxs'), 'utf8')
+  assert.match(wxs, /var SWIPE_PX = 48/)
+  assert.match(wxs, /absX > SWIPE_PX && absX > absY/)
+  assert.match(wxs, /callMethod\('onCalendarSwipe'/)
+  assert.doesNotMatch(wxs, /setStyle|translateX|animation/)
+})
+
+test('tapping a month jumps there immediately and closes the sheet', () => {
+  const wxml = readIndexWxml()
+  assert.doesNotMatch(wxml, /jump-confirm|confirmMonthJump/)
+  assert.match(wxml, /bindtap="shiftJumpYear"/)
+  assert.match(wxml, /bindtap="jumpToToday"/)
+
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    harness.page.setData({ year: 2020, month: 5 })
+    harness.page.openMonthPicker()
+    mock.timers.tick(0)
+
+    harness.page.shiftJumpYear({ currentTarget: { dataset: { delta: '1' } } })
+    assert.equal(harness.page.data.year, 2020)
+    assert.equal(harness.page.data.month, 5)
+    assert.equal(harness.page.data.jumpYear, 2021)
+    assert.equal(harness.page.data.monthPickerPhase, 'open')
+
+    harness.page.selectJumpMonth({ currentTarget: { dataset: { month: '11' } } })
+    assert.equal(harness.page.data.year, 2021)
+    assert.equal(harness.page.data.month, 11)
+    assert.equal(harness.page.data.jumpMonth, 11)
+    assert.equal(harness.page.data.monthPickerVisible, false)
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
+
+    harness.page.openMonthPicker()
+    mock.timers.tick(0)
+    harness.page.jumpToToday()
+    const today = new Date()
+    assert.equal(harness.page.data.year, today.getFullYear())
+    assert.equal(harness.page.data.month, today.getMonth())
+    assert.equal(harness.page.data.monthPickerVisible, false)
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+test('home pull-to-refresh starts the background reload and stops when it finishes', async () => {
+  const indexJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'pages/index/index.json'), 'utf8'))
+  assert.equal(indexJson.enablePullDownRefresh, true)
+
+  let releaseRefresh
+  const refreshGate = new Promise(resolve => { releaseRefresh = resolve })
+  let call = 0
+  const periods = [period('p1', '2026-06-01')]
+  const harness = loadPageHarness({
+    client: {
+      async list(collection) {
+        call += 1
+        const data = collection === 'periods' ? periods : []
+        if (call > 2) await refreshGate
+        return { kind: 'success', data }
+      }
+    }
+  })
+  let stops = 0
+  global.wx.stopPullDownRefresh = () => { stops += 1 }
+
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+    assert.equal(harness.page.data.hasLoadedHomeData, true)
+    assert.equal(harness.page.data.refreshing, false)
+
+    const pull = harness.page.onPullDownRefresh()
+    assert.equal(harness.page.data.refreshing, true)
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(harness.page.data.periods, undefined)
+    assert.deepEqual(harness.page._homeRecords.periods, periods)
+    assert.equal(stops, 0)
+
+    releaseRefresh()
+    await pull
+    assert.equal(harness.page.data.refreshing, false)
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(harness.page.data.periods, undefined)
+    assert.deepEqual(harness.page._homeRecords.periods, periods)
+    assert.equal(stops, 1)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('home pull-to-refresh stops after a failed background reload and keeps the retry sentence', async () => {
+  const wxml = readIndexWxml()
+  assert.match(wxml, /刷新失败，点按重试/)
+
+  let call = 0
+  const periods = [period('p1', '2026-06-01')]
+  const harness = loadPageHarness({
+    client: {
+      async list(collection) {
+        call += 1
+        if (call <= 2) return { kind: 'success', data: collection === 'periods' ? periods : [] }
+        throw new Error('network down')
+      }
+    }
+  })
+  let stops = 0
+  global.wx.stopPullDownRefresh = () => { stops += 1 }
+
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+    await harness.page.onPullDownRefresh()
+    assert.equal(stops, 1)
+    assert.equal(harness.page.data.refreshing, false)
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(harness.page.data.refreshRetryVisible, true)
+    assert.equal(harness.page.data.periods, undefined)
+    assert.deepEqual(harness.page._homeRecords.periods, periods)
+  } finally {
+    harness.teardown()
+  }
 })
 
 function shorthandVertical(body, property) {
