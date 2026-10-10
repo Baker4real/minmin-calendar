@@ -25,15 +25,68 @@ test('buildRoomRepairAction maps repaired membership to retry and rebind actions
     roomCode: 'STALE1'
   })
 
-  assert.deepEqual(roomAccess.buildRoomRepairAction({
-    kind: 'room-repair',
-    repair: { kind: 'retryable-failure', message: '云函数超时' }
-  }, { rebindMessage: '房间状态已变化，请重新绑定' }), {
-    kind: 'room-repair',
-    action: 'repair-retry',
-    message: '云函数超时',
-    roomCode: ''
-  })
+  const errors = []
+  const originalError = console.error
+  console.error = (...args) => {
+    errors.push(args.map(item => String(item)).join(' '))
+  }
+  try {
+    assert.deepEqual(roomAccess.buildRoomRepairAction({
+      kind: 'room-repair',
+      repair: { kind: 'retryable-failure', message: '云函数超时' }
+    }, { rebindMessage: '房间状态已变化，请重新绑定' }), {
+      kind: 'room-repair',
+      action: 'repair-retry',
+      message: '网络不稳定，请检查网络后重试',
+      roomCode: ''
+    })
+    assert.match(errors.join('\n'), /云函数超时/)
+  } finally {
+    console.error = originalError
+  }
+})
+
+test('presentUserFailure maps technical failures to a next step and leaves product copy alone', () => {
+  assert.equal(typeof roomAccess.presentUserFailure, 'function')
+  const errors = []
+  const originalError = console.error
+  console.error = (...args) => {
+    errors.push(args.map(item => String(item)).join(' '))
+  }
+  try {
+    assert.equal(
+      roomAccess.presentUserFailure('云数据库查询超时 (15000ms)'),
+      '网络不稳定，请检查网络后重试'
+    )
+    assert.equal(
+      roomAccess.presentUserFailure('同步房间状态失败：network down'),
+      '网络不稳定，请检查网络后重试'
+    )
+    assert.equal(
+      roomAccess.presentUserFailure('无权访问该房间'),
+      '房间状态已变化，请重新绑定'
+    )
+    assert.equal(
+      roomAccess.presentUserFailure('记录不存在或无权修改'),
+      '这条记录已经不在了，请返回列表查看'
+    )
+    assert.equal(
+      roomAccess.presentUserFailure('加入失败：disk full'),
+      '这次没有完成，请重试'
+    )
+    assert.equal(
+      roomAccess.presentUserFailure('你已加入其他房间，请先解除绑定后再创建新房间'),
+      '你已加入其他房间，请先解除绑定后再创建新房间'
+    )
+    assert.equal(roomAccess.presentUserFailure('参数错误'), '参数错误')
+    assert.equal(roomAccess.presentUserFailure('服务器忙'), '服务器忙')
+    assert.match(errors.join('\n'), /云数据库查询超时 \(15000ms\)/)
+    assert.match(errors.join('\n'), /network down/)
+    assert.doesNotMatch(errors.join('\n'), /参数错误/)
+    assert.doesNotMatch(errors.join('\n'), /请先解除绑定/)
+  } finally {
+    console.error = originalError
+  }
 })
 
 test('buildInlineRoomStatus maps room outcomes for the homepage adapter', () => {

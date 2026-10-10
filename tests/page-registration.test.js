@@ -318,7 +318,8 @@ test('index page exposes retry state and can reload after retryable RoomDataClie
 
     assert.equal(harness.page.data.noRoom, true)
     assert.equal(harness.page.data.roomStatusAction, 'retry')
-    assert.match(harness.page.data.roomStatusDesc, /network down/)
+    assert.equal(harness.page.data.roomStatusDesc, '网络不稳定，请检查网络后重试')
+    assert.doesNotMatch(harness.page.data.roomStatusDesc, /network down/)
 
     harness.page.handleRoomStatusAction()
     if (harness.page._loadingPromise) {
@@ -1898,7 +1899,8 @@ async function assertListPageRepairRetry(relativePath, mocks) {
 
     assert.equal(modals.length, 1)
     assert.equal(modals[0].title, '加载失败')
-    assert.equal(modals[0].content, '同步房间状态失败：network down')
+    assert.equal(modals[0].content, '网络不稳定，请检查网络后重试')
+    assert.doesNotMatch(modals[0].content, /network down/)
     assert.equal(modals[0].confirmText, '重试')
     assert.equal(modals[0].cancelText, '取消')
 

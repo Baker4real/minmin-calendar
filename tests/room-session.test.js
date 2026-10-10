@@ -41,7 +41,7 @@ test('RoomSession returns a recoverable error when cloud room sync fails', async
     kind: 'retryable-failure',
     bound: false,
     roomCode: '',
-    errorMsg: '同步房间状态失败：network down'
+    errorMsg: '网络不稳定，请检查网络后重试'
   })
   assert.equal(storage.get('roomCode'), '')
 })
@@ -77,7 +77,7 @@ test('RoomSession verified active room keeps cached room when verification fails
     kind: 'retryable-failure',
     bound: false,
     roomCode: '',
-    errorMsg: '同步房间状态失败：network down'
+    errorMsg: '网络不稳定，请检查网络后重试'
   })
   assert.equal(storage.get('roomCode'), 'ROOM01')
   assert.deepEqual(cloud.calls, [{ name: 'getMyRoom' }])
@@ -148,7 +148,7 @@ test('RoomSession repairCachedRoom keeps cache when code 1 carries a non-room er
 
   assert.deepEqual(result, {
     kind: 'retryable-failure',
-    message: '同步房间状态失败：临时业务失败'
+    message: '这次没有完成，请重试'
   })
   assert.equal(storage.get('roomCode'), 'ROOM01')
   assert.deepEqual(cloud.calls, [{ name: 'getMyRoom' }])
@@ -165,7 +165,7 @@ test('RoomSession repairCachedRoom returns a retryable failure when cloud room s
 
   assert.deepEqual(result, {
     kind: 'retryable-failure',
-    message: '同步房间状态失败：network down'
+    message: '网络不稳定，请检查网络后重试'
   })
   assert.equal(storage.get('roomCode'), 'ROOM01')
 })
@@ -266,7 +266,7 @@ test('RoomSession leaveRoom keeps the cached room code when cloud revoke fails',
 
   assert.deepEqual(result, {
     code: -1,
-    msg: '解除绑定失败：network down'
+    msg: '网络不稳定，请检查网络后重试'
   })
   assert.equal(storage.get('roomCode'), 'ROOM01')
 })
