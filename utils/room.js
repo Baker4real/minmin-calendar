@@ -1,5 +1,6 @@
 const ROOM_CODE_KEY = 'roomCode'
 const roomAccessOutcome = require('./roomAccessOutcome')
+const roomPresence = require('./roomPresence')
 
 function createRoomSession(options = {}) {
   const storage = options.storage || createWxStorage()
@@ -22,7 +23,7 @@ function createRoomSession(options = {}) {
         const roomCode = normalizeRoomCode(res.result?.room?.roomCode)
         if (res.result?.code === 0 && roomCode) {
           storage.set(ROOM_CODE_KEY, roomCode)
-          return { kind: 'success', bound: true, roomCode }
+          return withMembershipStatus({ kind: 'success', bound: true, roomCode }, res.result.room)
         }
       } catch (error) {
         return {
@@ -68,7 +69,7 @@ function createRoomSession(options = {}) {
         const roomCode = normalizeRoomCode(res.result?.room?.roomCode)
         if (res.result?.code === 0 && roomCode) {
           storage.set(ROOM_CODE_KEY, roomCode)
-          return { kind: 'success', bound: true, roomCode }
+          return withMembershipStatus({ kind: 'success', bound: true, roomCode }, res.result.room)
         }
 
         if (roomAccessOutcome.shouldClearCachedRoom(res.result, roomCode)) {
@@ -137,6 +138,7 @@ function createRoomSession(options = {}) {
 
         const joinedRoomCode = normalizeRoomCode(res.result.roomCode) || roomCode
         storage.set(ROOM_CODE_KEY, joinedRoomCode)
+        roomPresence.markPartnerWelcomePending(storage)
         return { code: 0, roomCode: joinedRoomCode }
       } catch (error) {
         return { code: -1, msg: roomAccessOutcome.presentUserFailure(getErrorMessage(error), logger) }
@@ -223,6 +225,12 @@ function getWx() {
 
 function normalizeRoomCode(value) {
   return String(value || '').trim().toUpperCase()
+}
+
+function withMembershipStatus(outcome, room) {
+  const status = room && room.status
+  if (status !== 'waiting' && status !== 'paired') return outcome
+  return { ...outcome, status }
 }
 
 function getErrorMessage(error) {

@@ -204,7 +204,6 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/index/index.wxss', '.detail-title', 'assist'],
   ['pages/index/index.wxss', '.detail-main', 'body'],
   ['pages/index/index.wxss', '.detail-meta', 'assist'],
-  ['pages/index/index.wxss', '.legend-symbol', 'assist'],
   ['pages/index/index.wxss', '.legend-title', 'body'],
   ['pages/index/index.wxss', '.legend-text', 'assist'],
   ['pages/index/index.wxss', '.prediction-summary', 'body'],

@@ -8,6 +8,8 @@ const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 const { computeCalendarRowHeight } = require('../../utils/calendarRowHeight')
 const safeArea = require('../../utils/safeArea')
+const roomSession = require('../../utils/room')
+const roomPresence = require('../../utils/roomPresence')
 const {
   createSheetLifecycle,
   homepageSheets,
@@ -162,6 +164,7 @@ Page({
     syncStatusMounted: false,
     syncStatusPhase: 'closed',
     noRoom: false,
+    partnerWelcome: false,
     roomStatusTitle: '',
     roomStatusDesc: '',
     roomStatusActionText: '',
@@ -194,10 +197,31 @@ Page({
   },
 
   onShow() {
-    // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效
+    // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效。
+    // 记录加载必须在这次调用里同步开始，不能等房间状态请求回来。
     this.setData({ calendarDensity: this.getSavedCalendarDensity() })
     this.refreshReducedMotion()
-    return this.loadData({ background: this.canRefreshInBackground() })
+    const load = this.loadData({ background: this.canRefreshInBackground() })
+    const presence = this.observeRoomPresence()
+    return load.then(async (outcome) => {
+      await presence
+      return outcome
+    }, async (error) => {
+      await presence
+      throw error
+    })
+  },
+
+  async observeRoomPresence() {
+    try {
+      const room = await roomSession.getVerifiedActiveRoom()
+      if (roomPresence.rememberRoomStatus(room && room.status)) {
+        wx.showToast({ title: 'TA 已加入', icon: 'none' })
+      }
+    } catch (error) {}
+    if (!this.data.partnerWelcome && roomPresence.takePartnerWelcome()) {
+      this.setData({ partnerWelcome: true })
+    }
   },
 
   onReady() {
@@ -525,15 +549,15 @@ Page({
         return {
           text: backgroundLoad
             ? '经期同步失败，已保留旧经期数据'
-            : '经期同步失败，已显示记忆数据',
+            : '经期同步失败，已显示欢乐时光',
           autoHide: false
         }
       }
       if (memoriesFailed && !periodsFailed) {
         return {
           text: backgroundLoad
-            ? '记忆同步失败，已保留旧记忆数据'
-            : '记忆同步失败，已显示经期数据',
+            ? '欢乐时光同步失败，已保留上次的欢乐时光'
+            : '欢乐时光同步失败，已显示经期数据',
           autoHide: false
         }
       }
@@ -763,7 +787,7 @@ Page({
     if (!date) return
 
     if (action === 'period') {
-      // 未来日期不提供记录经期（模板已隐藏入口，这里是不导航的兜底防线）
+      // 未来日期不提供记经期（模板已隐藏入口，这里是不导航的兜底防线）
       if (this.data.selectedDateIsFuture) return
       this.closeDayActions()
       this.openPeriodForDate(date)
@@ -859,26 +883,30 @@ Page({
     return parts.join(' · ')
   },
 
-  // 日历日动作与周期提醒：已有进行中的经期时打开原记录，不建第二条；
-  // 否则按给定日期新增。首页「记结束」不走这里，它预选已结束且结束日为今天。
-  openPeriodForDate(date) {
-    const ongoing = cycle.findOngoingPeriod(this._recordList('periods'))
-    if (ongoing) {
-      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(ongoing) })
-      return
-    }
-    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: date }) })
-  },
-  quickPeriod() {
+  // 首页按钮、当日弹层和周期提醒共用「为这一天记经期」：
+  // 进行中记录优先打开并提示；这一天落在已有投影里就打开那条；否则以这一天为开始日新建。
+  // 首页「记结束」在打开进行中记录时仍预选已结束、结束日为今天。
+  // 记录不进渲染数据，从页面保存的列表读取。
+  openPeriodForDate(date, options = {}) {
     const today = util.formatDate(new Date())
-    const ongoing = cycle.findOngoingPeriod(this._recordList('periods'))
-    if (ongoing) {
+    const decision = cycle.decidePeriodRecordForDate(this._recordList('periods'), date, { today })
+    if (decision.notice) {
+      wx.showToast({ title: decision.notice, icon: 'none' })
+    }
+    if (decision.action === 'open') {
+      const completing = options.completeOngoing && cycle.getPeriodStatus(decision.record) === 'ongoing'
       wx.navigateTo({
-        url: recordEditRoute.buildPeriodEditUrl(ongoing, { intent: 'complete', today })
+        url: recordEditRoute.buildPeriodEditUrl(
+          decision.record,
+          completing ? { intent: 'complete', today } : undefined
+        )
       })
       return
     }
-    this.openPeriodForDate(today)
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: decision.startDate || date }) })
+  },
+  quickPeriod() {
+    this.openPeriodForDate(util.formatDate(new Date()), { completeOngoing: true })
   },
   onReminderTap(e) {
     const reminder = this.data.cycleReminders[e.currentTarget.dataset.index]

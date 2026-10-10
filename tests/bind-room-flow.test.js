@@ -107,8 +107,8 @@ test('bind buttons ride the app-level rose primary and warning-red danger famili
   const appPremium = findRule(readPageFile('app.wxss'), '.btn-premium')
   assert.equal(appPremium.background, 'var(--aurora-pink)')
   assert.equal(appPremium.color, '#0A0E27')
-  const appDangerActive = findRule(readPageFile('app.wxss'), '.btn-danger:active')
-  assert.match(appDangerActive.background, /rgba\(249,\s*115,\s*115,\s*0\.12\)/)
+  const appDangerTint = findRule(readPageFile('app.wxss'), '.btn-danger:active::before')
+  assert.equal(appDangerTint['background-color'], 'rgba(249,115,115,0.12)')
 
   // needUnbind 中间态就地解除入口保留：布局间距在场，样式跟随 app 级警示红族
   const unbindInline = findRule(css, '.unbind-inline')
@@ -134,7 +134,8 @@ test('findRule treats an :active selector and its hover-class as one rule', () =
 })
 
 // issue #104：未绑定表单域收敛回 Aurora 海军域——tab 条与输入框玻璃面回海军实底回退、
-// 选中 tab 回玫瑰填充、聚焦描边回玫瑰；输入行为（6 位上限/等宽数字/逐字槽位/1px 实线描边）零变化；
+// 聚焦描边回玫瑰；输入行为（6 位上限/等宽数字/逐字槽位/1px 实线描边）零变化；
+// 选中 tab 是描边玫瑰弱选中（issue #145），不再用主按钮实色填充。
 // 需解绑中间态入口在场（样式跟随 app 级警示红），错误提示保持警示红族形态。
 test('bind unbound form rides the navy Aurora glass while the error strip keeps the warning-red family', () => {
   const css = readPageFile('pages/bind/bind.wxss')
@@ -159,10 +160,11 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
   const premiumCard = findRule(css, '.premium-card')
   assert.equal(premiumCard.background, undefined, 'the bind card must ride the app-level navy glass background')
 
-  // 选中 tab 与主按钮同族：玫瑰填充 + 画布海军字
+  // 选中 tab 与记录分段、密度控件同一种描边玫瑰弱选中
   const activeTab = findRule(css, '.tab.active')
-  assert.equal(activeTab.background, 'var(--aurora-pink)')
-  assert.equal(activeTab.color, '#0A0E27')
+  assert.equal(activeTab.color, '#E8909E')
+  assert.equal(activeTab.background, 'rgba(232,144,158,0.08)')
+  assert.equal(activeTab['border-color'], 'rgba(232,144,158,0.45)')
 
   // 聚焦描边回玫瑰，1px 实线形态不变
   const focus = findRule(css, '.code-input:focus')
@@ -1024,10 +1026,82 @@ function createRoomSessionStub(results = {}) {
   return session
 }
 
-function loadPageHarness(relativePath, { room, clipboard = [], switchTabFail = false } = {}) {
+test('bind page says the archived room was restored when the first record fetch is not empty', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
+    createRoom: { code: 0, roomCode: 'ROOM05' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', {
+    room,
+    records: {
+      periods: [{ _id: 'p1' }, { _id: 'p2' }],
+      memories: [{ _id: 'm1' }]
+    }
+  })
+
+  try {
+    await harness.page.onShow()
+    await harness.page.createRoom()
+
+    assert.equal(harness.page.data.restoredNotice, '已恢复原来的房间和 3 条记录')
+    assert.equal(harness.page.data.justCreated, true)
+    const boundCard = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
+    assert.match(boundCard, /\{\{restoredNotice\}\}/)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('bind page does not claim a restored room when the first record fetch is empty or incomplete', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
+    createRoom: { code: 0, roomCode: 'ROOM05' }
+  })
+  const empty = loadPageHarness('pages/bind/bind.js', { room })
+
+  try {
+    await empty.page.onShow()
+    await empty.page.createRoom()
+    assert.equal(empty.page.data.restoredNotice, '')
+    assert.equal(empty.page.data.justCreated, true)
+  } finally {
+    empty.teardown()
+  }
+
+  const failed = loadPageHarness('pages/bind/bind.js', {
+    room,
+    records: {
+      periods: { kind: 'retryable-failure' },
+      memories: { kind: 'success', data: [{ _id: 'm1' }] }
+    }
+  })
+  try {
+    await failed.page.onShow()
+    await failed.page.createRoom()
+    assert.equal(failed.page.data.restoredNotice, '')
+  } finally {
+    failed.teardown()
+  }
+})
+
+function loadPageHarness(relativePath, { room, clipboard = [], switchTabFail = false, records = null } = {}) {
   const absolutePagePath = path.join(repoRoot, relativePath)
   const mocks = {
-    [path.join(repoRoot, 'utils/room.js')]: room
+    [path.join(repoRoot, 'utils/room.js')]: room,
+    [path.join(repoRoot, 'utils/cloud.js')]: {
+      createRoomDataClient() {
+        return {
+          async list(collection) {
+            const value = records && Object.prototype.hasOwnProperty.call(records, collection)
+              ? records[collection]
+              : []
+            if (value instanceof Error) throw value
+            if (value && value.kind) return value
+            return { kind: 'success', data: value || [] }
+          }
+        }
+      }
+    }
   }
 
   const originalPage = global.Page

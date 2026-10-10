@@ -25,7 +25,7 @@ function sliceStatusCard(wxml) {
 
 function ruleBody(wxss, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const match = wxss.match(new RegExp(`(?:^|[\\n}])\\s*${escaped}\\s*\\{([^}]+)\\}`))
+  const match = wxss.match(new RegExp(`(?:^|[\\n},])\\s*${escaped}\\s*(?:,[^{]*)?\\{([^}]+)\\}`))
   assert.ok(match, `expected rule for ${selector}`)
   return match[1]
 }
@@ -405,12 +405,87 @@ test('stale request resolution cannot overwrite the newer request result', () =>
   }
 })
 
-function loadPageHarness({ client, calendarState } = {}) {
+test('homepage shows TA 已加入 once when the room changes from waiting to paired', async () => {
+  let status = 'waiting'
+  const storage = new Map()
+  const room = {
+    async getVerifiedActiveRoom() {
+      return { kind: 'success', bound: true, roomCode: 'ROOM01', status }
+    }
+  }
+  const client = {
+    async list() {
+      return { kind: 'success', data: [] }
+    }
+  }
+  const harness = loadPageHarness({ client, room, storage })
+
+  try {
+    await harness.page.onShow()
+    assert.deepEqual(harness.toasts, [])
+
+    status = 'paired'
+    await harness.page.onShow()
+    assert.deepEqual(harness.toasts, [{ title: 'TA 已加入', icon: 'none' }])
+
+    await harness.page.onShow()
+    assert.equal(harness.toasts.length, 1)
+    assert.equal(harness.page.data.hasLoadedHomeData, true)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('homepage shows one welcome line after joining and keeps marker meanings in the legend', async () => {
+  const storage = new Map([['partnerWelcome', 'pending']])
+  const room = {
+    async getVerifiedActiveRoom() {
+      return { kind: 'success', bound: true, roomCode: 'ROOM01', status: 'paired' }
+    }
+  }
+  const client = {
+    async list() {
+      return { kind: 'success', data: [] }
+    }
+  }
+  const harness = loadPageHarness({ client, room, storage })
+
+  try {
+    await harness.page.onShow()
+    assert.equal(harness.page.data.partnerWelcome, true)
+    assert.equal(storage.get('partnerWelcome'), 'seen')
+    assert.deepEqual(harness.toasts, [])
+    const wxml = readIndexWxml()
+    assert.match(wxml, /wx:if="\{\{partnerWelcome\}\}"/)
+    assert.match(wxml, /已和 TA 连上/)
+    assert.match(wxml, /标记含义可以在「图例」里查看/)
+
+    await harness.page.onShow()
+    assert.equal(harness.page.data.partnerWelcome, true)
+  } finally {
+    harness.teardown()
+  }
+
+  const again = loadPageHarness({ client, room, storage })
+  try {
+    await again.page.onShow()
+    assert.notEqual(again.page.data.partnerWelcome, true)
+  } finally {
+    again.teardown()
+  }
+})
+
+function loadPageHarness({ client, calendarState, room, storage } = {}) {
   const absolutePagePath = path.join(repoRoot, 'pages/index/index.js')
   const absoluteMocks = new Map([
     [path.join(repoRoot, 'utils/cloud.js'), { createRoomDataClient: () => client }],
     [path.join(repoRoot, 'utils/util.js'), createUtilStub()]
   ])
+  if (room) {
+    absoluteMocks.set(path.join(repoRoot, 'utils/room.js'), room)
+  }
+  const toastLog = []
+  const memory = storage || null
   if (typeof calendarState === 'function') {
     absoluteMocks.set(path.join(repoRoot, 'utils/homeCalendarState.js'), { buildHomeCalendarState: calendarState })
   } else if (calendarState !== 'real') {
@@ -423,8 +498,19 @@ function loadPageHarness({ client, calendarState } = {}) {
 
   delete require.cache[require.resolve(absolutePagePath)]
   global.wx = {
-    getStorageSync: () => '',
-    setStorageSync() {},
+    getStorageSync(key) {
+      if (!memory) return ''
+      return memory.get(key) || ''
+    },
+    setStorageSync(key, value) {
+      if (memory) memory.set(key, value)
+    },
+    removeStorageSync(key) {
+      if (memory) memory.delete(key)
+    },
+    showToast(options) {
+      toastLog.push(options)
+    },
     switchTab() {},
     redirectTo() {},
     navigateTo() {},
@@ -453,6 +539,7 @@ function loadPageHarness({ client, calendarState } = {}) {
   }
   return {
     page,
+    toasts: toastLog,
     teardown() {
       Module._load = originalLoad
       global.Page = originalPage
@@ -791,7 +878,7 @@ test('homepage quick period action names the ongoing day and opens that record e
   }
 })
 
-// issue #100：日历日动作 sheet 的「记录经期」与快捷入口同一决策——
+// issue #100：日历日动作 sheet 的「记经期」与快捷入口同一决策——
 // 房间已有进行中记录时打开那条记录，否则按所选日期新增（默认状态由路由按开始日期推导）
 test('calendar day period action reopens the ongoing record or creates for the selected date', () => {
   const harness = loadPageHarness({ client: createQueuedClient([]) })
@@ -799,7 +886,7 @@ test('calendar day period action reopens the ongoing record or creates for the s
     const navigation = []
     global.wx.navigateTo = options => navigation.push(options.url)
 
-    // 已有进行中记录：从日历选过去某天点「记录经期」，打开那条进行中记录
+    // 已有进行中记录：从日历选过去某天点「记经期」，打开那条进行中记录
     harness.page._homeRecords = {
       periods: [
         { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 },
@@ -827,7 +914,65 @@ test('calendar day period action reopens the ongoing record or creates for the s
   }
 })
 
-// issue #100：晚于今天的日期不提供可用的「记录经期」——动作 sheet 隐藏该入口（DESIGN.md 已登记），
+test('home period entries share one record decision and the same ongoing notice', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const navigation = []
+    const toasts = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+    global.wx.showToast = options => toasts.push(options)
+    const notice = { title: '已有进行中的经期，继续编辑它', icon: 'none' }
+    const ongoing = { _id: 'p2', startDate: '2026-06-20', endDate: '', status: 'ongoing' }
+    const finished = { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', status: 'known-end' }
+
+    harness.page.applyHomeCalendarState({
+      periods: [finished, ongoing],
+      today: '2026-06-26'
+    })
+    harness.page.quickPeriod()
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-03' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.setData({
+      cycleReminders: [{ type: 'due', action: 'quickPeriod', date: '2026-06-26' }]
+    })
+    harness.page.onReminderTap({ currentTarget: { dataset: { index: 0 } } })
+
+    assert.deepEqual(toasts, [notice, notice, notice])
+    assert.deepEqual(navigation, [
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end',
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing',
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing'
+    ])
+
+    navigation.length = 0
+    toasts.length = 0
+    harness.page.applyHomeCalendarState({
+      periods: [finished],
+      today: '2026-06-26'
+    })
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-03' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-10' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.quickPeriod()
+    harness.page.setData({
+      cycleReminders: [{ type: 'due', action: 'quickPeriod', date: '2026-06-04' }]
+    })
+    harness.page.onReminderTap({ currentTarget: { dataset: { index: 0 } } })
+
+    assert.deepEqual(toasts, [])
+    assert.deepEqual(navigation, [
+      '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&status=known-end',
+      '/pages/period/edit/edit?startDate=2026-06-10',
+      '/pages/period/edit/edit?startDate=2026-06-26',
+      '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&status=known-end'
+    ])
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #100：晚于今天的日期不提供可用的「记经期」——动作 sheet 隐藏该入口（DESIGN.md 已登记），
 // 处理器侧保留不导航的兜底防线；编辑页日期上限与保存校验仍是最后防线
 test('calendar day period action is not usable for future dates', () => {
   const harness = loadPageHarness({ client: createQueuedClient([]) })

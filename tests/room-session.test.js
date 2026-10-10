@@ -3,6 +3,52 @@ const test = require('node:test')
 
 const { createRoomSession } = require('../utils/room')
 
+test('RoomSession exposes waiting or paired status from getMyRoom without changing the cached room code path', async () => {
+  const storage = createMemoryStorage({ roomCode: 'ROOM01' })
+  const cloud = createFakeCloud({
+    getMyRoom: { code: 0, room: { roomCode: 'ROOM01', status: 'paired', createdBy: 'openid-a', partnerOpenid: 'openid-b' } }
+  })
+  const session = createRoomSession({ storage, cloud })
+
+  const verified = await session.getVerifiedActiveRoom()
+
+  assert.deepEqual(verified, {
+    kind: 'success',
+    bound: true,
+    roomCode: 'ROOM01',
+    status: 'paired'
+  })
+  assert.equal(storage.get('roomCode'), 'ROOM01')
+  assert.deepEqual(cloud.calls, [{ name: 'getMyRoom' }])
+
+  const uncached = createMemoryStorage()
+  const waitingCloud = createFakeCloud({
+    getMyRoom: { code: 0, room: { roomCode: 'ROOM02', status: 'waiting' } }
+  })
+  const waiting = await createRoomSession({ storage: uncached, cloud: waitingCloud }).getActiveRoom()
+
+  assert.deepEqual(waiting, {
+    kind: 'success',
+    bound: true,
+    roomCode: 'ROOM02',
+    status: 'waiting'
+  })
+  assert.equal(uncached.get('roomCode'), 'ROOM02')
+})
+
+test('RoomSession leaves room lookup results unchanged when getMyRoom has no waiting or paired status', async () => {
+  const storage = createMemoryStorage({ roomCode: 'ROOM01' })
+  const cloud = createFakeCloud({
+    getMyRoom: { code: 0, room: { roomCode: 'ROOM01', status: 'archived', createdBy: 'openid-a' } }
+  })
+  const session = createRoomSession({ storage, cloud })
+
+  const result = await session.repairCachedRoom('ROOM01')
+
+  assert.deepEqual(result, { kind: 'success', bound: true, roomCode: 'ROOM01' })
+  assert.equal(storage.get('roomCode'), 'ROOM01')
+})
+
 test('RoomSession uses cached room code without calling recovery cloud function', async () => {
   const storage = createMemoryStorage({ roomCode: 'ROOM01' })
   const cloud = createFakeCloud()
@@ -358,6 +404,20 @@ test('RoomSession createRoom keeps the still-in-a-room refusal the bind page use
 
   assert.deepEqual(result, { code: -1, msg: '你已加入其他房间，请先解除绑定后再创建新房间' })
   assert.deepEqual(logs, [])
+})
+
+test('RoomSession joinRoom remembers a pending homepage welcome after a successful join', async () => {
+  const storage = createMemoryStorage()
+  const cloud = createFakeCloud({
+    joinRoom: { code: 0 }
+  })
+  const session = createRoomSession({ storage, cloud })
+
+  const result = await session.joinRoom('ROOM04')
+
+  assert.equal(result.code, 0)
+  assert.equal(storage.get('partnerWelcome'), 'pending')
+  assert.equal(storage.get('roomCode'), 'ROOM04')
 })
 
 test('RoomSession joinRoom normalizes the code and caches the joined room', async () => {

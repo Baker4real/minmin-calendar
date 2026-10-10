@@ -316,6 +316,30 @@ test('calendar row height stays between 44px and the previous cap for 5- and 6-r
   }
 })
 
+test('leftmost and rightmost calendar columns keep their content off the grid border', () => {
+  const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+  const grid = findDecls(rules, '.calendar-grid')
+  const week = findDecls(rules, '.week-header')
+  const cell = findDecls(rules, '.day-cell')
+  const content = findDecls(rules, '.content')
+
+  assert.deepEqual(horizontalPaddingTokens(grid), ['10rpx'])
+  assert.deepEqual(horizontalPaddingTokens(week), ['10rpx'])
+
+  const widthPct = Number(/(\d+(?:\.\d+)?)%/.exec(cell.width)[1])
+  const contentPadRpx = Number(/(\d+)rpx/.exec(horizontalPaddingTokens(content)[0])[1])
+  const gridBorderPx = Number(/(\d+(?:\.\d+)?)px/.exec(grid.border)[1])
+  const gridPadRpx = 10
+  for (const viewportPx of [320, 375, 390]) {
+    const gridInnerPx = viewportPx
+      - (2 * contentPadRpx * viewportPx) / 750
+      - 2 * gridBorderPx
+      - (2 * gridPadRpx * viewportPx) / 750
+    const columnPx = (gridInnerPx * widthPct) / 100
+    assert.ok(columnPx >= 40, `inset day column ${columnPx.toFixed(2)}px is under 40px at ${viewportPx}px`)
+  }
+})
+
 test('calendar cell content stacks fit inside the cell at both densities (date stays readable)', () => {
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
   const cell = findDecls(rules, '.day-cell')

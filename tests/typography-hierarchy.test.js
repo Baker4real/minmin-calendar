@@ -144,14 +144,21 @@ test('month title worst-case CJK label fits the month-nav row on a 750rpx viewpo
 })
 
 // caption 家族统一契约：issue #54 点名的六族全部走 26rpx caption 角色。
-// 流式说明文字显式 line-height 1.4；单行控件以盒高居中（legend-symbol 行高=盒高，copy-btn flex 居中），
-// 不设第二套文字行高。
+// 流式说明文字显式 line-height 1.4；单行控件以盒高居中（copy-btn flex 居中），
+// 不设第二套文字行高。图例符号复用日历格标记类，不再单独设 .legend-symbol。
 const CAPTION_FAMILY_FLOW = [
   [PERIOD_EDIT_WXSS, '.form-hint'],
   [PERIOD_EDIT_WXSS, '.symptom-group-label'],
   [SETTINGS_WXSS, '.settings-group-title'],
   [SETTINGS_WXSS, '.room-code-label']
 ]
+
+test('input placeholder type stays on the input role, at least the caption floor', () => {
+  const tokens = readAppTokens()
+  const decls = ruleDecls(APP_WXSS, '.input-placeholder')
+  assert.equal(decls['font-size'], 'var(--font-size-input)')
+  assert.ok(resolveRpx(decls, 'font-size', tokens, '.input-placeholder') >= CAPTION_FLOOR_RPX)
+})
 
 test('caption family shares the caption token and the 1.4 line-height policy', () => {
   const tokens = readAppTokens()
@@ -168,14 +175,6 @@ test('caption family shares the caption token and the 1.4 line-height policy', (
 
 test('box-centered caption controls keep single-line box geometry', () => {
   const tokens = readAppTokens()
-
-  const legend = ruleDecls(INDEX_WXSS, '.legend-symbol')
-  assert.equal(legend['font-size'], 'var(--font-size-caption)')
-  assert.equal(
-    resolveRpx(legend, 'line-height', tokens, '.legend-symbol'),
-    resolveRpx(legend, 'height', tokens, '.legend-symbol'),
-    '.legend-symbol centers its glyph by line-height == box height'
-  )
 
   const copyBtn = ruleDecls(SETTINGS_WXSS, '.copy-btn')
   assert.equal(copyBtn['font-size'], 'var(--font-size-caption)')

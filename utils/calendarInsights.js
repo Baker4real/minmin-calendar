@@ -1,6 +1,12 @@
 const cycle = require('./cycle')
 const util = require('./util')
 
+const CONFIDENCE_COPY = {
+  high: '最近几次很规律，比较准',
+  medium: '已经有几次记录，大致可以参考',
+  low: '记录还不多，仅供参考'
+}
+
 function buildPredictionExplanation(prediction) {
   if (!prediction || !prediction.canPredict) {
     const lines = ['至少需要连续的经期记录，预测才会更稳定']
@@ -21,17 +27,19 @@ function buildPredictionExplanation(prediction) {
   }
 
   lines.push(formatDurationLine(prediction))
-  lines.push(`置信度：${prediction.confidenceText}`)
+  lines.push(`预计持续 ${prediction.avgDuration} 天`)
+  lines.push(spokenConfidence(prediction))
 
   if (prediction.ignoredCycleCount > 0) {
     lines.push(`已忽略 ${prediction.ignoredCycleCount} 次波动较大的记录`)
   }
 
+  lines.push('根据记录估算，不是医疗建议')
+
   return {
     available: true,
     title: '预测说明',
-    // 预测日期头条只由统计卡承载，说明 sheet 不再重复同一日期
-    summary: `预计区间 ${prediction.rangeDisplay}`,
+    summary: `预计 ${prediction.nextDisplay} 开始，前后 ${windowDays(prediction)} 天都正常`,
     lines,
     lineItems: buildTextItems(lines, 'prediction')
   }
@@ -74,9 +82,17 @@ function buildMonthlyRecap({ year, month, periods = [], memories = [], predictio
   }
 }
 
+function spokenConfidence(prediction) {
+  return CONFIDENCE_COPY[prediction.confidence] || CONFIDENCE_COPY.low
+}
+
+function windowDays(prediction) {
+  return util.daysBetween(util.parseDate(prediction.nextStart), util.parseDate(prediction.rangeEnd))
+}
+
 function formatPredictionSummary(prediction) {
   if (!prediction || !prediction.canPredict) return '下次预测暂无，记录更多后会更稳'
-  return `下次预测 ${prediction.nextDisplay}，区间 ${prediction.rangeDisplay}（${prediction.confidenceText}）`
+  return `下次预测 ${prediction.nextDisplay}，区间 ${prediction.rangeDisplay}（置信度：${spokenConfidence(prediction)}）`
 }
 
 // 预测持续天数按来源措辞：已知历史才说「平均」，用户设置说「常用」，
@@ -100,20 +116,8 @@ function formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd, tod
   })
   if (!spanning) return `本月记录了 ${monthPeriods.length} 次经期，共 ${periodDays} 天`
 
-  let startedCount = 0
-  let continuedCount = 0
-  monthPeriods.forEach(period => {
-    const range = normalizePeriodRange(period, today)
-    if (!range) return
-    if (range.startDate >= monthStart && range.startDate <= monthEnd) startedCount += 1
-    else if (range.startDate < monthStart) continuedCount += 1
-  })
-
-  const parts = []
-  if (startedCount) parts.push(`本月开始 ${startedCount} 次`)
-  if (continuedCount) parts.push(`从上月延续 ${continuedCount} 次`)
-  parts.push(`本月 ${periodDays} 天`)
-  return parts.join('，')
+  // 跨月这件事由经期区间本身说明，小结不再另写「从上月延续 / 本月开始」。
+  return `本月 ${periodDays} 天`
 }
 
 function formatPeriodHighlight(period, monthStart, monthEnd, today) {
@@ -156,36 +160,20 @@ function formatPeriodHighlight(period, monthStart, monthEnd, today) {
 function formatMemoryHighlight(memories) {
   if (!memories.length) return ''
 
-  const parts = []
-  let defaultNotePartIndex = -1
-  let defaultNoteCount = 0
+  const notes = memories
+    .map(normalizeMemoryNote)
+    .filter(note => !note.isDefault)
+    .map(note => note.text)
+  if (!notes.length) return ''
 
-  memories.forEach(memory => {
-    const note = normalizeMemoryNote(memory)
-    if (note.isDefault) {
-      defaultNoteCount += 1
-      if (defaultNotePartIndex === -1) {
-        defaultNotePartIndex = parts.length
-        parts.push('')
-      }
-      return
-    }
-
-    parts.push(note.text)
-  })
-
-  if (defaultNotePartIndex !== -1) {
-    parts[defaultNotePartIndex] = defaultNoteCount === 1 ? '特别日子' : `${defaultNoteCount} 个特别日子`
-  }
-
-  return `欢乐时光：${parts.join('；')}`
+  return `欢乐时光：${notes.join('；')}`
 }
 
 function normalizeMemoryNote(memory) {
   const note = typeof memory.note === 'string' ? memory.note.trim() : ''
   return note
     ? { text: note, isDefault: false }
-    : { text: '特别日子', isDefault: true }
+    : { text: '欢乐时光', isDefault: true }
 }
 
 function overlapsMonth(period, monthStart, monthEnd, today) {

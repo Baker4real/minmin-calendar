@@ -325,25 +325,39 @@ test('holiday and workday tags read in both densities and never displace the tod
   assert.ok(workdayTag, 'expected the workday tag binding')
   assert.doesNotMatch(workdayTag[0], /isToday/)
 
-  // 节日/调休的格子底必须让位给今天：玫瑰底 + 薰衣草内描边只在非今天格子上染色
-  assert.match(wxss, /\.day-cell\.holiday:not\(\.today\)\s*\{/)
+  // 节日是无底金字，没有整格金底；调休「班」仍是低调小标签。今天仍用玫瑰底和薰衣草描边。
+  assert.doesNotMatch(wxss, /\.day-cell\.holiday[^{]*\{[^}]*background\s*:/)
+  const holidayTagRule = wxss.match(/\.holiday-tag\s*\{([^}]+)\}/)
+  assert.ok(holidayTagRule, 'expected .holiday-tag')
+  assert.match(holidayTagRule[1], /color:\s*var\(--aurora-gold\)/)
+  assert.doesNotMatch(holidayTagRule[1], /background\s*:/)
+  const workdayTagRule = wxss.match(/\.workday-tag\s*\{([^}]+)\}/)
+  assert.ok(workdayTagRule, 'expected .workday-tag')
+  assert.match(workdayTagRule[1], /background:\s*rgba\(255,\s*255,\s*255,\s*0\.12\)/)
+  assert.doesNotMatch(workdayTagRule[1], /aurora-gold|212,\s*165,\s*116/)
   assert.match(wxss, /\.day-cell\.workday:not\(\.today\)\s*\{/)
   assert.match(wxss, /\.day-cell\.today\s*\{[\s\S]*?inset 0 0 0 3rpx rgba\(196,\s*160,\s*210,\s*0\.55\)/)
 })
 
-test('legend symbols mirror the real today ring and holiday tag forms', () => {
-  const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
+test('legend samples reuse the calendar cell marker classes', () => {
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const { buildHomeCalendarState } = require('../utils/homeCalendarState')
+  const grid = wxml.slice(wxml.indexOf('class="calendar-grid'), wxml.indexOf('class="quick-actions"'))
+  const legend = wxml.slice(wxml.indexOf('class="legend-list"'), wxml.indexOf('class="prediction-explanation"'))
 
-  const todaySymbol = wxss.match(/\.legend-row\.today \.legend-symbol\s*\{([^}]+)\}/)
-  assert.ok(todaySymbol, 'expected a dedicated today legend symbol rule')
-  assert.match(todaySymbol[1], /background:\s*rgba\(232,\s*144,\s*158,\s*0\.16\)/)
-  assert.match(todaySymbol[1], /box-shadow:\s*inset 0 0 0 3rpx rgba\(196,\s*160,\s*210,\s*0\.55\)/)
+  assert.match(legend, /class="legend-sample day-cell \{\{item\.cellClass\}\}"/)
+  assert.match(legend, /class="\{\{part\.className\}\}"/)
+  assert.doesNotMatch(legend, /legend-symbol|\{\{item\.marker\}\}/)
 
-  const holidaySymbol = wxss.match(/\.legend-row\.holiday \.legend-symbol\s*\{([^}]+)\}/)
-  assert.ok(holidaySymbol, 'expected a dedicated holiday legend symbol rule')
-  assert.match(holidaySymbol[1], /border-radius:\s*var\(--radius-sm\)/)
-  // 字号沿用 .legend-symbol 的 caption 角色（26rpx），节日图例不再缩小
-  assert.doesNotMatch(holidaySymbol[1], /font-size/)
+  const items = buildHomeCalendarState({ year: 2026, month: 7, today: '2026-08-10' }).legendItems
+  for (const item of items) {
+    for (const token of item.cellClass.split(/\s+/).filter(Boolean)) {
+      assert.match(grid, new RegExp(`(?:^|[^\\w-])${token}(?:[^\\w-]|$)`))
+    }
+    for (const part of item.parts) {
+      assert.match(grid, new RegExp(part.className.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    }
+  }
 })
 
 test('memory list heart matches the calendar heart glyph system', () => {
@@ -427,7 +441,8 @@ test('index calendar applies the persisted density without hosting the control',
   assert.doesNotMatch(wxml, /density-control/)
   assert.match(wxml, /class="calendar-grid calendar-density-\{\{calendarDensity\}\}"/)
   // 农历文字只属完整密度；节日/调休标签行两密度都渲染（issue #72 清爽日历可读节日与调休）
-  assert.match(wxml, /wx:if="\{\{!item\.isEmpty && calendarDensity == 'full'\}\}" class="day-lunar"/)
+  assert.match(wxml, /wx:if="\{\{!item\.isEmpty && calendarDensity == 'full'\}\}" class="day-lunar">\{\{item\.lunarCellText\}\}/)
+  assert.doesNotMatch(wxml, /class="day-lunar">\{\{item\.lunarText\}\}/)
   assert.match(wxml, /wx:if="\{\{!item\.isEmpty\}\}" class="day-tag-line"/)
 
   assert.match(wxss, /\.calendar-density-compact\s+\.day-cell\s*\{[\s\S]*height:\s*var\(--calendar-row-height,\s*140rpx\)/)
@@ -530,6 +545,34 @@ test('index exposes calendar meaning and monthly recap sheets', () => {
   assert.match(wxss, /\.calendar-info-sheet/)
   assert.match(wxss, /\.monthly-recap/)
   assert.match(wxss, /\.detail-meaning/)
+})
+
+test('monthly recap sheet does not repeat the viewed month under the title', () => {
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const infoStart = wxml.indexOf('calendar-info-sheet')
+  const info = wxml.slice(infoStart, wxml.indexOf('page-container', infoStart))
+  const titleAt = info.indexOf('monthlyRecap.title')
+  assert.ok(titleAt > 0, 'expected the recap title in the info sheet')
+  const between = info.slice(titleAt, info.indexOf('sheet-subtitle', titleAt))
+  assert.match(between, /infoSheetMode != 'recap'/)
+})
+
+test('prediction explanation and recap copy read as paragraphs, not tappable rows', () => {
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
+  const copyStart = wxml.indexOf('class="prediction-explanation"')
+  const copy = wxml.slice(copyStart, wxml.indexOf('class="copy-recap"', copyStart))
+  assert.ok(copyStart > 0)
+  assert.doesNotMatch(copy, /bindtap/)
+
+  for (const selector of ['.prediction-summary', '.explain-line', '.recap-summary', '.recap-highlight']) {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const body = new RegExp(`(?:^|[\\n}])\\s*${escaped}\\s*\\{([^}]+)\\}`).exec(wxss)
+    assert.ok(body, `expected ${selector}`)
+    assert.doesNotMatch(body[1], /background/, `${selector} should not wear a button fill`)
+    assert.doesNotMatch(body[1], /border/, `${selector} should not wear a button border`)
+    assert.doesNotMatch(body[1], /min-height/, `${selector} should not reserve a tap height`)
+  }
 })
 
 test('index sync feedback stays tied to real record changes without blocking calendar interaction', () => {

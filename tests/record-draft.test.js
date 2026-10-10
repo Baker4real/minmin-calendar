@@ -515,6 +515,9 @@ function createPeriodEditMocks(commandOverrides = {}, symptomGroupCalls = null) 
   return {
     ...createMemoryEditMocks(commandOverrides),
     'utils/cycle.js': {
+      periodStatusHint() {
+        return ''
+      },
       FLOW_OPTIONS: [{ value: 'heavy', label: '量大' }],
       PERIOD_STATUS_OPTIONS: [
         { value: 'ongoing', label: '进行中' },

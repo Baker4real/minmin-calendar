@@ -35,7 +35,8 @@
 .menu-item:last-child {
   border-bottom: none;
 }
-.menu-item:not(.non-interactive):active {
+.menu-item:not(.non-interactive):not(.danger):active,
+.menu-item:not(.non-interactive):not(.danger).menu-item-hover {
   background: rgba(255,255,255,0.05);
 }
 .menu-text {
@@ -72,6 +73,11 @@
   top: 0;
   bottom: 0;
   background: rgba(10,14,39,0.88);
+  transition: background-color var(--duration-press) ease;
+}
+.help-mask:active,
+.help-mask.help-mask-hover {
+  background-color: rgba(10,14,39,0.96);
 }
 .help-sheet {
   position: relative;
@@ -107,19 +113,37 @@
 /* 页底危险区：解除绑定在点之前就是危险样式（issue #77 / #139）——警告红字 + 警告红描边，
    与 .btn-danger 同族同红，不是第二种红；导出保持上面的普通行 */
 .menu-item.danger {
+  position: relative;
+  z-index: 0;
   margin: 0;
   border: 1px solid rgba(249,115,115,0.28);
   border-radius: var(--radius-md);
   box-sizing: border-box;
-  background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
+  background: var(--glass-fallback);
+}
+.menu-item.danger::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-md);
+  background-color: var(--glass-bg);
+  transition: background-color var(--duration-press) ease;
+  pointer-events: none;
+  z-index: -1;
 }
 .menu-item.danger .menu-text {
   color: #F97373;
 }
 .menu-item.danger:active,
 .menu-item.danger.danger-hover {
-  background: linear-gradient(rgba(249,115,115,0.12), rgba(249,115,115,0.12)), var(--glass-fallback);
   transform: scale(0.95);
+}
+.menu-item.danger:active::before,
+.menu-item.danger.danger-hover::before {
+  background-color: rgba(249,115,115,0.12);
 }
 
 /* Room Code Item */
@@ -172,7 +196,8 @@
   box-shadow: 0 4px 15px rgba(232,144,158,0.28);
   transition: transform var(--duration-press) var(--ease-out);
 }
-.copy-btn:active {
+.copy-btn:active,
+.copy-btn.copy-btn-hover {
   transform: scale(0.94);
 }
 
@@ -200,7 +225,8 @@
   border: 1px solid rgba(232,144,158,0.45);
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-press) ease;
 }
-.room-action-btn:active {
+.room-action-btn:active,
+.room-action-btn.room-action-btn-hover {
   transform: scale(0.95);
   background: rgba(232,144,158,0.14);
 }
@@ -235,7 +261,8 @@
   border: 1px solid transparent;
   transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-.density-option:active {
+.density-option:active,
+.density-option.density-option-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.1);
 }
@@ -250,7 +277,9 @@
   .copy-btn,
   .density-option,
   .room-action-btn,
-  .menu-item.danger {
+  .menu-item.danger,
+  .menu-item.danger::before,
+  .help-mask {
     animation: none;
     transition: none;
   }

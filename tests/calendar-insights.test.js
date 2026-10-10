@@ -18,39 +18,41 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
   assert.deepEqual(insights.buildPredictionExplanation(prediction), {
     available: true,
     title: '预测说明',
-    summary: '预计区间 8月9日–8月11日',
+    summary: '预计 8月10日 开始，前后 1 天都正常',
     lines: [
       '参考最近 5 次有效周期',
       '平均周期 28 天，平均持续 5 天',
-      '置信度：高',
-      '已忽略 1 次波动较大的记录'
+      '预计持续 5 天',
+      '最近几次很规律，比较准',
+      '已忽略 1 次波动较大的记录',
+      '根据记录估算，不是医疗建议'
     ],
     lineItems: [
       { key: 'prediction:0', text: '参考最近 5 次有效周期' },
       { key: 'prediction:1', text: '平均周期 28 天，平均持续 5 天' },
-      { key: 'prediction:2', text: '置信度：高' },
-      { key: 'prediction:3', text: '已忽略 1 次波动较大的记录' }
+      { key: 'prediction:2', text: '预计持续 5 天' },
+      { key: 'prediction:3', text: '最近几次很规律，比较准' },
+      { key: 'prediction:4', text: '已忽略 1 次波动较大的记录' },
+      { key: 'prediction:5', text: '根据记录估算，不是医疗建议' }
     ]
   })
 })
 
-test('prediction explanation leaves the headline date to the stats card (single authority)', () => {
+test('prediction explanation uses the shared date and spoken confidence, not a confidence grade', () => {
   const prediction = cycle.predictNextPeriod([
     period('2026-01-01', '2026-01-05'),
     period('2026-01-29', '2026-02-02'),
     period('2026-02-26', '2026-03-02'),
-    period('2026-04-20', '2026-04-24'),
-    period('2026-05-18', '2026-05-22'),
-    period('2026-06-15', '2026-06-19'),
-    period('2026-07-13', '2026-07-17')
+    period('2026-03-26', '2026-03-30')
   ])
 
   const explanation = insights.buildPredictionExplanation(prediction)
 
-  // 统计卡头条是预测日期的唯一权威；说明 sheet 只解释区间与依据，不重复同一日期
-  assert.ok(prediction.canPredict)
-  assert.equal(explanation.summary.includes(prediction.nextDisplay), false)
-  assert.match(explanation.summary, new RegExp(`区间 ${prediction.rangeDisplay}`))
+  assert.equal(explanation.summary, `预计 ${prediction.nextDisplay} 开始，前后 1 天都正常`)
+  assert.equal(explanation.summary.includes('08月'), false)
+  assert.equal(explanation.lines.includes('已经有几次记录，大致可以参考'), true)
+  assert.equal(explanation.lines.some(line => line.startsWith('置信度：')), false)
+  assert.equal(explanation.lines.at(-1), '根据记录估算，不是医疗建议')
 })
 
 test('buildMonthlyRecap creates a gentle shareable recap for the selected month', () => {
@@ -84,7 +86,7 @@ test('buildMonthlyRecap creates a gentle shareable recap for the selected month'
   assert.equal(recap.title, '2026年8月小结')
   assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 5 天')
   assert.equal(recap.memorySummary, '留下 2 条欢乐时光')
-  assert.equal(recap.predictionSummary, '下次预测 8月8日，区间 8月7日–8月9日（中）')
+  assert.equal(recap.predictionSummary, '下次预测 8月8日，区间 8月7日–8月9日（置信度：已经有几次记录，大致可以参考）')
   assert.deepEqual(recap.highlights, [
     '经期：8月9日–8月13日，5天，经量 量多，痛经',
     '欢乐时光：七夕晚餐；一起看电影'
@@ -96,6 +98,8 @@ test('buildMonthlyRecap creates a gentle shareable recap for the selected month'
   assert.match(recap.shareText, /2026年8月小结/)
   assert.match(recap.shareText, /本月记录了 1 次经期，共 5 天/)
   assert.match(recap.shareText, /留下 2 条欢乐时光/)
+  assert.match(recap.shareText, /下次预测 8月8日，区间 8月7日–8月9日（置信度：已经有几次记录，大致可以参考）/)
+  assert.equal(recap.shareText.includes('（中）'), false)
 })
 
 test('buildMonthlyRecap keeps period duration and days in viewed month as two numbers when stored duration conflicts', () => {
@@ -114,7 +118,9 @@ test('buildMonthlyRecap keeps period duration and days in viewed month as two nu
   assert.deepEqual(august.highlights, [
     '经期：8月28日–9月1日，整段 5 天，本月 4 天'
   ])
-  assert.equal(august.periodSummary, '本月开始 1 次，本月 4 天')
+  assert.equal(august.periodSummary, '本月 4 天')
+  assert.equal(august.shareText.includes('本月开始'), false)
+  assert.equal(august.shareText.includes('从上月延续'), false)
 })
 
 test('buildMonthlyRecap states period duration and days in viewed month separately when a period spans months', () => {
@@ -131,17 +137,19 @@ test('buildMonthlyRecap states period duration and days in viewed month separate
     periods: [spanning]
   })
 
-  assert.equal(august.periodSummary, '本月开始 1 次，本月 4 天')
+  assert.equal(august.periodSummary, '本月 4 天')
   assert.deepEqual(august.highlights, [
     '经期：8月28日–9月1日，整段 5 天，本月 4 天'
   ])
-  assert.equal(september.periodSummary, '从上月延续 1 次，本月 1 天')
+  assert.equal(september.periodSummary, '本月 1 天')
   assert.deepEqual(september.highlights, [
     '经期：8月28日–9月1日，整段 5 天，本月 1 天'
   ])
-  assert.match(august.shareText, /本月开始 1 次，本月 4 天/)
+  assert.match(august.shareText, /本月 4 天/)
   assert.match(august.shareText, /经期：8月28日–9月1日，整段 5 天，本月 4 天/)
-  assert.match(september.shareText, /从上月延续 1 次，本月 1 天/)
+  assert.match(september.shareText, /本月 1 天/)
+  assert.equal(september.shareText.includes('从上月延续'), false)
+  assert.equal(august.shareText.includes('本月开始'), false)
   assert.doesNotMatch(september.shareText, /本月记录了 1 次经期，共 1 天/)
 })
 
@@ -155,7 +163,8 @@ test('buildMonthlyRecap counts two periods continued from the previous month', (
     ]
   })
 
-  assert.equal(recap.periodSummary, '从上月延续 2 次，本月 4 天')
+  assert.equal(recap.periodSummary, '本月 4 天')
+  assert.equal(recap.shareText.includes('从上月延续'), false)
   assert.deepEqual(recap.highlights, [
     '经期：8月28日–9月1日，整段 5 天，本月 1 天',
     '经期：8月30日–9月3日，整段 5 天，本月 3 天'
@@ -172,7 +181,9 @@ test('buildMonthlyRecap splits started and continued counts when a month has bot
     ]
   })
 
-  assert.equal(recap.periodSummary, '本月开始 1 次，从上月延续 1 次，本月 6 天')
+  assert.equal(recap.periodSummary, '本月 6 天')
+  assert.equal(recap.shareText.includes('从上月延续'), false)
+  assert.equal(recap.shareText.includes('本月开始'), false)
   assert.deepEqual(recap.highlights, [
     '经期：8月28日–9月1日，整段 5 天，本月 1 天',
     '经期：9月20日–9月24日，5天'
@@ -195,11 +206,12 @@ test('buildMonthlyRecap uses the same started and continued copy across a year b
     today: '2026-10-10'
   })
 
-  assert.equal(december.periodSummary, '本月开始 1 次，本月 4 天')
+  assert.equal(december.periodSummary, '本月 4 天')
   assert.deepEqual(december.highlights, [
     '经期：12月28日–2027年1月1日，整段 5 天，本月 4 天'
   ])
-  assert.equal(january.periodSummary, '从上月延续 1 次，本月 1 天')
+  assert.equal(january.periodSummary, '本月 1 天')
+  assert.equal(january.shareText.includes('从上月延续'), false)
   assert.deepEqual(january.highlights, [
     '经期：12月28日–2027年1月1日，整段 5 天，本月 1 天'
   ])
@@ -231,7 +243,8 @@ test('buildMonthlyRecap treats a middle month of a three-month period as continu
     periods: [spanning]
   })
 
-  assert.equal(september.periodSummary, '从上月延续 1 次，本月 30 天')
+  assert.equal(september.periodSummary, '本月 30 天')
+  assert.equal(september.shareText.includes('从上月延续'), false)
   assert.deepEqual(september.highlights, [
     '经期：8月28日–10月2日，整段 36 天，本月 30 天'
   ])
@@ -287,10 +300,9 @@ test('buildMonthlyRecap collapses repeated default memory labels in highlights',
 
   assert.equal(recap.periodSummary, '本月暂无经期记录')
   assert.equal(recap.memorySummary, '留下 5 条欢乐时光')
-  assert.deepEqual(recap.highlights, [
-    '欢乐时光：5 个特别日子'
-  ])
-  assert.equal(recap.shareText.includes('特别日子；特别日子'), false)
+  assert.deepEqual(recap.highlights, [])
+  assert.equal(recap.shareText.includes('特别日子'), false)
+  assert.equal(recap.shareText.includes('欢乐时光；欢乐时光'), false)
 })
 
 test('buildMonthlyRecap keeps real memory notes in order while collapsing defaults', () => {
@@ -308,8 +320,9 @@ test('buildMonthlyRecap keeps real memory notes in order while collapsing defaul
   })
 
   assert.deepEqual(recap.highlights, [
-    '欢乐时光：散步；2 个特别日子；看电影；散步'
+    '欢乐时光：散步；看电影；散步'
   ])
+  assert.equal(recap.shareText.includes('特别日子'), false)
 })
 
 test('buildMonthlyRecap gives duplicate highlight text unique render keys', () => {
@@ -410,7 +423,9 @@ test('prediction explanation states where the predicted duration comes from', ()
   assert.deepEqual(manual.lines, [
     '参考手动设置的常用周期',
     '平均周期 30 天，经期时长按常用 4 天',
-    '置信度：低'
+    '预计持续 4 天',
+    '记录还不多，仅供参考',
+    '根据记录估算，不是医疗建议'
   ])
 
   // 默认档：没有已完成时长，不把五天默认说成已知平均
@@ -423,7 +438,9 @@ test('prediction explanation states where the predicted duration comes from', ()
   assert.deepEqual(defaulted.lines, [
     '参考最近 1 次有效周期',
     '平均周期 28 天，经期时长暂无已知记录，先按默认 5 天估',
-    '置信度：低'
+    '预计持续 5 天',
+    '记录还不多，仅供参考',
+    '根据记录估算，不是医疗建议'
   ])
   assert.equal(defaulted.lines.some(line => line.includes('平均持续')), false)
 })
