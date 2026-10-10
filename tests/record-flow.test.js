@@ -1157,7 +1157,7 @@ test('period and memory list templates keep the REC-03 visible row contract', ()
   const periodWxml = readPageFile('pages/period/period.wxml')
   const memoryWxml = readPageFile('pages/memory/memory.wxml')
 
-  // 日期行走统一显示格式，不再把 ISO 起止拼进可见行
+  // 日期行走统一显示格式；结束日期不详不在日期行再写一遍，时长位仍占住这几个字
   assert.match(periodWxml, /class="item-date">\{\{item\.dateLabel\}\}/)
   assert.doesNotMatch(periodWxml, /\{\{item\.startDate\}\}/)
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}"/)
@@ -1196,6 +1196,55 @@ test('record list pages show load-failed retry copy and hide period stats while 
   assert.match(periodWxml, /wx:if="\{\{!loading\}\}"[^>]*>\{\{avgDuration \|\| '--'\}\}/)
   assert.match(periodJs, /hasLoaded:\s*false/)
   assert.match(periodJs, /onLoaded: periods => \{[\s\S]*?hasLoaded: true/)
+})
+
+test('an unknown-end period list row says 结束日期不详 only once', async () => {
+  const harness = loadRecordPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list() {
+              return {
+                kind: 'success',
+                data: [{ _id: 'p-open', startDate: '2026-08-01', endDate: '', status: 'unknown-end' }]
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+
+  try {
+    await harness.page.onShow()
+    const row = harness.page.data.periods[0]
+    assert.equal(row.dateLabel, '8月1日')
+    assert.equal(row.durationText, '结束日期不详')
+    assert.equal(`${row.dateLabel} ${row.durationText}`.split('结束日期不详').length - 1, 1)
+
+    const known = require('../utils/cycle').decoratePeriod({
+      startDate: '2026-06-10',
+      endDate: '2026-06-12',
+      status: 'known-end'
+    })
+    assert.equal(known.dateLabel, '6月10日–6月12日')
+    assert.equal(known.durationText, '3天')
+
+    const ongoing = require('../utils/cycle').decoratePeriod(
+      { startDate: '2026-09-20', endDate: '', status: 'ongoing' },
+      { today: '2026-09-24' }
+    )
+    assert.equal(ongoing.dateLabel, '9月20日–9月24日')
+    assert.equal(ongoing.durationText, '进行中')
+
+    const periodWxml = readPageFile('pages/period/period.wxml')
+    const listItem = periodWxml.slice(periodWxml.indexOf('class="list-item"'), periodWxml.indexOf('class="item-arrow"'))
+    assert.match(listItem, /class="item-date">\{\{item\.dateLabel\}\}/)
+    assert.doesNotMatch(listItem, /endDateDisplay/)
+  } finally {
+    harness.teardown()
+  }
 })
 
 test('period list failure retry is a recognizable operation, distinct from the quiet empty note', () => {
@@ -3264,6 +3313,49 @@ test('period edit saves a historical unknown-end record without an end date', as
   }
 })
 
+test('saving a new period inside an existing record can edit that record or create anyway', async () => {
+  const existing = {
+    _id: 'p-old',
+    startDate: '2026-09-01',
+    endDate: '2026-09-05',
+    status: 'known-end'
+  }
+  const env = createPeriodEditSaveEnv({ periods: [existing] })
+
+  try {
+    await env.harness.page.onLoad({ startDate: '2026-09-03' })
+    env.harness.page.onEndChange({ detail: { value: '2026-09-04' } })
+
+    const editing = env.harness.page.save()
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(env.modals.length, 1)
+    assert.equal(env.modals[0].confirmText, '去编辑那条')
+    assert.equal(env.modals[0].cancelText, '仍然新建')
+    assert.equal(env.adds.length, 0)
+
+    env.modals[0].success({ confirm: true, cancel: false })
+    await editing
+    assert.equal(env.adds.length, 0)
+    assert.deepEqual(env.navigation, [
+      '/pages/period/edit/edit?id=p-old&startDate=2026-09-01&endDate=2026-09-05&status=known-end'
+    ])
+
+    const creating = env.harness.page.save()
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(env.modals.length, 2)
+    env.modals[1].success({ confirm: false, cancel: true })
+    const created = await creating
+    assert.equal(created.kind, 'success')
+    assert.equal(env.adds.length, 1)
+    assert.equal(env.adds[0].payload.startDate, '2026-09-03')
+    assert.equal(env.adds[0].payload.endDate, '2026-09-04')
+    assert.equal(env.adds[0].payload.status, 'known-end')
+    assert.equal(env.navigation.length, 1)
+  } finally {
+    env.harness.teardown()
+  }
+})
+
 test('period edit switches a known-end record to unknown-end and drops the end date', async () => {
   const env = createPeriodEditSaveEnv()
 
@@ -3666,6 +3758,8 @@ function createPeriodEditSaveEnv({ periods = null } = {}) {
   const toasts = []
   const adds = []
   const updates = []
+  const modals = []
+  const navigation = []
   const storage = new Map()
   const realUtil = require(path.join(repoRoot, 'utils/util.js'))
   const harness = loadRecordPageHarness('pages/period/edit/edit.js', {
@@ -3713,6 +3807,12 @@ function createPeriodEditSaveEnv({ periods = null } = {}) {
       showToast(options) {
         toasts.push(options)
       },
+      showModal(options) {
+        modals.push(options)
+      },
+      navigateTo(options) {
+        navigation.push(options.url)
+      },
       getStorageSync(key) {
         return storage.has(key) ? storage.get(key) : ''
       },
@@ -3724,7 +3824,7 @@ function createPeriodEditSaveEnv({ periods = null } = {}) {
       }
     }
   })
-  return { harness, toasts, adds, updates, storage }
+  return { harness, toasts, adds, updates, storage, modals, navigation }
 }
 
 // 欢乐时光编辑页保存环境：与 createPeriodEditSaveEnv 同形，云端与命令层用可捕获的桩。

@@ -96,7 +96,7 @@
     </view>
 
     <view wx:else>
-      <view class="btn-premium" bindtap="addMemory" aria-role="button" aria-label="记录欢乐时光" hover-class="btn-premium-hover">＋ 记录欢乐时光</view>
+      <view class="btn-premium" bindtap="addMemory" aria-role="button" aria-label="记欢乐时光" hover-class="btn-premium-hover">＋ 记欢乐时光</view>
 
       <!-- 从未成功加载就失败：重试是可识别的操作，不是与空列表一样的安静说明 -->
       <view wx:if="{{memoryLoadFailed && !memoryHasLoaded && !memoryLoading}}" class="empty-state load-failed" bindtap="loadMemoryData" aria-role="button" aria-label="加载失败，点按重试" hover-class="load-failed-hover">

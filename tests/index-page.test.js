@@ -514,6 +514,7 @@ function loadPageHarness({ client, calendarState, room, storage } = {}) {
     switchTab() {},
     redirectTo() {},
     navigateTo() {},
+    showToast() {},
     nextTick(callback) {
       setTimeout(callback, 0)
     }
@@ -859,7 +860,7 @@ test('homepage quick period action names the ongoing day and opens that record e
   }
 })
 
-// issue #100：日历日动作 sheet 的「记录经期」与快捷入口同一决策——
+// issue #100：日历日动作 sheet 的「记经期」与快捷入口同一决策——
 // 房间已有进行中记录时打开那条记录，否则按所选日期新增（默认状态由路由按开始日期推导）
 test('calendar day period action reopens the ongoing record or creates for the selected date', () => {
   const harness = loadPageHarness({ client: createQueuedClient([]) })
@@ -867,7 +868,7 @@ test('calendar day period action reopens the ongoing record or creates for the s
     const navigation = []
     global.wx.navigateTo = options => navigation.push(options.url)
 
-    // 已有进行中记录：从日历选过去某天点「记录经期」，打开那条进行中记录
+    // 已有进行中记录：从日历选过去某天点「记经期」，打开那条进行中记录
     harness.page._homeRecords = {
       periods: [
         { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 },
@@ -895,7 +896,65 @@ test('calendar day period action reopens the ongoing record or creates for the s
   }
 })
 
-// issue #100：晚于今天的日期不提供可用的「记录经期」——动作 sheet 隐藏该入口（DESIGN.md 已登记），
+test('home period entries share one record decision and the same ongoing notice', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    const navigation = []
+    const toasts = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+    global.wx.showToast = options => toasts.push(options)
+    const notice = { title: '已有进行中的经期，继续编辑它', icon: 'none' }
+    const ongoing = { _id: 'p2', startDate: '2026-06-20', endDate: '', status: 'ongoing' }
+    const finished = { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', status: 'known-end' }
+
+    harness.page.applyHomeCalendarState({
+      periods: [finished, ongoing],
+      today: '2026-06-26'
+    })
+    harness.page.quickPeriod()
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-03' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.setData({
+      cycleReminders: [{ type: 'due', action: 'quickPeriod', date: '2026-06-26' }]
+    })
+    harness.page.onReminderTap({ currentTarget: { dataset: { index: 0 } } })
+
+    assert.deepEqual(toasts, [notice, notice, notice])
+    assert.deepEqual(navigation, [
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end',
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing',
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing'
+    ])
+
+    navigation.length = 0
+    toasts.length = 0
+    harness.page.applyHomeCalendarState({
+      periods: [finished],
+      today: '2026-06-26'
+    })
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-03' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-10' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.quickPeriod()
+    harness.page.setData({
+      cycleReminders: [{ type: 'due', action: 'quickPeriod', date: '2026-06-04' }]
+    })
+    harness.page.onReminderTap({ currentTarget: { dataset: { index: 0 } } })
+
+    assert.deepEqual(toasts, [])
+    assert.deepEqual(navigation, [
+      '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&status=known-end',
+      '/pages/period/edit/edit?startDate=2026-06-10',
+      '/pages/period/edit/edit?startDate=2026-06-26',
+      '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&status=known-end'
+    ])
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #100：晚于今天的日期不提供可用的「记经期」——动作 sheet 隐藏该入口（DESIGN.md 已登记），
 // 处理器侧保留不导航的兜底防线；编辑页日期上限与保存校验仍是最后防线
 test('calendar day period action is not usable for future dates', () => {
   const harness = loadPageHarness({ client: createQueuedClient([]) })
