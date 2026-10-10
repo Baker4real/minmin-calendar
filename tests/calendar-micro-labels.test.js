@@ -490,13 +490,17 @@ test('tappable arrows reach the body-secondary contrast level', () => {
   }
 })
 
-test('only the month title keeps the rose glow on the home screen', () => {
+test('the month title stays rose and tappable without the month-nav glow', () => {
   const app = fs.readFileSync(APP_WXSS_PATH, 'utf8')
   const navTitle = ruleBody(app, '.nav-title')
   assert.doesNotMatch(navTitle, /text-shadow/, 'nav title should not carry the rose glow')
 
   const monthTitle = ruleBody(readWxss(), '.month-title')
-  assert.match(monthTitle, /text-shadow:\s*0 0 14rpx rgba\(232,144,158,0\.28\)/)
+  assert.match(monthTitle, /color:\s*#E8909E/i)
+  assert.doesNotMatch(monthTitle, /text-shadow/)
+
+  const trigger = ruleBody(readWxss(), '.month-title-trigger')
+  assert.match(trigger, /min-height:\s*88rpx/)
 })
 
 test('earlier/later month navigation buttons keep 44px touch targets', () => {

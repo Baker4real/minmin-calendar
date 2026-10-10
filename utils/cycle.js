@@ -133,8 +133,8 @@ function buildCycleReminders(prediction, periods, options = {}) {
   if (today >= prediction.rangeStart && today <= prediction.rangeEnd) {
     reminders.push({
       type: 'due',
-      title: '正在预测区间',
-      text: '如果已经开始，可以直接记录今天',
+      title: '这几天可能开始',
+      text: '如果已经开始，可以记经期',
       action: 'quickPeriod',
       date: today
     })
@@ -142,7 +142,7 @@ function buildCycleReminders(prediction, periods, options = {}) {
     reminders.push({
       type: 'upcoming',
       title: '经期临近',
-      text: `约 ${daysToRangeStart} 天后进入预测区间`,
+      text: `约 ${daysToRangeStart} 天后是可能开始的日子`,
       action: 'quickPeriod',
       date: today
     })
@@ -565,7 +565,7 @@ function describeKnownPeriodLength({ startDate, endDate, periods = [], typicalPe
     exceedsExpected,
     expectedDays: expected.days,
     expectedSource: expected.source,
-    hint: exceedsExpected ? `超过预期的 ${expected.days} 天，请核对结束日期` : ''
+    hint: exceedsExpected ? `比你通常的 ${expected.days} 天长，确认一下结束日？` : ''
   }
 }
 

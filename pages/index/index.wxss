@@ -142,7 +142,6 @@
   position: relative;
   z-index: 1;
   color: #E8909E;
-  text-shadow: 0 0 14rpx rgba(232,144,158,0.28);
 }
 .month-title-trigger {
   min-height: 88rpx;
@@ -566,12 +565,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.month-summary-arrow {
-  flex: 0 0 auto;
-  font-size: 32rpx;
-  line-height: 1;
-  color: var(--text-secondary);
 }
 .month-summary:active,
 .month-summary.month-summary-hover {

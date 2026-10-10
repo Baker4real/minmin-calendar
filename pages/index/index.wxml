@@ -30,7 +30,7 @@
   </view>
 
   <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}">
-    <text wx:if="{{partnerWelcome}}" class="partner-welcome">已和 TA 连上。标记含义可以在「图例」里查看。</text>
+    <text wx:if="{{partnerWelcome}}" class="partner-welcome">已和 TA 连上。经期是玫瑰色带，♥ 是欢乐时光，「预」是下次可能开始的日子。</text>
     <view wx:if="{{syncStatusMounted}}" class="sync-pill sync-{{syncStatusPhase}} {{refreshing ? 'syncing' : ''}}" aria-role="status" aria-label="{{syncStatusText}}">
       <view class="sync-dot"></view>
       <text class="sync-text">{{syncStatusText}}</text>
@@ -134,8 +134,7 @@
       aria-role="button"
       aria-label="查看本月小结，本月 经期 {{monthPeriodDays}} 天 · 欢乐时光 {{monthMemoryCount}} 条"
     >
-      <text class="month-summary-text">本月 经期 {{monthPeriodDays}} 天 · 欢乐时光 {{monthMemoryCount}} 条</text>
-      <text class="month-summary-arrow">›</text>
+      <text class="month-summary-text">本月 经期 {{monthPeriodDays}} 天 · 欢乐时光 {{monthMemoryCount}} 条 ›</text>
     </view>
 
     <!-- issue #98：超期进行中记录的一次非阻塞完成提示。整行，不再套在状态卡里。 -->

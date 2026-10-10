@@ -970,7 +970,7 @@ test('settings unbind confirm explains leaving, the partner, archive, and recove
 
   const settingsUnbind = /unbind\(\)\s*\{[\s\S]*?wx\.showModal\(\{\s*title:\s*'([^']+)',\s*content:\s*'([^']+)',\s*confirmText:\s*'([^']+)',\s*confirmColor:\s*'([^']+)'/.exec(settingsSource)
   assert.ok(settingsUnbind, 'settings.js must hold the unbind confirm')
-  const bindUnbind = /unbind\(\)\s*\{[\s\S]*?wx\.showModal\(\{\s*title:\s*'([^']+)',\s*content:\s*'([^']+)'/.exec(bindSource)
+  const bindUnbind = /unbind\(\)\s*\{[\s\S]*?wx\.showModal\(\{\s*title:\s*'([^']+)',\s*content:\s*'([^']+)',\s*confirmText:\s*'([^']+)',\s*confirmColor:\s*'([^']+)'/.exec(bindSource)
   assert.ok(bindUnbind, 'bind.js keeps the same-screen unbind flow for the needUnbind state')
 
   assert.equal(settingsUnbind[1], '解除绑定')
@@ -982,9 +982,11 @@ test('settings unbind confirm explains leaving, the partner, archive, and recove
   assert.doesNotMatch(settingsUnbind[2], /本页/)
   assert.equal(settingsUnbind[3], '解除绑定')
   assert.equal(settingsUnbind[4], '#F97373')
-  // 绑定页 needUnbind 仍在本页恢复；设置页不能再沿用那句
-  assert.match(bindUnbind[2], /本页/)
-  assert.notEqual(settingsUnbind[2], bindUnbind[2])
+  assert.equal(bindUnbind[1], settingsUnbind[1])
+  assert.equal(bindUnbind[2], settingsUnbind[2])
+  assert.doesNotMatch(bindUnbind[2], /本页/)
+  assert.equal(bindUnbind[3], '解除绑定')
+  assert.equal(bindUnbind[4], '#F97373')
 })
 
 test('confirming settings unbind leaves the room and reLaunches to the bind page', async () => {

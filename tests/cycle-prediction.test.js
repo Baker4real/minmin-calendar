@@ -124,7 +124,7 @@ test('buildCycleReminders returns upcoming and overdue reminder states', () => {
     {
       type: 'upcoming',
       title: '经期临近',
-      text: '约 3 天后进入预测区间',
+      text: '约 3 天后是可能开始的日子',
       action: 'quickPeriod',
       date: '2026-08-06'
     }
@@ -133,8 +133,8 @@ test('buildCycleReminders returns upcoming and overdue reminder states', () => {
   assert.deepEqual(cycle.buildCycleReminders(prediction, periods, { today: '2026-08-09' }), [
     {
       type: 'due',
-      title: '正在预测区间',
-      text: '如果已经开始，可以直接记录今天',
+      title: '这几天可能开始',
+      text: '如果已经开始，可以记经期',
       action: 'quickPeriod',
       date: '2026-08-09'
     }
@@ -663,7 +663,7 @@ test('describeKnownPeriodLength counts inclusive days and flags spans past the c
   assert.equal(over.exceedsExpected, true)
   assert.equal(over.expectedDays, 5)
   assert.equal(over.expectedSource, 'history')
-  assert.equal(over.hint, '超过预期的 5 天，请核对结束日期')
+  assert.equal(over.hint, '比你通常的 5 天长，确认一下结束日？')
 
   const manual = cycle.describeKnownPeriodLength({
     startDate: '2026-08-01',
@@ -674,7 +674,7 @@ test('describeKnownPeriodLength counts inclusive days and flags spans past the c
   assert.equal(manual.expectedDays, 3)
   assert.equal(manual.expectedSource, 'manual')
   assert.equal(manual.days, 4)
-  assert.equal(manual.hint, '超过预期的 3 天，请核对结束日期')
+  assert.equal(manual.hint, '比你通常的 3 天长，确认一下结束日？')
 
   const unknownOnly = [
     { startDate: '2026-08-01', endDate: '', status: 'unknown-end', duration: 9 }
@@ -695,7 +695,7 @@ test('describeKnownPeriodLength counts inclusive days and flags spans past the c
     periods: unknownOnly
   })
   assert.equal(overDefault.days, 6)
-  assert.equal(overDefault.hint, '超过预期的 5 天，请核对结束日期')
+  assert.equal(overDefault.hint, '比你通常的 5 天长，确认一下结束日？')
 
   const open = cycle.describeKnownPeriodLength({
     startDate: '2026-09-01',

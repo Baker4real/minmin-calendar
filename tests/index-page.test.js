@@ -498,7 +498,7 @@ test('paired day detail rows name who recorded them, and quiet rows stay blank',
   }
 })
 
-test('homepage shows one welcome line after joining and keeps marker meanings in the legend', async () => {
+test('homepage shows one welcome line after joining and explains the three markers once', async () => {
   const storage = new Map([['partnerWelcome', 'pending']])
   const room = {
     async getVerifiedActiveRoom() {
@@ -519,8 +519,7 @@ test('homepage shows one welcome line after joining and keeps marker meanings in
     assert.deepEqual(harness.toasts, [])
     const wxml = readIndexWxml()
     assert.match(wxml, /wx:if="\{\{partnerWelcome\}\}"/)
-    assert.match(wxml, /已和 TA 连上/)
-    assert.match(wxml, /标记含义可以在「图例」里查看/)
+    assert.match(wxml, /已和 TA 连上。经期是玫瑰色带，♥ 是欢乐时光，「预」是下次可能开始的日子。/)
 
     await harness.page.onShow()
     assert.equal(harness.page.data.partnerWelcome, true)
@@ -760,7 +759,7 @@ test('homepage render data omits record arrays and the per-day detail map', asyn
     assert.equal(harness.page._dayDetailsByDate['2026-06-04'].memories[0].note, '只有四号的备注')
 
     const wxml = readIndexWxml()
-    assert.match(wxml, /class="month-summary-text">本月 经期 \{\{monthPeriodDays\}\} 天 · 欢乐时光 \{\{monthMemoryCount\}\} 条<\/text>/)
+    assert.match(wxml, /class="month-summary-text">本月 经期 \{\{monthPeriodDays\}\} 天 · 欢乐时光 \{\{monthMemoryCount\}\} 条 ›<\/text>/)
     assert.doesNotMatch(wxml, /periodCount|status-card|stat-label">经期记录/)
     assert.doesNotMatch(wxml, /periods\.length|memories\.length|dayDetailsByDate/)
   } finally {

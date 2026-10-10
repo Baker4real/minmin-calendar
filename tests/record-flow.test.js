@@ -3201,7 +3201,7 @@ test('period edit completes the same ongoing record by filling an end date', asy
     assert.equal(env.harness.page.data.status, 'known-end')
     assert.equal(env.harness.page.data.endDate, '2026-09-20')
     assert.equal(env.harness.page.data.periodDayCountText, '共 11 天')
-    assert.equal(env.harness.page.data.periodLengthHint, '超过预期的 5 天，请核对结束日期')
+    assert.equal(env.harness.page.data.periodLengthHint, '比你通常的 5 天长，确认一下结束日？')
     const periodEditWxml = readPageFile('pages/period/edit/edit.wxml')
     const endLabel = periodEditWxml.indexOf('结束日期')
     const dayText = periodEditWxml.indexOf('{{periodDayCountText}}')
@@ -3274,7 +3274,7 @@ test('period edit length hint uses completed history instead of the five-day def
     assert.equal(env.harness.page.data.endDate, '2026-08-04')
     assert.equal(env.harness.page.data.status, 'known-end')
     assert.equal(env.harness.page.data.periodDayCountText, '共 4 天')
-    assert.equal(env.harness.page.data.periodLengthHint, '超过预期的 3 天，请核对结束日期')
+    assert.equal(env.harness.page.data.periodLengthHint, '比你通常的 3 天长，确认一下结束日？')
   } finally {
     env.harness.teardown()
   }

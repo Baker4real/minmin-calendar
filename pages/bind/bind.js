@@ -180,7 +180,9 @@ Page({
   unbind() {
     wx.showModal({
       title: '解除绑定',
-      content: '解除后将退出当前房间；若你是最后一人，数据会归档，可在本页重新创建恢复。确定解除？',
+      content: '解除绑定后你会退出这个房间。TA 还在的话会留在房间里；房间里只剩你时，房间会归档。之后在绑定页点「创建」即可恢复。',
+      confirmText: '解除绑定',
+      confirmColor: '#F97373',
       success: async (res) => {
         if (res.confirm) {
           const result = await roomSession.leaveRoom()
