@@ -400,10 +400,10 @@ test('record list rows, retry affordances and settings menu entries announce the
     elements.find((element) =>
       element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
 
-  // 经期行读屏名称带状态：已知结束读「起 至 止」，进行中/结束日期不详由 rangeSummary 表达
+  // 经期行读屏名称带状态：日期走统一显示格式，进行中/结束日期不详由 rangeSummary 表达
   assert.equal(byHandler(period, 'editPeriod', 'list-item').attrs['aria-label'], '编辑经期记录 {{item.rangeSummary}}')
   assert.equal(byHandler(period, 'loadData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
-  assert.equal(byHandler(memory, 'editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.date}} 的欢乐时光')
+  assert.equal(byHandler(memory, 'editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dateLabel}} 的欢乐时光')
   assert.equal(byHandler(memory, 'loadData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
 
   assert.equal(byHandler(settings, 'copyRoomCode', 'copy-btn').attrs['aria-label'], '复制房间码')
@@ -448,7 +448,7 @@ test('record tab segment control reads as a radio group with a perceivable check
   const byHandler = (handler, cls) =>
     elements.find((element) =>
       element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
-  assert.equal(byHandler('editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.date}} 的欢乐时光')
+  assert.equal(byHandler('editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dayLabel}} 的欢乐时光')
   assert.equal(byHandler('loadMemoryData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
   assert.equal(byHandler('addMemory', 'btn-premium').attrs['aria-label'], '记录欢乐时光')
 

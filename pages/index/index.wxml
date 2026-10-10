@@ -231,7 +231,7 @@
       <view class="sheet-handle"></view>
       <view class="sheet-head">
         <view class="sheet-date-copy">
-          <text class="sheet-title">{{selectedDate}}</text>
+          <text class="sheet-title">{{selectedDateLabel}}</text>
           <text class="sheet-subtitle">{{selectedDateSubtitle}}</text>
         </view>
         <view class="sheet-close" bindtap="closeDayActions" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">×</view>

@@ -66,13 +66,26 @@ function daysBetween(d1, d2) {
   return Math.round((t2 - t1) / (24 * 60 * 60 * 1000))
 }
 
-function formatPredictDisplay(dateStr) {
-  if (!isValidDateString(dateStr)) return { date: '--', weekday: '' }
+function formatDisplayDate(dateStr, options = {}) {
+  if (!isValidDateString(dateStr)) return ''
   const date = parseDate(dateStr)
-  return {
-    date: `${String(date.getMonth() + 1).padStart(2, '0')}月${String(date.getDate()).padStart(2, '0')}日`,
-    weekday: WEEKDAYS[date.getDay()]
-  }
+  const today = resolveDisplayToday(options.today)
+  const yearPrefix = date.getFullYear() === today.getFullYear() ? '' : `${date.getFullYear()}年`
+  const text = `${yearPrefix}${date.getMonth() + 1}月${date.getDate()}日`
+  return options.withWeekday ? `${text} ${WEEKDAYS[date.getDay()]}` : text
+}
+
+function formatDisplayDateRange(startStr, endStr, options = {}) {
+  const start = formatDisplayDate(startStr, { today: options.today })
+  const end = formatDisplayDate(endStr, { today: options.today })
+  if (!start || !end) return ''
+  return `${start}–${end}`
+}
+
+function resolveDisplayToday(today) {
+  if (isValidDateString(today)) return parseDate(today)
+  if (today instanceof Date && !Number.isNaN(today.getTime())) return today
+  return new Date()
 }
 
 function getChineseDateMeta(dateStr) {
@@ -270,7 +283,8 @@ module.exports = {
   getDaysInMonth,
   getFirstDayOfMonth,
   daysBetween,
-  formatPredictDisplay,
+  formatDisplayDate,
+  formatDisplayDateRange,
   getChineseDateMeta,
   buildCalendarDays
 }

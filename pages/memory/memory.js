@@ -16,7 +16,12 @@ Page({
       page: this,
       itemsKey: 'memories',
       action: () => client.list('memories'),
-      mapRecords: memories => [...memories].sort((a, b) => b.date.localeCompare(a.date)),
+      mapRecords: memories => [...memories]
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .map(memory => ({
+          ...memory,
+          dateLabel: util.formatDisplayDate(memory.date, { today: util.formatDate(new Date()) })
+        })),
       onLoaded: () => {
         this.setData({ hasLoaded: true })
       },
