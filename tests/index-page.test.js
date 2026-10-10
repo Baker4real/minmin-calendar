@@ -652,27 +652,41 @@ test('status card prediction region opens the existing prediction sheet without 
   }
 })
 
-test('homepage quick period action reopens the existing ongoing record instead of a blank form', () => {
+test('homepage quick period action names the ongoing day and opens that record ended today', () => {
   const harness = loadPageHarness({ client: createQueuedClient([]) })
   try {
     const navigation = []
     global.wx.navigateTo = options => navigation.push(options.url)
+    const wxml = readIndexWxml()
+    assert.match(wxml, /aria-label="\{\{periodQuickAriaLabel\}\}"/)
+    assert.match(wxml, /class="quick-text">\{\{periodQuickLabel\}\}/)
+    assert.equal(harness.page.data.periodQuickLabel, '记经期')
 
-    // 已有进行中记录：快速记录经期进入原记录编辑页（重开），不是空白新增表单
-    harness.page.setData({
+    // 已有进行中记录：按钮写成第 N 天，点开那条记录并预选已结束、结束日为今天
+    harness.page.applyHomeCalendarState({
       periods: [
         { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 },
         { _id: 'p2', startDate: '2026-06-20', endDate: '', status: 'ongoing' }
-      ]
+      ],
+      today: '2026-06-26'
     })
-    harness.page.quickPeriod()
-    assert.deepEqual(navigation, ['/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing'])
-
-    // 没有进行中记录：进入默认进行中的新增表单（只带开始日期，不带结束日期）
-    harness.page.setData({ periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 }] })
+    assert.equal(harness.page.data.periodQuickLabel, '经期第 7 天 · 记结束')
+    assert.equal(harness.page.data.periodQuickAriaLabel, '经期第 7 天 · 记结束')
     harness.page.quickPeriod()
     assert.deepEqual(navigation, [
-      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing',
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end'
+    ])
+
+    // 没有进行中记录：回到「记经期」，进入只带开始日期的新增表单
+    harness.page.applyHomeCalendarState({
+      periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 }],
+      today: '2026-06-26'
+    })
+    assert.equal(harness.page.data.periodQuickLabel, '记经期')
+    assert.equal(harness.page.data.periodQuickAriaLabel, '记经期')
+    harness.page.quickPeriod()
+    assert.deepEqual(navigation, [
+      '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end',
       '/pages/period/edit/edit?startDate=2026-06-26'
     ])
   } finally {
@@ -699,7 +713,7 @@ test('calendar day period action reopens the ongoing record or creates for the s
     harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
     assert.deepEqual(navigation, ['/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing'])
 
-    // 没有进行中记录：按所选日期新增；URL 不带状态与结束日期，由路由推导为已结束起止同日
+    // 没有进行中记录：按所选日期新增；URL 不带状态与结束日期，由路由推导为已结束且结束日留空
     harness.page.setData({ periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 5 }] })
     harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-10' } } })
     harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
