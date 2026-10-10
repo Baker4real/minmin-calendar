@@ -475,7 +475,7 @@ const INDEX_GOLD_ALLOWLIST = new Set([
   '.detail-title',
   '.detail-meaning.predict',
   '.detail-meaning.holiday',
-  '.prediction-summary'
+
 ])
 
 test('home page reserves gold for prediction, range, certainty, and calendar metadata', () => {

@@ -547,6 +547,34 @@ test('index exposes calendar meaning and monthly recap sheets', () => {
   assert.match(wxss, /\.detail-meaning/)
 })
 
+test('monthly recap sheet does not repeat the viewed month under the title', () => {
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const infoStart = wxml.indexOf('calendar-info-sheet')
+  const info = wxml.slice(infoStart, wxml.indexOf('page-container', infoStart))
+  const titleAt = info.indexOf('monthlyRecap.title')
+  assert.ok(titleAt > 0, 'expected the recap title in the info sheet')
+  const between = info.slice(titleAt, info.indexOf('sheet-subtitle', titleAt))
+  assert.match(between, /infoSheetMode != 'recap'/)
+})
+
+test('prediction explanation and recap copy read as paragraphs, not tappable rows', () => {
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
+  const copyStart = wxml.indexOf('class="prediction-explanation"')
+  const copy = wxml.slice(copyStart, wxml.indexOf('class="copy-recap"', copyStart))
+  assert.ok(copyStart > 0)
+  assert.doesNotMatch(copy, /bindtap/)
+
+  for (const selector of ['.prediction-summary', '.explain-line', '.recap-summary', '.recap-highlight']) {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const body = new RegExp(`(?:^|[\\n}])\\s*${escaped}\\s*\\{([^}]+)\\}`).exec(wxss)
+    assert.ok(body, `expected ${selector}`)
+    assert.doesNotMatch(body[1], /background/, `${selector} should not wear a button fill`)
+    assert.doesNotMatch(body[1], /border/, `${selector} should not wear a button border`)
+    assert.doesNotMatch(body[1], /min-height/, `${selector} should not reserve a tap height`)
+  }
+})
+
 test('index sync feedback stays tied to real record changes without blocking calendar interaction', () => {
   const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')

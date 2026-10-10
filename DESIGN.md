@@ -129,7 +129,7 @@ components:
     backgroundColor: "rgba(255,255,255,0.075)"
     railColor: "#D4A574"
     dueRailColor: "#E8909E"
-    overdueRailColor: "#F97373"
+    overdueRailColor: "#FFFFFF"
   choice-chip:
     minTouchHeight: 44px
     inactiveBg: "rgba(255,255,255,0.065)"
@@ -167,7 +167,7 @@ components:
 
 主填充按钮是玫瑰底 `#E8909E` + 画布海军字 `#0A0E27`，玫瑰填充一律写 `var(--aurora-pink)`（`.btn-premium`、`.copy-btn` 与首页的 `.quick-btn`、`.reminder-action`、`.jump-option.active`、`.copy-recap` 由 `tests/design-token-guardrail.test.js` 钉住单一来源，`tests/filled-cta-contrast.test.js` 钉住玫瑰底海军字 4.5:1 对比度）。全页面（含绑定页）同一套玫瑰主操作，无页面级例外。护栏为 deny-by-default：任何选择器的渐变填充（linear/radial/conic）与实色玫瑰字面量填充（`#E8909E` / `rgb(232,144,158)` / `rgba(232,144,158,1)`）都必须落在测试登记的装饰例外白名单内，新增主操作按钮写字面量玫瑰或渐变填充会被直接拒绝。同结构的复制键和选中块走同一对色。不要把白字叠玫瑰写成规范。主按钮（`.btn-premium`、`.quick-btn`、`.reminder-action`、`.copy-recap`）只有一种形状：`var(--radius-md)`。复制键和重试小按钮不是主按钮。分段控件（记录分类 `.segment-option`、设置密度 `.density-option`、绑定页创建/加入 `.tab`）只有一种选中态：玫瑰字 `#E8909E`、`rgba(232,144,158,0.08)` 底、`rgba(232,144,158,0.45)` 描边，不用实色玫瑰填充。
 
-元数据金 `#D4A574` 只表示下次可能开始的日子（「预」）和节日文字，以及已登记的预测与确定性元数据（同步状态点、预测日期、详情里的预测与节日标题）。调休「班」不用金。实色金一律 `var(--aurora-gold)`。节日是无底金字：不铺整格金底，也不铺金底胶囊。玫瑰 → 金的 135deg 渐变曾是 CTA 误用形态，已随 issue #55 退役：`--gradient-gold` token 已从 `app.wxss` 删除，任何页面不得再引用（design-token 护栏强制）。玫瑰 → 薰衣草的 `--gradient-pink` 同样无屏上引用，已随 issue #59 一并退役；渐变填充不再以 token 形式提供。首页金色只允许落在白名单规则上（`.predict-mark`、`.predict-date`、`.prediction-summary`、`.reminder-rail`、`.holiday-tag`、`.sync-dot`、`.detail-title`、`.detail-meaning.predict`/`.holiday`），由 `tests/design-token-guardrail.test.js` 的金语义白名单钉住。页面 WXSS 不得再出现 `#D4A574` 字面量。金的 rgba 只留给描边或辉光（「预」的描边、同步点光晕），不铺节日标签底。
+元数据金 `#D4A574` 只表示下次可能开始的日子（「预」）和节日文字，以及已登记的预测与确定性元数据（同步状态点、预测日期、详情里的预测与节日标题）。调休「班」不用金。实色金一律 `var(--aurora-gold)`。节日是无底金字：不铺整格金底，也不铺金底胶囊。预测说明正文不用金。玫瑰 → 金的 135deg 渐变曾是 CTA 误用形态，已随 issue #55 退役：`--gradient-gold` token 已从 `app.wxss` 删除，任何页面不得再引用（design-token 护栏强制）。玫瑰 → 薰衣草的 `--gradient-pink` 同样无屏上引用，已随 issue #59 一并退役；渐变填充不再以 token 形式提供。首页金色只允许落在白名单规则上（`.predict-mark`、`.predict-date`、`.reminder-rail`、`.holiday-tag`、`.sync-dot`、`.detail-title`、`.detail-meaning.predict`/`.holiday`），由 `tests/design-token-guardrail.test.js` 的金语义白名单钉住。页面 WXSS 不得再出现 `#D4A574` 字面量。金的 rgba 只留给描边或辉光（「预」的描边、同步点光晕），不铺节日标签底。
 
 不安装、不覆盖成外部品牌设计系统。系统名仍是 Aurora Bloom。
 
@@ -262,20 +262,21 @@ Prediction metadata, reminder cards, and period tag chips stay compact and low-n
 
 ## 警示红语义
 
-警示红 `#F97373` 是全色板唯一的警示色，一族只表示「需要注意的负面状态」，目前在屏上有四种形态：
+警示红 `#F97373` 是全色板唯一的警示色，一族只表示「需要注意的负面状态」，目前在屏上有三种形态：
 
 | 形态 | 位置 | 表现 |
 |---|---|---|
 | 危险操作按钮 | `.btn-danger`（删除记录；绑定页 needUnbind 中间态的解除绑定入口；app 级基类） | 红字 + `rgba(249,115,115,0.28)` 描边，不透明海军实底（`var(--glass-bg)` 叠 `rgba(18,22,61,0.92)`）；Pressed 叠 `rgba(249,115,115,0.12)`、`scale(0.95)` |
 | 危险菜单行 | `.menu-item.danger`（设置页页底危险区：解除绑定） | 红字 + `rgba(249,115,115,0.28)` 描边 + 海军实底；Pressed 叠 `rgba(249,115,115,0.12)`、`scale(0.95)` |
-| 逾期提醒 | `.reminder-card.overdue .reminder-rail` | 6rpx 细 rail 实色填充 + `rgba(249,115,115,0.38)` 辉光 |
 | 表单错误 | `.error-msg`（绑定页） | 红字 + `rgba(249,115,115,0.1)` 浅底 + `rgba(249,115,115,0.24)` 描边 |
+
+推迟提醒不在这一族里。`.reminder-card.overdue .reminder-rail` 用中性色 `#FFFFFF`，没有警示红辉光。
 
 「解除绑定」属危险操作：设置页页底危险区的 `.menu-item.danger` 菜单行（issue #102 从绑定页已绑定卡迁入，issue #139 再从房间组挪到页底；有房间码才出现，解绑成功回绑定页）与绑定页 needUnbind 中间态（错误恢复路径）的就地解除入口（跟随 app 级 `.btn-danger` 基类）；issue #88 试点的粉幽灵形态已随 issue #104 收敛移除，不再存在红族之外的解除绑定样式。重新同步房间不是危险操作，不用这行样式。绑定页的校验失败重试 `.error-retry`（issue #102）是表单错误同族的轻量按钮——红字 + 同款浅底描边，Pressed 叠更深一档红 tint `rgba(249,115,115,0.24)`，无 transform 过渡。
 
-同一含义共享同一红色，组件角色靠形态（按钮 / 细 rail / 文案条）区分，不靠颜色分叉；不引入第二种红。
+同一含义共享同一红色，组件角色靠形态（按钮 / 文案条）区分，不靠颜色分叉；不引入第二种红。
 
-与「一个符号只表一意」家规的关系：家规约束同一符号不得表二意；警示红一族是反向合规——同一含义（负面状态）复用同一符号（这个红），形态承载角色、颜色不承载区分。若给逾期、危险、错误各配一种红，同一含义裂成多个符号，反而违反家规。
+与「一个符号只表一意」家规的关系：家规约束同一符号不得表二意；警示红一族是反向合规——同一含义（负面状态）复用同一符号（这个红），形态承载角色、颜色不承载区分。若给危险操作和表单错误各配一种红，同一含义裂成多个符号，反而违反家规。
 
 ## Do's and Don'ts
 

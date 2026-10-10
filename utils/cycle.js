@@ -149,8 +149,8 @@ function buildCycleReminders(prediction, periods, options = {}) {
   } else if (daysAfterRangeEnd > 0 && daysAfterRangeEnd <= 7) {
     reminders.push({
       type: 'overdue',
-      title: '预测已过',
-      text: `预测区间已过 ${daysAfterRangeEnd} 天，如已开始可以补记`,
+      title: '周期有波动很正常',
+      text: '如果已经开始，可以补记',
       action: 'quickPeriod',
       date: today
     })

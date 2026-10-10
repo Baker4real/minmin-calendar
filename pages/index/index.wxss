@@ -568,8 +568,8 @@
   box-shadow: 0 0 14rpx rgba(232,144,158,0.4);
 }
 .reminder-card.overdue .reminder-rail {
-  background: #F97373;
-  box-shadow: 0 0 14rpx rgba(249,115,115,0.38);
+  background: #FFFFFF;
+  box-shadow: none;
 }
 .reminder-copy {
   flex: 1;
@@ -1296,45 +1296,32 @@
 .prediction-summary {
   display: block;
   min-width: 0;
-  padding: 22rpx 20rpx;
-  border-radius: var(--radius-md);
   font-size: var(--font-size-body-lg);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.9);
-  background: rgba(212,165,116,0.12);
-  border: 1px solid rgba(212,165,116,0.18);
   word-break: break-all;
   overflow-wrap: anywhere;
 }
 .explain-line {
+  display: block;
   min-width: 0;
-  min-height: 64rpx;
-  padding: 16rpx 18rpx;
-  box-sizing: border-box;
-  border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
-  background: rgba(255,255,255,0.065);
-  border: 1px solid rgba(255,255,255,0.09);
   word-break: break-all;
   overflow-wrap: anywhere;
 }
 .recap-summary {
   display: block;
   min-width: 0;
-  padding: 18rpx 20rpx;
-  border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.82);
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.1);
   word-break: break-all;
   overflow-wrap: anywhere;
 }
@@ -1344,16 +1331,13 @@
   gap: 10rpx;
 }
 .recap-highlight {
+  display: block;
   min-width: 0;
-  padding: 16rpx 18rpx;
-  border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.78);
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
   word-break: break-all;
   overflow-wrap: anywhere;
 }

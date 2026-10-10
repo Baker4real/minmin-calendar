@@ -384,7 +384,7 @@
           <text wx:if="{{infoSheetMode == 'legend'}}" class="sheet-title">日历图例</text>
           <text wx:elif="{{infoSheetMode == 'prediction'}}" class="sheet-title">{{predictionExplanation.title}}</text>
           <text wx:elif="{{infoSheetMode == 'recap' && monthlyRecap}}" class="sheet-title">{{monthlyRecap.title}}</text>
-          <text class="sheet-subtitle">{{year}}年{{month + 1}}月</text>
+          <text wx:if="{{infoSheetMode != 'recap'}}" class="sheet-subtitle">{{year}}年{{month + 1}}月</text>
         </view>
         <view class="sheet-close" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">×</view>
       </view>
@@ -407,11 +407,11 @@
 
       <view wx:elif="{{infoSheetMode == 'prediction'}}" class="prediction-explanation">
         <text class="prediction-summary">{{predictionExplanation.summary}}</text>
-        <view
+        <text
           wx:for="{{predictionExplanation.lineItems}}"
           wx:key="key"
           class="explain-line"
-        >{{item.text}}</view>
+        >{{item.text}}</text>
       </view>
 
       <view wx:elif="{{infoSheetMode == 'recap' && monthlyRecap}}" class="monthly-recap">
@@ -419,11 +419,11 @@
         <text class="recap-summary">{{monthlyRecap.memorySummary}}</text>
         <text class="recap-summary">{{monthlyRecap.predictionSummary}}</text>
         <view wx:if="{{monthlyRecap.highlightItems.length}}" class="recap-highlights">
-          <view
+          <text
             wx:for="{{monthlyRecap.highlightItems}}"
             wx:key="key"
             class="recap-highlight"
-          >{{item.text}}</view>
+          >{{item.text}}</text>
         </view>
         <view class="copy-recap" bindtap="copyMonthlyRecap" aria-role="button" aria-label="复制小结" hover-class="copy-recap-hover">复制小结</view>
       </view>
