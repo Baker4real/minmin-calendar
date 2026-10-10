@@ -84,8 +84,8 @@ test('non-interactive titles use the neutral text color, not rose', () => {
 test('month title, period figures, today and the period dot stay rose', () => {
   assert.equal(declarationOf('pages/index/index.wxss', '.month-title', 'color'), ROSE,
     'the month title opens the month picker, it keeps rose')
-  assert.equal(declarationOf('pages/index/index.wxss', '.stat-num', 'color'), ROSE,
-    'the period-record figure stays rose')
+  assert.equal(declarationOf('pages/index/index.wxss', '.period-tone', 'color'), ROSE,
+    'the period mark on the record action stays rose')
   assert.equal(declarationOf('pages/index/index.wxss', '.day-cell.today .day-num', 'color'), ROSE,
     "today's date stays rose")
 })
@@ -146,6 +146,51 @@ test('the light heart stays the happy-time color on memory rows', () => {
   assert.equal(wxssRuleBody('pages/settings/settings.wxss', '.menu-heart'), null)
   assert.equal(declarationOf('pages/memory/memory.wxss', '.memory-heart', 'color'), LIGHT_HEART)
 })
+
+test('in-progress duration chip text clears 4.5:1 on the list-card composite', () => {
+  // 进行中胶囊叠在经期列表卡上：画布 → 玻璃卡（回退海军 + 8% 白）→ 胶囊底
+  const color = declarationOf('pages/period/period.wxss', '.item-duration.ongoing', 'color')
+  const fill = cssColor(declarationOf('pages/period/period.wxss', '.item-duration.ongoing', 'background'))
+  const canvas = hex(pageCanvas())
+  const fallback = cssColor(tokenValue('--glass-fallback'))
+  const glass = cssColor(tokenValue('--glass-bg'))
+  const card = composite(composite(canvas, fallback, fallback.a), glass, glass.a)
+  const surface = composite(card, fill, fill.a)
+  const ratio = contrastRatio(paint(color, surface), toHex(surface))
+  assert.ok(
+    ratio >= 4.5,
+    `in-progress duration chip ${color} on ${toHex(surface)} is ${ratio.toFixed(2)}:1, below 4.5:1`
+  )
+})
+
+function pageCanvas() {
+  const css = readSource('app.wxss').replace(/\/\*[\s\S]*?\*\//g, '')
+  const rules = css.matchAll(/(?:^|[}\s])page\s*\{([^}]*)\}/g)
+  for (const rule of rules) {
+    const decl = /(?:^|\s)background\s*:\s*([^;]+);/.exec(rule[1])
+    if (decl && /^#[0-9a-f]{6}$/i.test(decl[1].trim())) return decl[1].trim()
+  }
+  assert.fail('expected a solid page canvas background')
+}
+
+function tokenValue(name) {
+  const match = new RegExp(`${name}\\s*:\\s*([^;]+);`).exec(readSource('app.wxss'))
+  assert.ok(match, `expected ${name} in app.wxss`)
+  return match[1].trim()
+}
+
+function cssColor(value) {
+  const resolved = String(value).trim()
+  if (/^#[0-9a-f]{6}$/i.test(resolved)) return { ...hex(resolved), a: 1 }
+  const rgba = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)$/.exec(resolved)
+  assert.ok(rgba, `expected a hex or rgba color, got ${value}`)
+  return {
+    r: Number(rgba[1]) / 255,
+    g: Number(rgba[2]) / 255,
+    b: Number(rgba[3]) / 255,
+    a: Number(rgba[4])
+  }
+}
 
 function exactDeclaration(relativePath, selector, property) {
   const css = readSource(relativePath).replace(/\/\*[\s\S]*?\*\//g, '')

@@ -38,7 +38,7 @@ const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'pages/index/index.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
   { file: 'pages/index/index.wxss', selector: '.sheet-action-icon', kind: 'glyph', value: '26rpx' },
   { file: 'pages/index/index.wxss', selector: '.sheet-action-arrow', kind: 'glyph', value: '42rpx' },
-  { file: 'pages/index/index.wxss', selector: '.stat-num', kind: 'display', value: '36rpx' },
+  { file: 'pages/index/index.wxss', selector: '.month-summary-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/period/period.wxss', selector: '.item-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/period/period.wxss', selector: '.cycle-num', kind: 'display', value: '44rpx' },
   { file: 'pages/period/period.wxss', selector: '.memory-heart', kind: 'glyph', value: '36rpx' },
@@ -179,10 +179,10 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/index/index.wxss', '.predict-mark', 'assist'],
   ['pages/index/index.wxss', '.week-cell', 'assist'],
   ['pages/index/index.wxss', '.sync-text', 'assist'],
-  ['pages/index/index.wxss', '.stat-label', 'assist'],
-  ['pages/index/index.wxss', '.stat-num', 'control'],
-  ['pages/index/index.wxss', '.predict-date', 'control'],
-  ['pages/index/index.wxss', '.predict-weekday', 'assist'],
+  ['pages/index/index.wxss', '.home-status-text', 'assist'],
+  ['pages/index/index.wxss', '.month-summary-text', 'assist'],
+  ['pages/index/index.wxss', '.back-today', 'control'],
+  ['pages/index/index.wxss', '.nav-tool', 'control'],
   ['pages/index/index.wxss', '.reminder-title', 'assist'],
   ['pages/index/index.wxss', '.reminder-text', 'assist'],
   ['pages/index/index.wxss', '.reminder-action', 'control'],
@@ -259,9 +259,8 @@ const GLYPH_WEIGHT_HOLDS = [
 
 const TABULAR_NUMERIC = [
   ['pages/index/index.wxss', '.day-num'],
-  ['pages/index/index.wxss', '.predict-date'],
+  ['pages/index/index.wxss', '.home-status-text'],
   ['pages/index/index.wxss', '.jump-year-value'],
-  ['pages/index/index.wxss', '.stat-num'],
   ['pages/period/period.wxss', '.cycle-num'],
   ['pages/period/period.wxss', '.item-date'],
   ['pages/memory/memory.wxss', '.memory-date'],
@@ -455,8 +454,6 @@ test('flowing body copy uses the body line-height role', () => {
 // 单行控件、基线对齐和胶囊盒高保留局部行高；阅读行高必须走角色 token。
 const LOCAL_LINE_HEIGHT = new Map([
   ['pages/index/index.wxss::.sync-text', '1.25'],
-  ['pages/index/index.wxss::.predict-date', '1.15'],
-  ['pages/index/index.wxss::.predict-weekday', '1.15'],
   ['pages/index/index.wxss::.sheet-action-title', '1.25'],
   ['pages/index/index.wxss::.legend-title', '1.25'],
   ['pages/period/edit/edit.wxss::.flow-chip', '1.2'],

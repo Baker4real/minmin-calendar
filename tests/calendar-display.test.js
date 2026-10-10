@@ -365,9 +365,10 @@ test('memory list heart matches the calendar heart glyph system', () => {
   const memoryWxss = fs.readFileSync(path.join(__dirname, '..', 'pages/memory/memory.wxss'), 'utf8')
   const indexWxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
 
+  const periodWxml = fs.readFileSync(path.join(__dirname, '..', 'pages/period/period.wxml'), 'utf8')
   assert.match(indexWxml, /class="mark memory-mark">♥</)
-  assert.match(memoryWxml, /class="memory-heart">♥</)
-  assert.doesNotMatch(memoryWxml, /class="memory-heart">❤/)
+  assert.match(periodWxml, /class="memory-heart">♥</)
+  assert.doesNotMatch(memoryWxml, /class="memory-heart"/)
   assert.match(memoryWxss, /\.memory-heart\s*\{[^}]*color:\s*#F0C4C0/i)
 })
 
@@ -445,7 +446,7 @@ test('index calendar applies the persisted density without hosting the control',
   assert.doesNotMatch(wxml, /class="day-lunar">\{\{item\.lunarText\}\}/)
   assert.match(wxml, /wx:if="\{\{!item\.isEmpty\}\}" class="day-tag-line"/)
 
-  assert.match(wxss, /\.calendar-density-compact\s+\.day-cell\s*\{[\s\S]*height:\s*140rpx/)
+  assert.match(wxss, /\.calendar-density-compact\s+\.day-cell\s*\{[\s\S]*height:\s*var\(--calendar-row-height,\s*140rpx\)/)
 })
 
 test('settings page hosts the calendar density control with a quiet rose selected state', () => {
@@ -547,6 +548,34 @@ test('index exposes calendar meaning and monthly recap sheets', () => {
   assert.match(wxss, /\.detail-meaning/)
 })
 
+test('monthly recap sheet does not repeat the viewed month under the title', () => {
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const infoStart = wxml.indexOf('calendar-info-sheet')
+  const info = wxml.slice(infoStart, wxml.indexOf('page-container', infoStart))
+  const titleAt = info.indexOf('monthlyRecap.title')
+  assert.ok(titleAt > 0, 'expected the recap title in the info sheet')
+  const between = info.slice(titleAt, info.indexOf('sheet-subtitle', titleAt))
+  assert.match(between, /infoSheetMode != 'recap'/)
+})
+
+test('prediction explanation and recap copy read as paragraphs, not tappable rows', () => {
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
+  const copyStart = wxml.indexOf('class="prediction-explanation"')
+  const copy = wxml.slice(copyStart, wxml.indexOf('class="copy-recap"', copyStart))
+  assert.ok(copyStart > 0)
+  assert.doesNotMatch(copy, /bindtap/)
+
+  for (const selector of ['.prediction-summary', '.explain-line', '.recap-summary', '.recap-highlight']) {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const body = new RegExp(`(?:^|[\\n}])\\s*${escaped}\\s*\\{([^}]+)\\}`).exec(wxss)
+    assert.ok(body, `expected ${selector}`)
+    assert.doesNotMatch(body[1], /background/, `${selector} should not wear a button fill`)
+    assert.doesNotMatch(body[1], /border/, `${selector} should not wear a button border`)
+    assert.doesNotMatch(body[1], /min-height/, `${selector} should not reserve a tap height`)
+  }
+})
+
 test('index sync feedback stays tied to real record changes without blocking calendar interaction', () => {
   const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
@@ -635,17 +664,13 @@ test('home page consumes RoomDataClient outcomes instead of legacy room-code and
   assert.match(wxml, /handleRoomStatusAction/)
 })
 
-test('index status-card keeps only layout overrides over premium-card glass', () => {
+test('home summary row is a plain row and does not bring back the nested status card', () => {
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
-  const match = wxss.match(/(?:^|\r?\n)\.status-card\s*\{([\s\S]*?)\r?\n\}/m)
-  assert.ok(match, 'expected a top-level .status-card rule')
-  const block = match[1]
-
-  assert.match(block, /margin-top\s*:/)
-  assert.match(block, /padding\s*:/)
-  assert.doesNotMatch(block, /background/)
-  assert.doesNotMatch(block, /backdrop-filter/)
-  assert.doesNotMatch(block, /border/)
+  assert.doesNotMatch(wxss, /\.status-card\s*\{/)
+  const match = wxss.match(/(?:^|\r?\n)\.month-summary\s*\{([\s\S]*?)\r?\n\}/m)
+  assert.ok(match, 'expected a top-level .month-summary rule')
+  assert.doesNotMatch(match[1], /backdrop-filter|premium-card/)
+  assert.doesNotMatch(match[1], /(?:^|\s)background\s*:/)
 })
 
 function pickMeta(meta) {

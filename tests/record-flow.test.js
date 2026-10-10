@@ -1166,10 +1166,11 @@ test('period and memory list templates keep the REC-03 visible row contract', ()
   assert.match(periodWxml, /wx:if="\{\{item\.status === 'known-end'\}\}" class="item-duration">\{\{item\.durationText\}\}/)
   assert.match(periodWxml, /class="item-duration ongoing">\{\{item\.durationText\}\}/)
 
-  assert.match(memoryWxml, /class="memory-date">\{\{item\.dateLabel\}\}/)
-  assert.doesNotMatch(memoryWxml, /\{\{item\.date\}\}/)
-  // 没有备注的欢乐时光不显示备注句；真实写下的备注（含与旧占位句相同的文字）照常显示
-  assert.match(memoryWxml, /wx:if="\{\{item\.note\}\}"[^>]*>\{\{item\.note\}\}/)
+  // 欢乐时光行在记录 tab；旧页不再渲染自己的列表
+  assert.match(periodWxml, /class="memory-date">\{\{item\.dayLabel\}\}/)
+  assert.doesNotMatch(periodWxml, /class="memory-date">\{\{item\.date\}\}/)
+  assert.match(periodWxml, /wx:if="\{\{item\.note\}\}" class="memory-note">\{\{item\.note\}\}/)
+  assert.doesNotMatch(memoryWxml, /wx:for="\{\{memories\}\}"/)
   assert.doesNotMatch(memoryWxml, /我们的欢乐时光'/)
 
   // 经量标签带 flow 变体类（玫瑰角色只落在经量上），症状标签保持中性的基础类
@@ -1184,16 +1185,20 @@ test('record list pages show load-failed retry copy and hide period stats while 
   const memoryJs = readPageFile('pages/memory/memory.js')
 
   assert.match(periodJs, /loadFailed:\s*false/)
-  assert.match(memoryJs, /loadFailed:\s*false/)
   assert.match(periodWxml, /loadFailed/)
-  assert.match(memoryWxml, /loadFailed/)
   assert.match(periodWxml, /加载失败，点按重试/)
-  assert.match(memoryWxml, /加载失败，点按重试/)
+  // 旧欢乐时光页不再画自己的失败卡；记录 tab 的欢乐时光分段仍有重试
+  assert.doesNotMatch(memoryJs, /loadFailed/)
+  assert.doesNotMatch(memoryWxml, /加载失败，点按重试/)
+  assert.match(periodWxml, /欢乐时光加载失败/)
   // 首次加载失败不显示确信的 0：数字只在未失败或曾成功加载时呈现，否则落到 -- 占位
   assert.match(periodWxml, /wx:if="\{\{!loading && \(!loadFailed \|\| hasLoaded\)\}\}"[^>]*class="cycle-num">\{\{periods\.length\}\}/)
   assert.match(periodWxml, /wx:elif="\{\{!loading\}\}"[^>]*class="cycle-num">--</)
-  assert.match(periodWxml, /wx:if="\{\{!loading\}\}"[^>]*>\{\{avgCycle \|\| '--'\}\}/)
-  assert.match(periodWxml, /wx:if="\{\{!loading\}\}"[^>]*>\{\{avgDuration \|\| '--'\}\}/)
+  assert.match(periodWxml, /class="cycle-label">平均周期</)
+  assert.match(periodWxml, /wx:if="\{\{!loading && avgCycle\}\}" class="cycle-num">\{\{avgCycle\}\} 天</)
+  assert.match(periodWxml, /class="cycle-label">平均持续</)
+  assert.match(periodWxml, /wx:if="\{\{!loading && avgDuration\}\}" class="cycle-num">\{\{avgDuration\}\} 天</)
+  assert.doesNotMatch(periodWxml, /持续天数/)
   assert.match(periodJs, /hasLoaded:\s*false/)
   assert.match(periodJs, /onLoaded: periods => \{[\s\S]*?hasLoaded: true/)
 })
@@ -1262,7 +1267,8 @@ test('period list failure retry is a recognizable operation, distinct from the q
   // 真空态仍是安静说明：不带重试按钮，也不可点；失败期间不显示断言式空态句（!loadFailed）
   const emptyBlock = /wx:elif="\{\{periods\.length === 0 && !loading && !loadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
   assert.ok(emptyBlock, 'expected the genuine empty state block')
-  assert.match(emptyBlock[1], /还没有经期记录/)
+  assert.match(emptyBlock[1], /经期开始那天点「＋ 新增经期记录」，记两次以上就能预测下次/)
+  assert.doesNotMatch(emptyBlock[1], /点上面按钮新增/)
   assert.doesNotMatch(emptyBlock[1], /retry-btn|bindtap/)
 
   // 重试按钮是玫瑰底海军字的小操作，触控目标 88rpx（750rpx 设计宽 = 44px@375px，非日历可点控件统一 88rpx 档）
@@ -1293,43 +1299,6 @@ test('period list keeps last data on refresh failure and offers retry in the lis
   const retryText = /\.list-retry-text\s*\{[^}]*\}/.exec(periodWxss)
   assert.ok(retryText, 'expected the .list-retry-text rule')
   assert.match(retryText[0], /color:\s*var\(--text-secondary\)/)
-})
-
-test('memory list failure retry reads as an operation, not the quiet empty note', () => {
-  const memoryWxml = readPageFile('pages/memory/memory.wxml')
-  const memoryWxss = readPageFile('pages/memory/memory.wxss')
-  const memoryJs = readPageFile('pages/memory/memory.js')
-
-  // 整卡失败态只在从未成功加载时出现；已加载后的失败保留列表，改走列表区重试行
-  assert.match(
-    memoryWxml,
-    /wx:if="\{\{loadFailed && !hasLoaded && !loading\}\}" class="empty-state load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试"/
-  )
-  assert.match(memoryWxml, /class="load-failed-text">欢乐时光加载失败</)
-  assert.match(memoryWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
-
-  // 空列表说明保持安静：没有按钮、不可点；失败期间不显示断言式空态句（与经期列表一致）
-  const emptyBlock = /wx:elif="\{\{memories\.length === 0 && !loading && !loadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(memoryWxml)
-  assert.ok(emptyBlock, 'expected the genuine empty state block')
-  assert.match(emptyBlock[1], /还没有记录/)
-  assert.doesNotMatch(emptyBlock[1], /retry-btn|bindtap/)
-
-  // 已加载后失败：列表保留，重试行留在列表区域（玫瑰重试按钮沿用 #76 样式）
-  assert.match(
-    memoryWxml,
-    /wx:if="\{\{loadFailed && hasLoaded && !loading\}\}" class="list-item" bindtap="loadData" aria-role="button" aria-label="刷新失败，点按重试"/
-  )
-  assert.match(memoryWxml, /class="memory-note">刷新失败，正在显示上次的内容</)
-
-  // hasLoaded 经 onLoaded 接线，与 period 页同模式
-  assert.match(memoryJs, /hasLoaded:\s*false/)
-  assert.match(memoryJs, /onLoaded:[\s\S]*?hasLoaded: true/)
-
-  const retryRule = /\.retry-btn\s*\{[^}]*\}/.exec(memoryWxss)
-  assert.ok(retryRule, 'expected the .retry-btn rule')
-  assert.match(retryRule[0], /background:\s*var\(--aurora-pink\)/)
-  assert.match(retryRule[0], /color:\s*#0A0E27/)
-  assert.match(retryRule[0], /min-height:\s*88rpx/)
 })
 
 test('period list first failure keeps hasLoaded false, then a retry loads records', async () => {
@@ -1566,160 +1535,45 @@ test('period list keeps the 0 count and retry row without the assertive empty no
   }
 })
 
-test('memory list failure marks loadFailed and recovers through the retry entry', async () => {
-  let call = 0
+test('legacy happy-time page writes the segment intent and switches to the record tab', async () => {
+  // 兼容路由（issue #143）：旧欢乐时光页不再自己拉列表，只写下一次性分段意图并切到记录 tab
+  const storage = {}
+  const tabs = []
+  let listed = 0
   const harness = loadRecordPageHarness('pages/memory/memory.js', {
     mocks: {
       'utils/cloud.js': {
         createRoomDataClient() {
           return {
             async list() {
-              call += 1
-              if (call === 1) return { kind: 'retryable-failure', message: 'network down' }
-              return {
-                kind: 'success',
-                data: [{ _id: 'm1', date: '2026-06-01', note: '一次愉快的野餐' }]
-              }
+              listed += 1
+              return { kind: 'success', data: [{ _id: 'm1', date: '2026-06-01', note: '野餐' }] }
             }
           }
         }
       }
     },
     wxOverrides: {
-      showModal(options) {
-        options.success({ confirm: false, cancel: true })
+      setStorageSync(key, value) {
+        storage[key] = value
+      },
+      switchTab(options) {
+        tabs.push(options.url)
       }
     }
   })
 
   try {
     await harness.page.onShow()
-    assert.equal(harness.page.data.loadFailed, true)
-    assert.equal(harness.page.data.loading, false)
-    assert.deepEqual(harness.page.data.memories, [])
-
-    await harness.page.loadData()
-    assert.equal(harness.page.data.loadFailed, false)
-    assert.deepEqual(harness.page.data.memories, [
-      { _id: 'm1', date: '2026-06-01', note: '一次愉快的野餐', dateLabel: '6月1日' }
-    ])
-  } finally {
-    harness.teardown()
-  }
-})
-
-test('memory list first failure keeps hasLoaded false so only the whole failure card can show', async () => {
-  const harness = loadRecordPageHarness('pages/memory/memory.js', {
-    mocks: {
-      'utils/cloud.js': {
-        createRoomDataClient() {
-          return {
-            async list() {
-              return { kind: 'retryable-failure', message: 'network down' }
-            }
-          }
-        }
-      }
-    },
-    wxOverrides: {
-      showModal(options) {
-        options.success({ confirm: false, cancel: true })
-      }
-    }
-  })
-
-  try {
-    // 从未成功加载就失败：hasLoaded 保持 false，整卡失败态条件成立、列表区重试行条件不成立
-    await harness.page.onShow()
-    assert.equal(harness.page.data.loadFailed, true)
-    assert.equal(harness.page.data.hasLoaded, false)
-    assert.equal(harness.page.data.loading, false)
-    assert.deepEqual(harness.page.data.memories, [])
-  } finally {
-    harness.teardown()
-  }
-})
-
-test('memory list keeps records and turns to the list-area retry row when a later refresh fails', async () => {
-  let call = 0
-  const harness = loadRecordPageHarness('pages/memory/memory.js', {
-    mocks: {
-      'utils/cloud.js': {
-        createRoomDataClient() {
-          return {
-            async list() {
-              call += 1
-              if (call === 1) {
-                return {
-                  kind: 'success',
-                  data: [{ _id: 'm1', date: '2026-06-01', note: '一次愉快的野餐' }]
-                }
-              }
-              return { kind: 'retryable-failure', message: 'network down' }
-            }
-          }
-        }
-      }
-    },
-    wxOverrides: {
-      showModal(options) {
-        options.success({ confirm: false, cancel: true })
-      }
-    }
-  })
-
-  try {
-    await harness.page.onShow()
-    assert.equal(harness.page.data.hasLoaded, true)
-    assert.equal(harness.page.data.memories.length, 1)
-
-    // 已加载后再刷新失败：旧列表保留（不被失败卡整卡替换），hasLoaded 继续为真
-    await harness.page.onShow()
-    assert.equal(harness.page.data.loadFailed, true)
-    assert.equal(harness.page.data.hasLoaded, true)
-    assert.equal(harness.page.data.loading, false)
-    assert.deepEqual(harness.page.data.memories, [
-      { _id: 'm1', date: '2026-06-01', note: '一次愉快的野餐', dateLabel: '6月1日' }
-    ])
-  } finally {
-    harness.teardown()
-  }
-})
-
-test('memory list hides the assertive empty note after a 0-record success then refresh failure', async () => {
-  let call = 0
-  const harness = loadRecordPageHarness('pages/memory/memory.js', {
-    mocks: {
-      'utils/cloud.js': {
-        createRoomDataClient() {
-          return {
-            async list() {
-              call += 1
-              if (call === 1) return { kind: 'success', data: [] }
-              return { kind: 'retryable-failure', message: 'network down' }
-            }
-          }
-        }
-      }
-    },
-    wxOverrides: {
-      showModal(options) {
-        options.success({ confirm: false, cancel: true })
-      }
-    }
-  })
-
-  try {
-    await harness.page.onShow()
-    assert.equal(harness.page.data.hasLoaded, true)
-    assert.deepEqual(harness.page.data.memories, [])
-
-    // 已加载 0 条后再失败：与 period 修复后的行为一致——重试在场、无断言式空态句
-    await harness.page.onShow()
-    assert.equal(harness.page.data.loadFailed, true)
-    assert.equal(harness.page.data.hasLoaded, true)
-    assert.equal(harness.page.data.loading, false)
-    assert.deepEqual(harness.page.data.memories, [])
+    assert.equal(storage.recordTabSegment, 'memory')
+    assert.deepEqual(tabs, ['/pages/period/period'])
+    assert.equal(listed, 0, 'the compatibility route must not load its own list')
+    const wxml = readPageFile('pages/memory/memory.wxml')
+    assert.doesNotMatch(wxml, /wx:for="\{\{memories\}\}"/)
+    assert.doesNotMatch(wxml, /class="empty-state"/)
+    assert.doesNotMatch(wxml, /bindtap="addMemory"/)
+    assert.doesNotMatch(wxml, /bindtap="editMemory"/)
+    assert.doesNotMatch(wxml, /bindtap="loadData"/)
   } finally {
     harness.teardown()
   }
@@ -1741,7 +1595,8 @@ test('record tab memory segment mirrors the standalone memory list state contrac
   // 空列表说明保持安静：没有按钮、不可点；失败期间不显示断言式空态句
   const emptyBlock = /wx:elif="\{\{memories\.length === 0 && !memoryLoading && !memoryLoadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
   assert.ok(emptyBlock, 'expected the memory segment empty state block')
-  assert.match(emptyBlock[1], /还没有记录/)
+  assert.match(emptyBlock[1], /想记的那天点「＋ 记欢乐时光」，写一句就留在日历上/)
+  assert.doesNotMatch(emptyBlock[1], /点上面按钮新增/)
   assert.doesNotMatch(emptyBlock[1], /retry-btn|bindtap/)
 
   // 已加载后失败：列表保留，重试行留在列表区域
@@ -1786,6 +1641,16 @@ test('record tab memory segment renders month cards with the grouped row contrac
   )
   assert.match(periodWxml, /class="month-header-text">\{\{group\.title\}\}/)
   assert.match(periodWxml, /class="month-toggle">\{\{group\.toggleLabel\}\}/)
+  // 收起的卡头显示该月第一条备注的单行摘要；展开时不重复渲染。溢出截断，读屏名走 ariaLabel
+  assert.match(
+    periodWxml,
+    /wx:if="\{\{!group\.expanded && group\.excerpt\}\}" class="month-excerpt" aria-hidden="true">\{\{group\.excerpt\}\}/
+  )
+  const excerptRule = /\.month-excerpt\s*\{[^}]*\}/.exec(periodWxss)
+  assert.ok(excerptRule, 'expected the collapsed month excerpt rule')
+  assert.match(excerptRule[0], /white-space:\s*nowrap/)
+  assert.match(excerptRule[0], /overflow:\s*hidden/)
+  assert.match(excerptRule[0], /text-overflow:\s*ellipsis/)
 
   // 行：收起时组内行不渲染（wx:if，不是 css 隐藏，读屏不会念出来）；
   // 定位用记录 id；可见日期和读屏名都走显示格式，ISO 日期仍留在行数据里供编辑跳转
@@ -2140,13 +2005,17 @@ test('record tab month card counts match the monthly recap memory count', async 
   }
 })
 
-test('record tab memory segment expands only the most recent month by default', async () => {
-  // 默认展开规则（issue #109）：只展开第一组——最近一个有记录的月份；
-  // 本月没记录时第一组自然就是上一个有记录的月份，其他月份只显示卡头
+test('record tab memory segment expands the three most recent months by default', async () => {
+  // 默认展开规则（issue #143，修订 #109）：展开最近三个有记录的月份；
+  // 不足三个则全部展开，更早的月份只显示卡头。
+  // 六月最新一条没有备注，摘要应落到同月第一条写下的备注
   const data = [
     { _id: 'sep1', date: '2026-09-18', note: '九月晚餐' },
     { _id: 'aug1', date: '2026-08-02', note: '八月散步' },
-    { _id: 'aug2', date: '2026-08-20', note: '' }
+    { _id: 'jul1', date: '2026-07-11', note: '七月骑行' },
+    { _id: 'jun-new', date: '2026-06-18', note: '' },
+    { _id: 'jun1', date: '2026-06-04', note: '  六月海边\n傍晚  ' },
+    { _id: 'may1', date: '2026-05-02', note: '   ' }
   ]
   const storage = { recordTabSegment: 'memory' }
   const harness = loadRecordPageHarness('pages/period/period.js', {
@@ -2180,24 +2049,40 @@ test('record tab memory segment expands only the most recent month by default', 
     const groups = harness.page.data.memoryGroups
     assert.deepEqual(
       groups.map(group => [group.key, group.expanded]),
-      [['2026-09', true], ['2026-08', false]]
+      [
+        ['2026-09', true],
+        ['2026-08', true],
+        ['2026-07', true],
+        ['2026-06', false],
+        ['2026-05', false]
+      ]
     )
 
     // 卡头读屏名带展开状态；右侧文字随状态显示「展开」/「收起」
+    // 展开的月份不把备注再念一遍；收起的月份把该月第一条备注放进读屏名
     assert.equal(groups[0].ariaLabel, '2026年9月，1 条欢乐时光，已展开')
     assert.equal(groups[0].toggleLabel, '收起')
-    assert.equal(groups[1].ariaLabel, '2026年8月，2 条欢乐时光，已收起')
-    assert.equal(groups[1].toggleLabel, '展开')
+    assert.equal(groups[0].excerpt, '九月晚餐')
+    // 最新一条备注为空时，摘要用同月下一条写下的备注，并折成单行
+    assert.equal(groups[3].excerpt, '六月海边 傍晚')
+    assert.equal(groups[3].ariaLabel, '2026年6月，2 条欢乐时光，六月海边 傍晚，已收起')
+    assert.equal(groups[3].toggleLabel, '展开')
+    // 整月没有备注：不追加空摘要
+    assert.equal(groups[4].excerpt, '')
+    assert.equal(groups[4].ariaLabel, '2026年5月，1 条欢乐时光，已收起')
   } finally {
     harness.teardown()
   }
 })
 
 test('record tab month card header toggles expansion in place without navigation', async () => {
-  // 点卡头切换展开/收起（issue #109）：立即生效、不跳转、无动画；卡头文字随状态翻转
+  // 点卡头切换展开/收起（issue #109）：立即生效、不跳转、无动画；卡头文字随状态翻转。
+  // 四个月里六月落在默认窗口外，用来证明手动展开的是用户点的那张卡，不是窗口自己变宽
   const data = [
     { _id: 'sep1', date: '2026-09-18', note: '九月晚餐' },
-    { _id: 'aug1', date: '2026-08-02', note: '八月散步' }
+    { _id: 'aug1', date: '2026-08-02', note: '八月散步' },
+    { _id: 'jul1', date: '2026-07-11', note: '七月骑行' },
+    { _id: 'jun1', date: '2026-06-04', note: '六月海边' }
   ]
   const storage = { recordTabSegment: 'memory' }
   const navigation = []
@@ -2232,40 +2117,49 @@ test('record tab month card header toggles expansion in place without navigation
     await harness.page.onShow()
 
     // 点默认收起的月份卡头：立即展开
-    harness.page.toggleMonth({ currentTarget: { dataset: { key: '2026-08' } } })
+    harness.page.toggleMonth({ currentTarget: { dataset: { key: '2026-06' } } })
     let groups = harness.page.data.memoryGroups
     assert.deepEqual(
       groups.map(group => [group.key, group.expanded, group.toggleLabel, group.ariaLabel]),
       [
         ['2026-09', true, '收起', '2026年9月，1 条欢乐时光，已展开'],
-        ['2026-08', true, '收起', '2026年8月，1 条欢乐时光，已展开']
+        ['2026-08', true, '收起', '2026年8月，1 条欢乐时光，已展开'],
+        ['2026-07', true, '收起', '2026年7月，1 条欢乐时光，已展开'],
+        ['2026-06', true, '收起', '2026年6月，1 条欢乐时光，已展开']
       ]
     )
 
-    // 点已展开的卡头：收起（手动展开过的月份再点一次回到收起，不是回默认）
+    // 点已展开的卡头：收起（再点一次是手动收起，不是回到默认窗口）
     harness.page.toggleMonth({ currentTarget: { dataset: { key: '2026-09' } } })
     groups = harness.page.data.memoryGroups
     assert.deepEqual(
       groups.map(group => [group.key, group.expanded, group.toggleLabel]),
-      [['2026-09', false, '展开'], ['2026-08', true, '收起']]
+      [
+        ['2026-09', false, '展开'],
+        ['2026-08', true, '收起'],
+        ['2026-07', true, '收起'],
+        ['2026-06', true, '收起']
+      ]
     )
 
     // 点卡头只切换展开状态：不跳转、不打开编辑页；不在当前分组的月份键是 no-op
     harness.page.toggleMonth({ currentTarget: { dataset: { key: '2030-01' } } })
     assert.deepEqual(navigation, [])
-    assert.equal(harness.page.data.memoryGroups[1].expanded, true)
+    assert.equal(harness.page.data.memoryGroups[3].expanded, true)
   } finally {
     harness.teardown()
   }
 })
 
 test('record tab month expansion choices survive segment switches and reloads', async () => {
-  // 展开状态记忆（issue #109）：手动选择记在页面内存，切分段、onShow 重载、重试都保留；
-  // 没点过的月份走默认规则——出现更新的月份时新月份默认展开，原先默认展开但没点过的月份收起
+  // 展开状态记忆（issue #109，窗口改为三个月后规则不变）：手动选择记在页面内存，
+  // 切分段、onShow 重载、重试都保留；没点过的月份走三个月窗口。
+  // 出现更新的月份时窗口前移，被挤出窗口且没点过的月份收起，手动选择不改口
   const v1 = [
     { _id: 'sep1', date: '2026-09-18', note: '九月晚餐' },
     { _id: 'aug1', date: '2026-08-02', note: '八月散步' },
-    { _id: 'jul1', date: '2026-07-11', note: '七月骑行' }
+    { _id: 'jul1', date: '2026-07-11', note: '七月骑行' },
+    { _id: 'jun1', date: '2026-06-04', note: '六月海边' }
   ]
   // 伴侣刚记下下个月的第一条：出现更新的月份
   const v2 = [{ _id: 'oct1', date: '2026-10-05', note: '十月的第一次' }, ...v1]
@@ -2300,25 +2194,38 @@ test('record tab month expansion choices survive segment switches and reloads', 
 
   try {
     await harness.page.onShow()
-    assert.deepEqual(expansionByMonth(), [['2026-09', true], ['2026-08', false], ['2026-07', false]])
+    assert.deepEqual(expansionByMonth(), [
+      ['2026-09', true],
+      ['2026-08', true],
+      ['2026-07', true],
+      ['2026-06', false]
+    ])
 
-    // 只手动展开最旧的 7 月；9 月（默认展开）与 8 月都不点，留给默认规则裁决
-    harness.page.toggleMonth({ currentTarget: { dataset: { key: '2026-07' } } })
+    // 手动收起默认展开的 9 月，手动展开窗口外的 6 月；8 月和 7 月都不点
+    harness.page.toggleMonth({ currentTarget: { dataset: { key: '2026-09' } } })
+    harness.page.toggleMonth({ currentTarget: { dataset: { key: '2026-06' } } })
 
-    // 切到经期分段再切回来（重新加载欢乐时光列表）：手动选择保留，没点过的月份照默认规则
+    // 切到经期分段再切回来（重新加载欢乐时光列表）：手动选择保留，没点过的月份照三个月窗口
     await harness.page.selectSegment({ currentTarget: { dataset: { segment: 'period' } } })
     await harness.page.selectSegment({ currentTarget: { dataset: { segment: 'memory' } } })
-    assert.deepEqual(expansionByMonth(), [['2026-09', true], ['2026-08', false], ['2026-07', true]])
+    assert.deepEqual(expansionByMonth(), [
+      ['2026-09', false],
+      ['2026-08', true],
+      ['2026-07', true],
+      ['2026-06', true]
+    ])
 
-    // 出现更新的月份（2026-10）：新月份默认展开；原先默认展开、但没点过的 9 月自动收起；
-    // 8 月没点过仍按默认规则收起；7 月的手动展开保留
+    // 出现更新的月份（2026-10）：新窗口是 10、9、8 月。10 月默认展开；
+    // 9 月的手动收起保留；8 月没点过、仍在窗口内，继续展开；
+    // 7 月没点过、被挤出窗口，收起；6 月的手动展开保留
     data = v2
     await harness.page.onShow()
     assert.deepEqual(expansionByMonth(), [
       ['2026-10', true],
       ['2026-09', false],
-      ['2026-08', false],
-      ['2026-07', true]
+      ['2026-08', true],
+      ['2026-07', false],
+      ['2026-06', true]
     ])
 
     // 列表区重试（loadMemoryData 再走一遍）后选择同样保留
@@ -2326,8 +2233,9 @@ test('record tab month expansion choices survive segment switches and reloads', 
     assert.deepEqual(expansionByMonth(), [
       ['2026-10', true],
       ['2026-09', false],
-      ['2026-08', false],
-      ['2026-07', true]
+      ['2026-08', true],
+      ['2026-07', false],
+      ['2026-06', true]
     ])
   } finally {
     harness.teardown()
@@ -2336,10 +2244,14 @@ test('record tab month expansion choices survive segment switches and reloads', 
 
 test('record tab applyRecordChange expands the saved record month on add or update, not on remove', async () => {
   // 保存后自动展开（issue #109）：编辑页保存通知到达时，除了切到欢乐时光分段，
-  // 还要把记录日期所在月份设为展开（改到别的月份也一样）；删除不改展开状态
+  // 还要把记录日期所在月份设为展开（改到别的月份也一样）；删除不改展开状态。
+  // 目标月放在三个月窗口之外，展开才只能来自保存通知，而不是默认窗口
   let data = [
     { _id: 'sep1', date: '2026-09-18', note: '九月晚餐' },
-    { _id: 'aug1', date: '2026-08-02', note: '八月散步' }
+    { _id: 'aug1', date: '2026-08-02', note: '八月散步' },
+    { _id: 'aug2', date: '2026-08-09', note: '八月第二条' },
+    { _id: 'jul1', date: '2026-07-11', note: '七月骑行' },
+    { _id: 'jun1', date: '2026-06-04', note: '六月海边' }
   ]
   const harness = loadRecordPageHarness('pages/period/period.js', {
     mocks: {
@@ -2363,41 +2275,54 @@ test('record tab applyRecordChange expands the saved record month on add or upda
   try {
     await harness.page.onShow()
     await harness.page.selectSegment({ currentTarget: { dataset: { segment: 'memory' } } })
-    assert.deepEqual(expansionByMonth(), [['2026-09', true], ['2026-08', false]])
+    assert.deepEqual(expansionByMonth(), [
+      ['2026-09', true],
+      ['2026-08', true],
+      ['2026-07', true],
+      ['2026-06', false]
+    ])
 
-    // 从「记录」tab 新增一条落在当前收起的 8 月：通知到达后回到列表，8 月展开
+    // 新增一条落在窗口外的 6 月：通知到达后回到列表，6 月展开。
+    // 若保存通知没记下展开，6 月会仍按默认窗口收起
     data = [
       ...data,
-      { _id: 'aug2', date: '2026-08-23', note: '补记的八月' }
+      { _id: 'jun2', date: '2026-06-20', note: '补记的六月' }
     ]
     harness.page.applyRecordChange({
       collection: 'memories',
       mode: 'add',
-      record: { _id: 'aug2', date: '2026-08-23', note: '补记的八月' }
+      record: { _id: 'jun2', date: '2026-06-20', note: '补记的六月' }
     })
     assert.equal(harness.page.data.segment, 'memory')
     await harness.page.onShow()
-    assert.deepEqual(expansionByMonth(), [['2026-09', true], ['2026-08', true]])
-    const august = harness.page.data.memoryGroups.find(group => group.key === '2026-08')
-    assert.ok(august.records.some(record => record._id === 'aug2'), 'the saved record should be visible in its month card')
+    assert.deepEqual(expansionByMonth(), [
+      ['2026-09', true],
+      ['2026-08', true],
+      ['2026-07', true],
+      ['2026-06', true]
+    ])
+    const june = harness.page.data.memoryGroups.find(group => group.key === '2026-06')
+    assert.ok(june.records.some(record => record._id === 'jun2'), 'the saved record should be visible in its month card')
 
-    // 把 9 月那条改到 8 月：回到列表时展开的是新月份；8 月此时不是第一组，
-    // 展开只能来自保存通知设的选择，不是默认规则（2026-10 是第一组、按默认展开）
-    data = [
-      { _id: 'oct1', date: '2026-10-05', note: '十月记录' },
-      { _id: 'sep1', date: '2026-08-14', note: '九月晚餐' },
-      { _id: 'aug1', date: '2026-08-02', note: '八月散步' },
-      { _id: 'aug2', date: '2026-08-23', note: '补记的八月' }
-    ]
+    // 把 9 月那条改到 5 月：5 月比窗口更早，回到列表时仍展开，只能来自保存通知
+    data = data.map(record => record._id === 'sep1'
+      ? { ...record, date: '2026-05-09', note: '改到五月' }
+      : record)
     harness.page.applyRecordChange({
       collection: 'memories',
       mode: 'update',
-      record: { _id: 'sep1', date: '2026-08-14', note: '九月晚餐' }
+      record: { _id: 'sep1', date: '2026-05-09', note: '改到五月' }
     })
     await harness.page.onShow()
-    assert.deepEqual(expansionByMonth(), [['2026-10', true], ['2026-08', true]])
+    assert.deepEqual(expansionByMonth(), [
+      ['2026-08', true],
+      ['2026-07', true],
+      ['2026-06', true],
+      ['2026-05', true]
+    ])
 
-    // 删除不改展开状态：remove 通知（record 只有 _id）后重载，展开状态原样
+    // 删除不改展开状态：remove 通知（record 只有 _id）后重载，展开状态原样。
+    // 8 月还留着另一条，月份卡不消失
     data = data.filter(record => record._id !== 'aug1')
     harness.page.applyRecordChange({
       collection: 'memories',
@@ -2405,7 +2330,12 @@ test('record tab applyRecordChange expands the saved record month on add or upda
       record: { _id: 'aug1' }
     })
     await harness.page.onShow()
-    assert.deepEqual(expansionByMonth(), [['2026-10', true], ['2026-08', true]])
+    assert.deepEqual(expansionByMonth(), [
+      ['2026-08', true],
+      ['2026-07', true],
+      ['2026-06', true],
+      ['2026-05', true]
+    ])
   } finally {
     harness.teardown()
   }
@@ -2450,10 +2380,9 @@ test('record tab applyRecordChange drops the emptied month card and keeps other 
   try {
     await harness.page.onShow()
 
-    // 两组都手动翻转（10 月收起、9 月展开）：remove 若错误触碰展开选择，
-    // 10 月会回默认展开、9 月会回默认收起，断言即可暴露
+    // 两个月都在默认窗口里。只手动收起 10 月：remove 若清掉选择，
+    // 10 月会回到默认展开。9 月没点过，继续按窗口展开
     harness.page.toggleMonth({ currentTarget: { dataset: { key: '2026-10' } } })
-    harness.page.toggleMonth({ currentTarget: { dataset: { key: '2026-09' } } })
     assert.deepEqual(expansionByMonth(), [['2026-10', false], ['2026-09', true]])
 
     // 删掉 9 月的第二条：9 月还剩一条，卡片仍在，两组展开状态原样
@@ -2526,10 +2455,10 @@ test('record tab memory segment keeps the last expansion state when a refresh fa
     await harness.page.onShow()
     assert.deepEqual(
       harness.page.data.memoryGroups.map(group => [group.key, group.expanded]),
-      [['2026-09', true], ['2026-08', false]]
+      [['2026-09', true], ['2026-08', true]]
     )
 
-    // 手动翻转两组的展开状态，再触发一次失败的刷新
+    // 手动收起两个默认展开的月份，再触发一次失败的刷新
     harness.page.toggleMonth({ currentTarget: { dataset: { key: '2026-09' } } })
     harness.page.toggleMonth({ currentTarget: { dataset: { key: '2026-08' } } })
     await harness.page.onShow()
@@ -2539,7 +2468,7 @@ test('record tab memory segment keeps the last expansion state when a refresh fa
     // 上次的分组与展开状态原样保留，不会回默认、也不会清空
     assert.deepEqual(
       harness.page.data.memoryGroups.map(group => [group.key, group.expanded, group.title]),
-      [['2026-09', false, '2026年9月 · 1 条'], ['2026-08', true, '2026年8月 · 1 条']]
+      [['2026-09', false, '2026年9月 · 1 条'], ['2026-08', false, '2026年8月 · 1 条']]
     )
   } finally {
     harness.teardown()
@@ -2739,7 +2668,10 @@ test('record pages delegate feedback to shared record command helpers', () => {
   assert.match(periodListJs, /runRecordListLoad\(/)
   assert.doesNotMatch(periodListJs, /cloud\.getPeriods\(/)
 
-  assert.match(memoryListJs, /runRecordListLoad\(/)
+  // 旧欢乐时光页只写分段意图并切 tab，不再自己拉列表
+  assert.match(memoryListJs, /setStorageSync\(RECORD_TAB_SEGMENT_STORAGE_KEY,\s*'memory'\)/)
+  assert.match(memoryListJs, /switchTab\(\{\s*url:\s*'\/pages\/period\/period'\s*\}\)/)
+  assert.doesNotMatch(memoryListJs, /runRecordListLoad\(/)
   assert.doesNotMatch(memoryListJs, /cloud\.getMemories\(/)
 })
 
@@ -3134,10 +3066,11 @@ test('record lists preview long notes as one clamped line without displacing lat
   const periodWxss = readPageFile('pages/period/period.wxss')
   const memoryWxss = readPageFile('pages/memory/memory.wxss')
 
-  // 列表绑定真实备注（本人写下的文字原样显示），显示与否由 wx:if 决定
-  for (const wxml of [periodWxml, memoryWxml]) {
-    assert.match(wxml, /wx:if="\{\{item\.note\}\}"[^>]*>\{\{item\.note\}\}/)
-  }
+  // 列表绑定真实备注（本人写下的文字原样显示），显示与否由 wx:if 决定。
+  // 欢乐时光列表在记录 tab；旧页不再渲染备注行
+  assert.match(periodWxml, /wx:if="\{\{item\.note\}\}" class="item-note">\{\{item\.note\}\}/)
+  assert.match(periodWxml, /wx:if="\{\{item\.note\}\}" class="memory-note">\{\{item\.note\}\}/)
+  assert.doesNotMatch(memoryWxml, /wx:for/)
 
   // 长备注只显示短预览：单行截断 + 省略号，换行折叠成一行，不把后面的记录挤出屏幕
   const clamps = [

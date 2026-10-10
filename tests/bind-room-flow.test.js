@@ -1026,10 +1026,82 @@ function createRoomSessionStub(results = {}) {
   return session
 }
 
-function loadPageHarness(relativePath, { room, clipboard = [], switchTabFail = false } = {}) {
+test('bind page says the archived room was restored when the first record fetch is not empty', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
+    createRoom: { code: 0, roomCode: 'ROOM05' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', {
+    room,
+    records: {
+      periods: [{ _id: 'p1' }, { _id: 'p2' }],
+      memories: [{ _id: 'm1' }]
+    }
+  })
+
+  try {
+    await harness.page.onShow()
+    await harness.page.createRoom()
+
+    assert.equal(harness.page.data.restoredNotice, '已恢复原来的房间和 3 条记录')
+    assert.equal(harness.page.data.justCreated, true)
+    const boundCard = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
+    assert.match(boundCard, /\{\{restoredNotice\}\}/)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('bind page does not claim a restored room when the first record fetch is empty or incomplete', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
+    createRoom: { code: 0, roomCode: 'ROOM05' }
+  })
+  const empty = loadPageHarness('pages/bind/bind.js', { room })
+
+  try {
+    await empty.page.onShow()
+    await empty.page.createRoom()
+    assert.equal(empty.page.data.restoredNotice, '')
+    assert.equal(empty.page.data.justCreated, true)
+  } finally {
+    empty.teardown()
+  }
+
+  const failed = loadPageHarness('pages/bind/bind.js', {
+    room,
+    records: {
+      periods: { kind: 'retryable-failure' },
+      memories: { kind: 'success', data: [{ _id: 'm1' }] }
+    }
+  })
+  try {
+    await failed.page.onShow()
+    await failed.page.createRoom()
+    assert.equal(failed.page.data.restoredNotice, '')
+  } finally {
+    failed.teardown()
+  }
+})
+
+function loadPageHarness(relativePath, { room, clipboard = [], switchTabFail = false, records = null } = {}) {
   const absolutePagePath = path.join(repoRoot, relativePath)
   const mocks = {
-    [path.join(repoRoot, 'utils/room.js')]: room
+    [path.join(repoRoot, 'utils/room.js')]: room,
+    [path.join(repoRoot, 'utils/cloud.js')]: {
+      createRoomDataClient() {
+        return {
+          async list(collection) {
+            const value = records && Object.prototype.hasOwnProperty.call(records, collection)
+              ? records[collection]
+              : []
+            if (value instanceof Error) throw value
+            if (value && value.kind) return value
+            return { kind: 'success', data: value || [] }
+          }
+        }
+      }
+    }
   }
 
   const originalPage = global.Page

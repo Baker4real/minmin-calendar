@@ -215,7 +215,8 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(byHandler('prevMonth', 'nav-btn').attrs['aria-label'], '上一个月')
   assert.equal(byHandler('nextMonth', 'nav-btn').attrs['aria-label'], '下一个月')
   assert.equal(byHandler('quickPeriod', 'quick-btn').attrs['aria-label'], '{{periodQuickAriaLabel}}')
-  assert.equal(byHandler('quickMemory', 'quick-btn').attrs['aria-label'], '记录欢乐时光')
+  assert.equal(byHandler('quickMemory', 'quick-btn').attrs['aria-label'], '记欢乐时光')
+  assert.match(readPage('pages/index/index.wxml'), /class="quick-text">记欢乐时光</)
 
   // 弹层遮罩本身是可点的「关闭」操作，必须带角色与可读名称
   assert.equal(byHandler('closeMonthPicker', 'day-sheet-mask').attrs['aria-label'], '关闭月份选择')
@@ -252,8 +253,8 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(copyRecap.attrs['aria-label'], '复制小结')
 
   // 图例 / 预测说明 / 小结收进月份标题旁的「…」菜单（issue #105）：触发器与菜单项都是命名按钮
-  assert.equal(byHandler('openMonthMenu', 'month-menu-trigger').attrs['aria-role'], 'button')
-  assert.equal(byHandler('openMonthMenu', 'month-menu-trigger').attrs['aria-label'], '打开工具菜单')
+  assert.equal(byHandler('openMonthMenu', 'nav-tool').attrs['aria-role'], 'button')
+  assert.equal(byHandler('openMonthMenu', 'nav-tool').attrs['aria-label'], '打开工具菜单')
   assert.equal(byHandler('closeMonthMenu', 'day-sheet-mask').attrs['aria-label'], '关闭工具菜单')
   const menuItems = elements.filter((element) => element.attrs.bindtap === 'onMonthMenuTap')
   assert.deepEqual(
@@ -303,33 +304,20 @@ test('sheet mask and panel are siblings so only the mask is announced as close',
   assert.deepEqual(labels.sort(), ['关闭工具菜单', '关闭当日操作', '关闭月份选择', '关闭面板'])
 })
 
-test('merged status card names the prediction region and keeps the record count non-interactive', () => {
+test('home status line opens the prediction sheet and the record count is gone', () => {
   const elements = collectElements(readPage('pages/index/index.wxml'))
-  const predictRegion = elements.find((element) =>
-    element.attrs.bindtap === 'openPredictionSheet' && classTokens(element).includes('predict-item'))
-  const divider = elements.find((element) => classTokens(element).includes('stat-divider'))
-  const statusCard = elements.find((element) => classTokens(element).includes('status-card'))
-  const figure = elements.find((element) => classTokens(element).includes('status-figure'))
+  const statusLine = elements.find((element) =>
+    element.attrs.bindtap === 'openPredictionSheet' && classTokens(element).includes('home-status'))
+  const summary = elements.find((element) => classTokens(element).includes('month-summary'))
 
-  // issue #70：预测区有日期读月日+星期，无日期读固定暂无文案
-  assert.ok(predictRegion, 'expected the status-card prediction region to be a tap target')
-  assert.equal(predictRegion.attrs['aria-role'], 'button')
-  assert.equal(
-    predictRegion.attrs['aria-label'],
-    "{{nextPredictWeekday ? '查看经期预测，' + nextPredictDisplay + ' ' + nextPredictWeekday : '查看经期预测，暂无下次日期'}}"
-  )
-
-  // issue #105：条数是现状展示不是入口——记录列表由「记录」tab 分段承接，卡上无跳转
-  assert.ok(figure, 'expected the plain record-count figure')
-  assert.equal(figure.attrs.bindtap, undefined)
-  assert.equal(figure.attrs['aria-role'], undefined)
-  assert.equal(figure.attrs['aria-label'], undefined)
-
-  // 分隔线与整张状态卡都不是按钮
-  assert.equal(divider.attrs.bindtap, undefined)
-  assert.equal(divider.attrs['aria-role'], undefined)
-  assert.equal(statusCard.attrs.bindtap, undefined)
-  assert.equal(statusCard.attrs['aria-role'], undefined)
+  assert.ok(statusLine, 'expected the status line to open the prediction sheet')
+  assert.equal(statusLine.attrs['aria-role'], 'button')
+  assert.equal(statusLine.attrs['aria-label'], '{{homeStatus.text}}')
+  assert.ok(summary, 'expected the month summary row')
+  assert.equal(summary.attrs['aria-role'], 'button')
+  assert.equal(summary.attrs.bindtap, 'openMonthlyRecap')
+  assert.equal(elements.find((element) => classTokens(element).includes('status-card')), undefined)
+  assert.equal(elements.find((element) => classTokens(element).includes('stat-num')), undefined)
 
   // 卡内超期进行中提醒保留原有动作与朗读名
   const ongoing = elements.find((element) => element.attrs.bindtap === 'onOngoingReminderTap')
@@ -346,9 +334,10 @@ test('first-screen loading spinner and sync status changes are perceivable', () 
   // showSyncStatus 每次改写文本（index-page.test.js 钉住）即产生可朗读的状态变化
   const elements = collectElements(readPage('pages/index/index.wxml'))
 
-  const spinner = elements.find((element) => classTokens(element).includes('loading-spinner'))
-  assert.ok(spinner, 'expected the first-screen loading spinner')
-  assert.equal(spinner.attrs['aria-label'], '正在加载')
+  const skeleton = elements.find((element) => classTokens(element).includes('calendar-skeleton'))
+  assert.ok(skeleton, 'expected the first-screen calendar skeleton')
+  assert.equal(skeleton.attrs['aria-label'], '正在加载')
+  assert.equal(elements.find((element) => classTokens(element).includes('loading-spinner')), undefined)
 
   const pill = elements.find((element) => classTokens(element).includes('sync-pill'))
   assert.ok(pill, 'expected the sync status pill')
@@ -407,8 +396,9 @@ test('record list rows, retry affordances and settings menu entries announce the
   // 经期行读屏名称带状态：日期走统一显示格式，进行中/结束日期不详由 rangeSummary 表达
   assert.equal(byHandler(period, 'editPeriod', 'list-item').attrs['aria-label'], '编辑经期记录 {{item.rangeSummary}}')
   assert.equal(byHandler(period, 'loadData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
-  assert.equal(byHandler(memory, 'editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dateLabel}} 的欢乐时光')
-  assert.equal(byHandler(memory, 'loadData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
+  assert.equal(byHandler(period, 'editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dayLabel}} 的欢乐时光')
+  assert.equal(byHandler(memory, 'editMemory', 'list-item'), undefined)
+  assert.equal(byHandler(memory, 'loadData', 'empty-state'), undefined)
 
   assert.equal(byHandler(settings, 'copyRoomCode', 'copy-btn').attrs['aria-label'], '复制房间码')
   assert.equal(byHandler(settings, 'goMemory', 'menu-item'), undefined)
@@ -454,7 +444,9 @@ test('record tab segment control reads as a radio group with a perceivable check
       element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
   assert.equal(byHandler('editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dayLabel}} 的欢乐时光')
   assert.equal(byHandler('loadMemoryData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
-  assert.equal(byHandler('addMemory', 'btn-premium').attrs['aria-label'], '记录欢乐时光')
+  assert.equal(byHandler('addMemory', 'btn-premium').attrs['aria-label'], '记欢乐时光')
+  assert.match(readPage('pages/period/period.wxml'), />＋ 记欢乐时光</)
+  assert.doesNotMatch(readPage('pages/memory/memory.wxml'), /wx:for="\{\{memories\}\}"/)
 
   // 月份卡头（issue #109）：点按切换展开/收起，按 button 朗读；
   // 读屏名「YYYY年M月，N 条欢乐时光，已展开/已收起」由分组数据绑定，
@@ -570,7 +562,8 @@ test('happy-time list rows show only the light heart, no second rose dot', () =>
   assert.match(readPage('pages/memory/memory.wxss'), /\.memory-heart\s*\{[^}]*color:\s*#F0C4C0/i)
 
   // 行内唯一标记是浅色心
-  assert.match(readPage('pages/memory/memory.wxml'), /class="memory-heart">♥</)
+  assert.match(readPage('pages/period/period.wxml'), /class="memory-heart">♥</)
+  assert.doesNotMatch(readPage('pages/memory/memory.wxml'), /class="memory-heart"/)
 })
 
 test('bind success is stated in rose text without a green checkmark', () => {
@@ -679,9 +672,10 @@ test('untappable settings rows do not take menu press feedback', () => {
   const menuRows = collectElements(readPage('pages/settings/settings.wxml'))
     .filter((element) => classTokens(element).includes('menu-item'))
   const inert = menuRows.filter((element) => !isTapTarget(element))
-  assert.equal(inert.length, 2, 'settings has the room-code row and the version row')
+  assert.equal(inert.length, 3, 'settings has the room-code row, the member status row, and the version row')
   assert.ok(classTokens(inert[0]).includes('room-code-item'), 'the room-code row stays inert')
-  assert.equal(classTokens(inert[1]).includes('room-code-item'), false, 'the version row is the other inert row')
+  assert.match(inert[1].attrs['wx:if'] || '', /roomMemberLabel/, 'the member status row stays inert')
+  assert.equal(classTokens(inert[2]).includes('room-code-item'), false, 'the version row is the other inert row')
   for (const row of inert) {
     assert.ok(classTokens(row).includes('non-interactive'), `${describe(row)} needs the non-interactive modifier`)
   }

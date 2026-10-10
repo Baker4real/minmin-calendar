@@ -470,13 +470,12 @@ const INDEX_GOLD_ALLOWLIST = new Set([
   '.sync-dot',
   '.holiday-tag',
   '.predict-mark',
-  '.predict-date',
   '.reminder-rail',
+  '.predict-date',
   '.detail-meaning.predict',
   '.detail-meaning.holiday',
   '.detail-meaning.predict .detail-meaning-title',
-  '.detail-meaning.holiday .detail-meaning-title',
-  '.prediction-summary'
+  '.detail-meaning.holiday .detail-meaning-title'
 ])
 
 test('day detail record tags use rose and light pink, not gold', () => {

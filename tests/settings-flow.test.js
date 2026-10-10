@@ -1096,6 +1096,67 @@ test('settings page leads with room info in named groups and keeps unbind in the
   assert.doesNotMatch(density, /box-shadow\s*:/)
 })
 
+// issue #141：成员状态留在 #139 的房间组里，解除绑定仍在页底危险区
+test('settings room group shows whether the partner is still waiting or has joined', async () => {
+  const wxml = readPageFile('pages/settings/settings.wxml')
+  const room = wxml.slice(wxml.indexOf('>房间<'), wxml.indexOf('>日历显示<'))
+  assert.match(room, /roomMemberLabel/)
+  assert.doesNotMatch(room, /bindtap="unbind"/)
+  assert.doesNotMatch(wxml.slice(0, wxml.indexOf('settings-danger-zone')), /bindtap="unbind"/)
+
+  const waiting = loadSettingsPageHarness({
+    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01', status: 'waiting' }
+  })
+  const paired = loadSettingsPageHarness({
+    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01', status: 'paired' }
+  })
+
+  try {
+    await waiting.page.onShow()
+    await paired.page.onShow()
+
+    assert.equal(waiting.page.data.roomMemberLabel, '等待 TA 加入')
+    assert.equal(paired.page.data.roomMemberLabel, 'TA 已加入')
+    assert.equal(waiting.page.data.roomCode, 'ROOM01')
+  } finally {
+    waiting.teardown()
+    paired.teardown()
+  }
+})
+
+test('settings shows TA 已加入 once after the room changes from waiting to paired', async () => {
+  let status = 'waiting'
+  const harness = loadSettingsPageHarness({
+    roomOutcome() {
+      return { kind: 'success', bound: true, roomCode: 'ROOM01', status }
+    }
+  })
+
+  try {
+    await harness.page.onShow()
+    assert.deepEqual(harness.wx.toasts, [])
+
+    status = 'paired'
+    await harness.page.onShow()
+    assert.deepEqual(harness.wx.toasts, [{ title: 'TA 已加入', icon: 'none' }])
+
+    await harness.page.onShow()
+    assert.equal(harness.wx.toasts.length, 1)
+  } finally {
+    harness.teardown()
+  }
+
+  const alreadyPaired = loadSettingsPageHarness({
+    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01', status: 'paired' }
+  })
+  try {
+    await alreadyPaired.page.onShow()
+    assert.deepEqual(alreadyPaired.wx.toasts, [])
+  } finally {
+    alreadyPaired.teardown()
+  }
+})
+
 test('settings calendar display says compact keeps holidays and adjusted workdays, and full adds the lunar day', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
   const calendar = wxml.slice(wxml.indexOf('>日历显示<'), wxml.indexOf('>数据<'))
@@ -1160,11 +1221,16 @@ function loadSettingsPageHarness({ roomOutcome, leaveRoom, cachedRoomCode } = {}
   delete require.cache[require.resolve(absolutePagePath)]
   const navigation = []
   const storageWrites = []
+  const stored = Object.create(null)
   const wx = {
     modals: [],
     toasts: [],
-    getStorageSync: () => '',
-    setStorageSync(key, value) { storageWrites.push({ key, value }) },
+    getStorageSync(key) { return stored[key] || '' },
+    setStorageSync(key, value) {
+      stored[key] = value
+      storageWrites.push({ key, value })
+    },
+    removeStorageSync(key) { delete stored[key] },
     navigateTo(options) { navigation.push({ type: 'navigateTo', url: options.url }) },
     switchTab(options) { navigation.push({ type: 'switchTab', url: options.url }) },
     // issue #102：解绑成功后 reLaunch 回绑定页（全仓首个 reLaunch，扩展现有 navigation 记录）
