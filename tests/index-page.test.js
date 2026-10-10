@@ -1956,7 +1956,9 @@ test('system back dismisses the top homepage sheet instead of leaving the page',
   try {
     const container = /<page-container\b[^>]*>/.exec(readIndexWxml())
     assert.ok(container, 'expected a page-container to intercept system back')
-    assert.match(container[0], /show="\{\{sheetExitGuard\}\}"/)
+    // 组件留在树上时，show 为 false 仍会吃掉页面点击，底部原生 tab 不受影响。
+    assert.match(container[0], /wx:if="\{\{sheetExitGuard\}\}"/)
+    assert.match(container[0], /show="\{\{true\}\}"/)
     assert.match(container[0], /bindbeforeleave="onSheetSystemBack"/)
     assert.match(container[0], /overlay="\{\{false\}\}"/)
     assert.match(container[0], /\bduration="0"/)

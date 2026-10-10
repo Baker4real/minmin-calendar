@@ -438,8 +438,10 @@
     </view>
     </view>
   </view>
+  <!-- 不弹层时不要把 page-container 留在树上。show 为 false 时它仍是原生层，会吃掉页面点击，底部 tab 不受影响。 -->
   <page-container
-    show="{{sheetExitGuard}}"
+    wx:if="{{sheetExitGuard}}"
+    show="{{true}}"
     overlay="{{false}}"
     duration="0"
     z-index="1"
