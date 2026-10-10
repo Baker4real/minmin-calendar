@@ -101,10 +101,10 @@
 
     <!-- issue #105：合并状态卡——经期记录条数（不可点现状）+ 下次预测，卡内并入超期进行中与周期提醒；
          经期/欢乐时光列表由「记录」tab 分段承接，首页不再放列表入口 -->
-    <view wx:if="{{periods.length || memories.length}}" class="status-card premium-card">
+    <view wx:if="{{hasRecords}}" class="status-card premium-card">
       <view class="status-row">
         <view class="status-figure">
-          <text class="stat-num">{{periods ? periods.length : 0}}</text>
+          <text class="stat-num">{{periodCount}}</text>
           <text class="stat-label">经期记录</text>
         </view>
         <view class="stat-divider"></view>

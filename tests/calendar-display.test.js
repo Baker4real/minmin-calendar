@@ -467,8 +467,8 @@ test('index exposes calendar meaning and monthly recap sheets', () => {
   assert.match(js, /openPredictionSheet\(\)/)
   assert.match(js, /openMonthlyRecap\(\)/)
   assert.match(js, /copyMonthlyRecap\(\)/)
-  assert.match(js, /dayDetailsByDate:\s*\{\}/)
-  assert.match(js, /selectedDayDetail:\s*this\.data\.dayDetailsByDate\[date\]\s*\|\|\s*{[\s\S]*meanings:\s*\[\]/)
+  assert.doesNotMatch(js, /dayDetailsByDate:\s*\{\}/)
+  assert.match(js, /selectedDayDetail:\s*this\._dayDetail\(date\)/)
 
   // issue #105：图例/预测说明/小结入口从常驻工具条收进月份标题旁的「…」菜单，
   // 菜单项经 onMonthMenuTap 分发到既有打开函数；预测说明同时仍可从合并状态卡直接打开

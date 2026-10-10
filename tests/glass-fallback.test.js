@@ -315,3 +315,51 @@ test('a background shorthand may not put a color on a non-final layer', () => {
 
   assert.deepEqual(violations, [])
 })
+
+// issue #146：玻璃回退实色约 0.92，再叠一层很淡的白，合成不透明度约 0.926。
+// 这种面上的 backdrop-filter 几乎看不见，却会在动画背景上每帧重算。0.88 的弹层遮罩留在这条线下面。
+const NEAR_OPAQUE_ALPHA = 0.9
+
+function compositedAlpha(decls, tokens) {
+  const raw = backgroundValue(decls)
+  if (!raw) return 0
+  const layers = splitTopLevelCommas(resolveVars(raw, tokens))
+  let alpha = 0
+  for (let index = layers.length - 1; index >= 0; index -= 1) {
+    const colors = extractColors(layers[index])
+    const src = colors.length ? Math.min(...colors.map((color) => color.a)) : 0
+    alpha = src + alpha * (1 - src)
+  }
+  return alpha
+}
+
+test('a 0.92 navy fallback under an 0.08 white tint composites to 0.9264', () => {
+  const alpha = compositedAlpha({
+    background: 'linear-gradient(rgba(255,255,255,0.08), rgba(255,255,255,0.08)), rgba(18,22,61,0.92)'
+  }, {})
+  assert.ok(Math.abs(alpha - 0.9264) < 0.000001, `expected 0.9264, got ${alpha}`)
+})
+
+test('an 88% navy sheet mask stays below the near-opaque line', () => {
+  const alpha = compositedAlpha({ background: 'rgba(10,14,39,0.88)' }, {})
+  assert.ok(Math.abs(alpha - 0.88) < 0.000001)
+  assert.ok(alpha < NEAR_OPAQUE_ALPHA)
+})
+
+test('near-opaque surfaces do not use backdrop-filter', () => {
+  const tokens = appTokens()
+  const violations = []
+
+  for (const file of listWxssFiles()) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    for (const rule of parseRules(fs.readFileSync(file, 'utf8'))) {
+      const filter = rule.decls['backdrop-filter']
+      if (!filter || !/blur\(/i.test(filter)) continue
+      const alpha = compositedAlpha(rule.decls, tokens)
+      if (alpha < NEAR_OPAQUE_ALPHA) continue
+      violations.push(`${relative} ${rule.selector} composites to ${alpha.toFixed(3)}`)
+    }
+  }
+
+  assert.deepEqual(violations, [])
+})
