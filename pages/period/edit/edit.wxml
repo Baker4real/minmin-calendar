@@ -23,7 +23,7 @@
       <view class="form-item">
         <view class="form-label-row">
           <text class="form-label">经期状态</text>
-          <text class="form-hint">进行中可稍后补结束日期</text>
+          <text class="form-hint">{{statusHint}}</text>
         </view>
         <view class="flow-options">
           <view
@@ -50,10 +50,6 @@
         <text wx:if="{{periodLengthHint}}" class="form-hint period-length-hint">{{periodLengthHint}}</text>
       </view>
       <view class="form-item">
-        <text class="form-label">备注</text>
-        <textarea class="form-input" placeholder-class="input-placeholder" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput" maxlength="500" auto-height disabled="{{saving}}" aria-label="备注"/>
-      </view>
-      <view class="form-item">
         <view class="form-label-row">
           <text class="form-label">经量</text>
           <text class="form-hint">再点可取消</text>
@@ -71,7 +67,7 @@
             aria-disabled="{{saving}}" hover-class="flow-chip-hover">{{item.label}}</view>
         </view>
       </view>
-      <view class="form-item form-item-last">
+      <view class="form-item">
         <view class="form-label-row">
           <text class="form-label">症状</text>
           <text class="form-hint">可多选</text>
@@ -97,12 +93,18 @@
           </view>
         </view>
       </view>
+      <view class="form-item form-item-last">
+        <text class="form-label">备注</text>
+        <textarea class="form-input" placeholder-class="input-placeholder" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput" maxlength="500" auto-height disabled="{{saving}}" aria-label="备注"/>
+      </view>
     </view>
 
     <view class="btns">
       <view wx:if="{{!saving && !deleting && !submitted}}" class="btn-premium" bindtap="save" aria-role="button" aria-label="保存" hover-class="btn-premium-hover">保存</view>
       <view wx:elif="{{saving}}" class="btn-premium loading" aria-role="button" aria-disabled="true">保存中...</view>
       <view wx:else class="btn-premium disabled" aria-role="button" aria-disabled="true">保存</view>
+    </view>
+    <view wx:if="{{isEdit}}" class="delete-zone">
       <view wx:if="{{isEdit && !deleting && !saving && !submitted}}" class="btn-danger" hover-class="btn-danger-hover" bindtap="delete" aria-role="button" aria-label="删除此记录">删除此记录</view>
       <view wx:elif="{{isEdit && deleting}}" class="btn-danger" style="opacity: 0.5;" aria-role="button" aria-disabled="true">删除中...</view>
       <view wx:elif="{{isEdit}}" class="btn-danger" style="opacity: 0.5;" aria-role="button" aria-disabled="true">删除此记录</view>
