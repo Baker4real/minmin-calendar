@@ -125,7 +125,7 @@ node --check pages\period\edit\edit.js
 node cloudfunctions\_shared\syncRoomMembershipLifecycle.js --check
 ```
 
-For UI changes, also verify in WeChat Developer Tools at a small-phone width. `node tests/devtoolsCapture.mjs`（根 `npm install` 后可用）可按需把模拟器截图落到 `.scratch/screenshots/`：先运行 `cli.bat auto --project <repo> --auto-port 9420 --trust-project`（`--trust-project` 必带，否则 CLI 首开项目停在 preparing、端口不监听；有残留无响应 IDE 实例时先 `cli.bat quit`），再 `node tests/devtoolsCapture.mjs --ws ws://127.0.0.1:9420`（支持 `--pages` 与 `--tap-text 欢乐时光` 切分段后截图）；前置是 IDE 已登录且「设置 → 安全设置 → 服务端口」已开启。2026-10-09 本机实测走通：首页、记录 tab 经期/欢乐时光分段三张截图均正常渲染（约 375px 视口；320px 口径由 narrow-screen-geometry 静态账本钉住）。
+For UI changes, also verify in WeChat Developer Tools at a small-phone width. `node tests/devtoolsCapture.mjs`（根 `npm install` 后可用）可按需把模拟器截图落到 `.scratch/screenshots/`：先运行 `cli.bat auto --project <repo> --auto-port 9420 --trust-project`（`--trust-project` 必带，否则 CLI 首开项目停在 preparing、端口不监听；有残留无响应 IDE 实例时先 `cli.bat quit`），再 `node tests/devtoolsCapture.mjs --ws ws://127.0.0.1:9420`（支持 `--pages`、`--tap-text 欢乐时光`，以及 `--states all` 按具名状态截首页、弹层、记录、编辑、设置和假房间码的绑定页）；前置是 IDE 已登录且「设置 → 安全设置 → 服务端口」已开启。2026-10-09 本机实测走通：首页、记录 tab 经期/欢乐时光分段三张截图均正常渲染（约 375px 视口；320px 口径由 narrow-screen-geometry 静态账本钉住）。
 
 在 bash（含 ZCode 本机 shell）下，上面的 PowerShell 反斜杠形态会被 shell 吃掉；等价入口是 `npm test`（即 `node --test tests/*.test.js`，Node 21+ 的测试运行器自行展开 glob，清单同步仍由 `tests/readme-verification-list.test.js` 钉住）与 `npm run check`（代替上面最后一行 sync 检查）。`node --check` 各行在 bash 下改用正斜杠路径执行。push 到远端 `main` 时，GitHub Actions（`.github/workflows/ci.yml`）会跑 `npm ci` + 同一组命令作为 guardrail。
 
@@ -179,6 +179,8 @@ Do not commit:
 - `_external/`
 - `scripts/`
 - `hermes-*.csv` / `hermes-*.md`
+
+`.githooks/pre-commit` 与 CI 跑同一组检查，默认不启用。要在某个克隆里启用，由那台机器自己执行 `git config core.hooksPath .githooks`。
 
 ## Project Notes
 
