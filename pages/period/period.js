@@ -6,7 +6,7 @@ const recordEditRoute = require('../../utils/recordEditRoute')
 const memoryMonthGroups = require('../../utils/memoryMonthGroups')
 const safeArea = require('../../utils/safeArea')
 
-// 与 pages/settings/settings.js、pages/period/edit/edit.js、pages/memory/edit/edit.js 共享的
+// 与 pages/period/edit/edit.js、pages/memory/edit/edit.js 共享的
 // 一次性「目标分段」意图键：switchTab 不能带 query，入口先写键，本页 onShow 消费并立即清除（issue #103）
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 

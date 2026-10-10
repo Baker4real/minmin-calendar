@@ -735,6 +735,28 @@ test('bind page keeps the current room content when a later check or retry runs'
   }
 })
 
+test('bind page shows the unbind notice once and then clears it', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room })
+  const storage = { bindUnbindNotice: '1' }
+  harness.wx.getStorageSync = (key) => storage[key] || ''
+  harness.wx.removeStorageSync = (key) => { delete storage[key] }
+
+  try {
+    await harness.page.onShow()
+    assert.deepEqual(harness.wx.toasts, [{ title: '已解除绑定', icon: 'none' }])
+    assert.equal(storage.bindUnbindNotice, undefined)
+
+    harness.wx.toasts.length = 0
+    await harness.page.onShow()
+    assert.deepEqual(harness.wx.toasts, [])
+  } finally {
+    harness.teardown()
+  }
+})
+
 test('settings clear-local-data keeps showing the room code when the room is still active after clearing', async () => {
   const room = createRoomSessionStub({
     getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' },
@@ -748,9 +770,9 @@ test('settings clear-local-data keeps showing the room code when the room is sti
     harness.page.clearData()
     assert.equal(harness.wx.modals.length, 1)
     const modal = harness.wx.modals[0]
-    assert.match(modal.content, /只清除保存在本机的房间码/)
-    assert.match(modal.content, /云端记录会保留/)
-    assert.match(modal.content, /不会退出当前房间/)
+    assert.equal(modal.title, '重新同步房间')
+    assert.match(modal.content, /不会删除记录/)
+    assert.match(modal.content, /不会退出房间/)
 
     await modal.success({ confirm: true, cancel: false })
 

@@ -400,7 +400,6 @@ page {
     transition: none;
   }
   .cycle-card,
-  .profile-card,
   .hero-icon,
   .tab {
     animation: none;

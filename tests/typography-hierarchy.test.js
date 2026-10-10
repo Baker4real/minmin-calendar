@@ -149,7 +149,7 @@ test('month title worst-case CJK label fits the month-nav row on a 750rpx viewpo
 const CAPTION_FAMILY_FLOW = [
   [PERIOD_EDIT_WXSS, '.form-hint'],
   [PERIOD_EDIT_WXSS, '.symptom-group-label'],
-  [SETTINGS_WXSS, '.profile-desc'],
+  [SETTINGS_WXSS, '.settings-group-title'],
   [SETTINGS_WXSS, '.room-code-label']
 ]
 
@@ -192,7 +192,7 @@ test('box-centered caption controls keep single-line box geometry', () => {
 const PAGE_CAPTION_MATRIX = {
   [INDEX_WXSS]: ['.sync-text', '.week-cell', '.stat-label', '.reminder-text', '.legend-text', '.sheet-subtitle'],
   'pages/bind/bind.wxss': ['.hero-desc', '.info-text', '.error-msg'],
-  [SETTINGS_WXSS]: ['.profile-desc', '.room-code-label', '.copy-btn', '.density-option'],
+  [SETTINGS_WXSS]: ['.settings-group-title', '.room-code-label', '.copy-btn', '.density-option'],
   'pages/period/period.wxss': ['.card-label', '.cycle-label', '.item-note', '.item-tag', '.item-duration', '.memory-note', '.segment-option'],
   [PERIOD_EDIT_WXSS]: ['.form-label', '.form-hint', '.symptom-group-label', '.flow-chip', '.symptom-chip'],
   'pages/memory/memory.wxss': ['.memory-note'],

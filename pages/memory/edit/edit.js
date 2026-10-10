@@ -8,7 +8,7 @@ const safeArea = require('../../../utils/safeArea')
 
 const DRAFT_FIELDS = ['date', 'note']
 
-// 与 pages/settings/settings.js、pages/period/edit/edit.js、pages/period/period.js 共享的一次性
+// 与 pages/period/edit/edit.js、pages/period/period.js 共享的一次性
 // 「目标分段」意图键：从首页等入口进入本页保存/删除后写键，记录 tab onShow 消费并落到欢乐时光分段（issue #103）
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 
