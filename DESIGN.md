@@ -148,7 +148,7 @@ components:
 - 玻璃叠层：`--glass-bg` 为 `rgba(255,255,255,0.08)`；卡片边框常用 `rgba(255,255,255,0.12)`（含 `--glass-border`）。共享玻璃卡（`.premium-card` 等）的着色是平涂图像层，叠在回退实色上：`linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback)`。CSS 只允许颜色作为 `background` 的最后一层，`<color>, var(--glass-fallback)` 整条无效、什么都不画。回退实色 `rgba(18,22,61,0.92)` 的唯一来源是 `--glass-fallback` token（近乎不透明的海军；既有规则已经用玫瑰实底的，保留玫瑰），一律写 `var(--glass-fallback)`，不重复字面量，由 `tests/design-token-guardrail.test.js` 护栏。`backdrop-filter` 与 `-webkit-backdrop-filter` 成对写；忽略模糊时仍是实色面，不要只留半透明空框。
 - 间距阶梯：名义刻度 4/8/16/24/32/48px（frontmatter spacing）在 `app.wxss` 登记为 rpx token（数值 ×2）：`--space-xs` / `--space-sm` / `--space-md` / `--space-lg` / `--space-xl` / `--space-xxl` = `8rpx` / `16rpx` / `32rpx` / `48rpx` / `64rpx` / `96rpx`。issue #53 只收敛单一来源并登记；页面既有间距字面量的逐页迁移留给后续 UI ticket，新增布局优先使用 token。
 - 字号角色：见「Typography」节的共享字号角色表，`app.wxss` 的 `--font-size-*` token 是全页面唯一来源，`tests/typography-roles.test.js` 护栏。
-- 首页信息架构（issue #55，issue #105 修订）：首页 `.content` 自上而下为 月份导航 → 周头/日历 → 记录入口（`.quick-actions` 记经期/欢乐时光）→ 合并状态卡（`.status-card`，无任何记录时整卡收起，由空态引导补位）。图例/预测说明/本月小结收进月份标题旁的「…」菜单（issue #105 登记：触发器字形用「…」——「⌄」已用于选月 caret，不重复占用；菜单是与日操作 sheet 同族的底部 sheet，三个菜单项复用 `openLegendSheet` / `openPredictionSheet` / `openMonthlyRecap` 与既有 sheet 本体），日历上方与下方不再有常驻工具条。合并状态卡 = 经期记录条数（纯现状文本，不再是列表跳转；issue #68 的左半入口随本修订退役）+ 下次预测（整块可点，打开预测说明）+ 卡内提醒区（超期进行中补填提示与周期提醒，点击仍走原有补填/记录动作），无预测且无提醒时卡只剩预测区，不新增空区块。经期与欢乐时光列表由「记录」tab 的经期/欢乐时光分段承接（issue #103），首页不再放列表入口。空态引导仅在无任何记录时出现，文字在其合成面（画布海军 + 引导卡 6% 白底）上 ≥4.5:1，不低于 `--text-secondary` 档。日历密度偏好（`calendarDensity` 存储键）的切换入口在设置页「日历显示」卡，首页 `onShow` 重读即刻生效；密度选中态保持玫瑰描边弱态，不用实色填充。结构序与首屏预算由 `tests/index-page.test.js`、`tests/calendar-micro-labels.test.js` 钉住。日历日动作 sheet 对晚于今天的日期隐藏「记录经期 / 补经期」入口（issue #100 登记：隐藏而非置灰，模板按 `selectedDateIsFuture` 门控），编辑页日期上限与保存校验仍是最后防线。
+- 首页信息架构（issue #55，issue #105 修订）：首页 `.content` 自上而下为 月份导航 → 周头/日历 → 记录入口（`.quick-actions` 记经期/欢乐时光）→ 合并状态卡（`.status-card`，无任何记录时整卡收起，由空态引导补位）。图例/预测说明/本月小结收进月份标题旁的「…」菜单（issue #105 登记：触发器字形用「…」——「⌄」已用于选月 caret，不重复占用；菜单是与日操作 sheet 同族的底部 sheet，三个菜单项复用 `openLegendSheet` / `openPredictionSheet` / `openMonthlyRecap` 与既有 sheet 本体），日历上方与下方不再有常驻工具条。合并状态卡 = 经期记录条数（纯现状文本，不再是列表跳转；issue #68 的左半入口随本修订退役）+ 下次预测（整块可点，打开预测说明）+ 卡内提醒区（超期进行中补填提示与周期提醒，点击仍走原有补填/记录动作），无预测且无提醒时卡只剩预测区，不新增空区块。经期与欢乐时光列表由「记录」tab 的经期/欢乐时光分段承接（issue #103），首页不再放列表入口。空态引导仅在无任何记录时出现，文字在其合成面（画布海军 + 引导卡 6% 白底）上 ≥4.5:1，不低于 `--text-secondary` 档。日历密度偏好（`calendarDensity` 存储键）的切换入口在设置页「日历显示」分组里，分段控件直接放在分组卡中，不再套一层内卡；首页 `onShow` 重读即刻生效；密度选中态保持玫瑰描边弱态，不用实色填充。结构序与首屏预算由 `tests/index-page.test.js`、`tests/calendar-micro-labels.test.js` 钉住。日历日动作 sheet 对晚于今天的日期隐藏「记录经期 / 补经期」入口（issue #100 登记：隐藏而非置灰，模板按 `selectedDateIsFuture` 门控），编辑页日期上限与保存校验仍是最后防线。
 - 窄屏几何与安全区（issue #56）：所有带显式 `width` 与水平内边距的卡片/表单容器一律 `box-sizing: border-box`，宽度与内边距不得叠加出横向溢出（全 WXSS 护栏，含 `app.wxss`）。安全区运行时策略只有一套（`utils/safeArea.js`）：顶部 `--safe-top` 走状态栏高度、底部 `--safe-bottom` 走 `screenHeight − safeArea.bottom`，均由页面根节点内联注入；底部插入在无手势区设备上为 0，不制造无意义底部空白。底部落点：非 tab 页 `.content` 的 padding-bottom 与底部 sheet 的 padding-bottom = 基础值 + `var(--safe-bottom, env(safe-area-inset-bottom, 0px))`；tab 页内容由原生 tabBar 吸收底部插入，不重复加。底部 sheet 滚动边界 = `max-height` 82–86vh + `overflow-y: auto`，遮罩不做 `overflow` 裁切。日历触控目标按「高度 ≥44px」执行（compact 104rpx ≈ 44.4px@320px、full 160rpx ≈ 68.3px@320px）；320px 下七列宽 ≈42.5px 是物理上限（7×44px 放不进 320px），列整宽平铺、无水平 margin、互不重叠，不以缩小日期/农历/标记吸收。回归由 `tests/narrow-screen-geometry.test.js` 钉住。
 - 阴影登记（下文「Shadow / overlay 登记」段）实行区间登记制：同族同色阴影的透明度落在登记区间内即合规，区间内免逐值登记；区间外透明度或登记表外颜色由 `tests/design-token-guardrail.test.js` 的阴影注册表护栏拒绝。
 - 交互语义（issue #57）：每个可点控件（bindtap/catchtap，sheet 的 `catchtap="noop"` 泄泡盾除外）都带 `aria-role` 与可读 `aria-label`；弹层遮罩本身是「关闭」操作，按用途命名（关闭月份选择/当日操作/面板）。选中态用 `aria-checked` 表达并与 `active` 类同条件绑定（单选组如经期状态、密度、月份格、绑定 tab 用 `radio`，可多选或可再点取消的经量/症状 chip 用 `checkbox`）；禁用与加载态用 `aria-disabled` 表达并与 `disabled`/`loading` 类同条件。picker 与输入框带 `aria-label`。首屏加载指示（`.loading-spinner`）带可读 `aria-label`；同步状态胶囊（`.sync-pill`）为 `status` 角色、朗读名与 `syncStatusText` 同源，同步状态变化即可朗读（issue #106）。日历格保持 `aria-label="{{item.ariaLabel}}"` 领域朗读（日期+经期/欢乐时光/预测/节日/调休）与 `aria-hidden="{{item.isEmpty}}"` 空白格隐藏，角色为 button；语义文案唯一来源仍是 `utils/homeCalendarState.js`。护栏：`tests/interaction-semantics.test.js`。
@@ -203,7 +203,7 @@ System font stack for zero-bloat + excellent CJK rendering;全页面只继承 `a
 
 首页月份标题层级：`.month-title` 走 `--font-size-month-title`（40rpx）与 `--font-weight-title`（700），字距保持自然，不另加 letter-spacing；明显高于各页共享导航标题 `.nav-title`（`--font-size-title` 34rpx / 同一标题字重 700）。层级差来自字号（≥6rpx），不来自更重的 800。`line-height: var(--line-height-title)`（1.2）+ `white-space: nowrap` 保证单行完整显示，最坏文案「2026年12月」在 750rpx 视口的月份导航行内不溢出。层级差、单行与宽度账本由 `tests/typography-hierarchy.test.js` 钉住。
 
-caption 家族行高策略：流式说明文字（`.form-hint`、`.symptom-group-label`、`.profile-desc`、`.room-code-label`）统一 `line-height: var(--line-height-assist)`（1.4）与 `font-weight: var(--font-weight-assist)`（500）；单行控件（`.copy-btn`、`.legend-symbol`）以盒高居中——盒高 88rpx flex 居中 / 行高=盒高，不另设文字行高。六族统一走 `--font-size-caption`（26rpx），由 `tests/typography-hierarchy.test.js` 钉住。
+caption 家族行高策略：流式说明文字（`.form-hint`、`.symptom-group-label`、`.settings-group-title`、`.room-code-label`）统一 `line-height: var(--line-height-assist)`（1.4）与 `font-weight: var(--font-weight-assist)`（500）；单行控件（`.copy-btn`、`.legend-symbol`）以盒高居中——盒高 88rpx flex 居中 / 行高=盒高，不另设文字行高。六族统一走 `--font-size-caption`（26rpx），由 `tests/typography-hierarchy.test.js` 钉住。
 
 信息性文字下限：日历格内微字（农历、经期/记忆标记、预测徽标）不小于 `24rpx`；日历格外 caption（统计标签、同步状态、说明文字）不小于 `26rpx`。低于下限的诉求靠缩短文案或调整布局吸收，不缩小字号。
 
@@ -214,7 +214,7 @@ frontmatter 的 rem 值是设计参照；实现层全部走下表 rpx 角色 tok
 | token | 值 | 角色 | 典型使用 |
 |---|---|---|---|
 | `--font-size-month-title` | `40rpx` | 首页月份大标题（高于全局导航一级） | `.month-title` |
-| `--font-size-title` | `34rpx` | 标题 | `.nav-title`、`.sheet-title`、`.profile-name`、`.no-room-title` |
+| `--font-size-title` | `34rpx` | 标题 | `.nav-title`、`.sheet-title`、`.no-room-title` |
 | `--font-size-body-lg` | `32rpx` | 正文大号 | `.predict-date`、`.prediction-summary`、`.jump-year-value`、`.bound-status` |
 | `--font-size-body` | `28rpx` | 正文 | 列表主行、`.month-header-text`（欢乐时光月份卡头，issue #108）、`.tab`、`.menu-text`、`.quick-text`、`.empty-state` |
 | `--font-size-caption` | `26rpx` | caption（页面外下限） | 说明/标签/统计文字、`.day-tag`、`.predict-mark`、`.form-label`、流量/症状 chips、`.copy-btn`、`.month-toggle`（月份卡「展开/收起」，issue #109）等次级小操作 |
@@ -247,7 +247,7 @@ frontmatter 的 rem 值是设计参照；实现层全部走下表 rpx 角色 tok
 
 统计数字（`.stat-num`、`.cycle-num`）按可扫读的数字信息处理，字重走 `--font-weight-control`（600）并保留 `tabular-nums` 与既有展示字号。不因历史展示例外保留 800，也不把它们升成标题。
 
-房间码（`.room-code-value`、`.bound-code`）同样走控件字重 600 与 `tabular-nums`，字距只用 `--letter-spacing-room-code`。无码占位 `.room-code-value.muted` 回到正文 400，字距复位为 0。`.code-input` 是输入文字，字重 400，字距只用 `--letter-spacing-code-input`。
+房间码（`.room-code-value`、`.bound-code`）同样走控件字重 600 与 `tabular-nums`，字距只用 `--letter-spacing-room-code`。无码占位 `.room-code-value.muted` 回到正文 400，字距复位为 0。`.code-input` 是输入文字，字重 400，字距只用 `--letter-spacing-code-input`。它的盒高和行高都是 88rpx，纵向 padding 为 0，六位码在框内完整可见并水平居中；输入框通栏，与上方说明和下方主按钮对齐。占位符走同一行高。
 
 流式辅助说明在有水平余量时使用 `--letter-spacing-assist`。格内农历、节日/调休/预测胶囊、单字周标题、按钮标签和标题保持自然字距，不靠加字距或缩小字号制造轻盈。胶囊盒高、农历完整显示和日历格留白不在本角色表里改。格内农历保持单行且不用省略号；五字闰月名在窄列放不下时不换到第二行，完整字符串留在日历格无障碍名称和日详情里。
 
@@ -268,11 +268,11 @@ Prediction metadata, reminder cards, and period tag chips stay compact and low-n
 | 形态 | 位置 | 表现 |
 |---|---|---|
 | 危险操作按钮 | `.btn-danger`（删除记录；绑定页 needUnbind 中间态的解除绑定入口；app 级基类） | 红字 + `rgba(249,115,115,0.28)` 描边，不透明海军实底（`var(--glass-bg)` 叠 `rgba(18,22,61,0.92)`）；Pressed 叠 `rgba(249,115,115,0.12)`、`scale(0.95)` |
-| 危险菜单行 | `.menu-item.danger`（设置页：解除绑定、清除本地数据） | 红字 + `rgba(249,115,115,0.28)` 描边 + 海军实底；Pressed 叠 `rgba(249,115,115,0.12)`、`scale(0.95)` |
+| 危险菜单行 | `.menu-item.danger`（设置页页底危险区：解除绑定） | 红字 + `rgba(249,115,115,0.28)` 描边 + 海军实底；Pressed 叠 `rgba(249,115,115,0.12)`、`scale(0.95)` |
 | 逾期提醒 | `.reminder-card.overdue .reminder-rail` | 6rpx 细 rail 实色填充 + `rgba(249,115,115,0.38)` 辉光 |
 | 表单错误 | `.error-msg`（绑定页） | 红字 + `rgba(249,115,115,0.1)` 浅底 + `rgba(249,115,115,0.24)` 描边 |
 
-「解除绑定」属危险操作：设置页房间卡的 `.menu-item.danger` 菜单行（issue #102 从绑定页已绑定卡迁入，二次确认文案不变，解绑成功回绑定页）与绑定页 needUnbind 中间态（错误恢复路径）的就地解除入口（跟随 app 级 `.btn-danger` 基类）；issue #88 试点的粉幽灵形态已随 issue #104 收敛移除，不再存在红族之外的解除绑定样式。绑定页的校验失败重试 `.error-retry`（issue #102）是表单错误同族的轻量按钮——红字 + 同款浅底描边，Pressed 叠更深一档红 tint `rgba(249,115,115,0.24)`，无 transform 过渡。
+「解除绑定」属危险操作：设置页页底危险区的 `.menu-item.danger` 菜单行（issue #102 从绑定页已绑定卡迁入，issue #139 再从房间组挪到页底；有房间码才出现，解绑成功回绑定页）与绑定页 needUnbind 中间态（错误恢复路径）的就地解除入口（跟随 app 级 `.btn-danger` 基类）；issue #88 试点的粉幽灵形态已随 issue #104 收敛移除，不再存在红族之外的解除绑定样式。重新同步房间不是危险操作，不用这行样式。绑定页的校验失败重试 `.error-retry`（issue #102）是表单错误同族的轻量按钮——红字 + 同款浅底描边，Pressed 叠更深一档红 tint `rgba(249,115,115,0.24)`，无 transform 过渡。
 
 同一含义共享同一红色，组件角色靠形态（按钮 / 细 rail / 文案条）区分，不靠颜色分叉；不引入第二种红。
 

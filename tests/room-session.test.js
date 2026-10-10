@@ -193,6 +193,73 @@ test('RoomSession repairCachedRoom keeps a newer cached room when a stale repair
   assert.deepEqual(cloud.calls, [{ name: 'getMyRoom' }])
 })
 
+test('RoomSession createRoom tells the user to retry and keeps a raw cloud timeout out of the message', async () => {
+  const logs = []
+  const storage = createMemoryStorage()
+  const cloud = createFakeCloud({
+    createRoom: new Error('云数据库查询超时 (15000ms)')
+  })
+  const session = createRoomSession({
+    storage,
+    cloud,
+    logger: {
+      error(...args) {
+        logs.push(args.map(String).join(' '))
+      }
+    }
+  })
+
+  const result = await session.createRoom()
+
+  assert.deepEqual(result, { code: -1, msg: '网络不太稳定，请重试' })
+  assert.equal(JSON.stringify(result).includes('15000'), false)
+  assert.match(logs.join('\n'), /15000ms/)
+})
+
+test('RoomSession createRoom rewrites a raw timeout returned by the cloud function', async () => {
+  const logs = []
+  const storage = createMemoryStorage()
+  const cloud = createFakeCloud({
+    createRoom: { code: -1, msg: '云数据库查询超时 (15000ms)' }
+  })
+  const session = createRoomSession({
+    storage,
+    cloud,
+    logger: {
+      error(...args) {
+        logs.push(args.map(String).join(' '))
+      }
+    }
+  })
+
+  const result = await session.createRoom()
+
+  assert.deepEqual(result, { code: -1, msg: '网络不太稳定，请重试' })
+  assert.equal(JSON.stringify(result).includes('15000'), false)
+  assert.match(logs.join('\n'), /15000ms/)
+})
+
+test('RoomSession createRoom hides an empty room code and asks the user to retry', async () => {
+  const logs = []
+  const session = createRoomSession({
+    storage: createMemoryStorage(),
+    cloud: createFakeCloud({
+      createRoom: { code: 0, room: {} }
+    }),
+    logger: {
+      error(...args) {
+        logs.push(args.map(String).join(' '))
+      }
+    }
+  })
+
+  const result = await session.createRoom()
+
+  assert.deepEqual(result, { code: -1, msg: '这次没有完成，请重试' })
+  assert.equal(JSON.stringify(result).includes('房间码为空'), false)
+  assert.match(logs.join('\n'), /房间码为空/)
+})
+
 test('RoomSession createRoom caches the created room code', async () => {
   const storage = createMemoryStorage()
   const cloud = createFakeCloud({
@@ -205,6 +272,92 @@ test('RoomSession createRoom caches the created room code', async () => {
   assert.deepEqual(result, { code: 0, roomCode: 'ROOM03', room: { roomCode: 'ROOM03' } })
   assert.equal(storage.get('roomCode'), 'ROOM03')
   assert.deepEqual(cloud.calls, [{ name: 'createRoom' }])
+})
+
+test('RoomSession joinRoom tells the user to retry and keeps a raw cloud timeout out of the message', async () => {
+  const logs = []
+  const storage = createMemoryStorage()
+  const cloud = createFakeCloud({
+    joinRoom: new Error('云数据库查询超时 (15000ms)')
+  })
+  const session = createRoomSession({
+    storage,
+    cloud,
+    logger: {
+      error(...args) {
+        logs.push(args.map(String).join(' '))
+      }
+    }
+  })
+
+  const result = await session.joinRoom('ROOM04')
+
+  assert.deepEqual(result, { code: -1, msg: '网络不太稳定，请重试' })
+  assert.equal(JSON.stringify(result).includes('15000'), false)
+  assert.match(logs.join('\n'), /15000ms/)
+})
+
+test('RoomSession joinRoom rewrites a raw error returned by the cloud function', async () => {
+  const logs = []
+  const storage = createMemoryStorage()
+  const cloud = createFakeCloud({
+    joinRoom: { code: -1, msg: "TypeError: Cannot read property 'room' of undefined" }
+  })
+  const session = createRoomSession({
+    storage,
+    cloud,
+    logger: {
+      error(...args) {
+        logs.push(args.map(String).join(' '))
+      }
+    }
+  })
+
+  const result = await session.joinRoom('ROOM04')
+
+  assert.deepEqual(result, { code: -1, msg: '这次没有完成，请重试' })
+  assert.equal(JSON.stringify(result).includes('TypeError'), false)
+  assert.match(logs.join('\n'), /TypeError/)
+})
+
+test('RoomSession joinRoom keeps a room-code refusal the user can act on', async () => {
+  const logs = []
+  const session = createRoomSession({
+    storage: createMemoryStorage(),
+    cloud: createFakeCloud({
+      joinRoom: { code: -2, msg: '房间不存在，请检查房间码' }
+    }),
+    logger: {
+      error() {
+        logs.push('logged')
+      }
+    }
+  })
+
+  const result = await session.joinRoom('ROOM04')
+
+  assert.deepEqual(result, { code: -1, msg: '房间不存在，请检查房间码' })
+  assert.deepEqual(logs, [])
+})
+
+test('RoomSession createRoom keeps the still-in-a-room refusal the bind page uses to offer unbind', async () => {
+  const logs = []
+  const session = createRoomSession({
+    storage: createMemoryStorage(),
+    cloud: createFakeCloud({
+      createRoom: { code: -5, msg: '你已加入其他房间，请先解除绑定后再创建新房间' }
+    }),
+    logger: {
+      error() {
+        logs.push('logged')
+      }
+    }
+  })
+
+  const result = await session.createRoom()
+
+  assert.deepEqual(result, { code: -1, msg: '你已加入其他房间，请先解除绑定后再创建新房间' })
+  assert.deepEqual(logs, [])
 })
 
 test('RoomSession joinRoom normalizes the code and caches the joined room', async () => {

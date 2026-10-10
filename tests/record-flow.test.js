@@ -3165,6 +3165,74 @@ test('memory edit save writes the one-shot segment intent so the record tab land
   }
 })
 
+test('memory edit rejects a future date passed in by the route and does not save', async () => {
+  const toasts = []
+  const calls = []
+  const realUtil = require(path.join(repoRoot, 'utils/util.js'))
+  const harness = loadRecordPageHarness('pages/memory/edit/edit.js', {
+    mocks: {
+      'utils/util.js': { ...realUtil, formatDate: () => '2026-09-20' },
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async add(collection, payload) {
+              calls.push({ method: 'add', collection, payload })
+              return { kind: 'success', result: { record: { _id: 'new-m1', ...payload } } }
+            },
+            async update(collection, id, payload) {
+              calls.push({ method: 'update', collection, id, payload })
+              return { kind: 'success', result: { record: { _id: id, ...payload } } }
+            }
+          }
+        }
+      }
+    },
+    wxOverrides: {
+      showToast(options) {
+        toasts.push(options)
+      }
+    }
+  })
+
+  try {
+    // 路由带进未来日期：选择器上限挡不住已写入的值，保存时必须拦下并提示
+    harness.page.onLoad({ date: '2026-09-21' })
+    const outcome = await harness.page.save()
+
+    assert.deepEqual(outcome, { kind: 'validation', message: '日期不能晚于今天' })
+    assert.deepEqual(toasts, [{ title: '日期不能晚于今天', icon: 'none' }])
+    assert.deepEqual(calls, [])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('memory edit saves today and a past date', async () => {
+  const env = createMemoryEditSaveEnv()
+
+  try {
+    env.harness.page.onLoad({})
+    assert.equal(env.harness.page.data.date, '2026-09-20')
+    const todayOutcome = await env.harness.page.save()
+    assert.equal(todayOutcome.kind, 'success')
+    assert.deepEqual(env.adds, [{
+      collection: 'memories',
+      payload: { date: '2026-09-20', note: '' }
+    }])
+
+    env.harness.page.onLoad({ id: 'm1', date: '2026-08-01', note: '以前' })
+    const pastOutcome = await env.harness.page.save()
+    assert.equal(pastOutcome.kind, 'success')
+    assert.deepEqual(env.updates, [{
+      collection: 'memories',
+      id: 'm1',
+      payload: { date: '2026-08-01', note: '以前' }
+    }])
+  } finally {
+    env.harness.teardown()
+  }
+})
+
 test('memory edit delete writes the one-shot segment intent', async () => {
   const env = createEditDeleteEnv('pages/memory/edit/edit.js', {
     id: 'm1',
