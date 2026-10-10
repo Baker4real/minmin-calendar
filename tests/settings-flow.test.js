@@ -1110,7 +1110,7 @@ test('settings page no longer offers a second happy-time entry', () => {
 
 function wxssRuleBody(wxss, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const match = wxss.match(new RegExp(`(?:^|[\\n}])\\s*${escaped}\\s*\\{([^}]+)\\}`))
+  const match = wxss.match(new RegExp(`(?:^|[\\n},])\\s*${escaped}\\s*(?:,[^{]*)?\\{([^}]+)\\}`))
   assert.ok(match, `expected rule for ${selector}`)
   return match[1]
 }

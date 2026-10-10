@@ -14,7 +14,7 @@
       <view class="form-item">
         <text class="form-label">开始日期</text>
         <picker mode="date" value="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onStartChange" aria-role="button" aria-label="选择开始日期">
-          <view class="form-picker">
+          <view class="form-picker" hover-class="form-picker-hover">
             <text>{{startDateLabel}}</text>
             <text class="form-picker-arrow">›</text>
           </view>
@@ -35,14 +35,13 @@
             aria-role="radio"
             aria-label="经期状态 {{item.label}}"
             aria-checked="{{status === item.value}}"
-            aria-disabled="{{saving}}"
-          >{{item.label}}</view>
+            aria-disabled="{{saving}}" hover-class="flow-chip-hover">{{item.label}}</view>
         </view>
       </view>
       <view class="form-item" wx:if="{{status === 'known-end'}}">
         <text class="form-label">结束日期</text>
         <picker mode="date" value="{{endDate}}" start="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onEndChange" aria-role="button" aria-label="选择结束日期">
-          <view class="form-picker">
+          <view class="form-picker" hover-class="form-picker-hover">
             <text>{{endDateLabel}}</text>
             <text class="form-picker-arrow">›</text>
           </view>
@@ -65,8 +64,7 @@
             aria-role="checkbox"
             aria-label="经量 {{item.label}}"
             aria-checked="{{flow === item.value}}"
-            aria-disabled="{{saving}}"
-          >{{item.label}}</view>
+            aria-disabled="{{saving}}" hover-class="flow-chip-hover">{{item.label}}</view>
         </view>
       </view>
       <view class="form-item">
@@ -91,8 +89,7 @@
               aria-role="checkbox"
               aria-label="症状 {{item.label}}"
               aria-checked="{{item.selected}}"
-              aria-disabled="{{saving}}"
-            >{{item.label}}</view>
+              aria-disabled="{{saving}}" hover-class="symptom-chip-hover">{{item.label}}</view>
           </view>
         </view>
       </view>
@@ -103,7 +100,7 @@
     </view>
 
     <view class="btns">
-      <view wx:if="{{!saving && !deleting && !submitted}}" class="btn-premium" bindtap="save" aria-role="button" aria-label="保存">保存</view>
+      <view wx:if="{{!saving && !deleting && !submitted}}" class="btn-premium" bindtap="save" aria-role="button" aria-label="保存" hover-class="btn-premium-hover">保存</view>
       <view wx:elif="{{saving}}" class="btn-premium loading" aria-role="button" aria-disabled="true">保存中...</view>
       <view wx:else class="btn-premium disabled" aria-role="button" aria-disabled="true">保存</view>
     </view>
