@@ -1,5 +1,6 @@
 const cloud = require('../../utils/cloud')
 const roomSession = require('../../utils/room')
+const roomPresence = require('../../utils/roomPresence')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const settingsFlow = require('../../utils/settingsFlow')
 const safeArea = require('../../utils/safeArea')
@@ -21,6 +22,7 @@ function settingsInitialData() {
     safeBottom: safeArea.getSafeBottom(),
     ...cachedRoomFirstFrame(),
     roomCodeLoaded: false,
+    roomMemberLabel: '',
     calendarDensity: 'compact',
     helpOpen: false
   }
@@ -40,6 +42,9 @@ Page({
   async resolveRoom() {
     const room = await roomSession.getVerifiedActiveRoom()
     syncActiveRoom(this, room)
+    if (roomPresence.rememberRoomStatus(room && room.status)) {
+      wx.showToast({ title: 'TA 已加入', icon: 'none' })
+    }
   },
 
   retryRoomResolve() {
@@ -125,7 +130,17 @@ Page({
 
 function syncActiveRoom(page, room) {
   // roomCodeLoaded：首次解析完成前不出重试/去绑定操作，避免未绑定文案闪出可点入口
-  page.setData({ roomCodeLoaded: true, ...roomAccessOutcome.buildRoomDisplayState(room) })
+  page.setData({
+    roomCodeLoaded: true,
+    roomMemberLabel: membershipLabel(room && room.status),
+    ...roomAccessOutcome.buildRoomDisplayState(room)
+  })
+}
+
+function membershipLabel(status) {
+  if (status === 'waiting') return '等待 TA 加入'
+  if (status === 'paired') return 'TA 已加入'
+  return ''
 }
 
 function getSavedCalendarDensity() {

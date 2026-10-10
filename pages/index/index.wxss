@@ -74,6 +74,16 @@
   50% { opacity: 1; transform: scale(1.15); }
 }
 
+.partner-welcome {
+  display: block;
+  margin: 8rpx 24rpx 12rpx;
+  text-align: center;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
+  color: rgba(255,255,255,0.85);
+}
+
 /* 刷新失败重试句（issue #79）：已加载后的后台刷新失败留驻的可点行。
    正常文档流（非 fixed/absolute）放在月份导航与周头之间，不遮月份标题；
    文案行玫瑰可点色，88rpx 触控高度。 */

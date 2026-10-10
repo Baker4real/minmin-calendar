@@ -564,9 +564,10 @@ test('untappable settings rows do not take menu press feedback', () => {
   const menuRows = collectElements(readPage('pages/settings/settings.wxml'))
     .filter((element) => classTokens(element).includes('menu-item'))
   const inert = menuRows.filter((element) => !isTapTarget(element))
-  assert.equal(inert.length, 2, 'settings has the room-code row and the version row')
+  assert.equal(inert.length, 3, 'settings has the room-code row, the member status row, and the version row')
   assert.ok(classTokens(inert[0]).includes('room-code-item'), 'the room-code row stays inert')
-  assert.equal(classTokens(inert[1]).includes('room-code-item'), false, 'the version row is the other inert row')
+  assert.match(inert[1].attrs['wx:if'] || '', /roomMemberLabel/, 'the member status row stays inert')
+  assert.equal(classTokens(inert[2]).includes('room-code-item'), false, 'the version row is the other inert row')
   for (const row of inert) {
     assert.ok(classTokens(row).includes('non-interactive'), `${describe(row)} needs the non-interactive modifier`)
   }

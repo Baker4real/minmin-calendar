@@ -7,6 +7,8 @@ const recordDraft = require('../../utils/recordDraft')
 const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 const safeArea = require('../../utils/safeArea')
+const roomSession = require('../../utils/room')
+const roomPresence = require('../../utils/roomPresence')
 const { createSheetLifecycle, homepageSheets, handoffSheet } = require('../../utils/sheetLifecycle')
 
 // 与 pages/settings/settings.js 共享同一存储键；写入方在设置页
@@ -89,6 +91,7 @@ Page({
     syncStatusMounted: false,
     syncStatusPhase: 'closed',
     noRoom: false,
+    partnerWelcome: false,
     roomStatusTitle: '',
     roomStatusDesc: '',
     roomStatusActionText: '',
@@ -111,9 +114,30 @@ Page({
   },
 
   onShow() {
-    // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效
+    // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效。
+    // 记录加载必须在这次调用里同步开始，不能等房间状态请求回来。
     this.setData({ calendarDensity: this.getSavedCalendarDensity() })
-    return this.loadData({ background: this.canRefreshInBackground() })
+    const load = this.loadData({ background: this.canRefreshInBackground() })
+    const presence = this.observeRoomPresence()
+    return load.then(async (outcome) => {
+      await presence
+      return outcome
+    }, async (error) => {
+      await presence
+      throw error
+    })
+  },
+
+  async observeRoomPresence() {
+    try {
+      const room = await roomSession.getVerifiedActiveRoom()
+      if (roomPresence.rememberRoomStatus(room && room.status)) {
+        wx.showToast({ title: 'TA 已加入', icon: 'none' })
+      }
+    } catch (error) {}
+    if (!this.data.partnerWelcome && roomPresence.takePartnerWelcome()) {
+      this.setData({ partnerWelcome: true })
+    }
   },
 
   loadData(options = {}) {

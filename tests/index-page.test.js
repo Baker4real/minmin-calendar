@@ -405,12 +405,87 @@ test('stale request resolution cannot overwrite the newer request result', () =>
   }
 })
 
-function loadPageHarness({ client, calendarState } = {}) {
+test('homepage shows TA 已加入 once when the room changes from waiting to paired', async () => {
+  let status = 'waiting'
+  const storage = new Map()
+  const room = {
+    async getVerifiedActiveRoom() {
+      return { kind: 'success', bound: true, roomCode: 'ROOM01', status }
+    }
+  }
+  const client = {
+    async list() {
+      return { kind: 'success', data: [] }
+    }
+  }
+  const harness = loadPageHarness({ client, room, storage })
+
+  try {
+    await harness.page.onShow()
+    assert.deepEqual(harness.toasts, [])
+
+    status = 'paired'
+    await harness.page.onShow()
+    assert.deepEqual(harness.toasts, [{ title: 'TA 已加入', icon: 'none' }])
+
+    await harness.page.onShow()
+    assert.equal(harness.toasts.length, 1)
+    assert.equal(harness.page.data.hasLoadedHomeData, true)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('homepage shows one welcome line after joining and keeps marker meanings in the legend', async () => {
+  const storage = new Map([['partnerWelcome', 'pending']])
+  const room = {
+    async getVerifiedActiveRoom() {
+      return { kind: 'success', bound: true, roomCode: 'ROOM01', status: 'paired' }
+    }
+  }
+  const client = {
+    async list() {
+      return { kind: 'success', data: [] }
+    }
+  }
+  const harness = loadPageHarness({ client, room, storage })
+
+  try {
+    await harness.page.onShow()
+    assert.equal(harness.page.data.partnerWelcome, true)
+    assert.equal(storage.get('partnerWelcome'), 'seen')
+    assert.deepEqual(harness.toasts, [])
+    const wxml = readIndexWxml()
+    assert.match(wxml, /wx:if="\{\{partnerWelcome\}\}"/)
+    assert.match(wxml, /已和 TA 连上/)
+    assert.match(wxml, /标记含义可以在「图例」里查看/)
+
+    await harness.page.onShow()
+    assert.equal(harness.page.data.partnerWelcome, true)
+  } finally {
+    harness.teardown()
+  }
+
+  const again = loadPageHarness({ client, room, storage })
+  try {
+    await again.page.onShow()
+    assert.notEqual(again.page.data.partnerWelcome, true)
+  } finally {
+    again.teardown()
+  }
+})
+
+function loadPageHarness({ client, calendarState, room, storage } = {}) {
   const absolutePagePath = path.join(repoRoot, 'pages/index/index.js')
   const absoluteMocks = new Map([
     [path.join(repoRoot, 'utils/cloud.js'), { createRoomDataClient: () => client }],
     [path.join(repoRoot, 'utils/util.js'), createUtilStub()]
   ])
+  if (room) {
+    absoluteMocks.set(path.join(repoRoot, 'utils/room.js'), room)
+  }
+  const toastLog = []
+  const memory = storage || null
   if (calendarState !== 'real') {
     absoluteMocks.set(path.join(repoRoot, 'utils/homeCalendarState.js'), { buildHomeCalendarState })
   }
@@ -421,8 +496,19 @@ function loadPageHarness({ client, calendarState } = {}) {
 
   delete require.cache[require.resolve(absolutePagePath)]
   global.wx = {
-    getStorageSync: () => '',
-    setStorageSync() {},
+    getStorageSync(key) {
+      if (!memory) return ''
+      return memory.get(key) || ''
+    },
+    setStorageSync(key, value) {
+      if (memory) memory.set(key, value)
+    },
+    removeStorageSync(key) {
+      if (memory) memory.delete(key)
+    },
+    showToast(options) {
+      toastLog.push(options)
+    },
     switchTab() {},
     redirectTo() {},
     navigateTo() {},
@@ -451,6 +537,7 @@ function loadPageHarness({ client, calendarState } = {}) {
   }
   return {
     page,
+    toasts: toastLog,
     teardown() {
       Module._load = originalLoad
       global.Page = originalPage

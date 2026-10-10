@@ -1,10 +1,25 @@
 const roomSession = require('../../utils/room')
 const settingsFlow = require('../../utils/settingsFlow')
+const cloud = require('../../utils/cloud')
 const safeArea = require('../../utils/safeArea')
 
 // 云端 create/join 拒绝「已在其他房间」时返回的固定短语（roomMembershipLifecycle），
 // 命中时当前屏直接提供解除绑定，而不是只留一句错误
 const LEAVE_ROOM_REQUIRED_HINT = '请先解除绑定'
+
+async function restoredRoomNotice() {
+  try {
+    const client = cloud.createRoomDataClient()
+    const periods = await client.list('periods')
+    const memories = await client.list('memories')
+    if (!periods || periods.kind !== 'success' || !memories || memories.kind !== 'success') return ''
+    const count = (periods.data || []).length + (memories.data || []).length
+    if (count <= 0) return ''
+    return `已恢复原来的房间和 ${count} 条记录`
+  } catch (error) {
+    return ''
+  }
+}
 
 function isLeaveRoomRequired(msg) {
   return typeof msg === 'string' && msg.indexOf(LEAVE_ROOM_REQUIRED_HINT) !== -1
@@ -23,6 +38,7 @@ Page({
     needUnbind: false,
     checkFailed: false,
     justCreated: false,
+    restoredNotice: '',
     homeJumpFailed: false,
     // issue #115：第一次显示到第一次校验结果之前只留品牌心
     verifying: true,
@@ -92,6 +108,8 @@ Page({
     if (res.code === 0) {
       // issue #102：创建后引导——本次会话内在房间码区域提示「把房间码发给 TA」（onShow 重校验后清除）
       this.setData({ bound: true, roomCode: res.roomCode, needUnbind: false, justCreated: true })
+      const restoredNotice = await restoredRoomNotice()
+      if (restoredNotice) this.setData({ restoredNotice })
     } else {
       this.setData({ errorMsg: res.msg, needUnbind: isLeaveRoomRequired(res.msg) })
     }

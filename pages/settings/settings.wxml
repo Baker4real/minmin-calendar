@@ -16,6 +16,9 @@
           </view>
           <view wx:if="{{roomCode}}" class="copy-btn" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码">复制</view>
         </view>
+        <view wx:if="{{roomMemberLabel}}" class="menu-item non-interactive">
+          <text class="menu-text">{{roomMemberLabel}}</text>
+        </view>
         <view wx:if="{{roomCodeLoaded && !roomCode}}" class="room-code-actions">
           <view class="room-action-btn" bindtap="retryRoomResolve" aria-role="button" aria-label="重试获取房间码">重试</view>
           <view class="room-action-btn" bindtap="goBind" aria-role="button" aria-label="去绑定房间">去绑定</view>
