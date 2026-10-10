@@ -238,88 +238,77 @@
       </view>
       </view>
 
-      <block wx:if="{{daySheetMode == 'actions'}}">
-        <view class="sheet-actions">
-          <view wx:if="{{!selectedDateIsFuture}}" class="sheet-action" data-action="period" bindtap="onDayActionTap" aria-role="button" aria-label="记录经期" hover-class="sheet-action-hover">
-            <text class="sheet-action-icon period-tone">●</text>
-            <view class="sheet-action-copy">
-              <text class="sheet-action-title">记录经期</text>
-              <text class="sheet-action-desc">添加这一天的经期记录</text>
-            </view>
-            <text class="sheet-action-arrow">›</text>
-          </view>
-          <view class="sheet-action" data-action="memory" bindtap="onDayActionTap" aria-role="button" aria-label="记录欢乐时光" hover-class="sheet-action-hover">
-            <text class="sheet-action-icon memory-tone">♥</text>
-            <view class="sheet-action-copy">
-              <text class="sheet-action-title">欢乐时光</text>
-              <text class="sheet-action-desc">写下这一天的欢乐时光</text>
-            </view>
-            <text class="sheet-action-arrow">›</text>
-          </view>
-          <view class="sheet-action" data-action="detail" bindtap="onDayActionTap" aria-role="button" aria-label="查看详情" hover-class="sheet-action-hover">
-            <text class="sheet-action-icon detail-tone">i</text>
-            <view class="sheet-action-copy">
-              <text class="sheet-action-title">查看详情</text>
-              <text class="sheet-action-desc">经期与欢乐时光都在这里</text>
-            </view>
-            <text class="sheet-action-arrow">›</text>
-          </view>
+      <view wx:if="{{selectedDayDetail.meanings && selectedDayDetail.meanings.length}}" class="detail-meaning-list">
+        <view
+          wx:for="{{selectedDayDetail.meanings}}"
+          wx:key="key"
+          class="detail-meaning {{item.key}}"
+        >
+          <text class="detail-meaning-title">{{item.title}}</text>
+          <text class="detail-meaning-text">{{item.text}}</text>
         </view>
-      </block>
+      </view>
 
-      <view wx:elif="{{daySheetMode == 'detail'}}" class="{{dayDetailFade ? 'day-detail-fade' : ''}}">
-        <view class="day-detail-list">
-          <view wx:if="{{selectedDayDetail.meanings && selectedDayDetail.meanings.length}}" class="detail-meaning-list">
-            <view
-              wx:for="{{selectedDayDetail.meanings}}"
-              wx:key="key"
-              class="detail-meaning {{item.key}}"
-            >
-              <text class="detail-meaning-title">{{item.title}}</text>
-              <text class="detail-meaning-text">{{item.text}}</text>
-            </view>
-          </view>
+      <view wx:if="{{daySheetMode == 'detail'}}" class="day-detail-list {{dayDetailFade ? 'day-detail-fade' : ''}}">
+        <view wx:if="{{selectedDayDetail.empty}}" class="day-detail-empty">
+          <text class="detail-empty-title">当天无记录</text>
+          <text class="detail-empty-desc">可以从这里补一条经期或欢乐时光</text>
+        </view>
 
-          <view wx:if="{{selectedDayDetail.empty}}" class="day-detail-empty">
-            <text class="detail-empty-title">当天无记录</text>
-            <text class="detail-empty-desc">可以从这里补一条经期或欢乐时光</text>
-          </view>
-
-          <view
-            wx:for="{{selectedDayDetail.periods}}"
-            wx:key="key"
-            class="day-detail-row period-detail"
-          >
-            <view class="detail-rail"></view>
-            <view class="detail-copy">
-              <text class="detail-title">经期</text>
-              <text class="detail-main">{{item.range}}</text>
-              <text wx:if="{{item.metaText}}" class="detail-meta">{{item.metaText}}</text>
-            </view>
-          </view>
-
-          <view
-            wx:for="{{selectedDayDetail.memories}}"
-            wx:key="key"
-            class="day-detail-row memory-detail"
-          >
-            <view class="detail-rail"></view>
-            <view class="detail-copy">
-              <text class="detail-title">欢乐时光</text>
-              <text class="detail-main">{{item.note}}</text>
-            </view>
+        <view
+          wx:for="{{selectedDayDetail.periods}}"
+          wx:key="key"
+          class="day-detail-row period-detail"
+          data-kind="period"
+          data-id="{{item.recordId}}"
+          bindtap="onDayRecordTap"
+          aria-role="button"
+          aria-label="编辑经期"
+          hover-class="day-detail-row-hover"
+        >
+          <view class="detail-rail"></view>
+          <view class="detail-copy">
+            <text class="detail-title">经期</text>
+            <text class="detail-main">{{item.range}}</text>
+            <text wx:if="{{item.metaText}}" class="detail-meta">{{item.metaText}}</text>
           </view>
         </view>
 
-        <view class="sheet-actions compact-actions">
-          <view wx:if="{{!selectedDateIsFuture}}" class="sheet-action compact" data-action="period" bindtap="onDayActionTap" aria-role="button" aria-label="补经期" hover-class="sheet-action-hover">
-            <text class="sheet-action-icon period-tone">●</text>
-            <text class="sheet-action-title">补经期</text>
+        <view
+          wx:for="{{selectedDayDetail.memories}}"
+          wx:key="key"
+          class="day-detail-row memory-detail"
+          data-kind="memory"
+          data-id="{{item.recordId}}"
+          bindtap="onDayRecordTap"
+          aria-role="button"
+          aria-label="编辑欢乐时光"
+          hover-class="day-detail-row-hover"
+        >
+          <view class="detail-rail"></view>
+          <view class="detail-copy">
+            <text class="detail-title">欢乐时光</text>
+            <text class="detail-main">{{item.note}}</text>
           </view>
-          <view class="sheet-action compact" data-action="memory" bindtap="onDayActionTap" aria-role="button" aria-label="补欢乐时光" hover-class="sheet-action-hover">
-            <text class="sheet-action-icon memory-tone">♥</text>
-            <text class="sheet-action-title">补欢乐时光</text>
+        </view>
+      </view>
+
+      <view wx:if="{{selectedDayDetail.actions && selectedDayDetail.actions.length}}" class="sheet-actions {{daySheetMode == 'detail' ? 'compact-actions' : ''}}">
+        <view
+          wx:for="{{selectedDayDetail.actions}}"
+          wx:key="key"
+          class="sheet-action {{daySheetMode == 'detail' ? 'compact' : ''}}"
+          data-action="{{item.key}}"
+          bindtap="onDayActionTap"
+          aria-role="button"
+          aria-label="{{item.label}}"
+          hover-class="sheet-action-hover"
+        >
+          <text class="sheet-action-icon {{item.key == 'period' ? 'period-tone' : 'memory-tone'}}">{{item.key == 'period' ? '●' : '♥'}}</text>
+          <view class="sheet-action-copy">
+            <text class="sheet-action-title">{{item.label}}</text>
           </view>
+          <text wx:if="{{daySheetMode != 'detail'}}" class="sheet-action-arrow">›</text>
         </view>
       </view>
     </view>

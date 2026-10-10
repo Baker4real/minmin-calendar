@@ -236,6 +236,7 @@ function buildDayDetailsByDate(days, periods, memories, today) {
         if (detail.symptomText) meta.push(detail.symptomText)
         return {
           key: periodKeys[index],
+          recordId: recordIdentity(period),
           range: formatPeriodDetailRange(range, today),
           metaText: meta.join(' · ')
         }
@@ -246,19 +247,44 @@ function buildDayDetailsByDate(days, periods, memories, today) {
       .filter(({ memory }) => isDateString(memory.date) && memory.date === day.date)
       .map(({ memory, index }) => ({
         key: memoryKeys[index],
+        recordId: recordIdentity(memory),
         note: memory.note || '欢乐时光'
       }))
-    const meanings = buildDayMeanings(day)
+    const meanings = buildDayMeanings(day).filter(isDayDetailSentence)
 
     details[day.date] = {
       meanings,
       periods: periodDetails,
       memories: memoryDetails,
+      actions: buildDayRecordActions(day, today),
       empty: !meanings.length && !periodDetails.length && !memoryDetails.length
     }
   })
 
   return details
+}
+
+function recordIdentity(record) {
+  if (!record) return ''
+  return record._id || record.id || ''
+}
+
+function isDayDetailSentence(meaning) {
+  return meaning.key === 'predict' || meaning.key === 'holiday' || meaning.key === 'workday'
+}
+
+function buildDayRecordActions(day, today) {
+  if (!day.date || day.date > today) return []
+  return [
+    {
+      key: 'period',
+      label: day.isPeriod ? '编辑这次经期' : (day.date === today ? '记经期' : '补记经期')
+    },
+    {
+      key: 'memory',
+      label: day.date === today ? '记欢乐时光' : '补记欢乐时光'
+    }
+  ]
 }
 
 function isPeriodActiveOnDate(range, date) {

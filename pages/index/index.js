@@ -43,6 +43,7 @@ function emptyDayDetail() {
     meanings: [],
     periods: [],
     memories: [],
+    actions: [],
     empty: true
   }
 }
@@ -381,7 +382,7 @@ Page({
       month
     }
     if (hasOwn('monthPickerVisible')) update.monthPickerVisible = overrides.monthPickerVisible
-    if (this.data.daySheetMode === 'detail' && this.data.selectedDate) {
+    if (this.data.selectedDate && this.data.dayActionMounted) {
       update.selectedDayDetail = this._dayDetail(this.data.selectedDate)
     }
     this.setData(update)
@@ -687,6 +688,11 @@ Page({
   onDayTap(e) {
     const date = e.currentTarget.dataset.date
     if (!date) return
+    const detail = this._dayDetail(date)
+    if (detail.periods.length || detail.memories.length) {
+      this.showDayDetail(date)
+      return
+    }
     const selectedDay = this.data.days.find(day => day.date === date) || { date }
     homepageSheets(this).dayActions.open(this, {
       daySheetMode: 'actions',
@@ -695,7 +701,7 @@ Page({
       selectedDateLabel: this.formatSelectedDateLabel(date),
       selectedDateSubtitle: this.formatDaySubtitle(selectedDay),
       selectedDateIsFuture: date > util.formatDate(new Date()),
-      selectedDayDetail: null
+      selectedDayDetail: detail
     })
   },
 
@@ -704,17 +710,35 @@ Page({
     const date = this.data.selectedDate
     if (!date) return
 
+    if (action === 'detail') {
+      this.showDayDetail(date)
+      return
+    }
+    // 未来日期不提供记录动作。动作列表本身是空的，这里是不导航的兜底防线。
+    if (this.data.selectedDateIsFuture) return
     if (action === 'period') {
-      // 未来日期不提供记录经期（模板已隐藏入口，这里是不导航的兜底防线）
-      if (this.data.selectedDateIsFuture) return
       this.closeDayActions()
       this.openPeriodForDate(date)
     } else if (action === 'memory') {
       this.closeDayActions()
       wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl({ date }) })
-    } else if (action === 'detail') {
-      this.showDayDetail(date)
     }
+  },
+
+  onDayRecordTap(e) {
+    if (this.data.selectedDateIsFuture) return
+    const kind = e.currentTarget.dataset.kind
+    const recordId = e.currentTarget.dataset.id
+    if (!recordId) return
+    const collection = kind === 'memory' ? 'memories' : 'periods'
+    const record = this._recordList(collection).find(item => (item._id || item.id) === recordId)
+    if (!record) return
+    this.closeDayActions()
+    wx.navigateTo({
+      url: kind === 'memory'
+        ? recordEditRoute.buildMemoryEditUrl(record)
+        : recordEditRoute.buildPeriodEditUrl(record)
+    })
   },
 
   closeDayActions() {
@@ -789,15 +813,16 @@ Page({
   },
 
   formatSelectedDateLabel(date) {
-    return util.formatDisplayDate(date, { today: util.formatDate(new Date()) })
+    return util.formatDisplayDate(date, {
+      today: util.formatDate(new Date()),
+      withWeekday: true
+    })
   },
 
   formatDaySubtitle(day) {
     const parts = []
-    if (day.weekday) parts.push(day.weekday)
     if (day.lunarText) parts.push(day.lunarText)
     if (day.holidayName) parts.push(day.holidayName)
-    else if (day.isWorkday) parts.push('调休上班')
     return parts.join(' · ')
   },
 

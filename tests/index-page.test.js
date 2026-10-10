@@ -880,6 +880,7 @@ test('calendar day period action is not usable for future dates', () => {
     harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-30' } } })
     assert.equal(harness.page.data.selectedDateIsFuture, true)
     harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'memory' } } })
     assert.deepEqual(navigation, [])
 
     // 详情模式同一天同样被标记
@@ -896,12 +897,201 @@ test('calendar day period action is not usable for future dates', () => {
   }
 })
 
-test('day action sheet hides both period entries for future dates in the template', () => {
+test('day sheet record actions are the detail action list and not a view-detail menu', () => {
   const wxml = readIndexWxml()
-  const periodActions = wxml.match(/<view[^>]*data-action="period"[^>]*>/g) || []
-  assert.equal(periodActions.length, 2, 'expected the actions-mode and detail-mode period entries')
-  for (const tag of periodActions) {
-    assert.match(tag, /wx:if="\{\{!selectedDateIsFuture\}\}"/, 'period entry must be hidden on future dates')
+  assert.match(wxml, /wx:for="\{\{selectedDayDetail\.actions\}\}"/)
+  assert.match(wxml, /bindtap="onDayRecordTap"/)
+  assert.doesNotMatch(wxml, /查看详情/)
+  assert.doesNotMatch(wxml, /data-action="detail"/)
+})
+
+function daySheetDetail(overrides = {}) {
+  return {
+    meanings: [],
+    periods: [],
+    memories: [],
+    actions: [],
+    empty: true,
+    ...overrides
+  }
+}
+
+function loadDaySheetHarness() {
+  return loadPageHarness({
+    client: createQueuedClient([]),
+    calendarState() {
+      return {
+        days: [
+          { date: '2026-06-03', isEmpty: false },
+          { date: '2026-06-10', isEmpty: false },
+          { date: '2026-06-19', isEmpty: false, lunarText: '五月初五', holidayName: '端午' },
+          { date: '2026-06-20', isEmpty: false },
+          { date: '2026-06-26', isEmpty: false },
+          { date: '2026-10-01', isEmpty: false, lunarText: '八月廿一', holidayName: '国庆' }
+        ],
+        dayDetailsByDate: {
+          '2026-06-03': daySheetDetail({
+            periods: [{ key: 'period:p1', recordId: 'p1', range: '6月1日–6月5日', metaText: '' }],
+            actions: [
+              { key: 'period', label: '编辑这次经期' },
+              { key: 'memory', label: '补记欢乐时光' }
+            ],
+            empty: false
+          }),
+          '2026-06-10': daySheetDetail({
+            actions: [
+              { key: 'period', label: '补记经期' },
+              { key: 'memory', label: '补记欢乐时光' }
+            ]
+          }),
+          '2026-06-19': daySheetDetail({
+            meanings: [{ key: 'holiday', title: '节日', text: '端午。' }],
+            actions: [
+              { key: 'period', label: '补记经期' },
+              { key: 'memory', label: '补记欢乐时光' }
+            ],
+            empty: false
+          }),
+          '2026-06-20': daySheetDetail({
+            memories: [{ key: 'memory:m1', recordId: 'm1', note: '散步' }],
+            actions: [
+              { key: 'period', label: '补记经期' },
+              { key: 'memory', label: '补记欢乐时光' }
+            ],
+            empty: false
+          }),
+          '2026-06-26': daySheetDetail({
+            actions: [
+              { key: 'period', label: '记经期' },
+              { key: 'memory', label: '记欢乐时光' }
+            ]
+          }),
+          '2026-10-01': daySheetDetail({
+            meanings: [{ key: 'holiday', title: '节日', text: '国庆。' }]
+          })
+        }
+      }
+    }
+  })
+}
+
+test('a recorded day opens its detail and a blank day opens dated actions', () => {
+  const harness = loadDaySheetHarness()
+  try {
+    harness.page.applyHomeCalendarState({
+      year: 2026,
+      month: 5,
+      periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', status: 'known-end' }],
+      memories: [{ _id: 'm1', date: '2026-06-20', note: '散步' }],
+      today: '2026-06-26'
+    })
+
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-03' } } })
+    assert.equal(harness.page.data.daySheetMode, 'detail')
+    assert.equal(harness.page.data.dayDetailFade, false)
+    assert.equal(harness.page.data.selectedDateLabel, '6月3日 周三')
+    assert.equal(harness.page.data.selectedDayDetail.periods[0].recordId, 'p1')
+
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-20' } } })
+    assert.equal(harness.page.data.daySheetMode, 'detail')
+    assert.equal(harness.page.data.dayDetailFade, false)
+    assert.equal(harness.page.data.selectedDayDetail.memories[0].recordId, 'm1')
+
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-10' } } })
+    assert.equal(harness.page.data.daySheetMode, 'actions')
+    assert.equal(harness.page.data.dayDetailFade, false)
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions, [
+      { key: 'period', label: '补记经期' },
+      { key: 'memory', label: '补记欢乐时光' }
+    ])
+
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-26' } } })
+    assert.equal(harness.page.data.daySheetMode, 'actions')
+    assert.deepEqual(
+      harness.page.data.selectedDayDetail.actions.map(item => item.label),
+      ['记经期', '记欢乐时光']
+    )
+
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-19' } } })
+    assert.equal(harness.page.data.selectedDateLabel, '6月19日 周五')
+    assert.equal(harness.page.data.selectedDateSubtitle, '五月初五 · 端午')
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('tapping a day detail row opens that record in the editor', () => {
+  const harness = loadDaySheetHarness()
+  try {
+    const navigation = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+    harness.page.applyHomeCalendarState({
+      year: 2026,
+      month: 5,
+      periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', status: 'known-end' }],
+      memories: [{ _id: 'm1', date: '2026-06-20', note: '散步' }],
+      today: '2026-06-26'
+    })
+
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-03' } } })
+    harness.page.onDayRecordTap({ currentTarget: { dataset: { kind: 'period', id: 'p1' } } })
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-20' } } })
+    harness.page.onDayRecordTap({ currentTarget: { dataset: { kind: 'memory', id: 'm1' } } })
+
+    assert.deepEqual(navigation, [
+      '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&status=known-end',
+      `/pages/memory/edit/edit?id=m1&date=2026-06-20&note=${encodeURIComponent('散步')}`
+    ])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('a period day action edits the covering record instead of creating an overlap', () => {
+  const harness = loadDaySheetHarness()
+  try {
+    const navigation = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+    harness.page.applyHomeCalendarState({
+      year: 2026,
+      month: 5,
+      periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', status: 'known-end' }],
+      today: '2026-06-26'
+    })
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-06-03' } } })
+    assert.equal(harness.page.data.daySheetMode, 'detail')
+    assert.equal(harness.page.data.selectedDayDetail.actions[0].label, '编辑这次经期')
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    assert.deepEqual(navigation, [
+      '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&status=known-end'
+    ])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('a future day keeps holiday information and offers no record actions', () => {
+  const harness = loadDaySheetHarness()
+  try {
+    const navigation = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+    harness.page.applyHomeCalendarState({})
+    harness.page.onDayTap({ currentTarget: { dataset: { date: '2026-10-01' } } })
+    assert.equal(harness.page.data.daySheetMode, 'actions')
+    assert.equal(harness.page.data.selectedDateIsFuture, true)
+    assert.equal(harness.page.data.selectedDateLabel, '10月1日 周四')
+    assert.equal(harness.page.data.selectedDateSubtitle, '八月廿一 · 国庆')
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions, [])
+    assert.deepEqual(
+      harness.page.data.selectedDayDetail.meanings.map(item => item.text),
+      ['国庆。']
+    )
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'memory' } } })
+    harness.page.onDayRecordTap({ currentTarget: { dataset: { kind: 'memory', id: 'm-future' } } })
+    assert.deepEqual(navigation, [])
+  } finally {
+    harness.teardown()
   }
 })
 
@@ -1337,9 +1527,10 @@ test('homepage re-reads the persisted calendar density every time it shows', asy
 test('day detail keeps the full leap-month lunar string in the sheet subtitle', () => {
   const wxml = readIndexWxml()
   const subtitleAt = wxml.indexOf('selectedDateSubtitle')
-  const actionsAt = wxml.indexOf("daySheetMode == 'actions'")
+  const actionsAt = wxml.indexOf('selectedDayDetail.actions')
   const detailAt = wxml.indexOf("daySheetMode == 'detail'")
-  assert.ok(subtitleAt !== -1 && subtitleAt < actionsAt && subtitleAt < detailAt,
+  assert.ok(subtitleAt !== -1 && actionsAt !== -1 && detailAt !== -1
+    && subtitleAt < actionsAt && subtitleAt < detailAt,
     'day detail must show the shared subtitle, not only the action list')
 
   const harness = loadPageHarness({ client: createQueuedClient([]) })
@@ -1357,7 +1548,8 @@ test('day detail keeps the full leap-month lunar string in the sheet subtitle', 
     })
     harness.page.showDayDetail('2020-05-23')
     assert.equal(harness.page.data.daySheetMode, 'detail')
-    assert.equal(harness.page.data.selectedDateSubtitle, '周六 · 闰四月初一')
+    assert.equal(harness.page.data.selectedDateLabel, '2020年5月23日 周六')
+    assert.equal(harness.page.data.selectedDateSubtitle, '闰四月初一')
   } finally {
     harness.teardown()
   }
@@ -1813,9 +2005,9 @@ test('day actions, tools menu, and the info sheet use the same enter and leave l
     assert.equal(harness.page.data.dayActionPhase, 'closed')
     assert.equal(harness.page.data.daySheetMode, 'detail')
     assert.match(wxml, /class="sheet-title">\{\{selectedDateLabel\}\}<\/text>\s*<text class="sheet-subtitle">/)
-    assert.equal(harness.page.data.selectedDateLabel, '6月20日')
+    assert.equal(harness.page.data.selectedDateLabel, '6月20日 周六')
     assert.equal(harness.page.data.selectedDate, '2026-06-20')
-    assert.equal(harness.page.data.selectedDateSubtitle, '周六 · 五月初五')
+    assert.equal(harness.page.data.selectedDateSubtitle, '五月初五')
     mock.timers.tick(0)
     assert.equal(harness.page.data.dayActionPhase, 'open')
 
@@ -1975,7 +2167,7 @@ test('tapping view detail marks the new content to fade in without leaving the s
     harness.page.showDayDetail('2026-06-20')
     assert.equal(harness.page.data.daySheetMode, 'detail')
     assert.equal(harness.page.data.dayDetailFade, false)
-    assert.equal(harness.page.data.selectedDateSubtitle, '周六 · 五月初五')
+    assert.equal(harness.page.data.selectedDateSubtitle, '五月初五')
     harness.page.closeDayActions()
     mock.timers.tick(200)
     assert.equal(harness.page.data.dayActionMounted, false)

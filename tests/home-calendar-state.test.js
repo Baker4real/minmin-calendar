@@ -53,10 +53,7 @@ test('buildHomeCalendarState returns fallback prediction state and explicit day 
   assert.equal(day.isPredict, false)
 
   const detail = state.dayDetailsByDate['2026-08-03']
-  assert.deepEqual(
-    detail.meanings.map(item => item.key),
-    ['today', 'period', 'memory']
-  )
+  assert.deepEqual(detail.meanings.map(item => item.key), [])
   assert.equal(detail.periods.length, 1)
   assert.match(detail.periods[0].key, /^period:fallback:/)
   assert.deepEqual(
@@ -122,34 +119,30 @@ test('buildHomeCalendarState reuses cycle and insight helpers for predictable re
   assert.deepEqual(predictedDates, ['2026-08-09', '2026-08-10', '2026-08-11'])
 
   const detail = state.dayDetailsByDate['2026-08-10']
-  assert.deepEqual(
-    detail.meanings.map(item => item.key),
-    ['today', 'memory', 'predict']
-  )
+  assert.deepEqual(detail.meanings.map(item => item.key), ['predict'])
   assert.equal(detail.memories.length, 1)
   assert.match(detail.memories[0].key, /^memory:fallback:/)
   assert.equal(detail.memories[0].note, '庆祝晚餐')
 })
 
-test('buildHomeCalendarState explains why a tapped date has markers', () => {
+test('buildHomeCalendarState does not restate today, period, or happy time in the day detail', () => {
   const state = buildHomeCalendarState({
     year: 2026,
     month: 7,
     periods: [period('2026-08-10', '2026-08-10')],
-    memories: [{ date: '2026-08-10', note: '庆祝晚餐' }],
+    memories: [{ _id: 'memory-a', date: '2026-08-10', note: '庆祝晚餐' }],
     today: '2026-08-10'
   })
 
   const detail = state.dayDetailsByDate['2026-08-10']
 
-  assert.deepEqual(
-    detail.meanings.map(item => [item.key, item.title]),
-    [
-      ['today', '今天'],
-      ['period', '经期记录'],
-      ['memory', '欢乐时光']
-    ]
-  )
+  assert.deepEqual(detail.meanings, [])
+  assert.equal(detail.periods[0].recordId, '')
+  assert.equal(detail.memories[0].recordId, 'memory-a')
+  assert.deepEqual(detail.actions, [
+    { key: 'period', label: '编辑这次经期' },
+    { key: 'memory', label: '记欢乐时光' }
+  ])
 })
 
 test('buildHomeCalendarState applies calendar marker semantics on top of date metadata', () => {
@@ -228,10 +221,7 @@ test('buildHomeCalendarState expresses a period day inside the prediction window
   assertPeriodDetailWithoutPrediction(state.dayDetailsByDate['2026-08-08'])
   assertPeriodDetailWithoutPrediction(state.dayDetailsByDate['2026-08-09'])
   assertPeriodDetailWithoutPrediction(state.dayDetailsByDate['2026-08-10'])
-  assert.deepEqual(
-    state.dayDetailsByDate['2026-08-10'].meanings.map(item => item.key),
-    ['period', 'memory']
-  )
+  assert.deepEqual(state.dayDetailsByDate['2026-08-10'].meanings, [])
   assert.equal(state.dayDetailsByDate['2026-08-10'].memories[0].note, '庆祝晚餐')
   assert.deepEqual(
     state.dayDetailsByDate['2026-08-11'].meanings.map(item => [item.key, item.title]),
@@ -272,18 +262,17 @@ test('buildHomeCalendarState aligns missing endDate period markers with detail r
   assert.equal(day.isPeriod, true)
 
   const detail = state.dayDetailsByDate['2026-08-12']
-  assert.deepEqual(
-    detail.meanings.map(item => item.key),
-    ['period']
-  )
+  assert.deepEqual(detail.meanings, [])
   // 旧数据缺结束日期：保守投影为结束日期不详，只有已知开始日，不发明时长
   assert.deepEqual(detail.periods, [
     {
       key: 'period:p-missing-end',
+      recordId: 'p-missing-end',
       range: '8月12日（结束日期不详）',
       metaText: '经量 量少'
     }
   ])
+  assert.deepEqual(detail.actions, [])
   assert.deepEqual(detail.memories, [])
   assert.equal(detail.empty, false)
 })
@@ -316,11 +305,13 @@ test('buildHomeCalendarState projects an ongoing period from its start through t
   assert.deepEqual(detail.periods, [
     {
       key: 'period:p-ongoing',
+      recordId: 'p-ongoing',
       range: '8月10日–8月13日（进行中）',
       metaText: ''
     }
   ])
-  assert.match(detail.meanings.find(item => item.key === 'period').text, /进行中的经期范围/)
+  assert.equal(detail.meanings.some(item => item.key === 'period'), false)
+  assert.match(detail.periods[0].range, /进行中/)
 
   const ariaParts = state.days
     .filter(day => day.date >= '2026-08-11' && day.date <= '2026-08-13')
@@ -552,11 +543,13 @@ test('buildHomeCalendarState marks only the known start day of an unknown-end pe
   assert.deepEqual(detail.periods, [
     {
       key: 'period:p-unknown-end',
+      recordId: 'p-unknown-end',
       range: '8月12日（结束日期不详）',
       metaText: ''
     }
   ])
-  assert.match(detail.meanings.find(item => item.key === 'period').text, /结束日期不详的经期记录的已知开始日/)
+  assert.equal(detail.meanings.some(item => item.key === 'period'), false)
+  assert.match(detail.periods[0].range, /结束日期不详/)
 
   // 读屏名称区分「结束日期不详」与「进行中」
   assert.equal(startDay.periodSegment, 'single')
@@ -606,10 +599,14 @@ test('buildHomeCalendarState does not show an empty state when a date only has m
   })
 
   const todayDetail = state.dayDetailsByDate['2026-08-10']
-  assert.deepEqual(todayDetail.meanings.map(item => item.key), ['today'])
+  assert.deepEqual(todayDetail.meanings, [])
   assert.deepEqual(todayDetail.periods, [])
   assert.deepEqual(todayDetail.memories, [])
-  assert.equal(todayDetail.empty, false)
+  assert.equal(todayDetail.empty, true)
+  assert.deepEqual(todayDetail.actions, [
+    { key: 'period', label: '记经期' },
+    { key: 'memory', label: '记欢乐时光' }
+  ])
 
   const plainDetail = state.dayDetailsByDate['2026-08-11']
   assert.deepEqual(plainDetail.meanings, [])
@@ -744,11 +741,8 @@ test('buildHomeCalendarState keeps long holiday names complete for screen reader
   assert.equal(nationalDay.isToday, true)
   assert.equal(nationalDay.ariaLabel, '10月1日 周四 八月十五 今天 国庆/中秋')
   const combinedDetail = combined.dayDetailsByDate['2020-10-01']
-  assert.deepEqual(
-    combinedDetail.meanings.map(item => item.key),
-    ['today', 'holiday']
-  )
-  assert.equal(combinedDetail.meanings[1].text, '国庆/中秋。')
+  assert.deepEqual(combinedDetail.meanings.map(item => item.key), ['holiday'])
+  assert.equal(combinedDetail.meanings[0].text, '国庆/中秋。')
 })
 
 test('calendar cells show the lunar day, and the first day of a lunar month shows the month name', () => {
@@ -1045,6 +1039,27 @@ test('homepage prediction excludes an unknown-end record from duration but marks
   assert.equal(state.monthlyRecap.highlights[0], '经期：8月10日，结束日期不详')
 })
 
+test('day detail names record actions by date and keeps workday sentences', () => {
+  const past = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [],
+    memories: [],
+    today: '2026-08-20'
+  })
+  assert.deepEqual(past.dayDetailsByDate['2026-08-11'].actions, [
+    { key: 'period', label: '补记经期' },
+    { key: 'memory', label: '补记欢乐时光' }
+  ])
+
+  const january = buildHomeCalendarState({ year: 2026, month: 0, today: '2026-01-01' })
+  const workday = january.dayDetailsByDate['2026-01-04']
+  assert.deepEqual(workday.meanings.map(item => [item.key, item.title, item.text]), [
+    ['workday', '调休上班', '官方调休上班日。']
+  ])
+  assert.deepEqual(workday.actions, [])
+})
+
 function segmentRow(state, startDate, endDate) {
   return state.days
     .filter(day => day.date >= startDate && day.date <= endDate)
@@ -1052,9 +1067,10 @@ function segmentRow(state, startDate, endDate) {
 }
 
 function assertPeriodDetailWithoutPrediction(detail) {
-  assert.ok(detail.meanings.some(item => item.key === 'period' && /经期/.test(item.title)))
+  assert.equal(detail.meanings.some(item => item.key === 'period' || item.key === 'today' || item.key === 'memory'), false)
   assert.equal(detail.meanings.some(item => item.key === 'predict' || /预测区间/.test(`${item.title} ${item.text}`)), false)
   assert.equal(detail.periods.length > 0, true)
+  assert.equal(detail.actions[0].label, '编辑这次经期')
 }
 
 function period(startDate, endDate) {

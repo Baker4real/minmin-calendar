@@ -234,7 +234,11 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   const dayActions = elements
     .filter((element) => element.attrs.bindtap === 'onDayActionTap')
     .map((element) => element.attrs['aria-label'])
-  assert.deepEqual(dayActions, ['记录经期', '记录欢乐时光', '查看详情', '补经期', '补欢乐时光'])
+  assert.deepEqual(dayActions, ['{{item.label}}'])
+  const recordRows = elements
+    .filter((element) => element.attrs.bindtap === 'onDayRecordTap')
+    .map((element) => element.attrs['aria-label'])
+  assert.deepEqual(recordRows, ['编辑经期', '编辑欢乐时光'])
 
   // 月份格点一下即跳转，不再有确认按钮
   const jumpOption = byHandler('selectJumpMonth', 'jump-option')
