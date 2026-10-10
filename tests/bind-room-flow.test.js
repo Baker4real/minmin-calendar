@@ -3,6 +3,7 @@ const fs = require('node:fs')
 const Module = require('node:module')
 const path = require('node:path')
 const test = require('node:test')
+const { parseWxssRules } = require('./designTokens')
 
 // issue #78：房间码复制/解除绑定同屏可达、清除本地数据文案与行为对齐的页面接缝测试。
 // issue #102：已绑定冷启动自动 switchTab 进首页（跳转失败才留「进入应用」兜底）；校验失败留在
@@ -112,6 +113,24 @@ test('bind buttons ride the app-level rose primary and warning-red danger famili
   // needUnbind 中间态就地解除入口保留：布局间距在场，样式跟随 app 级警示红族
   const unbindInline = findRule(css, '.unbind-inline')
   assert.match(unbindInline['margin-top'], /^\d+rpx$/)
+})
+
+// 按压底色把 :active 与 hover-class 并进同一条规则。查找任一选择器都要读到同一组声明。
+test('findRule treats an :active selector and its hover-class as one rule', () => {
+  const css = [
+    '.btn-danger:active,',
+    '.btn-danger.btn-danger-hover {',
+    '  transform: scale(0.95);',
+    '  background: linear-gradient(rgba(249,115,115,0.12), rgba(249,115,115,0.12)), var(--glass-fallback);',
+    '}'
+  ].join('\n')
+
+  const active = findRule(css, '.btn-danger:active')
+  const hover = findRule(css, '.btn-danger.btn-danger-hover')
+
+  assert.equal(active.transform, 'scale(0.95)')
+  assert.equal(active.background, 'linear-gradient(rgba(249,115,115,0.12), rgba(249,115,115,0.12)), var(--glass-fallback)')
+  assert.deepEqual(hover, active)
 })
 
 // issue #104：未绑定表单域收敛回 Aurora 海军域——tab 条与输入框玻璃面回海军实底回退、
@@ -778,16 +797,10 @@ function sliceBetween(text, startMarker, endMarker) {
 }
 
 function findRule(css, selector) {
-  const pattern = new RegExp(`(?:^|\\r?\\n)${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`)
-  const match = css.match(pattern)
-  assert.ok(match, `expected rule ${selector}`)
-  const decls = {}
-  for (const decl of match[1].split(';')) {
-    const colon = decl.indexOf(':')
-    if (colon === -1) continue
-    decls[decl.slice(0, colon).trim()] = decl.slice(colon + 1).trim()
-  }
-  return decls
+  // :active 与 hover-class 并列时仍是同一条规则，组里任一选择器都要能查到它。
+  const rule = parseWxssRules(css).find((candidate) => candidate.selectors.includes(selector))
+  assert.ok(rule, `expected rule ${selector}`)
+  return rule.decls
 }
 
 function createRoomSessionStub(results = {}) {

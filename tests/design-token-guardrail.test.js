@@ -258,6 +258,19 @@ const SOLID_ROSE_FILL_ALLOWLIST = new Set(
 const GRADIENT_FILL = /(?:linear|radial|conic)-gradient\(/i
 const SOLID_ROSE_FILL_LITERAL = /#e8909e\b|rgba?\(\s*232\s*,\s*144\s*,\s*158\s*(?:,\s*1(?:\.0*)?\s*)?\)/i
 
+// `.nav-btn.nav-btn-hover` 是 `.nav-btn:active` 的微信 hover-class 写法，不是另一条规则。
+function activeSelectorForHoverClass(selector) {
+  if (!/\.([A-Za-z_][\w-]*)\.\1-hover\b/.test(selector)) return null
+  return selector.replace(/\.([A-Za-z_][\w-]*)\.\1-hover\b/g, '.$1:active')
+}
+
+function fillAllowlisted(allowlist, relative, selector, selectors) {
+  if (allowlist.has(`${relative}::${selector}`)) return true
+  const activeSelector = activeSelectorForHoverClass(selector)
+  if (!activeSelector || !selectors.includes(activeSelector)) return false
+  return allowlist.has(`${relative}::${activeSelector}`)
+}
+
 function scanCtaFillDiscipline(relative, css) {
   const violations = []
   for (const rule of parseWxssRules(css)) {
@@ -265,10 +278,10 @@ function scanCtaFillDiscipline(relative, css) {
     if (fills.length === 0) continue
     for (const selector of rule.selectors) {
       const key = `${relative}::${selector}`
-      if (fills.some((fill) => GRADIENT_FILL.test(fill)) && !GRADIENT_FILL_ALLOWLIST.has(key)) {
+      if (fills.some((fill) => GRADIENT_FILL.test(fill)) && !fillAllowlisted(GRADIENT_FILL_ALLOWLIST, relative, selector, rule.selectors)) {
         violations.push(`${key} uses a gradient fill outside the gradient allowlist`)
       }
-      if (fills.some((fill) => SOLID_ROSE_FILL_LITERAL.test(fill)) && !SOLID_ROSE_FILL_ALLOWLIST.has(key)) {
+      if (fills.some((fill) => SOLID_ROSE_FILL_LITERAL.test(fill)) && !fillAllowlisted(SOLID_ROSE_FILL_ALLOWLIST, relative, selector, rule.selectors)) {
         violations.push(`${key} uses a literal solid rose fill instead of var(--aurora-pink)`)
       }
     }
@@ -295,6 +308,20 @@ test('CTA fill guardrail flags unregistered gradient and literal rose fills', ()
     ['pages/period/edit/edit.wxss', '.flow-chip.active { background: rgba(232,144,158,0.92); }']
   ]
   assert.deepEqual(legit.flatMap(([f, css]) => scanCtaFillDiscipline(f, css)), [])
+})
+
+// :active 与 hover-class 并列是同一条已登记规则。组里多出来的未登记选择器仍然拒绝。
+test('CTA fill guardrail rejects an unregistered selector grouped with an :active and hover-class pair', () => {
+  const css = [
+    '.nav-btn:active,',
+    '.nav-btn.nav-btn-hover,',
+    '.evil-btn {',
+    '  background: linear-gradient(rgba(255,255,255,0.2), rgba(255,255,255,0.2)), var(--glass-fallback);',
+    '}'
+  ].join('\n')
+  assert.deepEqual(scanCtaFillDiscipline('pages/index/index.wxss', css), [
+    'pages/index/index.wxss::.evil-btn uses a gradient fill outside the gradient allowlist'
+  ])
 })
 
 test('every WXSS fill stays inside the gradient and solid-rose deny-by-default allowlists', () => {
