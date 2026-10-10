@@ -126,21 +126,21 @@ function formatPeriodHighlight(period, monthStart, monthEnd, today) {
 
   // 进行中与结束日期不详没有精确经期时长，不写「整段 N 天」；只报本月天数
   if (range.status === 'ongoing') {
-    const parts = [`经期：${formatMonthDay(range.startDate)}-${formatMonthDay(range.endDate)}，进行中`]
+    const parts = [`经期：${util.formatDisplayDateRange(range.startDate, range.endDate, { today })}，进行中`]
     parts.push(`本月 ${getPeriodDaysInMonth(period, monthStart, monthEnd, today)} 天`)
     if (detail.flowLabel) parts.push(`经量 ${detail.flowLabel}`)
     if (detail.symptomText) parts.push(detail.symptomText)
     return parts.join('，')
   }
   if (range.status === 'unknown-end') {
-    const parts = [`经期：${formatMonthDay(range.startDate)}，结束日期不详`]
+    const parts = [`经期：${util.formatDisplayDate(range.startDate, { today })}，结束日期不详`]
     if (detail.flowLabel) parts.push(`经量 ${detail.flowLabel}`)
     if (detail.symptomText) parts.push(detail.symptomText)
     return parts.join('，')
   }
 
   const duration = cycle.getPeriodDuration(period)
-  const parts = [`经期：${formatMonthDay(detail.startDate)}-${formatMonthDay(detail.endDate)}`]
+  const parts = [`经期：${util.formatDisplayDateRange(detail.startDate, detail.endDate, { today })}`]
   if (isPeriodFullyInMonth(range, monthStart, monthEnd)) {
     parts.push(`${duration}天`)
   } else {
@@ -173,7 +173,7 @@ function formatMemoryHighlight(memories) {
   })
 
   if (defaultNotePartIndex !== -1) {
-    parts[defaultNotePartIndex] = defaultNoteCount === 1 ? '特别日子' : `${defaultNoteCount} 个特别日子`
+    parts[defaultNotePartIndex] = defaultNoteCount === 1 ? '欢乐时光' : `${defaultNoteCount} 个欢乐时光`
   }
 
   return `欢乐时光：${parts.join('；')}`
@@ -183,7 +183,7 @@ function normalizeMemoryNote(memory) {
   const note = typeof memory.note === 'string' ? memory.note.trim() : ''
   return note
     ? { text: note, isDefault: false }
-    : { text: '特别日子', isDefault: true }
+    : { text: '欢乐时光', isDefault: true }
 }
 
 function overlapsMonth(period, monthStart, monthEnd, today) {
@@ -204,10 +204,6 @@ function getPeriodDaysInMonth(period, monthStart, monthEnd, today) {
   const endDate = range.endDate < monthEnd ? range.endDate : monthEnd
   if (startDate > endDate) return 0
   return util.daysBetween(util.parseDate(startDate), util.parseDate(endDate)) + 1
-}
-
-function formatMonthDay(dateStr) {
-  return util.formatPredictDisplay(dateStr).date
 }
 
 function pad2(value) {

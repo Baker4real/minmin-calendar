@@ -1,4 +1,7 @@
-<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
+<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
+  <view class="nav-bar header-gradient">
+    <view class="nav-placeholder"></view>
+  </view>
   <view class="content">
     <view class="hero">
       <!-- 品牌心是文本字形（颜色走 wxss），不用红色心形表情（issue #77） -->
@@ -16,27 +19,28 @@
            issue #84：房间码回归纯展示文本，复制键是唯一复制入口 -->
       <view class="bound-code-row">
         <text class="bound-code">房间码：{{roomCode}}</text>
-        <view class="copy-btn" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码">复制</view>
+        <view class="copy-btn" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码" hover-class="copy-btn-hover">复制</view>
       </view>
       <!-- issue #102：创建成功后的下一步引导；复制键仍是唯一复制入口，不新增第二个 -->
       <text wx:if="{{justCreated}}" class="info-text">把房间码发给 TA</text>
       <text wx:if="{{restoredNotice}}" class="info-text">{{restoredNotice}}</text>
+      <button wx:if="{{justCreated}}" class="btn-premium share-invite" open-type="share" hover-class="share-invite-hover" aria-role="button" aria-label="发给 TA">发给 TA</button>
       <!-- issue #102：已绑定冷启动由 checkRoom 自动进首页，「进入应用」只在跳转失败或刚创建房间时出现；
            「解除绑定」移到设置页房间卡，本卡不再提供 -->
-      <view wx:if="{{justCreated || homeJumpFailed}}" class="btn-premium" bindtap="goHome" aria-role="button" aria-label="进入应用">进入应用</view>
+      <view wx:if="{{justCreated || homeJumpFailed}}" class="btn-premium" bindtap="goHome" aria-role="button" aria-label="进入应用" hover-class="btn-premium-hover">进入应用</view>
     </view>
 
     <view wx:else class="premium-card">
       <text class="info-text">房间只有你们两个人能看到</text>
       <view class="tab-bar">
-        <view class="tab {{tab==='create' ? 'active' : ''}}" bindtap="switchTab" data-tab="create" aria-role="radio" aria-label="创建房间" aria-checked="{{tab==='create'}}">创建房间</view>
-        <view class="tab {{tab==='join' ? 'active' : ''}}" bindtap="switchTab" data-tab="join" aria-role="radio" aria-label="加入房间" aria-checked="{{tab==='join'}}">加入房间</view>
+        <view class="tab {{tab==='create' ? 'active' : ''}}" bindtap="switchTab" data-tab="create" aria-role="radio" aria-label="创建房间" aria-checked="{{tab==='create'}}" hover-class="tab-hover">创建房间</view>
+        <view class="tab {{tab==='join' ? 'active' : ''}}" bindtap="switchTab" data-tab="join" aria-role="radio" aria-label="加入房间" aria-checked="{{tab==='join'}}" hover-class="tab-hover">加入房间</view>
       </view>
 
       <view wx:if="{{tab === 'create'}}">
         <text class="info-text">生成房间码，把码发给对方加入</text>
         <view wx:if="{{loading}}" class="btn-premium loading" aria-role="button" aria-disabled="true">创建中...</view>
-        <view wx:else class="btn-premium" bindtap="createRoom" aria-role="button" aria-label="创建我的房间">创建我的房间</view>
+        <view wx:else class="btn-premium" bindtap="createRoom" aria-role="button" aria-label="创建我的房间" hover-class="btn-premium-hover">创建我的房间</view>
       </view>
 
       <view wx:if="{{tab === 'join'}}">
@@ -44,15 +48,15 @@
         <input class="code-input" placeholder-class="input-placeholder" placeholder="输入6位码" value="{{joinCode}}" bindinput="onCodeInput" maxlength="6" confirm-type="done" bindconfirm="joinRoom" aria-label="输入6位房间码"/>
         <view wx:if="{{joinCode.length < 6 && !loading}}" class="btn-premium disabled" aria-role="button" aria-disabled="true">请输入6位房间码</view>
         <view wx:elif="{{loading}}" class="btn-premium loading" aria-role="button" aria-disabled="true">加入中...</view>
-        <view wx:elif="{{joinCode.length === 6}}" class="btn-premium" bindtap="joinRoom" aria-role="button" aria-label="加入房间">加入房间</view>
+        <view wx:elif="{{joinCode.length === 6}}" class="btn-premium" bindtap="joinRoom" aria-role="button" aria-label="加入房间" hover-class="btn-premium-hover">加入房间</view>
       </view>
 
-      <view wx:if="{{needUnbind}}" class="btn-danger unbind-inline" bindtap="unbind" aria-role="button" aria-label="解除绑定">解除绑定</view>
+      <view wx:if="{{needUnbind}}" class="btn-danger unbind-inline" bindtap="unbind" aria-role="button" aria-label="解除绑定" hover-class="btn-danger-hover">解除绑定</view>
     </view>
 
     <text wx:if="{{errorMsg}}" class="error-msg">{{errorMsg}}</text>
     <!-- issue #102：房间校验失败给出可点重试（重跑校验），停留在本页，不导向重新绑定 -->
-    <view wx:if="{{checkFailed}}" class="error-retry" bindtap="retryCheck" aria-role="button" aria-label="重试">重试</view>
+    <view wx:if="{{checkFailed}}" class="error-retry" bindtap="retryCheck" aria-role="button" aria-label="重试" hover-class="error-retry-hover">重试</view>
     </view>
   </view>
 </view>

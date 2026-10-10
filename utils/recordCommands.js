@@ -42,7 +42,9 @@ function runRecordSave(options) {
     navigateToBind,
     successDelay,
     retryableMode: 'confirm-state',
-    retryableAdvice: '保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交'
+    retryableAdvice: '保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
+    refetch: opts.refetch,
+    reconcile: opts.reconcile
   })
 }
 
@@ -53,6 +55,8 @@ function runRecordDelete(options) {
     page,
     confirmTitle = '确认删除',
     confirmContent,
+    confirmText = '删除',
+    confirmColor = '#F97373',
     loadingKey = 'deleting'
   } = opts
   const navigateBack = typeof opts.navigateBack === 'function'
@@ -67,6 +71,8 @@ function runRecordDelete(options) {
   return new Promise(resolve => {
     wxApi.showModal({
       title: confirmTitle,
+      confirmText,
+      confirmColor,
       ...(confirmContent ? { content: confirmContent } : {}),
       success: async (result) => {
         if (!result.confirm) {
@@ -115,7 +121,7 @@ async function runRecordListLoad(options) {
   } catch (error) {
     outcome = {
       kind: 'retryable-failure',
-      message: getErrorMessage(error),
+      message: roomAccessOutcome.presentUserFailure(getErrorMessage(error)),
       retry: action
     }
   }
@@ -165,7 +171,9 @@ async function runCommand(options) {
     navigateToBind,
     successDelay,
     retryableMode = 'confirm-state',
-    retryableAdvice = `${failureTitle}，请稍后刷新后确认结果`
+    retryableAdvice = `${failureTitle}，请稍后刷新后确认结果`,
+    refetch,
+    reconcile
   } = options
 
   const validationMessage = typeof validate === 'function' ? validate() : ''
@@ -182,7 +190,7 @@ async function runCommand(options) {
   } catch (error) {
     outcome = {
       kind: 'retryable-failure',
-      message: getErrorMessage(error),
+      message: roomAccessOutcome.presentUserFailure(getErrorMessage(error)),
       retry: action
     }
   }
@@ -209,6 +217,40 @@ async function runCommand(options) {
     // 已提交、等待返回：清掉「保存中/删除中」，但保持不可点，直到 navigateBack
     updatePage(page, { [loadingKey]: false, submitted: true })
     return outcome
+  }
+
+  if (outcome.kind === 'retryable-failure' && retryableMode !== 'retry' && typeof refetch === 'function') {
+    if (outcome.message) roomAccessOutcome.presentUserFailure(outcome.message)
+    const reconciled = await confirmUnconfirmedSave({
+      refetch,
+      reconcile
+    })
+    if (reconciled.refetchFailed) {
+      const refetchMessage = reconciled.error && reconciled.error.message
+      if (refetchMessage) roomAccessOutcome.presentUserFailure(refetchMessage)
+    }
+    if (reconciled.confirmed && reconciled.record) {
+      safeShowToast(wxApi, { title: '已保存' })
+      timer.setTimeout(() => {
+        navigateBack()
+      }, successDelay)
+      updatePage(page, { [loadingKey]: false, submitted: true })
+      return { kind: 'success', result: { record: reconciled.record } }
+    }
+    if (reconciled.confirmed) {
+      updatePage(page, { [loadingKey]: false })
+      const message = '没有保存成功，请重试'
+      return promptAcknowledge({
+        wxApi,
+        title: failureTitle,
+        content: message,
+        fallback: {
+          kind: 'retryable-failure',
+          action: 'refresh-check',
+          message
+        }
+      })
+    }
   }
 
   updatePage(page, { [loadingKey]: false })
@@ -315,7 +357,7 @@ async function handleFailureOutcome({
     })
   }
 
-  const message = outcome.message || failureTitle
+  const message = roomAccessOutcome.presentUserFailure(outcome.message || failureTitle)
   safeShowToast(wxApi, { title: message, icon: 'none' })
   return {
     ...outcome,
@@ -332,17 +374,62 @@ function normalizeRoomRepairOutcome(outcome, roomRepairTitle) {
   }
 }
 
-function buildRecoveryAdviceMessage(message, advice) {
-  if (!advice) {
-    return message
+async function confirmUnconfirmedSave({ refetch, reconcile }) {
+  let listed
+  try {
+    listed = await refetch()
+  } catch (error) {
+    return { confirmed: false, record: null, refetchFailed: true, error }
   }
-  if (!message) {
+  if (!listed || listed.kind !== 'success') {
+    return { confirmed: false, record: null, refetchFailed: true, error: listed }
+  }
+  return {
+    confirmed: true,
+    record: findReconciledRecord(listed.data, reconcile),
+    refetchFailed: false
+  }
+}
+
+function findReconciledRecord(records, reconcile) {
+  const spec = reconcile && typeof reconcile === 'object' ? reconcile : {}
+  const fields = spec.fields && typeof spec.fields === 'object' ? spec.fields : {}
+  const keys = Object.keys(fields)
+  if (keys.length === 0) return null
+  const list = Array.isArray(records) ? records : []
+  if (spec.id) {
+    const record = list.find(item => item && String(item._id) === String(spec.id))
+    if (!record || !fieldsMatch(record, fields)) return null
+    return record
+  }
+  return list.find(item => item && fieldsMatch(item, fields)) || null
+}
+
+function fieldsMatch(record, fields) {
+  return Object.keys(fields).every(key => sameFieldValue(record[key], fields[key]))
+}
+
+function sameFieldValue(actual, expected) {
+  if (Array.isArray(expected) || Array.isArray(actual)) {
+    const left = (Array.isArray(actual) ? actual : []).map(value => String(value)).sort()
+    const right = (Array.isArray(expected) ? expected : []).map(value => String(value)).sort()
+    return left.length === right.length && left.every((value, index) => value === right[index])
+  }
+  return String(actual == null ? '' : actual) === String(expected == null ? '' : expected)
+}
+
+function buildRecoveryAdviceMessage(message, advice) {
+  const shown = roomAccessOutcome.presentUserFailure(message)
+  if (!advice) {
+    return shown
+  }
+  if (!shown) {
     return advice
   }
-  if (message === advice) {
-    return message
+  if (shown === advice) {
+    return shown
   }
-  return `${message}\n\n${advice}`
+  return `${shown}\n\n${advice}`
 }
 
 function updatePage(page, update) {

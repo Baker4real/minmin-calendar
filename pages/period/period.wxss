@@ -12,8 +12,6 @@
 /* Cycle Card – 玫瑰薰衣草渐变 + Glass */
 .cycle-card {
   background: linear-gradient(135deg, rgba(232,144,158,0.18), rgba(196,160,210,0.12)), var(--glass-fallback);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: var(--radius-card);
   padding: 32rpx;
@@ -72,7 +70,8 @@
 .list-item:last-child {
   border-bottom: none;
 }
-.list-item:active {
+.list-item:active,
+.list-item.list-item-hover {
   background: rgba(255,255,255,0.05);
 }
 .item-left {
@@ -148,8 +147,6 @@
 /* Skeleton Loading – 列表条目形状的哑光占位 */
 .skeleton-card {
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: var(--radius-card);
   overflow: hidden;
@@ -220,7 +217,8 @@
   border: 1px solid transparent;
   transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-.segment-option:active {
+.segment-option:active,
+.segment-option.segment-option-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.1);
 }
@@ -253,7 +251,8 @@
 .month-header:last-child {
   border-bottom: none;
 }
-.month-header:active {
+.month-header:active,
+.month-header.month-header-hover {
   background: rgba(255,255,255,0.05);
 }
 .month-header-text {
@@ -324,6 +323,8 @@
   .skeleton-dot {
     animation: none;
   }
+  .load-failed,
+  .list-retry,
   .segment-option {
     transition: none;
   }
@@ -338,8 +339,6 @@
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--radius-card);
 }
@@ -350,6 +349,11 @@
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.load-failed:active,
+.load-failed.load-failed-hover {
+  transform: scale(0.98);
 }
 .retry-btn {
   min-height: 88rpx;
@@ -363,7 +367,8 @@
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
 }
-.retry-btn:active {
+.retry-btn:active,
+.retry-btn.retry-btn-hover {
   transform: scale(0.96);
 }
 
@@ -375,6 +380,12 @@
   gap: 16rpx;
   min-height: 88rpx;
   margin-top: 16rpx;
+  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
+}
+.list-retry:active,
+.list-retry.list-retry-hover {
+  background: rgba(255,255,255,0.05);
+  transform: scale(0.97);
 }
 .list-retry-text {
   font-size: var(--font-size-caption);

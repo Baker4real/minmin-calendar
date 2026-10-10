@@ -6,7 +6,7 @@ const safeArea = require('../../utils/safeArea')
 
 Page({
   goBack() { wx.navigateBack() },
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), memories: [], loading: true, loadFailed: false, hasLoaded: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), memories: [], loading: true, loadFailed: false, hasLoaded: false },
 
   onShow() { return this.loadData() },
 
@@ -16,7 +16,12 @@ Page({
       page: this,
       itemsKey: 'memories',
       action: () => client.list('memories'),
-      mapRecords: memories => [...memories].sort((a, b) => b.date.localeCompare(a.date)),
+      mapRecords: memories => [...memories]
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .map(memory => ({
+          ...memory,
+          dateLabel: util.formatDisplayDate(memory.date, { today: util.formatDate(new Date()) })
+        })),
       onLoaded: () => {
         this.setData({ hasLoaded: true })
       },

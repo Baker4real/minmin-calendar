@@ -174,13 +174,11 @@ test('glass fallback fill has a single token source', () => {
 const CTA_FILL_SELECTORS = [
   ['app.wxss', '.btn-premium'],
   ['pages/settings/settings.wxss', '.copy-btn'],
-  // issue #104：绑定页收敛回 Aurora，复制键与选中 tab 回归玫瑰填充钉点表（与设置页同款）
+  // issue #104：绑定页复制键回归玫瑰填充。创建/加入是分段控件，选中态不走实色填充（issue #145）。
   ['pages/bind/bind.wxss', '.copy-btn'],
-  ['pages/bind/bind.wxss', '.tab.active'],
-  // issue #55：首页主操作同构——快速记录、提醒记录、月份确认、月份选中态、复制小结
+  // issue #145：创建/加入是分段控件，选中态不走实色填充。issue #137：选月确认按钮已退役。
   ['pages/index/index.wxss', '.quick-btn'],
   ['pages/index/index.wxss', '.reminder-action'],
-  ['pages/index/index.wxss', '.jump-confirm'],
   ['pages/index/index.wxss', '.jump-option.active'],
   ['pages/index/index.wxss', '.copy-recap']
 ]
@@ -196,6 +194,109 @@ test('primary CTA rose fill comes from var(--aurora-pink) only', () => {
       `${relative} ${selector} fill must reference var(--aurora-pink)`
     )
   }
+})
+
+// issue #145：分段控件只有一种选中态。描边玫瑰弱选中，不用主按钮实色填充。
+// 记录分类、设置页密度、绑定页创建/加入是全部分段控件。
+const SEGMENTED_SELECTED = {
+  color: '#E8909E',
+  background: 'rgba(232,144,158,0.08)',
+  'border-color': 'rgba(232,144,158,0.45)'
+}
+const SEGMENTED_CONTROLS = [
+  ['pages/period/period.wxss', '.segment-option.active'],
+  ['pages/settings/settings.wxss', '.density-option.active'],
+  ['pages/bind/bind.wxss', '.tab.active']
+]
+
+test('segmented controls share one outlined-rose selected style', () => {
+  for (const [relative, selector] of SEGMENTED_CONTROLS) {
+    const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
+    const rule = rules.find((candidate) => candidate.selectors.includes(selector))
+    assert.ok(rule, `expected rule ${selector} in ${relative}`)
+    for (const [prop, value] of Object.entries(SEGMENTED_SELECTED)) {
+      assert.equal(rule.decls[prop], value, `${relative} ${selector} ${prop}`)
+    }
+  }
+})
+
+// issue #145：主按钮只有一种形状，圆角矩形 --radius-md。
+// 选月确认、复制小结、提醒卡上的玫瑰操作是现在的胶囊；复制键与重试小按钮不是主按钮。
+const PRIMARY_BUTTONS = [
+  ['app.wxss', '.btn-premium'],
+  ['pages/index/index.wxss', '.quick-btn'],
+  ['pages/index/index.wxss', '.reminder-action'],
+  ['pages/index/index.wxss', '.copy-recap']
+]
+
+test('primary buttons share the rounded-rectangle radius', () => {
+  for (const [relative, selector] of PRIMARY_BUTTONS) {
+    const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
+    const rule = rules.find((candidate) => candidate.selectors.includes(selector))
+    assert.ok(rule, `expected rule ${selector} in ${relative}`)
+    assert.equal(
+      rule.decls['border-radius'],
+      'var(--radius-md)',
+      `${relative} ${selector} must use --radius-md`
+    )
+  }
+})
+
+// issue #145：:active 与 hover-class 写在同一条规则里。hover 类重复它前面那个类名。
+function cleanSelector(selector) {
+  return selector.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ').trim()
+}
+
+function hoverSelectorPairedWithActive(selector) {
+  if (!selector.includes(':active')) return null
+  const paired = selector.replace(
+    /\.([A-Za-z_][\w-]*)((?::not\([^)]*\))*):active\b/g,
+    '.$1$2.$1-hover'
+  )
+  if (paired === selector || paired.includes(':active')) return null
+  return paired
+}
+
+test('every :active selector is paired with its hover-class in the same rule', () => {
+  const violations = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    const rules = parseWxssRules(fs.readFileSync(file, 'utf8')).map((rule) => ({
+      ...rule,
+      selectors: rule.selectors.map(cleanSelector).filter(Boolean)
+    }))
+    for (const rule of rules) {
+      for (const selector of rule.selectors) {
+        const paired = hoverSelectorPairedWithActive(selector)
+        if (!paired) {
+          if (selector.includes(':active')) violations.push(`${relative} ${selector} has no hover-class pair`)
+          continue
+        }
+        if (!rule.selectors.includes(paired)) {
+          violations.push(`${relative} ${selector} is missing ${paired}`)
+        }
+      }
+    }
+  }
+  assert.deepEqual(violations, [])
+})
+
+// issue #145：按压着色不能写在 background-image 上。渐变层不会插值，标称的过渡实际是瞬间切换。
+test('press color does not ride a gradient image', () => {
+  const violations = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    for (const rule of parseWxssRules(fs.readFileSync(file, 'utf8'))) {
+      if (!rule.selectors.some((selector) => selector.includes(':active'))) continue
+      for (const prop of ['background', 'background-image']) {
+        const value = rule.decls[prop]
+        if (value && GRADIENT_FILL.test(value)) {
+          violations.push(`${relative} ${rule.selectors.join(', ')} sets ${prop} to a gradient`)
+        }
+      }
+    }
+  }
+  assert.deepEqual(violations, [])
 })
 
 // CTA 色义 deny-by-default（issue #59 review）：主操作填充只有 var(--aurora-pink) 一条路。
@@ -217,20 +318,13 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/index/index.wxss', '.day-action-sheet'],
     ['pages/period/period.wxss', '.cycle-card'],
     // 平涂 tint 图像层叠在海军回退上。不是装饰渐变，也不是 CTA 填充。
-    ['app.wxss', '.nav-back-surface'],
-    ['app.wxss', '.nav-back:active .nav-back-surface'],
     ['app.wxss', '.premium-card'],
-    ['app.wxss', '.btn-danger'],
-    ['app.wxss', '.btn-danger:active'],
     ['app.wxss', '.header-gradient'],
     ['pages/index/index.wxss', '.sync-pill'],
     ['pages/index/index.wxss', '.month-nav'],
-    ['pages/index/index.wxss', '.nav-btn'],
     ['pages/index/index.wxss', '.nav-btn:active'],
     ['pages/index/index.wxss', '.week-header'],
     ['pages/index/index.wxss', '.calendar-grid'],
-    ['pages/settings/settings.wxss', '.menu-item.danger'],
-    ['pages/settings/settings.wxss', '.menu-item.danger:active'],
     ['pages/bind/bind.wxss', '.tab-bar'],
     ['pages/bind/bind.wxss', '.code-input'],
     ['pages/period/period.wxss', '.skeleton-card'],
@@ -248,7 +342,6 @@ const SOLID_ROSE_FILL_ALLOWLIST = new Set(
   [
     // 状态点/日历标记/卡片 rail：装饰性玫瑰实色小块，非可操作填充
     ['pages/index/index.wxss', '.sync-pill.syncing .sync-dot'],
-    ['pages/index/index.wxss', '.period-mark'],
     ['pages/index/index.wxss', '.reminder-card.due .reminder-rail'],
     ['pages/index/index.wxss', '.detail-rail'],
     ['pages/memory/memory.wxss', '.list-item::before']
@@ -375,7 +468,6 @@ test('retired gradient tokens stay out of tokens and screens', () => {
 // CTA、导航 affordance 与工具图标不再用金。
 const INDEX_GOLD_ALLOWLIST = new Set([
   '.sync-dot',
-  '.day-cell.holiday:not(.today)',
   '.holiday-tag',
   '.predict-mark',
   '.predict-date',
@@ -383,9 +475,6 @@ const INDEX_GOLD_ALLOWLIST = new Set([
   '.detail-title',
   '.detail-meaning.predict',
   '.detail-meaning.holiday',
-  '.legend-row.predict .legend-symbol',
-  '.legend-row.holiday .legend-symbol',
-  '.legend-row.workday .legend-symbol',
   '.prediction-summary'
 ])
 
@@ -452,4 +541,41 @@ test('every box-shadow/text-shadow color stays inside the DESIGN.md shadow regis
   }
 
   assert.deepEqual(violations, [])
+})
+
+function declsFor(relative, selector) {
+  const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
+  const rule = rules.find((item) => item.selectors.includes(selector))
+  assert.ok(rule, `expected ${relative} ${selector}`)
+  return rule.decls
+}
+
+// issue #146：辉光只留在主按钮和复制键上。月份导航、加载圈、同步点不发光；
+// 绑定页爱心只留一层字阴影。提醒和详情的彩色 rail 继续承载状态色。
+test('glow stays on primary buttons and the copy control', () => {
+  const roseGlow = '0 4px 15px rgba(232,144,158,0.28)'
+  assert.equal(declsFor('app.wxss', '.btn-premium')['box-shadow'], roseGlow)
+  assert.equal(declsFor('pages/settings/settings.wxss', '.copy-btn')['box-shadow'], roseGlow)
+  assert.equal(declsFor('pages/bind/bind.wxss', '.copy-btn')['box-shadow'], roseGlow)
+
+  const monthNav = declsFor('pages/index/index.wxss', '.month-nav')['box-shadow'] || ''
+  assert.doesNotMatch(monthNav, /232,\s*144,\s*158/)
+  assert.equal(declsFor('app.wxss', '.loading-spinner')['box-shadow'], undefined)
+  assert.equal(declsFor('pages/index/index.wxss', '.sync-dot')['box-shadow'], undefined)
+
+  const heart = declsFor('pages/bind/bind.wxss', '.hero-icon')['text-shadow']
+  assert.equal(heart, '0 0 18rpx rgba(240,196,192,0.32)')
+
+  assert.equal(
+    declsFor('pages/index/index.wxss', '.reminder-rail')['box-shadow'],
+    '0 0 14rpx rgba(212,165,116,0.36)'
+  )
+  assert.equal(
+    declsFor('pages/index/index.wxss', '.detail-rail')['box-shadow'],
+    '0 0 16rpx rgba(232,144,158,0.35)'
+  )
+
+  const design = fs.readFileSync(path.join(repoRoot, 'DESIGN.md'), 'utf8')
+  assert.match(design, /不可点元素不再发光/)
+  assert.match(design, /0 0 18rpx rgba\(240,196,192,0\.32\)/)
 })

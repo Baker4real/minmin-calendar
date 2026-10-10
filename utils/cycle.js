@@ -14,6 +14,12 @@ const PERIOD_STATUS_LABELS = {
   'known-end': ''
 }
 
+const PERIOD_STATUS_HINTS = {
+  ongoing: '进行中可稍后补结束日期',
+  'known-end': '选好结束日期，这次经期才有确定的天数',
+  'unknown-end': '结束日不清楚，日历只标开始那天'
+}
+
 const FLOW_OPTIONS = [
   { value: 'light', label: '量少' },
   { value: 'normal', label: '正常' },
@@ -22,7 +28,7 @@ const FLOW_OPTIONS = [
 
 const SYMPTOM_GROUPS = [
   { key: 'body', label: '身体' },
-  { key: 'emotion', label: '情绪' }
+  { key: 'emotion', label: '情绪与睡眠' }
 ]
 
 const SYMPTOM_OPTIONS = [
@@ -73,7 +79,8 @@ function predictNextPeriod(periods, options = {}) {
       confidence,
       usedCycleCount: recentCycles.length,
       ignoredCycleCount,
-      source: 'history'
+      source: 'history',
+      today: options.today
     })
   }
 
@@ -87,7 +94,8 @@ function predictNextPeriod(periods, options = {}) {
       confidence: 'low',
       usedCycleCount: 1,
       ignoredCycleCount,
-      source: 'history'
+      source: 'history',
+      today: options.today
     })
   }
 
@@ -102,7 +110,8 @@ function predictNextPeriod(periods, options = {}) {
       confidence: 'low',
       usedCycleCount: 0,
       ignoredCycleCount,
-      source: 'manual'
+      source: 'manual',
+      today: options.today
     })
   }
 
@@ -159,11 +168,10 @@ function buildOngoingCompletionReminder(periods, options = {}) {
   if (!ongoing) return null
 
   const today = options.today || util.formatDate(new Date())
-  if (!isDateString(ongoing.startDate) || !isDateString(today)) return null
+  const runningDays = inclusiveDayCount(ongoing.startDate, today)
+  if (!runningDays) return null
 
-  const durations = normalizePeriods(periods).map(item => item.duration).filter(isPositiveNumber)
-  const expected = getPredictedDuration(durations, options)
-  const runningDays = util.daysBetween(util.parseDate(ongoing.startDate), util.parseDate(today)) + 1
+  const expected = expectedPeriodLength(periods, options)
   if (runningDays <= expected.days) return null
 
   return {
@@ -197,6 +205,27 @@ function buildPeriodPayload({ startDate, endDate = '', status, note = '', flow =
   }
 }
 
+function periodDateLabel(status, range, period, today) {
+  if (range) return util.formatDisplayDateRange(range.startDate, range.endDate, { today })
+  if (status === 'ongoing') {
+    if (isDateString(today) && isDateString(period.startDate)) {
+      return util.formatDisplayDateRange(period.startDate, today, { today })
+    }
+    return util.formatDisplayDate(period.startDate, { today })
+  }
+  const start = util.formatDisplayDate(period.startDate, { today })
+  return start ? `${start}，结束日期不详` : '结束日期不详'
+}
+
+function periodRangeSummary(status, range, period, today) {
+  if (range) return util.formatDisplayDateRange(range.startDate, range.endDate, { today })
+  if (status === 'ongoing') {
+    const label = periodDateLabel(status, range, period, today)
+    return label ? `${label}，进行中` : '进行中'
+  }
+  return periodDateLabel(status, range, period, today)
+}
+
 function decoratePeriod(period, { today } = {}) {
   const status = getPeriodStatus(period)
   const range = status === 'known-end' ? util.normalizeDateRange(period) : null
@@ -220,15 +249,16 @@ function decoratePeriod(period, { today } = {}) {
     symptomLabels,
     symptomText: symptomLabels.join('、'),
     endDateDisplay: range
-      ? range.endDate
-      : status === 'ongoing' ? (isDateString(today) ? today : '') : '结束日期不详',
+      ? util.formatDisplayDate(range.endDate, { today })
+      : status === 'ongoing' ? (isDateString(today) ? util.formatDisplayDate(today, { today }) : '') : '结束日期不详',
     durationText: range ? `${duration}天` : PERIOD_STATUS_LABELS[status] || '',
-    rangeSummary: range
-      ? `${range.startDate} 至 ${range.endDate}`
-      : status === 'ongoing'
-        ? (isDateString(today) ? `${period.startDate} 至 ${today}，进行中` : `${period.startDate}，进行中`)
-        : `${period.startDate}，结束日期不详`
+    dateLabel: periodDateLabel(status, range, period, today),
+    rangeSummary: periodRangeSummary(status, range, period, today)
   }
+}
+
+function periodStatusHint(status) {
+  return PERIOD_STATUS_HINTS[status] || ''
 }
 
 function buildSymptomOptions(selectedSymptoms = []) {
@@ -245,9 +275,9 @@ function buildSymptomOptions(selectedSymptoms = []) {
   }))
 }
 
-function formatPredictionRange(prediction) {
+function formatPredictionRange(prediction, today) {
   if (!prediction || !prediction.canPredict) return ''
-  return `${formatMonthDay(prediction.rangeStart)}-${formatMonthDay(prediction.rangeEnd)}`
+  return util.formatDisplayDateRange(prediction.rangeStart, prediction.rangeEnd, { today })
 }
 
 function buildPrediction({
@@ -259,13 +289,13 @@ function buildPrediction({
   confidence,
   usedCycleCount,
   ignoredCycleCount,
-  source
+  source,
+  today
 }) {
   const nextStart = addDays(lastStart, avgCycle)
   const nextEnd = addDays(nextStart, Math.max(1, avgDuration) - 1)
   const rangeStart = addDays(nextStart, -rangeDays)
   const rangeEnd = addDays(nextStart, rangeDays)
-  const display = util.formatPredictDisplay(nextStart)
   const prediction = {
     canPredict: true,
     avgCycle,
@@ -280,10 +310,10 @@ function buildPrediction({
     usedCycleCount,
     ignoredCycleCount,
     source,
-    nextDisplay: display.date,
-    nextWeekday: display.weekday
+    nextDisplay: util.formatDisplayDate(nextStart, { today }),
+    nextWeekday: util.getChineseDateMeta(nextStart).weekday
   }
-  prediction.rangeDisplay = formatPredictionRange(prediction)
+  prediction.rangeDisplay = formatPredictionRange(prediction, today)
   return prediction
 }
 
@@ -322,6 +352,16 @@ function isPeriodStatus(value) {
 function findOngoingPeriod(periods = []) {
   const list = Array.isArray(periods) ? periods : []
   return list.find(item => getPeriodStatus(item) === 'ongoing') || null
+}
+
+function buildPeriodQuickAction(periods, options = {}) {
+  const today = options.today || util.formatDate(new Date())
+  const ongoing = findOngoingPeriod(periods)
+  if (!ongoing) return { label: '记经期', ariaLabel: '记经期', mode: 'add' }
+  const day = inclusiveDayCount(ongoing.startDate, today)
+  if (!day) return { label: '记结束', ariaLabel: '记结束', mode: 'complete' }
+  const label = `经期第 ${day} 天 · 记结束`
+  return { label, ariaLabel: label, mode: 'complete' }
 }
 
 // 日历与小结共用的投影区间：进行中投影开始日至今天（不发明未来日期），
@@ -397,6 +437,42 @@ function getStableCycles(cycleLengths) {
   return stable.length >= 2 ? stable : cycleLengths
 }
 
+function inclusiveDayCount(startDate, endDate) {
+  if (!isDateString(startDate) || !isDateString(endDate) || startDate > endDate) return 0
+  return util.daysBetween(util.parseDate(startDate), util.parseDate(endDate)) + 1
+}
+
+function expectedPeriodLength(periods, options = {}) {
+  const durations = normalizePeriods(periods).map(item => item.duration).filter(isPositiveNumber)
+  return getPredictedDuration(durations, options)
+}
+
+// 已知起止的含首尾天数，以及是否超过超期完成提醒所用的同一预期时长。
+// 只描述，不改记录、不写结束日。
+function describeKnownPeriodLength({ startDate, endDate, periods = [], typicalPeriodLength } = {}) {
+  const days = inclusiveDayCount(startDate, endDate)
+  if (!days) {
+    return {
+      days: 0,
+      text: '',
+      exceedsExpected: false,
+      expectedDays: 0,
+      expectedSource: '',
+      hint: ''
+    }
+  }
+  const expected = expectedPeriodLength(periods, { typicalPeriodLength })
+  const exceedsExpected = days > expected.days
+  return {
+    days,
+    text: `共 ${days} 天`,
+    exceedsExpected,
+    expectedDays: expected.days,
+    expectedSource: expected.source,
+    hint: exceedsExpected ? `超过预期的 ${expected.days} 天，请核对结束日期` : ''
+  }
+}
+
 // 预测持续时长的优先级：用户设置 → 已完成历史时长中位数 → 五天默认。
 // 进行中与结束日期不详的记录不进 durations；结果只用于预测展示，绝不写回经期记录。
 function getPredictedDuration(durations, options) {
@@ -455,12 +531,6 @@ function addDays(dateStr, days) {
   return util.formatDate(date)
 }
 
-function formatMonthDay(dateStr) {
-  if (!isDateString(dateStr)) return ''
-  const date = util.parseDate(dateStr)
-  return `${String(date.getMonth() + 1).padStart(2, '0')}月${String(date.getDate()).padStart(2, '0')}日`
-}
-
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
 }
@@ -487,10 +557,13 @@ module.exports = {
   predictNextPeriod,
   buildCycleReminders,
   buildOngoingCompletionReminder,
+  describeKnownPeriodLength,
   buildPeriodPayload,
   getPeriodStatus,
   isPeriodStatus,
   findOngoingPeriod,
+  buildPeriodQuickAction,
+  periodStatusHint,
   projectPeriodRange,
   getPeriodDuration,
   decoratePeriod,

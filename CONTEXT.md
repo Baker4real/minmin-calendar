@@ -21,7 +21,8 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - **Period duration**: The inclusive day count of a Period record from a known `startDate` through a known `endDate`. A same-day start and end is a valid one-day duration; an Ongoing period or Unknown-end period has no exact duration and is excluded from duration averages until completed. This is a property of the record, not of a month view.
 - **Monthly recap / 小结**: Homepage summary for one viewed calendar month. It lists Period records and Memory records that overlap that month. It is not a second Period record.
 - **Days in viewed month**: Inclusive day count of the intersection between a Period record's date range and the Monthly recap's calendar month. This is not Period duration.
-- **Memory record / happy time**: A dated note shown as a heart marker on the calendar. Several Memory records may share one date; each still counts as its own record.
+- **Memory record / happy time / 欢乐时光**: A dated note shown as a heart marker on the calendar. Several Memory records may share one date; each still counts as its own record. The user-facing name is 欢乐时光. 记忆, 特别日子, and 特别时刻 are retired.
+- **Record names**: Entities are 经期 and 欢乐时光. Actions are 记经期, 记欢乐时光, 补记经期, 补记欢乐时光, 编辑这次经期, and 记结束.
 - **Memory month group / 欢乐时光月份分组**: The Memory records whose dates fall in one calendar month, presented together in the 记录 tab's 欢乐时光 segment. It is a view, not a record: each Memory record keeps its own date and calendar heart, and nothing is stored per month. Its count is the number of Memory records in that month, the same number the Monthly recap / 小结 reports for that month, but it is not the Monthly recap. Avoid 统合记录 or 月度记录, which suggest a stored per-month record.
 - **Edit draft / 草稿**: Edit-form input stashed in local storage when the Period/Memory edit page is hidden or unloaded, restored with a 「已恢复上次未完成的输入」 notice on return, and cleared after a successful save. Drafts are keyed per record identity (new vs. each existing record) and never leak across records.
 - **Calendar cell**: A homepage day tile that may show date number, lunar text, holiday/workday tag, and markers.
@@ -59,8 +60,8 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - `utils/recordEditRoute.js` owns Period record and Memory record edit URL construction plus edit-page route option hydration, including the Memory date ceiling at today.
 - `utils/recordDraft.js` owns edit-form draft save/restore/clear as pure functions keyed per record identity; `createWxDraftStorage` is the only wx local-storage seam.
 - `utils/room.js` owns room-code cache, recovery, create/join, local clear, and server-side leave calls.
-- `utils/util.js` owns date formatting, lunar conversion, official holiday metadata, and base calendar-grid construction.
-- `utils/cycle.js` owns cycle prediction, reminder derivation, Period duration from dates (`getPeriodDuration`), flow labels, symptom labels, and the body/emotion symptom grouping metadata.
+- `utils/util.js` owns date formatting, lunar conversion, official holiday metadata, base calendar-grid construction, and the month-swipe decision (`decideMonthSwipe`).
+- `utils/cycle.js` owns cycle prediction, reminder derivation, Period duration from dates (`getPeriodDuration`), flow labels, symptom labels, and the display grouping metadata (身体 / 情绪与睡眠). Allowed symptom values stay the same set as the cloud copy.
 - `utils/calendarInsights.js` owns prediction explanation copy and monthly recap text.
 - `utils/safeArea.js` owns runtime safe-area computation for status-bar top and gesture-area bottom; page roots inject `--safe-top` and `--safe-bottom`.
 - `cloudfunctions/dataOp/index.js` is the cloud runtime adapter for room-authorized CRUD on `periods` and `memories`.

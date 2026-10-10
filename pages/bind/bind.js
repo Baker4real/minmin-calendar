@@ -6,6 +6,14 @@ const safeArea = require('../../utils/safeArea')
 // 云端 create/join 拒绝「已在其他房间」时返回的固定短语（roomMembershipLifecycle），
 // 命中时当前屏直接提供解除绑定，而不是只留一句错误
 const LEAVE_ROOM_REQUIRED_HINT = '请先解除绑定'
+const ROOM_CODE_LENGTH = 6
+
+function inviteCodeFromLaunchQuery(options) {
+  const raw = options && options.roomCode
+  if (typeof raw !== 'string') return ''
+  const code = raw.trim().toUpperCase()
+  return code.length === ROOM_CODE_LENGTH ? code : ''
+}
 
 async function restoredRoomNotice() {
   try {
@@ -29,6 +37,8 @@ Page({
   data: {
     safeTop: safeArea.getSafeTop(),
     safeBottom: safeArea.getSafeBottom(),
+    navBarHeight: safeArea.getNavBarHeight(),
+    capsuleRight: safeArea.getCapsuleRightInset(),
     tab: 'create',
     bound: false,
     roomCode: '',
@@ -43,6 +53,10 @@ Page({
     // issue #115：第一次显示到第一次校验结果之前只留品牌心
     verifying: true,
     revealed: false
+  },
+
+  onLoad(options) {
+    this.pendingInviteCode = inviteCodeFromLaunchQuery(options)
   },
 
   onShow() {
@@ -65,6 +79,8 @@ Page({
 
   async checkRoom() {
     const room = await roomSession.getVerifiedActiveRoom()
+    const inviteCode = this.pendingInviteCode || ''
+    this.pendingInviteCode = ''
     if (room.bound) {
       // issue #102：已绑定冷启动直达首页，不再停在绑定页多点一次「进入应用」
       // review #99：重校验清空一次性旗标——「进入应用」只在跳转失败或刚创建房间时出现
@@ -84,6 +100,10 @@ Page({
       checkFailed: Boolean(room.errorMsg),
       verifying: false,
       revealed: true
+    }
+    if (inviteCode) {
+      data.tab = 'join'
+      data.joinCode = inviteCode
     }
     this.setData(data)
   },
@@ -137,6 +157,14 @@ Page({
     await settingsFlow.copyRoomCode({
       roomCode: this.data.roomCode
     })
+  },
+
+  // issue #140：邀请卡标题固定，不含经期或记录；房间码只放在启动首屏的路径参数里
+  onShareAppMessage() {
+    return {
+      title: '邀请你加入我的日历',
+      path: `/pages/bind/bind?roomCode=${this.data.roomCode}`
+    }
   },
 
   goHome() {

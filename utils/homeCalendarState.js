@@ -6,43 +6,49 @@ const CALENDAR_LEGEND_ITEMS = [
   {
     key: 'today',
     title: '今天',
-    marker: '',
-    text: '玫瑰色光圈圈出今天，日期数字变成玫瑰色。'
+    text: '薰衣草描边、玫瑰底，日期数字是玫瑰色。',
+    cellClass: 'today',
+    parts: [{ kind: 'num', className: 'day-num', text: '8' }]
   },
   {
     key: 'period',
     title: '经期记录',
-    marker: '●',
-    text: '粉色圆点表示这一天有经期记录。'
+    text: '连续的玫瑰色带表示这一天有经期记录。',
+    cellClass: 'period period-single',
+    parts: [{ kind: 'band', className: 'period-band', text: '' }]
   },
   {
     key: 'memory',
     title: '欢乐时光',
-    marker: '♥',
-    text: '爱心表示这一天留下了欢乐时光。'
+    text: '爱心表示这一天留下了欢乐时光。',
+    cellClass: '',
+    parts: [{ kind: 'mark', className: 'mark memory-mark', text: '♥' }]
   },
   {
     key: 'predict',
-    title: '预测区间',
-    marker: '预',
-    text: '金色“预”表示下次经期的预测区间。'
+    title: '下次可能开始的日子',
+    text: '金色「预」表示下次可能开始的日子。',
+    cellClass: '',
+    parts: [{ kind: 'mark', className: 'mark predict-mark', text: '预' }]
   },
   {
     key: 'holiday',
     title: '节日',
-    marker: '中秋',
-    text: '金色标签会写出当天的真实节日名称，如「中秋」。'
+    text: '金色文字写出当天的真实节日名称，如「中秋」。',
+    cellClass: '',
+    parts: [{ kind: 'tag', className: 'day-tag holiday-tag', text: '中秋' }]
   },
   {
     key: 'workday',
     title: '调休上班',
-    marker: '班',
-    text: '“班”表示官方调休上班日。'
+    text: '“班”表示官方调休上班日。',
+    cellClass: '',
+    parts: [{ kind: 'tag', className: 'day-tag workday-tag', text: '班' }]
   }
 ]
 
 function buildHomeCalendarState({ year, month, periods = [], memories = [], today = util.formatDate(new Date()) }) {
-  const prediction = cycle.predictNextPeriod(periods)
+  const prediction = cycle.predictNextPeriod(periods, { today })
   const predictionWindow = prediction.canPredict
     ? {
         rangeStart: prediction.rangeStart,
@@ -87,7 +93,7 @@ function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextP
     .filter(isDateString))
   const predictDates = collectPredictDates(nextPredict, year, month, predictionWindow)
 
-  return util.buildCalendarDays({ year, month }).map(day => {
+  const days = util.buildCalendarDays({ year, month }).map(day => {
     if (!day || day.isEmpty) return { ...day, ariaLabel: '' }
     const isPeriod = periodDates.has(day.date)
     const marked = {
@@ -97,9 +103,38 @@ function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextP
       isOngoingPeriod: ongoingPeriodDates.has(day.date),
       isUnknownEndPeriod: unknownEndPeriodDates.has(day.date),
       isMemory: memoryDates.has(day.date),
-      isPredict: predictDates.has(day.date) && !isPeriod
+      isPredict: predictDates.has(day.date) && !isPeriod,
+      lunarCellText: lunarCellLabel(day.lunarText),
+      periodDayCount: isPeriod ? countPeriodDay(day.date, periods, today) : 0
     }
-    return { ...marked, ariaLabel: buildDayAriaLabel(marked) }
+    return { ...marked, ariaLabel: buildDayAriaLabel(marked, today) }
+  })
+  return applyPeriodSegments(days, today)
+}
+
+// 同一行里相邻的经期日连成一段；换行处不跨行相连，行首行尾因此收口。
+// 开放端只打在进行中经期投影到今天的那一格。
+function applyPeriodSegments(days, today) {
+  const periodSlots = new Set()
+  days.forEach((day, index) => {
+    if (day && !day.isEmpty && day.isPeriod) periodSlots.add(index)
+  })
+  return days.map((day, index) => {
+    if (!day || day.isEmpty || !day.isPeriod) {
+      return { ...day, periodSegment: 'none', periodOpenEnd: false }
+    }
+    const row = Math.floor(index / 7)
+    const prevContinues = index > 0 && periodSlots.has(index - 1) && Math.floor((index - 1) / 7) === row
+    const nextContinues = periodSlots.has(index + 1) && Math.floor((index + 1) / 7) === row
+    let periodSegment = 'single'
+    if (prevContinues && nextContinues) periodSegment = 'middle'
+    else if (nextContinues) periodSegment = 'start'
+    else if (prevContinues) periodSegment = 'end'
+    return {
+      ...day,
+      periodSegment,
+      periodOpenEnd: Boolean(day.isOngoingPeriod && day.date === today)
+    }
   })
 }
 
@@ -201,7 +236,7 @@ function buildDayDetailsByDate(days, periods, memories, today) {
         if (detail.symptomText) meta.push(detail.symptomText)
         return {
           key: periodKeys[index],
-          range: formatPeriodDetailRange(range),
+          range: formatPeriodDetailRange(range, today),
           metaText: meta.join(' · ')
         }
       })
@@ -211,7 +246,7 @@ function buildDayDetailsByDate(days, periods, memories, today) {
       .filter(({ memory }) => isDateString(memory.date) && memory.date === day.date)
       .map(({ memory, index }) => ({
         key: memoryKeys[index],
-        note: memory.note || '特别日子'
+        note: memory.note || '欢乐时光'
       }))
     const meanings = buildDayMeanings(day)
 
@@ -232,10 +267,14 @@ function isPeriodActiveOnDate(range, date) {
 }
 
 // 详情行文案暴露状态：进行中写明「开始日至今天」，结束日期不详不用空白日期表达
-function formatPeriodDetailRange(range) {
-  if (range.status === 'ongoing') return `${range.startDate} ~ ${range.endDate}（进行中）`
-  if (range.status === 'unknown-end') return `${range.startDate}（结束日期不详）`
-  return `${range.startDate} ~ ${range.endDate}`
+function formatPeriodDetailRange(range, today) {
+  if (range.status === 'ongoing') {
+    return `${util.formatDisplayDateRange(range.startDate, range.endDate, { today })}（进行中）`
+  }
+  if (range.status === 'unknown-end') {
+    return `${util.formatDisplayDate(range.startDate, { today })}（结束日期不详）`
+  }
+  return util.formatDisplayDateRange(range.startDate, range.endDate, { today })
 }
 
 function buildStableDetailKeys(records, type, buildFingerprint) {
@@ -301,8 +340,8 @@ function buildDayMeanings(day = {}) {
   if (day.isPredict) {
     meanings.push({
       key: 'predict',
-      title: '预测区间',
-      text: '这一天落在下次经期的预测范围内。'
+      title: '下次可能开始的日子',
+      text: '这一天是下次可能开始的日子。'
     })
   }
   if (day.holidayName) {
@@ -323,40 +362,54 @@ function buildDayMeanings(day = {}) {
 
 const DAY_ARIA_MEANING_TEXT = {
   today: '今天',
-  period: '经期',
   'period-ongoing': '经期进行中',
   'period-unknown-end': '结束日期不详',
   memory: '欢乐时光',
-  predict: '预测区间',
+  predict: '下次可能开始的日子',
   workday: '调休上班'
 }
 
-function buildDayAriaLabel(day) {
+function countPeriodDay(date, periods, today) {
+  let chosenStart = ''
+  let chosenRank = 3
+  periods.forEach(period => {
+    const range = cycle.projectPeriodRange(period, today)
+    if (!range || date < range.startDate || date > range.endDate) return
+    const rank = range.status === 'ongoing' ? 0 : range.status === 'known-end' ? 1 : 2
+    if (rank < chosenRank || (rank === chosenRank && range.startDate > chosenStart)) {
+      chosenRank = rank
+      chosenStart = range.startDate
+    }
+  })
+  if (!chosenStart) return 0
+  return util.daysBetween(util.parseDate(chosenStart), util.parseDate(date)) + 1
+}
+
+function buildDayAriaLabel(day, today) {
   if (!day || day.isEmpty || !day.date) return ''
-  const parts = [formatAriaDate(day.date)]
-  if (day.weekday) parts.push(day.weekday)
+  const parts = [util.formatDisplayDate(day.date, { today, withWeekday: true })]
   if (day.lunarText) parts.push(day.lunarText)
   buildDayMeanings(day).forEach(meaning => {
     if (meaning.key === 'holiday') {
       if (day.holidayName) parts.push(day.holidayName)
       return
     }
+    if (meaning.key === 'period') {
+      parts.push(`经期第${day.periodDayCount}天`)
+      if (day.isOngoingPeriod) parts.push(DAY_ARIA_MEANING_TEXT['period-ongoing'])
+      else if (day.isUnknownEndPeriod) parts.push(DAY_ARIA_MEANING_TEXT['period-unknown-end'])
+      return
+    }
     const text = DAY_ARIA_MEANING_TEXT[meaning.key]
     if (text) parts.push(text)
-    // 进行中的经期在读屏里明确说出「进行中」，不与已结束的经期混淆
-    if (meaning.key === 'period' && day.isOngoingPeriod) {
-      parts.push(DAY_ARIA_MEANING_TEXT['period-ongoing'])
-    } else if (meaning.key === 'period' && day.isUnknownEndPeriod) {
-      // 结束日期不详的开始日同样说出状态，读屏可与「进行中」区分
-      parts.push(DAY_ARIA_MEANING_TEXT['period-unknown-end'])
-    }
   })
   return parts.join(' ')
 }
 
-function formatAriaDate(date) {
-  const [, month, dayOfMonth] = date.split('-')
-  return `${Number(month)}月${Number(dayOfMonth)}日`
+function lunarCellLabel(lunarText) {
+  if (!lunarText) return ''
+  if (lunarText.endsWith('初一')) return lunarText.slice(0, -2)
+  return lunarText.slice(-2)
 }
 
 module.exports = {

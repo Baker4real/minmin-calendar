@@ -107,8 +107,8 @@ test('bind buttons ride the app-level rose primary and warning-red danger famili
   const appPremium = findRule(readPageFile('app.wxss'), '.btn-premium')
   assert.equal(appPremium.background, 'var(--aurora-pink)')
   assert.equal(appPremium.color, '#0A0E27')
-  const appDangerActive = findRule(readPageFile('app.wxss'), '.btn-danger:active')
-  assert.match(appDangerActive.background, /rgba\(249,\s*115,\s*115,\s*0\.12\)/)
+  const appDangerTint = findRule(readPageFile('app.wxss'), '.btn-danger:active::before')
+  assert.equal(appDangerTint['background-color'], 'rgba(249,115,115,0.12)')
 
   // needUnbind 中间态就地解除入口保留：布局间距在场，样式跟随 app 级警示红族
   const unbindInline = findRule(css, '.unbind-inline')
@@ -134,7 +134,8 @@ test('findRule treats an :active selector and its hover-class as one rule', () =
 })
 
 // issue #104：未绑定表单域收敛回 Aurora 海军域——tab 条与输入框玻璃面回海军实底回退、
-// 选中 tab 回玫瑰填充、聚焦描边回玫瑰；输入行为（6 位上限/等宽数字/逐字槽位/1px 实线描边）零变化；
+// 聚焦描边回玫瑰；输入行为（6 位上限/等宽数字/逐字槽位/1px 实线描边）零变化；
+// 选中 tab 是描边玫瑰弱选中（issue #145），不再用主按钮实色填充。
 // 需解绑中间态入口在场（样式跟随 app 级警示红），错误提示保持警示红族形态。
 test('bind unbound form rides the navy Aurora glass while the error strip keeps the warning-red family', () => {
   const css = readPageFile('pages/bind/bind.wxss')
@@ -159,10 +160,11 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
   const premiumCard = findRule(css, '.premium-card')
   assert.equal(premiumCard.background, undefined, 'the bind card must ride the app-level navy glass background')
 
-  // 选中 tab 与主按钮同族：玫瑰填充 + 画布海军字
+  // 选中 tab 与记录分段、密度控件同一种描边玫瑰弱选中
   const activeTab = findRule(css, '.tab.active')
-  assert.equal(activeTab.background, 'var(--aurora-pink)')
-  assert.equal(activeTab.color, '#0A0E27')
+  assert.equal(activeTab.color, '#E8909E')
+  assert.equal(activeTab.background, 'rgba(232,144,158,0.08)')
+  assert.equal(activeTab['border-color'], 'rgba(232,144,158,0.45)')
 
   // 聚焦描边回玫瑰，1px 实线形态不变
   const focus = findRule(css, '.code-input:focus')
@@ -410,6 +412,106 @@ test('bind page hints to send the room code to the partner after creating a room
     // onShow 重校验后提示清除，不常驻
     await harness.page.onShow()
     assert.equal(harness.page.data.justCreated, false)
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #140：创建成功后，在「把房间码发给 TA」处用小程序原生分享发一张邀请卡。
+// 标题是固定文案，不含经期或记录；房间码只出现在启动首屏的路径参数里。
+test('bind page shares a fixed invite card whose path carries only the room code to the launch screen', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
+    createRoom: { code: 0, roomCode: 'ROOM05' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room })
+
+  try {
+    await harness.page.onShow()
+    await harness.page.createRoom()
+
+    const card = harness.page.onShareAppMessage()
+    const app = JSON.parse(readPageFile('app.json'))
+    assert.equal(app.pages[0], 'pages/bind/bind', 'the launch screen stays the bind page')
+    assert.equal(card.title, '邀请你加入我的日历')
+    assert.equal(card.path, '/pages/bind/bind?roomCode=ROOM05')
+    assert.doesNotMatch(card.title, /经期|欢乐时光|记录|ROOM05/)
+    const besidesPath = JSON.stringify(card).replace(card.path, '')
+    assert.equal(besidesPath.includes('ROOM05'), false, 'the room code must not leave the path query')
+
+    const boundCard = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
+    const shareButton = /<button\b[^>]*>\s*发给 TA\s*<\/button>/.exec(boundCard)
+    assert.ok(shareButton, 'the created-room card offers a native share button labeled 发给 TA')
+    assert.match(shareButton[0], /open-type="share"/)
+    assert.match(shareButton[0], /wx:if="\{\{justCreated\}\}"/)
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #140：未绑定的人从邀请卡进入启动首屏时，切到「加入房间」并预填房间码，仍要自己点「加入」。
+test('bind page prefills the join form from a launch invite and waits for the join tap', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room })
+
+  try {
+    harness.page.onLoad({ roomCode: 'ROOM05' })
+    await harness.page.onShow()
+
+    assert.equal(harness.page.data.bound, false)
+    assert.equal(harness.page.data.tab, 'join')
+    assert.equal(harness.page.data.joinCode, 'ROOM05')
+    assert.equal(harness.page.data.errorMsg, '')
+    assert.equal(room.calls.joinRoom, undefined, 'prefill must not join the room by itself')
+    assert.equal(harness.wx.switchTabCalls.length, 0)
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #140：已经绑定的人打开邀请卡时忽略参数，仍按现有路径进首页。
+test('bind page ignores a launch invite when the user is already bound and continues home', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room })
+
+  try {
+    harness.page.onLoad({ roomCode: 'ROOM05' })
+    await harness.page.onShow()
+
+    assert.equal(harness.page.data.bound, true)
+    assert.equal(harness.page.data.roomCode, 'ROOM01')
+    assert.equal(harness.page.data.tab, 'create')
+    assert.equal(harness.page.data.joinCode, '')
+    assert.equal(harness.page.data.errorMsg, '')
+    assert.equal(room.calls.joinRoom, undefined)
+    assert.equal(harness.wx.switchTabCalls.length, 1)
+    assert.equal(harness.wx.switchTabCalls[0].url, '/pages/index/index')
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #140：路径参数长度不对时直接忽略，不报错，也不改加入表单。
+test('bind page ignores a launch invite of the wrong length without an error', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room })
+
+  try {
+    harness.page.onLoad({ roomCode: 'ABC' })
+    await harness.page.onShow()
+
+    assert.equal(harness.page.data.bound, false)
+    assert.equal(harness.page.data.tab, 'create')
+    assert.equal(harness.page.data.joinCode, '')
+    assert.equal(harness.page.data.errorMsg, '')
+    assert.equal(room.calls.joinRoom, undefined)
+    assert.equal(harness.wx.switchTabCalls.length, 0)
   } finally {
     harness.teardown()
   }

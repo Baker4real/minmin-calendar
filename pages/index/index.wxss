@@ -22,7 +22,7 @@
   width: 300rpx;
   min-height: 52rpx;
   position: fixed;
-  top: calc(var(--safe-top, env(safe-area-inset-top, 88rpx)) + 92rpx);
+  top: calc(var(--nav-bar-height, calc(env(safe-area-inset-top, 44px) + 44px)) + 12rpx);
   left: 50%;
   z-index: 50;
   margin: 0 0 0 -150rpx;
@@ -37,8 +37,6 @@
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.13);
   box-shadow: 0 8rpx 26rpx rgba(0,0,0,0.14);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   pointer-events: none;
   opacity: 0;
   transform: translateY(-8rpx);
@@ -54,7 +52,6 @@
   height: 10rpx;
   border-radius: var(--radius-circle);
   background: var(--aurora-gold);
-  box-shadow: 0 0 12rpx rgba(212,165,116,0.5);
 }
 .sync-pill.syncing .sync-dot {
   background: #E8909E;
@@ -100,7 +97,8 @@
   border: 1px solid rgba(255,255,255,0.1);
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-press) ease;
 }
-.refresh-retry:active {
+.refresh-retry:active,
+.refresh-retry.refresh-retry-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.09);
 }
@@ -118,12 +116,8 @@
   align-items: center;
   padding: 12rpx 24rpx;
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,0.15);
-  box-shadow:
-    0 8px 32px rgba(232,144,158,0.15),
-    inset 0 1px 0 rgba(255,255,255,0.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
   border-radius: var(--radius-card);
   margin: 10rpx 0 8rpx;
   position: relative;
@@ -163,7 +157,8 @@
   border: 1px solid rgba(232,144,158,0.22);
   transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-.month-title-trigger:active {
+.month-title-trigger:active,
+.month-title-trigger.month-title-trigger-hover {
   transform: scale(0.97);
   background: rgba(232,144,158,0.16);
 }
@@ -181,26 +176,40 @@
   font-size: 42rpx;
   color: #fff;
   border-radius: var(--radius-circle);
-  background: linear-gradient(rgba(255,255,255,0.1), rgba(255,255,255,0.1)), var(--glass-fallback);
+  background: var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.2);
   position: relative;
   z-index: 1;
-  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.nav-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-circle);
+  background-color: rgba(255,255,255,0.1);
+  transition: background-color var(--duration-press) ease;
+  pointer-events: none;
+  z-index: -1;
 }
 .nav-btn:active,
 .nav-btn.nav-btn-hover {
   transform: scale(0.96);
-  background: linear-gradient(rgba(255,255,255,0.2), rgba(255,255,255,0.2)), var(--glass-fallback);
+}
+.nav-btn:active::before,
+.nav-btn.nav-btn-hover::before {
+  background-color: rgba(255,255,255,0.2);
 }
 
 /* ===== Week Header ===== */
 .week-header {
   display: flex;
-  padding: 8rpx 0;
+  padding: 8rpx 10rpx;
   margin-bottom: 0;
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--radius-card) var(--radius-card) 0 0;
 }
@@ -217,11 +226,9 @@
   display: flex;
   flex-wrap: wrap;
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 0 0 var(--radius-card) var(--radius-card);
-  padding: 6rpx 0;
+  padding: 6rpx 10rpx;
   box-shadow: 0 8px 32px rgba(0,0,0,0.2);
 }
 
@@ -241,7 +248,8 @@
   box-sizing: border-box;
   transition: transform var(--duration-press) var(--ease-out);
 }
-.day-cell:active {
+.day-cell:active,
+.day-cell.day-cell-hover {
   transform: scale(0.94);
 }
 .day-cell.empty {
@@ -277,8 +285,16 @@
   background: rgba(232,144,158,0.16);
   box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
 }
-.day-cell.holiday:not(.today) {
-  background: rgba(212,165,116,0.08);
+.day-cell.today.period {
+  box-shadow: none;
+}
+.day-cell.today.period::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
 }
 .day-cell.workday:not(.today) {
   background: rgba(255,255,255,0.035);
@@ -297,6 +313,9 @@
 .day-cell.today .day-num {
   color: #E8909E;
   font-weight: var(--font-weight-title);
+}
+.day-cell.today.period .day-num {
+  color: rgba(255,255,255,0.92);
 }
 
 .day-lunar {
@@ -337,8 +356,7 @@
   max-width: 100%;
 }
 .holiday-tag {
-  color: #0A0E27;
-  background: rgba(212,165,116,0.9);
+  color: var(--aurora-gold);
 }
 .workday-tag {
   color: rgba(255,255,255,0.72);
@@ -361,10 +379,46 @@
   border-radius: var(--radius-circle);
 }
 
-/* Period Mark – 静态玫瑰点，柔光 */
-.period-mark {
-  background: #E8909E;
-  box-shadow: 0 0 10rpx rgba(232,144,158,0.45);
+/* Period band: 22% rose wash. Caps live on the cell so a row connects; no transition. */
+.period-band {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: rgba(232,144,158,0.22);
+}
+.day-num,
+.day-lunar,
+.day-tag-line,
+.day-marks {
+  position: relative;
+  z-index: 1;
+}
+.day-cell.period-start {
+  border-top-left-radius: var(--radius-full);
+  border-bottom-left-radius: var(--radius-full);
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.day-cell.period-middle {
+  border-radius: 0;
+}
+.day-cell.period-end {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-top-right-radius: var(--radius-full);
+  border-bottom-right-radius: var(--radius-full);
+}
+.day-cell.period-single {
+  border-radius: var(--radius-full);
+}
+.day-cell.period-open.period-end {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.day-cell.period-open.period-single {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 /* Memory Mark */
@@ -396,8 +450,8 @@
   font-weight: var(--font-weight-assist);
   text-align: center;
   color: var(--aurora-gold);
-  background: rgba(212,165,116,0.14);
-  border: 1px solid rgba(212,165,116,0.22);
+  background: transparent;
+  border: 1px solid rgba(212,165,116,0.55);
 }
 
 /* ===== Status Card – Glass Card（issue #105 合并状态卡：条数现状 + 预测 + 提醒） ===== */
@@ -432,7 +486,8 @@
   min-width: 0;
   transition: transform var(--duration-press) var(--ease-out);
 }
-.stat-item:active {
+.stat-item:active,
+.stat-item.stat-item-hover {
   transform: scale(0.98);
 }
 /* 数据实色化：玫瑰=经期数据 */
@@ -495,7 +550,8 @@
   box-sizing: border-box;
   transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-.reminder-card:active {
+.reminder-card:active,
+.reminder-card.reminder-card-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.12);
 }
@@ -538,7 +594,7 @@
   height: 60rpx;
   line-height: 60rpx;
   text-align: center;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
   color: #0A0E27;
@@ -568,7 +624,8 @@
   border: 1px solid rgba(255,255,255,0.16);
   transition: transform var(--duration-press) var(--ease-out);
 }
-.quick-btn:active {
+.quick-btn:active,
+.quick-btn.quick-btn-hover {
   transform: scale(0.96);
   box-shadow: 0 4rpx 14rpx rgba(232,144,158,0.18);
 }
@@ -645,7 +702,7 @@
 }
 
 /* ===== Calendar Month Jump Sheet ===== */
-.month-jump-mask {
+.sheet-host.month-jump-mask {
   z-index: 62;
 }
 .calendar-jump-sheet {
@@ -682,7 +739,8 @@
   border: 1px solid rgba(232,144,158,0.24);
   transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-.jump-today:active {
+.jump-today:active,
+.jump-today.jump-today-hover {
   transform: scale(0.98);
   background: rgba(232,144,158,0.18);
 }
@@ -732,14 +790,16 @@
   border: 1px solid rgba(255,255,255,0.11);
   transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out), opacity var(--duration-state) ease;
 }
-.jump-year-step:active {
+.jump-year-step:active,
+.jump-year-step.jump-year-step-hover {
   transform: scale(0.94);
   background: rgba(255,255,255,0.14);
 }
 .jump-year-step.disabled {
   opacity: 0.35;
 }
-.jump-year-step.disabled:active {
+.jump-year-step:active.disabled,
+.jump-year-step.jump-year-step-hover.disabled{
   transform: none;
   background: rgba(255,255,255,0.075);
 }
@@ -775,7 +835,8 @@
   border: 1px solid rgba(255,255,255,0.1);
   transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-.jump-option:active {
+.jump-option:active,
+.jump-option.jump-option-hover {
   transform: scale(0.97);
   background: rgba(255,255,255,0.13);
 }
@@ -785,30 +846,10 @@
   border-color: rgba(255,255,255,0.18);
   box-shadow: 0 12rpx 28rpx rgba(232,144,158,0.18);
 }
-.jump-confirm {
-  min-height: 88rpx;
-  margin-top: 22rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  padding: 0 28rpx;
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-control);
-  white-space: nowrap;
-  color: #0A0E27;
-  background: var(--aurora-pink);
-  box-shadow: 0 14rpx 36rpx rgba(232,144,158,0.2);
-  transition: transform var(--duration-press) var(--ease-out);
-}
-.jump-confirm:active {
-  transform: scale(0.98);
-  box-shadow: 0 8rpx 24rpx rgba(232,144,158,0.16);
-}
 
 /* ===== Day Action Sheet ===== */
-.day-sheet-mask {
+/* issue #134：遮罩与面板是兄弟。宿主只负责铺满与叠层，自己不是关闭控件。 */
+.sheet-host {
   position: fixed;
   top: 0;
   right: 0;
@@ -819,12 +860,37 @@
   align-items: flex-end;
   padding: 0 20rpx 0;
   box-sizing: border-box;
+  pointer-events: none;
+}
+.day-sheet-mask {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  pointer-events: auto;
+  box-sizing: border-box;
   background: rgba(10,14,39,0.88);
   /* 全屏遮罩 blur 压到 modal-overlay 登记的 8px：88% 不透明底上更大 blur 不可见，纯 GPU 开销（issue #58） */
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   opacity: 0;
   transition: opacity var(--duration-exit) var(--ease-out);
+}
+.day-sheet-mask::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-color: rgba(10,14,39,0);
+  transition: background-color var(--duration-press) ease;
+  pointer-events: none;
+}
+.day-sheet-mask:active::after,
+.day-sheet-mask.day-sheet-mask-hover::after {
+  background-color: rgba(10,14,39,0.28);
 }
 .day-sheet-mask.sheet-open {
   opacity: 1;
@@ -837,18 +903,24 @@
 .day-sheet-mask.sheet-leaving {
   pointer-events: none;
 }
+.sheet-slide.sheet-leaving {
+  pointer-events: none;
+}
 .sheet-slide {
+  position: relative;
+  z-index: 1;
   width: 100%;
   padding-bottom: 20rpx;
   box-sizing: border-box;
+  pointer-events: auto;
   transform: translateY(100%);
   transition: transform var(--duration-exit) var(--ease-out);
 }
-.day-sheet-mask.sheet-open .sheet-slide {
+.sheet-slide.sheet-open {
   transform: translateY(0);
   transition: transform var(--duration-sheet) var(--ease-out);
 }
-.day-sheet-mask.sheet-open .sheet-slide.sheet-reset {
+.sheet-slide.sheet-open.sheet-reset {
   transition: transform var(--duration-exit) var(--ease-out);
 }
 .day-action-sheet {
@@ -921,7 +993,8 @@
   background: var(--glass-bg);
   border: 1px solid rgba(255,255,255,0.12);
 }
-.sheet-close:active {
+.sheet-close:active,
+.sheet-close.sheet-close-hover {
   transform: scale(0.96);
   background: rgba(255,255,255,0.14);
 }
@@ -942,7 +1015,8 @@
   border: 1px solid rgba(255,255,255,0.11);
   transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-.sheet-action:active {
+.sheet-action:active,
+.sheet-action.sheet-action-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.13);
 }
@@ -1160,7 +1234,7 @@
 }
 
 /* ===== Calendar Info Sheet ===== */
-.calendar-info-sheet {
+.sheet-host.calendar-info-sheet {
   z-index: 64;
 }
 .calendar-info-panel {
@@ -1184,41 +1258,12 @@
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1);
 }
-.legend-symbol {
-  flex: 0 0 auto;
-  width: 54rpx;
-  height: 54rpx;
-  line-height: 54rpx;
-  text-align: center;
-  border-radius: var(--radius-circle);
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-assist);
-  color: #0A0E27;
-  background: rgba(232,144,158,0.88);
-}
-.legend-row.memory .legend-symbol {
-  background: rgba(240,196,192,0.9);
-}
-/* 今天图例 — 与 .day-cell.today 同款玫瑰光圈，不再是日历上不存在的「今」字 */
-.legend-row.today .legend-symbol {
-  color: #E8909E;
-  background: rgba(232,144,158,0.16);
-  box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
-}
-.legend-row.predict .legend-symbol,
-.legend-row.holiday .legend-symbol,
-.legend-row.workday .legend-symbol {
-  background: rgba(212,165,116,0.9);
-}
-/* 节日图例 — 金底海军字小标签，对应日历上的真实节日名称标签。
-   「中秋」两字保持 caption 字号，加宽标签避免在 54rpx 圆槽里换行裁切。 */
-.legend-row.holiday .legend-symbol {
-  width: auto;
-  min-width: 88rpx;
-  box-sizing: border-box;
-  padding: 0 12rpx;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
+.legend-sample.day-cell {
+  width: 72rpx;
+  height: 72rpx;
+  flex: none;
+  padding: 0;
+  justify-content: center;
 }
 .legend-copy {
   flex: 1;
@@ -1320,7 +1365,7 @@
   margin-top: 4rpx;
   box-sizing: border-box;
   padding: 0 28rpx;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-control);
   white-space: nowrap;
@@ -1328,7 +1373,8 @@
   background: var(--aurora-pink);
   box-shadow: 0 14rpx 34rpx rgba(232,144,158,0.18);
 }
-.copy-recap:active {
+.copy-recap:active,
+.copy-recap.copy-recap-hover {
   transform: scale(0.98);
 }
 /* issue #118：弹层盖住首页时暂停这五层装饰，卸掉标记后从当前帧继续。减弱动效仍是 animation: none。 */
@@ -1338,22 +1384,33 @@
 .page.page-obscured .header-gradient::after {
   animation-play-state: paused;
 }
+.reduced-motion-probe {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
 @media (prefers-reduced-motion: reduce) {
+  .reduced-motion-probe {
+    width: 1px;
+  }
   .day-sheet-mask.sheet-open,
-  .day-sheet-mask.sheet-open .sheet-slide,
-  .day-sheet-mask.sheet-open .sheet-slide.sheet-reset,
+  .sheet-slide.sheet-open,
+  .sheet-slide.sheet-open.sheet-reset,
   .sheet-slide,
   .sync-pill,
   .sync-pill.sync-open,
   .sync-pill.syncing .sync-dot,
   .refresh-retry,
   .day-sheet-mask,
+  .day-sheet-mask::after,
   .day-action-sheet,
   .calendar-jump-sheet,
   .month-title-trigger,
   .nav-btn,
+  .nav-btn::before,
   .jump-option,
-  .jump-confirm,
   .jump-year-step,
   .sheet-action,
   .sheet-close,

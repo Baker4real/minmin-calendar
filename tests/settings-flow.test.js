@@ -437,7 +437,8 @@ test('exportRecordsAsJson keeps room repair retryable failures on the retry path
   await waitForAsyncTurn()
   assert.equal(env.wx.modals.length, 1)
   assert.equal(env.wx.modals[0].title, '房间同步失败')
-  assert.equal(env.wx.modals[0].content, '同步房间状态失败：network down')
+  assert.equal(env.wx.modals[0].content, '网络不太稳定，请重试')
+  assert.doesNotMatch(env.wx.modals[0].content, /network down/)
   assert.equal(env.wx.modals[0].confirmText, '重试')
 
   const result = await env.wx.resolveModal(false, promise)
@@ -473,7 +474,8 @@ test('exportRecordsAsJson hides loading and reports export failure when file wri
   })
 
   assert.equal(result.kind, 'export-failed')
-  assert.equal(result.message, 'disk full')
+  assert.equal(result.message, '这次没有完成，请重试')
+  assert.doesNotMatch(result.message, /disk full/)
   assert.equal(env.wx.hideLoadingCalls, 1)
   assert.deepEqual(env.wx.toasts, [{ title: '导出失败', icon: 'error' }])
   assert.deepEqual(env.wx.shareCalls, [])
@@ -515,7 +517,7 @@ test('exportRecordsAsJson reports export failure when toast is unavailable', asy
 
   assert.deepEqual(result, {
     kind: 'export-failed',
-    message: 'disk full'
+    message: '这次没有完成，请重试'
   })
   assert.deepEqual(wxApi.loadingCalls, [{ title: '导出中...' }])
   assert.equal(wxApi.hideLoadingCalls, 1)
@@ -1155,6 +1157,16 @@ test('settings shows TA 已加入 once after the room changes from waiting to pa
   }
 })
 
+test('settings calendar display says compact keeps holidays and adjusted workdays, and full adds the lunar day', () => {
+  const wxml = readPageFile('pages/settings/settings.wxml')
+  const calendar = wxml.slice(wxml.indexOf('>日历显示<'), wxml.indexOf('>数据<'))
+
+  assert.match(calendar, /清爽只看日期与标记（含节日和调休），完整另外显示农历/)
+  assert.doesNotMatch(calendar, /完整加显农历与节日|完整显示农历和节假日/)
+  assert.match(calendar, /aria-label="清爽显示日期与标记"/)
+  assert.match(calendar, /aria-label="完整显示农历"/)
+})
+
 // ===== issue #103：「查看欢乐时光」→ 记录 tab 的欢乐时光分段 =====
 
 test('settings page no longer offers a second happy-time entry', () => {
@@ -1169,7 +1181,7 @@ test('settings page no longer offers a second happy-time entry', () => {
 
 function wxssRuleBody(wxss, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const match = wxss.match(new RegExp(`(?:^|[\\n}])\\s*${escaped}\\s*\\{([^}]+)\\}`))
+  const match = wxss.match(new RegExp(`(?:^|[\\n},])\\s*${escaped}\\s*(?:,[^{]*)?\\{([^}]+)\\}`))
   assert.ok(match, `expected rule for ${selector}`)
   return match[1]
 }
@@ -1199,7 +1211,7 @@ function loadSettingsPageHarness({ roomOutcome, leaveRoom, cachedRoomCode } = {}
         return leaveRoom || { code: 0 }
       }
     }],
-    [path.join(__dirname, '..', 'utils/safeArea.js'), { getSafeTop: () => 44, getSafeBottom: () => 0 }]
+    [path.join(__dirname, '..', 'utils/safeArea.js'), { getSafeTop: () => 44, getSafeBottom: () => 0, getNavBarHeight: () => 84, getCapsuleRightInset: () => 94 }]
   ])
   const originalPage = global.Page
   const originalWx = global.wx

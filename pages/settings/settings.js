@@ -20,6 +20,8 @@ function settingsInitialData() {
   return {
     safeTop: safeArea.getSafeTop(),
     safeBottom: safeArea.getSafeBottom(),
+    navBarHeight: safeArea.getNavBarHeight(),
+    capsuleRight: safeArea.getCapsuleRightInset(),
     ...cachedRoomFirstFrame(),
     roomCodeLoaded: false,
     roomMemberLabel: '',

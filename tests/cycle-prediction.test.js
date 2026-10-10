@@ -227,9 +227,10 @@ test('buildPeriodPayload and decoratePeriod normalize optional flow and symptom 
     flowLabel: '量多',
     symptomLabels: ['痛经', '头痛'],
     symptomText: '痛经、头痛',
-    endDateDisplay: '2026-06-12',
+    endDateDisplay: '6月12日',
     durationText: '3天',
-    rangeSummary: '2026-06-10 至 2026-06-12'
+    dateLabel: '6月10日–6月12日',
+    rangeSummary: '6月10日–6月12日'
   })
 })
 
@@ -326,16 +327,18 @@ test('decoratePeriod exposes ongoing and unknown-end status copy instead of a bl
     { today: '2026-09-24' }
   )
   assert.equal(ongoing.statusLabel, '进行中')
-  assert.equal(ongoing.endDateDisplay, '2026-09-24')
+  assert.equal(ongoing.endDateDisplay, '9月24日')
   assert.equal(ongoing.durationText, '进行中')
-  assert.equal(ongoing.rangeSummary, '2026-09-20 至 2026-09-24，进行中')
+  assert.equal(ongoing.dateLabel, '9月20日–9月24日')
+  assert.equal(ongoing.rangeSummary, '9月20日–9月24日，进行中')
   assert.equal(ongoing.duration, 0)
 
   const unknownEnd = cycle.decoratePeriod({ _id: 'p3', startDate: '2026-08-01', endDate: '' })
   assert.equal(unknownEnd.statusLabel, '结束日期不详')
   assert.equal(unknownEnd.endDateDisplay, '结束日期不详')
   assert.equal(unknownEnd.durationText, '结束日期不详')
-  assert.equal(unknownEnd.rangeSummary, '2026-08-01，结束日期不详')
+  assert.equal(unknownEnd.dateLabel, '8月1日，结束日期不详')
+  assert.equal(unknownEnd.rangeSummary, '8月1日，结束日期不详')
   assert.equal(unknownEnd.duration, 0)
 })
 
@@ -562,7 +565,121 @@ test('the completion reminder never writes an end date or closes the ongoing rec
   assert.equal(reminder.record, periods[1])
 })
 
-test('buildSymptomOptions groups every symptom into exactly one body or emotion group', () => {
+test('describeKnownPeriodLength counts inclusive days and flags spans past the completion-reminder threshold', () => {
+  assert.equal(typeof cycle.describeKnownPeriodLength, 'function')
+
+  const periods = [
+    period('2026-05-01', '2026-05-03'),
+    period('2026-06-01', '2026-06-05'),
+    period('2026-07-01', '2026-07-08')
+  ]
+  const snapshot = JSON.parse(JSON.stringify(periods))
+
+  const within = cycle.describeKnownPeriodLength({
+    startDate: '2026-08-01',
+    endDate: '2026-08-05',
+    periods
+  })
+  assert.deepEqual(within, {
+    days: 5,
+    text: '共 5 天',
+    exceedsExpected: false,
+    expectedDays: 5,
+    expectedSource: 'history',
+    hint: ''
+  })
+
+  const over = cycle.describeKnownPeriodLength({
+    startDate: '2026-08-01',
+    endDate: '2026-08-06',
+    periods
+  })
+  assert.equal(over.days, 6)
+  assert.equal(over.text, '共 6 天')
+  assert.equal(over.exceedsExpected, true)
+  assert.equal(over.expectedDays, 5)
+  assert.equal(over.expectedSource, 'history')
+  assert.equal(over.hint, '超过预期的 5 天，请核对结束日期')
+
+  const manual = cycle.describeKnownPeriodLength({
+    startDate: '2026-08-01',
+    endDate: '2026-08-04',
+    periods,
+    typicalPeriodLength: 3
+  })
+  assert.equal(manual.expectedDays, 3)
+  assert.equal(manual.expectedSource, 'manual')
+  assert.equal(manual.days, 4)
+  assert.equal(manual.hint, '超过预期的 3 天，请核对结束日期')
+
+  const unknownOnly = [
+    { startDate: '2026-08-01', endDate: '', status: 'unknown-end', duration: 9 }
+  ]
+  const atDefault = cycle.describeKnownPeriodLength({
+    startDate: '2026-09-01',
+    endDate: '2026-09-05',
+    periods: unknownOnly
+  })
+  assert.equal(atDefault.expectedDays, 5)
+  assert.equal(atDefault.expectedSource, 'default')
+  assert.equal(atDefault.exceedsExpected, false)
+  assert.equal(atDefault.hint, '')
+
+  const overDefault = cycle.describeKnownPeriodLength({
+    startDate: '2026-09-01',
+    endDate: '2026-09-06',
+    periods: unknownOnly
+  })
+  assert.equal(overDefault.days, 6)
+  assert.equal(overDefault.hint, '超过预期的 5 天，请核对结束日期')
+
+  const open = cycle.describeKnownPeriodLength({
+    startDate: '2026-09-01',
+    endDate: '',
+    periods
+  })
+  assert.equal(open.days, 0)
+  assert.equal(open.text, '')
+  assert.equal(open.hint, '')
+  assert.equal(open.exceedsExpected, false)
+
+  assert.deepEqual(periods, snapshot)
+})
+
+test('buildPeriodQuickAction names the ongoing period day and otherwise stays a plain record action', () => {
+  assert.equal(typeof cycle.buildPeriodQuickAction, 'function')
+
+  const periods = [
+    period('2026-06-01', '2026-06-05'),
+    { _id: 'p2', startDate: '2026-06-20', endDate: '', status: 'ongoing', duration: 0 }
+  ]
+  const snapshot = JSON.parse(JSON.stringify(periods))
+
+  assert.deepEqual(cycle.buildPeriodQuickAction(periods, { today: '2026-06-26' }), {
+    label: '经期第 7 天 · 记结束',
+    ariaLabel: '经期第 7 天 · 记结束',
+    mode: 'complete'
+  })
+  assert.deepEqual(cycle.buildPeriodQuickAction([
+    { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', status: 'known-end' }
+  ], { today: '2026-06-26' }), {
+    label: '记经期',
+    ariaLabel: '记经期',
+    mode: 'add'
+  })
+  assert.deepEqual(cycle.buildPeriodQuickAction([
+    { _id: 'future', startDate: '2026-06-30', endDate: '', status: 'ongoing' }
+  ], { today: '2026-06-26' }), {
+    label: '记结束',
+    ariaLabel: '记结束',
+    mode: 'complete'
+  })
+  assert.deepEqual(periods, snapshot)
+  assert.equal(periods[1].endDate, '')
+  assert.equal(periods[1].status, 'ongoing')
+})
+
+test('buildSymptomOptions groups every symptom into body or mood-and-sleep', () => {
   assert.equal(typeof cycle.buildSymptomOptions, 'function')
 
   const groups = cycle.buildSymptomOptions(['mood'])
@@ -571,9 +688,10 @@ test('buildSymptomOptions groups every symptom into exactly one body or emotion 
     groups.map(group => ({ key: group.key, label: group.label })),
     [
       { key: 'body', label: '身体' },
-      { key: 'emotion', label: '情绪' }
+      { key: 'emotion', label: '情绪与睡眠' }
     ]
   )
+  assert.equal(groups.some(group => group.label === '情绪'), false)
 
   const flattened = groups.flatMap(group => group.options)
   assert.deepEqual(

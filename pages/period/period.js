@@ -11,7 +11,7 @@ const safeArea = require('../../utils/safeArea')
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 
 Page({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), segment: 'period', periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memories: [], memoryGroups: [], memoryLoading: false, memoryLoadFailed: false, memoryHasLoaded: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), segment: 'period', periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memories: [], memoryGroups: [], memoryLoading: false, memoryLoadFailed: false, memoryHasLoaded: false },
 
   // 欢乐时光月份卡的展开选择（issue #109）：页面内存按月份键记「用户点过卡头」的月份，
   // 值为 memoryMonthGroups.EXPANDED / COLLAPSED；没点过的月份走默认规则（只展开最近一个有记录的月份）。
@@ -21,6 +21,14 @@ Page({
   onShow() {
     this.consumeSegmentIntent()
     return this.data.segment === 'memory' ? this.loadMemoryData() : this.loadData()
+  },
+
+  onPullDownRefresh() {
+    const task = this.data.segment === 'memory' ? this.loadMemoryData() : this.loadData()
+    const stop = () => {
+      if (typeof wx.stopPullDownRefresh === 'function') wx.stopPullDownRefresh()
+    }
+    return Promise.resolve(task).then(stop, stop)
   },
 
   consumeSegmentIntent() {
@@ -82,6 +90,7 @@ Page({
 
   async loadMemoryData() {
     const client = cloud.createRoomDataClient()
+    const today = util.formatDate(new Date())
     await recordCommands.runRecordListLoad({
       page: this,
       itemsKey: 'memories',
@@ -95,7 +104,7 @@ Page({
         this.setData({
           memoryHasLoaded: true,
           memoryGroups: memoryMonthGroups.applyMemoryMonthExpansion(
-            memoryMonthGroups.buildMemoryMonthGroups(memories),
+            memoryMonthGroups.buildMemoryMonthGroups(memories, { today }),
             this.memoryMonthChoices
           )
         })

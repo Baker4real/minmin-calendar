@@ -286,6 +286,199 @@ test('runRecordSave does not replay unknown save mutations after retryable failu
   assert.equal(actionCalls, 1)
 })
 
+test('runRecordSave says 已保存 when an unconfirmed edit is found by record identity', async () => {
+  assert.equal(typeof recordCommands.runRecordSave, 'function')
+
+  const page = createFakePage({ saving: false })
+  const env = createFakeCommandEnv()
+  let actionCalls = 0
+  let refetchCalls = 0
+
+  const result = await recordCommands.runRecordSave({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => {
+      actionCalls += 1
+      return {
+        kind: 'retryable-failure',
+        message: '云数据库查询超时 (15000ms)'
+      }
+    },
+    refetch: async () => {
+      refetchCalls += 1
+      return {
+        kind: 'success',
+        data: [
+          { _id: 'other', startDate: '2026-06-01', note: '已写入' },
+          { _id: 'p1', startDate: '2026-06-01', note: '已写入', duration: 3 }
+        ]
+      }
+    },
+    reconcile: {
+      id: 'p1',
+      fields: { startDate: '2026-06-01', note: '已写入' }
+    },
+    validate: null,
+    successTitle: '保存成功',
+    failureTitle: '保存失败',
+    successDelay: 1000
+  })
+
+  assert.equal(actionCalls, 1)
+  assert.equal(refetchCalls, 1)
+  assert.equal(result.kind, 'success')
+  assert.equal(result.result.record._id, 'p1')
+  assert.deepEqual(env.wx.toasts, [{ title: '已保存' }])
+  assert.deepEqual(env.wx.modals, [])
+  assert.deepEqual(env.timer.calls.map(call => call.delay), [1000])
+  assert.deepEqual(page.setDataCalls, [
+    { saving: true },
+    { saving: false, submitted: true }
+  ])
+})
+
+test('runRecordSave says the save did not land when the refetched record does not match', async () => {
+  assert.equal(typeof recordCommands.runRecordSave, 'function')
+
+  const page = createFakePage({ saving: false })
+  const env = createFakeCommandEnv()
+  let actionCalls = 0
+  let refetchCalls = 0
+
+  const promise = recordCommands.runRecordSave({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => {
+      actionCalls += 1
+      return { kind: 'retryable-failure', message: 'network down' }
+    },
+    refetch: async () => {
+      refetchCalls += 1
+      return {
+        kind: 'success',
+        data: [
+          { _id: 'p1', startDate: '2026-06-01', note: '旧备注' },
+          { _id: 'other', startDate: '2026-06-01', note: '新备注' }
+        ]
+      }
+    },
+    reconcile: {
+      id: 'p1',
+      fields: { startDate: '2026-06-01', note: '新备注' }
+    },
+    validate: null,
+    successTitle: '保存成功',
+    failureTitle: '保存失败'
+  })
+
+  for (let turn = 0; turn < 8 && env.wx.modals.length === 0; turn += 1) {
+    await Promise.resolve()
+  }
+  assert.equal(env.wx.modals.length, 1)
+  const modal = env.wx.modals[0]
+  const result = await env.wx.resolveModal(true, promise)
+
+  assert.equal(actionCalls, 1)
+  assert.equal(refetchCalls, 1)
+  assert.equal(modal.content, '没有保存成功，请重试')
+  assert.equal(result.message, '没有保存成功，请重试')
+  assert.doesNotMatch(modal.content, /network down/)
+  assert.deepEqual(env.wx.toasts, [])
+  assert.equal(env.timer.calls.length, 0)
+  assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
+})
+
+test('runRecordSave says 已保存 when an unconfirmed add matches date and content', async () => {
+  const page = createFakePage({ saving: false })
+  const env = createFakeCommandEnv()
+  let refetchCalls = 0
+
+  const result = await recordCommands.runRecordSave({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => ({ kind: 'retryable-failure', message: 'network down' }),
+    refetch: async () => {
+      refetchCalls += 1
+      return {
+        kind: 'success',
+        data: [
+          { _id: 'm-old', date: '2026-06-03', note: '别的' },
+          { _id: 'm1', date: '2026-06-03', note: '电影' }
+        ]
+      }
+    },
+    reconcile: {
+      fields: { date: '2026-06-03', note: '电影' }
+    },
+    validate: null,
+    successTitle: '保存成功',
+    failureTitle: '保存失败',
+    successDelay: 1000
+  })
+
+  assert.equal(refetchCalls, 1)
+  assert.equal(result.kind, 'success')
+  assert.equal(result.result.record._id, 'm1')
+  assert.deepEqual(env.wx.toasts, [{ title: '已保存' }])
+  assert.deepEqual(env.wx.modals, [])
+})
+
+test('runRecordSave keeps the unconfirmed explanation when the refetch also fails', async () => {
+  const page = createFakePage({ saving: false })
+  const env = createFakeCommandEnv()
+  const errors = []
+  const originalError = console.error
+  console.error = (...args) => {
+    errors.push(args.map(item => String(item)).join(' '))
+  }
+  let actionCalls = 0
+  let refetchCalls = 0
+
+  try {
+    const promise = recordCommands.runRecordSave({
+      page,
+      wx: env.wx,
+      timer: env.timer,
+      action: async () => {
+        actionCalls += 1
+        return { kind: 'retryable-failure', message: '云数据库查询超时 (15000ms)' }
+      },
+      refetch: async () => {
+        refetchCalls += 1
+        return { kind: 'retryable-failure', message: 'list timeout 15000ms' }
+      },
+      reconcile: {
+        fields: { date: '2026-06-03', note: '电影' }
+      },
+      validate: null,
+      successTitle: '保存成功',
+      failureTitle: '保存失败'
+    })
+
+    for (let turn = 0; turn < 8 && env.wx.modals.length === 0; turn += 1) {
+      await Promise.resolve()
+    }
+    assert.equal(env.wx.modals.length, 1)
+    const modal = env.wx.modals[0]
+    const result = await env.wx.resolveModal(true, promise)
+
+    assert.equal(actionCalls, 1)
+    assert.equal(refetchCalls, 1)
+    assert.equal(modal.content, '保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交')
+    assert.equal(result.message, modal.content)
+    assert.doesNotMatch(`${modal.content}\n${result.message}`, /15000|timeout|云数据库/)
+    assert.match(errors.join('\n'), /云数据库查询超时 \(15000ms\)/)
+    assert.match(errors.join('\n'), /list timeout 15000ms/)
+    assert.deepEqual(env.wx.toasts, [])
+    assert.equal(env.timer.calls.length, 0)
+  } finally {
+    console.error = originalError
+  }
+})
+
 test('runRecordSave returns acknowledge fallback when modal and toast are unavailable', async () => {
   assert.equal(typeof recordCommands.runRecordSave, 'function')
 
@@ -399,7 +592,7 @@ test('runRecordSave keeps room repair sync failures visible without replaying th
   assert.deepEqual(result, {
     kind: 'room-repair',
     action: 'refresh-check',
-    message: '同步房间状态失败：network down\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
+    message: '网络不太稳定，请重试\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
     roomCode: 'ROOM01',
     repair: {
       kind: 'retryable-failure',
@@ -409,7 +602,7 @@ test('runRecordSave keeps room repair sync failures visible without replaying th
   assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
   assert.deepEqual(modal, {
     title: '保存失败',
-    content: '同步房间状态失败：network down\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
+    content: '网络不太稳定，请重试\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
     confirmText: '知道了',
     showCancel: false,
     success: modal.success
@@ -643,7 +836,7 @@ test('runRecordDelete keeps room repair sync failures visible without replaying 
   assert.deepEqual(result, {
     kind: 'room-repair',
     action: 'refresh-check',
-    message: '同步房间状态失败：network down\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
+    message: '网络不太稳定，请重试\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
     roomCode: 'ROOM01',
     repair: {
       kind: 'retryable-failure',
@@ -654,7 +847,7 @@ test('runRecordDelete keeps room repair sync failures visible without replaying 
   assert.deepEqual(page.setDataCalls, [{ deleting: true }, { deleting: false }])
   assert.deepEqual(modal, {
     title: '删除失败',
-    content: '同步房间状态失败：network down\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
+    content: '网络不太稳定，请重试\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
     confirmText: '知道了',
     showCancel: false,
     success: modal.success
@@ -887,7 +1080,7 @@ test('runRecordListLoad keeps room repair sync failures retryable when the user 
   assert.deepEqual(result, { kind: 'success', data: [] })
   assert.deepEqual(modal, {
     title: '加载失败',
-    content: '同步房间状态失败：network down',
+    content: '网络不太稳定，请重试',
     confirmText: '重试',
     cancelText: '取消',
     success: modal.success
@@ -964,15 +1157,17 @@ test('period and memory list templates keep the REC-03 visible row contract', ()
   const periodWxml = readPageFile('pages/period/period.wxml')
   const memoryWxml = readPageFile('pages/memory/memory.wxml')
 
-  // 日期行绑定状态化展示值：已知结束显示结束日期，进行中/不详显示状态文案
-  assert.match(periodWxml, /\{\{item\.startDate\}\}\s*~\s*\{\{item\.endDateDisplay\}\}/)
+  // 日期行走统一显示格式，不再把 ISO 起止拼进可见行
+  assert.match(periodWxml, /class="item-date">\{\{item\.dateLabel\}\}/)
+  assert.doesNotMatch(periodWxml, /\{\{item\.startDate\}\}/)
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}"/)
   assert.doesNotMatch(periodWxml, /无备注/)
   // 已完成记录仍以「N天」呈现时长；进行中/结束日期不详由状态文案占住时长位
   assert.match(periodWxml, /wx:if="\{\{item\.status === 'known-end'\}\}" class="item-duration">\{\{item\.durationText\}\}/)
   assert.match(periodWxml, /class="item-duration ongoing">\{\{item\.durationText\}\}/)
 
-  assert.match(memoryWxml, /\{\{item\.date\}\}/)
+  assert.match(memoryWxml, /class="memory-date">\{\{item\.dateLabel\}\}/)
+  assert.doesNotMatch(memoryWxml, /\{\{item\.date\}\}/)
   // 没有备注的欢乐时光不显示备注句；真实写下的备注（含与旧占位句相同的文字）照常显示
   assert.match(memoryWxml, /wx:if="\{\{item\.note\}\}"[^>]*>\{\{item\.note\}\}/)
   assert.doesNotMatch(memoryWxml, /我们的欢乐时光'/)
@@ -1013,7 +1208,7 @@ test('period list failure retry is a recognizable operation, distinct from the q
     /wx:if="\{\{loadFailed && !hasLoaded && !loading\}\}" class="empty-state load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(periodWxml, /class="load-failed-text">经期记录加载失败</)
-  assert.match(periodWxml, /class="retry-btn">重试</)
+  assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 真空态仍是安静说明：不带重试按钮，也不可点；失败期间不显示断言式空态句（!loadFailed）
   const emptyBlock = /wx:elif="\{\{periods\.length === 0 && !loading && !loadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
@@ -1040,7 +1235,7 @@ test('period list keeps last data on refresh failure and offers retry in the lis
     /wx:if="\{\{loadFailed && hasLoaded && !loading\}\}" class="list-retry" bindtap="loadData" aria-role="button" aria-label="刷新失败，点按重试"/
   )
   assert.match(periodWxml, /class="list-retry-text">刷新失败，正在显示上次的内容</)
-  assert.match(periodWxml, /class="retry-btn">重试</)
+  assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 重试行可点高度 ≥44px，说明句保持次级文字色（可读但不抢操作）
   const retryRow = /\.list-retry\s*\{[^}]*\}/.exec(periodWxss)
@@ -1062,7 +1257,7 @@ test('memory list failure retry reads as an operation, not the quiet empty note'
     /wx:if="\{\{loadFailed && !hasLoaded && !loading\}\}" class="empty-state load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(memoryWxml, /class="load-failed-text">欢乐时光加载失败</)
-  assert.match(memoryWxml, /class="retry-btn">重试</)
+  assert.match(memoryWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 空列表说明保持安静：没有按钮、不可点；失败期间不显示断言式空态句（与经期列表一致）
   const emptyBlock = /wx:elif="\{\{memories\.length === 0 && !loading && !loadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(memoryWxml)
@@ -1357,7 +1552,7 @@ test('memory list failure marks loadFailed and recovers through the retry entry'
     await harness.page.loadData()
     assert.equal(harness.page.data.loadFailed, false)
     assert.deepEqual(harness.page.data.memories, [
-      { _id: 'm1', date: '2026-06-01', note: '一次愉快的野餐' }
+      { _id: 'm1', date: '2026-06-01', note: '一次愉快的野餐', dateLabel: '6月1日' }
     ])
   } finally {
     harness.teardown()
@@ -1435,7 +1630,7 @@ test('memory list keeps records and turns to the list-area retry row when a late
     assert.equal(harness.page.data.hasLoaded, true)
     assert.equal(harness.page.data.loading, false)
     assert.deepEqual(harness.page.data.memories, [
-      { _id: 'm1', date: '2026-06-01', note: '一次愉快的野餐' }
+      { _id: 'm1', date: '2026-06-01', note: '一次愉快的野餐', dateLabel: '6月1日' }
     ])
   } finally {
     harness.teardown()
@@ -1492,7 +1687,7 @@ test('record tab memory segment mirrors the standalone memory list state contrac
     /wx:if="\{\{memoryLoadFailed && !memoryHasLoaded && !memoryLoading\}\}" class="empty-state load-failed" bindtap="loadMemoryData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(periodWxml, /class="load-failed-text">欢乐时光加载失败</)
-  assert.match(periodWxml, /class="retry-btn">重试</)
+  assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 空列表说明保持安静：没有按钮、不可点；失败期间不显示断言式空态句
   const emptyBlock = /wx:elif="\{\{memories\.length === 0 && !memoryLoading && !memoryLoadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
@@ -1544,10 +1739,10 @@ test('record tab memory segment renders month cards with the grouped row contrac
   assert.match(periodWxml, /class="month-toggle">\{\{group\.toggleLabel\}\}/)
 
   // 行：收起时组内行不渲染（wx:if，不是 css 隐藏，读屏不会念出来）；
-  // 定位用记录 id（不依赖扁平下标）；显示「M月D日」，读屏仍念完整日期；无备注不渲染占位句
+  // 定位用记录 id；可见日期和读屏名都走显示格式，ISO 日期仍留在行数据里供编辑跳转
   assert.match(
     periodWxml,
-    /wx:if="\{\{group\.expanded\}\}" wx:for="\{\{group\.records\}\}" wx:key="_id" bindtap="editMemory" data-id="\{\{item\._id\}\}" aria-role="button" aria-label="编辑 \{\{item\.date\}\} 的欢乐时光"/
+    /wx:if="\{\{group\.expanded\}\}" wx:for="\{\{group\.records\}\}" wx:key="_id" bindtap="editMemory" data-id="\{\{item\._id\}\}" aria-role="button" aria-label="编辑 \{\{item\.dayLabel\}\} 的欢乐时光"/
   )
   assert.match(periodWxml, /class="memory-date">\{\{item\.dayLabel\}\}/)
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}" class="memory-note">\{\{item\.note\}\}/)
@@ -1770,7 +1965,7 @@ test('record tab memory segment groups records into newest-first month cards', a
     assert.equal(october.ariaLabel, '2026年10月，3 条欢乐时光，已展开')
     assert.equal(october.count, 3)
     assert.deepEqual(october.records.map(record => record._id), ['a1', 'a2', 'a3'])
-    // 每行显示「M月D日」；行数据保留完整日期供读屏与编辑页跳转使用
+    // 每行显示统一日期；行数据保留 ISO 日期供编辑页跳转
     assert.deepEqual(october.records.map(record => record.dayLabel), ['10月8日', '10月8日', '10月2日'])
     assert.equal(october.records[0].date, '2026-10-08')
     // 无备注的行保留空备注，由模板 wx:if 压住（不渲染占位句）
@@ -1778,7 +1973,7 @@ test('record tab memory segment groups records into newest-first month cards', a
 
     assert.equal(groups[1].title, '2026年9月 · 1 条')
     assert.equal(groups[2].title, '2025年12月 · 1 条')
-    assert.deepEqual(groups[2].records.map(record => record.dayLabel), ['12月31日'])
+    assert.deepEqual(groups[2].records.map(record => record.dayLabel), ['2025年12月31日'])
   } finally {
     harness.teardown()
   }
@@ -2366,12 +2561,102 @@ test('record edit notes are multi-line textareas with the unchanged 500-char cap
   }
 })
 
+test('period edit fields run start, status, end date, flow, symptoms, then note', () => {
+  const wxml = readPageFile('pages/period/edit/edit.wxml')
+  const labels = [...wxml.matchAll(/<text class="form-label">([^<]+)<\/text>/g)].map(match => match[1])
+  assert.deepEqual(labels, ['开始日期', '经期状态', '结束日期', '经量', '症状', '备注'])
+})
+
+test('period edit status hint changes with the selected status', () => {
+  const wxml = readPageFile('pages/period/edit/edit.wxml')
+  assert.match(wxml, /经期状态[\s\S]*class="form-hint">\{\{statusHint\}\}/)
+
+  const ongoing = '进行中可稍后补结束日期'
+  const knownEnd = '选好结束日期，这次经期才有确定的天数'
+  const unknownEnd = '结束日不清楚，日历只标开始那天'
+  assert.equal(new Set([ongoing, knownEnd, unknownEnd]).size, 3)
+
+  const env = createPeriodEditSaveEnv()
+  try {
+    env.harness.page.onLoad({})
+    assert.equal(env.harness.page.data.status, 'ongoing')
+    assert.equal(env.harness.page.data.statusHint, ongoing)
+
+    env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'unknown-end' } } })
+    assert.equal(env.harness.page.data.status, 'unknown-end')
+    assert.equal(env.harness.page.data.statusHint, unknownEnd)
+
+    env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'known-end' } } })
+    assert.equal(env.harness.page.data.status, 'known-end')
+    assert.equal(env.harness.page.data.statusHint, knownEnd)
+
+    env.harness.page.onLoad({
+      id: 'p1',
+      startDate: '2026-09-01',
+      endDate: '2026-09-03',
+      status: 'known-end'
+    })
+    assert.equal(env.harness.page.data.statusHint, knownEnd)
+  } finally {
+    env.harness.teardown()
+  }
+})
+
 test('record edit pages confirm deletes with type-specific shared consequence copy', () => {
   const periodEditJs = readPageFile('pages/period/edit/edit.js')
   const memoryEditJs = readPageFile('pages/memory/edit/edit.js')
 
   assert.match(periodEditJs, /confirmContent:\s*'删除后你们两人的日历都会移除这条经期记录，且不可恢复'/)
   assert.match(memoryEditJs, /confirmContent:\s*'删除后你们两人的日历都会移除这条欢乐时光，且不可恢复'/)
+})
+
+test('both edit pages keep the delete area apart from save', () => {
+  for (const [wxmlPath, wxssPath] of [
+    ['pages/period/edit/edit.wxml', 'pages/period/edit/edit.wxss'],
+    ['pages/memory/edit/edit.wxml', 'pages/memory/edit/edit.wxss']
+  ]) {
+    const wxml = readPageFile(wxmlPath)
+    const wxss = readPageFile(wxssPath)
+    assert.match(
+      wxml,
+      /<view class="btns">[\s\S]*<\/view>\s*<view wx:if="\{\{isEdit\}\}" class="delete-zone">[\s\S]*bindtap="delete"[\s\S]*删除此记录<\/view>/
+    )
+    const zone = /\.delete-zone\s*\{([^}]*)\}/.exec(wxss)
+    assert.ok(zone, `${wxssPath} should define .delete-zone`)
+    assert.match(zone[1], /margin-top:\s*var\(--space-xxl\)/)
+    assert.match(zone[1], /padding-top:\s*var\(--space-md\)/)
+    assert.match(zone[1], /border-top:\s*1px solid var\(--glass-border\)/)
+  }
+})
+
+test('both edit pages confirm deletion with a danger-colored 删除 button', async () => {
+  const cases = [
+    {
+      page: 'pages/period/edit/edit.js',
+      load: { id: 'p1', startDate: '2026-09-01', endDate: '2026-09-03', status: 'known-end' },
+      content: '删除后你们两人的日历都会移除这条经期记录，且不可恢复'
+    },
+    {
+      page: 'pages/memory/edit/edit.js',
+      load: { id: 'm1', date: '2026-09-01', note: '野餐' },
+      content: '删除后你们两人的日历都会移除这条欢乐时光，且不可恢复'
+    }
+  ]
+
+  for (const spec of cases) {
+    const env = createEditDeleteEnv(spec.page, spec.load)
+    try {
+      const pending = env.harness.page.delete()
+      assert.equal(env.modals.length, 1)
+      assert.equal(env.modals[0].confirmText, '删除')
+      assert.equal(env.modals[0].confirmColor, '#F97373')
+      assert.equal(env.modals[0].content, spec.content)
+      env.modals[0].success({ confirm: false, cancel: true })
+      assert.deepEqual(await pending, { kind: 'cancelled' })
+    } finally {
+      env.harness.teardown()
+    }
+  }
 })
 
 test('memory edit page greets a saved happy time with warm two-person feedback', () => {
@@ -2391,10 +2676,14 @@ test('record pages delegate feedback to shared record command helpers', () => {
   const memoryListJs = readPageFile('pages/memory/memory.js')
 
   assert.match(periodEditJs, /runRecordSave\(/)
+  assert.match(periodEditJs, /refetch:\s*\(\)\s*=>\s*client\.list\('periods'\)/)
+  assert.match(periodEditJs, /reconcile:\s*\{/)
   assert.match(periodEditJs, /runRecordDelete\(/)
   assert.doesNotMatch(periodEditJs, /res\.result/)
 
   assert.match(memoryEditJs, /runRecordSave\(/)
+  assert.match(memoryEditJs, /refetch:\s*\(\)\s*=>\s*client\.list\('memories'\)/)
+  assert.match(memoryEditJs, /reconcile:\s*\{/)
   assert.match(memoryEditJs, /runRecordDelete\(/)
   assert.doesNotMatch(memoryEditJs, /res\.result/)
 
@@ -2616,6 +2905,9 @@ test('period edit keeps fields and delete unavailable until the save finishes', 
         notifyPreviousPageRecordChange() {}
       },
       'utils/cycle.js': {
+        periodStatusHint() {
+          return ''
+        },
         FLOW_OPTIONS: [{ value: 'heavy', label: '量大' }, { value: 'light', label: '量少' }],
         PERIOD_STATUS_OPTIONS: [
           { value: 'ongoing', label: '进行中' },
@@ -2859,9 +3151,18 @@ test('period edit completes the same ongoing record by filling an end date', asy
     assert.equal(env.harness.page.data.status, 'ongoing')
     assert.equal(env.harness.page.data.endDate, '')
 
-    // 切到已结束：结束日期选择器出现，缺省用开始日（同日是合法单日记录）
+    // 完成进行中记录：结束日兜底为今天，并实时显示含首尾天数；超预期只提示，不改选择
     env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'known-end' } } })
-    assert.equal(env.harness.page.data.endDate, '2026-09-10')
+    assert.equal(env.harness.page.data.status, 'known-end')
+    assert.equal(env.harness.page.data.endDate, '2026-09-20')
+    assert.equal(env.harness.page.data.periodDayCountText, '共 11 天')
+    assert.equal(env.harness.page.data.periodLengthHint, '超过预期的 5 天，请核对结束日期')
+    const periodEditWxml = readPageFile('pages/period/edit/edit.wxml')
+    const endLabel = periodEditWxml.indexOf('结束日期')
+    const dayText = periodEditWxml.indexOf('{{periodDayCountText}}')
+    const lengthHint = periodEditWxml.indexOf('{{periodLengthHint}}')
+    const noteLabel = periodEditWxml.indexOf('备注')
+    assert.ok(endLabel !== -1 && endLabel < dayText && dayText < lengthHint && lengthHint < noteLabel)
 
     env.harness.page.onEndChange({ detail: { value: '2026-09-14' } })
     const outcome = await env.harness.page.save()
@@ -2880,6 +3181,55 @@ test('period edit completes the same ongoing record by filling an end date', asy
       flow: '',
       symptoms: []
     })
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('period edit backfills a past period with an empty end date until the user chooses one', async () => {
+  const env = createPeriodEditSaveEnv()
+
+  try {
+    env.harness.page.onLoad({ startDate: '2026-06-10' })
+    assert.equal(env.harness.page.data.status, 'known-end')
+    assert.equal(env.harness.page.data.endDate, '')
+    assert.equal(env.harness.page.data.periodDayCountText, '')
+
+    env.harness.page.onStartChange({ detail: { value: '2026-06-12' } })
+    assert.equal(env.harness.page.data.startDate, '2026-06-12')
+    assert.equal(env.harness.page.data.endDate, '')
+
+    const outcome = await env.harness.page.save()
+    assert.deepEqual(outcome, {
+      kind: 'validation',
+      message: '请选择结束日期；还没结束可以选「进行中」'
+    })
+    assert.equal(env.adds.length, 0)
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('period edit length hint uses completed history instead of the five-day default', async () => {
+  const env = createPeriodEditSaveEnv({
+    periods: [
+      { startDate: '2026-05-01', endDate: '2026-05-03', status: 'known-end' },
+      { startDate: '2026-06-01', endDate: '2026-06-03', status: 'known-end' }
+    ]
+  })
+
+  try {
+    await env.harness.page.onLoad({
+      id: 'p9',
+      startDate: '2026-08-01',
+      endDate: '2026-08-04',
+      status: 'known-end'
+    })
+
+    assert.equal(env.harness.page.data.endDate, '2026-08-04')
+    assert.equal(env.harness.page.data.status, 'known-end')
+    assert.equal(env.harness.page.data.periodDayCountText, '共 4 天')
+    assert.equal(env.harness.page.data.periodLengthHint, '超过预期的 3 天，请核对结束日期')
   } finally {
     env.harness.teardown()
   }
@@ -2951,10 +3301,13 @@ test('period edit completes an unknown-end record with an exact duration by fill
     assert.equal(env.harness.page.data.status, 'unknown-end')
     assert.equal(env.harness.page.data.endDate, '')
 
-    // 想起结束日期：切到已结束并补填，同一条记录转为有结束日期的已完成记录
+    // 从结束日期不详切到已结束：结束日保持为空，不再兜底为开始日
     env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'known-end' } } })
-    assert.equal(env.harness.page.data.endDate, '2026-08-01')
+    assert.equal(env.harness.page.data.endDate, '')
+    assert.equal(env.harness.page.data.periodDayCountText, '')
     env.harness.page.onEndChange({ detail: { value: '2026-08-04' } })
+    assert.equal(env.harness.page.data.periodDayCountText, '共 4 天')
+    assert.equal(env.harness.page.data.periodLengthHint, '')
 
     const outcome = await env.harness.page.save()
 
@@ -3309,7 +3662,7 @@ test('period list reopens the existing ongoing record when the add button is tap
 // 进行中/已知结束两条主路径共用的编辑页保存环境：
 // 真实 cycle 与 recordEditRoute，云端与命令层用可捕获的桩。
 // util 只固定「今天」，其余日期能力委托真实模块，保证真实 cycle 拿到完整接缝。
-function createPeriodEditSaveEnv() {
+function createPeriodEditSaveEnv({ periods = null } = {}) {
   const toasts = []
   const adds = []
   const updates = []
@@ -3320,7 +3673,7 @@ function createPeriodEditSaveEnv() {
       'utils/util.js': { ...realUtil, formatDate: () => '2026-09-20' },
       'utils/cloud.js': {
         createRoomDataClient() {
-          return {
+          const client = {
             async add(collection, payload) {
               adds.push({ collection, payload })
               return { kind: 'success', result: { record: { _id: 'new-1', ...payload } } }
@@ -3330,6 +3683,13 @@ function createPeriodEditSaveEnv() {
               return { kind: 'success', result: { record: { _id: id, ...payload } } }
             }
           }
+          if (periods) {
+            client.list = async (collection) => {
+              if (collection !== 'periods') throw new Error(`unexpected list ${collection}`)
+              return { kind: 'success', data: periods }
+            }
+          }
+          return client
         }
       },
       'utils/recordCommands.js': {
@@ -3590,13 +3950,15 @@ function readPageFile(relativePath) {
 }
 
 function createUtilStub() {
+  const realUtil = require(path.join(repoRoot, 'utils/util.js'))
   return {
     formatDate() {
       return '2026-09-20'
     },
     isValidDateString(value) {
       return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
-    }
+    },
+    formatDisplayDate: realUtil.formatDisplayDate
   }
 }
 
@@ -3606,6 +3968,145 @@ function stubGetPeriodDuration(period) {
   if (!range) return 0
   return util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
 }
+
+test('record tab pull-to-refresh reloads the visible period list and stops on success or failure', async () => {
+  const periodJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'pages/period/period.json'), 'utf8'))
+  assert.equal(periodJson.enablePullDownRefresh, true)
+  const periodWxml = fs.readFileSync(path.join(repoRoot, 'pages/period/period.wxml'), 'utf8')
+  assert.match(periodWxml, /刷新失败，正在显示上次的内容/)
+
+  let releaseRefresh
+  const refreshGate = new Promise(resolve => { releaseRefresh = resolve })
+  let call = 0
+  const pull = { stops: 0 }
+  const harness = loadRecordPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list() {
+              call += 1
+              if (call === 1) {
+                return {
+                  kind: 'success',
+                  data: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03' }]
+                }
+              }
+              if (call === 2) {
+                await refreshGate
+                return {
+                  kind: 'success',
+                  data: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03' }]
+                }
+              }
+              return { kind: 'retryable-failure', message: 'network down' }
+            }
+          }
+        }
+      }
+    },
+    wxOverrides: {
+      showModal(options) {
+        options.success({ confirm: false, cancel: true })
+      },
+      stopPullDownRefresh() {
+        pull.stops += 1
+      }
+    }
+  })
+
+  try {
+    await harness.page.onShow()
+    assert.equal(harness.page.data.hasLoaded, true)
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(harness.page.data.periods[0]._id, 'p1')
+
+    const refreshing = harness.page.onPullDownRefresh()
+    assert.equal(harness.page.data.loading, true)
+    assert.equal(pull.stops, 0)
+    releaseRefresh()
+    await refreshing
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(harness.page.data.loadFailed, false)
+    assert.equal(harness.page.data.periods[0]._id, 'p1')
+    assert.equal(pull.stops, 1)
+
+    await harness.page.onPullDownRefresh()
+    assert.equal(pull.stops, 2)
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(harness.page.data.loadFailed, true)
+    assert.equal(harness.page.data.hasLoaded, true)
+    assert.equal(harness.page.data.periods[0]._id, 'p1')
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('record tab pull-to-refresh reloads the visible memory list and stops on success or failure', async () => {
+  let releaseRefresh
+  const refreshGate = new Promise(resolve => { releaseRefresh = resolve })
+  let memoryCalls = 0
+  const pull = { stops: 0 }
+  const harness = loadRecordPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list(collection) {
+              if (collection === 'periods') return { kind: 'success', data: [] }
+              memoryCalls += 1
+              if (memoryCalls === 1) {
+                return { kind: 'success', data: [{ _id: 'm1', date: '2026-06-02', note: '野餐' }] }
+              }
+              if (memoryCalls === 2) {
+                await refreshGate
+                return { kind: 'success', data: [{ _id: 'm1', date: '2026-06-02', note: '野餐' }] }
+              }
+              return { kind: 'retryable-failure', message: 'network down' }
+            }
+          }
+        }
+      }
+    },
+    wxOverrides: {
+      showModal(options) {
+        options.success({ confirm: false, cancel: true })
+      },
+      stopPullDownRefresh() {
+        pull.stops += 1
+      }
+    }
+  })
+
+  try {
+    await harness.page.onShow()
+    await harness.page.selectSegment({ currentTarget: { dataset: { segment: 'memory' } } })
+    assert.equal(harness.page.data.segment, 'memory')
+    assert.equal(harness.page.data.memoryHasLoaded, true)
+    assert.equal(harness.page.data.memories[0]._id, 'm1')
+    assert.equal(harness.page.data.memoryLoading, false)
+
+    const refreshing = harness.page.onPullDownRefresh()
+    assert.equal(harness.page.data.memoryLoading, true)
+    assert.equal(harness.page.data.loading, false)
+    assert.equal(pull.stops, 0)
+    releaseRefresh()
+    await refreshing
+    assert.equal(harness.page.data.memoryLoading, false)
+    assert.equal(harness.page.data.memoryLoadFailed, false)
+    assert.equal(harness.page.data.memories[0]._id, 'm1')
+    assert.equal(pull.stops, 1)
+
+    await harness.page.onPullDownRefresh()
+    assert.equal(pull.stops, 2)
+    assert.equal(harness.page.data.memoryLoading, false)
+    assert.equal(harness.page.data.memoryLoadFailed, true)
+    assert.equal(harness.page.data.memoryHasLoaded, true)
+    assert.equal(harness.page.data.memories[0]._id, 'm1')
+  } finally {
+    harness.teardown()
+  }
+})
 
 // 与 tests/record-draft.test.js 同形的页面 harness：加载真实页面 JS，
 // 用 Module._load 换掉依赖接缝，实例化 Page 定义后直接驱动页面方法。

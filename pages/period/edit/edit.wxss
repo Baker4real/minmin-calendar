@@ -48,6 +48,10 @@
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.5);
 }
+.period-length-hint {
+  display: block;
+  margin-top: 12rpx;
+}
 .form-picker {
   display: flex;
   align-items: center;
@@ -61,8 +65,6 @@
   color: rgba(255,255,255,0.85);
   padding: 22rpx;
   background: linear-gradient(rgba(255,255,255,0.06), rgba(255,255,255,0.06)), var(--glass-fallback);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.12);
   transition: border-color var(--duration-press) ease;
@@ -72,7 +74,8 @@
   color: var(--text-secondary);
   line-height: 1;
 }
-.form-picker:active {
+.form-picker:active,
+.form-picker.form-picker-hover {
   border-color: rgba(232,144,158,0.4);
   box-shadow: 0 0 20px rgba(232,144,158,0.1);
 }
@@ -86,8 +89,6 @@
   color: rgba(255,255,255,0.85);
   padding: 22rpx;
   background: linear-gradient(rgba(255,255,255,0.06), rgba(255,255,255,0.06)), var(--glass-fallback);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.12);
   transition: border-color var(--duration-state) ease;
@@ -144,7 +145,9 @@
   transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
 .flow-chip:active,
-.symptom-chip:active {
+.flow-chip.flow-chip-hover,
+.symptom-chip:active,
+.symptom-chip.symptom-chip-hover {
   transform: scale(0.96);
   background: rgba(255,255,255,0.12);
 }
@@ -169,8 +172,10 @@
 .btn-danger {
   line-height: var(--line-height-assist);
 }
-.btn-premium {
-  margin-bottom: 20rpx;
+.delete-zone {
+  margin-top: var(--space-xxl);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--glass-border);
 }
 
 /* 减弱动效：边框、底色与按压缩放的过渡即时切换，不做渐进

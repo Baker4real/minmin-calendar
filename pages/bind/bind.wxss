@@ -24,13 +24,9 @@
   color: #E8909E;
   margin-bottom: 20rpx;
   animation: heroIn 0.6s var(--ease-out) both;
-  /* ♥ 字形多层静态辉光（浅粉近层 + 玫瑰远层两层，共三层）是绑定页保留的唯一情绪点：
-     透明度都落在 DESIGN.md 已登记的浅粉 0.28–0.32 / 玫瑰 0.1–0.45 辉光区间；
+  /* ♥ 字形只留一层浅粉字阴影。不可点元素不再叠远层光晕（issue #146）。
      heroIn 无回弹入场保留，辉光本身无持续动画，减弱动效由 app.wxss 全局名单静止 */
-  text-shadow:
-    0 0 18rpx rgba(240,196,192,0.32),
-    0 0 44rpx rgba(232,144,158,0.45),
-    0 0 90rpx rgba(232,144,158,0.26);
+  text-shadow: 0 0 18rpx rgba(240,196,192,0.32);
 }
 /* 入场只做淡入 + 轻微放大，不做 overshoot 回弹（issue #58） */
 @keyframes heroIn {
@@ -85,8 +81,6 @@
   border: 1px solid rgba(255,255,255,0.15);
   margin-bottom: 30rpx;
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 .tab {
   flex: 1;
@@ -101,13 +95,20 @@
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.6);
-  transition: background-color var(--duration-state) ease, color var(--duration-state) ease;
+  border: 1px solid transparent;
+  transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-/* 选中 tab 与主按钮同族：实色玫瑰填充 + 画布海军字，字重角色不变 */
+/* 选中态与记录分段、设置密度同一种描边玫瑰弱选中，不用主按钮实色填充 */
 .tab.active {
-  background: var(--aurora-pink);
-  color: #0A0E27;
+  color: #E8909E;
+  background: rgba(232,144,158,0.08);
+  border-color: rgba(232,144,158,0.45);
   font-weight: var(--font-weight-control);
+}
+.tab:active,
+.tab.tab-hover {
+  transform: scale(0.98);
+  background: rgba(255,255,255,0.1);
 }
 .info-text {
   display: block;
@@ -135,8 +136,6 @@
   text-indent: var(--letter-spacing-code-input);
   margin-bottom: 30rpx;
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   font-weight: var(--font-weight-body);
   color: #fff;
 }
@@ -198,8 +197,30 @@
   box-shadow: 0 4px 15px rgba(232,144,158,0.28);
   transition: transform var(--duration-press) var(--ease-out);
 }
-.copy-btn:active {
+.copy-btn:active,
+.copy-btn.copy-btn-hover {
   transform: scale(0.94);
+}
+/* 原生分享按钮（issue #140）：组件自带灰底、5px 圆角和 ::after 描边，
+   特异性要高于 .btn-premium 才能盖住。视觉仍是同一枚玫瑰主按钮。 */
+button.share-invite {
+  margin: 0 0 30rpx;
+  width: 100%;
+  padding: 26rpx 0;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--aurora-pink);
+  color: #0A0E27;
+  font-size: var(--font-size-button);
+  font-weight: var(--font-weight-control);
+  line-height: var(--line-height-body);
+}
+button.share-invite::after {
+  border: none;
+}
+.share-invite.share-invite-hover {
+  transform: scale(0.96);
 }
 /* 创建/加入被「请先解除绑定」拒绝时，当前屏直接给出的解除绑定入口（needUnbind 中间态，
    错误恢复路径；样式跟随 app 级 .btn-danger 警示红族） */
@@ -240,7 +261,8 @@
   border: 1px solid rgba(249,115,115,0.24);
   border-radius: var(--radius-sm);
 }
-.error-retry:active {
+.error-retry:active,
+.error-retry.error-retry-hover {
   background: rgba(249,115,115,0.24);
 }
 

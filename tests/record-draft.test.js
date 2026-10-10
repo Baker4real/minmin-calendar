@@ -343,6 +343,8 @@ test('period edit restores a stored draft with symptoms and prompts the restore 
 
     assert.equal(harness.page.data.startDate, '2026-09-02')
     assert.equal(harness.page.data.endDate, '2026-09-04')
+    assert.equal(harness.page.data.startDateLabel, '9月2日')
+    assert.equal(harness.page.data.endDateLabel, '9月4日')
     // 旧草稿缺 status：按已知结束日期重新推导为已结束，不隐含进行中
     assert.equal(harness.page.data.status, 'known-end')
     assert.equal(harness.page.data.note, '熬夜了')
@@ -513,6 +515,9 @@ function createPeriodEditMocks(commandOverrides = {}, symptomGroupCalls = null) 
   return {
     ...createMemoryEditMocks(commandOverrides),
     'utils/cycle.js': {
+      periodStatusHint() {
+        return ''
+      },
       FLOW_OPTIONS: [{ value: 'heavy', label: '量大' }],
       PERIOD_STATUS_OPTIONS: [
         { value: 'ongoing', label: '进行中' },
@@ -539,13 +544,15 @@ function createPeriodEditMocks(commandOverrides = {}, symptomGroupCalls = null) 
 }
 
 function createUtilStub() {
+  const realUtil = require(path.join(repoRoot, 'utils/util.js'))
   return {
     formatDate() {
       return '2026-09-20'
     },
     isValidDateString(value) {
       return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
-    }
+    },
+    formatDisplayDate: realUtil.formatDisplayDate
   }
 }
 

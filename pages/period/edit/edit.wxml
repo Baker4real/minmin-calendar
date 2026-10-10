@@ -1,4 +1,4 @@
-<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
+<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
   <view class="nav-bar header-gradient">
     <view class="nav-back" hover-class="nav-back-hover" bindtap="goBack" aria-role="button" aria-label="返回">
       <view class="nav-back-surface"></view>
@@ -6,7 +6,6 @@
     </view>
     <view wx:if="{{isEdit}}" class="nav-title">编辑经期</view>
     <view wx:else class="nav-title">新增经期</view>
-    <view class="nav-placeholder"></view>
   </view>
 
   <view class="content">
@@ -15,8 +14,8 @@
       <view class="form-item">
         <text class="form-label">开始日期</text>
         <picker mode="date" value="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onStartChange" aria-role="button" aria-label="选择开始日期">
-          <view class="form-picker">
-            <text>{{startDate}}</text>
+          <view class="form-picker" hover-class="form-picker-hover">
+            <text>{{startDateLabel}}</text>
             <text class="form-picker-arrow">›</text>
           </view>
         </picker>
@@ -24,7 +23,7 @@
       <view class="form-item">
         <view class="form-label-row">
           <text class="form-label">经期状态</text>
-          <text class="form-hint">进行中可稍后补结束日期</text>
+          <text class="form-hint">{{statusHint}}</text>
         </view>
         <view class="flow-options">
           <view
@@ -36,22 +35,19 @@
             aria-role="radio"
             aria-label="经期状态 {{item.label}}"
             aria-checked="{{status === item.value}}"
-            aria-disabled="{{saving}}"
-          >{{item.label}}</view>
+            aria-disabled="{{saving}}" hover-class="flow-chip-hover">{{item.label}}</view>
         </view>
       </view>
       <view class="form-item" wx:if="{{status === 'known-end'}}">
         <text class="form-label">结束日期</text>
         <picker mode="date" value="{{endDate}}" start="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onEndChange" aria-role="button" aria-label="选择结束日期">
-          <view class="form-picker">
-            <text>{{endDate}}</text>
+          <view class="form-picker" hover-class="form-picker-hover">
+            <text>{{endDateLabel}}</text>
             <text class="form-picker-arrow">›</text>
           </view>
         </picker>
-      </view>
-      <view class="form-item">
-        <text class="form-label">备注</text>
-        <textarea class="form-input" placeholder-class="input-placeholder" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput" maxlength="500" auto-height disabled="{{saving}}" aria-label="备注"/>
+        <text wx:if="{{periodDayCountText}}" class="form-hint period-length-hint">{{periodDayCountText}}</text>
+        <text wx:if="{{periodLengthHint}}" class="form-hint period-length-hint">{{periodLengthHint}}</text>
       </view>
       <view class="form-item">
         <view class="form-label-row">
@@ -68,11 +64,10 @@
             aria-role="checkbox"
             aria-label="经量 {{item.label}}"
             aria-checked="{{flow === item.value}}"
-            aria-disabled="{{saving}}"
-          >{{item.label}}</view>
+            aria-disabled="{{saving}}" hover-class="flow-chip-hover">{{item.label}}</view>
         </view>
       </view>
-      <view class="form-item form-item-last">
+      <view class="form-item">
         <view class="form-label-row">
           <text class="form-label">症状</text>
           <text class="form-hint">可多选</text>
@@ -94,17 +89,22 @@
               aria-role="checkbox"
               aria-label="症状 {{item.label}}"
               aria-checked="{{item.selected}}"
-              aria-disabled="{{saving}}"
-            >{{item.label}}</view>
+              aria-disabled="{{saving}}" hover-class="symptom-chip-hover">{{item.label}}</view>
           </view>
         </view>
+      </view>
+      <view class="form-item form-item-last">
+        <text class="form-label">备注</text>
+        <textarea class="form-input" placeholder-class="input-placeholder" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput" maxlength="500" auto-height disabled="{{saving}}" aria-label="备注"/>
       </view>
     </view>
 
     <view class="btns">
-      <view wx:if="{{!saving && !deleting && !submitted}}" class="btn-premium" bindtap="save" aria-role="button" aria-label="保存">保存</view>
+      <view wx:if="{{!saving && !deleting && !submitted}}" class="btn-premium" bindtap="save" aria-role="button" aria-label="保存" hover-class="btn-premium-hover">保存</view>
       <view wx:elif="{{saving}}" class="btn-premium loading" aria-role="button" aria-disabled="true">保存中...</view>
       <view wx:else class="btn-premium disabled" aria-role="button" aria-disabled="true">保存</view>
+    </view>
+    <view wx:if="{{isEdit}}" class="delete-zone">
       <view wx:if="{{isEdit && !deleting && !saving && !submitted}}" class="btn-danger" hover-class="btn-danger-hover" bindtap="delete" aria-role="button" aria-label="删除此记录">删除此记录</view>
       <view wx:elif="{{isEdit && deleting}}" class="btn-danger" style="opacity: 0.5;" aria-role="button" aria-disabled="true">删除中...</view>
       <view wx:elif="{{isEdit}}" class="btn-danger" style="opacity: 0.5;" aria-role="button" aria-disabled="true">删除此记录</view>

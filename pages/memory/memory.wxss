@@ -29,7 +29,8 @@
 .list-item:last-child {
   border-bottom: none;
 }
-.list-item:active {
+.list-item:active,
+.list-item.list-item-hover {
   background: rgba(255,255,255,0.05);
 }
 
@@ -73,8 +74,6 @@
 /* Skeleton Loading – 列表条目形状的哑光占位 */
 .skeleton-card {
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: var(--radius-card);
   overflow: hidden;
@@ -123,6 +122,9 @@
   .skeleton-line {
     animation: none;
   }
+  .load-failed {
+    transition: none;
+  }
 }
 
 /* Empty State */
@@ -134,8 +136,6 @@
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: var(--radius-card);
 }
@@ -146,6 +146,11 @@
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.load-failed:active,
+.load-failed.load-failed-hover {
+  transform: scale(0.98);
 }
 .retry-btn {
   min-height: 88rpx;
@@ -159,6 +164,7 @@
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
 }
-.retry-btn:active {
+.retry-btn:active,
+.retry-btn.retry-btn-hover {
   transform: scale(0.96);
 }

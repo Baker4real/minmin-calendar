@@ -9,6 +9,10 @@ const safeArea = require('../../../utils/safeArea')
 
 const DRAFT_FIELDS = ['startDate', 'endDate', 'status', 'note', 'flow', 'symptoms']
 
+function displayDateLabel(dateStr) {
+  return util.formatDisplayDate(dateStr, { today: util.formatDate(new Date()) })
+}
+
 // 与 pages/memory/edit/edit.js、pages/period/period.js 共享的一次性
 // 「目标分段」意图键：从首页等入口进入本页保存/删除后写键，记录 tab onShow 消费并落到经期分段（issue #103）
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
@@ -17,6 +21,8 @@ Page({
   data: {
     safeTop: safeArea.getSafeTop(),
     safeBottom: safeArea.getSafeBottom(),
+    navBarHeight: safeArea.getNavBarHeight(),
+    capsuleRight: safeArea.getCapsuleRightInset(),
     id: '',
     startDate: '',
     endDate: '',
@@ -27,7 +33,10 @@ Page({
     flowOptions: cycle.FLOW_OPTIONS,
     statusOptions: cycle.PERIOD_STATUS_OPTIONS,
     symptomGroups: cycle.buildSymptomOptions(),
+    statusHint: cycle.periodStatusHint('ongoing'),
     maxDate: '',
+    periodDayCountText: '',
+    periodLengthHint: '',
     isEdit: false,
     saving: false,
     deleting: false,
@@ -55,14 +64,20 @@ Page({
     this._draftKey = draftKey
     this._draftBaseline = recordDraft.pickDraftFields(routeState, DRAFT_FIELDS)
     this._draftDiscarded = false
+    this._periodHistory = []
     this.setData({
       ...formState,
+      startDateLabel: displayDateLabel(formState.startDate),
+      endDateLabel: displayDateLabel(formState.endDate),
       draftRestored: !!storedDraft,
-      symptomGroups: cycle.buildSymptomOptions(formState.symptoms)
+      symptomGroups: cycle.buildSymptomOptions(formState.symptoms),
+      statusHint: cycle.periodStatusHint(formState.status)
     })
+    this.syncPeriodLengthHint()
     if (storedDraft) {
       wx.showToast({ title: '已恢复上次未完成的输入', icon: 'none' })
     }
+    return this.loadPeriodHistory()
   },
 
   onHide() {
@@ -97,20 +112,40 @@ Page({
   },
 
   onStartChange(e) {
-    this.setData({ startDate: e.detail.value })
-    if (this.data.status === 'known-end' && this.data.startDate > this.data.endDate) {
-      this.setData({ endDate: this.data.startDate })
+    this.setData({
+      startDate: e.detail.value,
+      startDateLabel: displayDateLabel(e.detail.value)
+    })
+    if (this.data.status === 'known-end' && this.data.endDate && this.data.startDate > this.data.endDate) {
+      this.setData({
+        endDate: this.data.startDate,
+        endDateLabel: displayDateLabel(this.data.startDate)
+      })
     }
+    this.syncPeriodLengthHint()
   },
-  onEndChange(e) { this.setData({ endDate: e.detail.value }) },
+  onEndChange(e) {
+    this.setData({
+      endDate: e.detail.value,
+      endDateLabel: displayDateLabel(e.detail.value)
+    })
+    this.syncPeriodLengthHint()
+  },
   selectStatus(e) {
     if (this.data.saving) return
     const status = e.currentTarget.dataset.value
     if (!cycle.isPeriodStatus(status) || status === this.data.status) return
-    // 切到已知结束且还没选过结束日期时，用开始日期兜底（同日为合法单日记录）
-    const update = { status }
-    if (status === 'known-end' && !this.data.endDate) update.endDate = this.data.startDate
+    const update = { status, statusHint: cycle.periodStatusHint(status) }
+    // 只有完成进行中记录才把空结束日兜底为今天；其他切换保持为空
+    if (status === 'known-end' && !this.data.endDate && this.data.status === 'ongoing') {
+      const today = this.data.maxDate || util.formatDate(new Date())
+      if (!this.data.startDate || today >= this.data.startDate) {
+        update.endDate = today
+        update.endDateLabel = displayDateLabel(today)
+      }
+    }
     this.setData(update)
+    this.syncPeriodLengthHint()
   },
   onNoteInput(e) { this.setData({ note: e.detail.value }) },
   selectFlow(e) {
@@ -140,21 +175,27 @@ Page({
     const { id, startDate, endDate, status, note, flow, symptoms, isEdit } = this.data
     const today = util.formatDate(new Date())
     const client = cloud.createRoomDataClient()
+    let submitted = null
     const outcome = await recordCommands.runRecordSave({
       page: this,
       action: () => {
-        const payload = cycle.buildPeriodPayload({ startDate, endDate, status, note, flow, symptoms })
-        if (isEdit) {
-          return client.update('periods', id, payload)
+        submitted = cycle.buildPeriodPayload({ startDate, endDate, status, note, flow, symptoms })
+        return isEdit ? client.update('periods', id, submitted) : client.add('periods', submitted)
+      },
+      refetch: () => client.list('periods'),
+      reconcile: {
+        id: isEdit ? id : '',
+        get fields() {
+          return submitted || {}
         }
-        return client.add('periods', payload)
       },
       validate: () => {
         if (!startDate) return '请选择日期'
         if (!util.isValidDateString(startDate)) return '请选择有效日期'
         if (startDate > today) return '开始日期不能晚于今天'
         if (status === 'known-end') {
-          if (!endDate || !util.isValidDateString(endDate)) return '请选择有效日期'
+          if (!endDate) return '请选择结束日期；还没结束可以选「进行中」'
+          if (!util.isValidDateString(endDate)) return '请选择有效日期'
           if (startDate > endDate) return '结束日期不能早于开始'
           if (endDate > today) return '结束日期不能晚于今天'
         }
@@ -204,7 +245,45 @@ Page({
     this.setData({
       ...formState,
       draftRestored: false,
-      symptomGroups: cycle.buildSymptomOptions(symptoms)
+      symptomGroups: cycle.buildSymptomOptions(symptoms),
+      statusHint: cycle.periodStatusHint(status)
+    })
+    this.syncPeriodLengthHint()
+  },
+
+  loadPeriodHistory() {
+    this._periodHistory = this._periodHistory || []
+    let client
+    try {
+      client = cloud.createRoomDataClient()
+    } catch (error) {
+      return Promise.resolve()
+    }
+    if (!client || typeof client.list !== 'function') return Promise.resolve()
+    return Promise.resolve()
+      .then(() => client.list('periods'))
+      .then(outcome => {
+        if (outcome && outcome.kind === 'success' && Array.isArray(outcome.data)) {
+          this._periodHistory = outcome.data
+        }
+        this.syncPeriodLengthHint()
+      })
+      .catch(() => {
+        this.syncPeriodLengthHint()
+      })
+  },
+
+  syncPeriodLengthHint() {
+    if (typeof cycle.describeKnownPeriodLength !== 'function') return
+    const summary = cycle.describeKnownPeriodLength({
+      startDate: this.data.startDate,
+      endDate: this.data.status === 'known-end' ? this.data.endDate : '',
+      periods: this._periodHistory || []
+    })
+    if (this.data.periodDayCountText === summary.text && this.data.periodLengthHint === summary.hint) return
+    this.setData({
+      periodDayCountText: summary.text,
+      periodLengthHint: summary.hint
     })
   },
 
