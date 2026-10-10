@@ -211,7 +211,7 @@ function buildDayDetailsByDate(days, periods, memories, today) {
       .filter(({ memory }) => isDateString(memory.date) && memory.date === day.date)
       .map(({ memory, index }) => ({
         key: memoryKeys[index],
-        note: memory.note || '特别日子'
+        note: memory.note || '欢乐时光'
       }))
     const meanings = buildDayMeanings(day)
 

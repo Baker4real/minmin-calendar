@@ -55,7 +55,8 @@
   color: var(--text-secondary);
   line-height: 1;
 }
-.form-picker:active {
+.form-picker:active,
+.form-picker.form-picker-hover {
   border-color: rgba(232,144,158,0.4);
   box-shadow: 0 0 20px rgba(232,144,158,0.1);
 }

@@ -286,9 +286,9 @@ test('buildMonthlyRecap collapses repeated default memory labels in highlights',
   assert.equal(recap.periodSummary, '本月暂无经期记录')
   assert.equal(recap.memorySummary, '留下 5 条欢乐时光')
   assert.deepEqual(recap.highlights, [
-    '欢乐时光：5 个特别日子'
+    '欢乐时光：5 个欢乐时光'
   ])
-  assert.equal(recap.shareText.includes('特别日子；特别日子'), false)
+  assert.equal(recap.shareText.includes('欢乐时光；欢乐时光'), false)
 })
 
 test('buildMonthlyRecap keeps real memory notes in order while collapsing defaults', () => {
@@ -306,7 +306,7 @@ test('buildMonthlyRecap keeps real memory notes in order while collapsing defaul
   })
 
   assert.deepEqual(recap.highlights, [
-    '欢乐时光：散步；2 个特别日子；看电影；散步'
+    '欢乐时光：散步；2 个欢乐时光；看电影；散步'
   ])
 })
 

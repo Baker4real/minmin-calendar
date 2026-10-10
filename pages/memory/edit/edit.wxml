@@ -15,7 +15,7 @@
       <view class="form-item">
         <text class="form-label">日期</text>
         <picker mode="date" value="{{date}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onDateChange" aria-role="button" aria-label="选择日期">
-          <view class="form-picker">
+          <view class="form-picker" hover-class="form-picker-hover">
             <text>{{date}}</text>
             <text class="form-picker-arrow">›</text>
           </view>
@@ -23,12 +23,12 @@
       </view>
       <view class="form-item">
         <text class="form-label">备注</text>
-        <textarea class="form-input" placeholder-class="input-placeholder" placeholder="记录你们的特别时刻..." value="{{note}}" bindinput="onNoteInput" maxlength="500" auto-height disabled="{{saving}}" aria-label="备注"/>
+        <textarea class="form-input" placeholder-class="input-placeholder" placeholder="记录这一天的欢乐时光..." value="{{note}}" bindinput="onNoteInput" maxlength="500" auto-height disabled="{{saving}}" aria-label="备注"/>
       </view>
     </view>
 
     <view class="btns">
-      <view wx:if="{{!saving && !deleting && !submitted}}" class="btn-premium" bindtap="save" aria-role="button" aria-label="保存">保存</view>
+      <view wx:if="{{!saving && !deleting && !submitted}}" class="btn-premium" bindtap="save" aria-role="button" aria-label="保存" hover-class="btn-premium-hover">保存</view>
       <view wx:elif="{{saving}}" class="btn-premium loading" aria-role="button" aria-disabled="true">保存中...</view>
       <view wx:else class="btn-premium disabled" aria-role="button" aria-disabled="true">保存</view>
       <view wx:if="{{isEdit && !deleting && !saving && !submitted}}" class="btn-danger" hover-class="btn-danger-hover" bindtap="delete" aria-role="button" aria-label="删除此记录">删除此记录</view>

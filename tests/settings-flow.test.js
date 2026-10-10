@@ -1047,7 +1047,7 @@ test('settings memory entry writes the one-shot segment intent and switchTabs in
 
 function wxssRuleBody(wxss, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const match = wxss.match(new RegExp(`(?:^|[\\n}])\\s*${escaped}\\s*\\{([^}]+)\\}`))
+  const match = wxss.match(new RegExp(`(?:^|[\\n},])\\s*${escaped}\\s*(?:,[^{]*)?\\{([^}]+)\\}`))
   assert.ok(match, `expected rule for ${selector}`)
   return match[1]
 }

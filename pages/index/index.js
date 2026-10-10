@@ -390,15 +390,15 @@ Page({
         return {
           text: backgroundLoad
             ? '经期同步失败，已保留旧经期数据'
-            : '经期同步失败，已显示记忆数据',
+            : '经期同步失败，已显示欢乐时光',
           autoHide: false
         }
       }
       if (memoriesFailed && !periodsFailed) {
         return {
           text: backgroundLoad
-            ? '记忆同步失败，已保留旧记忆数据'
-            : '记忆同步失败，已显示经期数据',
+            ? '欢乐时光同步失败，已保留上次的欢乐时光'
+            : '欢乐时光同步失败，已显示经期数据',
           autoHide: false
         }
       }

@@ -422,7 +422,8 @@ test('edit pages name the save and delete operations and expose inert variants a
 function wxssRuleBody(relativePath, selector) {
   const css = readPage(relativePath).replace(/\/\*[\s\S]*?\*\//g, '')
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const match = new RegExp(`(?:^|[}\\s])${escaped}\\s*\\{([^}]*)\\}`).exec(css)
+  // :active 与 hover-class 可以写在同一条规则里，选择器后面先是逗号再是 `{`。
+  const match = new RegExp(`(?:^|[},\\s])${escaped}\\s*(?:,[^{]*)?\\{([^}]*)\\}`).exec(css)
   return match ? match[1] : null
 }
 
@@ -539,6 +540,33 @@ test('text inputs focus into the registered 1px solid outline without any glow',
   }
 })
 
+test('every tappable control carries a hover-class painted with its :active rule', () => {
+  const { parseWxssRules, listWxssFiles } = require('./designTokens')
+  const rules = []
+  for (const file of listWxssFiles(repoRoot)) {
+    rules.push(...parseWxssRules(fs.readFileSync(file, 'utf8')))
+  }
+  const failures = []
+  for (const file of PAGE_WXML) {
+    for (const element of collectElements(readPage(file))) {
+      if (!isTapTarget(element)) continue
+      const hover = element.attrs['hover-class'] || ''
+      const stem = hover.endsWith('-hover') ? hover.slice(0, -'-hover'.length) : ''
+      if (!stem || !classTokens(element).includes(stem)) {
+        failures.push(`${file}: ${describe(element)} hover-class=${hover || '(missing)'}`)
+        continue
+      }
+      const painted = rules.some((rule) =>
+        rule.selectors.some((selector) => selector.includes(`.${hover}`)) &&
+        rule.selectors.some((selector) => selector.includes(':active')))
+      if (!painted) {
+        failures.push(`${file}: hover-class ${hover} is not in an :active rule`)
+      }
+    }
+  }
+  assert.deepEqual(failures, [])
+})
+
 test('glass cards are not press targets', () => {
   // 玻璃卡本身不可点（issue #113）。按压从基类拿掉，不再靠各页 transform:none 抵消。
   const card = wxssRuleBody('app.wxss', '.premium-card')
@@ -582,7 +610,7 @@ test('untappable settings rows do not take menu press feedback', () => {
   const settingsCss = readPage('pages/settings/settings.wxss').replace(/\/\*[\s\S]*?\*\//g, '')
   const pressBackground = wxssRuleBody(
     'pages/settings/settings.wxss',
-    '.menu-item:not(.non-interactive):active'
+    '.menu-item:not(.non-interactive):not(.danger):active'
   )
   assert.match(pressBackground || '', /background\s*:/, 'tappable menu rows keep the press background')
   assert.doesNotMatch(settingsCss, /(^|[^\w.-])\.menu-item:active\s*[,{]/)

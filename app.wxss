@@ -188,15 +188,28 @@ page {
   bottom: 10rpx;
   left: 10rpx;
   border-radius: var(--radius-card);
-  background: linear-gradient(rgba(255,255,255,0.09), rgba(255,255,255,0.09)), var(--glass-fallback);
+  background: var(--glass-fallback);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(232,144,158,0.28);
   box-shadow:
     0 6rpx 18rpx rgba(10,14,39,0.18),
     inset 0 1rpx 0 rgba(255,255,255,0.18);
-  transition: background var(--duration-press) ease, border-color var(--duration-press) ease;
+  transition: border-color var(--duration-press) ease;
   z-index: 0;
+}
+.nav-back-surface::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-card);
+  background-color: rgba(255,255,255,0.09);
+  transition: background-color var(--duration-press) ease;
+  pointer-events: none;
+  z-index: -1;
 }
 .nav-back-icon {
   position: relative;
@@ -211,11 +224,14 @@ page {
 }
 .nav-back:active .nav-back-surface,
 .nav-back.nav-back-hover .nav-back-surface {
-  background: linear-gradient(rgba(255,255,255,0.14), rgba(255,255,255,0.14)), var(--glass-fallback);
   border-color: rgba(232,144,158,0.42);
   box-shadow:
     0 4rpx 12rpx rgba(10,14,39,0.16),
     inset 0 1rpx 0 rgba(255,255,255,0.22);
+}
+.nav-back:active .nav-back-surface::before,
+.nav-back.nav-back-hover .nav-back-surface::before {
+  background-color: rgba(255,255,255,0.14);
 }
 .nav-placeholder { width: 88rpx; }
 
@@ -253,7 +269,8 @@ page {
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-state) ease;
   position: relative;
 }
-.btn-premium:active {
+.btn-premium:active,
+.btn-premium.btn-premium-hover {
   transform: scale(0.96);
   box-shadow: 0 2px 8px rgba(232,144,158,0.2);
 }
@@ -261,14 +278,18 @@ page {
 .btn-premium.disabled {
   opacity: 0.55;
 }
-.btn-premium.loading:active,
-.btn-premium.disabled:active {
+.btn-premium:active.loading,
+.btn-premium.btn-premium-hover.loading,
+.btn-premium:active.disabled,
+.btn-premium.btn-premium-hover.disabled{
   transform: none;
 }
 
 /* ===== Danger Button — 柔红，与玫瑰体系同族 ===== */
 .btn-danger {
-  background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
+  position: relative;
+  z-index: 0;
+  background: var(--glass-fallback);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   color: #F97373;
@@ -278,12 +299,28 @@ page {
   font-size: var(--font-size-button);
   font-weight: var(--font-weight-control);
   border: 1px solid rgba(249,115,115,0.28);
-  transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
+  transition: border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
+}
+.btn-danger::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-md);
+  background-color: var(--glass-bg);
+  transition: background-color var(--duration-press) ease;
+  pointer-events: none;
+  z-index: -1;
 }
 .btn-danger:active,
 .btn-danger.btn-danger-hover {
   transform: scale(0.95);
-  background: linear-gradient(rgba(249,115,115,0.12), rgba(249,115,115,0.12)), var(--glass-fallback);
+}
+.btn-danger:active::before,
+.btn-danger.btn-danger-hover::before {
+  background-color: rgba(249,115,115,0.12);
 }
 
 /* ===== Header Gradient ===== */
@@ -357,7 +394,9 @@ page {
 
 /* ===== List/Menu Item Press ===== */
 .list-item:not(.non-interactive):active,
-.menu-item:not(.non-interactive):active {
+.list-item:not(.non-interactive).list-item-hover,
+.menu-item:not(.non-interactive):active,
+.menu-item:not(.non-interactive).menu-item-hover {
   transform: scale(0.97);
 }
 
@@ -390,9 +429,11 @@ page {
   .premium-card,
   .btn-premium,
   .btn-danger,
+  .btn-danger::before,
   .nav-btn,
   .nav-back,
   .nav-back-surface,
+  .nav-back-surface::before,
   .list-item,
   .menu-item,
   .calendar-grid {

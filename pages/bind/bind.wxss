@@ -101,13 +101,20 @@
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.6);
-  transition: background-color var(--duration-state) ease, color var(--duration-state) ease;
+  border: 1px solid transparent;
+  transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
-/* 选中 tab 与主按钮同族：实色玫瑰填充 + 画布海军字，字重角色不变 */
+/* 选中态与记录分段、设置密度同一种描边玫瑰弱选中，不用主按钮实色填充 */
 .tab.active {
-  background: var(--aurora-pink);
-  color: #0A0E27;
+  color: #E8909E;
+  background: rgba(232,144,158,0.08);
+  border-color: rgba(232,144,158,0.45);
   font-weight: var(--font-weight-control);
+}
+.tab:active,
+.tab.tab-hover {
+  transform: scale(0.98);
+  background: rgba(255,255,255,0.1);
 }
 .info-text {
   display: block;
@@ -193,7 +200,8 @@
   box-shadow: 0 4px 15px rgba(232,144,158,0.28);
   transition: transform var(--duration-press) var(--ease-out);
 }
-.copy-btn:active {
+.copy-btn:active,
+.copy-btn.copy-btn-hover {
   transform: scale(0.94);
 }
 /* 创建/加入被「请先解除绑定」拒绝时，当前屏直接给出的解除绑定入口（needUnbind 中间态，
@@ -235,7 +243,8 @@
   border: 1px solid rgba(249,115,115,0.24);
   border-radius: var(--radius-sm);
 }
-.error-retry:active {
+.error-retry:active,
+.error-retry.error-retry-hover {
   background: rgba(249,115,115,0.24);
 }
 

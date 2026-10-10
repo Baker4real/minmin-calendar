@@ -20,12 +20,12 @@
           <text class="room-code-label">我的房间码</text>
           <text class="room-code-value {{roomCode ? '' : 'muted'}}">{{roomCodeDisplay || roomCode || '未绑定'}}</text>
         </view>
-        <view wx:if="{{roomCode}}" class="copy-btn" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码">复制</view>
+        <view wx:if="{{roomCode}}" class="copy-btn" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码" hover-class="copy-btn-hover">复制</view>
       </view>
       <!-- 拿不到房间码时给下一步：重试解析或去绑定，不再是死句子（issue #79） -->
       <view wx:if="{{roomCodeLoaded && !roomCode}}" class="room-code-actions">
-        <view class="room-action-btn" bindtap="retryRoomResolve" aria-role="button" aria-label="重试获取房间码">重试</view>
-        <view class="room-action-btn" bindtap="goBind" aria-role="button" aria-label="去绑定房间">去绑定</view>
+        <view class="room-action-btn" bindtap="retryRoomResolve" aria-role="button" aria-label="重试获取房间码" hover-class="room-action-btn-hover">重试</view>
+        <view class="room-action-btn" bindtap="goBind" aria-role="button" aria-label="去绑定房间" hover-class="room-action-btn-hover">去绑定</view>
       </view>
       <!-- issue #102：「解除绑定」从绑定页已绑定卡移到本卡，警示红菜单行族，二次确认文案不变 -->
       <view wx:if="{{roomCode}}" class="menu-item danger" hover-class="danger-hover" bindtap="unbind" aria-role="button" aria-label="解除绑定">
@@ -49,22 +49,20 @@
           bindtap="setCalendarDensity"
           aria-role="radio"
           aria-label="清爽显示日历"
-          aria-checked="{{calendarDensity == 'compact'}}"
-        >清爽</view>
+          aria-checked="{{calendarDensity == 'compact'}}" hover-class="density-option-hover">清爽</view>
         <view
           class="density-option {{calendarDensity == 'full' ? 'active' : ''}}"
           data-density="full"
           bindtap="setCalendarDensity"
           aria-role="radio"
           aria-label="完整显示农历和节假日"
-          aria-checked="{{calendarDensity == 'full'}}"
-        >完整</view>
+          aria-checked="{{calendarDensity == 'full'}}" hover-class="density-option-hover">完整</view>
       </view>
     </view>
 
     <!-- 功能菜单：欢乐时光入口用欢乐时光标记的浅色心，不用表情（issue #77） -->
     <view class="premium-card">
-      <view class="menu-item" bindtap="goMemory" aria-role="button" aria-label="查看欢乐时光">
+      <view class="menu-item" bindtap="goMemory" aria-role="button" aria-label="查看欢乐时光" hover-class="menu-item-hover">
         <text class="menu-icon menu-heart">♥</text>
         <text class="menu-text">欢乐时光</text>
         <text class="menu-arrow">›</text>
@@ -72,7 +70,7 @@
     </view>
 
     <view class="premium-card">
-      <view class="menu-item" bindtap="exportData" aria-role="button" aria-label="导出数据">
+      <view class="menu-item" bindtap="exportData" aria-role="button" aria-label="导出数据" hover-class="menu-item-hover">
         <text class="menu-text">导出数据</text>
         <text class="menu-arrow">›</text>
       </view>
@@ -87,7 +85,7 @@
     </view>
 
     <view class="premium-card">
-      <view class="menu-item" bindtap="about" aria-role="button" aria-label="关于">
+      <view class="menu-item" bindtap="about" aria-role="button" aria-label="关于" hover-class="menu-item-hover">
         <text class="menu-text">关于</text>
         <text class="menu-arrow">›</text>
       </view>
