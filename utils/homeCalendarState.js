@@ -58,6 +58,7 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
     predictionWindow,
     today
   })
+  const monthlyRecap = calendarInsights.buildMonthlyRecap({ year, month, periods, memories, prediction, today })
 
   return {
     avgCycle: prediction.canPredict ? prediction.avgCycle : null,
@@ -71,8 +72,11 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
     predictionDetail: prediction,
     legendItems: CALENDAR_LEGEND_ITEMS,
     predictionExplanation: calendarInsights.buildPredictionExplanation(prediction),
+    homeStatus: cycle.buildHomeStatusLine(periods, { today, prediction }),
+    monthPeriodDays: monthlyRecap.periodDays,
+    monthMemoryCount: monthlyRecap.memoryCount,
     cycleReminders: prediction.canPredict ? cycle.buildCycleReminders(prediction, periods, { today }) : [],
-    monthlyRecap: calendarInsights.buildMonthlyRecap({ year, month, periods, memories, prediction, today }),
+    monthlyRecap,
     days,
     dayDetailsByDate: buildDayDetailsByDate(days, periods, memories, today)
   }

@@ -90,7 +90,10 @@ function verticalPaddingRpx(decls) {
 }
 
 function rpxNumber(decls, prop) {
-  const match = /^(\d+(?:\.\d+)?)rpx$/.exec(decls[prop] || '')
+  const raw = decls[prop] || ''
+  const fallback = /var\(\s*--[a-z0-9-]+\s*,\s*(\d+(?:\.\d+)?)rpx\s*\)/i.exec(raw)
+  if (fallback) return Number(fallback[1])
+  const match = /^(\d+(?:\.\d+)?)rpx$/.exec(raw)
   return match ? Number(match[1]) : null
 }
 
@@ -249,6 +252,68 @@ test('calendar day cells keep the 44px touch height at 320px in both densities',
   assert.equal(cell['box-sizing'], 'border-box')
   assert.equal(cell['margin-left'], undefined)
   assert.equal(cell['margin-right'], undefined)
+})
+
+test('calendar row height stays between 44px and the previous cap for 5- and 6-row months', () => {
+  const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
+  // 页高 = 手机高度 − 底栏。顶栏含状态栏。6 行且不在当月时带「回到今天」。
+  const phones = [
+    { width: 320, screen: 568, tabBar: 48, nav: 64 },
+    { width: 375, screen: 667, tabBar: 48, nav: 64 },
+    { width: 390, screen: 844, tabBar: 83, nav: 91 }
+  ]
+  const expected = {
+    '320:compact:5:0': 57.17,
+    '320:compact:6:1': 44,
+    '320:full:5:1': 49.66,
+    '320:full:6:1': 44,
+    '375:compact:5:0': 70,
+    '375:compact:6:1': 52,
+    '375:full:5:0': 71.2,
+    '375:full:6:1': 52,
+    '390:compact:5:0': 72.8,
+    '390:compact:6:1': 69.56,
+    '390:full:5:0': 83.2,
+    '390:full:6:1': 69.56
+  }
+
+  for (const phone of phones) {
+    for (const density of ['compact', 'full']) {
+      for (const rowCount of [5, 6]) {
+        for (const showBackToToday of [false, true]) {
+          const row = computeCalendarRowHeight({
+            viewportWidth: phone.width,
+            viewportHeight: phone.screen - phone.tabBar,
+            navBarHeightPx: phone.nav,
+            density,
+            rowCount,
+            showBackToToday
+          })
+          assert.ok(row.heightPx >= 44, `${phone.width} ${density} ${rowCount} below 44px`)
+          assert.ok(row.heightPx <= row.capPx + 0.001, `${phone.width} ${density} above the cap`)
+          const key = `${phone.width}:${density}:${rowCount}:${showBackToToday ? 1 : 0}`
+          if (expected[key] !== undefined) assert.equal(row.heightPx, expected[key], key)
+        }
+      }
+    }
+  }
+
+  // 390×844 两种密度、375×667 清爽密度：6 行且带着「回到今天」，记录入口仍在页内。
+  for (const sample of [
+    { width: 390, height: 761, nav: 91, density: 'compact' },
+    { width: 390, height: 761, nav: 91, density: 'full' },
+    { width: 375, height: 619, nav: 64, density: 'compact' }
+  ]) {
+    const row = computeCalendarRowHeight({
+      viewportWidth: sample.width,
+      viewportHeight: sample.height,
+      navBarHeightPx: sample.nav,
+      density: sample.density,
+      rowCount: 6,
+      showBackToToday: true
+    })
+    assert.equal(row.actionsFit, true, `${sample.width} ${sample.density} record actions leave the first screen`)
+  }
 })
 
 test('calendar cell content stacks fit inside the cell at both densities (date stays readable)', () => {
@@ -552,9 +617,10 @@ test('shared navbar is fixed, reserves the capsule, and content starts at the ba
   const index = readRepo('pages/index/index.wxml')
   assert.match(
     index,
-    /class="nav-bar header-gradient">\s*<view class="nav-placeholder"><\/view>\s*<view class="nav-title">美少女的日历<\/view>/,
-    'home keeps an empty left slot and the title in the navbar'
+    /class="nav-bar header-gradient">\s*<view class="nav-tool"[^>]*>工具<\/view>\s*<view class="nav-title">美少女的日历<\/view>/,
+    'home puts the tools entry in the navbar left slot'
   )
+  assert.doesNotMatch(index, /class="nav-placeholder"/)
   assert.match(readRepo('pages/period/period.wxml'), /nav-title">记录</)
   assert.match(readRepo('pages/settings/settings.wxml'), /nav-title">设置</)
   assert.doesNotMatch(readRepo('pages/period/period.wxml'), /nav-back/)

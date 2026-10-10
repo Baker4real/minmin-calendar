@@ -66,6 +66,8 @@ function buildMonthlyRecap({ year, month, periods = [], memories = [], predictio
     periodSummary,
     memorySummary,
     predictionSummary,
+    periodDays,
+    memoryCount: monthMemories.length,
     highlights,
     highlightItems: buildTextItems(highlights, 'recap'),
     shareText: shareLines.filter(Boolean).join('\n')

@@ -430,7 +430,7 @@ test('index calendar applies the persisted density without hosting the control',
   assert.match(wxml, /wx:if="\{\{!item\.isEmpty && calendarDensity == 'full'\}\}" class="day-lunar"/)
   assert.match(wxml, /wx:if="\{\{!item\.isEmpty\}\}" class="day-tag-line"/)
 
-  assert.match(wxss, /\.calendar-density-compact\s+\.day-cell\s*\{[\s\S]*height:\s*140rpx/)
+  assert.match(wxss, /\.calendar-density-compact\s+\.day-cell\s*\{[\s\S]*height:\s*var\(--calendar-row-height,\s*140rpx\)/)
 })
 
 test('settings page hosts the calendar density control with a quiet rose selected state', () => {
@@ -620,17 +620,13 @@ test('home page consumes RoomDataClient outcomes instead of legacy room-code and
   assert.match(wxml, /handleRoomStatusAction/)
 })
 
-test('index status-card keeps only layout overrides over premium-card glass', () => {
+test('home summary row is a plain row and does not bring back the nested status card', () => {
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
-  const match = wxss.match(/(?:^|\r?\n)\.status-card\s*\{([\s\S]*?)\r?\n\}/m)
-  assert.ok(match, 'expected a top-level .status-card rule')
-  const block = match[1]
-
-  assert.match(block, /margin-top\s*:/)
-  assert.match(block, /padding\s*:/)
-  assert.doesNotMatch(block, /background/)
-  assert.doesNotMatch(block, /backdrop-filter/)
-  assert.doesNotMatch(block, /border/)
+  assert.doesNotMatch(wxss, /\.status-card\s*\{/)
+  const match = wxss.match(/(?:^|\r?\n)\.month-summary\s*\{([\s\S]*?)\r?\n\}/m)
+  assert.ok(match, 'expected a top-level .month-summary rule')
+  assert.doesNotMatch(match[1], /backdrop-filter|premium-card/)
+  assert.doesNotMatch(match[1], /(?:^|\s)background\s*:/)
 })
 
 function pickMeta(meta) {

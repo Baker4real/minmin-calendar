@@ -248,8 +248,8 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(copyRecap.attrs['aria-label'], '复制小结')
 
   // 图例 / 预测说明 / 小结收进月份标题旁的「…」菜单（issue #105）：触发器与菜单项都是命名按钮
-  assert.equal(byHandler('openMonthMenu', 'month-menu-trigger').attrs['aria-role'], 'button')
-  assert.equal(byHandler('openMonthMenu', 'month-menu-trigger').attrs['aria-label'], '打开工具菜单')
+  assert.equal(byHandler('openMonthMenu', 'nav-tool').attrs['aria-role'], 'button')
+  assert.equal(byHandler('openMonthMenu', 'nav-tool').attrs['aria-label'], '打开工具菜单')
   assert.equal(byHandler('closeMonthMenu', 'day-sheet-mask').attrs['aria-label'], '关闭工具菜单')
   const menuItems = elements.filter((element) => element.attrs.bindtap === 'onMonthMenuTap')
   assert.deepEqual(
@@ -299,33 +299,20 @@ test('sheet mask and panel are siblings so only the mask is announced as close',
   assert.deepEqual(labels.sort(), ['关闭工具菜单', '关闭当日操作', '关闭月份选择', '关闭面板'])
 })
 
-test('merged status card names the prediction region and keeps the record count non-interactive', () => {
+test('home status line opens the prediction sheet and the record count is gone', () => {
   const elements = collectElements(readPage('pages/index/index.wxml'))
-  const predictRegion = elements.find((element) =>
-    element.attrs.bindtap === 'openPredictionSheet' && classTokens(element).includes('predict-item'))
-  const divider = elements.find((element) => classTokens(element).includes('stat-divider'))
-  const statusCard = elements.find((element) => classTokens(element).includes('status-card'))
-  const figure = elements.find((element) => classTokens(element).includes('status-figure'))
+  const statusLine = elements.find((element) =>
+    element.attrs.bindtap === 'openPredictionSheet' && classTokens(element).includes('home-status'))
+  const summary = elements.find((element) => classTokens(element).includes('month-summary'))
 
-  // issue #70：预测区有日期读月日+星期，无日期读固定暂无文案
-  assert.ok(predictRegion, 'expected the status-card prediction region to be a tap target')
-  assert.equal(predictRegion.attrs['aria-role'], 'button')
-  assert.equal(
-    predictRegion.attrs['aria-label'],
-    "{{nextPredictWeekday ? '查看经期预测，' + nextPredictDisplay + ' ' + nextPredictWeekday : '查看经期预测，暂无下次日期'}}"
-  )
-
-  // issue #105：条数是现状展示不是入口——记录列表由「记录」tab 分段承接，卡上无跳转
-  assert.ok(figure, 'expected the plain record-count figure')
-  assert.equal(figure.attrs.bindtap, undefined)
-  assert.equal(figure.attrs['aria-role'], undefined)
-  assert.equal(figure.attrs['aria-label'], undefined)
-
-  // 分隔线与整张状态卡都不是按钮
-  assert.equal(divider.attrs.bindtap, undefined)
-  assert.equal(divider.attrs['aria-role'], undefined)
-  assert.equal(statusCard.attrs.bindtap, undefined)
-  assert.equal(statusCard.attrs['aria-role'], undefined)
+  assert.ok(statusLine, 'expected the status line to open the prediction sheet')
+  assert.equal(statusLine.attrs['aria-role'], 'button')
+  assert.equal(statusLine.attrs['aria-label'], '{{homeStatus.text}}')
+  assert.ok(summary, 'expected the month summary row')
+  assert.equal(summary.attrs['aria-role'], 'button')
+  assert.equal(summary.attrs.bindtap, 'openMonthlyRecap')
+  assert.equal(elements.find((element) => classTokens(element).includes('status-card')), undefined)
+  assert.equal(elements.find((element) => classTokens(element).includes('stat-num')), undefined)
 
   // 卡内超期进行中提醒保留原有动作与朗读名
   const ongoing = elements.find((element) => element.attrs.bindtap === 'onOngoingReminderTap')
@@ -342,9 +329,10 @@ test('first-screen loading spinner and sync status changes are perceivable', () 
   // showSyncStatus 每次改写文本（index-page.test.js 钉住）即产生可朗读的状态变化
   const elements = collectElements(readPage('pages/index/index.wxml'))
 
-  const spinner = elements.find((element) => classTokens(element).includes('loading-spinner'))
-  assert.ok(spinner, 'expected the first-screen loading spinner')
-  assert.equal(spinner.attrs['aria-label'], '正在加载')
+  const skeleton = elements.find((element) => classTokens(element).includes('calendar-skeleton'))
+  assert.ok(skeleton, 'expected the first-screen calendar skeleton')
+  assert.equal(skeleton.attrs['aria-label'], '正在加载')
+  assert.equal(elements.find((element) => classTokens(element).includes('loading-spinner')), undefined)
 
   const pill = elements.find((element) => classTokens(element).includes('sync-pill'))
   assert.ok(pill, 'expected the sync status pill')

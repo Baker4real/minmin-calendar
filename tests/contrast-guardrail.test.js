@@ -84,8 +84,8 @@ test('non-interactive titles use the neutral text color, not rose', () => {
 test('month title, period figures, today and the period dot stay rose', () => {
   assert.equal(declarationOf('pages/index/index.wxss', '.month-title', 'color'), ROSE,
     'the month title opens the month picker, it keeps rose')
-  assert.equal(declarationOf('pages/index/index.wxss', '.stat-num', 'color'), ROSE,
-    'the period-record figure stays rose')
+  assert.equal(declarationOf('pages/index/index.wxss', '.period-tone', 'color'), ROSE,
+    'the period mark on the record action stays rose')
   assert.equal(declarationOf('pages/index/index.wxss', '.day-cell.today .day-num', 'color'), ROSE,
     "today's date stays rose")
 })

@@ -376,7 +376,6 @@ const INDEX_GOLD_ALLOWLIST = new Set([
   '.day-cell.holiday:not(.today)',
   '.holiday-tag',
   '.predict-mark',
-  '.predict-date',
   '.reminder-rail',
   '.detail-title',
   '.detail-meaning.predict',

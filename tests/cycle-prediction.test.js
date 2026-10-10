@@ -711,6 +711,110 @@ test('buildSymptomOptions groups every symptom into exactly one body or emotion 
   assert.equal(flattened.find(option => option.value === 'cramps').selected, false)
 })
 
+test('home status line says which day of the current period it is', () => {
+  assert.equal(typeof cycle.buildHomeStatusLine, 'function')
+
+  const periods = [
+    period('2026-05-18', '2026-05-22'),
+    period('2026-06-15', '2026-06-19'),
+    { startDate: '2026-07-13', endDate: '', status: 'ongoing' }
+  ]
+
+  assert.deepEqual(cycle.buildHomeStatusLine(periods, { today: '2026-07-15' }), {
+    status: 'in-period',
+    text: '经期第 3 天',
+    tone: 'default'
+  })
+})
+
+test('home status line counts a finished period that still includes today', () => {
+  const periods = [
+    period('2026-05-18', '2026-05-22'),
+    period('2026-06-15', '2026-06-19'),
+    period('2026-08-08', '2026-08-12')
+  ]
+
+  assert.deepEqual(cycle.buildHomeStatusLine(periods, { today: '2026-08-10' }), {
+    status: 'in-period',
+    text: '经期第 3 天',
+    tone: 'default'
+  })
+})
+
+test('home status line counts down to the predicted start before the window', () => {
+  const periods = [
+    period('2026-05-18', '2026-05-22'),
+    period('2026-06-15', '2026-06-19'),
+    period('2026-07-13', '2026-07-17')
+  ]
+
+  assert.deepEqual(cycle.buildHomeStatusLine(periods, { today: '2026-08-01' }), {
+    status: 'before-window',
+    text: '预计 8月10日 开始 · 还有 9 天',
+    tone: 'default'
+  })
+})
+
+test('home status line uses the shared date format when the predicted start is next year', () => {
+  assert.deepEqual(cycle.buildHomeStatusLine([], {
+    today: '2026-12-01',
+    prediction: {
+      canPredict: true,
+      nextStart: '2027-01-05',
+      rangeStart: '2027-01-03',
+      rangeEnd: '2027-01-07'
+    }
+  }), {
+    status: 'before-window',
+    text: '预计 2027年1月5日 开始 · 还有 35 天',
+    tone: 'default'
+  })
+})
+
+test('home status line says the period may start once today is inside the window', () => {
+  const periods = [
+    period('2026-05-18', '2026-05-22'),
+    period('2026-06-15', '2026-06-19'),
+    period('2026-07-13', '2026-07-17')
+  ]
+
+  assert.deepEqual(cycle.buildHomeStatusLine(periods, { today: '2026-08-10' }), {
+    status: 'in-window',
+    text: '这几天可能开始',
+    tone: 'default'
+  })
+})
+
+test('home status line says how many days late in a neutral tone after the window', () => {
+  const periods = [
+    period('2026-05-18', '2026-05-22'),
+    period('2026-06-15', '2026-06-19'),
+    period('2026-07-13', '2026-07-17')
+  ]
+
+  assert.deepEqual(cycle.buildHomeStatusLine(periods, { today: '2026-08-12' }), {
+    status: 'late',
+    text: '比预计晚 2 天',
+    tone: 'neutral'
+  })
+})
+
+test('home status line asks for more records when a prediction is not possible', () => {
+  assert.deepEqual(
+    cycle.buildHomeStatusLine([period('2026-06-01', '2026-06-05')], { today: '2026-08-01' }),
+    {
+      status: 'insufficient',
+      text: '多记几次后就能预测',
+      tone: 'default'
+    }
+  )
+  assert.deepEqual(cycle.buildHomeStatusLine([], { today: '2026-08-01' }), {
+    status: 'insufficient',
+    text: '多记几次后就能预测',
+    tone: 'default'
+  })
+})
+
 function period(startDate, endDate) {
   return {
     startDate,

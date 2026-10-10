@@ -27,8 +27,10 @@ const IN_CELL_MICRO_SELECTORS = [
 const OUT_CELL_CAPTION_SELECTORS = [
   '.sync-text',
   '.week-cell',
-  '.stat-label',
-  '.predict-weekday',
+  '.home-status-text',
+  '.month-summary-text',
+  '.back-today',
+  '.nav-tool',
   '.reminder-text',
   '.reminder-action',
   '.sheet-subtitle',
@@ -61,7 +63,9 @@ function ruleBody(wxss, selector) {
 function declarationRpx(body, property) {
   const match = body.match(new RegExp(`${property}:\\s*([^;]+);`))
   assert.ok(match, `expected ${property}`)
-  const resolved = match[1].trim().replace(/var\((--[a-z0-9-]+)\)/i, (_, name) => {
+  const resolved = match[1].trim()
+    .replace(/var\(\s*--[a-z0-9-]+\s*,\s*([^)]+)\)/i, '$1')
+    .replace(/var\((--[a-z0-9-]+)\)/i, (_, name) => {
     assert.ok(APP_TOKENS[name], `unknown token ${name}`)
     return APP_TOKENS[name]
   })
@@ -503,14 +507,28 @@ test('earlier/later month navigation buttons keep 44px touch targets', () => {
   assert.ok(height >= MIN_TOUCH_TARGET_RPX, `.nav-btn height ${height}rpx is below 44px (${MIN_TOUCH_TARGET_RPX}rpx)`)
 })
 
+test('full density row cap stays 160rpx and a 6-row month on 390×844 still fits the record actions', () => {
+  const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
+  const wxss = readWxss()
+  assert.equal(declarationRpx(ruleBody(wxss, '.day-cell'), 'height'), 160)
+  // 390×844，底栏 83px，页高 761；顶栏 91px。不在当月时「回到今天」也占一行。
+  const row = computeCalendarRowHeight({
+    viewportWidth: 390,
+    viewportHeight: 761,
+    navBarHeightPx: 91,
+    density: 'full',
+    rowCount: 6,
+    showBackToToday: true
+  })
+  assert.equal(row.heightPx, 69.56)
+  assert.equal(row.capPx, 83.2)
+  assert.equal(row.actionsFit, true)
+  assert.ok(row.heightPx <= row.capPx)
+  assert.ok(row.heightPx >= 44)
+})
+
 test('full density first-screen stack stays within the ratcheted budget', () => {
   const wxss = readWxss()
-  // 与 tests/index-page.test.js 同一推算口径：750rpx 宽 × 667px 高 ≈ 1334rpx。
-  // issue #55 起图例/预测/小结工具行与密度偏好退出首屏路径（密度迁入设置页），
-  // 栈深只剩 月份导航 → 日历 → 记录入口。完整密度 6 行时记录按钮上缘已落入视口，
-  // 整体底部略超 1334rpx、只需极短滚动；农历行与节日标签行仍是被 calendar-display
-  // 测试钉死的两层堆叠，不缩小微字吸收。issue #73 把记录按钮抬高到 104rpx
-  // （320px 宽 44px 可点高度），栈底随之从 1414rpx 移到 1442rpx；钉住当前值作为棘轮，只允许变小。
   const FULL_STACK_RATCHET_RPX = 1442
   const SAFE_TOP_RPX = 88
   const NAV_BAR_RPX = 88

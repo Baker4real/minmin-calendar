@@ -6,6 +6,7 @@ const recordEditRoute = require('../../utils/recordEditRoute')
 const recordDraft = require('../../utils/recordDraft')
 const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
+const { computeCalendarRowHeight } = require('../../utils/calendarRowHeight')
 const safeArea = require('../../utils/safeArea')
 const {
   createSheetLifecycle,
@@ -29,6 +30,39 @@ const INITIAL_HOME_STATE = buildHomeCalendarState({
   month: INITIAL_VIEW_DATE.getMonth(),
   today: util.formatDate(INITIAL_VIEW_DATE)
 })
+function readPageViewport() {
+  try {
+    if (typeof wx !== 'undefined' && wx && typeof wx.getWindowInfo === 'function') {
+      const info = wx.getWindowInfo()
+      if (info && info.windowWidth > 0 && info.windowHeight > 0) {
+        return { viewportWidth: info.windowWidth, viewportHeight: info.windowHeight }
+      }
+    }
+  } catch (e) {
+    // 拿不到窗口时用 390 宽、去掉底栏后的常见页高
+  }
+  return { viewportWidth: 390, viewportHeight: 761 }
+}
+
+function isViewingCurrentMonth(year, month, now = new Date()) {
+  return year === now.getFullYear() && month === now.getMonth()
+}
+
+function calendarRowCount(days) {
+  return Math.max(1, Math.ceil((Array.isArray(days) ? days.length : 0) / 7))
+}
+
+function calendarRowHeightPx({ days, density, navBarHeightPx, showBackToToday }) {
+  const viewport = readPageViewport()
+  return computeCalendarRowHeight({
+    viewportWidth: viewport.viewportWidth,
+    viewportHeight: viewport.viewportHeight,
+    navBarHeightPx,
+    density: density === 'full' ? 'full' : 'compact',
+    rowCount: calendarRowCount(days),
+    showBackToToday
+  }).heightPx
+}
 
 function calendarRenderState(state) {
   const render = { ...state }
@@ -91,7 +125,14 @@ Page({
     monthMenuPhase: 'closed',
     calendarDensity: 'compact',
     ...calendarRenderState(INITIAL_HOME_STATE),
-    periodCount: 0,
+    showBackToToday: !isViewingCurrentMonth(INITIAL_VIEW_DATE.getFullYear(), INITIAL_VIEW_DATE.getMonth()),
+    calendarRowHeightPx: calendarRowHeightPx({
+      days: INITIAL_HOME_STATE.days,
+      density: 'compact',
+      navBarHeightPx: safeArea.getNavBarHeight(),
+      showBackToToday: !isViewingCurrentMonth(INITIAL_VIEW_DATE.getFullYear(), INITIAL_VIEW_DATE.getMonth())
+    }),
+    skeletonCells: Array.from({ length: 35 }, (_, index) => index),
     hasRecords: false,
     infoSheetVisible: false,
     infoSheetMounted: false,
@@ -130,10 +171,19 @@ Page({
   onLoad() {
     this.refreshReducedMotion()
     const now = new Date()
+    const calendarDensity = this.getSavedCalendarDensity()
+    const showBackToToday = !isViewingCurrentMonth(now.getFullYear(), now.getMonth())
     this.setData({
       year: now.getFullYear(),
       month: now.getMonth(),
-      calendarDensity: this.getSavedCalendarDensity()
+      calendarDensity,
+      showBackToToday,
+      calendarRowHeightPx: calendarRowHeightPx({
+        days: this.data.days,
+        density: calendarDensity,
+        navBarHeightPx: this.data.navBarHeight,
+        showBackToToday
+      })
     })
     this._syncState = {
       revisions: { periods: 0, memories: 0 },
@@ -371,12 +421,20 @@ Page({
     this._dayDetailsByDate = state.dayDetailsByDate || {}
     const quickAction = cycle.buildPeriodQuickAction(periods, { today })
 
+    const showBackToToday = !isViewingCurrentMonth(year, month)
+    const calendarDensity = this.data.calendarDensity === 'full' ? 'full' : 'compact'
     const update = {
       ...calendarRenderState(state),
-      periodCount: this._homeRecords.periods.length,
       hasRecords: this._homeRecords.periods.length > 0 || this._homeRecords.memories.length > 0,
       periodQuickLabel: quickAction.label,
       periodQuickAriaLabel: quickAction.ariaLabel,
+      showBackToToday,
+      calendarRowHeightPx: calendarRowHeightPx({
+        days: state.days,
+        density: calendarDensity,
+        navBarHeightPx: this.data.navBarHeight,
+        showBackToToday
+      }),
       year,
       month
     }

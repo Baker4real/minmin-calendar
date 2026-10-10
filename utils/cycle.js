@@ -344,6 +344,60 @@ function findOngoingPeriod(periods = []) {
   return list.find(item => getPeriodStatus(item) === 'ongoing') || null
 }
 
+// 首页状态行。经期覆盖今天时优先于预测；预测窗口沿用既有预计开始日 ± 波动天数。
+// 推迟只用中性语气，不表示警示。
+function buildHomeStatusLine(periods, options = {}) {
+  const today = isDateString(options.today) ? options.today : util.formatDate(new Date())
+  const prediction = options.prediction || predictNextPeriod(periods, { ...options, today })
+  const active = findPeriodCoveringDate(periods, today)
+  if (active) {
+    return {
+      status: 'in-period',
+      text: `经期第 ${inclusiveDayCount(active.startDate, today)} 天`,
+      tone: 'default'
+    }
+  }
+  if (!prediction || !prediction.canPredict || !isDateString(prediction.nextStart)) {
+    return {
+      status: 'insufficient',
+      text: '多记几次后就能预测',
+      tone: 'default'
+    }
+  }
+  if (isDateString(prediction.rangeStart) && today < prediction.rangeStart) {
+    const days = util.daysBetween(util.parseDate(today), util.parseDate(prediction.nextStart))
+    const dateText = util.formatDisplayDate(prediction.nextStart, { today })
+    return {
+      status: 'before-window',
+      text: `预计 ${dateText} 开始 · 还有 ${days} 天`,
+      tone: 'default'
+    }
+  }
+  if (!isDateString(prediction.rangeEnd) || today <= prediction.rangeEnd) {
+    return {
+      status: 'in-window',
+      text: '这几天可能开始',
+      tone: 'default'
+    }
+  }
+  const lateDays = util.daysBetween(util.parseDate(prediction.nextStart), util.parseDate(today))
+  return {
+    status: 'late',
+    text: `比预计晚 ${lateDays} 天`,
+    tone: 'neutral'
+  }
+}
+
+function findPeriodCoveringDate(periods, today) {
+  let chosen = null
+  for (const period of Array.isArray(periods) ? periods : []) {
+    const range = projectPeriodRange(period, today)
+    if (!range || today < range.startDate || today > range.endDate) continue
+    if (!chosen || range.startDate > chosen.startDate) chosen = range
+  }
+  return chosen
+}
+
 function buildPeriodQuickAction(periods, options = {}) {
   const today = options.today || util.formatDate(new Date())
   const ongoing = findOngoingPeriod(periods)
@@ -553,6 +607,7 @@ module.exports = {
   isPeriodStatus,
   findOngoingPeriod,
   buildPeriodQuickAction,
+  buildHomeStatusLine,
   projectPeriodRange,
   getPeriodDuration,
   decoratePeriod,
