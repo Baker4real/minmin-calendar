@@ -1,5 +1,6 @@
-<view class="page safe-top {{pageObscured ? 'page-obscured' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px">
+<view class="page safe-top {{pageObscured ? 'page-obscured' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
 <wxs module="sheetDrag" src="../../utils/sheetDrag.wxs"></wxs>
+<wxs module="monthSwipe" src="../../utils/monthSwipe.wxs"></wxs>
   <view class="reduced-motion-probe" aria-hidden="true"></view>
   <!-- Aurora Decorative Orbs -->
   <view class="glow-orb glow-orb-1"></view>
@@ -8,7 +9,6 @@
   <view class="nav-bar header-gradient">
     <view class="nav-placeholder"></view>
     <view class="nav-title">美少女的日历</view>
-    <view class="nav-placeholder"></view>
   </view>
 
   <view wx:if="{{noRoom}}" class="no-room">
@@ -50,6 +50,13 @@
       <text class="refresh-retry-text">刷新失败，点按重试</text>
     </view>
 
+    <view
+      class="calendar-swipe"
+      bindtouchstart="{{monthSwipe.touchStart}}"
+      bindtouchmove="{{monthSwipe.touchMove}}"
+      bindtouchend="{{monthSwipe.touchEnd}}"
+      bindtouchcancel="{{monthSwipe.touchEnd}}"
+    >
     <view class="week-header">
       <view class="week-cell" wx:for="{{weekDays}}" wx:key="*this">{{item}}</view>
     </view>
@@ -78,12 +85,13 @@
         </view>
       </view>
     </view>
+    </view>
 
     <!-- 首页记录入口：图标用日历图例的经期圆点与欢乐时光浅色心（海军圆盘承载），不用表情 -->
     <view class="quick-actions">
-      <view class="quick-btn" bindtap="quickPeriod" aria-role="button" aria-label="记经期">
+      <view class="quick-btn" bindtap="quickPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}">
         <text class="quick-icon period-tone">●</text>
-        <text class="quick-text">记经期</text>
+        <text class="quick-text">{{periodQuickLabel}}</text>
       </view>
       <view class="quick-btn" bindtap="quickMemory" aria-role="button" aria-label="记录欢乐时光">
         <text class="quick-icon memory-tone">♥</text>
@@ -218,8 +226,6 @@
           >{{item.label}}</view>
         </view>
       </view>
-
-      <view class="jump-confirm" bindtap="confirmMonthJump" aria-role="button" aria-label="跳转到 {{jumpYear}}年{{jumpMonth + 1}}月">跳转到 {{jumpYear}}年{{jumpMonth + 1}}月</view>
     </view>
     </view>
   </view>

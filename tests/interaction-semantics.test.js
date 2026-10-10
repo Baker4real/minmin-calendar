@@ -214,7 +214,7 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
 
   assert.equal(byHandler('prevMonth', 'nav-btn').attrs['aria-label'], '上一个月')
   assert.equal(byHandler('nextMonth', 'nav-btn').attrs['aria-label'], '下一个月')
-  assert.equal(byHandler('quickPeriod', 'quick-btn').attrs['aria-label'], '记经期')
+  assert.equal(byHandler('quickPeriod', 'quick-btn').attrs['aria-label'], '{{periodQuickAriaLabel}}')
   assert.equal(byHandler('quickMemory', 'quick-btn').attrs['aria-label'], '记录欢乐时光')
 
   // 弹层遮罩本身是可点的「关闭」操作，必须带角色与可读名称
@@ -236,11 +236,11 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
     .map((element) => element.attrs['aria-label'])
   assert.deepEqual(dayActions, ['记录经期', '记录欢乐时光', '查看详情', '补经期', '补欢乐时光'])
 
-  // 月份选择与确认
+  // 月份格点一下即跳转，不再有确认按钮
   const jumpOption = byHandler('selectJumpMonth', 'jump-option')
   assert.equal(jumpOption.attrs['aria-role'], 'radio')
   assert.equal(jumpOption.attrs['aria-label'], '选择{{item.label}}')
-  assert.equal(byHandler('confirmMonthJump', 'jump-confirm').attrs['aria-role'], 'button')
+  assert.equal(byHandler('confirmMonthJump', 'jump-confirm'), undefined)
 
   // 复制小结
   const copyRecap = byHandler('copyMonthlyRecap', 'copy-recap')
@@ -397,10 +397,10 @@ test('record list rows, retry affordances and settings menu entries announce the
   assert.equal(byHandler(memory, 'loadData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
 
   assert.equal(byHandler(settings, 'copyRoomCode', 'copy-btn').attrs['aria-label'], '复制房间码')
-  assert.equal(byHandler(settings, 'goMemory', 'menu-item').attrs['aria-label'], '查看欢乐时光')
+  assert.equal(byHandler(settings, 'goMemory', 'menu-item'), undefined)
   assert.equal(byHandler(settings, 'exportData', 'menu-item').attrs['aria-label'], '导出数据')
-  assert.equal(byHandler(settings, 'clearData', 'menu-item').attrs['aria-label'], '清除本地数据')
-  assert.equal(byHandler(settings, 'about', 'menu-item').attrs['aria-label'], '关于')
+  assert.equal(byHandler(settings, 'clearData', 'menu-item').attrs['aria-label'], '重新同步房间')
+  assert.equal(byHandler(settings, 'openHelp', 'menu-item').attrs['aria-label'], '使用说明')
 
   // 密度偏好：选中态用 aria-checked 表达（与 active 类同条件，由选中态镜像测试兜底）
   const densityOptions = settings.filter((element) => classTokens(element).includes('density-option'))
@@ -504,15 +504,14 @@ test('brand, about and settings menu no longer use the red-heart emoji', () => {
   const bindWxml = readPage('pages/bind/bind.wxml')
   const settingsWxml = readPage('pages/settings/settings.wxml')
   assert.match(bindWxml, /class="hero-icon">♥</, 'bind hero heart is the text glyph')
-  assert.match(settingsWxml, /class="profile-avatar">♥</, 'settings profile heart is the text glyph')
+  assert.doesNotMatch(settingsWxml, /profile-avatar|menu-heart/)
   assert.doesNotMatch(bindWxml, /❤/)
   assert.doesNotMatch(settingsWxml, /❤/)
 
   // 关于：弹窗文案里不再有红色心形表情（内容唯一来源在 settings.js）
   assert.doesNotMatch(readPage('pages/settings/settings.js'), /❤/)
 
-  // 菜单：只重复标签的菜单表情去掉；欢乐时光入口用欢乐时光标记的浅色心
-  assert.match(settingsWxml, /class="menu-icon menu-heart">♥</)
+  // 设置页不再放重复的欢乐时光入口，菜单也不再挂装饰心
   for (const emoji of ['🔑', '🗓️', '📤', '🗑️', 'ℹ️']) {
     assert.equal(settingsWxml.includes(emoji), false, `settings menu keeps only markers, found ${emoji}`)
   }
@@ -573,14 +572,16 @@ test('bind success is stated in rose text without a green checkmark', () => {
   assert.match(boundStatus, /color:\s*(?:#E8909E|var\(--aurora-pink\))\s*;/i)
 })
 
-test('settings clear-local-data row reads as danger before any tap, export stays a plain row', () => {
+test('settings danger styling is only the bottom unbind row', () => {
   const settingsWxml = readPage('pages/settings/settings.wxml')
-  const clearRow = /class="menu-item danger"[^>]*bindtap="clearData"/.exec(settingsWxml)
-  assert.ok(clearRow, 'the clear-local-data menu row carries the danger class')
+  assert.ok(!/class="menu-item danger"[^>]*bindtap="clearData"/.test(settingsWxml),
+    'resync stays a plain row')
   assert.ok(/class="menu-item"[^>]*bindtap="exportData"/.test(settingsWxml),
     'export stays a plain menu row')
-  assert.ok(!/class="menu-item danger"[^>]*bindtap="(exportData|about|goMemory)"/.test(settingsWxml),
-    'danger styling is reserved for clear-local-data')
+  assert.ok(/class="menu-item danger"[^>]*bindtap="unbind"/.test(settingsWxml),
+    'unbind keeps the danger menu row')
+  assert.ok(!/class="menu-item danger"[^>]*bindtap="(exportData|about|clearData|openHelp)"/.test(settingsWxml),
+    'danger styling is reserved for unbind')
 })
 
 // ===== issue #81：输入焦点与非交互卡片的按压语义 =====
@@ -631,14 +632,14 @@ test('glass cards are not press targets', () => {
 })
 
 test('untappable settings rows do not take menu press feedback', () => {
-  // 房间码行和「日历显示」标题行没有 bindtap。它们带 non-interactive，
+  // 房间码行没有 bindtap。分组标题不是菜单行。
   // 全局与设置页的列表/菜单 :active 只命中可点行（issue #113）。
   const menuRows = collectElements(readPage('pages/settings/settings.wxml'))
     .filter((element) => classTokens(element).includes('menu-item'))
   const inert = menuRows.filter((element) => !isTapTarget(element))
-  assert.equal(inert.length, 2, 'settings has exactly two untappable menu rows')
-  assert.ok(classTokens(inert[0]).includes('room-code-item'), 'the room-code row stays first')
-  assert.equal(classTokens(inert[1]).includes('room-code-item'), false, 'the calendar-display title is the other inert row')
+  assert.equal(inert.length, 2, 'settings has the room-code row and the version row')
+  assert.ok(classTokens(inert[0]).includes('room-code-item'), 'the room-code row stays inert')
+  assert.equal(classTokens(inert[1]).includes('room-code-item'), false, 'the version row is the other inert row')
   for (const row of inert) {
     assert.ok(classTokens(row).includes('non-interactive'), `${describe(row)} needs the non-interactive modifier`)
   }

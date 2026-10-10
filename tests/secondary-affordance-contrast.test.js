@@ -177,8 +177,8 @@ const CASES = [
   { file: 'pages/bind/bind.wxss', selector: '.bound-status', surfaces: [['app.wxss', '.premium-card']], note: '绑定页已绑定成功标题' },
   { file: 'pages/bind/bind.wxss', selector: '.tab', surfaces: [['app.wxss', '.premium-card'], ['pages/bind/bind.wxss', '.tab-bar']], note: '绑定页未选中 tab' },
   { file: 'app.wxss', selector: '.btn-danger', surfaces: [], note: '危险操作（删除记录/解除绑定）' },
-  // issue #77：设置清除本地数据行在点之前就是危险样式，红字在卡片表面上同样要读得清
-  { file: 'pages/settings/settings.wxss', selector: '.menu-item.danger .menu-text', surfaces: [['app.wxss', '.premium-card']], note: '设置清除本地数据危险行文字' }
+  // issue #139：页底解除绑定在点之前就是危险样式，红字在卡片表面上同样要读得清
+  { file: 'pages/settings/settings.wxss', selector: '.menu-item.danger .menu-text', surfaces: [['app.wxss', '.premium-card']], note: '设置页解除绑定危险行文字' }
 ]
 
 test('the 4.5:1 benchmark: unselected tab grey on canvas navy', () => {

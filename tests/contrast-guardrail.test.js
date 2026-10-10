@@ -77,8 +77,8 @@ test('non-interactive titles use the neutral text color, not rose', () => {
     assert.equal(declarationOf(file, '.empty-state', 'color'), 'rgba(255,255,255,0.5)')
   }
 
-  // 设置名称
-  assert.equal(declarationOf('pages/settings/settings.wxss', '.profile-name', 'color'), 'rgba(255,255,255,0.9)')
+  // 设置分组标题
+  assert.equal(declarationOf('pages/settings/settings.wxss', '.settings-group-title', 'color'), NEUTRAL_TITLE_COLOR)
 })
 
 test('month title, period figures, today and the period dot stay rose', () => {
@@ -101,7 +101,7 @@ test('settings clear-local-data uses warning-red text and warning-red border bef
   assert.equal(declarationOf('app.wxss', '.btn-danger', 'border'), `1px solid ${WARNING_RED_BORDER}`)
 })
 
-test('the light heart stays the happy-time color on the settings entry', () => {
-  assert.equal(declarationOf('pages/settings/settings.wxss', '.menu-heart', 'color'), LIGHT_HEART)
+test('the light heart stays the happy-time color on memory rows', () => {
+  assert.equal(wxssRuleBody('pages/settings/settings.wxss', '.menu-heart'), null)
   assert.equal(declarationOf('pages/memory/memory.wxss', '.memory-heart', 'color'), LIGHT_HEART)
 })

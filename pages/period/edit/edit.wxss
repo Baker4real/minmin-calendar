@@ -48,6 +48,10 @@
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.5);
 }
+.period-length-hint {
+  display: block;
+  margin-top: 12rpx;
+}
 .form-picker {
   display: flex;
   align-items: center;
