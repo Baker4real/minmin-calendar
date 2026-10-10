@@ -45,10 +45,10 @@ Open this folder in WeChat Developer Tools using `project.config.json`.
 
 Two details make `watchOptions.ignore` easy to get wrong:
 
-- The IDE reads it only when it initializes the project watcher, so edits require reopening the project — a recompile is not enough. Confirm the loaded list in the IDE log's `new FileUtils instance dirpath = <project root>` block rather than assuming the file on disk is active.
+- The IDE reads it only when it initializes the project watcher, so edits require reopening the project — a recompile is not enough. `npm run devtools:preflight` reads the watcher's list from the IDE log's `new FileUtils instance dirpath = <project root>` block and compares it with the file.
 - The watcher emits events for bare directory paths (`.git`) as well as paths inside them. A `dir/**/*` pattern does not match the bare `dir` event, so each ignored directory needs both its bare name and its subpath glob. This matters for `.git` specifically because a plain `git status` bumps the `.git` directory mtime without modifying any file inside it, so routine git usage alone is enough to trigger the event.
 
-`packOptions.ignore` has the same reload trap: the IDE keeps the list it loaded when the project opened, and the automatic recompile after a `project.config.json` edit does not refresh it. Reopen the project, then confirm with 代码质量 → 重新扫描; an upload runs the same scan on the package it sends. Keep everything that is not mini program runtime in `packOptions.ignore` — `tests/`, `docs/`, and the root `package.json`, `package-lock.json` and `.okf-frontmatter.json`. The 图片和音频资源 item sums every image and audio file in the package against 200 KB, so a few `docs/evidence/` screenshots are enough to fail it.
+`packOptions.ignore` is not reliably reloaded either: after a `project.config.json` edit DevTools sometimes rebuilds its compiler with the new list and sometimes keeps the old one until the project is reopened. Run `npm run devtools:preflight` after editing either list; it compares what DevTools loaded with the file and prints the last code-quality result. `tests/package-contents.test.js` pins which roots may ship, and [代码质量扫描口径](docs/devtools-verification.md#代码质量扫描口径) records how the scan counts.
 
 2026-08-14：开发者工具控制台若只有 `WAServiceMainContext.js` 的 `Error: timeout`、堆栈不含本仓库路径，视为工具内部通信噪音，不要当成 `utils/cloud.js` 或云函数超时去改业务代码。本机重新编译后该行未再出现，小程序可正常使用。
 
@@ -94,36 +94,9 @@ npm run verify
 
 首次安装及 Playwright 版本升级后运行 `browser:install`，浏览器保存在项目 `.scratch/browsers/`。日常输出只显示结果和日志路径；完整日志在 `.scratch/verify/`，坐标与截图证据在 `.scratch/coordinate-hit/`。任何检查失败均退出非零；CI 失败时保留这些诊断产物。`npm test`、`npm run check`、`npm run test:hit` 可用于单独定位，不能代替完整验收。
 
-UI 改动仍需微信开发者工具验证。连接预检、MCP 备用路径、截图与视口记录见 [开发者工具验证](docs/devtools-verification.md)。选择器 `tap()` 可以绕过遮挡，不能证明实际点击可达；Chromium 坐标回归只验证提取的导航栏 CSS，微信验收另行记录实际视口。2026-10-10 本次微信运行态为 430×932，工具菜单打开、图例交接与关闭已验证，用户手动点击确认恢复；320px 微信视口未验证。
+UI 改动仍需微信开发者工具验证。连接预检、MCP 备用路径、截图与视口记录见 [开发者工具验证](docs/devtools-verification.md)。选择器 `tap()` 可以绕过遮挡，不能证明实际点击可达；Chromium 坐标回归只验证提取的导航栏 CSS，微信验收另行记录实际视口。
 
-2026-08-13：`page` 上的 `auroraFlow` 已删除，理由是全屏 `background-position` 动画会每帧触发整页 repaint，页面动感改由 `.page::before` 的 `auroraPulse` 承担。`tabBar.borderStyle` 经审查保持 `white`。tab 图标 81×81 缺设计源，未做。
-2026-08-14：微信开发者工具重新编译通过，启动可用；此前控制台单独出现的 `WAServiceMainContext.js` `Error: timeout` 未再复现。真机小屏目检和 tab 图标重出仍未做。
-
-2026-09-01：修复滚动后顶部显示不全与底部色带分层。顶部：`env(safe-area-inset-top)` 在部分 Android 设备解析为 0，自定义导航栏顶进系统状态栏；现由 `utils/safeArea.js` 用 `wx.getWindowInfo()` 计算状态栏高度（px），各页面根节点内联 `--safe-top` CSS 变量注入 `.safe-top` 与 index 的 `.sync-pill`。底部：原 `page` 线性渐变随文档高度拉伸，滚动到底部回到 #0A0E27 形成色带；且 `pageEnter` 位移动画因 fill-mode both 永久保留 transform，使 `position:fixed` 的 `.page::before` 退化为相对文档定位。现 `page` 改为实色 #0A0E27 基底，渐变并入视口固定的 `.page::before` 末层，`pageEnter` 只保留淡入。真机/DevTools 目检仍未做。
-
-2026-09-15：Aurora Bloom 可读性收口已合入 `4bd1b54`：主填充为海军字叠玫瑰、tab 未选中 `#7A7C8C`、玻璃叠层带不透明海军回退、节日标签盒高 `38rpx` 以免 CJK 裁切。`DESIGN.md` 是唯一现行视觉说明。微信开发者工具小屏目视仍未做。
-
-2026-09-22：epic #52（issues #53–#59）已合入 `394cb4c`：共享视觉 token 契约与全页面护栏、全页面字体层级、首页 IA 重排（密度偏好迁入设置页、CTA 玫瑰+海军字、金色白名单）、窄屏几何与底部安全区运行时策略（`utils/safeArea.js` 新增 `getSafeBottom`，七页注入 `--safe-bottom`）、交互语义与次级操作对比度、动效/玻璃/reduced-motion 边界。issues #52–#67 已关闭。真机、读屏实听和系统减弱动效不是 live verified；画面证据只有 430 宽静态截图，320/375 人工视口未做。
-
-2026-09-23：epic #68（issues #69–#70）已合入 `46dd749`：首页统计卡左半块（经期记录条数）复用 `goPeriodList` 切换到经期记录 tab，右半块（预测下次）复用 `openPredictionSheet` 打开现有预测说明；两半块带完整读屏名称（含 0 条与无日期两套文案）和 0.98 按压（已在减弱动效名单内），分隔线与整卡不可点，`pages/index/index.js` 零改动。issues #68–#70 已关闭。微信开发者工具小屏目视已于 2026-09-23 由用户本人确认无问题；真机读屏实听与减弱动效实机仍未验证。
-
-2026-09-24：epic #71（issues #72–#81）已合入远端 `main`：日历标记、记录操作与 Room 反馈对齐。微信开发者工具小屏目检、真机、读屏实听、系统减弱动效均未验证。
-
-2026-09-24：epic #82 子票 #83、#84 已合入远端 `main`：绑定页房间码与复制按钮同行。微信开发者工具小屏目检（issue #85）未验证；真机、读屏实听、系统减弱动效实机沿用既有未验证口径。
-
-2026-09-25：epic #86 子票 #87–#89 已合入远端 `main`（`1f1fa10`）：绑定页紫粉试点。微信开发者工具小屏目检未验证；真机、读屏实听、系统减弱动效实机沿用既有未验证口径。
-
-2026-09-26：epic #90 子票 #91–#93：重叠日只表达经期（投影 `isPredict` 为假，模板只按该标记画「预」）；Period duration 在起止日期都在时只按含首尾天数计算（`cycle.getPeriodDuration`，不信存库 duration）；经量/症状允许值集合由测试锁住周期 module 与云端副本一致。本地轻量检查覆盖本改动面；微信开发者工具小屏未验证，非 live verified。
-
-2026-09-30：epic #94 子票 #95–#98：经期记录三态契约（进行中/结束日期不详/已结束且有结束日期）落地。新增默认「进行中」只填开始日期即可保存，补填结束日期完成同一条记录；同一 Room 重复新增与云端并发按确定性赢家收敛回唯一进行中，输家降为「结束日期不详」不删除；统计与预测只用已知结束的精确时长，预测结束日按「用户设置→已完成中位数→五天默认」优先级计算且绝不写回记录；超期进行中记录在首页获得一次非阻塞完成提醒（本地持久化去重，点击打开原记录）。改动覆盖 `utils/cycle.js`、`utils/homeCalendarState.js`、`utils/calendarInsights.js`、`pages/period/`（含 edit）、`pages/index/` 与 `cloudfunctions/dataOp/roomRecords.js`（云端契约已改、**尚未部署**）。584 项本地测试全绿（含四条云端并发收敛专项测试）+ 完整轻量组合通过；已知遗留：客户端领域层对 known-end+空结束日期仍单日回退（页面与云端均拦截，与云端 normalization 不完全一致）、`typicalPeriodLength` 用户配置档暂无生产设置入口——均按低危打磨项记录。微信开发者工具小屏目检、真机、读屏实听与云函数部署未做，非 live verified。
-
-2026-10-08：epic #99 子票 #100–#106：全页面 UX 收敛。日历补记经期默认按开始日期推导（今天→进行中，更早→已结束且起止同一天），日历「记录经期」沿用快捷决策、已有进行中记录时直接打开它，未来日期不提供该入口；保存被云端合并重开（`reopened: true`）时改说明 modal 并切到被重开记录，普通成功反馈不变；已绑定冷启动直达首页（校验失败可重试，「进入应用」仅在跳转失败或创建后兜底），「解除绑定」移到设置页房间卡（警示红、二次确认文案不变、成功 reLaunch 回绑定页），创建后提示「把房间码发给 TA」、加入成功提示「已和 TA 连上」；「记录」tab 改为经期/欢乐时光分段（radio 语义、无返回键、四态行为分段保留、一次性 storage 意图落分段，独立 memory 页保留为兼容路由）；绑定页收敛回 Aurora Bloom（删除紫粉试点 token 与例外色板、DESIGN.md 登记「不推广」结论、#78 复制键同款契约重建、needUnbind 就地解除归入警示红族）；首页减负为记录入口→合并状态卡（条数+预测+提醒）→空态引导，图例/预测/小结收进月份标题「…」菜单；细节统一（♥ 字形、清除确认去 ⚠️、「补欢乐时光」术语、两个编辑页 transition 覆盖 reduced-motion、spinner 与同步胶囊可读屏）。两轮评审（Standards/Spec 双轴）后修复 5 项：编辑页保存/删除补写分段意图（修复首页快捷入口落分段缺口）、「进入应用」按跳转失败/创建后双条件门控、CONTEXT.md/README/ADR 0007 文档对齐。零云函数改动，无需部署。622 项本地测试全绿 + 完整轻量组合通过；微信开发者工具小屏目检（分段控件几何、月份菜单观感、绑定页 Aurora 收敛）、真机、读屏实听、系统减弱动效实机未做，非 live verified。
-
-2026-10-08：epic #107 子票 #108–#109：「记录」tab 欢乐时光按月份分组。每月一张卡（卡头「YYYY年M月 · N 条」，条数与首页本月小结同口径，月份与组内记录均从新到旧，行显示「M月D日」+备注，按记录 id 定位编辑），月份键、展开选择常量与读屏名收敛到 `utils/memoryMonthGroups.js`；卡头点按展开/收起（默认只展开最近一个有记录的月份，页面内存记手动选择、切分段/重载/刷新失败保留、重启回默认，文字「展开/收起」入口登记 DESIGN.md 并澄清触控高度换算口径）；保存（新增/修改）后自动展开记录所在月份，删除不改展开状态、删光的月份卡消失。评审修复阶段补齐：删光月份消失的页面测试、ariaLabel 所有权、monthKey/魔法串收敛、DESIGN.md 触控口径澄清。634 项本地测试全绿 + 完整轻量组合通过；真机、读屏实听、减弱动效实机未做，非 live verified。2026-10-09 补：DevTools 自动化截图目检（`tests/devtoolsCapture.mjs`，`cli.bat auto --trust-project` 后 `--ws` 连接）通过——首页、记录 tab 经期与欢乐时光分段（月份卡 + 展开/收起）均正常渲染，≈375px 视口；320px 口径仍由 narrow-screen 静态账本钉住，未重截。
-
-2026-10-09：epic #110（issues #111–#122）：动效收敛。一次性时长收成五档 token；翻月在一次页面更新里完成；按压只作用在可点控件上；设置页每次创建实例时读当时的本机房间缓存作为首帧（有码则房间码与复制/解除绑定，无码则「读取中…」，不出复制/解除绑定，也不先写「未绑定」），onShow 的云端校验仍是最终依据；绑定页在第一次房间校验出结果前只留品牌心；首页弹层共用进场与离场，工具菜单交接信息层；当日详情淡入；弹层盖住页面时暂停常驻装饰；拖动手把松手后决定关闭或回位；同步胶囊淡出，离场过程中文案保持，卸载后再清空，显示、隐藏、文案切换和 1600ms 自动隐藏的时机不变；保存和删除在回到页面之前保持禁用；玻璃着色是盖在 `var(--glass-fallback)` 上的一层平的 linear-gradient（方向 b）。676 项本地测试全绿 + 完整轻量组合通过。2026-10-09 补：微信开发者工具里，修改前玻璃面 `background-color` 为透明、`background-image` 为 none；修改后为 `rgba(18,22,61,0.92)` 加平涂 `linear-gradient`。按压底色要靠 `hover-class` 才会画出来：按住月份箭头时白层从 0.1 变成 0.2，按住设置页危险行时变成 `rgba(249,115,115,0.12)`。320px、真机拖动与橡皮筋、iOS 沿祖先链的 `:active`、Android 暂停收益、系统减弱动效仍未验证。
-
-2026-10-10：epic #123 的验证条目在 `docs/verification-log.md`。
+每个 epic 的验证记录（要点、测试数、未验证项）在 [docs/verification-log.md](docs/verification-log.md)。
 
 ## Repository Hygiene
 

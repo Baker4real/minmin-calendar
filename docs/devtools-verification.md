@@ -11,10 +11,11 @@ intent: "连接预检、MCP 调用及截图证据边界"
 
 ## 连接路径
 
-先运行 `npm run devtools:preflight`。它分别检查官方 CLI 的服务/登录响应，以及本机 automator 端口；TCP 监听只表示可开始握手，不代表页面可用。可传 `-- --ide <安装目录> --ws ws://127.0.0.1:9420`。
+先运行 `npm run devtools:preflight`。它分别检查官方 CLI 的服务/登录响应，以及本机 automator 端口；TCP 监听只表示可开始握手，不代表页面可用。它还比对开发者工具已加载的 `packOptions`、`watchOptions` 与磁盘上的 `project.config.json`，并打印最近一次代码质量结果（见下文「代码质量扫描口径」）。可传 `-- --ide <安装目录> --ws ws://127.0.0.1:9420`。
 
 | 结果 | 下一步 |
 |---|---|
+| `DevTools loaded project.config.json` 为 FAIL | 开发者工具还在用旧配置：关闭并重新打开项目后重跑。SKIP 表示没找到本项目的状态文件，先在开发者工具里打开项目。 |
 | CLI 未确认登录或超时 | 检查 IDE 登录与服务端口；脚本 10 秒后退出，保留诊断摘要。 |
 | CLI 正常，9420 未监听 | 运行下面的 `auto` 命令一次；若仍停在 preparing，使用 MCP 备用路径。 |
 | 9420 已监听 | 运行 `devtoolsCapture.mjs --ws`；握手超过 15 秒即失败，转 MCP。 |
@@ -48,6 +49,17 @@ npm run devtools:mcp -- --requests .scratch/devtools/requests.json
 ```
 
 JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、超时、bridge 异常退出都会产生非零退出码并停止后续请求。默认每个请求 25 秒，可用 `--timeout` 调整。常规输出仅显示工具结果摘要和日志位置，完整脱敏通信日志保存在 `.scratch/devtools/`；失败详情从本次日志定向读取。日志可能包含当前页面数据，仅供本地检查，不上传或入库。
+
+## 代码质量扫描口径
+
+官方文档没写这两项怎么统计；以下读自开发者工具 2.02.2609231 安装包里的扫描器（as of 2026-10-10）。允许进包的根目录和两项预算由 `tests/package-contents.test.js` 钉住。
+
+- 「主包大小」：主包所有文件的字节和，不含 `.js.map`，上限 1.5 MiB。
+- 「图片和音频资源」：整个包里所有图片和音频文件的字节**总和**要小于 200 KB，不是单个文件的上限。
+- 计入的文件：项目文件扣除 `packOptions.ignore` 和云函数目录后，再按上传白名单过滤（含 `.png`、`.json`、`.js`、`.wxml`，不含 `.md`、`.mjs`、`.yml`）。「无依赖文件过滤」只处理代码文件，截图照样进包。
+- 扫描时机：只有点面板的「重新扫描」或上传时才扫，CLI 和内置工具都触发不了。面板不显示各包字节数和文件明细，`npm run devtools:preflight` 会打印最近一次结果。
+- 配置生效：`project.config.json` 改动后，开发者工具不一定重新读取 `packOptions`。2026-10-10 单独改这个文件时它当场读入；与其他文件一批改动时，直到重开项目都没读入。`watchOptions` 只在打开项目时读取。改完先跑预检，报配置过期就关闭并重新打开项目，再重新扫描。
+- 回查规则：在安装目录的 `resources/app.asar` 里用 `rg -a` 搜规则名 `PACKAGE_SIZE_LIMIT`、`IMAGE_AND_AUDIO_LIMIT`。
 
 ## 点击与截图验收
 
