@@ -2929,9 +2929,10 @@ test('the calendar area tracks month swipes in WXS and does not follow the finge
   assert.match(region, /bindtouchend="\{\{monthSwipe\.touchEnd\}\}"/)
   assert.match(region, /bindtouchcancel="\{\{monthSwipe\.touchEnd\}\}"/)
   assert.match(region, /bindtap="onDayTap"/)
-  assert.match(wxml, /<wxs module="monthSwipe" src="\.\.\/\.\.\/utils\/monthSwipe\.wxs"><\/wxs>/)
-
-  const wxs = fs.readFileSync(path.join(repoRoot, 'utils/monthSwipe.wxs'), 'utf8')
+  assert.doesNotMatch(wxml, /monthSwipe\.wxs/)
+  const inline = wxml.match(/<wxs module="monthSwipe">([\s\S]*?)<\/wxs>/)
+  assert.ok(inline, 'month swipe script stays inside the page so the compiler does not look up a separate wxs file')
+  const wxs = inline[1]
   assert.match(wxs, /var SWIPE_PX = 48/)
   assert.match(wxs, /absX > SWIPE_PX && absX > absY/)
   assert.match(wxs, /callMethod\('onCalendarSwipe'/)

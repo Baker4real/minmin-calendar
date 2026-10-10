@@ -1,6 +1,66 @@
 <view class="page safe-top {{pageObscured ? 'page-obscured' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
 <wxs module="sheetDrag" src="../../utils/sheetDrag.wxs"></wxs>
-<wxs module="monthSwipe" src="../../utils/monthSwipe.wxs"></wxs>
+<wxs module="monthSwipe">
+var SWIPE_PX = 48
+
+function touchStart(event, ownerInstance) {
+  var instance = event.instance
+  if (!instance) return
+  var state = instance.getState()
+  if (state.tracking) return
+  var touch = event.touches && event.touches[0]
+  if (!touch) return
+  state.tracking = true
+  state.identifier = touch.identifier
+  state.startX = touch.pageX
+  state.startY = touch.pageY
+}
+
+function touchMove(event, ownerInstance) {
+  var instance = event.instance
+  if (!instance) return
+  var state = instance.getState()
+  if (!state.tracking) return
+  var touch = findTouch(event.touches, state.identifier)
+  if (!touch) return
+  if (horizontalWins(touch.pageX - state.startX, touch.pageY - state.startY)) return false
+}
+
+function touchEnd(event, ownerInstance) {
+  var instance = event.instance
+  if (!instance) return
+  var state = instance.getState()
+  if (!state.tracking) return
+  var touch = findTouch(event.changedTouches, state.identifier)
+  state.tracking = false
+  if (!touch) return
+  var dx = touch.pageX - state.startX
+  var dy = touch.pageY - state.startY
+  if (!horizontalWins(dx, dy)) return
+  ownerInstance.callMethod('onCalendarSwipe', { dx: dx, dy: dy })
+}
+
+function horizontalWins(dx, dy) {
+  var absX = dx < 0 ? -dx : dx
+  var absY = dy < 0 ? -dy : dy
+  return absX > SWIPE_PX && absX > absY
+}
+
+function findTouch(touches, identifier) {
+  if (!touches) return null
+  var index = 0
+  for (index = 0; index < touches.length; index++) {
+    if (touches[index].identifier === identifier) return touches[index]
+  }
+  return null
+}
+
+module.exports = {
+  touchStart: touchStart,
+  touchMove: touchMove,
+  touchEnd: touchEnd
+}
+</wxs>
   <view class="reduced-motion-probe" aria-hidden="true"></view>
   <!-- Aurora Decorative Orbs -->
   <view class="glow-orb glow-orb-1"></view>

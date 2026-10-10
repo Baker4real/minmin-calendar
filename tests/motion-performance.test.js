@@ -1075,7 +1075,9 @@ test('calendar month swipe stays instant under reduced motion', () => {
   assert.match(design, /不跟手、不加翻页动画/)
   assert.match(design, /减弱动效下同样即时/)
 
-  const wxs = readRepo('utils/monthSwipe.wxs')
+  const inline = readRepo('pages/index/index.wxml').match(/<wxs module="monthSwipe">([\s\S]*?)<\/wxs>/)
+  assert.ok(inline, 'month swipe script is inline')
+  const wxs = inline[1]
   assert.doesNotMatch(wxs, /setStyle|translate|animation/)
 
   const app = analyzeFile(readRepo('app.wxss'))
