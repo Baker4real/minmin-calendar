@@ -20,10 +20,15 @@ test('syntax discovery excludes dependencies and finds nested source and tools',
   assert.ok(sourceFiles(__dirname).some(file => file.endsWith('verify.cjs')))
 })
 
-test('logged checks reject syntax errors and retain diagnostics', () => {
+test('logged checks reject syntax errors and retain diagnostics', t => {
   const scratch = path.join(repoRoot, '.scratch', 'verify-tests')
   fs.mkdirSync(scratch, { recursive: true })
   const dir = fs.mkdtempSync(path.join(scratch, 'negative-'))
+  // Remove exactly the files this test writes, then the empty directory; no recursive delete.
+  t.after(() => {
+    for (const name of ['invalid.js', 'invalid.log', 'exit.log']) fs.rmSync(path.join(dir, name), { force: true })
+    fs.rmdirSync(dir)
+  })
   const invalid = path.join(dir, 'invalid.js')
   fs.writeFileSync(invalid, 'const broken = ;')
   assert.equal(runLogged('invalid', ['--check', invalid], dir), false)

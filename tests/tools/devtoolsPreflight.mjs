@@ -78,7 +78,7 @@ async function main() {
   results.push(configResult)
   const out = path.join(root, '.scratch', 'devtools')
   mkdirSync(out, { recursive: true })
-  const log = path.join(out, `preflight-${Date.now()}.json`)
+  const log = path.join(out, 'preflight.json')
   writeFileSync(log, JSON.stringify({ endpoint: options.ws, results, quality }, null, 2))
   for (const result of results) console.log(`${result.skipped ? 'SKIP' : result.ok ? 'PASS' : 'FAIL'} ${result.name}${result.error ? `: ${result.error}` : ''}${result.note ? ` (${result.note})` : ''}`)
   if (quality) {

@@ -92,7 +92,7 @@ npm run verify
 
 `npm run verify` 是本地、提交钩子与 CI 的共同入口：检查 app、pages、utils、cloudfunctions、tests 中的 JavaScript 语法，自动发现全部 `tests/*.test.js`，核对 Room artifact，再运行 320/375/430 宽度的坐标命中回归。依赖和临时目录不进入语法清单；新增源文件无需维护 README 清单。
 
-首次安装及 Playwright 版本升级后运行 `browser:install`，浏览器保存在项目 `.scratch/browsers/`。日常输出只显示结果和日志路径；完整日志在 `.scratch/verify/`，坐标与截图证据在 `.scratch/coordinate-hit/`。任何检查失败均退出非零；CI 失败时保留这些诊断产物。`npm test`、`npm run check`、`npm run test:hit` 可用于单独定位，不能代替完整验收。
+首次安装及 Playwright 版本升级后运行 `browser:install`，浏览器保存在项目 `.scratch/browsers/`。日常输出只显示结果和日志路径；完整日志在 `.scratch/verify/`，坐标与截图证据在 `.scratch/coordinate-hit/`，两处都只保留最近一次运行。任何检查失败均退出非零；CI 失败时保留这些诊断产物。`npm test`、`npm run check`、`npm run test:hit` 可用于单独定位，不能代替完整验收。
 
 UI 改动仍需微信开发者工具验证。连接预检、MCP 备用路径、截图与视口记录见 [开发者工具验证](docs/devtools-verification.md)。选择器 `tap()` 可以绕过遮挡，不能证明实际点击可达；Chromium 坐标回归只验证提取的导航栏 CSS，微信验收另行记录实际视口。
 

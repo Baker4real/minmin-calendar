@@ -12,15 +12,20 @@ test('preflight finds the project state DevTools wrote and names the rules it ha
   const scratch = path.join(repoRoot, '.scratch', 'devtools-state-tests')
   fs.mkdirSync(scratch, { recursive: true })
   const localAppData = fs.mkdtempSync(path.join(scratch, 'appdata-'))
-  t.after(() => fs.rmSync(localAppData, { recursive: true, force: true }))
   const [dataDir] = userDataDirs(ide, localAppData)
+  const [other, demo] = ['localstorage_aa.json', 'localstorage_bb.json'].map(name => path.join(dataDir, name))
+  // Remove exactly the files this test writes, then each emptied directory up to localAppData; no recursive delete.
+  t.after(() => {
+    for (const file of [other, demo]) fs.rmSync(file, { force: true })
+    for (let dir = dataDir; dir.startsWith(localAppData); dir = path.dirname(dir)) if (fs.existsSync(dir)) fs.rmdirSync(dir)
+  })
   const asarHash = crypto.createHash('md5').update('D:\\Program Files (x86)\\Tencent\\微信web开发者工具\\resources\\app.asar').digest('hex')
   assert.equal(path.basename(path.dirname(dataDir)), asarHash)
 
   const loaded = { projectpath: 'D:\\agents\\projects\\demo', packOptions: { ignore: [{ value: 'tests', type: 'folder' }], include: [] } }
   fs.mkdirSync(dataDir, { recursive: true })
-  fs.writeFileSync(path.join(dataDir, 'localstorage_aa.json'), JSON.stringify({ ...loaded, projectpath: 'D:\\agents\\projects\\other' }))
-  fs.writeFileSync(path.join(dataDir, 'localstorage_bb.json'), JSON.stringify(loaded))
+  fs.writeFileSync(other, JSON.stringify({ ...loaded, projectpath: 'D:\\agents\\projects\\other' }))
+  fs.writeFileSync(demo, JSON.stringify(loaded))
   const found = findProjectState(userDataDirs(ide, localAppData), 'd:/agents/projects/demo')
   assert.equal(path.basename(found.file), 'localstorage_bb.json')
   assert.equal(findProjectState(userDataDirs(ide, localAppData), 'D:\\agents\\projects\\missing'), null)

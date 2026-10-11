@@ -8,9 +8,12 @@ process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(root, '.scratch', 'browsers')
 const { chromium } = require('playwright')
 
 async function main() {
-  const out = path.join(root, '.scratch', 'coordinate-hit', `${Date.now()}-${process.pid}`)
+  const out = path.join(root, '.scratch', 'coordinate-hit')
+  const widths = [320, 375, 430]
   const temp = path.join(root, '.scratch', 'tmp')
   fs.mkdirSync(out, { recursive: true })
+  // Each run replaces the last; clear its files first so a failed run cannot leave older screenshots beside new evidence.
+  for (const name of ['evidence.json', ...widths.map(width => `nav-${width}.png`)]) fs.rmSync(path.join(out, name), { force: true })
   fs.mkdirSync(temp, { recursive: true })
   process.env.TEMP = temp
   process.env.TMP = temp
@@ -22,7 +25,7 @@ async function main() {
     const nav = wxml.match(/<view class="nav-bar header-gradient">([\s\S]*?)<\/view>\s*<\/view>/)
     assert.ok(nav, 'navbar fixture must be extracted from the current WXML')
     assert.match(nav[0], /class="nav-tool"[^>]*bindtap="openMonthMenu"/)
-    for (const width of [320, 375, 430]) {
+    for (const width of widths) {
       const page = await browser.newPage({ viewport: { width, height: 932 } })
       const sources = ['app.wxss', 'pages/index/index.wxss'].map(file => fs.readFileSync(path.join(root, file), 'utf8'))
       const selectors = new Set(['page', '.nav-bar', '.nav-title', '.nav-tool', '.header-gradient', '.header-gradient::before', '.header-gradient::after'])

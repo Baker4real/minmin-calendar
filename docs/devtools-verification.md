@@ -48,7 +48,7 @@ npm run devtools:mcp -- --requests .scratch/devtools/requests.json
 ]
 ```
 
-JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、超时、bridge 异常退出都会产生非零退出码并停止后续请求。默认每个请求 25 秒，可用 `--timeout` 调整。常规输出仅显示工具结果摘要和日志位置，完整脱敏通信日志保存在 `.scratch/devtools/`；失败详情从本次日志定向读取。日志可能包含当前页面数据，仅供本地检查，不上传或入库。
+JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、超时、bridge 异常退出都会产生非零退出码并停止后续请求。默认每个请求 25 秒，可用 `--timeout` 调整。常规输出仅显示工具结果摘要和日志位置，完整脱敏通信日志保存在 `.scratch/devtools/mcp.jsonl`，每次运行覆盖上一次；失败详情从该日志定向读取。日志可能包含当前页面数据，仅供本地检查，不上传或入库。
 
 ## 代码质量扫描口径
 
@@ -63,7 +63,7 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 
 ## 点击与截图验收
 
-`npm run test:hit` 从当前 WXML 提取导航栏，从 WXSS 提取相应规则，在 Chromium 的 320、375、430 宽度按坐标点击按钮中心。每种宽度随后恢复装饰层拦截，必须观察到点击失效，证明检查能捕获原故障。截图和实际 viewport 保存到 `.scratch/coordinate-hit/`。这验证 CSS 命中，不模拟微信布局引擎或完整页面流程。
+`npm run test:hit` 从当前 WXML 提取导航栏，从 WXSS 提取相应规则，在 Chromium 的 320、375、430 宽度按坐标点击按钮中心。每种宽度随后恢复装饰层拦截，必须观察到点击失效，证明检查能捕获原故障。截图和实际 viewport 保存到 `.scratch/coordinate-hit/`，每次运行覆盖上一次。这验证 CSS 命中，不模拟微信布局引擎或完整页面流程。
 
 `devtoolsCapture.mjs` 在已渲染的 `.page` 出现后截图，将微信 `systemInfo` 的实际 `windowWidth/windowHeight`、页面路径和时间追加到截图目录的 `captures.jsonl`。MCP `--preflight` 同样报告实际视口。要验收小屏，先在 IDE 选择小屏机型，再回读视口；不能根据图片尺寸或机型名称推断已验证 320px。
 

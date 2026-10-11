@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { McpClient, createRedactor } from './mcpTransport.mjs'
@@ -93,7 +93,7 @@ export async function main(argv = process.argv.slice(2)) {
   try {
     const options = parseArgs(argv)
     if (options.help) {
-      console.log('node tests/tools/wechatMcp.mjs [--preflight | --requests file.json | --list | --schema exact_tool_name] [--ide directory] [--project directory] [--timeout ms]\nToken: hidden terminal input or WECHAT_MCP_TOKEN; never pass tokens as arguments. Full redacted logs: .scratch/devtools/.')
+      console.log('node tests/tools/wechatMcp.mjs [--preflight | --requests file.json | --list | --schema exact_tool_name] [--ide directory] [--project directory] [--timeout ms]\nToken: hidden terminal input or WECHAT_MCP_TOKEN; never pass tokens as arguments. Full redacted log: .scratch/devtools/mcp.jsonl, overwritten by each run.')
       return 0
     }
     const executable = path.join(options.ide, '微信开发者工具.exe')
@@ -106,7 +106,8 @@ export async function main(argv = process.argv.slice(2)) {
     redact = createRedactor([token])
     const logDir = path.join(repoRoot, '.scratch/devtools')
     mkdirSync(logDir, { recursive: true })
-    logPath = path.join(logDir, `mcp-${new Date().toISOString().replaceAll(':', '-')}-${process.pid}.jsonl`)
+    logPath = path.join(logDir, 'mcp.jsonl')
+    writeFileSync(logPath, '')
     const log = event => appendFileSync(logPath, JSON.stringify({ time: new Date().toISOString(), ...event }) + '\n')
     const bootstrap = "const e=process.argv[1],a=process.argv.slice(2);process.argv=[process.execPath,e,'--electron'].concat(a);require(e)"
     const env = { ...process.env, ELECTRON_RUN_AS_NODE: '1' }

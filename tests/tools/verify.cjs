@@ -29,7 +29,8 @@ function runLogged(name, args, logDir, cwd = root) {
 }
 
 function main() {
-  const logDir = path.join(root, '.scratch', 'verify', `${new Date().toISOString().replace(/[:.]/g, '-')}-${process.pid}`)
+  // One fixed directory that each run overwrites, so runs never pile up under .scratch.
+  const logDir = path.join(root, '.scratch', 'verify')
   fs.mkdirSync(logDir, { recursive: true })
   const files = ['app.js', ...['pages', 'utils', 'cloudfunctions', 'tests'].flatMap(dir => sourceFiles(path.join(root, dir)))]
   const syntaxLog = path.join(logDir, 'syntax.log')
