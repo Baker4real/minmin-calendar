@@ -4,10 +4,24 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { parseWxssRules } = require('../designTokens')
 const root = path.resolve(__dirname, '../..')
-process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(root, '.scratch', 'browsers')
-const { chromium } = require('playwright')
+
+// Chromium once failed a capture with "Unable to capture screenshot" after the click had already worked (2026-10-11).
+// One retry keeps that transient failure from failing verify; a second failure still fails the run.
+async function screenshotWithRetry(page, options, { attempts = 2, warn = console.warn } = {}) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await page.screenshot(options)
+    } catch (error) {
+      if (attempt >= attempts) throw error
+      warn(`WARN screenshot attempt ${attempt} failed (${String(error.message).split('\n')[0]}); retrying`)
+    }
+  }
+}
 
 async function main() {
+  // Playwright reads the browser path when it loads, so set it first; loading here keeps the helper testable without it.
+  process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(root, '.scratch', 'browsers')
+  const { chromium } = require('playwright')
   const out = path.join(root, '.scratch', 'coordinate-hit')
   const widths = [320, 375, 430]
   const temp = path.join(root, '.scratch', 'tmp')
@@ -44,7 +58,7 @@ async function main() {
       await page.mouse.click(point.x, point.y)
       const visible = await page.locator('#menu').isVisible()
       evidence.push({ viewport: page.viewportSize(), box, hit, menuVisible: visible })
-      await page.screenshot({ path: path.join(out, `nav-${width}.png`) })
+      await screenshotWithRetry(page, { path: path.join(out, `nav-${width}.png`) })
       assert.equal(visible, true, `${width}px: coordinate click must reach tools (hit ${hit})`)
       // Reintroduce the actual failure without changing repository files.
       await page.evaluate(() => { document.querySelector('#menu').hidden = true })
@@ -60,4 +74,5 @@ async function main() {
     console.log(`Evidence: ${out}`)
   }
 }
-main().catch(error => { console.error(error.message); process.exitCode = 1 })
+module.exports = { screenshotWithRetry }
+if (require.main === module) main().catch(error => { console.error(error.message); process.exitCode = 1 })
