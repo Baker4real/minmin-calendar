@@ -25,13 +25,49 @@ export function createRedactor(secrets = []) {
   }
 }
 
+// Fields that say why a tool failed. Everything else may be page data, so it stays in the redacted log.
+const ERROR_FIELDS = ['code', 'errCode', 'errno', 'error', 'errMsg', 'message', 'msg', 'reason']
+const SUMMARY_LIMIT = 300
+const clip = text => text.length > SUMMARY_LIMIT ? `${text.slice(0, SUMMARY_LIMIT)}...` : text
+
+function errorFields(value, nested = false) {
+  const fields = {}
+  for (const key of ERROR_FIELDS) {
+    const item = value[key]
+    if (item == null) continue
+    if (typeof item !== 'object') fields[key] = item
+    else if (!nested && !Array.isArray(item)) fields[key] = errorFields(item, true)
+  }
+  return fields
+}
+
+// A short summary for the FAIL line, so a failure can be classified without reading the log.
+function summarize(value) {
+  if (typeof value === 'string') {
+    let parsed
+    try { parsed = JSON.parse(value) } catch { /* Plain-text errors are shown as text. */ }
+    if (parsed && typeof parsed === 'object') return summarize(parsed)
+    return value.trim() ? JSON.stringify(clip(value.trim())) : ''
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return ''
+  const fields = errorFields(value)
+  if (Object.keys(fields).length) return clip(JSON.stringify(fields))
+  return clip(`(no error fields; keys: ${Object.keys(value).join(', ')})`)
+}
+
+const withSummary = (reason, summary) => summary ? `${reason} ${summary}` : reason
+
 export function toolFailure(result) {
-  if (result?.isError) return 'tool returned isError'
-  if (result?.structuredContent?.success === false) return 'tool returned success:false'
+  if (result?.isError) {
+    const text = (result.content || []).filter(item => item.type === 'text').map(item => item.text).join('\n')
+    return withSummary('tool returned isError', summarize(text))
+  }
+  if (result?.structuredContent?.success === false) return withSummary('tool returned success:false', summarize(result.structuredContent))
   for (const item of result?.content || []) {
     if (item.type !== 'text') continue
     try {
-      if (JSON.parse(item.text)?.success === false) return 'tool text returned success:false'
+      const parsed = JSON.parse(item.text)
+      if (parsed?.success === false) return withSummary('tool text returned success:false', summarize(parsed))
     } catch { /* Ordinary text is a valid MCP result. */ }
   }
   return null
@@ -101,7 +137,7 @@ export class McpClient {
   async call(request) {
     const result = await this.request('tools/call', request)
     const failure = toolFailure(result)
-    if (failure) throw new Error(`${request.name}: ${failure}; see the redacted log`)
+    if (failure) throw new Error(this.redact(`${request.name}: ${failure}; see the redacted log`))
     return result
   }
 

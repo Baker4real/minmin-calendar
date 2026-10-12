@@ -6,9 +6,9 @@ const peer = path.join(__dirname, 'fixtures/mcp-peer.cjs')
 
 for (const [mode, expected] of [
   ['rpc', /MCP -1: test failure/],
-  ['isError', /isError/],
-  ['structured', /success:false/],
-  ['text', /success:false/],
+  ['isError', /tool returned isError "bridge refused"/],
+  ['structured', /success:false \(no error fields; keys: success, data\)/],
+  ['text', /success:false \{"message":"test failure"\}/],
   ['timeout', /timed out/],
   ['exit', /bridge exited.*code=7/],
 ]) {
@@ -21,6 +21,23 @@ for (const [mode, expected] of [
     } finally { client.close() }
   })
 }
+
+async function failureMessage(mode, options = {}) {
+  const { McpClient } = await import('./tools/mcpTransport.mjs')
+  const client = new McpClient(process.execPath, [peer, mode], { timeoutMs: 1500, ...options })
+  try {
+    await client.initialize()
+    await client.call({ name: 'probe', arguments: {} })
+  } catch (error) { return error.message } finally { client.close() }
+  assert.fail(`${mode} call should fail`)
+}
+
+test('MCP failure messages carry redacted error fields but not page data', async () => {
+  const detailed = await failureMessage('detailed', { secrets: ['test-credential'] })
+  assert.match(detailed, /probe: tool returned success:false \{"error":\{"code":42\},"errMsg":"not ready for \[REDACTED\]"\}/)
+  const bare = await failureMessage('structured')
+  for (const message of [detailed, bare]) assert.doesNotMatch(message, /page-data|internal-stack|test-credential/)
+})
 
 test('MCP serial calls succeed without duplicating structured/text output', async () => {
   const { McpClient } = await import('./tools/mcpTransport.mjs')

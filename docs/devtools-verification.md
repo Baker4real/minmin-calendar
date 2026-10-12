@@ -19,7 +19,7 @@ intent: "连接预检、MCP 调用及截图证据边界"
 | CLI 未确认登录或超时 | 检查 IDE 登录与服务端口；脚本 10 秒后退出，保留诊断摘要。 |
 | CLI 正常，9420 未监听 | 运行下面的 `auto` 命令一次；若仍停在 preparing，使用 MCP 备用路径。 |
 | 9420 已监听 | 运行 `devtoolsCapture.mjs --ws`；握手超过 15 秒即失败，转 MCP。 |
-| MCP 预检失败 | 查看本次脱敏日志，核对 IDE 中现有 MCP token、项目路径和已打开的项目窗口。 |
+| MCP 预检失败 | 先看 FAIL 行附带的错误摘要；不够再定向查看本次脱敏日志，核对 IDE 中现有 MCP token、项目路径和已打开的项目窗口。 |
 | MCP 返回 `Client authorization pending` | 在 IDE 中批准 `minmin-devtools` 客户端后重跑；token 有效不等于新客户端已获准。 |
 
 ```powershell
@@ -48,7 +48,7 @@ npm run devtools:mcp -- --requests .scratch/devtools/requests.json
 ]
 ```
 
-JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、超时、bridge 异常退出都会产生非零退出码并停止后续请求。默认每个请求 25 秒，可用 `--timeout` 调整。常规输出仅显示工具结果摘要和日志位置，完整脱敏通信日志保存在 `.scratch/devtools/mcp.jsonl`，每次运行覆盖上一次；失败详情从该日志定向读取。日志可能包含当前页面数据，仅供本地检查，不上传或入库。
+JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、超时、bridge 异常退出都会产生非零退出码并停止后续请求。默认每个请求 25 秒，可用 `--timeout` 调整。常规输出仅显示工具结果摘要和日志位置。工具返回失败时，FAIL 行附带脱敏后的错误摘要，最长 300 字符：只取 `code`、`errCode`、`errno`、`error`、`errMsg`、`message`、`msg`、`reason` 字段，嵌套的 `error` 对象只取一层；没有这些字段时只列字段名，`isError` 的纯文本截取原文。其余字段可能是页面数据，只写进完整脱敏通信日志 `.scratch/devtools/mcp.jsonl`，每次运行覆盖上一次；摘要不够判断时再从该日志定向读取。日志可能包含当前页面数据，仅供本地检查，不上传或入库。
 
 ## 代码质量扫描口径
 

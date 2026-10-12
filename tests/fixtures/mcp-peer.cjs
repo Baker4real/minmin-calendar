@@ -8,8 +8,13 @@ lines.on('line', line => {
   if (mode === 'timeout') return
   if (mode === 'exit') return process.exit(7)
   if (mode === 'rpc') return process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: request.id, error: { code: -1, message: 'test failure' } }) + '\n')
-  if (mode === 'isError') return reply(request.id, { isError: true, content: [] })
-  if (mode === 'structured') return reply(request.id, { structuredContent: { success: false } })
+  if (mode === 'isError') return reply(request.id, { isError: true, content: [{ type: 'text', text: 'bridge refused' }] })
+  if (mode === 'structured') return reply(request.id, { structuredContent: { success: false, data: { nickName: 'page-data' } } })
+  if (mode === 'detailed') {
+    return reply(request.id, { structuredContent: {
+      success: false, errMsg: 'not ready for test-credential', error: { code: 42, stack: 'internal-stack' }, data: { nickName: 'page-data' },
+    } })
+  }
   if (mode === 'text') return reply(request.id, { content: [{ type: 'text', text: '{"success":false,"message":"test failure"}' }] })
   if (mode === 'redact') {
     process.stderr.write('test-')
