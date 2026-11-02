@@ -1203,6 +1203,19 @@ test('record list pages show load-failed retry copy and hide period stats while 
   assert.match(periodJs, /onLoaded: periods => \{[\s\S]*?hasLoaded: true/)
 })
 
+test('period overview columns all stack the label above the number', () => {
+  // 三列同一上下顺序：任一列颠倒，标签行和数字行就会错位
+  const periodWxml = readPageFile('pages/period/period.wxml')
+  const items = periodWxml.match(/<view class="cycle-item">[\s\S]*?<\/view>/g)
+
+  assert.equal(items.length, 3)
+  for (const item of items) {
+    const label = item.indexOf('class="cycle-label"')
+    const num = item.indexOf('class="cycle-num"')
+    assert.ok(label !== -1 && label < num, item)
+  }
+})
+
 test('paired record tab rows name who recorded them, and quiet rows stay blank', async () => {
   const periods = [
     { _id: 'p-mine', startDate: '2026-09-01', endDate: '2026-09-03', status: 'known-end', createdByMe: true },

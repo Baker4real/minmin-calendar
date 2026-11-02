@@ -28,10 +28,10 @@
         <text class="card-label">周期概览</text>
         <view class="cycle-stats">
           <view class="cycle-item">
+            <text class="cycle-label">总记录</text>
             <!-- 首次加载失败时不给确信的 0；已成功加载过则保留上次的数字 -->
             <text wx:if="{{!loading && (!loadFailed || hasLoaded)}}" class="cycle-num">{{periods.length}}</text>
             <text wx:elif="{{!loading}}" class="cycle-num">--</text>
-            <text class="cycle-label">总记录</text>
           </view>
           <view class="cycle-item">
             <text class="cycle-label">平均周期</text>

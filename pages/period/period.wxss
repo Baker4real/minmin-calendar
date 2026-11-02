@@ -37,7 +37,10 @@
 .cycle-item {
   text-align: center;
 }
+/* 三列统一标签在上、数字在下，间距落在数字上 */
 .cycle-num {
+  display: block;
+  margin-top: var(--space-xs);
   font-size: 44rpx;
   font-weight: var(--font-weight-control);
   color: #fff;
@@ -48,7 +51,6 @@
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.5);
-  margin-top: 8rpx;
   display: block;
 }
 
