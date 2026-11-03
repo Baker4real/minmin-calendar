@@ -9,7 +9,7 @@ intent: "Issue Tracker"
 
 ## Tracker
 
-This project now uses GitHub Issues in the private repository:
+This project uses GitHub Issues in the public repository:
 
 ```text
 https://github.com/Baker4real/minmin-calendar
@@ -50,10 +50,10 @@ implement-spec 等技能无参数调用时，spec 默认取当前开放的 epic 
 |---|---|---|
 | `gh issue close` returns GraphQL `EOF` | Retry once. If it fails again, `gh api --method PATCH repos/<owner>/<repo>/issues/<n> -f state=closed`, then post the same comment with `gh api --method POST repos/<owner>/<repo>/issues/<n>/comments`. | Stop and report the issue number. Do not say it is closed until the tracker says so. |
 | Batch `gh issue create` (e.g. publishing sub-tickets) returns GraphQL `EOF` | Before retrying, list open issues and match the exact title: the issue is often already created. Reuse it if found; otherwise retry the create once. After the batch, read back every ticket's `parent` and `blockedBy` (`gh issue view <n> --json parent,blockedBy`) and repair gaps with `gh issue edit <n> --parent <p>` / `--add-blocked-by <list>`. | Stop at the first ticket that still fails, report the created numbers so far, and do not create later tickets that would reference it. |
-| A screenshot or other file will not upload to `uploads.github.com` | Commit the file on the private branch that holds the work, under `docs/evidence/issue-<n>/`, push that branch, and put the raw URL in the issue comment. | Leave the ticket open and say the file is only on disk. Do not keep retrying the upload API. |
+| A screenshot or other file will not upload to `uploads.github.com` | Commit the file on the branch that holds the work, under `docs/evidence/issue-<n>/`, push that branch, and put the raw URL in the issue comment. | Leave the ticket open and say the file is only on disk. Do not keep retrying the upload API. |
 
-Do not put room codes, tokens, or other secrets into those evidence files.
+The repository and its issues are public, so anything posted to an issue or committed here is public. Crop each screenshot to the control under test, or swap in stand-in data before capturing: real period dates and counts, prediction ranges, memory hearts, notes, room codes, tokens, and other secrets stay off GitHub.
 
 ## Local Scratch Notes
 
-`.scratch/` is retained only for temporary local notes or drafts that are not ready for the private GitHub tracker. Do not treat `.scratch/` as the durable issue source once work is ready to track.
+`.scratch/` is retained only for temporary local notes or drafts that are not ready for the GitHub tracker. Do not treat `.scratch/` as the durable issue source once work is ready to track.

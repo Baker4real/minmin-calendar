@@ -10,7 +10,7 @@ intent: "整合 2026-10-09 impeccable 评审的全部问题与推荐修改，作
 
 **Date:** 2026-10-10
 **Status:** Accepted
-**Issue:** #123（私有 GitHub tracker 上的 epic 父票，正文与本文件同源）
+**Issue:** #123（GitHub tracker 上的 epic 父票，正文与本文件同源）
 
 ## Problem Statement
 

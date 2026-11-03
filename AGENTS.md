@@ -16,6 +16,6 @@
 
 ## 工作流指针
 
-- 私有 GitHub Issues：`docs/agents/issue-tracker.md`
+- GitHub Issues：`docs/agents/issue-tracker.md`
 - Triage 标签：`docs/agents/triage-labels.md`
 - 领域文档与 ADR 路由：`docs/agents/domain.md`
