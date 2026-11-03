@@ -11,7 +11,14 @@ function sourceFiles(directory) {
   }).sort()
 }
 
-function runLogged(name, args, logDir, cwd = root) {
+// The spec reporter ends with `ℹ tests N` / `ℹ pass N` / `ℹ fail N`; echo them so the daily output carries the counts.
+function testCounts(log) {
+  const counts = {}
+  for (const [, key, value] of fs.readFileSync(log, 'utf8').matchAll(/^ℹ (tests|pass|fail) (\d+)\r?$/gm)) counts[key] = value
+  return counts.tests ? ` (${counts.pass ?? 0}/${counts.tests} pass, ${counts.fail ?? 0} fail)` : ''
+}
+
+function runLogged(name, args, logDir, cwd = root, summarize = () => '') {
   const log = path.join(logDir, `${name}.log`)
   const fd = fs.openSync(log, 'w')
   let result
@@ -20,7 +27,7 @@ function runLogged(name, args, logDir, cwd = root) {
     if (result.error) fs.writeSync(fd, `${result.error.message}\n`)
   } finally { fs.closeSync(fd) }
   const ok = result.status === 0 && !result.error
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${log}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${summarize(log)}: ${log}`)
   if (!ok) {
     const lines = fs.readFileSync(log, 'utf8').trim().split(/\r?\n/)
     console.error(lines.slice(-18).join('\n'))
@@ -49,11 +56,11 @@ function main() {
   console.log(`${syntaxOK ? 'PASS' : 'FAIL'} syntax (${files.length} files): ${syntaxLog}`)
   const tests = fs.readdirSync(path.join(root, 'tests')).filter(name => name.endsWith('.test.js')).sort().map(name => `tests/${name}`)
   const results = [syntaxOK,
-    runLogged('tests', ['--test', ...tests], logDir),
+    runLogged('tests', ['--test', '--test-reporter=spec', ...tests], logDir, root, testCounts),
     runLogged('room-artifacts', ['cloudfunctions/_shared/syncRoomMembershipLifecycle.js', '--check'], logDir),
     runLogged('coordinate-hit', ['tests/tools/navHitTest.cjs'], logDir)]
   process.exitCode = results.every(Boolean) ? 0 : 1
 }
 
 if (require.main === module) main()
-module.exports = { sourceFiles, runLogged }
+module.exports = { sourceFiles, runLogged, testCounts }
