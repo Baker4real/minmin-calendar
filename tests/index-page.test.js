@@ -815,12 +815,17 @@ test('the one-time partner welcome stays pending while the homepage shows the fa
   }
 })
 
+// 6 行月份的替身：42 个空格子，几何账本按格数算行数
+function sixEmptyRowsState(args) {
+  return { ...buildHomeCalendarState(args), days: Array.from({ length: 42 }, () => ({ isEmpty: true })) }
+}
+
 test('the partner welcome shortens the calendar rows through the row-height ledger', async () => {
-  // 375×619 页高、顶栏 84px（拿不到胶囊时的兜底）、清爽密度、6 行、当月：
-  // 不带欢迎 (619 − 84 − 199) / 6 = 56；带欢迎多占 103.2rpx = 51.6px，(619 − 84 − 250.6) / 6 = 47.4
+  // 375×619 页高、顶栏 84px（拿不到胶囊时的兜底）、清爽密度、6 行、当月：首屏其余部分 394rpx = 197px 加 6px 边框。
+  // 不带欢迎 (619 − 84 − 203) / 6 = 55.33，放不下常规清爽格的 69px，信息行合并（合并格最少 50px）；
+  // 带欢迎多占 103.2rpx = 51.6px，(619 − 84 − 254.6) / 6 = 46.73 也放不下合并格：行高停在 50，记录入口靠滚动触达
   const safeAreaPath = path.join(repoRoot, 'utils/safeArea.js')
   delete require.cache[require.resolve(safeAreaPath)]
-  const sixRows = args => ({ ...buildHomeCalendarState(args), days: Array.from({ length: 42 }, () => ({ isEmpty: true })) })
   const harness = loadPageHarness({
     client: createQueuedClient([
       { kind: 'success', data: [] },
@@ -828,7 +833,7 @@ test('the partner welcome shortens the calendar rows through the row-height ledg
     ]),
     room: pairedRoom,
     storage: new Map([['partnerWelcome', 'pending']]),
-    calendarState: sixRows
+    calendarState: sixEmptyRowsState
   })
 
   try {
@@ -836,15 +841,97 @@ test('the partner welcome shortens the calendar rows through the row-height ledg
     assert.equal(harness.page.data.navBarHeight, 84)
     harness.page.onLoad()
     assert.equal(harness.page.data.showBackToToday, false)
-    assert.equal(harness.page.data.calendarRowHeightPx, 56)
+    assert.equal(harness.page.data.calendarRowHeightPx, 55.33)
+    assert.equal(harness.page.data.calendarInfoMerged, true)
 
     await harness.page.onShow()
     assert.equal(harness.page.data.partnerWelcome, true)
-    assert.equal(harness.page.data.calendarRowHeightPx, 47.4)
+    assert.equal(harness.page.data.calendarRowHeightPx, 50)
+    assert.equal(harness.page.data.calendarInfoMerged, true)
 
     // 之后重算日历（翻月、刷新）仍把欢迎条计入
     harness.page.applyHomeCalendarState()
-    assert.equal(harness.page.data.calendarRowHeightPx, 47.4)
+    assert.equal(harness.page.data.calendarRowHeightPx, 50)
+  } finally {
+    harness.teardown()
+    delete require.cache[require.resolve(safeAreaPath)]
+  }
+})
+
+// issue #153：在设置页换密度后回到首页，记录没变也要按新密度重算行高与信息行，不能沿用旧密度的行高
+test('switching density in settings resizes the calendar rows on return even when no records change', async () => {
+  // 375×619、顶栏 84、6 行、当月：原始行高 55.33。完整密度格内容最少 159rpx = 79.5px，行高停在 79.5、不合并；
+  // 切回清爽密度后合并信息行，行高回到 55.33
+  const safeAreaPath = path.join(repoRoot, 'utils/safeArea.js')
+  delete require.cache[require.resolve(safeAreaPath)]
+  let storedDensity = 'full'
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: [] },
+      { kind: 'success', data: [] },
+      { kind: 'success', data: [] },
+      { kind: 'success', data: [] }
+    ]),
+    calendarState: sixEmptyRowsState
+  })
+
+  try {
+    global.wx.getWindowInfo = () => ({ windowWidth: 375, windowHeight: 619 })
+    global.wx.getStorageSync = key => (key === 'calendarDensity' ? storedDensity : '')
+    harness.page.onLoad()
+    await harness.page.onShow()
+    assert.equal(harness.page.data.calendarDensity, 'full')
+    assert.equal(harness.page.data.calendarRowHeightPx, 79.5)
+    assert.equal(harness.page.data.calendarInfoMerged, false)
+
+    // 密度类名与行高同一次提交，不等后台刷新回来
+    storedDensity = 'compact'
+    const shown = harness.page.onShow()
+    assert.equal(harness.page.data.calendarDensity, 'compact')
+    assert.equal(harness.page.data.calendarRowHeightPx, 55.33)
+    assert.equal(harness.page.data.calendarInfoMerged, true)
+    await shown
+    assert.equal(harness.page.data.calendarRowHeightPx, 55.33)
+  } finally {
+    harness.teardown()
+    delete require.cache[require.resolve(safeAreaPath)]
+  }
+})
+
+// issue #153：行内同步重试行（#79 / #151）在文档流里占 96rpx，出现时从日历行里让出，消失后还回来
+test('the inline sync-retry row takes its height from the calendar rows and gives it back once cleared', async () => {
+  // 375×619、顶栏 84、清爽密度、6 行、当月：不带重试行 55.33（合并信息行）；
+  // 带重试行多占 96rpx = 48px，(619 − 84 − 251) / 6 = 47.33 放不下合并格的 50px，行高停在 50
+  const safeAreaPath = path.join(repoRoot, 'utils/safeArea.js')
+  delete require.cache[require.resolve(safeAreaPath)]
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: [] },
+      { kind: 'retryable-failure', message: 'memories network down' },
+      { kind: 'success', data: [] },
+      { kind: 'success', data: [] },
+      { kind: 'retryable-failure', message: 'network down' },
+      { kind: 'retryable-failure', message: 'network down' }
+    ]),
+    calendarState: sixEmptyRowsState
+  })
+
+  try {
+    global.wx.getWindowInfo = () => ({ windowWidth: 375, windowHeight: 619 })
+    harness.page.onLoad()
+    // 首次加载只有欢乐时光失败：日历照常显示，重试行同时出现
+    await harness.page.onShow()
+    assert.deepEqual(renderRefreshRetry(harness.page.data), MEMORIES_RETRY)
+    assert.equal(harness.page.data.calendarRowHeightPx, 50)
+
+    await harness.page.retryRefresh()
+    assert.equal(renderRefreshRetry(harness.page.data), null)
+    assert.equal(harness.page.data.calendarRowHeightPx, 55.33)
+
+    // 已显示的日历后台刷新整体失败：重试行回来，行高再让出
+    await harness.page.onShow()
+    assert.deepEqual(renderRefreshRetry(harness.page.data), FULL_REFRESH_RETRY)
+    assert.equal(harness.page.data.calendarRowHeightPx, 50)
   } finally {
     harness.teardown()
     delete require.cache[require.resolve(safeAreaPath)]
@@ -2113,18 +2200,21 @@ test('compact density keeps record actions on a 375×667 screen for a 6-row mont
   assert.match(ruleBody(wxss, '.home-status\.neutral'), /color:\s*var\(--text-secondary\)/)
   assert.doesNotMatch(ruleBody(wxss, '.home-status.neutral'), /#F97373|249,\s*115,\s*115/)
 
-  // 375×667，底栏 48px，页高 619；顶栏 64px。清爽密度、6 行、不在当月。
+  // 375×667，底栏 48px，页高 619；顶栏 64px。清爽密度、6 行、不在当月：
+  // 首屏其余部分 482rpx = 241px 加 6px 边框，(619 − 64 − 247) / 6 = 51.33 放不下常规清爽格的 69px，
+  // 这个月每天的节日/调休与标记都能并成一行，合并信息行后记录入口仍在首屏
   const row = computeCalendarRowHeight({
     viewportWidth: 375,
     viewportHeight: 619,
     navBarHeightPx: 64,
     density: 'compact',
-    rowCount: 6,
+    days: Array.from({ length: 42 }, () => ({ isEmpty: true })),
     showBackToToday: true
   })
-  assert.equal(row.heightPx, 52)
+  assert.equal(row.heightPx, 51.33)
+  assert.equal(row.infoMerged, true)
   assert.equal(row.actionsFit, true)
-  assert.ok(row.heightPx >= 44)
+  assert.ok(row.heightPx >= row.contentMinPx)
   assert.ok(row.heightPx <= 70)
 })
 

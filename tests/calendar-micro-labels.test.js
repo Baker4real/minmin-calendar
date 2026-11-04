@@ -511,24 +511,165 @@ test('earlier/later month navigation buttons keep 44px touch targets', () => {
   assert.ok(height >= MIN_TOUCH_TARGET_RPX, `.nav-btn height ${height}rpx is below 44px (${MIN_TOUCH_TARGET_RPX}rpx)`)
 })
 
-test('full density row cap stays 160rpx and a 6-row month on 390×844 still fits the record actions', () => {
-  const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
+// issue #153：格内槽位账本就是 CSS 的那一列数字。几何模块按它算出每种排版的内容最小高度，行高从不低于它；
+// 这里在最小高度上用 CSS 的真实槽位复核：整列放进内容盒，向下垂出的「预」让开今天的内描边，再矮 1rpx 就不行。
+const CELL_LAYOUT_SELECTORS = {
+  full: {
+    cell: '.day-cell',
+    slots: ['.day-num', '.day-lunar', '.day-tag-line', '.day-marks']
+  },
+  compact: {
+    cell: '.calendar-density-compact .day-cell',
+    slots: [
+      '.calendar-density-compact .day-num',
+      '.calendar-density-compact .day-tag-line',
+      '.calendar-density-compact .day-marks'
+    ]
+  },
+  merged: {
+    cell: '.calendar-info-merged .day-cell',
+    slots: ['.calendar-density-compact .day-num', '.calendar-info-merged .day-info']
+  }
+}
+
+function cssCellLayout(wxss, layout) {
+  const selectors = CELL_LAYOUT_SELECTORS[layout]
+  const cell = ruleBody(wxss, selectors.cell)
+  const pad = paddingVertical(cell)
+  const justify = cell.match(/justify-content:\s*([^;]+);/)[1].trim()
+  return {
+    align: justify === 'center' ? 'center' : 'top',
+    paddingTop: pad.top,
+    paddingBottom: pad.bottom,
+    stack: selectors.slots.map((selector, index) => {
+      const body = ruleBody(wxss, selector)
+      return index === 0
+        ? { gap: 0, height: declarationRpx(body, 'line-height') }
+        : { gap: optionalRpx(body, 'margin-top'), height: declarationRpx(body, 'height') }
+    })
+  }
+}
+
+// 行高 height 下，CSS 这一列是否既不溢出内容盒、垂出的「预」也不压到今天的内描边
+function cellHoldsContent(layout, height, wxss) {
+  const cell = cssCellLayout(wxss, layout)
+  const stack = cell.stack.reduce((sum, slot) => sum + slot.gap + slot.height, 0)
+  const marks = cell.stack[cell.stack.length - 1].height
+  const overhang = Math.max(0, declarationRpx(ruleBody(wxss, '.predict-mark'), 'height') - marks)
+  const slack = height - cell.paddingTop - cell.paddingBottom - stack
+  const below = (cell.align === 'center' ? slack / 2 : slack) + cell.paddingBottom
+  return slack >= 0 && overhang <= below - todayRingRpx(wxss)
+}
+
+test('the cell slot ledger is the CSS stack and each layout holds its content exactly at the ledger minimum', () => {
+  const { CALENDAR_LEDGER, calendarCellContentMinRpx } = require('../utils/calendarRowHeight')
   const wxss = readWxss()
-  assert.equal(declarationRpx(ruleBody(wxss, '.day-cell'), 'height'), 160)
-  // 390×844，底栏 83px，页高 761；顶栏 91px。不在当月时「回到今天」也占一行。
-  const row = computeCalendarRowHeight({
-    viewportWidth: 390,
-    viewportHeight: 761,
-    navBarHeightPx: 91,
-    density: 'full',
-    rowCount: 6,
-    showBackToToday: true
+  // 完整：4 + 日期 32 + 农历 36 + 节日 40 + 标记 32，「预」垂出 12 再让开内描边 3 → 159
+  // 清爽：居中的 日期 38 + 节日 36 + 标记 36 = 110，内边距 10 / 12；居中后「预」垂出 12 + 内描边 3 → 138
+  // 合并：顶对齐 14 + 日期 38 + 信息行 2+42 + 4 → 100（信息行按「预」胶囊高留足，不垂出）
+  const expectedMin = { full: 159, compact: 138, merged: 100 }
+  for (const layout of Object.keys(CELL_LAYOUT_SELECTORS)) {
+    assert.deepEqual(CALENDAR_LEDGER.cellRpx[layout], cssCellLayout(wxss, layout), `${layout} ledger must equal the CSS slots`)
+    const min = calendarCellContentMinRpx(layout)
+    assert.equal(min, expectedMin[layout], `${layout} content minimum`)
+    assert.ok(cellHoldsContent(layout, min, wxss), `${layout} content must fit at its ${min}rpx minimum`)
+    assert.ok(!cellHoldsContent(layout, min - 1, wxss), `${layout} minimum ${min}rpx must be tight`)
+    const cap = layout === 'full' ? 160 : 140
+    assert.ok(min <= cap, `${layout} minimum ${min}rpx must stay under the ${cap}rpx cap`)
+  }
+  assert.equal(CALENDAR_LEDGER.predictMarkRpx, declarationRpx(ruleBody(wxss, '.predict-mark'), 'height'))
+  assert.equal(CALENDAR_LEDGER.todayRingRpx, todayRingRpx(wxss))
+})
+
+function borderWidthPx(body) {
+  const match = body.match(/(?:^|[;\n])\s*border:\s*(\d+(?:\.\d+)?)px\b/)
+  assert.ok(match, 'expected a px border shorthand')
+  return Number(match[1])
+}
+
+// issue #153：合并信息行能否放下「节日/调休 + ♥ /「预」」由几何模块按横向账本判断；账本里的每个宽度都来自 CSS
+test('the merged info row ledger uses the CSS widths and its single row holds the tallest item', () => {
+  const { CALENDAR_LEDGER } = require('../utils/calendarRowHeight')
+  const wxss = readWxss()
+  const widths = CALENDAR_LEDGER.infoRowRpx
+  const borders = CALENDAR_LEDGER.infoRowBorderPx
+  const grid = ruleBody(wxss, '.calendar-grid')
+  const compactTag = ruleBody(wxss, '.calendar-density-compact .day-tag')
+  const workday = ruleBody(wxss, '.workday-tag')
+  const predict = ruleBody(wxss, '.predict-mark')
+  const info = ruleBody(wxss, '.calendar-info-merged .day-info')
+
+  assert.deepEqual(widths, {
+    contentPadding: horizontalPaddingRpx(ruleBody(wxss, '.content')) / 2,
+    gridPadding: horizontalPaddingRpx(grid) / 2,
+    columnPercent: Number(/width:\s*(\d+(?:\.\d+)?)%/.exec(ruleBody(wxss, '.day-cell'))[1]),
+    tagFont: declarationRpx(compactTag, 'font-size'),
+    tagPadding: horizontalPaddingRpx(compactTag) / 2,
+    heart: declarationRpx(ruleBody(wxss, '.memory-mark'), 'font-size'),
+    predictFont: declarationRpx(predict, 'font-size'),
+    predictPadding: horizontalPaddingRpx(predict) / 2,
+    predictMinWidth: declarationRpx(predict, 'min-width'),
+    marksGap: declarationRpx(ruleBody(wxss, '.day-marks'), 'gap'),
+    infoGap: declarationRpx(info, 'gap')
   })
-  assert.equal(row.heightPx, 69.56)
-  assert.equal(row.capPx, 83.2)
-  assert.equal(row.actionsFit, true)
-  assert.ok(row.heightPx <= row.capPx)
-  assert.ok(row.heightPx >= 44)
+  assert.deepEqual(borders, { grid: borderWidthPx(grid), workday: borderWidthPx(workday), predict: borderWidthPx(predict) })
+  // 「班」是 content-box：描边加在盒宽外；♥ 行高 1，字宽按 1em 上限记账
+  assert.match(workday, /box-sizing:\s*content-box/)
+  assert.match(ruleBody(wxss, '.memory-mark'), /line-height:\s*1;/)
+
+  // 一行横排、居中；节日胶囊可收窄（超长节日名仍只裁尾部），标记不收窄
+  assert.match(info, /flex-direction:\s*row/)
+  assert.match(info, /justify-content:\s*center/)
+  assert.match(ruleBody(wxss, '.calendar-info-merged .day-tag-line'), /min-width:\s*0/)
+  assert.match(ruleBody(wxss, '.calendar-info-merged .day-marks'), /flex-shrink:\s*0/)
+  // 行高装得下最高的一项：「预」胶囊（含描边），以及 320px 下「班」的 34rpx 盒高加 1px 上下描边
+  const rowHeight = declarationRpx(info, 'height')
+  const workdayPx = borderWidthPx(workday) * 2 * (750 / NARROW_VIEWPORT_PX)
+  assert.ok(rowHeight >= declarationRpx(predict, 'height'), 'merged row is shorter than the predict capsule')
+  assert.ok(rowHeight >= declarationRpx(compactTag, 'height') + workdayPx, 'merged row is shorter than the workday tag')
+  for (const selector of ['.calendar-info-merged .day-tag-line', '.calendar-info-merged .day-marks']) {
+    assert.equal(declarationRpx(ruleBody(wxss, selector), 'height'), rowHeight, `${selector} fills the merged row`)
+  }
+})
+
+// issue #153：行高在内容最小高度与上限之间变化时，色带仍只包住日期数字（单日、连续段、开放端的形状都挂在色带上，不受影响）
+test('the period band still wraps the date number at every row height the ledger can choose', () => {
+  const { calendarCellContentMinRpx } = require('../utils/calendarRowHeight')
+  const wxss = readWxss()
+  const fullBand = ruleBody(wxss, '.period-band')
+  const compactBand = ruleBody(wxss, '.calendar-density-compact .period-band')
+  const bands = {
+    full: { top: Number(/inset:\s*(\d+)/.exec(fullBand)[1]), height: declarationRpx(fullBand, 'height') },
+    compact: { top: declarationRpx(compactBand, 'top'), height: declarationRpx(compactBand, 'height') }
+  }
+  for (const [layout, density, cap] of [['full', 'full', 160], ['compact', 'compact', 140], ['merged', 'compact', 140]]) {
+    const cell = cssCellLayout(wxss, layout)
+    const stack = cell.stack.reduce((sum, slot) => sum + slot.gap + slot.height, 0)
+    for (const height of [calendarCellContentMinRpx(layout), cap]) {
+      const dateTop = cell.align === 'center'
+        ? cell.paddingTop + (height - cell.paddingTop - cell.paddingBottom - stack) / 2
+        : cell.paddingTop
+      const band = bands[density]
+      assert.ok(
+        band.top <= dateTop && dateTop + cell.stack[0].height <= band.top + band.height,
+        `${layout} at ${height}rpx puts the date at ${dateTop}rpx outside the ${band.top}–${band.top + band.height}rpx band`
+      )
+    }
+  }
+})
+
+// 行高变量缺省时，CSS 退回的就是账本上限：完整 160rpx、清爽 140rpx（合并信息行沿用清爽格的高度规则）
+test('the CSS row-height fallbacks are the ledger caps for both densities', () => {
+  const { CALENDAR_ROW_CAP_RPX } = require('../utils/calendarRowHeight')
+  const wxss = readWxss()
+  const full = ruleBody(wxss, '.day-cell')
+  const compact = ruleBody(wxss, '.calendar-density-compact .day-cell')
+  assert.match(full, /height:\s*var\(--calendar-row-height,\s*\d+rpx\)/)
+  assert.match(compact, /height:\s*var\(--calendar-row-height,\s*\d+rpx\)/)
+  assert.equal(declarationRpx(full, 'height'), CALENDAR_ROW_CAP_RPX.full)
+  assert.equal(declarationRpx(compact, 'height'), CALENDAR_ROW_CAP_RPX.compact)
+  assert.deepEqual(CALENDAR_ROW_CAP_RPX, { full: 160, compact: 140 })
+  assert.doesNotMatch(ruleBody(wxss, '.calendar-info-merged .day-cell'), /height:/)
 })
 
 test('full density first-screen stack stays within the ratcheted budget', () => {
@@ -537,7 +678,7 @@ test('full density first-screen stack stays within the ratcheted budget', () => 
   const SAFE_TOP_RPX = 88
   const NAV_BAR_RPX = 88
   const MONTH_NAV_CONTENT_RPX = 88
-  const WEEK_TEXT_RPX = 34
+  const WEEK_TEXT_RPX = declarationRpx(ruleBody(wxss, '.week-cell'), 'line-height')
   const QUICK_CONTENT_RPX = 40
   const SIX_ROWS = 6
 

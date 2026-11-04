@@ -440,7 +440,8 @@ test('index calendar applies the persisted density without hosting the control',
   assert.doesNotMatch(js, /setCalendarDensity/)
 
   assert.doesNotMatch(wxml, /density-control/)
-  assert.match(wxml, /class="calendar-grid calendar-density-\{\{calendarDensity\}\}"/)
+  // 网格类名先带密度；清爽密度空间不足时几何账本再挂合并信息行的类（issue #153）
+  assert.match(wxml, /class="calendar-grid calendar-density-\{\{calendarDensity\}\}\{\{calendarInfoMerged \? ' calendar-info-merged' : ''\}\}"/)
   // 农历文字只属完整密度；节日/调休标签行两密度都渲染（issue #72 清爽日历可读节日与调休）
   assert.match(wxml, /wx:if="\{\{!item\.isEmpty && calendarDensity == 'full'\}\}" class="day-lunar">\{\{item\.lunarCellText\}\}/)
   assert.doesNotMatch(wxml, /class="day-lunar">\{\{item\.lunarText\}\}/)
