@@ -388,11 +388,12 @@ Page({
     for (const collection of COLLECTIONS) {
       const outcome = snapshot && snapshot[collection + 'Outcome']
       if (!outcome || outcome.kind !== 'success') continue
+      if (state.revisions[collection] > request.startRevisions[collection]) continue
+      // 只有采用了这份快照，手里的列表才是服务端的完整记录；被本地新改动顶掉的快照不算同步上
       if (!state.synced[collection]) {
         state.synced[collection] = true
         syncedChanged = true
       }
-      if (state.revisions[collection] > request.startRevisions[collection]) continue
 
       if (this._applySnapshotCollection(collection, snapshot[collection])) {
         recordsChanged = true

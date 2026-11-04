@@ -1386,6 +1386,27 @@ test('a first load without periods says periods are not synced instead of assert
   } finally {
     empty.teardown()
   }
+
+  // 请求途中本地新记了一条经期，这次的经期快照被顶掉：手里只有本地这一条，不是服务端的完整记录，仍说未同步
+  const stale = loadPageHarness({
+    calendarState: 'real',
+    client: createQueuedClient([
+      { kind: 'retryable-failure', message: 'period network down' },
+      { kind: 'success', data: [] }
+    ])
+  })
+  try {
+    stale.page.onLoad()
+    await stale.page.onShow()
+    const requestId = stale.page._startLoad(true)
+    stale.page.applyRecordChange({ collection: 'periods', mode: 'add', record: period('p2', '2026-06-20') })
+    stale.page._resolveLoad(requestId, successSnapshot([period('p1', '2026-06-01')], []), true)
+    stale.page.applyHomeCalendarState(view)
+    assert.equal(stale.page.data.homeStatus.status, 'unsynced')
+    assert.equal(renderMonthSummary(stale.page.data).text, '本月 经期未同步 · 欢乐时光 0 条 ›')
+  } finally {
+    stale.teardown()
+  }
 })
 
 test('viewed records supply the status line, the month summary, and back-to-today', async () => {
