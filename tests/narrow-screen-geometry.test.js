@@ -107,6 +107,12 @@ function rpxNumber(decls, prop) {
   return match ? Number(match[1]) : null
 }
 
+// 「12rpx」或「var(--space-xs)」这类长度换成 rpx 数；token 从 app.wxss 读
+function tokenRpx(token, appTokens) {
+  const variable = /^var\((--[a-z0-9-]+)\)$/.exec(String(token).trim())
+  return parseFloat(variable ? appTokens[variable[1]] : token)
+}
+
 test('rules with explicit width and horizontal padding use border-box (no additive overflow)', () => {
   const offenders = []
   for (const file of listWxssFiles(repoRoot)) {
@@ -546,10 +552,6 @@ test('the reminder action keeps its label width beside long reminder copy and th
   assert.deepEqual([...labels].sort(), ['去补填', '记录'].sort())
 
   const appTokens = readAppTokens()
-  const tokenRpx = token => {
-    const variable = /^var\((--[a-z0-9-]+)\)$/.exec(token)
-    return parseFloat(variable ? appTokens[variable[1]] : token)
-  }
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
   const action = findDecls(rules, '.reminder-action')
   const copy = findDecls(rules, '.reminder-copy')
@@ -563,7 +565,7 @@ test('the reminder action keeps its label width beside long reminder copy and th
 
   // 操作钮 = 标签（caption，每字 1em）+ 左右内边距，底板在标签两侧都留出空隙
   const captionRpx = parseFloat(appTokens['--font-size-caption'])
-  const actionPadRpx = tokenRpx(horizontalPaddingTokens(action)[0] || '0')
+  const actionPadRpx = tokenRpx(horizontalPaddingTokens(action)[0] || '0', appTokens)
   assert.ok(actionPadRpx > 0, 'the rose plate leaves room on both sides of its label')
   const actionRpx = Math.max(...labels.map(label => Array.from(label).length * captionRpx + 2 * actionPadRpx))
 
@@ -577,6 +579,32 @@ test('the reminder action keeps its label width beside long reminder copy and th
   for (const title of titles) {
     const titleRpx = Array.from(title).length * captionRpx
     assert.ok(titleRpx <= columnRpx, `「${title}」 needs ${titleRpx}rpx, more than the ${columnRpx.toFixed(1)}rpx copy column at 320px`)
+  }
+})
+
+// 首页未绑定 / 加载失败画面的主按钮在居中的列里按内容收缩，而 .btn-premium 基类左右内边距为 0：
+// 430px 运行时截图里「重试」只有 34×53px、「去绑定」51×53px。两个方向都至少 88rpx 触控档，左右内边距走间距 token
+test('the homepage room-status button keeps the 88rpx touch size in both axes for every action label', () => {
+  const wxml = readRepo('pages/index/index.wxml')
+  const roomStatus = wxml.slice(wxml.indexOf('class="no-room"'), wxml.indexOf('</view>', wxml.indexOf('bindtap="handleRoomStatusAction"')))
+  assert.match(roomStatus, /class="btn-premium" bindtap="handleRoomStatusAction"/, 'the room-status action is the rose main button')
+
+  const appTokens = readAppTokens()
+  const button = findDecls(parseWxssRules(readRepo('pages/index/index.wxss')), '.no-room .btn-premium')
+  assert.equal(button['box-sizing'], 'border-box', 'the minimum sizes include the padding')
+  assert.ok(rpxNumber(button, 'min-width') >= 88, 'the button is at least 88rpx wide')
+  assert.ok(rpxNumber(button, 'min-height') >= 88, 'the button is at least 88rpx tall')
+  const [sidePad] = horizontalPaddingTokens(button)
+  assert.match(sidePad || '', /^var\(--space-[a-z]+\)$/, 'the side padding comes from a spacing token')
+
+  // 每个动作标签（按钮字号，每字 1em）加左右内边距都不低于 88rpx，标签两侧留出空隙
+  const labels = [...new Set([...readRepo('utils/roomAccessOutcome.js')
+    .matchAll(/actionText: options\.\w+ \|\| '([^']+)'/g)].map(match => match[1]))]
+  assert.deepEqual([...labels].sort(), ['去绑定', '重新加载', '重试'].sort())
+  const fontRpx = parseFloat(appTokens['--font-size-button'])
+  for (const label of labels) {
+    const widthRpx = Array.from(label).length * fontRpx + 2 * tokenRpx(sidePad, appTokens)
+    assert.ok(widthRpx >= 88, `「${label}」 is only ${widthRpx}rpx wide`)
   }
 })
 
