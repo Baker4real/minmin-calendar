@@ -608,6 +608,42 @@ test('the homepage room-status button keeps the 88rpx touch size in both axes fo
   }
 })
 
+// 预测说明的摘要句整句折行时，430px 宽下「口」单独落在第二行（运行时截图）。文案不变，窗口从句另起一行
+// （<text> 里的换行即断行）；最坏的跨年日期与两位数窗口下，两个从句在 320px 宽的 sheet 文字列里各占一行，任何宽度都不留孤字
+test('the prediction summary starts the window clause on its own line and each clause fits one sheet line at 320px', () => {
+  const insights = require('../utils/calendarInsights')
+  const wxml = readRepo('pages/index/index.wxml')
+  assert.match(wxml, /<text class="prediction-summary">\{\{predictionExplanation\.summary\}\}<\/text>/)
+
+  const { summary } = insights.buildPredictionExplanation({
+    canPredict: true,
+    nextStart: '2027-12-30',
+    nextDisplay: '2027年12月30日',
+    rangeEnd: '2028-01-09',
+    usedCycleCount: 2,
+    avgCycle: 28,
+    avgDuration: 5,
+    durationSource: 'history',
+    confidence: 'low',
+    ignoredCycleCount: 0
+  })
+  const clauses = summary.split('\n')
+  assert.deepEqual(clauses, ['预计 2027年12月30日 开始，', '前后 10 天是可能开始的窗口'])
+
+  const appTokens = readAppTokens()
+  const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+  assert.equal(findDecls(rules, '.prediction-summary')['font-size'], 'var(--font-size-body-lg)')
+  const fontRpx = parseFloat(appTokens['--font-size-body-lg'])
+  const sheet = findDecls(rules, '.day-action-sheet')
+  const columnRpx = 750 - 2 * parseFloat(horizontalPaddingTokens(findDecls(rules, '.sheet-host'))[0]) -
+    2 * parseFloat(horizontalPaddingTokens(sheet)[0]) - 2 * borderPx(sheet) * 750 / 320
+  // 宽度按上界估（与本文件其他账本同口径）：CJK 与标点 1em、数字 0.6em、空格 0.5em
+  const widthRpx = copy => [...copy].reduce((sum, ch) => sum + (/\d/.test(ch) ? 0.6 : ch === ' ' ? 0.5 : 1), 0) * fontRpx
+  for (const clause of clauses) {
+    assert.ok(widthRpx(clause) <= columnRpx, `「${clause}」 needs ${widthRpx(clause).toFixed(1)}rpx, more than the ${columnRpx.toFixed(1)}rpx sheet column at 320px`)
+  }
+})
+
 // issue #151 的行内重试行（首次加载只有一个集合失败时也会出现）同样在吸顶占位之后的文档流里，占首屏高度
 test('the inline sync-retry row is an explicit input of the first-screen ledger', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')

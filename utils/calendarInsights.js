@@ -51,7 +51,8 @@ function buildPredictionExplanation(prediction, { periodsSynced = true } = {}) {
   return {
     available: true,
     title: '预测说明',
-    summary: `预计 ${prediction.nextDisplay} 开始，前后 ${windowDays(prediction)} 天是可能开始的窗口`,
+    // 窗口从句另起一行（<text> 里的换行即断行）：整句折行时 430px 宽下「口」会单独落在第二行
+    summary: `预计 ${prediction.nextDisplay} 开始，\n前后 ${windowDays(prediction)} 天是可能开始的窗口`,
     lines,
     lineItems: buildTextItems(lines, 'prediction')
   }
