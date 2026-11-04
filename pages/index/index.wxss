@@ -19,14 +19,12 @@
 .content-refreshing .quick-actions {
   opacity: 0.94;
 }
+/* 同步胶囊在顶栏标题槽里（挂载期间替换应用标题），按文案收缩、在槽内居中；
+   顶栏在吸顶区之上，胶囊盖不住月份标题和状态行（issue #120、#151） */
 .sync-pill {
-  width: 300rpx;
+  min-width: 0;
   min-height: 52rpx;
-  position: fixed;
-  top: calc(var(--nav-bar-height, calc(env(safe-area-inset-top, 44px) + 44px)) + 12rpx);
-  left: 50%;
-  z-index: 50;
-  margin: 0 0 0 -150rpx;
+  margin: 0 auto;
   padding: 0 18rpx;
   display: flex;
   align-items: center;

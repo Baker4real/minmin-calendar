@@ -960,9 +960,6 @@ test('shared navbar is fixed, reserves the capsule, and content starts at the ba
   // 内容区起点用同一顶栏高度，因此不会高于顶栏底边
   assert.match(safeTop['padding-top'], /var\(--nav-bar-height/)
 
-  const pill = findDecls(parseWxssRules(readRepo('pages/index/index.wxss')), '.sync-pill')
-  assert.match(pill.top, /var\(--nav-bar-height/, 'sync status must start at or below the fixed navbar')
-
   for (const pagePath of ALL_PAGES) {
     const wxml = readRepo(`${pagePath}.wxml`)
     const js = readRepo(`${pagePath}.js`)
@@ -983,7 +980,7 @@ test('shared navbar is fixed, reserves the capsule, and content starts at the ba
   const index = readRepo('pages/index/index.wxml')
   assert.match(
     index,
-    /class="nav-bar header-gradient">\s*<view class="nav-tool"[^>]*>工具<\/view>\s*<view class="nav-title">美少女的日历<\/view>/,
+    /class="nav-bar header-gradient">\s*<view class="nav-tool"[^>]*>工具<\/view>/,
     'home puts the tools entry in the navbar left slot'
   )
   assert.doesNotMatch(index, /class="nav-placeholder"/)
@@ -997,6 +994,50 @@ test('shared navbar is fixed, reserves the capsule, and content starts at the ba
   const geometry = design.slice(design.indexOf('窄屏几何与安全区'), design.indexOf('阴影登记'))
   assert.match(geometry, /共享顶栏/)
   assert.match(geometry, /胶囊/)
+})
+
+// 同步胶囊（issue #120 进出、#151 单集合失败）住在首页顶栏的标题槽里，挂载期间替换应用标题。
+// 顶栏整条在吸顶区之上，胶囊因此盖不住月份标题和状态行；每条胶囊文案在 320px 宽（胶囊右侧占位 94px）的标题槽里单行完整显示
+test('the sync pill takes the navbar title slot, clear of the sticky month title, and every status fits it at 320px', () => {
+  const wxml = readRepo('pages/index/index.wxml')
+  const navStart = wxml.indexOf('class="nav-bar header-gradient"')
+  const navEnd = wxml.indexOf('<view wx:if="{{noRoom}}"', navStart)
+  assert.ok(navStart !== -1 && navEnd !== -1, 'expected the home navbar ahead of the page states')
+  assert.match(
+    wxml.slice(navStart, navEnd),
+    /<view wx:if="\{\{syncStatusMounted\}\}" class="sync-pill [^"]*"[\s\S]*?<\/view>\s*<view wx:else class="nav-title">美少女的日历<\/view>/,
+    'the mounted pill replaces the app title in the navbar'
+  )
+  assert.equal(wxml.split('class="sync-pill').length, 2, 'the navbar holds the only sync pill')
+
+  const appRules = parseWxssRules(readRepo('app.wxss'))
+  const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+  const pill = findDecls(rules, '.sync-pill')
+  for (const prop of ['position', 'top', 'left', 'width', 'z-index']) {
+    assert.equal(pill[prop], undefined, `.sync-pill ${prop} lifts the pill out of the navbar slot`)
+  }
+  // 顶栏底边就是吸顶区顶边：标题槽里的胶囊与月份导航、状态行不重叠；胶囊不高于 32px 的微信胶囊，留在导航行里
+  assert.match(findDecls(appRules, '.nav-bar').height, /^var\(--nav-bar-height\b/)
+  assert.match(findDecls(rules, '.home-sticky').top, /^var\(--nav-bar-height\b/)
+  for (const viewportPx of [320, 375, 390, 430]) {
+    assert.ok(rpxNumber(pill, 'min-height') * viewportPx / 750 <= 32, `the pill outgrows the navbar row at ${viewportPx}px`)
+  }
+
+  // 标题槽 = 视口 − 顶栏左内边距 − 工具钮 − 胶囊占位；胶囊 = 左右内边距 + 描边 + 圆点 + 间距 + 文案（caption，每字 1em）
+  const pxToRpx = px => px * 750 / 320
+  const slotRpx = 750 - rpxNumber(findDecls(appRules, '.nav-bar'), 'padding-left') -
+    rpxNumber(findDecls(rules, '.nav-tool'), 'min-width') - pxToRpx(94)
+  const chromeRpx = 2 * parseFloat(horizontalPaddingTokens(pill)[0]) + 2 * pxToRpx(borderPx(pill)) +
+    rpxNumber(findDecls(rules, '.sync-dot'), 'width') + rpxNumber(pill, 'gap')
+  assert.equal(findDecls(rules, '.sync-text')['font-size'], 'var(--font-size-caption)')
+  const captionRpx = parseFloat(readAppTokens()['--font-size-caption'])
+  const statuses = new Set([...readRepo('pages/index/index.js')
+    .matchAll(/(?:showSyncStatus\(|\btext: |StatusText: )'([^']+)'/g)].map(match => match[1]))
+  assert.ok(statuses.size >= 7, `expected every sync status copy, found ${[...statuses].join(' / ')}`)
+  for (const status of statuses) {
+    const widthRpx = chromeRpx + Array.from(status).length * captionRpx
+    assert.ok(widthRpx <= slotRpx, `「${status}」 needs ${widthRpx.toFixed(1)}rpx, more than the ${slotRpx.toFixed(1)}rpx title slot at 320px`)
+  }
 })
 
 test('every page root injects --safe-bottom alongside --safe-top from runtime data', () => {

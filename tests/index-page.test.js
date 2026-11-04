@@ -421,8 +421,8 @@ test('a periods-only sync failure keeps old periods and offers an inline retry t
     assert.deepEqual(harness.page._homeRecords.periods, [oldPeriod])
     assert.deepEqual(harness.page._homeRecords.memories, [oldMemory, newMemory])
     assert.deepEqual(renderRefreshRetry(harness.page.data), PERIODS_RETRY)
-    // 胶囊照旧只报状态：文案与既有部分失败协调一致
-    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已保留旧经期数据')
+    // 胶囊只报日历现在显示什么；失败范围和重试由重试行说，胶囊文案因此放得进顶栏标题槽
+    assert.equal(harness.page.data.syncStatusText, '已保留旧经期数据')
 
     await harness.page.retryRefresh()
     assert.equal(renderRefreshRetry(harness.page.data), null)
@@ -460,7 +460,7 @@ test('a memories-only sync failure names happy times and a repeated failure neve
     assert.equal(harness.page.data.hasLoadedHomeData, true)
     assert.deepEqual(harness.page._homeRecords.periods, [loadedPeriod])
     assert.deepEqual(renderRefreshRetry(harness.page.data), MEMORIES_RETRY)
-    assert.equal(harness.page.data.syncStatusText, '欢乐时光同步失败，已显示经期数据')
+    assert.equal(harness.page.data.syncStatusText, '已显示经期数据')
 
     const retry = harness.page.retryRefresh()
     // 重试进行中不先撤掉失败行：只有成功的结果才清除
@@ -562,7 +562,7 @@ test('a partial failure keeps the pending local revision until a successful retr
     await harness.page.onShow()
     assert.deepEqual(harness.page._homeRecords.periods.map(item => item._id), ['p2', 'p1'])
     assert.equal(harness.page._syncState.pendingRevisions.periods, 1)
-    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已保留旧经期数据')
+    assert.equal(harness.page.data.syncStatusText, '已保留旧经期数据')
     assert.deepEqual(renderRefreshRetry(harness.page.data), PERIODS_RETRY)
 
     await harness.page.retryRefresh()

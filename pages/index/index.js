@@ -331,13 +331,12 @@ Page({
         this.hideSyncStatus()
       }
     } else {
+      // 胶囊在顶栏里，离场途中文案保持可见，卸载后再清（hideSyncStatus，issue #120）
       this.hideSyncStatus()
       this.setData({
         loading: true,
         refreshing: false,
         refreshRetryVisible: false,
-        syncStatusVisible: false,
-        syncStatusText: '',
         noRoom: false,
         roomStatusTitle: '',
         roomStatusDesc: '',
@@ -386,9 +385,7 @@ Page({
     state.pendingRevisions = pendingRevisions
     state.activeRequest = null
     // 只剩一个集合失败时，行内重试改指那个集合；两个集合都成功才清除（issue #151）
-    const failedCollection = snapshot && snapshot.kind === 'partial-success'
-      ? COLLECTIONS.find(collection => this._isRetryableFailure(snapshot[collection + 'Outcome']))
-      : null
+    const failedCollection = failedSyncCollection(snapshot)
     this.setData(this.withCalendarGeometry({
       hasLoadedHomeData: true,
       loading: false,
@@ -405,7 +402,7 @@ Page({
     this.syncOngoingCompletionReminder()
 
     const syncStatus = this._buildResolvedSyncStatus({
-      snapshot: snapshot || {},
+      failedCollection,
       mode: request.mode,
       pendingRevisions,
       recordsChanged,
@@ -563,41 +560,28 @@ Page({
   },
 
   _buildResolvedSyncStatus({
-    snapshot,
+    failedCollection,
     mode,
     pendingRevisions,
     recordsChanged,
     confirmedPending
   }) {
-    if (snapshot.kind === 'partial-success') {
-      const periodsFailed = this._isRetryableFailure(snapshot.periodsOutcome)
-      const memoriesFailed = this._isRetryableFailure(snapshot.memoriesOutcome)
-      const backgroundLoad = mode === 'background'
+    const backgroundLoad = mode === 'background'
+    if (failedCollection) {
       const shouldShowBackgroundPartial = this._hasPendingRevisionsFor(pendingRevisions) ||
         confirmedPending ||
         recordsChanged
       if (backgroundLoad && !shouldShowBackgroundPartial) return null
-      if (periodsFailed && !memoriesFailed) {
-        return {
-          text: backgroundLoad
-            ? '经期同步失败，已保留旧经期数据'
-            : '经期同步失败，已显示欢乐时光',
-          autoHide: false
-        }
-      }
-      if (memoriesFailed && !periodsFailed) {
-        return {
-          text: backgroundLoad
-            ? '欢乐时光同步失败，已保留上次的欢乐时光'
-            : '欢乐时光同步失败，已显示经期数据',
-          autoHide: false
-        }
+      const copy = SYNC_FAILURE_COPY[failedCollection]
+      return {
+        text: backgroundLoad ? copy.backgroundStatusText : copy.initialStatusText,
+        autoHide: false
       }
     }
     if (this._hasPendingRevisionsFor(pendingRevisions)) {
       return { text: '已更新，正在同步', autoHide: false }
     }
-    if (mode === 'background' && (confirmedPending || recordsChanged)) {
+    if (backgroundLoad && (confirmedPending || recordsChanged)) {
       return { text: '已同步', autoHide: true }
     }
     return null
@@ -605,10 +589,6 @@ Page({
 
   _hasPendingRevisionsFor(pendingRevisions) {
     return COLLECTIONS.some(collection => pendingRevisions[collection] !== null)
-  },
-
-  _isRetryableFailure(outcome) {
-    return outcome && outcome.kind === 'retryable-failure'
   },
 
   prevMonth() {
@@ -1021,8 +1001,6 @@ Page({
       hasLoadedHomeData: false,
       refreshing: false,
       refreshRetryVisible: false,
-      syncStatusVisible: false,
-      syncStatusText: '',
       noRoom: true,
       roomStatusTitle: title,
       roomStatusDesc: desc,
@@ -1079,17 +1057,41 @@ function syncPill(page) {
   return page._syncPill
 }
 
-// 行内重试行（issue #79）同时承接只有一个集合同步失败的情况（issue #151）：
-// 可见文案与朗读名指出失败范围；同步胶囊仍只表达状态，不可点
-const REFRESH_RETRY_COPY = {
+// 同步失败的范围（issue #79、#151）：整页刷新失败是 all；首页快照只有一个集合失败时是那个集合，
+// 由 failedSyncCollection 一处判定。行内重试行和同步胶囊都按范围从这张表取文案：
+// 重试行（可点）说失败范围，胶囊（只表达状态、不可点）只说日历现在显示什么，放得进顶栏标题槽
+const SYNC_FAILURE_COPY = {
   all: { refreshRetryText: '刷新失败，点按重试', refreshRetryLabel: '日历刷新失败，点按重试' },
-  periods: { refreshRetryText: '经期同步失败，点按重试', refreshRetryLabel: '经期同步失败，点按重试' },
-  memories: { refreshRetryText: '欢乐时光同步失败，点按重试', refreshRetryLabel: '欢乐时光同步失败，点按重试' }
+  periods: {
+    refreshRetryText: '经期同步失败，点按重试',
+    refreshRetryLabel: '经期同步失败，点按重试',
+    initialStatusText: '已显示欢乐时光',
+    backgroundStatusText: '已保留旧经期数据'
+  },
+  memories: {
+    refreshRetryText: '欢乐时光同步失败，点按重试',
+    refreshRetryLabel: '欢乐时光同步失败，点按重试',
+    initialStatusText: '已显示经期数据',
+    backgroundStatusText: '已保留上次的欢乐时光'
+  }
+}
+
+function failedSyncCollection(snapshot) {
+  if (!snapshot || snapshot.kind !== 'partial-success') return null
+  return COLLECTIONS.find(collection => {
+    const outcome = snapshot[collection + 'Outcome']
+    return outcome && outcome.kind === 'retryable-failure'
+  }) || null
 }
 
 function refreshRetryState(scope) {
-  const copy = REFRESH_RETRY_COPY[scope]
-  return copy ? { refreshRetryVisible: true, ...copy } : { refreshRetryVisible: false }
+  const copy = SYNC_FAILURE_COPY[scope]
+  if (!copy) return { refreshRetryVisible: false }
+  return {
+    refreshRetryVisible: true,
+    refreshRetryText: copy.refreshRetryText,
+    refreshRetryLabel: copy.refreshRetryLabel
+  }
 }
 
 const SHEET_DRAG_TARGETS = {

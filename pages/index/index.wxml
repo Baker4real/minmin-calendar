@@ -68,7 +68,12 @@ module.exports = {
 
   <view aria-hidden="{{pageObscured}}" class="nav-bar header-gradient">
     <view class="nav-tool" hover-class="nav-tool-hover" bindtap="openMonthMenu" aria-role="button" aria-label="打开工具菜单">工具</view>
-    <view class="nav-title">美少女的日历</view>
+    <!-- 同步胶囊挂载期间占用标题槽：吸顶的月份标题和状态行始终可见（issue #120、#151） -->
+    <view wx:if="{{syncStatusMounted}}" class="sync-pill sync-{{syncStatusPhase}} {{refreshing ? 'syncing' : ''}}" aria-role="status" aria-label="{{syncStatusText}}">
+      <view class="sync-dot"></view>
+      <text class="sync-text">{{syncStatusText}}</text>
+    </view>
+    <view wx:else class="nav-title">美少女的日历</view>
   </view>
 
   <view wx:if="{{noRoom}}" class="no-room" aria-hidden="{{pageObscured}}">
@@ -90,11 +95,6 @@ module.exports = {
   </view>
 
   <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}" aria-hidden="{{pageObscured}}">
-    <view wx:if="{{syncStatusMounted}}" class="sync-pill sync-{{syncStatusPhase}} {{refreshing ? 'syncing' : ''}}" aria-role="status" aria-label="{{syncStatusText}}">
-      <view class="sync-dot"></view>
-      <text class="sync-text">{{syncStatusText}}</text>
-    </view>
-
     <view class="home-sticky">
       <view class="month-nav">
         <view class="nav-btn {{prevMonthDisabled ? 'disabled' : ''}}" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月" aria-disabled="{{prevMonthDisabled}}">‹</view>

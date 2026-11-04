@@ -647,9 +647,10 @@ test('index sync feedback stays tied to real record changes without blocking cal
   assert.match(wxml, /sync-pill/)
   assert.match(wxml, /content-refreshing/)
 
-  assert.match(wxss, /\.sync-pill\s*{[\s\S]*position:\s*fixed/)
-  assert.match(wxss, /\.sync-pill\s*{[\s\S]*z-index:\s*50/)
-  assert.match(wxss, /\.sync-pill\s*{[\s\S]*pointer-events:\s*none/)
+  // 胶囊在顶栏标题槽的文档流里（narrow-screen-geometry 账本），不再浮在吸顶的月份标题上
+  assert.doesNotMatch(wxss, /\.sync-pill\s*{[^}]*position:\s*fixed/)
+  assert.doesNotMatch(wxss, /\.sync-pill\s*{[^}]*z-index:/)
+  assert.match(wxss, /\.sync-pill\s*{[^}]*pointer-events:\s*none/)
   assert.match(wxss, /prefers-reduced-motion:\s*reduce[\s\S]*\.sync-pill/)
 })
 
