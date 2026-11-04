@@ -3001,19 +3001,19 @@ test('an open or leaving homepage sheet obscures the page until every sheet unmo
   }
 })
 
-// issue #155：信息弹层按显示的内容命名。遮罩读「关闭」加名称，面板以同一名称作对话框名；
+// issue #155：信息弹层按显示的内容命名。遮罩读「关闭」加名称，面板以同一名称作读屏名；
 // 状态行直接打开、离场途中从小结行换内容重开、从工具菜单交接，名称都跟着当前内容走。
-test('the info sheet mask and dialog are named by what the sheet shows', () => {
+test('the info sheet mask and panel are named by what the sheet shows', () => {
   mock.timers.enable({ apis: ['setTimeout'] })
   const harness = loadPageHarness({ client: createQueuedClient([]) })
   const wxml = readIndexWxml()
   const host = wxmlOpeningTags(wxml.slice(wxml.indexOf('wx:if="{{infoSheetMounted}}"'), wxml.indexOf('<page-container')))
   const mask = host.find(tag => tag.classes.includes('day-sheet-mask'))
-  const dialog = host.find(tag => tag.attrs['aria-role'] === 'dialog')
-  assert.ok(mask && dialog, 'expected the info sheet mask and dialog')
+  const panel = host.find(tag => tag.classes.includes('calendar-info-panel'))
+  assert.ok(mask && panel, 'expected the info sheet mask and panel')
   const heard = () => [
     renderWxmlAttribute(mask.attrs['aria-label'], harness.page.data),
-    renderWxmlAttribute(dialog.attrs['aria-label'], harness.page.data)
+    renderWxmlAttribute(panel.attrs['aria-label'], harness.page.data)
   ]
   try {
     harness.page.onLoad()
