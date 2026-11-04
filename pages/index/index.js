@@ -119,6 +119,7 @@ Page({
     ],
     jumpMonth: 0,
     ...buildJumpYearState(INITIAL_VIEW_DATE.getFullYear()),
+    ...monthNavState(INITIAL_VIEW_DATE.getFullYear(), INITIAL_VIEW_DATE.getMonth()),
     monthPickerVisible: false,
     monthPickerMounted: false,
     monthPickerPhase: 'closed',
@@ -489,6 +490,7 @@ Page({
       periodQuickLabel: quickAction.label,
       periodQuickAriaLabel: quickAction.ariaLabel,
       showBackToToday: !isViewingCurrentMonth(year, month),
+      ...monthNavState(year, month),
       year,
       month
     }
@@ -611,14 +613,14 @@ Page({
 
   prevMonth() {
     let { year, month } = this.data
-    if (year < JUMP_YEAR_MIN || (year === JUMP_YEAR_MIN && month === 0)) return
+    if (monthNavState(year, month).prevMonthDisabled) return
     month--; if (month < 0) { month = 11; year-- }
     this.applyHomeCalendarState({ year, month, monthPickerVisible: false })
   },
 
   nextMonth() {
     let { year, month } = this.data
-    if (year > JUMP_YEAR_MAX || (year === JUMP_YEAR_MAX && month === 11)) return
+    if (monthNavState(year, month).nextMonthDisabled) return
     month++; if (month > 11) { month = 0; year++ }
     this.applyHomeCalendarState({ year, month, monthPickerVisible: false })
   },
@@ -1122,6 +1124,15 @@ function buildJumpYearState(year) {
     jumpYear,
     jumpYearAtMin: jumpYear <= JUMP_YEAR_MIN,
     jumpYearAtMax: jumpYear >= JUMP_YEAR_MAX
+  }
+}
+
+// issue #159：可看的月份是 JUMP_YEAR_MIN 年 1 月到 JUMP_YEAR_MAX 年 12 月。到了一端，那一侧的箭头
+// 禁用（外观、读屏同一个值），翻月处理器和滑动也在这里止步：不翻月、不提示
+function monthNavState(year, month) {
+  return {
+    prevMonthDisabled: year < JUMP_YEAR_MIN || (year === JUMP_YEAR_MIN && month <= 0),
+    nextMonthDisabled: year > JUMP_YEAR_MAX || (year === JUMP_YEAR_MAX && month >= 11)
   }
 }
 

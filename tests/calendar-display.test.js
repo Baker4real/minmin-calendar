@@ -360,6 +360,54 @@ test('legend samples reuse the calendar cell marker classes', () => {
   }
 })
 
+// issue #159：首页「记经期」和当日弹层的经期动作画的是图例那段单日色带——同一组格子类、同一个色，
+// 不再另有一套圆点；欢乐时光仍是浅色心
+test('record-period actions draw the legend band sample instead of a dot', () => {
+  const { parseWxssRules } = require('./designTokens')
+  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const rules = parseWxssRules(fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8'))
+  const quickPeriod = wxml.slice(wxml.indexOf('bindtap="quickPeriod"'), wxml.indexOf('bindtap="quickMemory"'))
+  const actionsStart = wxml.indexOf('wx:for="{{selectedDayDetail.actions}}"')
+  const dayActions = wxml.slice(actionsStart, wxml.indexOf('class="sheet-host"', actionsStart))
+
+  for (const [where, block] of [['quick period button', quickPeriod], ['day sheet period action', dayActions]]) {
+    assert.match(block, /class="action-sample day-cell \{\{periodBandSample\.cellClass\}\}"/, `${where} draws the legend band sample`)
+    assert.match(block, /wx:for="\{\{periodBandSample\.parts\}\}"[^>]*class="\{\{part\.className\}\}"/, `${where} draws the sample parts`)
+    assert.doesNotMatch(block, /●|period-tone/, `${where} no longer draws a separate dot`)
+  }
+  assert.match(dayActions, /class="sheet-action-icon memory-tone">♥<\/text>/)
+  assert.equal(rules.some(rule => rule.selectors.includes('.period-tone')), false, 'the dot tone is gone')
+
+  // 色带的颜色只在 .period-band 一处：动作样本只改尺寸，不另上色、不调透明度
+  const paints = rules
+    .filter(rule => rule.selectors.some(selector => /period-band|action-sample/.test(selector)))
+    .filter(rule => ['background', 'background-color', 'color', 'opacity', 'filter'].some(prop => prop in rule.decls))
+    .map(rule => rule.selectors.join(', '))
+  assert.deepEqual(paints, ['.period-band'])
+
+  // 样本读作一段横向色带（宽高比 ≥ 1.5，不是圆点），放得进各自的圆盘，色带铺满样本，按压归外层按钮
+  const decls = selector => {
+    const rule = rules.find(candidate => candidate.selectors.includes(selector))
+    assert.ok(rule, `expected ${selector}`)
+    return rule.decls
+  }
+  const rpx = (selector, prop) => {
+    const value = /^(\d+(?:\.\d+)?)rpx$/.exec(decls(selector)[prop] || '')
+    assert.ok(value, `${selector} ${prop} should be an rpx length`)
+    return Number(value[1])
+  }
+  const sample = decls('.action-sample.day-cell')
+  assert.equal(sample['pointer-events'], 'none')
+  assert.equal(sample.padding, '0')
+  assert.equal(decls('.action-sample .period-band').height, '100%')
+  for (const [plate, sized] of [['.quick-icon', '.action-sample.day-cell'], ['.sheet-action-icon', '.sheet-action-icon .action-sample.day-cell']]) {
+    const width = rpx(sized, 'width')
+    const height = rpx(sized, 'height')
+    assert.ok(width / height >= 1.5, `${sized} ${width}×${height}rpx reads as a dot, not a band`)
+    assert.ok(width < rpx(plate, 'width'), `${sized} ${width}rpx does not fit its ${plate} plate`)
+  }
+})
+
 test('memory list heart matches the calendar heart glyph system', () => {
   const memoryWxml = fs.readFileSync(path.join(__dirname, '..', 'pages/memory/memory.wxml'), 'utf8')
   const memoryWxss = fs.readFileSync(path.join(__dirname, '..', 'pages/memory/memory.wxss'), 'utf8')

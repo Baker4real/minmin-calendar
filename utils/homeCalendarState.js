@@ -2,6 +2,12 @@ const util = require('./util')
 const cycle = require('./cycle')
 const calendarInsights = require('./calendarInsights')
 
+// 单日经期色带样本：图例「经期记录」和首页「记经期」、当日弹层的经期动作画的是同一段色带（issue #159）
+const PERIOD_BAND_SAMPLE = {
+  cellClass: 'period period-single',
+  parts: [{ kind: 'band', className: 'period-band', text: '' }]
+}
+
 const CALENDAR_LEGEND_ITEMS = [
   {
     key: 'today',
@@ -14,8 +20,7 @@ const CALENDAR_LEGEND_ITEMS = [
     key: 'period',
     title: '经期记录',
     text: '连续的玫瑰色带表示这一天有经期记录。',
-    cellClass: 'period period-single',
-    parts: [{ kind: 'band', className: 'period-band', text: '' }]
+    ...PERIOD_BAND_SAMPLE
   },
   {
     key: 'memory',
@@ -77,6 +82,7 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
     predictConfidence: prediction.canPredict ? prediction.confidenceText : null,
     predictionDetail: prediction,
     legendItems: CALENDAR_LEGEND_ITEMS,
+    periodBandSample: PERIOD_BAND_SAMPLE,
     predictionExplanation: calendarInsights.buildPredictionExplanation(prediction),
     homeStatus: cycle.buildHomeStatusLine(periods, { today, prediction }),
     monthPeriodDays: monthlyRecap.periodDays,

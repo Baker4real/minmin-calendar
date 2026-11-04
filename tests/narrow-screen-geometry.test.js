@@ -501,6 +501,43 @@ test('the first-screen ledger is the CSS flow above the record actions', () => {
   assert.equal(CALENDAR_LEDGER.firstScreenBorderPx, navBorder + 2 * borderPx(week) + 2 * borderPx(grid))
 })
 
+// issue #159：进行中经期的记录入口「经期第 N 天 · 记结束」一行放不下。连写的中文不拆开，只在文案里的空格处折行，
+// 于是第一行停在「经期第 N 天 ·」、第二行是「记结束」；两行字仍在按钮最小高度里，首屏账本的记录入口高度不变。字号不缩
+test('the ongoing quick-period label wraps only at its spaces and two lines stay inside the record button', () => {
+  const cycle = require('../utils/cycle')
+  const appTokens = readAppTokens()
+  const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+  const text = findDecls(rules, '.quick-text')
+  const button = findDecls(rules, '.quick-btn')
+  assert.equal(text['font-size'], 'var(--font-size-body)')
+  assert.equal(text['word-break'], 'keep-all', 'CJK runs break only at the spaces of the label')
+  assert.equal(text['line-height'], 'var(--line-height-title)')
+
+  // 文字列宽（320px 下 1px 描边最宽）= 半行按钮宽 − 左右内边距 − 描边 − 圆盘 − 图文间距
+  const fontRpx = parseFloat(appTokens['--font-size-body'])
+  const contentPadRpx = parseFloat(horizontalPaddingTokens(findDecls(rules, '.content'))[0])
+  const borderRpx = borderPx(button) * 750 / 320
+  const columnRpx = (750 - 2 * contentPadRpx - rpxNumber(findDecls(rules, '.quick-actions'), 'gap')) / 2 -
+    2 * parseFloat(horizontalPaddingTokens(button)[0]) - 2 * borderRpx -
+    rpxNumber(findDecls(rules, '.quick-icon'), 'width') - rpxNumber(button, 'gap')
+
+  // 宽度按上界估（与本文件其他账本同口径）：CJK 与「·」1em、数字 0.6em、空格 0.5em
+  const widthRpx = copy => [...copy].reduce((sum, ch) => sum + (/\d/.test(ch) ? 0.6 : ch === ' ' ? 0.5 : 1), 0) * fontRpx
+  for (const days of [1, 12, 120]) {
+    const start = '2026-01-01'
+    const today = new Date(Date.UTC(2026, 0, days)).toISOString().slice(0, 10)
+    const { label } = cycle.buildPeriodQuickAction([{ _id: 'stand-in', startDate: start, endDate: '', status: 'ongoing' }], { today })
+    const lines = label.split(/(?<=·) /)
+    assert.deepEqual(lines, [`经期第 ${days} 天 ·`, '记结束'], `day ${days} label shape`)
+    assert.ok(widthRpx(lines[0]) <= columnRpx, `「${lines[0]}」 ${widthRpx(lines[0])}rpx needs more than the ${columnRpx.toFixed(1)}rpx column`)
+  }
+
+  // 两行字 + 上下内边距 + 上下描边不超过按钮最小高：按钮不因折行变高，账本里的 quickActions 照旧成立
+  const twoLinesRpx = 2 * fontRpx * Number(appTokens['--line-height-title'])
+  const boxRpx = twoLinesRpx + verticalPaddingRpx(button) + 2 * borderRpx
+  assert.ok(boxRpx <= rpxNumber(button, 'min-height'), `two label lines need ${boxRpx.toFixed(1)}rpx, more than the ${rpxNumber(button, 'min-height')}rpx button`)
+})
+
 // issue #151 的行内重试行（首次加载只有一个集合失败时也会出现）同样在吸顶占位之后的文档流里，占首屏高度
 test('the inline sync-retry row is an explicit input of the first-screen ledger', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')

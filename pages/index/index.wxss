@@ -203,6 +203,18 @@
 .nav-btn.nav-btn-hover::before {
   background-color: rgba(255,255,255,0.2);
 }
+/* 到了最早或最晚可看的月份（issue #159），那一侧的箭头禁用：变淡，按下不缩放、底色不变 */
+.nav-btn.disabled {
+  opacity: 0.35;
+}
+.nav-btn:active.disabled,
+.nav-btn.nav-btn-hover.disabled {
+  transform: none;
+}
+.nav-btn:active.disabled::before,
+.nav-btn.nav-btn-hover.disabled::before {
+  background-color: rgba(255,255,255,0.1);
+}
 
 /* 顶栏左侧工具入口：矩形文字钮，不跟月份箭头共用圆钮。 */
 .nav-tool {
@@ -693,7 +705,7 @@
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  padding: 18rpx 24rpx;
+  padding: 14rpx 24rpx;
   background: var(--aurora-pink);
   color: #0A0E27;
   border-radius: var(--radius-md);
@@ -706,7 +718,7 @@
   transform: scale(0.96);
   box-shadow: 0 4rpx 14rpx rgba(232,144,158,0.18);
 }
-/* 记录入口图标 = 日历图例标记：海军圆盘上承载经期玫瑰圆点 / 欢乐时光浅色心（.period-tone / .memory-tone） */
+/* 记录入口图标 = 日历图例标记：海军圆盘上承载图例的单日经期色带 / 欢乐时光浅色心（.action-sample / .memory-tone） */
 .quick-icon {
   flex: 0 0 auto;
   width: 40rpx;
@@ -717,9 +729,13 @@
   font-size: 32rpx;
   background: #0A0E27;
 }
+/* 进行中经期的「经期第 N 天 · 记结束」一行放不下（issue #159）：连写的中文不拆，只在空格处折成两行，
+   两行紧行高仍在 104rpx 按钮里（上下内边距因此是 14rpx），首屏账本的记录入口高度不变 */
 .quick-text {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-control);
+  line-height: var(--line-height-title);
+  word-break: keep-all;
   color: #0A0E27;
 }
 
@@ -1108,10 +1124,6 @@
   font-weight: 800;
   background: var(--glass-bg);
 }
-.period-tone {
-  color: #E8909E;
-  box-shadow: inset 0 0 0 1px rgba(232,144,158,0.3);
-}
 .memory-tone {
   color: #F0C4C0;
   box-shadow: inset 0 0 0 1px rgba(240,196,192,0.28);
@@ -1357,6 +1369,29 @@
   flex: none;
   padding: 0;
   justify-content: center;
+}
+/* 经期记录动作的图标（issue #159）：就是图例那段单日色带，同一组 .day-cell.period.period-single 与 .period-band。
+   这里只把它缩进圆盘、让色带铺满样本；颜色和胶囊形仍由色带自己的规则给。样本不接收点按，按压归外层按钮。
+   圆盘保留原来的玫瑰细描边，和欢乐时光圆盘的浅色描边成对 */
+.sample-plate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 0 1px rgba(232,144,158,0.3);
+}
+.action-sample.day-cell {
+  flex: none;
+  width: 30rpx;
+  height: 18rpx;
+  padding: 0;
+  pointer-events: none;
+}
+.sheet-action-icon .action-sample.day-cell {
+  width: 40rpx;
+  height: 24rpx;
+}
+.action-sample .period-band {
+  height: 100%;
 }
 .legend-copy {
   flex: 1;

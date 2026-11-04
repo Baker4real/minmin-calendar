@@ -97,7 +97,7 @@ module.exports = {
 
     <view class="home-sticky">
       <view class="month-nav">
-        <view class="nav-btn" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月">‹</view>
+        <view class="nav-btn {{prevMonthDisabled ? 'disabled' : ''}}" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月" aria-disabled="{{prevMonthDisabled}}">‹</view>
         <view
           class="month-title month-title-trigger"
           bindtap="openMonthPicker"
@@ -108,7 +108,7 @@ module.exports = {
           <text>{{year}}年{{month + 1}}月</text>
           <text class="month-title-caret">⌄</text>
         </view>
-        <view class="nav-btn" hover-class="nav-btn-hover" bindtap="nextMonth" aria-role="button" aria-label="下一个月">›</view>
+        <view class="nav-btn {{nextMonthDisabled ? 'disabled' : ''}}" hover-class="nav-btn-hover" bindtap="nextMonth" aria-role="button" aria-label="下一个月" aria-disabled="{{nextMonthDisabled}}">›</view>
       </view>
       <view
         wx:if="{{showBackToToday}}"
@@ -178,10 +178,14 @@ module.exports = {
     </view>
     </view>
 
-    <!-- 首页记录入口：图标用日历图例的经期圆点与欢乐时光浅色心（海军圆盘承载），不用表情 -->
+    <!-- 首页记录入口：图标用日历图例的单日经期色带与欢乐时光浅色心（海军圆盘承载），不用表情 -->
     <view class="quick-actions">
       <view class="quick-btn" bindtap="quickPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-class="quick-btn-hover">
-        <text class="quick-icon period-tone">●</text>
+        <view class="quick-icon sample-plate">
+          <view class="action-sample day-cell {{periodBandSample.cellClass}}">
+            <view wx:for="{{periodBandSample.parts}}" wx:for-item="part" wx:key="className" class="{{part.className}}"></view>
+          </view>
+        </view>
         <text class="quick-text">{{periodQuickLabel}}</text>
       </view>
       <view class="quick-btn" bindtap="quickMemory" aria-role="button" aria-label="记欢乐时光" hover-class="quick-btn-hover">
@@ -393,7 +397,12 @@ module.exports = {
           aria-label="{{item.label}}"
           hover-class="sheet-action-hover"
         >
-          <text class="sheet-action-icon {{item.key == 'period' ? 'period-tone' : 'memory-tone'}}">{{item.key == 'period' ? '●' : '♥'}}</text>
+          <view wx:if="{{item.key == 'period'}}" class="sheet-action-icon sample-plate">
+            <view class="action-sample day-cell {{periodBandSample.cellClass}}">
+              <view wx:for="{{periodBandSample.parts}}" wx:for-item="part" wx:key="className" class="{{part.className}}"></view>
+            </view>
+          </view>
+          <text wx:else class="sheet-action-icon memory-tone">♥</text>
           <view class="sheet-action-copy">
             <text class="sheet-action-title">{{item.label}}</text>
           </view>
