@@ -236,10 +236,11 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
     .filter((element) => element.attrs.bindtap === 'onDayActionTap')
     .map((element) => element.attrs['aria-label'])
   assert.deepEqual(dayActions, ['{{item.label}}'])
+  // issue #157：详情行读屏名由日历投影按记录拼好（区间与状态或日期与备注摘要，配对后加作者），模板只绑定
   const recordRows = elements
     .filter((element) => element.attrs.bindtap === 'onDayRecordTap')
     .map((element) => element.attrs['aria-label'])
-  assert.deepEqual(recordRows, ['编辑经期', '编辑欢乐时光'])
+  assert.deepEqual(recordRows, ['{{item.ariaLabel}}', '{{item.ariaLabel}}'])
 
   // 月份格点一下即跳转，不再有确认按钮
   const jumpOption = byHandler('selectJumpMonth', 'jump-option')

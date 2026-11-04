@@ -232,6 +232,17 @@ function recordAuthorLabel(record, { paired = false } = {}) {
   return record.createdByMe ? '我记的' : 'TA 记的'
 }
 
+// 读屏名里的备注摘要（issue #157）：折成单行，只取开头 20 个字，超出用「…」收尾；
+// 空白备注返回空串，由拼读屏名的一方跳过
+const NOTE_SUMMARY_MAX_CHARS = 20
+
+function recordNoteSummary(note) {
+  const text = String(note || '').replace(/\s+/g, ' ').trim()
+  const chars = Array.from(text)
+  if (chars.length <= NOTE_SUMMARY_MAX_CHARS) return text
+  return `${chars.slice(0, NOTE_SUMMARY_MAX_CHARS).join('').trim()}…`
+}
+
 function decoratePeriod(period, { today } = {}) {
   const status = getPeriodStatus(period)
   const range = status === 'known-end' ? util.normalizeDateRange(period) : null
@@ -666,6 +677,7 @@ module.exports = {
   projectPeriodRange,
   getPeriodDuration,
   recordAuthorLabel,
+  recordNoteSummary,
   decoratePeriod,
   buildSymptomOptions,
   formatPredictionRange

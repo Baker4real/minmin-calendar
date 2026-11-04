@@ -238,22 +238,28 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
         const meta = []
         if (detail.flowLabel) meta.push(`经量 ${detail.flowLabel}`)
         if (detail.symptomText) meta.push(detail.symptomText)
+        const authorLabel = cycle.recordAuthorLabel(period, { paired: roomPaired === true })
         return withAuthorLabel({
           key: periodKeys[index],
           recordId: recordIdentity(period),
           range: formatPeriodDetailRange(range, today),
-          metaText: meta.join(' · ')
-        }, cycle.recordAuthorLabel(period, { paired: roomPaired === true }))
+          metaText: meta.join(' · '),
+          ariaLabel: buildPeriodDetailAriaLabel(range, authorLabel, today)
+        }, authorLabel)
       })
 
     const memoryDetails = memories
       .map((memory, index) => ({ memory, index }))
       .filter(({ memory }) => isDateString(memory.date) && memory.date === day.date)
-      .map(({ memory, index }) => withAuthorLabel({
-        key: memoryKeys[index],
-        recordId: recordIdentity(memory),
-        note: memory.note || '欢乐时光'
-      }, cycle.recordAuthorLabel(memory, { paired: roomPaired === true })))
+      .map(({ memory, index }) => {
+        const authorLabel = cycle.recordAuthorLabel(memory, { paired: roomPaired === true })
+        return withAuthorLabel({
+          key: memoryKeys[index],
+          recordId: recordIdentity(memory),
+          note: memory.note || '欢乐时光',
+          ariaLabel: buildMemoryDetailAriaLabel(memory, authorLabel, today)
+        }, authorLabel)
+      })
     const meanings = buildDayMeanings(day).filter(isDayDetailSentence)
 
     details[day.date] = {
@@ -310,6 +316,31 @@ function formatPeriodDetailRange(range, today) {
     return `${util.formatDisplayDate(range.startDate, { today })}（结束日期不详）`
   }
   return util.formatDisplayDateRange(range.startDate, range.endDate, { today })
+}
+
+// 读屏名（issue #157）：同一天的多条记录各自说出能区分它的信息，可见行不跟着堆叠元数据。
+// 经期编辑入口：日期区间 + 经期状态 + 作者（作者只在房间已配对时有值）
+function buildPeriodDetailAriaLabel(range, authorLabel, today) {
+  const dates = range.status === 'unknown-end'
+    ? util.formatDisplayDate(range.startDate, { today })
+    : util.formatDisplayDateRange(range.startDate, range.endDate, { today })
+  return joinAriaParts(['编辑经期', dates, periodStatusText(range.status), authorLabel])
+}
+
+// 欢乐时光编辑入口：日期 + 非空备注的短摘要 + 作者
+function buildMemoryDetailAriaLabel(memory, authorLabel, today) {
+  const date = util.formatDisplayDate(memory.date, { today })
+  return joinAriaParts(['编辑欢乐时光', date, cycle.recordNoteSummary(memory.note), authorLabel])
+}
+
+function periodStatusText(status) {
+  const option = cycle.PERIOD_STATUS_OPTIONS.find(item => item.value === status)
+  return option ? option.label : ''
+}
+
+// 空的部分直接跳过，不留多余的逗号
+function joinAriaParts(parts) {
+  return parts.filter(Boolean).join('，')
 }
 
 function buildStableDetailKeys(records, type, buildFingerprint) {
