@@ -117,7 +117,7 @@
             </view>
             <text class="month-toggle">{{group.toggleLabel}}</text>
           </view>
-          <view class="list-item" wx:if="{{group.expanded}}" wx:for="{{group.records}}" wx:key="_id" bindtap="editMemory" data-id="{{item._id}}" aria-role="button" aria-label="编辑 {{item.dayLabel}} 的欢乐时光" hover-class="list-item-hover">
+          <view class="list-item" wx:if="{{group.expanded}}" wx:for="{{group.records}}" wx:key="_id" bindtap="editMemory" data-id="{{item._id}}" aria-role="button" aria-label="{{item.ariaLabel}}" hover-class="list-item-hover">
             <view class="memory-left">
               <text class="memory-heart">♥</text>
               <view class="memory-info">

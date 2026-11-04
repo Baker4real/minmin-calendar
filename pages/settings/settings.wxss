@@ -56,6 +56,8 @@
   font-weight: var(--font-weight-body);
   color: rgba(255,255,255,0.85);
 }
+/* 使用说明弹层（issue #154）：进出与首页底部弹层同一套。宿主只负责铺满与叠层，自己不是关闭控件；
+   遮罩只动透明度（按压着色在 ::after 上，同首页），面板 translateY(100%) 升降，离场时两者都不拦截点按。 */
 .help-layer {
   position: fixed;
   left: 0;
@@ -65,6 +67,7 @@
   z-index: 20;
   display: flex;
   align-items: flex-end;
+  pointer-events: none;
 }
 .help-mask {
   position: absolute;
@@ -72,29 +75,89 @@
   right: 0;
   top: 0;
   bottom: 0;
+  pointer-events: auto;
   background: rgba(10,14,39,0.88);
-  transition: background-color var(--duration-press) ease;
+  opacity: 0;
+  transition: opacity var(--duration-exit) var(--ease-out);
 }
-.help-mask:active,
-.help-mask.help-mask-hover {
-  background-color: rgba(10,14,39,0.96);
+.help-mask::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-color: rgba(10,14,39,0);
+  transition: background-color var(--duration-press) ease;
+  pointer-events: none;
+}
+.help-mask:active::after,
+.help-mask.help-mask-hover::after {
+  background-color: rgba(10,14,39,0.28);
+}
+.help-mask.sheet-open {
+  opacity: 1;
+  transition: opacity var(--duration-enter) var(--ease-out);
+}
+.help-mask.sheet-leaving,
+.help-slide.sheet-leaving {
+  pointer-events: none;
+}
+.help-slide {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  pointer-events: auto;
+  transform: translateY(100%);
+  transition: transform var(--duration-exit) var(--ease-out);
+}
+.help-slide.sheet-open {
+  transform: translateY(0);
+  transition: transform var(--duration-sheet) var(--ease-out);
 }
 .help-sheet {
   position: relative;
   z-index: 1;
   width: 100%;
+  max-height: 86vh;
+  overflow-y: auto;
   box-sizing: border-box;
   margin: 0;
   padding: 32rpx 32rpx calc(32rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
   border-radius: var(--radius-card) var(--radius-card) 0 0;
 }
-.help-title {
-  display: block;
+.help-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
   margin-bottom: 16rpx;
+}
+.help-title {
+  flex: 1;
+  min-width: 0;
   font-size: var(--font-size-title);
   font-weight: var(--font-weight-title);
   line-height: var(--line-height-title);
   color: rgba(255,255,255,0.92);
+}
+/* 可见关闭键与首页弹层 .sheet-close 同款：88rpx 圆钮、×、按压 0.96 */
+.sheet-close {
+  flex: 0 0 auto;
+  width: 88rpx;
+  height: 88rpx;
+  line-height: 84rpx;
+  text-align: center;
+  border-radius: var(--radius-circle);
+  font-size: 46rpx;
+  color: rgba(255,255,255,0.92);
+  background: var(--glass-bg);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.sheet-close:active,
+.sheet-close.sheet-close-hover {
+  transform: scale(0.96);
+  background: rgba(255,255,255,0.14);
 }
 .help-copy {
   display: block;
@@ -273,13 +336,29 @@
   border-color: rgba(232,144,158,0.45);
   box-shadow: none;
 }
+/* 减弱动效探针（同首页）：逻辑层读它的宽度，决定帮助弹层藏起与恢复 tabBar 时是否播动画 */
+.reduced-motion-probe {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
 @media (prefers-reduced-motion: reduce) {
+  .reduced-motion-probe {
+    width: 1px;
+  }
   .copy-btn,
   .density-option,
   .room-action-btn,
   .menu-item.danger,
   .menu-item.danger::before,
-  .help-mask {
+  .help-mask,
+  .help-mask::after,
+  .help-mask.sheet-open,
+  .help-slide,
+  .help-slide.sheet-open,
+  .sheet-close {
     animation: none;
     transition: none;
   }

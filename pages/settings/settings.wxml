@@ -1,4 +1,5 @@
 <view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
+  <view class="reduced-motion-probe" aria-hidden="true"></view>
   <view class="nav-bar header-gradient">
     <view class="nav-placeholder"></view>
     <view class="nav-title">设置</view>
@@ -88,13 +89,29 @@
     </view>
   </view>
 
-  <view wx:if="{{helpOpen}}" class="help-layer">
-    <view class="help-mask" bindtap="closeHelp" aria-role="button" aria-label="关闭使用说明" hover-class="help-mask-hover"></view>
+  <view wx:if="{{helpMounted}}" class="help-layer">
+    <view class="help-mask sheet-{{helpPhase}}" bindtap="closeHelp" aria-role="button" aria-label="关闭使用说明" hover-class="help-mask-hover"></view>
+    <view class="help-slide sheet-{{helpPhase}}">
     <view class="help-sheet premium-card" catchtap="noop">
-      <text class="help-title">使用说明</text>
+      <view class="help-head">
+        <text class="help-title">使用说明</text>
+        <view class="sheet-close" bindtap="closeHelp" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">×</view>
+      </view>
       <text class="help-copy">房间是你们两个人共用的日历。把房间码发给对方，对方加入后就能一起看同一份经期和欢乐时光。</text>
       <text class="help-copy">解除绑定后你退出房间。对方还在时，对方留在房间里。房间里只剩你时，房间会归档，记录还在。之后在绑定页点「创建」可以恢复。</text>
       <text class="help-copy">预测是根据已有记录做的估算，不是医疗建议。</text>
     </view>
+    </view>
   </view>
+  <!-- 同首页：不弹层时不要把 page-container 留在树上。show 为 false 时它仍是原生层，会吃掉页面点击。 -->
+  <page-container
+    wx:if="{{sheetExitGuard}}"
+    show="{{true}}"
+    overlay="{{false}}"
+    duration="0"
+    z-index="1"
+    position="bottom"
+    custom-style="height:0;width:0;overflow:hidden;opacity:0;pointer-events:none;background:transparent;"
+    bindbeforeleave="onSheetSystemBack"
+  ></page-container>
 </view>

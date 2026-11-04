@@ -322,8 +322,17 @@ function activeSetsProperty(files, target, prop) {
   return false
 }
 
+// issue #154：设置「使用说明」弹层的面板与遮罩沿用首页弹层的进出时长
+const SHEET_MOTION_TWINS = {
+  '.help-slide': '.sheet-slide',
+  '.help-slide.sheet-open': '.sheet-slide.sheet-open',
+  '.help-mask': '.day-sheet-mask',
+  '.help-mask.sheet-open': '.day-sheet-mask.sheet-open'
+}
+
 function sheetMotionExpectation(selector, prop) {
-  const normalized = selector.replace(/\s+/g, ' ').trim()
+  const spaced = selector.replace(/\s+/g, ' ').trim()
+  const normalized = SHEET_MOTION_TWINS[spaced] || spaced
   if (normalized === '.sheet-slide' && prop === 'transform') {
     return { duration: 'var(--duration-exit)', easing: 'var(--ease-out)' }
   }
@@ -921,6 +930,50 @@ test('homepage sheets slide in and out with reversible transitions', () => {
   assert.match(design, /25%/)
   assert.match(design, /0\.11 px\/ms/)
   assert.match(design, /0\.55/)
+})
+
+// issue #154：设置「使用说明」复用首页弹层的进出——面板 translateY(100%) 升降、遮罩只动透明度，
+// 时长与曲线跟首页弹层同一来源；离场时不拦截点按；减弱动效下全部即时到位，探针与首页同一套。
+test('settings help slides and fades on the homepage sheet motion and lands instantly under reduced motion', () => {
+  const index = analyzeFile(readRepo('pages/index/index.wxss'))
+  const settings = analyzeFile(readRepo('pages/settings/settings.wxss'))
+  const declsOf = (file, selector) => {
+    const rule = file.rules.find((item) => !item.inReducedMotion && item.selectors.includes(selector))
+    assert.ok(rule, `expected ${selector}`)
+    return rule.decls
+  }
+  const segment = (decls, prop) =>
+    splitTopLevelComma(decls.transition || '').find((part) => part.startsWith(`${prop} `))
+
+  assert.equal(declsOf(settings, '.help-slide').transform, 'translateY(100%)')
+  for (const [help, home] of [['.help-slide', '.sheet-slide'], ['.help-slide.sheet-open', '.sheet-slide.sheet-open']]) {
+    assert.equal(declsOf(settings, help).transform, declsOf(index, home).transform, `${help} pose`)
+    assert.equal(segment(declsOf(settings, help), 'transform'), segment(declsOf(index, home), 'transform'), `${help} timing`)
+  }
+  for (const [help, home] of [['.help-mask', '.day-sheet-mask'], ['.help-mask.sheet-open', '.day-sheet-mask.sheet-open']]) {
+    assert.equal(declsOf(settings, help).opacity, declsOf(index, home).opacity, `${help} pose`)
+    assert.equal(segment(declsOf(settings, help), 'opacity'), segment(declsOf(index, home), 'opacity'), `${help} timing`)
+  }
+
+  assert.equal(declsOf(settings, '.help-layer')['pointer-events'], 'none')
+  assert.equal(declsOf(settings, '.help-mask')['pointer-events'], 'auto')
+  assert.equal(declsOf(settings, '.help-slide')['pointer-events'], 'auto')
+  assert.equal(declsOf(settings, '.help-mask.sheet-leaving')['pointer-events'], 'none')
+  assert.equal(declsOf(settings, '.help-slide.sheet-leaving')['pointer-events'], 'none')
+
+  for (const selector of ['.help-mask', '.help-mask.sheet-open', '.help-slide', '.help-slide.sheet-open', '.sheet-close']) {
+    const rmRule = settings.reducedMotionRules.find((rule) => rule.selectors.includes(selector))
+    assert.ok(rmRule, `reduced motion must cover ${selector}`)
+    assert.equal(rmRule.decls.transition, 'none', `${selector} must land immediately under reduced motion`)
+    assert.equal(rmRule.decls.animation, 'none')
+  }
+  assert.equal(declsOf(settings, '.reduced-motion-probe').width, '0')
+  const probe = settings.reducedMotionRules.find((rule) => rule.selectors.includes('.reduced-motion-probe'))
+  assert.ok(probe, 'reduced motion must widen the settings probe')
+  assert.equal(probe.decls.width, '1px')
+  assert.match(readRepo('pages/settings/settings.wxml'), /<view class="reduced-motion-probe" aria-hidden="true"><\/view>/)
+
+  assert.match(readRepo('DESIGN.md'), /设置「使用说明」弹层（issue #154）/)
 })
 
 test('sync pill fades and rises with reversible transitions', () => {

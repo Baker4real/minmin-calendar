@@ -333,13 +333,239 @@ test('the refresh retry sentence is a tappable in-flow row below the month title
   assert.match(retryBlock, /wx:if="\{\{refreshRetryVisible\}\}"/)
   assert.match(retryBlock, /bindtap="retryRefresh"/)
   assert.match(retryBlock, /aria-role="button"/)
-  assert.match(retryBlock, /aria-label="日历刷新失败，点按重试"/)
-  assert.match(retryBlock, /刷新失败，点按重试/)
+  // 可见文案与朗读名随失败范围变化（issue #151），整句由 renderRefreshRetry 按页面数据求值
 
   const wxss = readIndexWxss()
   const row = ruleBody(wxss, '.refresh-retry')
   assert.doesNotMatch(row, /position:\s*(fixed|absolute)/, 'the retry row must stay in the document flow')
   assert.match(ruleBody(wxss, '.refresh-retry-text'), /color:\s*#E8909E/i)
+})
+
+// issue #151：行内重试行按失败范围给出的整句（可见文案 / 朗读名）
+const FULL_REFRESH_RETRY = { text: '刷新失败，点按重试', ariaLabel: '日历刷新失败，点按重试' }
+const PERIODS_RETRY = { text: '经期同步失败，点按重试', ariaLabel: '经期同步失败，点按重试' }
+const MEMORIES_RETRY = { text: '欢乐时光同步失败，点按重试', ariaLabel: '欢乐时光同步失败，点按重试' }
+
+// issue #151：用页面数据渲染行内重试行——显示条件、可见文案和朗读名都按模板求值，
+// 断言用户看到、读屏读到的句子，不绑定数据键名
+function renderRefreshRetry(data) {
+  const wxml = readIndexWxml()
+  const classIndex = wxml.indexOf('class="refresh-retry"')
+  assert.ok(classIndex !== -1, 'expected the refresh retry row')
+  const tagStart = wxml.lastIndexOf('<view', classIndex)
+  const tagEnd = wxml.indexOf('>', classIndex)
+  const openTag = wxml.slice(tagStart, tagEnd + 1)
+  const inner = wxml.slice(tagEnd + 1, wxml.indexOf('</view>', tagEnd))
+  const attr = (name) => {
+    const match = openTag.match(new RegExp(`\\s${name}="([^"]*)"`))
+    assert.ok(match, `expected ${name} on the refresh retry row`)
+    return match[1]
+  }
+  const render = (template) => template.replace(
+    /\{\{([\s\S]*?)\}\}/g,
+    (_, expr) => String(evaluateWxmlExpression(expr, data))
+  )
+  const condition = attr('wx:if').match(/^\{\{([\s\S]*)\}\}$/)
+  assert.ok(condition, 'the refresh retry row is conditional')
+  if (!evaluateWxmlExpression(condition[1], data)) return null
+  return {
+    text: render(inner.replace(/<[^>]*>/g, '').trim()),
+    ariaLabel: render(attr('aria-label'))
+  }
+}
+
+// issue #151：只有经期同步失败——旧经期和刚同步到的欢乐时光都留在日历上，
+// 行内重试指出失败的是经期；重试成功后日历更新、重试行消失
+test('a periods-only sync failure keeps old periods and offers an inline retry that names periods', async () => {
+  const oldPeriod = period('p1', '2026-06-01')
+  const newPeriod = period('p2', '2026-06-20')
+  const oldMemory = memory('m1', '2026-06-02')
+  const newMemory = memory('m2', '2026-06-12')
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: [oldPeriod] },
+      { kind: 'success', data: [oldMemory] },
+      { kind: 'retryable-failure', message: 'period network down' },
+      { kind: 'success', data: [oldMemory, newMemory] },
+      { kind: 'success', data: [newPeriod, oldPeriod] },
+      { kind: 'success', data: [oldMemory, newMemory] }
+    ])
+  })
+
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+    assert.equal(renderRefreshRetry(harness.page.data), null)
+
+    await harness.page.onShow()
+    assert.deepEqual(harness.page._homeRecords.periods, [oldPeriod])
+    assert.deepEqual(harness.page._homeRecords.memories, [oldMemory, newMemory])
+    assert.deepEqual(renderRefreshRetry(harness.page.data), PERIODS_RETRY)
+    // 胶囊照旧只报状态：文案与既有部分失败协调一致
+    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已保留旧经期数据')
+
+    await harness.page.retryRefresh()
+    assert.equal(renderRefreshRetry(harness.page.data), null)
+    assert.deepEqual(harness.page._homeRecords.periods, [newPeriod, oldPeriod])
+    assert.deepEqual(harness.page._homeRecords.memories, [oldMemory, newMemory])
+    assert.equal(harness.page.data.syncStatusText, '已同步')
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #151：只有欢乐时光同步失败——首屏照常显示经期，行内重试指出欢乐时光；
+// 重试仍失败时经期、失败说明和重试入口都留驻，计时器走多久都不自动消失
+test('a memories-only sync failure names happy times and a repeated failure never auto-hides the retry', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const loadedPeriod = period('p1', '2026-06-01')
+  const failure = { kind: 'retryable-failure', message: 'memory network down' }
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: [loadedPeriod] },
+      failure,
+      { kind: 'success', data: [loadedPeriod] },
+      failure
+    ]),
+    room: {
+      async getVerifiedActiveRoom() {
+        return { kind: 'success', bound: true, roomCode: 'ROOM01', status: 'waiting' }
+      }
+    }
+  })
+
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+    assert.equal(harness.page.data.hasLoadedHomeData, true)
+    assert.deepEqual(harness.page._homeRecords.periods, [loadedPeriod])
+    assert.deepEqual(renderRefreshRetry(harness.page.data), MEMORIES_RETRY)
+    assert.equal(harness.page.data.syncStatusText, '欢乐时光同步失败，已显示经期数据')
+
+    const retry = harness.page.retryRefresh()
+    // 重试进行中不先撤掉失败行：只有成功的结果才清除
+    assert.equal(harness.page.data.refreshing, true)
+    assert.deepEqual(renderRefreshRetry(harness.page.data), MEMORIES_RETRY)
+    await retry
+    assert.deepEqual(renderRefreshRetry(harness.page.data), MEMORIES_RETRY)
+    assert.deepEqual(harness.page._homeRecords.periods, [loadedPeriod])
+    assert.deepEqual(harness.page._homeRecords.memories, [])
+    assert.equal(harness.page.data.noRoom, false)
+
+    mock.timers.tick(60000)
+    assert.deepEqual(renderRefreshRetry(harness.page.data), MEMORIES_RETRY)
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #151：部分失败与整页刷新失败共用同一行、同一处理器——
+// 最近一次结果决定这一行指向哪里；整页失败的旧句不变，两个集合都成功才消失
+test('the inline retry follows the latest outcome across partial and full background failures', async () => {
+  const p1 = period('p1', '2026-06-01')
+  const p2 = period('p2', '2026-06-20')
+  const m1 = memory('m1', '2026-06-02')
+  const m2 = memory('m2', '2026-06-12')
+  const failure = { kind: 'retryable-failure', message: 'network down' }
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: [p1] },
+      { kind: 'success', data: [m1] },
+      // 回到首页：只有经期失败，欢乐时光没有变化
+      failure,
+      { kind: 'success', data: [m1] },
+      // 下拉刷新：两个集合都失败
+      failure,
+      failure,
+      // 点重试：经期恢复，欢乐时光失败
+      { kind: 'success', data: [p2, p1] },
+      failure,
+      // 再点重试：两个集合都成功
+      { kind: 'success', data: [p2, p1] },
+      { kind: 'success', data: [m2, m1] }
+    ])
+  })
+
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+
+    await harness.page.onShow()
+    assert.deepEqual(renderRefreshRetry(harness.page.data), PERIODS_RETRY)
+    // 没有本地改动也没有新数据时胶囊照旧保持安静：失败说明只由重试行承担
+    assert.equal(harness.page.data.syncStatusVisible, false)
+
+    await harness.page.onPullDownRefresh()
+    assert.deepEqual(renderRefreshRetry(harness.page.data), FULL_REFRESH_RETRY)
+    assert.deepEqual(harness.page._homeRecords.periods, [p1])
+    assert.deepEqual(harness.page._homeRecords.memories, [m1])
+
+    await harness.page.retryRefresh()
+    assert.deepEqual(renderRefreshRetry(harness.page.data), MEMORIES_RETRY)
+    assert.deepEqual(harness.page._homeRecords.periods, [p2, p1])
+    assert.deepEqual(harness.page._homeRecords.memories, [m1])
+
+    await harness.page.retryRefresh()
+    assert.equal(renderRefreshRetry(harness.page.data), null)
+    assert.deepEqual(harness.page._homeRecords.periods, [p2, p1])
+    assert.deepEqual(harness.page._homeRecords.memories, [m2, m1])
+    assert.equal(harness.page.data.noRoom, false)
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #151：刚保存的经期还在等待同步时经期同步失败——乐观记录不回滚、pending 不被误确认，
+// 胶囊沿用既有部分失败状态；重试成功才确认 pending 并清除重试行
+test('a partial failure keeps the pending local revision until a successful retry confirms it', async () => {
+  const p1 = period('p1', '2026-06-01')
+  const saved = period('p2', '2026-06-20')
+  const m1 = memory('m1', '2026-06-02')
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: [p1] },
+      { kind: 'success', data: [m1] },
+      { kind: 'retryable-failure', message: 'period network down' },
+      { kind: 'success', data: [m1] },
+      { kind: 'success', data: [saved, p1] },
+      { kind: 'success', data: [m1] }
+    ])
+  })
+
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+    harness.page.applyRecordChange({ collection: 'periods', mode: 'add', record: saved })
+    assert.equal(harness.page._syncState.pendingRevisions.periods, 1)
+
+    await harness.page.onShow()
+    assert.deepEqual(harness.page._homeRecords.periods.map(item => item._id), ['p2', 'p1'])
+    assert.equal(harness.page._syncState.pendingRevisions.periods, 1)
+    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已保留旧经期数据')
+    assert.deepEqual(renderRefreshRetry(harness.page.data), PERIODS_RETRY)
+
+    await harness.page.retryRefresh()
+    assert.deepEqual(harness.page._syncState.pendingRevisions, { periods: null, memories: null })
+    assert.deepEqual(harness.page._homeRecords.periods.map(item => item._id), ['p2', 'p1'])
+    assert.equal(harness.page.data.syncStatusText, '已同步')
+    assert.equal(renderRefreshRetry(harness.page.data), null)
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #151：同步胶囊只表达状态，不是按钮；部分失败和整页失败共用唯一一个行内重试入口
+test('the sync pill stays a non-tappable status and the retry row is the only recovery entry', () => {
+  const wxml = readIndexWxml()
+  const pillIndex = wxml.indexOf('class="sync-pill')
+  assert.ok(pillIndex !== -1, 'expected the sync status pill')
+  const pillTag = wxml.slice(wxml.lastIndexOf('<view', pillIndex), wxml.indexOf('>', pillIndex) + 1)
+  assert.match(pillTag, /aria-role="status"/)
+  assert.doesNotMatch(pillTag, /\s(bindtap|catchtap|hover-class)=/)
+  assert.match(ruleBody(readIndexWxss(), '.sync-pill'), /pointer-events:\s*none/)
+
+  assert.equal((wxml.match(/bindtap="retryRefresh"/g) || []).length, 1)
 })
 
 // issue #79：爱心画面只属于未绑定/需要重新绑定；加载失败不再复用这颗心
@@ -767,12 +993,30 @@ test('homepage render data omits record arrays and the per-day detail map', asyn
   }
 })
 
-test('homepage shows a first-record guide instead of the month summary when the room has no records', () => {
+test('homepage shows a first-record guide instead of the month summary when the room has no records', async () => {
   const wxml = readIndexWxml()
 
   assert.match(wxml, /wx:if="\{\{hasRecords\}\}"[\s\S]*class="month-summary"/)
   assert.match(wxml, /wx:if="\{\{!hasRecords\}\}" class="empty-guide"/)
-  assert.match(wxml, /点日历任意一天开始记录/)
+  // issue #152：未来日期不能新增记录，空态只引导到今天或过去的一天，不再说「任意一天」
+  assert.match(wxml, /class="empty-guide-text">点今天或过去的一天开始记录</)
+  assert.doesNotMatch(wxml, /任意一天/)
+
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: [] },
+      { kind: 'success', data: [] }
+    ])
+  })
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+    assert.equal(harness.page.data.noRoom, false)
+    assert.equal(harness.page.data.hasLoadedHomeData, true)
+    assert.equal(harness.page.data.hasRecords, false)
+  } finally {
+    harness.teardown()
+  }
 })
 
 // issue #105：空态引导文字对比度不低于 --text-secondary 档（基准 = 未选中 tab 在画布上的 4.5:1），
@@ -1213,6 +1457,75 @@ test('tapping a day detail row opens that record in the editor', () => {
   }
 })
 
+// issue #157：同一天多条经期和欢乐时光时，详情行的读屏名各自可辨。名称由日历投影提供、模板只绑定；
+// 作者只在房间已配对时出现，空白备注不留多余标点；可见行不新增元数据
+test('day detail rows read out distinct names for same-day records, naming the author only when paired', async () => {
+  const periods = [
+    { _id: 'p-mine', startDate: '2026-06-01', endDate: '2026-06-03', status: 'known-end', createdByMe: true },
+    { _id: 'p-theirs', startDate: '2026-06-02', endDate: '2026-06-02', status: 'known-end', createdByMe: false }
+  ]
+  const memories = [
+    { _id: 'm-theirs', date: '2026-06-02', note: '散步', createdByMe: false },
+    { _id: 'm-blank', date: '2026-06-02', note: '', createdByMe: true }
+  ]
+  const client = {
+    async list(collection) {
+      return { kind: 'success', data: collection === 'periods' ? periods : memories }
+    }
+  }
+
+  const wxml = readIndexWxml()
+  const detailList = wxml.slice(wxml.indexOf("daySheetMode == 'detail'"), wxml.indexOf('compact-actions'))
+  const rowNameBinding = kind => {
+    const at = detailList.indexOf(`data-kind="${kind}"`)
+    const tag = detailList.slice(detailList.lastIndexOf('<view', at), detailList.indexOf('>', at))
+    const binding = /aria-label="\{\{([^}]+)\}\}"/.exec(tag)
+    assert.ok(binding, `${kind} detail row binds a screen-reader name from the row data`)
+    return item => evaluateWxmlExpression(binding[1], { item })
+  }
+  const periodName = rowNameBinding('period')
+  const memoryName = rowNameBinding('memory')
+  // 读屏名只进 aria-label，不作为可见文字渲染
+  assert.equal(
+    (detailList.match(/ariaLabel/g) || []).length,
+    (detailList.match(/aria-label="\{\{item\.ariaLabel\}\}"/g) || []).length
+  )
+
+  async function namesFor(status) {
+    const harness = loadPageHarness({
+      client,
+      calendarState: 'real',
+      room: {
+        async getVerifiedActiveRoom() {
+          return { kind: 'success', bound: true, roomCode: 'ROOM01', status }
+        }
+      }
+    })
+    try {
+      await harness.page.onShow()
+      harness.page.applyHomeCalendarState({ year: 2026, month: 5, today: '2026-06-26' })
+      harness.page.showDayDetail('2026-06-02')
+      const detail = harness.page.data.selectedDayDetail
+      return [...detail.periods.map(periodName), ...detail.memories.map(memoryName)]
+    } finally {
+      harness.teardown()
+    }
+  }
+
+  assert.deepEqual(await namesFor('paired'), [
+    '编辑经期，6月1日–6月3日，已结束，我记的',
+    '编辑经期，6月2日–6月2日，已结束，TA 记的',
+    '编辑欢乐时光，6月2日，散步，TA 记的',
+    '编辑欢乐时光，6月2日，我记的'
+  ])
+  assert.deepEqual(await namesFor('waiting'), [
+    '编辑经期，6月1日–6月3日，已结束',
+    '编辑经期，6月2日–6月2日，已结束',
+    '编辑欢乐时光，6月2日，散步',
+    '编辑欢乐时光，6月2日'
+  ])
+})
+
 test('a period day action edits the covering record instead of creating an overlap', () => {
   const harness = loadDaySheetHarness()
   try {
@@ -1255,6 +1568,87 @@ test('a future day keeps holiday information and offers no record actions', () =
     harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
     harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'memory' } } })
     harness.page.onDayRecordTap({ currentTarget: { dataset: { kind: 'memory', id: 'm-future' } } })
+    assert.deepEqual(navigation, [])
+  } finally {
+    harness.teardown()
+  }
+})
+
+// 模板片段里 marker 处会不会渲染：包住它的每一层 wx:if 都按真实页面数据求值为真
+function wxmlRendersAt(fragment, marker, data) {
+  const source = fragment.replace(/<!--[\s\S]*?-->/g, '')
+  const at = source.indexOf(marker)
+  assert.ok(at !== -1, `expected ${marker} in the template`)
+  const conditions = []
+  const tagPattern = /<(\/?)([a-zA-Z][\w-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*(\/?)>/g
+  let match
+  while ((match = tagPattern.exec(source)) && match.index < at) {
+    if (match[1]) {
+      conditions.pop()
+      continue
+    }
+    if (match[4]) continue
+    const condition = /\swx:if="\{\{([\s\S]*?)\}\}"/.exec(match[3])
+    conditions.push(condition ? condition[1] : '')
+  }
+  return conditions.every(expr => !expr || Boolean(evaluateWxmlExpression(expr, data)))
+}
+
+// issue #152：普通未来日期的当日弹层不再只剩标题和关闭键。真实日历投影给出持久说明，弹层模板渲染它；
+// 节日和调休句照常显示。今天与过去的日子仍是记录动作，没有这句说明。
+// harness 的 util 桩把任何 Date 都格式化成固定的今天，预测窗口在这里算不准；未来「预」由 home-calendar-state 覆盖
+test('a future day sheet explains why it cannot be recorded while today and past days keep their actions', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]), calendarState: 'real' })
+  const wxml = readIndexWxml()
+  const sheetStart = wxml.lastIndexOf('<view', wxml.indexOf('wx:if="{{dayActionMounted}}"'))
+  const daySheet = wxml.slice(sheetStart, wxml.indexOf('wx:if="{{monthMenuMounted}}"'))
+  const futureNotice = { title: '未来日期不能新增记录', text: '到了这一天，再来记经期或欢乐时光' }
+  const renderedNotice = () => {
+    const data = harness.page.data
+    if (!wxmlRendersAt(daySheet, '{{selectedDayDetail.futureNotice.title}}', data)) return null
+    assert.ok(wxmlRendersAt(daySheet, '{{selectedDayDetail.futureNotice.text}}', data))
+    return {
+      title: evaluateWxmlExpression('selectedDayDetail.futureNotice.title', data),
+      text: evaluateWxmlExpression('selectedDayDetail.futureNotice.text', data)
+    }
+  }
+  const tapDay = date => harness.page.onDayTap({ currentTarget: { dataset: { date } } })
+  try {
+    const navigation = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+    harness.page.applyHomeCalendarState({ year: 2026, month: 5, periods: [], memories: [], today: '2026-06-26' })
+
+    // 普通未来日期（harness 今天固定为 2026-06-26）：弹层照常打开，只有说明，没有记录动作
+    tapDay('2026-06-30')
+    assert.equal(harness.page.data.dayActionMounted, true)
+    assert.equal(harness.page.data.daySheetMode, 'actions')
+    assert.equal(harness.page.data.selectedDateIsFuture, true)
+    assert.deepEqual(harness.page.data.selectedDayDetail.meanings, [])
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions, [])
+    assert.deepEqual(renderedNotice(), futureNotice)
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'memory' } } })
+
+    // 今天与过去的日子：记录动作还在，没有这句说明
+    tapDay('2026-06-26')
+    assert.equal(harness.page.data.selectedDateIsFuture, false)
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions.map(item => item.label), ['记经期', '记欢乐时光'])
+    assert.equal(renderedNotice(), null)
+    tapDay('2026-06-10')
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions.map(item => item.label), ['补记经期', '补记欢乐时光'])
+    assert.equal(renderedNotice(), null)
+
+    // 未来的节日与调休：句子照常显示，同样只有说明
+    harness.page.applyHomeCalendarState({ year: 2026, month: 8 })
+    tapDay('2026-09-25')
+    assert.equal(harness.page.data.selectedDateSubtitle, '八月十五 · 中秋')
+    assert.deepEqual(harness.page.data.selectedDayDetail.meanings.map(item => item.text), ['中秋。'])
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions, [])
+    assert.deepEqual(renderedNotice(), futureNotice)
+    tapDay('2026-09-20')
+    assert.deepEqual(harness.page.data.selectedDayDetail.meanings.map(item => item.text), ['官方调休上班日。'])
+    assert.deepEqual(renderedNotice(), futureNotice)
+
     assert.deepEqual(navigation, [])
   } finally {
     harness.teardown()
@@ -3026,9 +3420,6 @@ test('home pull-to-refresh starts the background reload and stops when it finish
 })
 
 test('home pull-to-refresh stops after a failed background reload and keeps the retry sentence', async () => {
-  const wxml = readIndexWxml()
-  assert.match(wxml, /刷新失败，点按重试/)
-
   let call = 0
   const periods = [period('p1', '2026-06-01')]
   const harness = loadPageHarness({
@@ -3050,7 +3441,7 @@ test('home pull-to-refresh stops after a failed background reload and keeps the 
     assert.equal(stops, 1)
     assert.equal(harness.page.data.refreshing, false)
     assert.equal(harness.page.data.loading, false)
-    assert.equal(harness.page.data.refreshRetryVisible, true)
+    assert.deepEqual(renderRefreshRetry(harness.page.data), FULL_REFRESH_RETRY)
     assert.equal(harness.page.data.periods, undefined)
     assert.deepEqual(harness.page._homeRecords.periods, periods)
   } finally {

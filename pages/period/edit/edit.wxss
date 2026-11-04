@@ -46,7 +46,7 @@
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
-  color: rgba(255,255,255,0.5);
+  color: var(--text-secondary);
 }
 .period-length-hint {
   display: block;
