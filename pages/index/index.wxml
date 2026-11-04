@@ -132,8 +132,8 @@ module.exports = {
     <view class="home-sticky-spacer {{showBackToToday ? 'with-back-today' : ''}}"></view>
 
     <!-- 刷新失败重试句：正常文档流放在月份导航与日历之间，不遮月份标题；留驻到重试成功（issue #79） -->
-    <view wx:if="{{refreshRetryVisible}}" class="refresh-retry" bindtap="retryRefresh" aria-role="button" aria-label="日历刷新失败，点按重试" hover-class="refresh-retry-hover">
-      <text class="refresh-retry-text">刷新失败，点按重试</text>
+    <view wx:if="{{refreshRetryVisible}}" class="refresh-retry" bindtap="retryRefresh" aria-role="button" aria-label="{{refreshRetryLabel}}" hover-class="refresh-retry-hover">
+      <text class="refresh-retry-text">{{refreshRetryText}}</text>
     </view>
 
     <view
