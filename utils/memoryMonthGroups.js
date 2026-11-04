@@ -1,4 +1,5 @@
 const util = require('./util')
+const cycle = require('./cycle')
 
 /**
  * 月份键（issue #107）：记录日期（合法 YYYY-MM-DD）所属的公历月份 = 日期前 7 位（YYYY-MM）。
@@ -17,6 +18,14 @@ function firstNoteExcerpt(records) {
   return ''
 }
 
+// 行读屏名（issue #157）：日期 + 非空备注的短摘要 + 作者（页面只在房间已配对时给行加作者标签），
+// 同一天的多条因此各自可辨；空的部分跳过，不留多余标点。可见行仍只显示原有字段
+function memoryRowAriaLabel(row) {
+  return ['编辑欢乐时光', row.dayLabel, cycle.recordNoteSummary(row.note), row.authorLabel]
+    .filter(Boolean)
+    .join('，')
+}
+
 // 展开选择的两个取值（issue #109）：页面内存按月份键记「用户点过卡头」的月份，
 // 值只有这两个；收敛为模块常量，页面写选择与这里的展开推导共用同一对值
 const EXPANDED = 'expanded'
@@ -30,7 +39,8 @@ const DEFAULT_EXPANDED_MONTHS = 3
  * 这只是显示归组，不是一种新记录：每条记录保留自己的日期，每月不存任何数据。
  * 条数口径 = 日期落在该月的记录条数，与首页 Monthly recap / 小结的同月计数一致。
  * 分组前提与列表一致：日期都是云端写入时校验过的合法 YYYY-MM-DD。
- * 读屏名（ariaLabel）带展开状态，由 applyMemoryMonthExpansion 独家产出；build 不写死。
+ * 卡头读屏名（group.ariaLabel）带展开状态，由 applyMemoryMonthExpansion 独家产出；build 不写死。
+ * 行读屏名（row.ariaLabel，issue #157）由 build 产出，见 memoryRowAriaLabel。
  */
 function buildMemoryMonthGroups(memories, options = {}) {
   const today = options.today
@@ -59,6 +69,7 @@ function buildMemoryMonthGroups(memories, options = {}) {
       dayLabel: util.formatDisplayDate(date, { today })
     }
     if (memory.authorLabel) row.authorLabel = memory.authorLabel
+    row.ariaLabel = memoryRowAriaLabel(row)
     group.records.push(row)
   }
 

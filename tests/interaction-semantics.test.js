@@ -236,10 +236,11 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
     .filter((element) => element.attrs.bindtap === 'onDayActionTap')
     .map((element) => element.attrs['aria-label'])
   assert.deepEqual(dayActions, ['{{item.label}}'])
+  // issue #157：详情行读屏名由日历投影按记录拼好（区间与状态或日期与备注摘要，配对后加作者），模板只绑定
   const recordRows = elements
     .filter((element) => element.attrs.bindtap === 'onDayRecordTap')
     .map((element) => element.attrs['aria-label'])
-  assert.deepEqual(recordRows, ['编辑经期', '编辑欢乐时光'])
+  assert.deepEqual(recordRows, ['{{item.ariaLabel}}', '{{item.ariaLabel}}'])
 
   // 月份格点一下即跳转，不再有确认按钮
   const jumpOption = byHandler('selectJumpMonth', 'jump-option')
@@ -302,6 +303,55 @@ test('sheet mask and panel are siblings so only the mask is announced as close',
     assert.ok(named.includes('关闭'), `${mask.attrs['aria-label']} keeps its own close control`)
   }
   assert.deepEqual(labels.sort(), ['关闭工具菜单', '关闭当日操作', '关闭月份选择', '关闭面板'])
+})
+
+// issue #154：设置「使用说明」同首页弹层的结构——遮罩单独朗读为「关闭使用说明」，
+// 面板标题行里有可见的「×」关闭键（读屏名「关闭」），触控高度至少 88rpx。
+test('settings help keeps a separately named mask and a visible close in its title row', () => {
+  const forest = parseWxmlForest(readPage('pages/settings/settings.wxml'))
+  const masks = []
+  walkForest(forest, (node) => {
+    if (classTokens(node).includes('help-mask')) masks.push(node)
+  })
+  assert.equal(masks.length, 1)
+  const [mask] = masks
+  assert.equal(mask.attrs.bindtap, 'closeHelp')
+  assert.equal(mask.attrs['aria-role'], 'button')
+  assert.equal(mask.attrs['aria-label'], '关闭使用说明')
+  assert.equal(mask.children.length, 0, 'the mask must not wrap the help panel')
+
+  const host = mask.parent
+  assert.ok(host, 'the mask needs a sibling panel')
+  assert.equal(host.attrs['aria-role'], undefined)
+  assert.equal(host.attrs['aria-label'], undefined)
+  const panel = host.children.find((child) => classTokens(child).includes('help-slide'))
+  assert.ok(panel, 'the help panel should be the mask sibling')
+  assert.equal(panel.attrs['aria-role'], undefined)
+
+  const closes = []
+  walkForest(panel.children, (node) => {
+    if (classTokens(node).includes('sheet-close')) closes.push(node)
+  })
+  assert.equal(closes.length, 1, 'the help panel has one visible close')
+  const [close] = closes
+  assert.equal(close.attrs.bindtap, 'closeHelp')
+  assert.equal(close.attrs['aria-role'], 'button')
+  assert.equal(close.attrs['aria-label'], '关闭')
+  assert.ok(
+    close.parent.children.some((node) => classTokens(node).includes('help-title')),
+    'the close sits in the title row'
+  )
+
+  const closeRule = wxssRuleBody('pages/settings/settings.wxss', '.sheet-close')
+  assert.ok(closeRule, 'expected .sheet-close in settings.wxss')
+  for (const side of ['width', 'height']) {
+    const size = new RegExp(`(?:^|[;\\s])${side}:\\s*(\\d+)rpx`).exec(closeRule)
+    assert.ok(size && Number(size[1]) >= 88, `the help close ${side} must be at least 88rpx`)
+  }
+  const pressed = wxssRuleBody('pages/settings/settings.wxss', '.sheet-close:active')
+  const scale = /transform:\s*scale\(([\d.]+)\)/.exec(pressed || '')
+  assert.ok(scale, 'the help close keeps a press scale')
+  assert.ok(Number(scale[1]) >= 0.94 && Number(scale[1]) <= 0.98)
 })
 
 test('home status line opens the prediction sheet and the record count is gone', () => {
@@ -398,7 +448,8 @@ test('record list rows, retry affordances and settings menu entries announce the
   // 经期行读屏名称带状态：日期走统一显示格式，进行中/结束日期不详由 rangeSummary 表达
   assert.equal(byHandler(period, 'editPeriod', 'list-item').attrs['aria-label'], '编辑经期记录 {{item.rangeSummary}}')
   assert.equal(byHandler(period, 'loadData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
-  assert.equal(byHandler(period, 'editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dayLabel}} 的欢乐时光')
+  // issue #157：欢乐时光月份行的读屏名由月份分组按记录拼好（日期、备注摘要、配对后的作者），模板只绑定
+  assert.equal(byHandler(period, 'editMemory', 'list-item').attrs['aria-label'], '{{item.ariaLabel}}')
   assert.equal(byHandler(memory, 'editMemory', 'list-item'), undefined)
   assert.equal(byHandler(memory, 'loadData', 'empty-state'), undefined)
 
@@ -440,11 +491,11 @@ test('record tab segment control reads as a radio group with a perceivable check
   assert.equal(memoryOption.attrs['aria-label'], '欢乐时光')
   assert.equal(memoryOption.attrs['aria-checked'], "{{segment === 'memory'}}")
 
-  // 欢乐时光分段内的行与重试入口沿用独立页的朗读文案
+  // 欢乐时光分段内的行读屏名来自月份分组数据（issue #157），重试入口沿用独立页的朗读文案
   const byHandler = (handler, cls) =>
     elements.find((element) =>
       element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
-  assert.equal(byHandler('editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dayLabel}} 的欢乐时光')
+  assert.equal(byHandler('editMemory', 'list-item').attrs['aria-label'], '{{item.ariaLabel}}')
   assert.equal(byHandler('loadMemoryData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
   assert.equal(byHandler('addMemory', 'btn-premium').attrs['aria-label'], '记欢乐时光')
   assert.match(readPage('pages/period/period.wxml'), />＋ 记欢乐时光</)

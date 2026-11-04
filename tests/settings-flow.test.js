@@ -817,16 +817,168 @@ test('settings about group shows the version once and opens a short help sheet',
   assert.match(help, /房间会归档/)
   assert.match(help, /不是医疗建议/)
   assert.match(wxml, /aria-label="关闭使用说明"/)
+})
+
+// issue #154：使用说明走首页弹层同一生命周期——先以关闭姿态挂载，下一次渲染打开；
+// 离场 200ms 到点才卸载；离场途中再打开取消卸载，从当前位置回到 open。
+test('the settings help sheet opens, leaves and unmounts on the homepage sheet lifecycle', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const wxml = readPageFile('pages/settings/settings.wxml')
+  assert.match(wxml, /wx:if="\{\{helpMounted\}\}"/)
+  assert.match(wxml, /class="help-mask sheet-\{\{helpPhase\}\}"/)
+  assert.match(wxml, /class="help-slide sheet-\{\{helpPhase\}\}"/)
 
   const harness = loadSettingsPageHarness({
     roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
   })
   try {
     assert.equal(harness.page.data.helpOpen, false)
+    assert.equal(harness.page.data.helpMounted, false)
+    assert.equal(harness.page.data.helpPhase, 'closed')
+
     harness.page.openHelp()
     assert.equal(harness.page.data.helpOpen, true)
+    assert.equal(harness.page.data.helpMounted, true)
+    assert.equal(harness.page.data.helpPhase, 'closed')
+    t.mock.timers.tick(0)
+    assert.equal(harness.page.data.helpPhase, 'open')
+
     harness.page.closeHelp()
     assert.equal(harness.page.data.helpOpen, false)
+    assert.equal(harness.page.data.helpPhase, 'leaving')
+    assert.equal(harness.page.data.helpMounted, true)
+    t.mock.timers.tick(199)
+    assert.equal(harness.page.data.helpPhase, 'leaving')
+    assert.equal(harness.page.data.helpMounted, true)
+    t.mock.timers.tick(1)
+    assert.equal(harness.page.data.helpPhase, 'closed')
+    assert.equal(harness.page.data.helpMounted, false)
+
+    harness.page.openHelp()
+    t.mock.timers.tick(0)
+    harness.page.closeHelp()
+    t.mock.timers.tick(100)
+    harness.page.openHelp()
+    assert.equal(harness.page.data.helpPhase, 'open')
+    assert.equal(harness.page.data.helpOpen, true)
+    t.mock.timers.tick(200)
+    assert.equal(harness.page.data.helpPhase, 'open')
+    assert.equal(harness.page.data.helpMounted, true)
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #154：同首页（issue #134）——帮助处于 open 或 leaving 时原生 tabBar 藏起来，离场卸载后才恢复；
+// 离场途中再打开就一直藏着。
+test('the settings help hides the native tab bar until its leave finishes, including a reopen', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadSettingsPageHarness({
+    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+  const tabBar = []
+  harness.wx.hideTabBar = (options) => tabBar.push(['hide', options && options.animation])
+  harness.wx.showTabBar = (options) => tabBar.push(['show', options && options.animation])
+  try {
+    harness.page.openHelp()
+    assert.deepEqual(tabBar, [])
+    t.mock.timers.tick(0)
+    assert.equal(harness.page.data.helpPhase, 'open')
+    assert.deepEqual(tabBar, [['hide', true]])
+
+    harness.page.closeHelp()
+    assert.equal(harness.page.data.helpPhase, 'leaving')
+    assert.deepEqual(tabBar, [['hide', true]])
+
+    harness.page.openHelp()
+    t.mock.timers.tick(200)
+    assert.equal(harness.page.data.helpMounted, true)
+    assert.deepEqual(tabBar, [['hide', true]])
+
+    harness.page.closeHelp()
+    t.mock.timers.tick(199)
+    assert.deepEqual(tabBar, [['hide', true]])
+    t.mock.timers.tick(1)
+    assert.equal(harness.page.data.helpMounted, false)
+    assert.deepEqual(tabBar, [['hide', true], ['show', true]])
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #154：减弱动效探针与首页同一套；设置页显示时读探针，帮助的 tabBar 隐藏和恢复不播动画。
+test('under reduced motion the settings help hides and restores the tab bar instantly', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadSettingsPageHarness({
+    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+  const tabBar = []
+  harness.wx.hideTabBar = (options) => tabBar.push(['hide', options && options.animation])
+  harness.wx.showTabBar = (options) => tabBar.push(['show', options && options.animation])
+  harness.wx.createSelectorQuery = () => {
+    const query = {
+      select() { return query },
+      fields() { return query },
+      exec(callback) { callback([{ width: '1px' }]) }
+    }
+    return query
+  }
+  try {
+    await harness.page.onShow()
+    harness.page.openHelp()
+    t.mock.timers.tick(0)
+    assert.deepEqual(tabBar, [['hide', false]])
+
+    harness.page.closeHelp()
+    t.mock.timers.tick(200)
+    assert.equal(harness.page.data.helpMounted, false)
+    assert.deepEqual(tabBar, [['hide', false], ['show', false]])
+  } finally {
+    harness.teardown()
+  }
+})
+
+// issue #154：同首页（issue #134）——系统返回由页面容器拦截，先走帮助的离场，不离开设置页；
+// 离场结束前拦截还在，第二次返回也不离开。
+test('system back closes the settings help instead of leaving the page', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const container = /<page-container\b[^>]*>/.exec(readPageFile('pages/settings/settings.wxml'))
+  assert.ok(container, 'expected a page-container to intercept system back')
+  // 不弹层时组件不留在树上：show 为 false 时它仍是原生层，会吃掉页面点击。
+  assert.match(container[0], /wx:if="\{\{sheetExitGuard\}\}"/)
+  assert.match(container[0], /show="\{\{true\}\}"/)
+  assert.match(container[0], /bindbeforeleave="onSheetSystemBack"/)
+  assert.match(container[0], /overlay="\{\{false\}\}"/)
+  assert.match(container[0], /\bduration="0"/)
+
+  const harness = loadSettingsPageHarness({
+    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+  harness.wx.navigateBack = (options) => harness.navigation.push({ type: 'navigateBack', options })
+  try {
+    assert.equal(harness.page.data.sheetExitGuard, false)
+    harness.page.openHelp()
+    assert.equal(harness.page.data.sheetExitGuard, true)
+    t.mock.timers.tick(0)
+    assert.equal(harness.page.data.helpPhase, 'open')
+
+    harness.page.onSheetSystemBack()
+    assert.equal(harness.page.data.helpPhase, 'leaving')
+    assert.equal(harness.page.data.helpMounted, true)
+    assert.deepEqual(harness.navigation, [])
+    t.mock.timers.tick(0)
+    assert.equal(harness.page.data.sheetExitGuard, true)
+
+    harness.page.onSheetSystemBack()
+    assert.equal(harness.page.data.helpPhase, 'leaving')
+    assert.equal(harness.page.data.helpMounted, true)
+    assert.deepEqual(harness.navigation, [])
+
+    t.mock.timers.tick(200)
+    assert.equal(harness.page.data.helpMounted, false)
+    assert.equal(harness.page.data.helpPhase, 'closed')
+    assert.equal(harness.page.data.sheetExitGuard, false)
+    assert.deepEqual(harness.navigation, [])
   } finally {
     harness.teardown()
   }

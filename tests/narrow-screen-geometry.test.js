@@ -492,6 +492,19 @@ test('sheets scroll within a bounded height and are never clipped by the mask', 
   assert.doesNotMatch(pageEnter[1], /transform/)
 })
 
+// issue #154：设置「使用说明」面板同样有滚动边界，字号放大或文案变长时标题行的关闭键不被顶出屏幕
+test('the settings help sheet scrolls within the bottom-sheet height band so its close stays on screen', () => {
+  const rules = parseWxssRules(readRepo('pages/settings/settings.wxss'))
+  const sheet = findDecls(rules, '.help-sheet')
+  const maxVh = /^(\d+(?:\.\d+)?)vh$/.exec(sheet['max-height'] || '')
+  assert.ok(maxVh, '.help-sheet needs a viewport-relative max-height')
+  assert.ok(Number(maxVh[1]) >= 82 && Number(maxVh[1]) <= 86, `.help-sheet max-height ${maxVh[1]}vh is outside 82–86vh`)
+  assert.equal(sheet['overflow-y'], 'auto', '.help-sheet must scroll when content grows')
+  for (const host of ['.help-layer', '.help-slide']) {
+    assert.doesNotMatch(findDecls(rules, host).overflow || '', /hidden/, `${host} must not clip the sheet`)
+  }
+})
+
 test('sheets bottom padding carries the runtime bottom safe-area inset', () => {
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
   for (const selector of ['.calendar-jump-sheet', '.day-action-sheet']) {

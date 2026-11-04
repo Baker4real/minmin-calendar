@@ -1089,12 +1089,30 @@ test('homepage render data omits record arrays and the per-day detail map', asyn
   }
 })
 
-test('homepage shows a first-record guide instead of the month summary when the room has no records', () => {
+test('homepage shows a first-record guide instead of the month summary when the room has no records', async () => {
   const wxml = readIndexWxml()
 
   assert.match(wxml, /wx:if="\{\{hasRecords\}\}"[\s\S]*class="month-summary"/)
   assert.match(wxml, /wx:if="\{\{!hasRecords\}\}" class="empty-guide"/)
-  assert.match(wxml, /点日历任意一天开始记录/)
+  // issue #152：未来日期不能新增记录，空态只引导到今天或过去的一天，不再说「任意一天」
+  assert.match(wxml, /class="empty-guide-text">点今天或过去的一天开始记录</)
+  assert.doesNotMatch(wxml, /任意一天/)
+
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: [] },
+      { kind: 'success', data: [] }
+    ])
+  })
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+    assert.equal(harness.page.data.noRoom, false)
+    assert.equal(harness.page.data.hasLoadedHomeData, true)
+    assert.equal(harness.page.data.hasRecords, false)
+  } finally {
+    harness.teardown()
+  }
 })
 
 // issue #105：空态引导文字对比度不低于 --text-secondary 档（基准 = 未选中 tab 在画布上的 4.5:1），
@@ -1535,6 +1553,75 @@ test('tapping a day detail row opens that record in the editor', () => {
   }
 })
 
+// issue #157：同一天多条经期和欢乐时光时，详情行的读屏名各自可辨。名称由日历投影提供、模板只绑定；
+// 作者只在房间已配对时出现，空白备注不留多余标点；可见行不新增元数据
+test('day detail rows read out distinct names for same-day records, naming the author only when paired', async () => {
+  const periods = [
+    { _id: 'p-mine', startDate: '2026-06-01', endDate: '2026-06-03', status: 'known-end', createdByMe: true },
+    { _id: 'p-theirs', startDate: '2026-06-02', endDate: '2026-06-02', status: 'known-end', createdByMe: false }
+  ]
+  const memories = [
+    { _id: 'm-theirs', date: '2026-06-02', note: '散步', createdByMe: false },
+    { _id: 'm-blank', date: '2026-06-02', note: '', createdByMe: true }
+  ]
+  const client = {
+    async list(collection) {
+      return { kind: 'success', data: collection === 'periods' ? periods : memories }
+    }
+  }
+
+  const wxml = readIndexWxml()
+  const detailList = wxml.slice(wxml.indexOf("daySheetMode == 'detail'"), wxml.indexOf('compact-actions'))
+  const rowNameBinding = kind => {
+    const at = detailList.indexOf(`data-kind="${kind}"`)
+    const tag = detailList.slice(detailList.lastIndexOf('<view', at), detailList.indexOf('>', at))
+    const binding = /aria-label="\{\{([^}]+)\}\}"/.exec(tag)
+    assert.ok(binding, `${kind} detail row binds a screen-reader name from the row data`)
+    return item => evaluateWxmlExpression(binding[1], { item })
+  }
+  const periodName = rowNameBinding('period')
+  const memoryName = rowNameBinding('memory')
+  // 读屏名只进 aria-label，不作为可见文字渲染
+  assert.equal(
+    (detailList.match(/ariaLabel/g) || []).length,
+    (detailList.match(/aria-label="\{\{item\.ariaLabel\}\}"/g) || []).length
+  )
+
+  async function namesFor(status) {
+    const harness = loadPageHarness({
+      client,
+      calendarState: 'real',
+      room: {
+        async getVerifiedActiveRoom() {
+          return { kind: 'success', bound: true, roomCode: 'ROOM01', status }
+        }
+      }
+    })
+    try {
+      await harness.page.onShow()
+      harness.page.applyHomeCalendarState({ year: 2026, month: 5, today: '2026-06-26' })
+      harness.page.showDayDetail('2026-06-02')
+      const detail = harness.page.data.selectedDayDetail
+      return [...detail.periods.map(periodName), ...detail.memories.map(memoryName)]
+    } finally {
+      harness.teardown()
+    }
+  }
+
+  assert.deepEqual(await namesFor('paired'), [
+    '编辑经期，6月1日–6月3日，已结束，我记的',
+    '编辑经期，6月2日–6月2日，已结束，TA 记的',
+    '编辑欢乐时光，6月2日，散步，TA 记的',
+    '编辑欢乐时光，6月2日，我记的'
+  ])
+  assert.deepEqual(await namesFor('waiting'), [
+    '编辑经期，6月1日–6月3日，已结束',
+    '编辑经期，6月2日–6月2日，已结束',
+    '编辑欢乐时光，6月2日，散步',
+    '编辑欢乐时光，6月2日'
+  ])
+})
+
 test('a period day action edits the covering record instead of creating an overlap', () => {
   const harness = loadDaySheetHarness()
   try {
@@ -1577,6 +1664,87 @@ test('a future day keeps holiday information and offers no record actions', () =
     harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
     harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'memory' } } })
     harness.page.onDayRecordTap({ currentTarget: { dataset: { kind: 'memory', id: 'm-future' } } })
+    assert.deepEqual(navigation, [])
+  } finally {
+    harness.teardown()
+  }
+})
+
+// 模板片段里 marker 处会不会渲染：包住它的每一层 wx:if 都按真实页面数据求值为真
+function wxmlRendersAt(fragment, marker, data) {
+  const source = fragment.replace(/<!--[\s\S]*?-->/g, '')
+  const at = source.indexOf(marker)
+  assert.ok(at !== -1, `expected ${marker} in the template`)
+  const conditions = []
+  const tagPattern = /<(\/?)([a-zA-Z][\w-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*(\/?)>/g
+  let match
+  while ((match = tagPattern.exec(source)) && match.index < at) {
+    if (match[1]) {
+      conditions.pop()
+      continue
+    }
+    if (match[4]) continue
+    const condition = /\swx:if="\{\{([\s\S]*?)\}\}"/.exec(match[3])
+    conditions.push(condition ? condition[1] : '')
+  }
+  return conditions.every(expr => !expr || Boolean(evaluateWxmlExpression(expr, data)))
+}
+
+// issue #152：普通未来日期的当日弹层不再只剩标题和关闭键。真实日历投影给出持久说明，弹层模板渲染它；
+// 节日和调休句照常显示。今天与过去的日子仍是记录动作，没有这句说明。
+// harness 的 util 桩把任何 Date 都格式化成固定的今天，预测窗口在这里算不准；未来「预」由 home-calendar-state 覆盖
+test('a future day sheet explains why it cannot be recorded while today and past days keep their actions', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]), calendarState: 'real' })
+  const wxml = readIndexWxml()
+  const sheetStart = wxml.lastIndexOf('<view', wxml.indexOf('wx:if="{{dayActionMounted}}"'))
+  const daySheet = wxml.slice(sheetStart, wxml.indexOf('wx:if="{{monthMenuMounted}}"'))
+  const futureNotice = { title: '未来日期不能新增记录', text: '到了这一天，再来记经期或欢乐时光' }
+  const renderedNotice = () => {
+    const data = harness.page.data
+    if (!wxmlRendersAt(daySheet, '{{selectedDayDetail.futureNotice.title}}', data)) return null
+    assert.ok(wxmlRendersAt(daySheet, '{{selectedDayDetail.futureNotice.text}}', data))
+    return {
+      title: evaluateWxmlExpression('selectedDayDetail.futureNotice.title', data),
+      text: evaluateWxmlExpression('selectedDayDetail.futureNotice.text', data)
+    }
+  }
+  const tapDay = date => harness.page.onDayTap({ currentTarget: { dataset: { date } } })
+  try {
+    const navigation = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+    harness.page.applyHomeCalendarState({ year: 2026, month: 5, periods: [], memories: [], today: '2026-06-26' })
+
+    // 普通未来日期（harness 今天固定为 2026-06-26）：弹层照常打开，只有说明，没有记录动作
+    tapDay('2026-06-30')
+    assert.equal(harness.page.data.dayActionMounted, true)
+    assert.equal(harness.page.data.daySheetMode, 'actions')
+    assert.equal(harness.page.data.selectedDateIsFuture, true)
+    assert.deepEqual(harness.page.data.selectedDayDetail.meanings, [])
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions, [])
+    assert.deepEqual(renderedNotice(), futureNotice)
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'memory' } } })
+
+    // 今天与过去的日子：记录动作还在，没有这句说明
+    tapDay('2026-06-26')
+    assert.equal(harness.page.data.selectedDateIsFuture, false)
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions.map(item => item.label), ['记经期', '记欢乐时光'])
+    assert.equal(renderedNotice(), null)
+    tapDay('2026-06-10')
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions.map(item => item.label), ['补记经期', '补记欢乐时光'])
+    assert.equal(renderedNotice(), null)
+
+    // 未来的节日与调休：句子照常显示，同样只有说明
+    harness.page.applyHomeCalendarState({ year: 2026, month: 8 })
+    tapDay('2026-09-25')
+    assert.equal(harness.page.data.selectedDateSubtitle, '八月十五 · 中秋')
+    assert.deepEqual(harness.page.data.selectedDayDetail.meanings.map(item => item.text), ['中秋。'])
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions, [])
+    assert.deepEqual(renderedNotice(), futureNotice)
+    tapDay('2026-09-20')
+    assert.deepEqual(harness.page.data.selectedDayDetail.meanings.map(item => item.text), ['官方调休上班日。'])
+    assert.deepEqual(renderedNotice(), futureNotice)
+
     assert.deepEqual(navigation, [])
   } finally {
     harness.teardown()

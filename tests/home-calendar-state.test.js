@@ -269,7 +269,8 @@ test('buildHomeCalendarState aligns missing endDate period markers with detail r
       key: 'period:p-missing-end',
       recordId: 'p-missing-end',
       range: '8月12日（结束日期不详）',
-      metaText: '经量 量少'
+      metaText: '经量 量少',
+      ariaLabel: '编辑经期，8月12日，结束日期不详'
     }
   ])
   assert.deepEqual(detail.actions, [])
@@ -307,7 +308,8 @@ test('buildHomeCalendarState projects an ongoing period from its start through t
       key: 'period:p-ongoing',
       recordId: 'p-ongoing',
       range: '8月10日–8月13日（进行中）',
-      metaText: ''
+      metaText: '',
+      ariaLabel: '编辑经期，8月10日–8月13日，进行中'
     }
   ])
   assert.equal(detail.meanings.some(item => item.key === 'period'), false)
@@ -545,7 +547,8 @@ test('buildHomeCalendarState marks only the known start day of an unknown-end pe
       key: 'period:p-unknown-end',
       recordId: 'p-unknown-end',
       range: '8月12日（结束日期不详）',
-      metaText: ''
+      metaText: '',
+      ariaLabel: '编辑经期，8月12日，结束日期不详'
     }
   ])
   assert.equal(detail.meanings.some(item => item.key === 'period'), false)
@@ -656,6 +659,81 @@ test('buildHomeCalendarState prefers record ids for period and memory detail key
   const detail = state.dayDetailsByDate['2026-08-12']
   assert.deepEqual(detail.periods.map(item => item.key), ['period:period-a', 'period:period-b'])
   assert.deepEqual(detail.memories.map(item => item.key), ['memory:memory-a', 'memory:memory-b'])
+})
+
+// issue #157：同一天被多条经期盖住时，每个编辑入口的读屏名说出日期区间、经期状态，
+// 房间已配对时再说出作者；可见行字段不变
+test('day detail period entries read out their range, status and paired author', () => {
+  const periods = [
+    { _id: 'p-mine', startDate: '2026-08-10', endDate: '2026-08-12', status: 'known-end', createdByMe: true },
+    { _id: 'p-theirs', startDate: '2026-08-11', endDate: '', status: 'ongoing', createdByMe: false },
+    { _id: 'p-legacy', startDate: '2026-08-12', endDate: '', status: 'unknown-end' }
+  ]
+  const detailFor = roomPaired => buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods,
+    memories: [],
+    today: '2026-08-13',
+    roomPaired
+  }).dayDetailsByDate['2026-08-12']
+
+  const paired = detailFor(true)
+  assert.deepEqual(paired.periods.map(item => item.ariaLabel), [
+    '编辑经期，8月10日–8月12日，已结束，我记的',
+    '编辑经期，8月11日–8月13日，进行中，TA 记的',
+    '编辑经期，8月12日，结束日期不详'
+  ])
+  assert.deepEqual(paired.periods.map(item => item.range), [
+    '8月10日–8月12日',
+    '8月11日–8月13日（进行中）',
+    '8月12日（结束日期不详）'
+  ])
+
+  // 未配对：不新增作者
+  assert.deepEqual(detailFor(false).periods.map(item => item.ariaLabel), [
+    '编辑经期，8月10日–8月12日，已结束',
+    '编辑经期，8月11日–8月13日，进行中',
+    '编辑经期，8月12日，结束日期不详'
+  ])
+})
+
+// issue #157：同一天的多条欢乐时光，读屏名说出日期、非空备注的短摘要，房间已配对时再说出作者；
+// 空白备注不留多余标点，长备注只取开头；可见行仍显示原备注
+test('day detail happy-time entries read out the date, a short note and the paired author', () => {
+  const memories = [
+    { _id: 'm-theirs', date: '2026-08-12', note: '一起散步', createdByMe: false },
+    { _id: 'm-blank', date: '2026-08-12', note: '', createdByMe: true },
+    { _id: 'm-spaces', date: '2026-08-12', note: ' \n ' },
+    { _id: 'm-long', date: '2026-08-12', note: '傍晚沿着河边慢慢走\n聊了很多以后想去的地方还买了两杯热可可', createdByMe: true }
+  ]
+  const detailFor = roomPaired => buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods: [],
+    memories,
+    today: '2026-08-13',
+    roomPaired
+  }).dayDetailsByDate['2026-08-12']
+
+  const paired = detailFor(true)
+  assert.deepEqual(paired.memories.map(item => item.ariaLabel), [
+    '编辑欢乐时光，8月12日，一起散步，TA 记的',
+    '编辑欢乐时光，8月12日，我记的',
+    '编辑欢乐时光，8月12日',
+    '编辑欢乐时光，8月12日，傍晚沿着河边慢慢走 聊了很多以后想去的地…，我记的'
+  ])
+  assert.equal(paired.memories[0].note, '一起散步')
+  assert.equal(paired.memories[1].note, '欢乐时光')
+  assert.equal(paired.memories[3].note, '傍晚沿着河边慢慢走\n聊了很多以后想去的地方还买了两杯热可可')
+
+  // 未配对：不新增作者
+  assert.deepEqual(detailFor(false).memories.map(item => item.ariaLabel), [
+    '编辑欢乐时光，8月12日，一起散步',
+    '编辑欢乐时光，8月12日',
+    '编辑欢乐时光，8月12日',
+    '编辑欢乐时光，8月12日，傍晚沿着河边慢慢走 聊了很多以后想去的地…'
+  ])
 })
 
 test('buildHomeCalendarState spells out a complete aria label for stacked markers', () => {
@@ -1058,6 +1136,57 @@ test('day detail names record actions by date and keeps workday sentences', () =
     ['workday', '调休上班', '官方调休上班日。']
   ])
   assert.deepEqual(workday.actions, [])
+})
+
+// issue #152：晚于今天的日子没有记录动作，当日弹层用一句持久说明给出下一步；
+// 预测、节日和调休句照常可看，今天与过去的日子不出现这句说明
+test('a future day explains why it cannot be recorded and keeps its prediction and holiday sentences', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 8,
+    periods: [
+      period('2026-05-08', '2026-05-12'),
+      period('2026-06-05', '2026-06-09'),
+      period('2026-07-03', '2026-07-07'),
+      period('2026-07-31', '2026-08-04'),
+      period('2026-08-28', '2026-09-01')
+    ],
+    memories: [],
+    today: '2026-09-22'
+  })
+  const futureNotice = { title: '未来日期不能新增记录', text: '到了这一天，再来记经期或欢乐时光' }
+
+  const plain = state.dayDetailsByDate['2026-09-29']
+  assert.deepEqual(plain.meanings, [])
+  assert.deepEqual(plain.actions, [])
+  assert.deepEqual(plain.futureNotice, futureNotice)
+
+  const predicted = state.dayDetailsByDate['2026-09-24']
+  assert.deepEqual(predicted.meanings.map(item => item.key), ['predict'])
+  assert.deepEqual(predicted.actions, [])
+  assert.deepEqual(predicted.futureNotice, futureNotice)
+
+  const holiday = state.dayDetailsByDate['2026-09-27']
+  assert.deepEqual(holiday.meanings.map(item => item.text), ['中秋。'])
+  assert.deepEqual(holiday.actions, [])
+  assert.deepEqual(holiday.futureNotice, futureNotice)
+
+  const january = buildHomeCalendarState({ year: 2026, month: 0, today: '2026-01-01' })
+  const workday = january.dayDetailsByDate['2026-01-04']
+  assert.deepEqual(workday.meanings.map(item => item.key), ['workday'])
+  assert.deepEqual(workday.futureNotice, futureNotice)
+
+  const today = state.dayDetailsByDate['2026-09-22']
+  assert.equal(today.futureNotice, null)
+  assert.deepEqual(today.actions.map(item => item.label), ['记经期', '记欢乐时光'])
+
+  const past = state.dayDetailsByDate['2026-09-10']
+  assert.equal(past.futureNotice, null)
+  assert.deepEqual(past.actions.map(item => item.label), ['补记经期', '补记欢乐时光'])
+
+  const pastWorkday = state.dayDetailsByDate['2026-09-20']
+  assert.deepEqual(pastWorkday.meanings.map(item => item.key), ['workday'])
+  assert.equal(pastWorkday.futureNotice, null)
 })
 
 function segmentRow(state, startDate, endDate) {
