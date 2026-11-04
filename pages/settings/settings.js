@@ -4,6 +4,11 @@ const roomPresence = require('../../utils/roomPresence')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const settingsFlow = require('../../utils/settingsFlow')
 const safeArea = require('../../utils/safeArea')
+const {
+  settingsHelpSheet,
+  dismissSheetOnSystemBack,
+  probeReducedMotion
+} = require('../../utils/sheetLifecycle')
 
 // 与 pages/index/index.js 共享同一存储键；首页 onShow 重读本偏好
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
@@ -26,7 +31,12 @@ function settingsInitialData() {
     roomCodeLoaded: false,
     roomMemberLabel: '',
     calendarDensity: 'compact',
-    helpOpen: false
+    // 使用说明弹层：closed → open → leaving → closed，与首页弹层同一生命周期（issue #154）
+    helpOpen: false,
+    helpMounted: false,
+    helpPhase: 'closed',
+    pageObscured: false,
+    sheetExitGuard: false
   }
 }
 
@@ -37,7 +47,12 @@ Page({
 
   async onShow() {
     this.setData({ calendarDensity: getSavedCalendarDensity() })
+    probeReducedMotion(this)
     await this.resolveRoom()
+  },
+
+  onReady() {
+    probeReducedMotion(this)
   },
 
   // 房间码解析：同步失败或未绑定都停在这张卡上，由重试/去绑定操作接续（issue #79）
@@ -120,11 +135,19 @@ Page({
   },
 
   openHelp() {
-    this.setData({ helpOpen: true })
+    settingsHelpSheet(this).open(this)
   },
 
   closeHelp() {
-    this.setData({ helpOpen: false })
+    settingsHelpSheet(this).leave(this)
+  },
+
+  // 系统返回先关掉帮助，走同一条离场，不离开设置页（同首页 issue #134）
+  onSheetSystemBack() {
+    dismissSheetOnSystemBack(this, {
+      dismissTop: () => this.closeHelp(),
+      isMounted: () => settingsHelpSheet(this).isMounted(this)
+    })
   },
 
   noop() {}

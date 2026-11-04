@@ -228,9 +228,28 @@ function homepageSheets(page) {
   return page._homepageSheets
 }
 
+const settingsHelpPatch = sheetPageDecorator({
+  phaseKeys: ['helpPhase'],
+  mountedKeys: ['helpMounted']
+})
+
+// issue #154：设置页「使用说明」与首页弹层同一生命周期、同一遮挡规则。
+function settingsHelpSheet(page) {
+  if (!page._settingsHelpSheet) {
+    page._settingsHelpSheet = createSheetLifecycle({
+      visibleKey: 'helpOpen',
+      mountedKey: 'helpMounted',
+      phaseKey: 'helpPhase',
+      decorate: settingsHelpPatch
+    })
+  }
+  return page._settingsHelpSheet
+}
+
 module.exports = {
   createSheetLifecycle,
   homepageSheets,
+  settingsHelpSheet,
   handoffSheet,
   homepageSheetMounted,
   dismissSheetOnSystemBack,
