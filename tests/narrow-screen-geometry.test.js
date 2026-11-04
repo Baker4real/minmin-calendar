@@ -89,6 +89,16 @@ function verticalPaddingRpx(decls) {
   return toRpx(top) + toRpx(bottom)
 }
 
+function readAppTokens() {
+  const tokens = {}
+  for (const rule of parseWxssRules(readRepo('app.wxss'))) {
+    for (const [prop, value] of Object.entries(rule.decls)) {
+      if (prop.startsWith('--')) tokens[prop] = value
+    }
+  }
+  return tokens
+}
+
 function rpxNumber(decls, prop) {
   const raw = decls[prop] || ''
   const fallback = /var\(\s*--[a-z0-9-]+\s*,\s*(\d+(?:\.\d+)?)rpx\s*\)/i.exec(raw)
@@ -365,12 +375,7 @@ test('the partner welcome bar flows below the sticky spacer and its box matches 
     'welcome bar must sit after the sticky spacer and before the calendar, not under the fixed month nav'
   )
 
-  const appTokens = {}
-  for (const rule of parseWxssRules(readRepo('app.wxss'))) {
-    for (const [prop, value] of Object.entries(rule.decls)) {
-      if (prop.startsWith('--')) appTokens[prop] = value
-    }
-  }
+  const appTokens = readAppTokens()
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
   const bar = findDecls(rules, '.partner-welcome')
   assert.equal(bar.position, undefined, 'welcome bar stays in normal flow')
@@ -394,6 +399,20 @@ test('the partner welcome bar flows below the sticky spacer and its box matches 
   const boxRpx = margin[0] + 2 * fontRpx * lineHeight + margin[2]
   assert.ok(Math.abs(boxRpx - 103.2) < 1e-9, `welcome box ${boxRpx}rpx`)
   assert.equal(CALENDAR_PARTNER_WELCOME_RPX, 103.2, 'ledger entry must equal the rendered welcome box')
+})
+
+// issue #149：绑定页幽灵「进入应用」是内容宽胶囊，高度 = 上下 px 内边距 + 一行字 + 描边，320px 宽下仍 ≥44px
+test('bind ghost enter-app button keeps a 44px touch height at 320px', () => {
+  const appTokens = readAppTokens()
+  const ghost = findDecls(parseWxssRules(readRepo('pages/bind/bind.wxss')), '.btn-ghost')
+  const verticalPadPx = /^(\d+(?:\.\d+)?)px$/.exec(splitCssTokens(ghost.padding)[0])
+  assert.ok(verticalPadPx, 'ghost vertical padding stays in px so it does not shrink with the viewport')
+  const lineHeightToken = /^var\((--line-height-[a-z]+)\)$/.exec(ghost['line-height'])
+  assert.ok(lineHeightToken, 'ghost line-height uses a line-height token')
+  const fontPx = parseFloat(appTokens[/^var\((--[a-z-]+)\)$/.exec(ghost['font-size'])[1]]) * 320 / 750
+  const borderPx = parseFloat(ghost.border)
+  const heightPx = 2 * Number(verticalPadPx[1]) + fontPx * Number(appTokens[lineHeightToken[1]]) + 2 * borderPx
+  assert.ok(heightPx >= 44, `ghost button is ${heightPx.toFixed(2)}px tall at 320px`)
 })
 
 test('leftmost and rightmost calendar columns keep their content off the grid border', () => {

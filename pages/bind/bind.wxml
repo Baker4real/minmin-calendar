@@ -26,8 +26,10 @@
       <text wx:if="{{restoredNotice}}" class="info-text">{{restoredNotice}}</text>
       <button wx:if="{{justCreated}}" class="btn-premium share-invite" open-type="share" hover-class="share-invite-hover" aria-role="button" aria-label="发给 TA">发给 TA</button>
       <!-- issue #102：已绑定冷启动由 checkRoom 自动进首页，「进入应用」只在跳转失败或刚创建房间时出现；
+           issue #149：刚创建时「发给 TA」是唯一主按钮，「进入应用」退为幽灵次按钮；已有房间跳转失败时它才是主按钮兜底。
            「解除绑定」移到设置页房间卡，本卡不再提供 -->
-      <view wx:if="{{justCreated || homeJumpFailed}}" class="btn-premium" bindtap="goHome" aria-role="button" aria-label="进入应用" hover-class="btn-premium-hover">进入应用</view>
+      <view wx:if="{{justCreated}}" class="btn-ghost" bindtap="goHome" aria-role="button" aria-label="进入应用" hover-class="btn-ghost-hover">进入应用</view>
+      <view wx:elif="{{homeJumpFailed}}" class="btn-premium" bindtap="goHome" aria-role="button" aria-label="进入应用" hover-class="btn-premium-hover">进入应用</view>
     </view>
 
     <view wx:else class="premium-card">

@@ -49,7 +49,7 @@ test('bind bound screen puts the copy button in the same row as the room code, a
   assert.match(
     boundCard,
     /class="btn-premium"[^>]*bindtap="goHome"[^>]*aria-label="进入应用"/,
-    '进入应用 remains the main button on the bound screen'
+    '进入应用 stays on the bound screen as the jump-failure main button'
   )
   // issue #102：解除绑定移到设置页房间卡，已绑定卡不再有解绑入口；
   // 绑定页只保留 needUnbind 中间态（错误恢复路径）的就地解除入口
@@ -561,9 +561,9 @@ test('bind page cold-starts straight into the homepage tab when the room still v
     // review #99 / issue #102：自动跳转成功时「进入应用」不出现——只在跳转失败或刚创建房间时兜底
     assert.equal(harness.page.data.justCreated, false)
     assert.equal(harness.page.data.homeJumpFailed, false)
-    assert.match(
-      sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else'),
-      /wx:if="\{\{justCreated \|\| homeJumpFailed\}\}"[^>]*class="btn-premium"[^>]*bindtap="goHome"[^>]*aria-label="进入应用"/,
+    assert.deepEqual(
+      boundCardActions(harness.page.data),
+      [],
       'the enter-app button renders only when the home jump failed or the room was just created'
     )
   } finally {
@@ -591,9 +591,9 @@ test('bind page keeps the bound card with the enter-app fallback when the home j
     assert.equal(harness.wx.switchTabCalls.length, 2)
     assert.equal(harness.page.data.homeJumpFailed, true)
 
-    assert.match(
-      sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else'),
-      /wx:if="\{\{justCreated \|\| homeJumpFailed\}\}"[^>]*class="btn-premium"[^>]*bindtap="goHome"/,
+    assert.deepEqual(
+      boundCardActions(harness.page.data),
+      [{ tier: 'primary', label: '进入应用', action: 'goHome' }],
       'the enter-app main button remains as the minimal fallback'
     )
   } finally {
@@ -619,6 +619,52 @@ test('bind page hides the enter-app fallback once re-verification clears the jum
     assert.equal(harness.page.data.justCreated, false)
     assert.equal(harness.page.data.homeJumpFailed, false)
     assert.equal(harness.wx.switchTabCalls.length, 2)
+  } finally {
+    harness.teardown()
+  }
+})
+
+// ===== issue #149：刚创建房间时「发给 TA」是唯一主操作；只有已有房间跳转首页失败时「进入应用」才是主按钮 =====
+
+test('bind page makes sharing the invite the only main action after creating a room', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
+    createRoom: { code: 0, roomCode: 'ROOM05' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room, switchTabFail: true })
+  const created = [
+    { tier: 'primary', label: '发给 TA', action: 'share' },
+    { tier: 'secondary', label: '进入应用', action: 'goHome' }
+  ]
+
+  try {
+    await harness.page.onShow()
+    await harness.page.createRoom()
+    assert.deepEqual(boundCardActions(harness.page.data), created)
+
+    // 刚创建后点「进入应用」却跳转失败：分享仍是主操作，「进入应用」不升为主按钮
+    harness.page.goHome()
+    assert.equal(harness.page.data.homeJumpFailed, true)
+    assert.equal(harness.page.data.justCreated, true)
+    assert.deepEqual(boundCardActions(harness.page.data), created)
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('bind page makes entering the app the main recovery when the home jump fails for an existing room', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room, switchTabFail: true })
+
+  try {
+    await harness.page.onShow()
+    assert.equal(harness.page.data.justCreated, false)
+    assert.equal(harness.page.data.homeJumpFailed, true)
+    assert.deepEqual(boundCardActions(harness.page.data), [
+      { tier: 'primary', label: '进入应用', action: 'goHome' }
+    ])
   } finally {
     harness.teardown()
   }
@@ -753,10 +799,7 @@ test('bind page keeps the heart and reveals the bound card only when the home ju
     assert.equal(failed.page.data.bound, true)
     assert.equal(failed.page.data.roomCode, 'ROOM01')
     assert.equal(failed.page.data.homeJumpFailed, true)
-    assert.match(
-      sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else'),
-      /wx:if="\{\{justCreated \|\| homeJumpFailed\}\}"[^>]*class="btn-premium"[^>]*bindtap="goHome"[^>]*aria-label="进入应用"/
-    )
+    assert.deepEqual(boundCardActions(failed.page.data), [{ tier: 'primary', label: '进入应用', action: 'goHome' }])
   } finally {
     failed.teardown()
   }
@@ -984,6 +1027,32 @@ function sliceBetween(text, startMarker, endMarker) {
   const end = text.indexOf(endMarker, start)
   assert.ok(end !== -1, `expected ${endMarker} after ${startMarker}`)
   return text.slice(start, end)
+}
+
+// issue #149：按页面数据求值已绑定卡按钮的 wx:if / wx:elif，按文档顺序列出实际渲染的操作和主次
+function boundCardActions(data) {
+  const boundCard = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
+  const keys = Object.keys(data).filter(key => /^[A-Za-z_$][\w$]*$/.test(key))
+  const evaluate = expr => Boolean(new Function(...keys, `return (${expr})`)(...keys.map(key => data[key])))
+  const actions = []
+  let chainShown = false
+  for (const [, , attrs, label] of boundCard.matchAll(/<(button|view)\b([^>]*)>([^<]*)<\/\1>/g)) {
+    const classes = ((/(?:^|\s)class="([^"]*)"/.exec(attrs) || [])[1] || '').split(/\s+/)
+    if (!classes.includes('btn-premium') && !classes.includes('btn-ghost')) continue
+    const branch = /\swx:(if|elif)="\{\{(.+?)\}\}"/.exec(attrs)
+    let shown = true
+    if (branch && branch[1] === 'if') shown = evaluate(branch[2])
+    if (branch && branch[1] === 'elif') shown = !chainShown && evaluate(branch[2])
+    chainShown = branch && branch[1] === 'elif' ? chainShown || shown : shown
+    if (!shown) continue
+    const handler = /\sbindtap="([^"]+)"/.exec(attrs) || /\sopen-type="([^"]+)"/.exec(attrs)
+    actions.push({
+      tier: classes.includes('btn-premium') ? 'primary' : 'secondary',
+      label: label.trim(),
+      action: handler ? handler[1] : ''
+    })
+  }
+  return actions
 }
 
 function findRule(css, selector) {
