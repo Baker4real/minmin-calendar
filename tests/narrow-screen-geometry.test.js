@@ -107,6 +107,12 @@ function rpxNumber(decls, prop) {
   return match ? Number(match[1]) : null
 }
 
+// 「12rpx」或「var(--space-xs)」这类长度换成 rpx 数；token 从 app.wxss 读
+function tokenRpx(token, appTokens) {
+  const variable = /^var\((--[a-z0-9-]+)\)$/.exec(String(token).trim())
+  return parseFloat(variable ? appTokens[variable[1]] : token)
+}
+
 test('rules with explicit width and horizontal padding use border-box (no additive overflow)', () => {
   const offenders = []
   for (const file of listWxssFiles(repoRoot)) {
@@ -538,6 +544,106 @@ test('the ongoing quick-period label wraps only at its spaces and two lines stay
   assert.ok(boxRpx <= rpxNumber(button, 'min-height'), `two label lines need ${boxRpx.toFixed(1)}rpx, more than the ${rpxNumber(button, 'min-height')}rpx button`)
 })
 
+// 提醒行右侧的玫瑰操作钮（「去补填」「记录」）按标签宽度排，不被长说明句挤窄、不折行（430px 运行时截图里
+// 「去补填」溢出底板）；挤压由说明列吸收、自行折行。320px 下说明列仍能单行放下最长的提醒标题，标签不缩字号
+test('the reminder action keeps its label width beside long reminder copy and the copy stays readable at 320px', () => {
+  const wxml = readRepo('pages/index/index.wxml')
+  const labels = [...wxml.matchAll(/class="reminder-action">([^<]+)<\/text>/g)].map(match => match[1])
+  assert.deepEqual([...labels].sort(), ['去补填', '记录'].sort())
+
+  const appTokens = readAppTokens()
+  const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+  const action = findDecls(rules, '.reminder-action')
+  const copy = findDecls(rules, '.reminder-copy')
+  const card = findDecls(rules, '.reminder-card')
+  assert.equal(action['flex-shrink'], '0', 'the action never shrinks below its label')
+  assert.equal(action['white-space'], 'nowrap', 'the action label stays on one line')
+  assert.equal(action.width, undefined, 'the action is as wide as its label, not a fixed width')
+  assert.equal(action['font-size'], 'var(--font-size-caption)')
+  assert.equal(copy.flex, '1', 'the copy column takes the remaining width')
+  assert.equal(copy['min-width'], '0', 'the copy column may narrow and wrap instead of pushing the action')
+
+  // 操作钮 = 标签（caption，每字 1em）+ 左右内边距，底板在标签两侧都留出空隙
+  const captionRpx = parseFloat(appTokens['--font-size-caption'])
+  const actionPadRpx = tokenRpx(horizontalPaddingTokens(action)[0] || '0', appTokens)
+  assert.ok(actionPadRpx > 0, 'the rose plate leaves room on both sides of its label')
+  const actionRpx = Math.max(...labels.map(label => Array.from(label).length * captionRpx + 2 * actionPadRpx))
+
+  // 320px 下说明列 = 视口 − 页边距 − 卡片内边距与描边 − 色条 − 两处间距 − 操作钮
+  const pxToRpx = px => px * 750 / 320
+  const columnRpx = 750 - 2 * parseFloat(horizontalPaddingTokens(findDecls(rules, '.content'))[0]) -
+    2 * parseFloat(horizontalPaddingTokens(card)[0]) - 2 * pxToRpx(borderPx(card)) -
+    rpxNumber(findDecls(rules, '.reminder-rail'), 'width') - 2 * rpxNumber(card, 'gap') - actionRpx
+  const titles = [...readRepo('utils/cycle.js').matchAll(/\btitle: '([^']+)'/g)].map(match => match[1])
+  assert.ok(titles.length >= 4, `expected every reminder title, found ${titles.join(' / ')}`)
+  for (const title of titles) {
+    const titleRpx = Array.from(title).length * captionRpx
+    assert.ok(titleRpx <= columnRpx, `「${title}」 needs ${titleRpx}rpx, more than the ${columnRpx.toFixed(1)}rpx copy column at 320px`)
+  }
+})
+
+// 首页未绑定 / 加载失败画面的主按钮在居中的列里按内容收缩，而 .btn-premium 基类左右内边距为 0：
+// 430px 运行时截图里「重试」只有 34×53px、「去绑定」51×53px。两个方向都至少 88rpx 触控档，左右内边距走间距 token
+test('the homepage room-status button keeps the 88rpx touch size in both axes for every action label', () => {
+  const wxml = readRepo('pages/index/index.wxml')
+  const roomStatus = wxml.slice(wxml.indexOf('class="no-room"'), wxml.indexOf('</view>', wxml.indexOf('bindtap="handleRoomStatusAction"')))
+  assert.match(roomStatus, /class="btn-premium" bindtap="handleRoomStatusAction"/, 'the room-status action is the rose main button')
+
+  const appTokens = readAppTokens()
+  const button = findDecls(parseWxssRules(readRepo('pages/index/index.wxss')), '.no-room .btn-premium')
+  assert.equal(button['box-sizing'], 'border-box', 'the minimum sizes include the padding')
+  assert.ok(rpxNumber(button, 'min-width') >= 88, 'the button is at least 88rpx wide')
+  assert.ok(rpxNumber(button, 'min-height') >= 88, 'the button is at least 88rpx tall')
+  const [sidePad] = horizontalPaddingTokens(button)
+  assert.match(sidePad || '', /^var\(--space-[a-z]+\)$/, 'the side padding comes from a spacing token')
+
+  // 每个动作标签（按钮字号，每字 1em）加左右内边距都不低于 88rpx，标签两侧留出空隙
+  const labels = [...new Set([...readRepo('utils/roomAccessOutcome.js')
+    .matchAll(/actionText: options\.\w+ \|\| '([^']+)'/g)].map(match => match[1]))]
+  assert.deepEqual([...labels].sort(), ['去绑定', '重新加载', '重试'].sort())
+  const fontRpx = parseFloat(appTokens['--font-size-button'])
+  for (const label of labels) {
+    const widthRpx = Array.from(label).length * fontRpx + 2 * tokenRpx(sidePad, appTokens)
+    assert.ok(widthRpx >= 88, `「${label}」 is only ${widthRpx}rpx wide`)
+  }
+})
+
+// 预测说明的摘要句整句折行时，430px 宽下「口」单独落在第二行（运行时截图）。文案不变，窗口从句另起一行
+// （<text> 里的换行即断行）；最坏的跨年日期与两位数窗口下，两个从句在 320px 宽的 sheet 文字列里各占一行，任何宽度都不留孤字
+test('the prediction summary starts the window clause on its own line and each clause fits one sheet line at 320px', () => {
+  const insights = require('../utils/calendarInsights')
+  const wxml = readRepo('pages/index/index.wxml')
+  assert.match(wxml, /<text class="prediction-summary">\{\{predictionExplanation\.summary\}\}<\/text>/)
+
+  const { summary } = insights.buildPredictionExplanation({
+    canPredict: true,
+    nextStart: '2027-12-30',
+    nextDisplay: '2027年12月30日',
+    rangeEnd: '2028-01-09',
+    usedCycleCount: 2,
+    avgCycle: 28,
+    avgDuration: 5,
+    durationSource: 'history',
+    confidence: 'low',
+    ignoredCycleCount: 0
+  })
+  const clauses = summary.split('\n')
+  assert.deepEqual(clauses, ['预计 2027年12月30日 开始，', '前后 10 天是可能开始的窗口'])
+
+  const appTokens = readAppTokens()
+  const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+  assert.equal(findDecls(rules, '.prediction-summary')['font-size'], 'var(--font-size-body-lg)')
+  const fontRpx = parseFloat(appTokens['--font-size-body-lg'])
+  const sheet = findDecls(rules, '.day-action-sheet')
+  const columnRpx = 750 - 2 * parseFloat(horizontalPaddingTokens(findDecls(rules, '.sheet-host'))[0]) -
+    2 * parseFloat(horizontalPaddingTokens(sheet)[0]) - 2 * borderPx(sheet) * 750 / 320
+  // 宽度按上界估（与本文件其他账本同口径）：CJK 与标点 1em、数字 0.6em、空格 0.5em
+  const widthRpx = copy => [...copy].reduce((sum, ch) => sum + (/\d/.test(ch) ? 0.6 : ch === ' ' ? 0.5 : 1), 0) * fontRpx
+  for (const clause of clauses) {
+    assert.ok(widthRpx(clause) <= columnRpx, `「${clause}」 needs ${widthRpx(clause).toFixed(1)}rpx, more than the ${columnRpx.toFixed(1)}rpx sheet column at 320px`)
+  }
+})
+
 // issue #151 的行内重试行（首次加载只有一个集合失败时也会出现）同样在吸顶占位之后的文档流里，占首屏高度
 test('the inline sync-retry row is an explicit input of the first-screen ledger', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
@@ -594,7 +700,7 @@ test('the one-time partner welcome bar is an explicit input of the calendar row-
 // issue #149：欢迎条挂在吸顶占位之后、日历之前的正常文档流里，固定的月份导航和状态行盖不住它；
 // 它的盒高（两行 caption × 正文行高，加上下外边距）就是行高账本里的那一项。
 test('the partner welcome bar flows below the sticky spacer and its box matches the ledger entry', () => {
-  const { CALENDAR_PARTNER_WELCOME_RPX } = require('../utils/calendarRowHeight')
+  const { CALENDAR_LEDGER } = require('../utils/calendarRowHeight')
   const wxml = readRepo('pages/index/index.wxml')
   const welcome = /<text wx:if="\{\{partnerWelcome\}\}" class="partner-welcome">([^<]+)<\/text>/.exec(wxml)
   const spacerAt = wxml.indexOf('class="home-sticky-spacer')
@@ -628,7 +734,7 @@ test('the partner welcome bar flows below the sticky spacer and its box matches 
 
   const boxRpx = margin[0] + 2 * fontRpx * lineHeight + margin[2]
   assert.ok(Math.abs(boxRpx - 103.2) < 1e-9, `welcome box ${boxRpx}rpx`)
-  assert.equal(CALENDAR_PARTNER_WELCOME_RPX, 103.2, 'ledger entry must equal the rendered welcome box')
+  assert.equal(CALENDAR_LEDGER.firstScreenRpx.partnerWelcome, 103.2, 'ledger entry must equal the rendered welcome box')
 })
 
 // issue #149：绑定页幽灵「进入应用」是内容宽胶囊，高度 = 上下 px 内边距 + 一行字 + 描边，320px 宽下仍 ≥44px
@@ -960,9 +1066,6 @@ test('shared navbar is fixed, reserves the capsule, and content starts at the ba
   // 内容区起点用同一顶栏高度，因此不会高于顶栏底边
   assert.match(safeTop['padding-top'], /var\(--nav-bar-height/)
 
-  const pill = findDecls(parseWxssRules(readRepo('pages/index/index.wxss')), '.sync-pill')
-  assert.match(pill.top, /var\(--nav-bar-height/, 'sync status must start at or below the fixed navbar')
-
   for (const pagePath of ALL_PAGES) {
     const wxml = readRepo(`${pagePath}.wxml`)
     const js = readRepo(`${pagePath}.js`)
@@ -983,7 +1086,7 @@ test('shared navbar is fixed, reserves the capsule, and content starts at the ba
   const index = readRepo('pages/index/index.wxml')
   assert.match(
     index,
-    /class="nav-bar header-gradient">\s*<view class="nav-tool"[^>]*>工具<\/view>\s*<view class="nav-title">美少女的日历<\/view>/,
+    /class="nav-bar header-gradient">\s*<view class="nav-tool"[^>]*>工具<\/view>/,
     'home puts the tools entry in the navbar left slot'
   )
   assert.doesNotMatch(index, /class="nav-placeholder"/)
@@ -997,6 +1100,50 @@ test('shared navbar is fixed, reserves the capsule, and content starts at the ba
   const geometry = design.slice(design.indexOf('窄屏几何与安全区'), design.indexOf('阴影登记'))
   assert.match(geometry, /共享顶栏/)
   assert.match(geometry, /胶囊/)
+})
+
+// 同步胶囊（issue #120 进出、#151 单集合失败）住在首页顶栏的标题槽里，挂载期间替换应用标题。
+// 顶栏整条在吸顶区之上，胶囊因此盖不住月份标题和状态行；每条胶囊文案在 320px 宽（胶囊右侧占位 94px）的标题槽里单行完整显示
+test('the sync pill takes the navbar title slot, clear of the sticky month title, and every status fits it at 320px', () => {
+  const wxml = readRepo('pages/index/index.wxml')
+  const navStart = wxml.indexOf('class="nav-bar header-gradient"')
+  const navEnd = wxml.indexOf('<view wx:if="{{noRoom}}"', navStart)
+  assert.ok(navStart !== -1 && navEnd !== -1, 'expected the home navbar ahead of the page states')
+  assert.match(
+    wxml.slice(navStart, navEnd),
+    /<view wx:if="\{\{syncStatusMounted\}\}" class="sync-pill [^"]*"[\s\S]*?<\/view>\s*<view wx:else class="nav-title">美少女的日历<\/view>/,
+    'the mounted pill replaces the app title in the navbar'
+  )
+  assert.equal(wxml.split('class="sync-pill').length, 2, 'the navbar holds the only sync pill')
+
+  const appRules = parseWxssRules(readRepo('app.wxss'))
+  const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+  const pill = findDecls(rules, '.sync-pill')
+  for (const prop of ['position', 'top', 'left', 'width', 'z-index']) {
+    assert.equal(pill[prop], undefined, `.sync-pill ${prop} lifts the pill out of the navbar slot`)
+  }
+  // 顶栏底边就是吸顶区顶边：标题槽里的胶囊与月份导航、状态行不重叠；胶囊不高于 32px 的微信胶囊，留在导航行里
+  assert.match(findDecls(appRules, '.nav-bar').height, /^var\(--nav-bar-height\b/)
+  assert.match(findDecls(rules, '.home-sticky').top, /^var\(--nav-bar-height\b/)
+  for (const viewportPx of [320, 375, 390, 430]) {
+    assert.ok(rpxNumber(pill, 'min-height') * viewportPx / 750 <= 32, `the pill outgrows the navbar row at ${viewportPx}px`)
+  }
+
+  // 标题槽 = 视口 − 顶栏左内边距 − 工具钮 − 胶囊占位；胶囊 = 左右内边距 + 描边 + 圆点 + 间距 + 文案（caption，每字 1em）
+  const pxToRpx = px => px * 750 / 320
+  const slotRpx = 750 - rpxNumber(findDecls(appRules, '.nav-bar'), 'padding-left') -
+    rpxNumber(findDecls(rules, '.nav-tool'), 'min-width') - pxToRpx(94)
+  const chromeRpx = 2 * parseFloat(horizontalPaddingTokens(pill)[0]) + 2 * pxToRpx(borderPx(pill)) +
+    rpxNumber(findDecls(rules, '.sync-dot'), 'width') + rpxNumber(pill, 'gap')
+  assert.equal(findDecls(rules, '.sync-text')['font-size'], 'var(--font-size-caption)')
+  const captionRpx = parseFloat(readAppTokens()['--font-size-caption'])
+  const statuses = new Set([...readRepo('pages/index/index.js')
+    .matchAll(/(?:showSyncStatus\(|\btext: |StatusText: )'([^']+)'/g)].map(match => match[1]))
+  assert.ok(statuses.size >= 7, `expected every sync status copy, found ${[...statuses].join(' / ')}`)
+  for (const status of statuses) {
+    const widthRpx = chromeRpx + Array.from(status).length * captionRpx
+    assert.ok(widthRpx <= slotRpx, `「${status}」 needs ${widthRpx.toFixed(1)}rpx, more than the ${slotRpx.toFixed(1)}rpx title slot at 320px`)
+  }
 })
 
 test('every page root injects --safe-bottom alongside --safe-top from runtime data', () => {

@@ -2749,12 +2749,14 @@ test('edit forms keep each date error under its own picker and inside that picke
     assert.ok(pickerEnd !== -1 && item.indexOf(errorLine) > pickerEnd, `${file} ${field} error line follows its picker`)
   }
 
+  // 两个编辑页共用 app.wxss 里的一条 .field-error，页面不各写一份
+  const rule = /\.field-error\s*\{([^}]*)\}/.exec(readPageFile('app.wxss'))
+  assert.ok(rule, 'app.wxss defines the shared .field-error')
+  assert.match(rule[1], /display:\s*block/)
+  assert.match(rule[1], /color:\s*#F97373/)
+  assert.match(rule[1], /font-size:\s*var\(--font-size-caption\)/)
   for (const file of ['pages/period/edit/edit.wxss', 'pages/memory/edit/edit.wxss']) {
-    const rule = /\.field-error\s*\{([^}]*)\}/.exec(readPageFile(file))
-    assert.ok(rule, `${file} defines .field-error`)
-    assert.match(rule[1], /display:\s*block/)
-    assert.match(rule[1], /color:\s*#F97373/)
-    assert.match(rule[1], /font-size:\s*var\(--font-size-caption\)/)
+    assert.doesNotMatch(readPageFile(file), /\.field-error\b/, `${file} reuses the shared .field-error`)
   }
 })
 

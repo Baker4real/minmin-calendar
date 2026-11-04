@@ -325,6 +325,19 @@ page {
   background-color: rgba(249,115,115,0.12);
 }
 
+/* ===== Field Error（issue #156）— 经期、欢乐时光编辑页共用 =====
+   警示红族「字段错误」形态：红字一句，紧贴所属 picker 下方常驻，改对即消失；
+   不铺底、不描边、不做过渡（DESIGN.md「警示红语义」） */
+.field-error {
+  display: block;
+  margin-top: 12rpx;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  color: #F97373;
+}
+
 /* ===== Header Gradient ===== */
 .header-gradient {
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);

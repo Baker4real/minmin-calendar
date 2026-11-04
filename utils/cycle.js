@@ -147,9 +147,10 @@ function buildCycleReminders(prediction, periods, options = {}) {
       date: today
     })
   } else if (daysAfterRangeEnd > 0 && daysAfterRangeEnd <= 7) {
+    // 推迟只陈述事实，不下「很正常」这类判断（判断留给预测说明的「不是医疗建议」）
     reminders.push({
       type: 'overdue',
-      title: '周期有波动很正常',
+      title: '可能开始的日子已过',
       text: '如果已经开始，可以补记',
       action: 'quickPeriod',
       date: today
@@ -241,6 +242,12 @@ function recordNoteSummary(note) {
   const chars = Array.from(text)
   if (chars.length <= NOTE_SUMMARY_MAX_CHARS) return text
   return `${chars.slice(0, NOTE_SUMMARY_MAX_CHARS).join('').trim()}…`
+}
+
+// 欢乐时光编辑入口的读屏名（issue #157）：首页当日详情行和「记录」tab 月份卡行共用这一处。
+// 动作 + 日期 + 非空备注的短摘要 + 作者（只在房间已配对时有值），同一天的多条各自可辨；空的部分跳过，不留多余标点
+function memoryEditAriaLabel({ dateText, note, authorLabel }) {
+  return ['编辑欢乐时光', dateText, recordNoteSummary(note), authorLabel].filter(Boolean).join('，')
 }
 
 function decoratePeriod(period, { today } = {}) {
@@ -371,9 +378,20 @@ function findOngoingPeriod(periods = []) {
   return list.find(item => getPeriodStatus(item) === 'ongoing') || null
 }
 
+// 经期集合一次都没同步上时（首页首次加载只有经期失败），状态行与预测说明共用这一句
+const UNSYNCED_PERIODS_TEXT = '经期未同步，暂不预测'
+
 // 首页状态行。经期覆盖今天时优先于预测；预测窗口沿用既有预计开始日 ± 波动天数。
 // 推迟只用中性语气，不表示警示。
 function buildHomeStatusLine(periods, options = {}) {
+  // 经期集合一次都没同步上时，手里的列表不完整：不说经期第几天、不估算、也不说记录不够
+  if (options.periodsSynced === false) {
+    return {
+      status: 'unsynced',
+      text: UNSYNCED_PERIODS_TEXT,
+      tone: 'neutral'
+    }
+  }
   const today = isDateString(options.today) ? options.today : util.formatDate(new Date())
   const prediction = options.prediction || predictNextPeriod(periods, { ...options, today })
   const active = findPeriodCoveringDate(periods, today, today)
@@ -661,6 +679,7 @@ module.exports = {
   SYMPTOM_GROUPS,
   SYMPTOM_OPTIONS,
   PERIOD_STATUS_OPTIONS,
+  UNSYNCED_PERIODS_TEXT,
   predictNextPeriod,
   buildCycleReminders,
   buildOngoingCompletionReminder,
@@ -677,7 +696,7 @@ module.exports = {
   projectPeriodRange,
   getPeriodDuration,
   recordAuthorLabel,
-  recordNoteSummary,
+  memoryEditAriaLabel,
   decoratePeriod,
   buildSymptomOptions,
   formatPredictionRange

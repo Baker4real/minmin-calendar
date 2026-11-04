@@ -92,7 +92,7 @@
   <view wx:if="{{helpMounted}}" class="help-layer">
     <view class="help-mask sheet-{{helpPhase}}" bindtap="closeHelp" aria-role="button" aria-label="关闭使用说明" hover-class="help-mask-hover"></view>
     <view class="help-slide sheet-{{helpPhase}}">
-    <view class="help-sheet premium-card" catchtap="noop" aria-role="dialog" aria-label="使用说明">
+    <view class="help-sheet premium-card" catchtap="noop" aria-label="使用说明">
       <view class="help-head">
         <text class="help-title">使用说明</text>
         <view class="sheet-close" bindtap="closeHelp" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">×</view>

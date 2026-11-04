@@ -370,9 +370,14 @@ test('record-period actions draw the legend band sample instead of a dot', () =>
   const actionsStart = wxml.indexOf('wx:for="{{selectedDayDetail.actions}}"')
   const dayActions = wxml.slice(actionsStart, wxml.indexOf('class="sheet-host"', actionsStart))
 
+  // 两处引用同一个 WXML 模板画样本；样本标记只在模板里写一次
+  const template = /<template name="periodBandSample">([\s\S]*?)<\/template>/.exec(wxml)
+  assert.ok(template, 'one periodBandSample template draws the band sample')
+  assert.match(template[1], /class="action-sample day-cell \{\{cellClass\}\}"/, 'the template draws the legend band sample')
+  assert.match(template[1], /wx:for="\{\{parts\}\}"[^>]*class="\{\{part\.className\}\}"/, 'the template draws the sample parts')
+  assert.equal(wxml.split('class="action-sample').length, 2, 'the sample markup lives only in the template')
   for (const [where, block] of [['quick period button', quickPeriod], ['day sheet period action', dayActions]]) {
-    assert.match(block, /class="action-sample day-cell \{\{periodBandSample\.cellClass\}\}"/, `${where} draws the legend band sample`)
-    assert.match(block, /wx:for="\{\{periodBandSample\.parts\}\}"[^>]*class="\{\{part\.className\}\}"/, `${where} draws the sample parts`)
+    assert.match(block, /<template is="periodBandSample" data="\{\{\.\.\.periodBandSample\}\}"\s*\/>/, `${where} draws the shared band sample`)
     assert.doesNotMatch(block, /●|period-tone/, `${where} no longer draws a separate dot`)
   }
   assert.match(dayActions, /class="sheet-action-icon memory-tone">♥<\/text>/)
@@ -647,9 +652,10 @@ test('index sync feedback stays tied to real record changes without blocking cal
   assert.match(wxml, /sync-pill/)
   assert.match(wxml, /content-refreshing/)
 
-  assert.match(wxss, /\.sync-pill\s*{[\s\S]*position:\s*fixed/)
-  assert.match(wxss, /\.sync-pill\s*{[\s\S]*z-index:\s*50/)
-  assert.match(wxss, /\.sync-pill\s*{[\s\S]*pointer-events:\s*none/)
+  // 胶囊在顶栏标题槽的文档流里（narrow-screen-geometry 账本），不再浮在吸顶的月份标题上
+  assert.doesNotMatch(wxss, /\.sync-pill\s*{[^}]*position:\s*fixed/)
+  assert.doesNotMatch(wxss, /\.sync-pill\s*{[^}]*z-index:/)
+  assert.match(wxss, /\.sync-pill\s*{[^}]*pointer-events:\s*none/)
   assert.match(wxss, /prefers-reduced-motion:\s*reduce[\s\S]*\.sync-pill/)
 })
 

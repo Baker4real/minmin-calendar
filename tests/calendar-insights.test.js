@@ -18,7 +18,7 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
   assert.deepEqual(insights.buildPredictionExplanation(prediction), {
     available: true,
     title: '预测说明',
-    summary: '预计 8月10日 开始，前后 1 天是可能开始的窗口',
+    summary: '预计 8月10日 开始，\n前后 1 天是可能开始的窗口',
     lines: [
       '参考最近 5 次有效周期',
       '平均周期 28 天，平均持续 5 天',
@@ -48,7 +48,7 @@ test('prediction explanation uses the shared date and spoken confidence, not a c
 
   const explanation = insights.buildPredictionExplanation(prediction)
 
-  assert.equal(explanation.summary, `预计 ${prediction.nextDisplay} 开始，前后 1 天是可能开始的窗口`)
+  assert.equal(explanation.summary, `预计 ${prediction.nextDisplay} 开始，\n前后 1 天是可能开始的窗口`)
   assert.equal(explanation.summary.includes('08月'), false)
   assert.equal(explanation.lines.includes('已经有几次记录，大致可以参考'), true)
   assert.equal(explanation.lines.some(line => line.startsWith('置信度：')), false)
@@ -66,10 +66,58 @@ test('prediction summary names the possible start window instead of promising it
   const explanation = insights.buildPredictionExplanation(prediction)
 
   // 首句只描述可能开始的窗口，天数与预测窗口一致；不做「正常」或健康保证
-  assert.equal(explanation.summary, '预计 7月27日 开始，前后 3 天是可能开始的窗口')
+  assert.equal(explanation.summary, '预计 7月27日 开始，\n前后 3 天是可能开始的窗口')
   assert.doesNotMatch(explanation.summary, /正常|健康/)
   // 非医疗建议声明继续留在说明末尾
   assert.equal(explanation.lines.at(-1), '根据记录估算，不是医疗建议')
+})
+
+// 经期集合一次都没同步上时，空列表不是事实：预测说明和本月小结不说「记录不够」「本月暂无经期记录」，
+// 只说经期未同步；欢乐时光照常。首页小结行按同样两部分拼，哪一部分没同步就说哪一部分
+test('prediction explanation and monthly recap say a collection is not synced instead of asserting zero', () => {
+  const prediction = cycle.predictNextPeriod([])
+  const explanation = insights.buildPredictionExplanation(prediction, { periodsSynced: false })
+  assert.equal(explanation.available, false)
+  assert.equal(explanation.summary, '经期未同步，暂不预测')
+  assert.deepEqual(explanation.lines, ['经期同步后再按记录估算'])
+  assert.deepEqual(explanation.lineItems, [{ key: 'prediction:0', text: '经期同步后再按记录估算' }])
+
+  const periodsUnsynced = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 5,
+    periods: [],
+    memories: [{ date: '2026-06-02', note: '散步' }],
+    prediction,
+    periodsSynced: false,
+    today: '2026-06-26'
+  })
+  assert.equal(periodsUnsynced.periodSummary, '本月经期未同步')
+  assert.equal(periodsUnsynced.memorySummary, '留下 1 条欢乐时光')
+  assert.equal(periodsUnsynced.predictionSummary, '经期未同步，暂不预测')
+  assert.equal(periodsUnsynced.summaryLine, '本月 经期未同步 · 欢乐时光 1 条')
+
+  const memoriesUnsynced = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 5,
+    periods: [period('2026-06-01', '2026-06-03')],
+    memories: [],
+    prediction,
+    memoriesSynced: false,
+    today: '2026-06-26'
+  })
+  assert.equal(memoriesUnsynced.periodSummary, '本月记录了 1 次经期，共 3 天')
+  assert.equal(memoriesUnsynced.memorySummary, '本月欢乐时光未同步')
+  assert.equal(memoriesUnsynced.summaryLine, '本月 经期 3 天 · 欢乐时光未同步')
+
+  const synced = insights.buildMonthlyRecap({
+    year: 2026,
+    month: 5,
+    periods: [period('2026-06-01', '2026-06-03')],
+    memories: [{ date: '2026-06-02', note: '' }],
+    prediction,
+    today: '2026-06-26'
+  })
+  assert.equal(synced.summaryLine, '本月 经期 3 天 · 欢乐时光 1 条')
 })
 
 test('buildMonthlyRecap creates a gentle shareable recap for the selected month', () => {

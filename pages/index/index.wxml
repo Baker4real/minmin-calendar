@@ -68,7 +68,12 @@ module.exports = {
 
   <view aria-hidden="{{pageObscured}}" class="nav-bar header-gradient">
     <view class="nav-tool" hover-class="nav-tool-hover" bindtap="openMonthMenu" aria-role="button" aria-label="打开工具菜单">工具</view>
-    <view class="nav-title">美少女的日历</view>
+    <!-- 同步胶囊挂载期间占用标题槽：吸顶的月份标题和状态行始终可见（issue #120、#151） -->
+    <view wx:if="{{syncStatusMounted}}" class="sync-pill sync-{{syncStatusPhase}} {{refreshing ? 'syncing' : ''}}" aria-role="status" aria-label="{{syncStatusText}}">
+      <view class="sync-dot"></view>
+      <text class="sync-text">{{syncStatusText}}</text>
+    </view>
+    <view wx:else class="nav-title">美少女的日历</view>
   </view>
 
   <view wx:if="{{noRoom}}" class="no-room" aria-hidden="{{pageObscured}}">
@@ -90,11 +95,6 @@ module.exports = {
   </view>
 
   <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}" aria-hidden="{{pageObscured}}">
-    <view wx:if="{{syncStatusMounted}}" class="sync-pill sync-{{syncStatusPhase}} {{refreshing ? 'syncing' : ''}}" aria-role="status" aria-label="{{syncStatusText}}">
-      <view class="sync-dot"></view>
-      <text class="sync-text">{{syncStatusText}}</text>
-    </view>
-
     <view class="home-sticky">
       <view class="month-nav">
         <view class="nav-btn {{prevMonthDisabled ? 'disabled' : ''}}" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月" aria-disabled="{{prevMonthDisabled}}">‹</view>
@@ -182,9 +182,7 @@ module.exports = {
     <view class="quick-actions">
       <view class="quick-btn" bindtap="quickPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-class="quick-btn-hover">
         <view class="quick-icon sample-plate">
-          <view class="action-sample day-cell {{periodBandSample.cellClass}}">
-            <view wx:for="{{periodBandSample.parts}}" wx:for-item="part" wx:key="className" class="{{part.className}}"></view>
-          </view>
+          <template is="periodBandSample" data="{{...periodBandSample}}" />
         </view>
         <text class="quick-text">{{periodQuickLabel}}</text>
       </view>
@@ -200,9 +198,9 @@ module.exports = {
       hover-class="month-summary-hover"
       bindtap="openMonthlyRecap"
       aria-role="button"
-      aria-label="查看本月小结，本月 经期 {{monthPeriodDays}} 天 · 欢乐时光 {{monthMemoryCount}} 条"
+      aria-label="查看本月小结，{{monthSummaryLine}}"
     >
-      <text class="month-summary-text">本月 经期 {{monthPeriodDays}} 天 · 欢乐时光 {{monthMemoryCount}} 条 ›</text>
+      <text class="month-summary-text">{{monthSummaryLine}} ›</text>
     </view>
 
     <!-- issue #98：超期进行中记录的一次非阻塞完成提示。整行，不再套在状态卡里。 -->
@@ -249,7 +247,7 @@ module.exports = {
   <view wx:if="{{monthPickerMounted}}" class="sheet-host month-jump-mask">
     <view class="day-sheet-mask sheet-{{monthPickerPhase}}" bindtap="closeMonthPicker" aria-role="button" aria-label="关闭月份选择" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-monthPicker sheet-{{monthPickerPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.monthPicker}}">
-    <view class="calendar-jump-sheet safe-bottom" catchtap="noop" aria-role="dialog" aria-label="月份选择">
+    <view class="calendar-jump-sheet safe-bottom" catchtap="noop" aria-label="月份选择">
       <view class="sheet-drag-zone" data-sheet="monthPicker" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -312,7 +310,7 @@ module.exports = {
   <view wx:if="{{dayActionMounted}}" class="sheet-host">
     <view class="day-sheet-mask sheet-{{dayActionPhase}}" bindtap="closeDayActions" aria-role="button" aria-label="关闭当日操作" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-dayActions sheet-{{dayActionPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.dayActions}}">
-    <view class="day-action-sheet safe-bottom" catchtap="noop" aria-role="dialog" aria-label="当日操作">
+    <view class="day-action-sheet safe-bottom" catchtap="noop" aria-label="当日操作">
       <view class="sheet-drag-zone" data-sheet="dayActions" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -398,9 +396,7 @@ module.exports = {
           hover-class="sheet-action-hover"
         >
           <view wx:if="{{item.key == 'period'}}" class="sheet-action-icon sample-plate">
-            <view class="action-sample day-cell {{periodBandSample.cellClass}}">
-              <view wx:for="{{periodBandSample.parts}}" wx:for-item="part" wx:key="className" class="{{part.className}}"></view>
-            </view>
+            <template is="periodBandSample" data="{{...periodBandSample}}" />
           </view>
           <text wx:else class="sheet-action-icon memory-tone">♥</text>
           <view class="sheet-action-copy">
@@ -417,7 +413,7 @@ module.exports = {
   <view wx:if="{{monthMenuMounted}}" class="sheet-host">
     <view class="day-sheet-mask sheet-{{monthMenuPhase}}" bindtap="closeMonthMenu" aria-role="button" aria-label="关闭工具菜单" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-toolsMenu sheet-{{monthMenuPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.toolsMenu}}">
-    <view class="day-action-sheet safe-bottom" catchtap="noop" aria-role="dialog" aria-label="工具菜单">
+    <view class="day-action-sheet safe-bottom" catchtap="noop" aria-label="工具菜单">
       <view class="sheet-drag-zone" data-sheet="toolsMenu" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -462,7 +458,7 @@ module.exports = {
   <view wx:if="{{infoSheetMounted}}" class="sheet-host calendar-info-sheet">
     <view class="day-sheet-mask sheet-{{infoSheetPhase}}{{infoSheetHandoff ? ' sheet-handoff' : ''}}" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭{{infoSheetName}}" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-info sheet-{{infoSheetPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.info}}">
-    <view class="day-action-sheet calendar-info-panel safe-bottom" catchtap="noop" aria-role="dialog" aria-label="{{infoSheetName}}">
+    <view class="day-action-sheet calendar-info-panel safe-bottom" catchtap="noop" aria-label="{{infoSheetName}}">
       <view class="sheet-drag-zone" data-sheet="info" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -528,3 +524,11 @@ module.exports = {
     bindbeforeleave="onSheetSystemBack"
   ></page-container>
 </view>
+
+<!-- 记经期动作的图标：日历图例那段单日经期色带（issue #159）。首页记录入口和当日弹层的经期动作共用，
+     放在页面根之外，不进读屏树的背景块；数据是 homeCalendarState 的 periodBandSample -->
+<template name="periodBandSample">
+  <view class="action-sample day-cell {{cellClass}}">
+    <view wx:for="{{parts}}" wx:for-item="part" wx:key="className" class="{{part.className}}"></view>
+  </view>
+</template>

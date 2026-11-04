@@ -52,8 +52,19 @@ const CALENDAR_LEGEND_ITEMS = [
   }
 ]
 
-function buildHomeCalendarState({ year, month, periods = [], memories = [], today = util.formatDate(new Date()), roomPaired = false }) {
-  const prediction = cycle.predictNextPeriod(periods, { today })
+// periodsSynced / memoriesSynced：该集合在这个房间里是否成功同步过一次。没同步过时手里的列表不是事实，
+// 状态行、本月小结与预测说明只说它未同步；经期没同步时也不预测（不画「预」、不给推迟提醒）
+function buildHomeCalendarState({
+  year,
+  month,
+  periods = [],
+  memories = [],
+  today = util.formatDate(new Date()),
+  roomPaired = false,
+  periodsSynced = true,
+  memoriesSynced = true
+}) {
+  const prediction = cycle.predictNextPeriod(periodsSynced ? periods : [], { today })
   const predictionWindow = prediction.canPredict
     ? {
         rangeStart: prediction.rangeStart,
@@ -69,7 +80,16 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
     predictionWindow,
     today
   })
-  const monthlyRecap = calendarInsights.buildMonthlyRecap({ year, month, periods, memories, prediction, today })
+  const monthlyRecap = calendarInsights.buildMonthlyRecap({
+    year,
+    month,
+    periods,
+    memories,
+    prediction,
+    today,
+    periodsSynced,
+    memoriesSynced
+  })
 
   return {
     avgCycle: prediction.canPredict ? prediction.avgCycle : null,
@@ -83,10 +103,9 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
     predictionDetail: prediction,
     legendItems: CALENDAR_LEGEND_ITEMS,
     periodBandSample: PERIOD_BAND_SAMPLE,
-    predictionExplanation: calendarInsights.buildPredictionExplanation(prediction),
-    homeStatus: cycle.buildHomeStatusLine(periods, { today, prediction }),
-    monthPeriodDays: monthlyRecap.periodDays,
-    monthMemoryCount: monthlyRecap.memoryCount,
+    predictionExplanation: calendarInsights.buildPredictionExplanation(prediction, { periodsSynced }),
+    homeStatus: cycle.buildHomeStatusLine(periods, { today, prediction, periodsSynced }),
+    monthSummaryLine: monthlyRecap.summaryLine,
     cycleReminders: prediction.canPredict ? cycle.buildCycleReminders(prediction, periods, { today }) : [],
     monthlyRecap,
     days,
@@ -248,9 +267,8 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
         return withAuthorLabel({
           key: periodKeys[index],
           recordId: recordIdentity(period),
-          range: formatPeriodDetailRange(range, today),
-          metaText: meta.join(' · '),
-          ariaLabel: buildPeriodDetailAriaLabel(range, authorLabel, today)
+          ...describePeriodDetail(range, authorLabel, today),
+          metaText: meta.join(' · ')
         }, authorLabel)
       })
 
@@ -263,7 +281,11 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
           key: memoryKeys[index],
           recordId: recordIdentity(memory),
           note: memory.note || '欢乐时光',
-          ariaLabel: buildMemoryDetailAriaLabel(memory, authorLabel, today)
+          ariaLabel: cycle.memoryEditAriaLabel({
+            dateText: util.formatDisplayDate(memory.date, { today }),
+            note: memory.note,
+            authorLabel
+          })
         }, authorLabel)
       })
     const meanings = buildDayMeanings(day).filter(isDayDetailSentence)
@@ -295,12 +317,15 @@ function isDayDetailSentence(meaning) {
   return meaning.key === 'predict' || meaning.key === 'holiday' || meaning.key === 'workday'
 }
 
+// 经期的编辑动作只有一个名字（CONTEXT.md「Record names」）：当日动作和详情行读屏名共用
+const PERIOD_EDIT_ACTION = '编辑这次经期'
+
 function buildDayRecordActions(day, today) {
   if (!day.date || day.date > today) return []
   return [
     {
       key: 'period',
-      label: day.isPeriod ? '编辑这次经期' : (day.date === today ? '记经期' : '补记经期')
+      label: day.isPeriod ? PERIOD_EDIT_ACTION : (day.date === today ? '记经期' : '补记经期')
     },
     {
       key: 'memory',
@@ -323,30 +348,18 @@ function isPeriodActiveOnDate(range, date) {
   return date >= range.startDate && date <= range.endDate
 }
 
-// 详情行文案暴露状态：进行中写明「开始日至今天」，结束日期不详不用空白日期表达
-function formatPeriodDetailRange(range, today) {
-  if (range.status === 'ongoing') {
-    return `${util.formatDisplayDateRange(range.startDate, range.endDate, { today })}（进行中）`
-  }
-  if (range.status === 'unknown-end') {
-    return `${util.formatDisplayDate(range.startDate, { today })}（结束日期不详）`
-  }
-  return util.formatDisplayDateRange(range.startDate, range.endDate, { today })
-}
-
-// 读屏名（issue #157）：同一天的多条记录各自说出能区分它的信息，可见行不跟着堆叠元数据。
-// 经期编辑入口：日期区间 + 经期状态 + 作者（作者只在房间已配对时有值）
-function buildPeriodDetailAriaLabel(range, authorLabel, today) {
+// 经期详情行：日期和状态各只算一次。进行中写「开始日至今天」，结束日期不详只写开始日、不用空白日期表达；
+// 状态文字只取 cycle.PERIOD_STATUS_OPTIONS。可见行把进行中、结束日期不详写进括号（已结束不加），
+// 读屏名（issue #157）说全三种状态并接上作者（作者只在房间已配对时有值），同一天的多条各自可辨
+function describePeriodDetail(range, authorLabel, today) {
   const dates = range.status === 'unknown-end'
     ? util.formatDisplayDate(range.startDate, { today })
     : util.formatDisplayDateRange(range.startDate, range.endDate, { today })
-  return joinAriaParts(['编辑经期', dates, periodStatusText(range.status), authorLabel])
-}
-
-// 欢乐时光编辑入口：日期 + 非空备注的短摘要 + 作者
-function buildMemoryDetailAriaLabel(memory, authorLabel, today) {
-  const date = util.formatDisplayDate(memory.date, { today })
-  return joinAriaParts(['编辑欢乐时光', date, cycle.recordNoteSummary(memory.note), authorLabel])
+  const status = periodStatusText(range.status)
+  return {
+    range: range.status === 'known-end' ? dates : `${dates}（${status}）`,
+    ariaLabel: joinAriaParts([PERIOD_EDIT_ACTION, dates, status, authorLabel])
+  }
 }
 
 function periodStatusText(status) {

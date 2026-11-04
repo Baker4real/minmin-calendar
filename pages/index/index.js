@@ -192,12 +192,8 @@ Page({
       calendarDensity: this.getSavedCalendarDensity(),
       showBackToToday: !isViewingCurrentMonth(now.getFullYear(), now.getMonth())
     }))
-    this._syncState = {
-      revisions: { periods: 0, memories: 0 },
-      pendingRevisions: { periods: null, memories: null },
-      nextRequestId: 1,
-      activeRequest: null
-    }
+    this._syncState = null
+    this._ensureSyncState()
   },
 
   onShow() {
@@ -238,8 +234,19 @@ Page({
     if (!roomPresence.isPartnerWelcomePending()) return
     this.setData(
       this.withCalendarGeometry({ partnerWelcome: true }),
-      () => roomPresence.markPartnerWelcomeSeen()
+      () => {
+        roomPresence.markPartnerWelcomeSeen()
+        this._partnerWelcomeSeen = true
+      }
     )
+  },
+
+  // 欢迎条只陪第一次显示它的那次停留：已经看过的欢迎条在首页隐藏时收起（画面不可见，不跳动），
+  // 再回到首页时不再出现，行高同一次 setData 去掉它
+  dismissSeenPartnerWelcome() {
+    if (!this.data.partnerWelcome || !this._partnerWelcomeSeen) return
+    this._partnerWelcomeSeen = false
+    this.setData(this.withCalendarGeometry({ partnerWelcome: false }))
   },
 
   // 日历几何的唯一出口（issue #153）：改动日期格、密度、顶栏、「回到今天」、欢迎条或行内重试行的 setData
@@ -307,10 +314,17 @@ Page({
     this._syncState = {
       revisions: { periods: 0, memories: 0 },
       pendingRevisions: { periods: null, memories: null },
+      // 这个房间里该集合是否成功同步过一次。没同步过的集合手里是空的或只有本地刚记的，
+      // 状态行、小结行和说明只说它未同步，不拿空列表当事实
+      synced: { periods: false, memories: false },
       nextRequestId: 1,
       activeRequest: null
     }
     return this._syncState
+  },
+
+  _collectionSynced(collection) {
+    return this._ensureSyncState().synced[collection] === true
   },
 
   _startLoad(background) {
@@ -331,13 +345,12 @@ Page({
         this.hideSyncStatus()
       }
     } else {
+      // 胶囊在顶栏里，离场途中文案保持可见，卸载后再清（hideSyncStatus，issue #120）
       this.hideSyncStatus()
       this.setData({
         loading: true,
         refreshing: false,
         refreshRetryVisible: false,
-        syncStatusVisible: false,
-        syncStatusText: '',
         noRoom: false,
         roomStatusTitle: '',
         roomStatusDesc: '',
@@ -369,12 +382,18 @@ Page({
     const wasLoaded = this.data.hasLoadedHomeData
     let recordsChanged = false
     let confirmedPending = false
+    let syncedChanged = false
     const pendingRevisions = { ...state.pendingRevisions }
 
     for (const collection of COLLECTIONS) {
       const outcome = snapshot && snapshot[collection + 'Outcome']
       if (!outcome || outcome.kind !== 'success') continue
       if (state.revisions[collection] > request.startRevisions[collection]) continue
+      // 只有采用了这份快照，手里的列表才是服务端的完整记录；被本地新改动顶掉的快照不算同步上
+      if (!state.synced[collection]) {
+        state.synced[collection] = true
+        syncedChanged = true
+      }
 
       if (this._applySnapshotCollection(collection, snapshot[collection])) {
         recordsChanged = true
@@ -386,9 +405,7 @@ Page({
     state.pendingRevisions = pendingRevisions
     state.activeRequest = null
     // 只剩一个集合失败时，行内重试改指那个集合；两个集合都成功才清除（issue #151）
-    const failedCollection = snapshot && snapshot.kind === 'partial-success'
-      ? COLLECTIONS.find(collection => this._isRetryableFailure(snapshot[collection + 'Outcome']))
-      : null
+    const failedCollection = failedSyncCollection(snapshot)
     this.setData(this.withCalendarGeometry({
       hasLoadedHomeData: true,
       loading: false,
@@ -400,12 +417,13 @@ Page({
       roomStatusActionText: '',
       roomStatusAction: ''
     }))
-    if (!wasLoaded) this.applyHomeCalendarState()
+    // 集合第一次同步上时记录可能没变（比如本来就是空的），状态行和小结行仍要从「未同步」改回按记录说
+    if (!wasLoaded || syncedChanged) this.applyHomeCalendarState()
     this.revealPendingPartnerWelcome()
     this.syncOngoingCompletionReminder()
 
     const syncStatus = this._buildResolvedSyncStatus({
-      snapshot: snapshot || {},
+      failedCollection,
       mode: request.mode,
       pendingRevisions,
       recordsChanged,
@@ -471,6 +489,8 @@ Page({
     const year = hasOwn('year') ? overrides.year : this.data.year
     const month = hasOwn('month') ? overrides.month : this.data.month
     const today = hasOwn('today') ? overrides.today : util.formatDate(new Date())
+    const periodsSynced = this._collectionSynced('periods')
+    const memoriesSynced = this._collectionSynced('memories')
 
     const state = buildHomeCalendarState({
       year,
@@ -478,7 +498,9 @@ Page({
       periods,
       memories,
       today,
-      roomPaired: this._roomPaired === true
+      roomPaired: this._roomPaired === true,
+      periodsSynced,
+      memoriesSynced
     })
     this._rememberRecords(periods, memories)
     this._dayDetailsByDate = state.dayDetailsByDate || {}
@@ -486,7 +508,9 @@ Page({
 
     const update = {
       ...calendarRenderState(state),
-      hasRecords: this._homeRecords.periods.length > 0 || this._homeRecords.memories.length > 0,
+      // 有集合没同步上时不知道房间里有没有记录：留着小结行（说未同步），不换成首条记录引导
+      hasRecords: this._homeRecords.periods.length > 0 || this._homeRecords.memories.length > 0 ||
+        !periodsSynced || !memoriesSynced,
       periodQuickLabel: quickAction.label,
       periodQuickAriaLabel: quickAction.ariaLabel,
       showBackToToday: !isViewingCurrentMonth(year, month),
@@ -563,41 +587,28 @@ Page({
   },
 
   _buildResolvedSyncStatus({
-    snapshot,
+    failedCollection,
     mode,
     pendingRevisions,
     recordsChanged,
     confirmedPending
   }) {
-    if (snapshot.kind === 'partial-success') {
-      const periodsFailed = this._isRetryableFailure(snapshot.periodsOutcome)
-      const memoriesFailed = this._isRetryableFailure(snapshot.memoriesOutcome)
-      const backgroundLoad = mode === 'background'
+    const backgroundLoad = mode === 'background'
+    if (failedCollection) {
       const shouldShowBackgroundPartial = this._hasPendingRevisionsFor(pendingRevisions) ||
         confirmedPending ||
         recordsChanged
       if (backgroundLoad && !shouldShowBackgroundPartial) return null
-      if (periodsFailed && !memoriesFailed) {
-        return {
-          text: backgroundLoad
-            ? '经期同步失败，已保留旧经期数据'
-            : '经期同步失败，已显示欢乐时光',
-          autoHide: false
-        }
-      }
-      if (memoriesFailed && !periodsFailed) {
-        return {
-          text: backgroundLoad
-            ? '欢乐时光同步失败，已保留上次的欢乐时光'
-            : '欢乐时光同步失败，已显示经期数据',
-          autoHide: false
-        }
+      const copy = SYNC_FAILURE_COPY[failedCollection]
+      return {
+        text: backgroundLoad ? copy.backgroundStatusText : copy.initialStatusText,
+        autoHide: false
       }
     }
     if (this._hasPendingRevisionsFor(pendingRevisions)) {
       return { text: '已更新，正在同步', autoHide: false }
     }
-    if (mode === 'background' && (confirmedPending || recordsChanged)) {
+    if (backgroundLoad && (confirmedPending || recordsChanged)) {
       return { text: '已同步', autoHide: true }
     }
     return null
@@ -605,10 +616,6 @@ Page({
 
   _hasPendingRevisionsFor(pendingRevisions) {
     return COLLECTIONS.some(collection => pendingRevisions[collection] !== null)
-  },
-
-  _isRetryableFailure(outcome) {
-    return outcome && outcome.kind === 'retryable-failure'
   },
 
   prevMonth() {
@@ -989,6 +996,7 @@ Page({
 
   onHide() {
     this.persistOngoingReminderSeen()
+    this.dismissSeenPartnerWelcome()
   },
 
   onUnload() {
@@ -1017,12 +1025,12 @@ Page({
 
   showRoomStatus({ title, desc, actionText, action }) {
     this.hideSyncStatus()
+    // 下一次能显示日历时按那次同步的结果重新判定哪些集合同步上了
+    this._ensureSyncState().synced = { periods: false, memories: false }
     this.setData({
       hasLoadedHomeData: false,
       refreshing: false,
       refreshRetryVisible: false,
-      syncStatusVisible: false,
-      syncStatusText: '',
       noRoom: true,
       roomStatusTitle: title,
       roomStatusDesc: desc,
@@ -1079,17 +1087,41 @@ function syncPill(page) {
   return page._syncPill
 }
 
-// 行内重试行（issue #79）同时承接只有一个集合同步失败的情况（issue #151）：
-// 可见文案与朗读名指出失败范围；同步胶囊仍只表达状态，不可点
-const REFRESH_RETRY_COPY = {
+// 同步失败的范围（issue #79、#151）：整页刷新失败是 all；首页快照只有一个集合失败时是那个集合，
+// 由 failedSyncCollection 一处判定。行内重试行和同步胶囊都按范围从这张表取文案：
+// 重试行（可点）说失败范围，胶囊（只表达状态、不可点）只说日历现在显示什么，放得进顶栏标题槽
+const SYNC_FAILURE_COPY = {
   all: { refreshRetryText: '刷新失败，点按重试', refreshRetryLabel: '日历刷新失败，点按重试' },
-  periods: { refreshRetryText: '经期同步失败，点按重试', refreshRetryLabel: '经期同步失败，点按重试' },
-  memories: { refreshRetryText: '欢乐时光同步失败，点按重试', refreshRetryLabel: '欢乐时光同步失败，点按重试' }
+  periods: {
+    refreshRetryText: '经期同步失败，点按重试',
+    refreshRetryLabel: '经期同步失败，点按重试',
+    initialStatusText: '已显示欢乐时光',
+    backgroundStatusText: '已保留旧经期数据'
+  },
+  memories: {
+    refreshRetryText: '欢乐时光同步失败，点按重试',
+    refreshRetryLabel: '欢乐时光同步失败，点按重试',
+    initialStatusText: '已显示经期数据',
+    backgroundStatusText: '已保留上次的欢乐时光'
+  }
+}
+
+function failedSyncCollection(snapshot) {
+  if (!snapshot || snapshot.kind !== 'partial-success') return null
+  return COLLECTIONS.find(collection => {
+    const outcome = snapshot[collection + 'Outcome']
+    return outcome && outcome.kind === 'retryable-failure'
+  }) || null
 }
 
 function refreshRetryState(scope) {
-  const copy = REFRESH_RETRY_COPY[scope]
-  return copy ? { refreshRetryVisible: true, ...copy } : { refreshRetryVisible: false }
+  const copy = SYNC_FAILURE_COPY[scope]
+  if (!copy) return { refreshRetryVisible: false }
+  return {
+    refreshRetryVisible: true,
+    refreshRetryText: copy.refreshRetryText,
+    refreshRetryLabel: copy.refreshRetryLabel
+  }
 }
 
 const SHEET_DRAG_TARGETS = {

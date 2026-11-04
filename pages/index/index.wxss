@@ -19,14 +19,12 @@
 .content-refreshing .quick-actions {
   opacity: 0.94;
 }
+/* 同步胶囊在顶栏标题槽里（挂载期间替换应用标题），按文案收缩、在槽内居中；
+   顶栏在吸顶区之上，胶囊盖不住月份标题和状态行（issue #120、#151） */
 .sync-pill {
-  width: 300rpx;
+  min-width: 0;
   min-height: 52rpx;
-  position: fixed;
-  top: calc(var(--nav-bar-height, calc(env(safe-area-inset-top, 44px) + 44px)) + 12rpx);
-  left: 50%;
-  z-index: 50;
-  margin: 0 0 0 -150rpx;
+  margin: 0 auto;
   padding: 0 18rpx;
   display: flex;
   align-items: center;
@@ -678,10 +676,15 @@
   color: var(--text-secondary);
   line-height: var(--line-height-assist);
 }
+/* 按标签宽度排：长说明句由 .reminder-copy 折行吸收，操作钮不收缩、不折行 */
 .reminder-action {
+  flex-shrink: 0;
   min-width: 72rpx;
   height: 60rpx;
   line-height: 60rpx;
+  padding: 0 var(--space-xs);
+  white-space: nowrap;
+  box-sizing: border-box;
   text-align: center;
   border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
@@ -792,6 +795,15 @@
   margin-top: 16rpx;
   text-align: center;
   line-height: var(--line-height-assist);
+}
+/* 主按钮在居中的列里按内容收缩，而基类左右内边距为 0（「重试」曾只有字宽）：
+   两个方向都至少 88rpx 触控档，标签左右留 --space-lg */
+.no-room .btn-premium {
+  min-width: 88rpx;
+  min-height: 88rpx;
+  padding-left: var(--space-lg);
+  padding-right: var(--space-lg);
+  box-sizing: border-box;
 }
 
 /* ===== Calendar Month Jump Sheet ===== */

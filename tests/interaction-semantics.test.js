@@ -358,8 +358,8 @@ test('settings help keeps a separately named mask and a visible close in its tit
 // 平台事实以微信官方文档为准（https://developers.weixin.qq.com/miniprogram/dev/component/aria-component.html）：
 // 基础库 2.7.1 起只支持部分 ARIA 标签；非原生组件可以加 aria-hidden、aria-label 等标签；可设的 aria-role
 // 参照 MDN「Widget Roles」，部分 role 在移动端可能无效（dialog 属 Window Roles，不在其中）。文档列出 aria-modal
-// 却没说行为，也没有把读屏焦点移到某个 view 的能力。所以面板是按用途命名的 dialog（role 可能被忽略，
-// 遮罩「关闭+名称」与标题仍给出上下文），背景只靠 aria-hidden 隔离，不写 aria-modal 冒充模态。
+// 却没说行为，也没有把读屏焦点移到某个 view 的能力。所以面板不写 dialog 角色，只按用途命名：
+// 模态上下文由遮罩「关闭+名称」、面板名和被隐藏的背景给出，背景只靠 aria-hidden 隔离，不写 aria-modal 冒充模态。
 const SHEET_PAGES = [
   {
     file: 'pages/index/index.wxml',
@@ -383,9 +383,9 @@ function sheetHosts(forest, maskClass) {
   return hosts
 }
 
-test('every sheet panel is a dialog named by its purpose, closed by a mask of the same name', () => {
+test('every sheet panel is named by its purpose without a dialog role, closed by a mask of the same name', () => {
   for (const { file, maskClass, slideClass, names } of SHEET_PAGES) {
-    const dialogNames = []
+    const panelNames = []
     for (const host of sheetHosts(parseWxmlForest(readPage(file)), maskClass)) {
       // 读屏顺序固定：先是遮罩（关闭这一层），再是面板；宿主里没有别的可读节点
       const [mask, slide, ...rest] = host.children
@@ -394,15 +394,15 @@ test('every sheet panel is a dialog named by its purpose, closed by a mask of th
       assert.ok(classTokens(slide).includes(slideClass), `${file}: the panel follows the mask`)
       assert.equal(slide.children.length, 1, `${file}: the slide wraps one panel`)
 
-      const [dialog] = slide.children
-      assert.equal(dialog.attrs['aria-role'], 'dialog', `${file}: ${describe(dialog)} is the dialog`)
-      const name = dialog.attrs['aria-label']
-      assert.ok(name, `${file}: ${describe(dialog)} needs a readable name`)
+      const [panel] = slide.children
+      assert.equal(panel.attrs['aria-role'], undefined, `${file}: ${describe(panel)} claims no role WeChat does not list`)
+      const name = panel.attrs['aria-label']
+      assert.ok(name, `${file}: ${describe(panel)} needs a readable name`)
       assert.equal(mask.attrs['aria-role'], 'button')
-      assert.equal(mask.attrs['aria-label'], `关闭${name}`, `${file}: the mask closes the dialog by its name`)
-      dialogNames.push(name)
+      assert.equal(mask.attrs['aria-label'], `关闭${name}`, `${file}: the mask closes the panel by its name`)
+      panelNames.push(name)
     }
-    assert.deepEqual(dialogNames, names)
+    assert.deepEqual(panelNames, names)
   }
 })
 
@@ -476,17 +476,17 @@ test('a sheet silences the page behind it, and every trigger returns with that p
     }
   }
 
-  // 图例、预测说明、本月小结从工具菜单交接：入口在「工具菜单」对话框里，原触发器是顶栏「工具」
+  // 图例、预测说明、本月小结从工具菜单交接：入口在「工具菜单」面板里，原触发器是顶栏「工具」
   const entries = []
   walkForest(parseWxmlForest(readPage('pages/index/index.wxml')), (node) => {
     if (node.attrs.bindtap === 'onMonthMenuTap') entries.push(node)
   })
   assert.equal(entries.length, 3)
   for (const entry of entries) {
-    let dialog = entry
-    while (dialog && dialog.attrs['aria-role'] !== 'dialog') dialog = dialog.parent
-    assert.ok(dialog, `${entry.attrs['aria-label']} lives inside a dialog`)
-    assert.equal(dialog.attrs['aria-label'], '工具菜单')
+    let panel = entry
+    while (panel && !(panel.parent && classTokens(panel.parent).includes('sheet-slide'))) panel = panel.parent
+    assert.ok(panel, `${entry.attrs['aria-label']} lives inside a sheet panel`)
+    assert.equal(panel.attrs['aria-label'], '工具菜单')
   }
 })
 

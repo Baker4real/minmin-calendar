@@ -140,17 +140,18 @@ test('buildCycleReminders returns upcoming and overdue reminder states', () => {
     }
   ])
 
+  // 推迟提醒只陈述事实（窗口已过、可以补记），不下「很正常」这类判断；点按仍走记经期
   const late = cycle.buildCycleReminders(prediction, periods, { today: '2026-08-13' })
   assert.deepEqual(late, [
     {
       type: 'overdue',
-      title: '周期有波动很正常',
+      title: '可能开始的日子已过',
       text: '如果已经开始，可以补记',
       action: 'quickPeriod',
       date: '2026-08-13'
     }
   ])
-  assert.equal(`${late[0].title}；${late[0].text}`, '周期有波动很正常；如果已经开始，可以补记')
+  assert.equal(`${late[0].title}；${late[0].text}`, '可能开始的日子已过；如果已经开始，可以补记')
 })
 
 test('period duration is the inclusive day count when stored duration conflicts with the dates', () => {
@@ -878,6 +879,17 @@ test('home status line asks for more records when a prediction is not possible',
     text: '多记几次后就能预测',
     tone: 'default'
   })
+})
+
+// 经期集合一次都没同步上时，空列表不是「记录不够」：状态行只说没同步，不说经期第几天、不估算、不要更多记录
+test('home status line says periods are not synced instead of judging an empty list', () => {
+  const unsynced = { status: 'unsynced', text: '经期未同步，暂不预测', tone: 'neutral' }
+  assert.deepEqual(cycle.buildHomeStatusLine([], { today: '2026-08-01', periodsSynced: false }), unsynced)
+  // 本地刚记的一条（乐观更新）也不让没同步的集合冒充完整记录
+  assert.deepEqual(
+    cycle.buildHomeStatusLine([{ startDate: '2026-07-30', endDate: '', status: 'ongoing' }], { today: '2026-08-01', periodsSynced: false }),
+    unsynced
+  )
 })
 
 function period(startDate, endDate) {

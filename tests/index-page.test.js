@@ -421,8 +421,8 @@ test('a periods-only sync failure keeps old periods and offers an inline retry t
     assert.deepEqual(harness.page._homeRecords.periods, [oldPeriod])
     assert.deepEqual(harness.page._homeRecords.memories, [oldMemory, newMemory])
     assert.deepEqual(renderRefreshRetry(harness.page.data), PERIODS_RETRY)
-    // 胶囊照旧只报状态：文案与既有部分失败协调一致
-    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已保留旧经期数据')
+    // 胶囊只报日历现在显示什么；失败范围和重试由重试行说，胶囊文案因此放得进顶栏标题槽
+    assert.equal(harness.page.data.syncStatusText, '已保留旧经期数据')
 
     await harness.page.retryRefresh()
     assert.equal(renderRefreshRetry(harness.page.data), null)
@@ -460,7 +460,7 @@ test('a memories-only sync failure names happy times and a repeated failure neve
     assert.equal(harness.page.data.hasLoadedHomeData, true)
     assert.deepEqual(harness.page._homeRecords.periods, [loadedPeriod])
     assert.deepEqual(renderRefreshRetry(harness.page.data), MEMORIES_RETRY)
-    assert.equal(harness.page.data.syncStatusText, '欢乐时光同步失败，已显示经期数据')
+    assert.equal(harness.page.data.syncStatusText, '已显示经期数据')
 
     const retry = harness.page.retryRefresh()
     // 重试进行中不先撤掉失败行：只有成功的结果才清除
@@ -562,7 +562,7 @@ test('a partial failure keeps the pending local revision until a successful retr
     await harness.page.onShow()
     assert.deepEqual(harness.page._homeRecords.periods.map(item => item._id), ['p2', 'p1'])
     assert.equal(harness.page._syncState.pendingRevisions.periods, 1)
-    assert.equal(harness.page.data.syncStatusText, '经期同步失败，已保留旧经期数据')
+    assert.equal(harness.page.data.syncStatusText, '已保留旧经期数据')
     assert.deepEqual(renderRefreshRetry(harness.page.data), PERIODS_RETRY)
 
     await harness.page.retryRefresh()
@@ -782,10 +782,15 @@ test('homepage consumes the one-time partner welcome only after the bar is commi
     assert.deepEqual(harness.toasts, [])
     assert.match(readIndexWxml(), /已和 TA 连上。经期是玫瑰色带，♥ 是欢乐时光，「预」是下次可能开始的日子。/)
 
-    // 同一页面实例再次进入：欢迎条留在原处，不再消费
+    // 同一次停留里重算日历，欢迎条留在原处
+    harness.page.applyHomeCalendarState()
+    assert.equal(harness.page.data.partnerWelcome, true)
+
+    // 离开首页（切 tab 或进编辑页）再回来：欢迎条只陪第一次显示它的那次停留，不再出现
+    harness.page.onHide()
     await harness.page.onShow()
     harness.commitRender()
-    assert.equal(harness.page.data.partnerWelcome, true)
+    assert.equal(harness.page.data.partnerWelcome, false)
     assert.equal(storage.get('partnerWelcome'), 'seen')
   } finally {
     harness.teardown()
@@ -849,6 +854,8 @@ test('the partner welcome shortens the calendar rows through the row-height ledg
   const harness = loadPageHarness({
     client: createQueuedClient([
       { kind: 'success', data: [] },
+      { kind: 'success', data: [] },
+      { kind: 'success', data: [] },
       { kind: 'success', data: [] }
     ]),
     room: pairedRoom,
@@ -872,6 +879,12 @@ test('the partner welcome shortens the calendar rows through the row-height ledg
     // 之后重算日历（翻月、刷新）仍把欢迎条计入
     harness.page.applyHomeCalendarState()
     assert.equal(harness.page.data.calendarRowHeightPx, 50)
+
+    // 离开首页再回来：欢迎条收起，账本去掉它的 103.2rpx，行高回到 55.33
+    harness.page.onHide()
+    await harness.page.onShow()
+    assert.equal(harness.page.data.partnerWelcome, false)
+    assert.equal(harness.page.data.calendarRowHeightPx, 55.33)
   } finally {
     harness.teardown()
     delete require.cache[require.resolve(safeAreaPath)]
@@ -1188,7 +1201,7 @@ test('homepage render data omits record arrays and the per-day detail map', asyn
     assert.equal(harness.page._dayDetailsByDate['2026-06-04'].memories[0].note, '只有四号的备注')
 
     const wxml = readIndexWxml()
-    assert.match(wxml, /class="month-summary-text">本月 经期 \{\{monthPeriodDays\}\} 天 · 欢乐时光 \{\{monthMemoryCount\}\} 条 ›<\/text>/)
+    assert.match(wxml, /class="month-summary-text">\{\{monthSummaryLine\}\} ›<\/text>/)
     assert.doesNotMatch(wxml, /periodCount|status-card|stat-label">经期记录/)
     assert.doesNotMatch(wxml, /periods\.length|memories\.length|dayDetailsByDate/)
   } finally {
@@ -1307,6 +1320,95 @@ test('status line opens the existing prediction sheet without leaving the home p
   }
 })
 
+// 本月小结行：按页面数据渲染出可见文字与读屏名
+function renderMonthSummary(data) {
+  const wxml = readIndexWxml()
+  const start = wxml.lastIndexOf('<view', wxml.indexOf('class="month-summary"'))
+  const block = wxml.slice(start, wxml.indexOf('</view>', start))
+  const [row] = wxmlOpeningTags(block)
+  const text = /class="month-summary-text">([^<]*)<\/text>/.exec(block)
+  assert.ok(text, 'expected the month summary text')
+  return { text: renderWxmlAttribute(text[1], data), ariaLabel: renderWxmlAttribute(row.attrs['aria-label'], data) }
+}
+
+// 首次加载只有经期没同步上：经期一次都没到过，空列表不是事实。状态行、本月小结行和它们打开的说明
+// 都不说经期 0 天或记录不够，只说经期未同步；欢乐时光照常计数，也不换成首条记录引导。重试成功后回到按记录说
+test('a first load without periods says periods are not synced instead of asserting zero days', async () => {
+  const harness = loadPageHarness({
+    calendarState: 'real',
+    client: createQueuedClient([
+      { kind: 'retryable-failure', message: 'period network down' },
+      { kind: 'success', data: [memory('m1', '2026-06-02')] },
+      { kind: 'success', data: [period('p1', '2026-06-01')] },
+      { kind: 'success', data: [memory('m1', '2026-06-02')] }
+    ])
+  })
+  const view = { year: 2026, month: 5, today: '2026-06-26' }
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+    harness.page.applyHomeCalendarState(view)
+    assert.deepEqual(harness.page.data.homeStatus, { status: 'unsynced', text: '经期未同步，暂不预测', tone: 'neutral' })
+    assert.equal(harness.page.data.hasRecords, true)
+    assert.deepEqual(renderMonthSummary(harness.page.data), {
+      text: '本月 经期未同步 · 欢乐时光 1 条 ›',
+      ariaLabel: '查看本月小结，本月 经期未同步 · 欢乐时光 1 条'
+    })
+    assert.equal(harness.page.data.predictionExplanation.summary, '经期未同步，暂不预测')
+    assert.equal(harness.page.data.monthlyRecap.periodSummary, '本月经期未同步')
+    assert.equal(harness.page.data.monthlyRecap.memorySummary, '留下 1 条欢乐时光')
+
+    await harness.page.retryRefresh()
+    harness.page.applyHomeCalendarState(view)
+    assert.equal(harness.page.data.homeStatus.text, '多记几次后就能预测')
+    assert.deepEqual(renderMonthSummary(harness.page.data), {
+      text: '本月 经期 1 天 · 欢乐时光 1 条 ›',
+      ariaLabel: '查看本月小结，本月 经期 1 天 · 欢乐时光 1 条'
+    })
+  } finally {
+    harness.teardown()
+  }
+
+  // 欢乐时光也是空的：经期没同步时不知道房间里有没有记录，仍给小结行（说未同步），不给首条记录引导
+  const empty = loadPageHarness({
+    calendarState: 'real',
+    client: createQueuedClient([
+      { kind: 'retryable-failure', message: 'period network down' },
+      { kind: 'success', data: [] }
+    ])
+  })
+  try {
+    empty.page.onLoad()
+    await empty.page.onShow()
+    empty.page.applyHomeCalendarState(view)
+    assert.equal(empty.page.data.hasRecords, true)
+    assert.equal(renderMonthSummary(empty.page.data).text, '本月 经期未同步 · 欢乐时光 0 条 ›')
+  } finally {
+    empty.teardown()
+  }
+
+  // 请求途中本地新记了一条经期，这次的经期快照被顶掉：手里只有本地这一条，不是服务端的完整记录，仍说未同步
+  const stale = loadPageHarness({
+    calendarState: 'real',
+    client: createQueuedClient([
+      { kind: 'retryable-failure', message: 'period network down' },
+      { kind: 'success', data: [] }
+    ])
+  })
+  try {
+    stale.page.onLoad()
+    await stale.page.onShow()
+    const requestId = stale.page._startLoad(true)
+    stale.page.applyRecordChange({ collection: 'periods', mode: 'add', record: period('p2', '2026-06-20') })
+    stale.page._resolveLoad(requestId, successSnapshot([period('p1', '2026-06-01')], []), true)
+    stale.page.applyHomeCalendarState(view)
+    assert.equal(stale.page.data.homeStatus.status, 'unsynced')
+    assert.equal(renderMonthSummary(stale.page.data).text, '本月 经期未同步 · 欢乐时光 0 条 ›')
+  } finally {
+    stale.teardown()
+  }
+})
+
 test('viewed records supply the status line, the month summary, and back-to-today', async () => {
   const harness = loadPageHarness({
     calendarState: 'real',
@@ -1329,8 +1431,7 @@ test('viewed records supply the status line, the month summary, and back-to-toda
 
     assert.equal(harness.page.data.homeStatus.text, '经期第 3 天')
     assert.equal(harness.page.data.homeStatus.tone, 'default')
-    assert.equal(harness.page.data.monthPeriodDays, 8)
-    assert.equal(harness.page.data.monthMemoryCount, 1)
+    assert.equal(renderMonthSummary(harness.page.data).text, '本月 经期 8 天 · 欢乐时光 1 条 ›')
     assert.equal(harness.page.data.showBackToToday, true)
 
     harness.page.openMonthlyRecap()
@@ -1716,14 +1817,14 @@ test('day detail rows read out distinct names for same-day records, naming the a
   }
 
   assert.deepEqual(await namesFor('paired'), [
-    '编辑经期，6月1日–6月3日，已结束，我记的',
-    '编辑经期，6月2日–6月2日，已结束，TA 记的',
+    '编辑这次经期，6月1日–6月3日，已结束，我记的',
+    '编辑这次经期，6月2日–6月2日，已结束，TA 记的',
     '编辑欢乐时光，6月2日，散步，TA 记的',
     '编辑欢乐时光，6月2日，我记的'
   ])
   assert.deepEqual(await namesFor('waiting'), [
-    '编辑经期，6月1日–6月3日，已结束',
-    '编辑经期，6月2日–6月2日，已结束',
+    '编辑这次经期，6月1日–6月3日，已结束',
+    '编辑这次经期，6月2日–6月2日，已结束',
     '编辑欢乐时光，6月2日，散步',
     '编辑欢乐时光，6月2日'
   ])
@@ -2192,7 +2293,7 @@ test('quick record buttons use the calendar legend marks, not emoji, and reach 4
   const quickEnd = wxml.indexOf('class="month-summary"')
   const quickBlock = wxml.slice(quickStart, quickEnd)
   const periodButton = quickBlock.slice(0, quickBlock.indexOf('bindtap="quickMemory"'))
-  assert.match(periodButton, /class="quick-icon sample-plate">\s*<view class="action-sample day-cell /)
+  assert.match(periodButton, /class="quick-icon sample-plate">\s*<template is="periodBandSample" data="\{\{\.\.\.periodBandSample\}\}"\s*\/>/)
   assert.match(quickBlock, /class="quick-icon memory-tone">♥<\/text>/)
   // 不再用表情（🩸 / ❤️ 表情形态），也不再用另一套经期圆点
   assert.doesNotMatch(quickBlock, /🩸|❤️|●/)
@@ -2988,19 +3089,19 @@ test('an open or leaving homepage sheet obscures the page until every sheet unmo
   }
 })
 
-// issue #155：信息弹层按显示的内容命名。遮罩读「关闭」加名称，面板以同一名称作对话框名；
+// issue #155：信息弹层按显示的内容命名。遮罩读「关闭」加名称，面板以同一名称作读屏名；
 // 状态行直接打开、离场途中从小结行换内容重开、从工具菜单交接，名称都跟着当前内容走。
-test('the info sheet mask and dialog are named by what the sheet shows', () => {
+test('the info sheet mask and panel are named by what the sheet shows', () => {
   mock.timers.enable({ apis: ['setTimeout'] })
   const harness = loadPageHarness({ client: createQueuedClient([]) })
   const wxml = readIndexWxml()
   const host = wxmlOpeningTags(wxml.slice(wxml.indexOf('wx:if="{{infoSheetMounted}}"'), wxml.indexOf('<page-container')))
   const mask = host.find(tag => tag.classes.includes('day-sheet-mask'))
-  const dialog = host.find(tag => tag.attrs['aria-role'] === 'dialog')
-  assert.ok(mask && dialog, 'expected the info sheet mask and dialog')
+  const panel = host.find(tag => tag.classes.includes('calendar-info-panel'))
+  assert.ok(mask && panel, 'expected the info sheet mask and panel')
   const heard = () => [
     renderWxmlAttribute(mask.attrs['aria-label'], harness.page.data),
-    renderWxmlAttribute(dialog.attrs['aria-label'], harness.page.data)
+    renderWxmlAttribute(panel.attrs['aria-label'], harness.page.data)
   ]
   try {
     harness.page.onLoad()

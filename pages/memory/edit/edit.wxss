@@ -89,17 +89,6 @@
   margin-bottom: 24rpx;
 }
 
-/* 字段校验错误（issue #156）：与经期编辑页同一形态，见 DESIGN.md「警示红语义」 */
-.field-error {
-  display: block;
-  margin-top: 12rpx;
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-assist);
-  line-height: var(--line-height-assist);
-  letter-spacing: var(--letter-spacing-assist);
-  color: #F97373;
-}
-
 /* Buttons */
 .btns {
   margin-top: 30rpx;
