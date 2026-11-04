@@ -12,12 +12,20 @@ function displayDateLabel(dateStr) {
   return util.formatDisplayDate(dateStr, { today: util.formatDate(new Date()) })
 }
 
+// 日期出错时给一句人话；没问题时返回 null。
+function collectMemoryFieldErrors({ date }, today) {
+  if (!date) return { date: '请选择日期' }
+  if (!util.isValidDateString(date)) return { date: '请选择有效日期' }
+  if (date > today) return { date: '日期不能晚于今天' }
+  return null
+}
+
 // 与 pages/period/edit/edit.js、pages/period/period.js 共享的一次性
 // 「目标分段」意图键：从首页等入口进入本页保存/删除后写键，记录 tab onShow 消费并落到欢乐时光分段（issue #103）
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 
 Page({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false, submitted: false, draftRestored: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false, submitted: false, draftRestored: false, fieldErrors: {} },
 
   onLoad(options) {
     const routeState = recordEditRoute.parseMemoryEditOptions(options, {
@@ -79,8 +87,25 @@ Page({
       date: e.detail.value,
       dateLabel: displayDateLabel(e.detail.value)
     })
+    this.refreshFieldErrors()
   },
   onNoteInput(e) { this.setData({ note: e.detail.value }) },
+
+  // 保存校验失败：错误常驻在日期字段下，并把它滚到顶栏下方（即时到位，无滚动动画）。输入与草稿都不动。
+  showFieldErrors(fieldErrors) {
+    const errors = fieldErrors || {}
+    this.setData({ fieldErrors: errors })
+    if (errors.date) {
+      wx.pageScrollTo({ selector: '#field-date', offsetTop: -this.data.navBarHeight, duration: 0 })
+    }
+  },
+
+  // 清除规则与经期编辑页相同：只重算已显示的错误——改对即消失，仍不对就换成当前原因。
+  refreshFieldErrors() {
+    if (!this.data.fieldErrors || !this.data.fieldErrors.date) return
+    const current = collectMemoryFieldErrors(this.data, util.formatDate(new Date())) || {}
+    this.setData({ fieldErrors: current.date ? { date: current.date } : {} })
+  },
 
   goBack() {
     wx.navigateBack()
@@ -105,16 +130,15 @@ Page({
           return submitted || {}
         }
       },
-      validate: () => {
-        if (!date) return '请选择日期'
-        if (!util.isValidDateString(date)) return '请选择有效日期'
-        if (date > today) return '日期不能晚于今天'
-        return ''
-      },
+      validate: () => collectMemoryFieldErrors({ date }, today),
       successTitle: '已存进你们的欢乐时光',
       successIcon: 'none',
       failureTitle: '保存失败'
     })
+    if (outcome && outcome.kind === 'validation') {
+      this.showFieldErrors(outcome.fieldErrors)
+      return outcome
+    }
     if (outcome && outcome.kind === 'success') {
       this.discardRecordDraft()
       this.markRecordTabSegmentIntent()

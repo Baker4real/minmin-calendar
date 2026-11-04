@@ -1157,13 +1157,6 @@ test('period edit save validates real calendar dates before building a payload',
           return { startDate: '2026-02-31', endDate: '2026-03-02', duration: 1 }
         }
       },
-      'utils/recordCommands.js': {
-        async runRecordSave(options) {
-          const message = options.validate()
-          if (message) return { kind: 'validation', message }
-          return options.action()
-        }
-      },
       'utils/recordEditRoute.js': {
         parsePeriodEditOptions() {
           return {
@@ -1188,9 +1181,11 @@ test('period edit save validates real calendar dates before building a payload',
     harness.page.onLoad({})
     const outcome = await harness.page.save()
 
+    // 校验结果走真实 recordCommands：可定位到开始日期的错误交回页面（issue #156）
     assert.deepEqual(outcome, {
       kind: 'validation',
-      message: '请选择有效日期'
+      message: '请选择有效的开始日期',
+      fieldErrors: { startDate: '请选择有效的开始日期' }
     })
     assert.equal(payloadBuilds, 0)
     assert.equal(mutationCalls, 0)
@@ -1207,7 +1202,8 @@ test('period edit save rejects missing dates before building a payload', async (
 
   assert.deepEqual(result.outcome, {
     kind: 'validation',
-    message: '请选择日期'
+    message: '请选择开始日期',
+    fieldErrors: { startDate: '请选择开始日期' }
   })
   assert.equal(result.payloadBuilds, 0)
   assert.equal(result.mutationCalls, 0)
@@ -1222,7 +1218,8 @@ test('period edit save rejects reversed ranges before building a payload', async
 
   assert.deepEqual(result.outcome, {
     kind: 'validation',
-    message: '结束日期不能早于开始'
+    message: '结束日期不能早于开始',
+    fieldErrors: { endDate: '结束日期不能早于开始' }
   })
   assert.equal(result.payloadBuilds, 0)
   assert.equal(result.mutationCalls, 0)
@@ -1381,12 +1378,14 @@ test('memory edit save rejects invalid calendar dates before mutation', async ()
       note: 'invalid date',
       isEdit: false
     },
-    mutationOutcome: { kind: 'success', result: { id: 'm9' } }
+    mutationOutcome: { kind: 'success', result: { id: 'm9' } },
+    commands: require('../utils/recordCommands')
   })
 
   assert.deepEqual(result.outcome, {
     kind: 'validation',
-    message: '请选择有效日期'
+    message: '请选择有效日期',
+    fieldErrors: { date: '请选择有效日期' }
   })
   assert.equal(result.mutationInputs.length, 0)
   assert.equal(result.notifications.length, 0)
@@ -1725,13 +1724,6 @@ async function runPeriodEditSaveValidationCase(overrides = {}) {
           return { startDate: '2026-03-03', endDate: '2026-03-03', duration: 1 }
         }
       },
-      'utils/recordCommands.js': {
-        async runRecordSave(options) {
-          const message = options.validate()
-          if (message) return { kind: 'validation', message }
-          return options.action()
-        }
-      },
       'utils/recordEditRoute.js': {
         parsePeriodEditOptions() {
           return {
@@ -1764,7 +1756,7 @@ async function runPeriodEditSaveValidationCase(overrides = {}) {
   }
 }
 
-async function runMemoryEditSaveCase({ routeState, mutationOutcome }) {
+async function runMemoryEditSaveCase({ routeState, mutationOutcome, commands = createRecordSaveCommandStub() }) {
   const mutationInputs = []
   const notifications = []
   const client = {
@@ -1785,7 +1777,7 @@ async function runMemoryEditSaveCase({ routeState, mutationOutcome }) {
           return client
         }
       },
-      'utils/recordCommands.js': createRecordSaveCommandStub(),
+      'utils/recordCommands.js': commands,
       'utils/recordEditRoute.js': {
         parseMemoryEditOptions() {
           return routeState
@@ -1946,6 +1938,7 @@ function createPageHarnessWx(overrides = {}) {
     showModal() {},
     showLoading() {},
     hideLoading() {},
+    pageScrollTo() {},
     setClipboardData({ success }) {
       if (success) success()
     },

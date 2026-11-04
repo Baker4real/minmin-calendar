@@ -11,14 +11,15 @@
   <view class="content">
     <view class="premium-card">
       <view wx:if="{{draftRestored}}" class="draft-notice">已恢复上次未完成的输入</view>
-      <view class="form-item">
+      <view class="form-item" id="field-date">
         <text class="form-label">日期</text>
-        <picker mode="date" value="{{date}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onDateChange" aria-role="button" aria-label="选择日期">
+        <picker mode="date" value="{{date}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onDateChange" aria-role="button" aria-label="选择日期{{fieldErrors.date ? '，' + fieldErrors.date : ''}}">
           <view class="form-picker" hover-class="form-picker-hover">
             <text>{{dateLabel}}</text>
             <text class="form-picker-arrow">›</text>
           </view>
         </picker>
+        <text wx:if="{{fieldErrors.date}}" class="field-error" aria-role="alert">{{fieldErrors.date}}</text>
       </view>
       <view class="form-item">
         <text class="form-label">备注</text>
