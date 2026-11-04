@@ -75,6 +75,54 @@ test('runRecordSave returns validation fallback when wx is null', async () => {
   assert.equal(actionCalls, 0)
 })
 
+// issue #156：能定位到字段的校验结果交回页面显示在字段旁，不再弹瞬时 toast；
+// 无法定位的整体错误（字符串）仍走上面的 toast。两种都不触云端、不进保存中。
+test('runRecordSave hands located field errors back to the page without a toast, busy state, or cloud call', async () => {
+  const page = createFakePage({ saving: false })
+  const env = createFakeCommandEnv()
+  let actionCalls = 0
+
+  const result = await recordCommands.runRecordSave({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => {
+      actionCalls += 1
+      return { kind: 'success', result: { code: 0 } }
+    },
+    validate: () => ({ startDate: '开始日期不能晚于今天', endDate: '结束日期不能晚于今天' }),
+    successTitle: '保存成功',
+    failureTitle: '保存失败'
+  })
+
+  assert.deepEqual(result, {
+    kind: 'validation',
+    message: '开始日期不能晚于今天',
+    fieldErrors: { startDate: '开始日期不能晚于今天', endDate: '结束日期不能晚于今天' }
+  })
+  assert.equal(actionCalls, 0)
+  assert.deepEqual(page.setDataCalls, [])
+  assert.deepEqual(env.wx.toasts, [])
+  assert.deepEqual(env.wx.modals, [])
+  assert.equal(env.timer.calls.length, 0)
+
+  // 没有任何字段出错的结果等于校验通过：照常保存一次
+  const passed = await recordCommands.runRecordSave({
+    page,
+    wx: env.wx,
+    timer: env.timer,
+    action: async () => {
+      actionCalls += 1
+      return { kind: 'success', result: { code: 0 } }
+    },
+    validate: () => ({ startDate: '', endDate: '' }),
+    successTitle: '保存成功',
+    failureTitle: '保存失败'
+  })
+  assert.equal(passed.kind, 'success')
+  assert.equal(actionCalls, 1)
+})
+
 test('runRecordSave enters submitted-waiting state, shows success toast, and schedules one navigateBack on success', async () => {
   assert.equal(typeof recordCommands.runRecordSave, 'function')
 
@@ -2575,7 +2623,7 @@ test('record edit pages isolate delete loading, constrain period dates, and cap 
   assert.match(periodEditWxml, /end="\{\{maxDate\}\}"/)
   assert.match(periodEditWxml, /start="\{\{startDate\}\}"/)
   // 结束日期选择器只在已知结束状态出现；开始日期选择器上限为今天
-  assert.match(periodEditWxml, /<view class="form-item" wx:if="\{\{status === 'known-end'\}\}">/)
+  assert.match(periodEditWxml, /<view class="form-item" wx:if="\{\{status === 'known-end'\}\}"[^>]*>/)
   assert.match(periodEditWxml, /bindtap="selectStatus"/)
   assert.match(periodEditWxml, /aria-label="经期状态/)
   assert.match(periodEditWxml, /maxlength="500"/)
@@ -2612,6 +2660,38 @@ test('record edit notes are multi-line textareas with the unchanged 500-char cap
   for (const wxml of [periodEditWxml, memoryEditWxml]) {
     assert.match(wxml, /<textarea[^>]*maxlength="500"[^>]*auto-height/)
     assert.doesNotMatch(wxml, /<input[^>]*aria-label="备注"/)
+  }
+})
+
+// issue #156：日期错误常驻在所属字段的 picker 下方，同时并进该 picker 的读屏名，
+// 读屏能听出是开始日、结束日还是欢乐时光日期出错；字段容器带页面滚动锚点
+test('edit forms keep each date error under its own picker and inside that picker screen-reader name', () => {
+  const cases = [
+    ['pages/period/edit/edit.wxml', 'startDate', '选择开始日期'],
+    ['pages/period/edit/edit.wxml', 'endDate', '选择结束日期'],
+    ['pages/memory/edit/edit.wxml', 'date', '选择日期']
+  ]
+  for (const [file, field, name] of cases) {
+    const wxml = readPageFile(file)
+    const opening = new RegExp(`<view class="form-item"[^>]*\\sid="field-${field}"[^>]*>`).exec(wxml)
+    assert.ok(opening, `${file} marks the ${field} form item as #field-${field}`)
+    const nextItem = wxml.indexOf('class="form-item', opening.index + opening[0].length)
+    const item = wxml.slice(opening.index, nextItem === -1 ? undefined : nextItem)
+    assert.ok(
+      item.includes(`aria-label="${name}{{fieldErrors.${field} ? '，' + fieldErrors.${field} : ''}}"`),
+      `${file} ${field} picker reads its error after the field name`
+    )
+    const errorLine = `<text wx:if="{{fieldErrors.${field}}}" class="field-error" aria-role="alert">{{fieldErrors.${field}}}</text>`
+    const pickerEnd = item.indexOf('</picker>')
+    assert.ok(pickerEnd !== -1 && item.indexOf(errorLine) > pickerEnd, `${file} ${field} error line follows its picker`)
+  }
+
+  for (const file of ['pages/period/edit/edit.wxss', 'pages/memory/edit/edit.wxss']) {
+    const rule = /\.field-error\s*\{([^}]*)\}/.exec(readPageFile(file))
+    assert.ok(rule, `${file} defines .field-error`)
+    assert.match(rule[1], /display:\s*block/)
+    assert.match(rule[1], /color:\s*#F97373/)
+    assert.match(rule[1], /font-size:\s*var\(--font-size-caption\)/)
   }
 })
 
@@ -3245,10 +3325,10 @@ test('period edit completes the same ongoing record by filling an end date', asy
 })
 
 test('period edit backfills a past period with an empty end date until the user chooses one', async () => {
-  const env = createPeriodEditSaveEnv()
+  const env = createEditFormEnv('pages/period/edit/edit.js')
 
   try {
-    env.harness.page.onLoad({ startDate: '2026-06-10' })
+    await env.harness.page.onLoad({ startDate: '2026-06-10' })
     assert.equal(env.harness.page.data.status, 'known-end')
     assert.equal(env.harness.page.data.endDate, '')
     assert.equal(env.harness.page.data.periodDayCountText, '')
@@ -3258,11 +3338,12 @@ test('period edit backfills a past period with an empty end date until the user 
     assert.equal(env.harness.page.data.endDate, '')
 
     const outcome = await env.harness.page.save()
-    assert.deepEqual(outcome, {
-      kind: 'validation',
-      message: '请选择结束日期；还没结束可以选「进行中」'
-    })
-    assert.equal(env.adds.length, 0)
+    const message = '请选择结束日期；还没结束可以选「进行中」'
+    assert.deepEqual(outcome, { kind: 'validation', message, fieldErrors: { endDate: message } })
+    // 错误留在结束日期字段下，不靠瞬时 toast
+    assert.deepEqual(env.harness.page.data.fieldErrors, { endDate: message })
+    assert.deepEqual(env.toasts, [])
+    assert.deepEqual(env.writes, [])
   } finally {
     env.harness.teardown()
   }
@@ -3431,25 +3512,156 @@ test('period edit completes an unknown-end record with an exact duration by fill
 })
 
 test('period edit rejects future start and end dates before touching the cloud', async () => {
-  const env = createPeriodEditSaveEnv()
+  const env = createEditFormEnv('pages/period/edit/edit.js')
 
   try {
-    env.harness.page.onLoad({})
+    await env.harness.page.onLoad({})
 
-    // util 桩的今天是 2026-09-20：开始日期晚于今天直接拒绝（不触云端）
+    // util 桩的今天是 2026-09-20：开始日期晚于今天直接拒绝（不触云端），错误留在开始日期下
     env.harness.page.onStartChange({ detail: { value: '2026-09-21' } })
     let outcome = await env.harness.page.save()
-    assert.deepEqual(outcome, { kind: 'validation', message: '开始日期不能晚于今天' })
-    assert.equal(env.adds.length + env.updates.length, 0)
+    assert.equal(outcome.kind, 'validation')
+    assert.deepEqual(env.harness.page.data.fieldErrors, { startDate: '开始日期不能晚于今天' })
+    assert.deepEqual(env.writes, [])
     assert.deepEqual(env.toasts, [])
 
-    // 已知结束但结束日期晚于今天同样拒绝
+    // 已知结束但结束日期晚于今天同样拒绝，错误留在结束日期下
     env.harness.page.onStartChange({ detail: { value: '2026-09-18' } })
     env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'known-end' } } })
     env.harness.page.onEndChange({ detail: { value: '2026-09-25' } })
     outcome = await env.harness.page.save()
-    assert.deepEqual(outcome, { kind: 'validation', message: '结束日期不能晚于今天' })
-    assert.equal(env.adds.length + env.updates.length, 0)
+    assert.equal(outcome.kind, 'validation')
+    assert.deepEqual(env.harness.page.data.fieldErrors, { endDate: '结束日期不能晚于今天' })
+    assert.deepEqual(env.writes, [])
+    assert.deepEqual(env.toasts, [])
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+// ===== issue #156：可定位的校验错误常驻在对应字段下 =====
+// 校验失败不写云端、不进保存中、不清输入与草稿；改对字段后错误按规则清除，保存/删除防重复不回退。
+
+test('period edit keeps a missing end date beside its field, writes nothing, and keeps every input and the draft', async () => {
+  const env = createEditFormEnv('pages/period/edit/edit.js')
+  const draftKey = 'recordDraft:periods:new'
+
+  try {
+    env.storage.set(draftKey, JSON.stringify({
+      startDate: '2026-09-10',
+      endDate: '',
+      status: 'known-end',
+      note: '草稿里的备注',
+      flow: 'heavy',
+      symptoms: ['cramps']
+    }))
+    await env.harness.page.onLoad({})
+    assert.equal(env.harness.page.data.draftRestored, true)
+    env.harness.page.toggleSymptom({ currentTarget: { dataset: { value: 'tired' } } })
+
+    const outcome = await env.harness.page.save()
+
+    const message = '请选择结束日期；还没结束可以选「进行中」'
+    assert.equal(outcome.kind, 'validation')
+    assert.deepEqual(env.harness.page.data.fieldErrors, { endDate: message })
+    // 不写云端、不弹校验 toast（只有进页时的草稿恢复提示）、不进保存中
+    assert.deepEqual(env.writes, [])
+    assert.deepEqual(env.toasts, [{ title: '已恢复上次未完成的输入', icon: 'none' }])
+    assert.equal(env.harness.page.data.saving, false)
+    assert.equal(env.harness.page.data.submitted, false)
+    // 日期、状态、经量、症状、备注与草稿说明原样保留
+    const data = env.harness.page.data
+    assert.equal(data.startDate, '2026-09-10')
+    assert.equal(data.endDate, '')
+    assert.equal(data.status, 'known-end')
+    assert.equal(data.note, '草稿里的备注')
+    assert.equal(data.flow, 'heavy')
+    assert.deepEqual(data.symptoms, ['cramps', 'tired'])
+    assert.equal(data.draftRestored, true)
+    assert.ok(env.storage.has(draftKey), 'a failed validation must not discard the stored draft')
+    // 出错字段滚进视野：停在固定顶栏下方，即时到位、不做滚动动画
+    assert.deepEqual(env.scrolls, [{ selector: '#field-endDate', offsetTop: -data.navBarHeight, duration: 0 }])
+
+    env.harness.page.onHide()
+    assert.deepEqual(JSON.parse(env.storage.get(draftKey)), {
+      startDate: '2026-09-10',
+      endDate: '',
+      status: 'known-end',
+      note: '草稿里的备注',
+      flow: 'heavy',
+      symptoms: ['cramps', 'tired']
+    })
+
+    // 只改这一个字段：错误即时消失，再保存写一次，成功后清草稿
+    env.harness.page.onEndChange({ detail: { value: '2026-09-14' } })
+    assert.deepEqual(env.harness.page.data.fieldErrors, {})
+    const saved = await env.harness.page.save()
+    assert.equal(saved.kind, 'success')
+    assert.deepEqual(env.writes, [{
+      op: 'add',
+      collection: 'periods',
+      payload: {
+        startDate: '2026-09-10',
+        endDate: '2026-09-14',
+        status: 'known-end',
+        note: '草稿里的备注',
+        duration: 5,
+        flow: 'heavy',
+        symptoms: ['cramps', 'tired']
+      }
+    }])
+    assert.equal(env.storage.has(draftKey), false)
+
+    // 保存防重复不回退：等待返回期间再点保存不再写
+    assert.equal(await env.harness.page.save(), undefined)
+    assert.equal(env.writes.length, 1)
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+test('period edit shows each wrong date under its own field and clears an error only once that field is right', async () => {
+  const env = createEditFormEnv('pages/period/edit/edit.js')
+
+  try {
+    await env.harness.page.onLoad({ id: 'p1', startDate: '2026-09-25', endDate: '2026-09-27', status: 'known-end' })
+
+    const outcome = await env.harness.page.save()
+    assert.equal(outcome.kind, 'validation')
+    // 两个字段各自出错：开始日和结束日分开显示，滚到第一个出错字段
+    assert.deepEqual(env.harness.page.data.fieldErrors, {
+      startDate: '开始日期不能晚于今天',
+      endDate: '结束日期不能晚于今天'
+    })
+    assert.deepEqual(env.scrolls.map(call => call.selector), ['#field-startDate'])
+    assert.deepEqual(env.writes, [])
+    assert.deepEqual(env.toasts, [])
+
+    // 已显示的错误按当前输入重算：改对开始日只清开始日，结束日仍不对就留着
+    env.harness.page.onStartChange({ detail: { value: '2026-09-15' } })
+    assert.deepEqual(env.harness.page.data.fieldErrors, { endDate: '结束日期不能晚于今天' })
+
+    // 换到进行中：结束日期字段收起，它的错误随之消失
+    env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'ongoing' } } })
+    assert.deepEqual(env.harness.page.data.fieldErrors, {})
+
+    // 保存前不新增别的字段错误：切回已结束（结束日仍晚于今天）也等下次保存才报
+    env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'known-end' } } })
+    assert.deepEqual(env.harness.page.data.fieldErrors, {})
+    await env.harness.page.save()
+    assert.deepEqual(env.harness.page.data.fieldErrors, { endDate: '结束日期不能晚于今天' })
+    assert.deepEqual(env.writes, [])
+
+    // 校验失败不影响删除：确认一次只删一次，等待返回期间不再删也不再保存
+    const deleting = env.harness.page.delete()
+    assert.equal(env.modals.length, 1)
+    await env.modals[0].success({ confirm: true, cancel: false })
+    assert.equal((await deleting).kind, 'success')
+    assert.deepEqual(env.writes, [{ op: 'remove', collection: 'periods', id: 'p1' }])
+    await env.harness.page.delete()
+    await env.harness.page.save()
+    assert.equal(env.modals.length, 1)
+    assert.equal(env.writes.length, 1)
   } finally {
     env.harness.teardown()
   }
@@ -3620,44 +3832,50 @@ test('memory edit save writes the one-shot segment intent so the record tab land
 })
 
 test('memory edit rejects a future date passed in by the route and does not save', async () => {
-  const toasts = []
-  const calls = []
-  const realUtil = require(path.join(repoRoot, 'utils/util.js'))
-  const harness = loadRecordPageHarness('pages/memory/edit/edit.js', {
-    mocks: {
-      'utils/util.js': { ...realUtil, formatDate: () => '2026-09-20' },
-      'utils/cloud.js': {
-        createRoomDataClient() {
-          return {
-            async add(collection, payload) {
-              calls.push({ method: 'add', collection, payload })
-              return { kind: 'success', result: { record: { _id: 'new-m1', ...payload } } }
-            },
-            async update(collection, id, payload) {
-              calls.push({ method: 'update', collection, id, payload })
-              return { kind: 'success', result: { record: { _id: id, ...payload } } }
-            }
-          }
-        }
-      }
-    },
-    wxOverrides: {
-      showToast(options) {
-        toasts.push(options)
-      }
-    }
-  })
+  const env = createEditFormEnv('pages/memory/edit/edit.js')
+  const draftKey = 'recordDraft:memories:new'
 
   try {
-    // 路由带进未来日期：选择器上限挡不住已写入的值，保存时必须拦下并提示
-    harness.page.onLoad({ date: '2026-09-21' })
-    const outcome = await harness.page.save()
+    // 路由带进未来日期：选择器上限挡不住已写入的值，保存时必须拦下，错误留在日期字段下（issue #156）
+    env.harness.page.onLoad({ date: '2026-09-21' })
+    env.harness.page.onNoteInput({ detail: { value: '一起去看了海' } })
+    const outcome = await env.harness.page.save()
 
-    assert.deepEqual(outcome, { kind: 'validation', message: '日期不能晚于今天' })
-    assert.deepEqual(toasts, [{ title: '日期不能晚于今天', icon: 'none' }])
-    assert.deepEqual(calls, [])
+    assert.deepEqual(outcome, {
+      kind: 'validation',
+      message: '日期不能晚于今天',
+      fieldErrors: { date: '日期不能晚于今天' }
+    })
+    assert.deepEqual(env.harness.page.data.fieldErrors, { date: '日期不能晚于今天' })
+    assert.deepEqual(env.toasts, [])
+    assert.deepEqual(env.writes, [])
+    assert.equal(env.harness.page.data.saving, false)
+    assert.equal(env.harness.page.data.note, '一起去看了海')
+    assert.deepEqual(env.scrolls, [{
+      selector: '#field-date',
+      offsetTop: -env.harness.page.data.navBarHeight,
+      duration: 0
+    }])
+
+    // 校验失败不清草稿：离开页面时输入照常暂存
+    env.harness.page.onHide()
+    assert.deepEqual(JSON.parse(env.storage.get(draftKey)), { date: '2026-09-21', note: '一起去看了海' })
+
+    // 改对日期，错误即时消失；再保存只写一次，成功后清草稿，等待返回期间不再写
+    env.harness.page.onDateChange({ detail: { value: '2026-09-19' } })
+    assert.deepEqual(env.harness.page.data.fieldErrors, {})
+    const saved = await env.harness.page.save()
+    assert.equal(saved.kind, 'success')
+    assert.deepEqual(env.writes, [{
+      op: 'add',
+      collection: 'memories',
+      payload: { date: '2026-09-19', note: '一起去看了海' }
+    }])
+    assert.equal(env.storage.has(draftKey), false)
+    assert.equal(await env.harness.page.save(), undefined)
+    assert.equal(env.writes.length, 1)
   } finally {
-    harness.teardown()
+    env.harness.teardown()
   }
 })
 
@@ -3999,6 +4217,70 @@ function createPeriodEditMergeEnv(persistedRecord) {
     }
   })
   return { harness, toasts, modals, adds, updates, changes, navigateBackCalls, storage }
+}
+
+// 字段级校验环境（issue #156）：真实 recordCommands 驱动校验与保存生命周期，只桩系统边界——
+// 云端（list/add/update/remove 写入可观察）与 wx（toast、确认框、页面滚动、本地草稿存储）。
+// util 只固定「今天」= 2026-09-20，其余日期能力委托真实模块。
+function createEditFormEnv(relativePath, { periods = [] } = {}) {
+  const writes = []
+  const toasts = []
+  const modals = []
+  const scrolls = []
+  const storage = new Map()
+  const realUtil = require(path.join(repoRoot, 'utils/util.js'))
+  const realRecordPageSync = require(path.join(repoRoot, 'utils/recordPageSync.js'))
+  const harness = loadRecordPageHarness(relativePath, {
+    mocks: {
+      'utils/util.js': { ...realUtil, formatDate: () => '2026-09-20' },
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list() {
+              return { kind: 'success', data: periods }
+            },
+            async add(collection, payload) {
+              writes.push({ op: 'add', collection, payload })
+              return { kind: 'success', result: { record: { _id: 'new-1', ...payload } } }
+            },
+            async update(collection, id, payload) {
+              writes.push({ op: 'update', collection, id, payload })
+              return { kind: 'success', result: { record: { _id: id, ...payload } } }
+            },
+            async remove(collection, id) {
+              writes.push({ op: 'remove', collection, id })
+              return { kind: 'success', result: {} }
+            }
+          }
+        }
+      },
+      'utils/recordPageSync.js': {
+        getSavedRecord: realRecordPageSync.getSavedRecord,
+        notifyPreviousPageRecordChange() {}
+      }
+    },
+    wxOverrides: {
+      showToast(options) {
+        toasts.push(options)
+      },
+      showModal(options) {
+        modals.push(options)
+      },
+      pageScrollTo(options) {
+        scrolls.push(options)
+      },
+      getStorageSync(key) {
+        return storage.has(key) ? storage.get(key) : ''
+      },
+      setStorageSync(key, value) {
+        storage.set(key, value)
+      },
+      removeStorageSync(key) {
+        storage.delete(key)
+      }
+    }
+  })
+  return { harness, writes, toasts, modals, scrolls, storage }
 }
 
 function createFakePage(initialData = {}) {
