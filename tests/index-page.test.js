@@ -1729,14 +1729,14 @@ test('day detail rows read out distinct names for same-day records, naming the a
   }
 
   assert.deepEqual(await namesFor('paired'), [
-    '编辑经期，6月1日–6月3日，已结束，我记的',
-    '编辑经期，6月2日–6月2日，已结束，TA 记的',
+    '编辑这次经期，6月1日–6月3日，已结束，我记的',
+    '编辑这次经期，6月2日–6月2日，已结束，TA 记的',
     '编辑欢乐时光，6月2日，散步，TA 记的',
     '编辑欢乐时光，6月2日，我记的'
   ])
   assert.deepEqual(await namesFor('waiting'), [
-    '编辑经期，6月1日–6月3日，已结束',
-    '编辑经期，6月2日–6月2日，已结束',
+    '编辑这次经期，6月1日–6月3日，已结束',
+    '编辑这次经期，6月2日–6月2日，已结束',
     '编辑欢乐时光，6月2日，散步',
     '编辑欢乐时光，6月2日'
   ])

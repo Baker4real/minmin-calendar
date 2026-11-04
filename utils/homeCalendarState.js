@@ -295,12 +295,15 @@ function isDayDetailSentence(meaning) {
   return meaning.key === 'predict' || meaning.key === 'holiday' || meaning.key === 'workday'
 }
 
+// 经期的编辑动作只有一个名字（CONTEXT.md「Record names」）：当日动作和详情行读屏名共用
+const PERIOD_EDIT_ACTION = '编辑这次经期'
+
 function buildDayRecordActions(day, today) {
   if (!day.date || day.date > today) return []
   return [
     {
       key: 'period',
-      label: day.isPeriod ? '编辑这次经期' : (day.date === today ? '记经期' : '补记经期')
+      label: day.isPeriod ? PERIOD_EDIT_ACTION : (day.date === today ? '记经期' : '补记经期')
     },
     {
       key: 'memory',
@@ -340,7 +343,7 @@ function buildPeriodDetailAriaLabel(range, authorLabel, today) {
   const dates = range.status === 'unknown-end'
     ? util.formatDisplayDate(range.startDate, { today })
     : util.formatDisplayDateRange(range.startDate, range.endDate, { today })
-  return joinAriaParts(['编辑经期', dates, periodStatusText(range.status), authorLabel])
+  return joinAriaParts([PERIOD_EDIT_ACTION, dates, periodStatusText(range.status), authorLabel])
 }
 
 // 欢乐时光编辑入口：日期 + 非空备注的短摘要 + 作者

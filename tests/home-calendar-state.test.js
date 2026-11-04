@@ -270,7 +270,7 @@ test('buildHomeCalendarState aligns missing endDate period markers with detail r
       recordId: 'p-missing-end',
       range: '8月12日（结束日期不详）',
       metaText: '经量 量少',
-      ariaLabel: '编辑经期，8月12日，结束日期不详'
+      ariaLabel: '编辑这次经期，8月12日，结束日期不详'
     }
   ])
   assert.deepEqual(detail.actions, [])
@@ -309,7 +309,7 @@ test('buildHomeCalendarState projects an ongoing period from its start through t
       recordId: 'p-ongoing',
       range: '8月10日–8月13日（进行中）',
       metaText: '',
-      ariaLabel: '编辑经期，8月10日–8月13日，进行中'
+      ariaLabel: '编辑这次经期，8月10日–8月13日，进行中'
     }
   ])
   assert.equal(detail.meanings.some(item => item.key === 'period'), false)
@@ -548,7 +548,7 @@ test('buildHomeCalendarState marks only the known start day of an unknown-end pe
       recordId: 'p-unknown-end',
       range: '8月12日（结束日期不详）',
       metaText: '',
-      ariaLabel: '编辑经期，8月12日，结束日期不详'
+      ariaLabel: '编辑这次经期，8月12日，结束日期不详'
     }
   ])
   assert.equal(detail.meanings.some(item => item.key === 'period'), false)
@@ -680,9 +680,9 @@ test('day detail period entries read out their range, status and paired author',
 
   const paired = detailFor(true)
   assert.deepEqual(paired.periods.map(item => item.ariaLabel), [
-    '编辑经期，8月10日–8月12日，已结束，我记的',
-    '编辑经期，8月11日–8月13日，进行中，TA 记的',
-    '编辑经期，8月12日，结束日期不详'
+    '编辑这次经期，8月10日–8月12日，已结束，我记的',
+    '编辑这次经期，8月11日–8月13日，进行中，TA 记的',
+    '编辑这次经期，8月12日，结束日期不详'
   ])
   assert.deepEqual(paired.periods.map(item => item.range), [
     '8月10日–8月12日',
@@ -692,9 +692,9 @@ test('day detail period entries read out their range, status and paired author',
 
   // 未配对：不新增作者
   assert.deepEqual(detailFor(false).periods.map(item => item.ariaLabel), [
-    '编辑经期，8月10日–8月12日，已结束',
-    '编辑经期，8月11日–8月13日，进行中',
-    '编辑经期，8月12日，结束日期不详'
+    '编辑这次经期，8月10日–8月12日，已结束',
+    '编辑这次经期，8月11日–8月13日，进行中',
+    '编辑这次经期，8月12日，结束日期不详'
   ])
 })
 
