@@ -234,7 +234,7 @@ module.exports = {
     </view>
 
     <view wx:if="{{!hasRecords}}" class="empty-guide">
-      <text class="empty-guide-text">点日历任意一天开始记录</text>
+      <text class="empty-guide-text">点今天或过去的一天开始记录</text>
     </view>
   </view>
 
@@ -316,7 +316,7 @@ module.exports = {
       </view>
       </view>
 
-      <view wx:if="{{selectedDayDetail.meanings && selectedDayDetail.meanings.length}}" class="detail-meaning-list">
+      <view wx:if="{{(selectedDayDetail.meanings && selectedDayDetail.meanings.length) || selectedDayDetail.futureNotice}}" class="detail-meaning-list">
         <view
           wx:for="{{selectedDayDetail.meanings}}"
           wx:key="key"
@@ -324,6 +324,11 @@ module.exports = {
         >
           <text class="detail-meaning-title">{{item.title}}</text>
           <text class="detail-meaning-text">{{item.text}}</text>
+        </view>
+        <!-- issue #152：未来日期没有记录动作，用投影给出的持久说明交代下一步；预测、节日和调休句仍在上方 -->
+        <view wx:if="{{selectedDayDetail.futureNotice}}" class="day-detail-empty future-notice">
+          <text class="detail-empty-title">{{selectedDayDetail.futureNotice.title}}</text>
+          <text class="detail-empty-desc">{{selectedDayDetail.futureNotice.text}}</text>
         </view>
       </view>
 

@@ -1060,6 +1060,57 @@ test('day detail names record actions by date and keeps workday sentences', () =
   assert.deepEqual(workday.actions, [])
 })
 
+// issue #152：晚于今天的日子没有记录动作，当日弹层用一句持久说明给出下一步；
+// 预测、节日和调休句照常可看，今天与过去的日子不出现这句说明
+test('a future day explains why it cannot be recorded and keeps its prediction and holiday sentences', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 8,
+    periods: [
+      period('2026-05-08', '2026-05-12'),
+      period('2026-06-05', '2026-06-09'),
+      period('2026-07-03', '2026-07-07'),
+      period('2026-07-31', '2026-08-04'),
+      period('2026-08-28', '2026-09-01')
+    ],
+    memories: [],
+    today: '2026-09-22'
+  })
+  const futureNotice = { title: '未来日期不能新增记录', text: '到了这一天，再来记经期或欢乐时光' }
+
+  const plain = state.dayDetailsByDate['2026-09-29']
+  assert.deepEqual(plain.meanings, [])
+  assert.deepEqual(plain.actions, [])
+  assert.deepEqual(plain.futureNotice, futureNotice)
+
+  const predicted = state.dayDetailsByDate['2026-09-24']
+  assert.deepEqual(predicted.meanings.map(item => item.key), ['predict'])
+  assert.deepEqual(predicted.actions, [])
+  assert.deepEqual(predicted.futureNotice, futureNotice)
+
+  const holiday = state.dayDetailsByDate['2026-09-27']
+  assert.deepEqual(holiday.meanings.map(item => item.text), ['中秋。'])
+  assert.deepEqual(holiday.actions, [])
+  assert.deepEqual(holiday.futureNotice, futureNotice)
+
+  const january = buildHomeCalendarState({ year: 2026, month: 0, today: '2026-01-01' })
+  const workday = january.dayDetailsByDate['2026-01-04']
+  assert.deepEqual(workday.meanings.map(item => item.key), ['workday'])
+  assert.deepEqual(workday.futureNotice, futureNotice)
+
+  const today = state.dayDetailsByDate['2026-09-22']
+  assert.equal(today.futureNotice, null)
+  assert.deepEqual(today.actions.map(item => item.label), ['记经期', '记欢乐时光'])
+
+  const past = state.dayDetailsByDate['2026-09-10']
+  assert.equal(past.futureNotice, null)
+  assert.deepEqual(past.actions.map(item => item.label), ['补记经期', '补记欢乐时光'])
+
+  const pastWorkday = state.dayDetailsByDate['2026-09-20']
+  assert.deepEqual(pastWorkday.meanings.map(item => item.key), ['workday'])
+  assert.equal(pastWorkday.futureNotice, null)
+})
+
 function segmentRow(state, startDate, endDate) {
   return state.days
     .filter(day => day.date >= startDate && day.date <= endDate)

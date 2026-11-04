@@ -261,6 +261,7 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
       periods: periodDetails,
       memories: memoryDetails,
       actions: buildDayRecordActions(day, today),
+      futureNotice: buildFutureDayNotice(day, today),
       empty: !meanings.length && !periodDetails.length && !memoryDetails.length
     }
   })
@@ -294,6 +295,15 @@ function buildDayRecordActions(day, today) {
       label: day.date === today ? '记欢乐时光' : '补记欢乐时光'
     }
   ]
+}
+
+// 晚于今天的日子没有记录动作；当日弹层用这句持久说明给出下一步，不再只剩标题和关闭键
+function buildFutureDayNotice(day, today) {
+  if (!day.date || day.date <= today) return null
+  return {
+    title: '未来日期不能新增记录',
+    text: '到了这一天，再来记经期或欢乐时光'
+  }
 }
 
 function isPeriodActiveOnDate(range, date) {
