@@ -248,9 +248,8 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
         return withAuthorLabel({
           key: periodKeys[index],
           recordId: recordIdentity(period),
-          range: formatPeriodDetailRange(range, today),
-          metaText: meta.join(' · '),
-          ariaLabel: buildPeriodDetailAriaLabel(range, authorLabel, today)
+          ...describePeriodDetail(range, authorLabel, today),
+          metaText: meta.join(' · ')
         }, authorLabel)
       })
 
@@ -326,24 +325,18 @@ function isPeriodActiveOnDate(range, date) {
   return date >= range.startDate && date <= range.endDate
 }
 
-// 详情行文案暴露状态：进行中写明「开始日至今天」，结束日期不详不用空白日期表达
-function formatPeriodDetailRange(range, today) {
-  if (range.status === 'ongoing') {
-    return `${util.formatDisplayDateRange(range.startDate, range.endDate, { today })}（进行中）`
-  }
-  if (range.status === 'unknown-end') {
-    return `${util.formatDisplayDate(range.startDate, { today })}（结束日期不详）`
-  }
-  return util.formatDisplayDateRange(range.startDate, range.endDate, { today })
-}
-
-// 读屏名（issue #157）：同一天的多条记录各自说出能区分它的信息，可见行不跟着堆叠元数据。
-// 经期编辑入口：日期区间 + 经期状态 + 作者（作者只在房间已配对时有值）
-function buildPeriodDetailAriaLabel(range, authorLabel, today) {
+// 经期详情行：日期和状态各只算一次。进行中写「开始日至今天」，结束日期不详只写开始日、不用空白日期表达；
+// 状态文字只取 cycle.PERIOD_STATUS_OPTIONS。可见行把进行中、结束日期不详写进括号（已结束不加），
+// 读屏名（issue #157）说全三种状态并接上作者（作者只在房间已配对时有值），同一天的多条各自可辨
+function describePeriodDetail(range, authorLabel, today) {
   const dates = range.status === 'unknown-end'
     ? util.formatDisplayDate(range.startDate, { today })
     : util.formatDisplayDateRange(range.startDate, range.endDate, { today })
-  return joinAriaParts([PERIOD_EDIT_ACTION, dates, periodStatusText(range.status), authorLabel])
+  const status = periodStatusText(range.status)
+  return {
+    range: range.status === 'known-end' ? dates : `${dates}（${status}）`,
+    ariaLabel: joinAriaParts([PERIOD_EDIT_ACTION, dates, status, authorLabel])
+  }
 }
 
 // 欢乐时光编辑入口：日期 + 非空备注的短摘要 + 作者
