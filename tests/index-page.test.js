@@ -767,12 +767,30 @@ test('homepage render data omits record arrays and the per-day detail map', asyn
   }
 })
 
-test('homepage shows a first-record guide instead of the month summary when the room has no records', () => {
+test('homepage shows a first-record guide instead of the month summary when the room has no records', async () => {
   const wxml = readIndexWxml()
 
   assert.match(wxml, /wx:if="\{\{hasRecords\}\}"[\s\S]*class="month-summary"/)
   assert.match(wxml, /wx:if="\{\{!hasRecords\}\}" class="empty-guide"/)
-  assert.match(wxml, /点日历任意一天开始记录/)
+  // issue #152：未来日期不能新增记录，空态只引导到今天或过去的一天，不再说「任意一天」
+  assert.match(wxml, /class="empty-guide-text">点今天或过去的一天开始记录</)
+  assert.doesNotMatch(wxml, /任意一天/)
+
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: [] },
+      { kind: 'success', data: [] }
+    ])
+  })
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+    assert.equal(harness.page.data.noRoom, false)
+    assert.equal(harness.page.data.hasLoadedHomeData, true)
+    assert.equal(harness.page.data.hasRecords, false)
+  } finally {
+    harness.teardown()
+  }
 })
 
 // issue #105：空态引导文字对比度不低于 --text-secondary 档（基准 = 未选中 tab 在画布上的 4.5:1），

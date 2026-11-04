@@ -234,7 +234,7 @@ module.exports = {
     </view>
 
     <view wx:if="{{!hasRecords}}" class="empty-guide">
-      <text class="empty-guide-text">点日历任意一天开始记录</text>
+      <text class="empty-guide-text">点今天或过去的一天开始记录</text>
     </view>
   </view>
 
