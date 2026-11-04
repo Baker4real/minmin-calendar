@@ -14,10 +14,13 @@ function markPartnerWelcomePending(storage = createWxStorage()) {
   storage.set(PARTNER_WELCOME_KEY, 'pending')
 }
 
-function takePartnerWelcome(storage = createWxStorage()) {
-  if ((storage.get(PARTNER_WELCOME_KEY) || '') !== 'pending') return false
+// 待显示的欢迎只在首页确认欢迎条已渲染后才记为看过（issue #149）
+function isPartnerWelcomePending(storage = createWxStorage()) {
+  return (storage.get(PARTNER_WELCOME_KEY) || '') === 'pending'
+}
+
+function markPartnerWelcomeSeen(storage = createWxStorage()) {
   storage.set(PARTNER_WELCOME_KEY, 'seen')
-  return true
 }
 
 function createWxStorage() {
@@ -40,5 +43,6 @@ function createWxStorage() {
 module.exports = {
   rememberRoomStatus,
   markPartnerWelcomePending,
-  takePartnerWelcome
+  isPartnerWelcomePending,
+  markPartnerWelcomeSeen
 }

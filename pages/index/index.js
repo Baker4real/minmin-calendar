@@ -55,7 +55,7 @@ function calendarRowCount(days) {
   return Math.max(1, Math.ceil((Array.isArray(days) ? days.length : 0) / 7))
 }
 
-function calendarRowHeightPx({ days, density, navBarHeightPx, showBackToToday }) {
+function calendarRowHeightPx({ days, density, navBarHeightPx, showBackToToday, showPartnerWelcome = false }) {
   const viewport = readPageViewport()
   return computeCalendarRowHeight({
     viewportWidth: viewport.viewportWidth,
@@ -63,7 +63,8 @@ function calendarRowHeightPx({ days, density, navBarHeightPx, showBackToToday })
     navBarHeightPx,
     density: density === 'full' ? 'full' : 'compact',
     rowCount: calendarRowCount(days),
-    showBackToToday
+    showBackToToday,
+    showPartnerWelcome
   }).heightPx
 }
 
@@ -229,9 +230,23 @@ Page({
         this.applyHomeCalendarState()
       }
     } catch (error) {}
-    if (!this.data.partnerWelcome && roomPresence.takePartnerWelcome()) {
-      this.setData({ partnerWelcome: true })
-    }
+  },
+
+  // 一次性配对欢迎（issue #149）：日历能显示时才挂上欢迎条，行高同一次 setData 计入它；
+  // 渲染回调确认欢迎条已提交到视图层后才记为看过。骨架屏、失败或未绑定画面时保持待显示。
+  revealPendingPartnerWelcome() {
+    if (this.data.partnerWelcome || !this.data.hasLoadedHomeData || this.data.noRoom) return
+    if (!roomPresence.isPartnerWelcomePending()) return
+    this.setData({
+      partnerWelcome: true,
+      calendarRowHeightPx: calendarRowHeightPx({
+        days: this.data.days,
+        density: this.data.calendarDensity,
+        navBarHeightPx: this.data.navBarHeight,
+        showBackToToday: this.data.showBackToToday,
+        showPartnerWelcome: true
+      })
+    }, () => roomPresence.markPartnerWelcomeSeen())
   },
 
   onReady() {
@@ -376,6 +391,7 @@ Page({
       roomStatusAction: ''
     })
     if (!wasLoaded) this.applyHomeCalendarState()
+    this.revealPendingPartnerWelcome()
     this.syncOngoingCompletionReminder()
 
     const syncStatus = this._buildResolvedSyncStatus({
@@ -470,7 +486,8 @@ Page({
         days: state.days,
         density: calendarDensity,
         navBarHeightPx: this.data.navBarHeight,
-        showBackToToday
+        showBackToToday,
+        showPartnerWelcome: this.data.partnerWelcome
       }),
       year,
       month
