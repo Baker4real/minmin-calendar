@@ -2,6 +2,8 @@
 // 吸顶区（月份导航、不在当月时的「回到今天」、状态行）始终占掉可用高度，不随日历滚走。
 // 竖向 rpx 与 pages/index/index.wxss 对齐：月份导航 130、状态行 88、周头 50、
 // 网格上下内边距 12、记录入口 114；「回到今天」单独占 88。网格上下边框另计 2px。
+// 一次性配对欢迎条在吸顶占位之后的正常文档流里，显示时同样占掉首屏高度：
+// caption 26rpx × 正文行高 1.6 的两行，加上下外边距 8 + 12，共 103.2。
 
 const ROW_CAP_RPX = { full: 160, compact: 140 }
 const ROW_FLOOR_PX = 44
@@ -14,6 +16,7 @@ const CHROME_RPX = {
   quickActions: 114
 }
 const BACK_TODAY_RPX = 88
+const PARTNER_WELCOME_RPX = 103.2
 
 function computeCalendarRowHeight({
   viewportWidth,
@@ -21,7 +24,8 @@ function computeCalendarRowHeight({
   navBarHeightPx = 0,
   density = 'compact',
   rowCount = 6,
-  showBackToToday = false
+  showBackToToday = false,
+  showPartnerWelcome = false
 } = {}) {
   const width = Number(viewportWidth)
   const pageHeight = Number(viewportHeight)
@@ -33,7 +37,8 @@ function computeCalendarRowHeight({
   }
 
   const chromeRpx = CHROME_RPX.monthNav + CHROME_RPX.statusLine + CHROME_RPX.weekHeader +
-    CHROME_RPX.gridPadding + CHROME_RPX.quickActions + (showBackToToday ? BACK_TODAY_RPX : 0)
+    CHROME_RPX.gridPadding + CHROME_RPX.quickActions + (showBackToToday ? BACK_TODAY_RPX : 0) +
+    (showPartnerWelcome ? PARTNER_WELCOME_RPX : 0)
   const chromePx = chromeRpx * width / 750 + GRID_BORDER_PX
   const availablePx = pageHeight - nav - chromePx
   const capPx = capRpx * width / 750
@@ -50,5 +55,6 @@ function computeCalendarRowHeight({
 module.exports = {
   computeCalendarRowHeight,
   CALENDAR_ROW_CAP_RPX: ROW_CAP_RPX,
-  CALENDAR_ROW_FLOOR_PX: ROW_FLOOR_PX
+  CALENDAR_ROW_FLOOR_PX: ROW_FLOOR_PX,
+  CALENDAR_PARTNER_WELCOME_RPX: PARTNER_WELCOME_RPX
 }

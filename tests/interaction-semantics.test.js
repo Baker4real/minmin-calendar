@@ -556,6 +556,8 @@ test('bind page controls are named, tab switch exposes checked state, inert stat
   assert.equal(byHandler('copyRoomCode', 'copy-btn').attrs['aria-role'], 'button')
   assert.equal(byHandler('copyRoomCode', 'copy-btn').attrs['aria-label'], '复制房间码')
   assert.equal(byHandler('goHome', 'btn-premium').attrs['aria-role'], 'button')
+  assert.equal(byHandler('goHome', 'btn-ghost').attrs['aria-role'], 'button')
+  assert.equal(byHandler('goHome', 'btn-ghost').attrs['aria-label'], '进入应用')
   assert.equal(byHandler('unbind', 'btn-danger').attrs['aria-label'], '解除绑定')
   assert.equal(byHandler('createRoom', 'btn-premium').attrs['aria-label'], '创建我的房间')
   assert.equal(byHandler('joinRoom', 'btn-premium').attrs['aria-label'], '加入房间')

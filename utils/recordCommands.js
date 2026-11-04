@@ -176,10 +176,13 @@ async function runCommand(options) {
     reconcile
   } = options
 
-  const validationMessage = typeof validate === 'function' ? validate() : ''
-  if (validationMessage) {
-    safeShowToast(wxApi, { title: validationMessage, icon: 'none' })
-    return { kind: 'validation', message: validationMessage }
+  const validation = readValidation(validate)
+  if (validation) {
+    // 能定位到字段的错误交回页面显示在字段旁；只有无法定位的整体错误才用瞬时 toast
+    if (!validation.fieldErrors) {
+      safeShowToast(wxApi, { title: validation.message, icon: 'none' })
+    }
+    return validation
   }
 
   updatePage(page, { [loadingKey]: true })
@@ -363,6 +366,21 @@ async function handleFailureOutcome({
     ...outcome,
     message
   }
+}
+
+// validate 返回空值表示通过；字符串是无法定位到字段的整体错误；
+// 对象是「字段 → 一句人话」，空句的字段不算出错，全部为空等于通过。
+function readValidation(validate) {
+  const result = typeof validate === 'function' ? validate() : ''
+  if (!result) return null
+  if (typeof result === 'string') return { kind: 'validation', message: result }
+  const fields = Object.keys(result).filter(field => result[field])
+  if (fields.length === 0) return null
+  const fieldErrors = {}
+  fields.forEach(field => {
+    fieldErrors[field] = result[field]
+  })
+  return { kind: 'validation', message: fieldErrors[fields[0]], fieldErrors }
 }
 
 function normalizeRoomRepairOutcome(outcome, roomRepairTitle) {

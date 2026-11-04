@@ -744,45 +744,134 @@ test('paired day detail rows name who recorded them, and quiet rows stay blank',
   }
 })
 
-test('homepage shows one welcome line after joining and explains the three markers once', async () => {
-  const storage = new Map([['partnerWelcome', 'pending']])
-  const room = {
-    async getVerifiedActiveRoom() {
-      return { kind: 'success', bound: true, roomCode: 'ROOM01', status: 'paired' }
-    }
+// issue #149：一次性配对欢迎只在首页能显示日历、且欢迎条已提交到视图层（setData 渲染回调）之后才消费。
+const pairedRoom = {
+  async getVerifiedActiveRoom() {
+    return { kind: 'success', bound: true, roomCode: 'ROOM01', status: 'paired' }
   }
+}
+
+test('homepage consumes the one-time partner welcome only after the bar is committed to render', async () => {
+  const storage = new Map([['partnerWelcome', 'pending']])
+  const gate = deferredValue()
   const client = {
     async list() {
+      await gate.promise
       return { kind: 'success', data: [] }
     }
   }
-  const harness = loadPageHarness({ client, room, storage })
+  const harness = loadPageHarness({ client, room: pairedRoom, storage, deferRenderCommits: true })
 
   try {
-    await harness.page.onShow()
+    harness.page.onLoad()
+    const firstShow = harness.page.onShow()
+    // 记录还在加载（骨架屏）：首页显示不了欢迎条，标记保持待显示
+    await new Promise(resolve => setTimeout(resolve, 0))
+    harness.commitRender()
+    assert.equal(harness.page.data.loading, true)
+    assert.equal(harness.page.data.partnerWelcome, false)
+    assert.equal(storage.get('partnerWelcome'), 'pending')
+
+    gate.resolve()
+    await firstShow
+    // 日历可以显示，欢迎条挂上；视图层还没回报渲染完成，标记不消费
     assert.equal(harness.page.data.partnerWelcome, true)
+    assert.equal(storage.get('partnerWelcome'), 'pending')
+    harness.commitRender()
     assert.equal(storage.get('partnerWelcome'), 'seen')
     assert.deepEqual(harness.toasts, [])
-    const wxml = readIndexWxml()
-    assert.match(wxml, /wx:if="\{\{partnerWelcome\}\}"/)
-    assert.match(wxml, /已和 TA 连上。经期是玫瑰色带，♥ 是欢乐时光，「预」是下次可能开始的日子。/)
+    assert.match(readIndexWxml(), /已和 TA 连上。经期是玫瑰色带，♥ 是欢乐时光，「预」是下次可能开始的日子。/)
 
+    // 同一页面实例再次进入：欢迎条留在原处，不再消费
     await harness.page.onShow()
+    harness.commitRender()
     assert.equal(harness.page.data.partnerWelcome, true)
+    assert.equal(storage.get('partnerWelcome'), 'seen')
   } finally {
     harness.teardown()
   }
 
-  const again = loadPageHarness({ client, room, storage })
+  // 看过的人下次进入不再出现
+  const again = loadPageHarness({ client, room: pairedRoom, storage, deferRenderCommits: true })
   try {
+    again.page.onLoad()
     await again.page.onShow()
-    assert.notEqual(again.page.data.partnerWelcome, true)
+    again.commitRender()
+    assert.equal(again.page.data.partnerWelcome, false)
+    assert.equal(storage.get('partnerWelcome'), 'seen')
   } finally {
     again.teardown()
   }
 })
 
-function loadPageHarness({ client, calendarState, room, storage } = {}) {
+test('the one-time partner welcome stays pending while the homepage shows the failure screen', async () => {
+  const storage = new Map([['partnerWelcome', 'pending']])
+  let failing = true
+  const client = {
+    async list() {
+      return failing ? { kind: 'retryable-failure', message: 'network down' } : { kind: 'success', data: [] }
+    }
+  }
+  const harness = loadPageHarness({ client, room: pairedRoom, storage, deferRenderCommits: true })
+
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+    harness.commitRender()
+    assert.equal(harness.page.data.noRoom, true)
+    assert.equal(harness.page.data.partnerWelcome, false)
+    assert.equal(storage.get('partnerWelcome'), 'pending')
+
+    // 之后成功显示日历时才给欢迎，并在渲染完成后消费
+    failing = false
+    await harness.page.onShow()
+    assert.equal(harness.page.data.noRoom, false)
+    assert.equal(harness.page.data.partnerWelcome, true)
+    assert.equal(storage.get('partnerWelcome'), 'pending')
+    harness.commitRender()
+    assert.equal(storage.get('partnerWelcome'), 'seen')
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('the partner welcome shortens the calendar rows through the row-height ledger', async () => {
+  // 375×619 页高、顶栏 84px（拿不到胶囊时的兜底）、清爽密度、6 行、当月：
+  // 不带欢迎 (619 − 84 − 199) / 6 = 56；带欢迎多占 103.2rpx = 51.6px，(619 − 84 − 250.6) / 6 = 47.4
+  const safeAreaPath = path.join(repoRoot, 'utils/safeArea.js')
+  delete require.cache[require.resolve(safeAreaPath)]
+  const sixRows = args => ({ ...buildHomeCalendarState(args), days: Array.from({ length: 42 }, () => ({ isEmpty: true })) })
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: [] },
+      { kind: 'success', data: [] }
+    ]),
+    room: pairedRoom,
+    storage: new Map([['partnerWelcome', 'pending']]),
+    calendarState: sixRows
+  })
+
+  try {
+    global.wx.getWindowInfo = () => ({ windowWidth: 375, windowHeight: 619 })
+    assert.equal(harness.page.data.navBarHeight, 84)
+    harness.page.onLoad()
+    assert.equal(harness.page.data.showBackToToday, false)
+    assert.equal(harness.page.data.calendarRowHeightPx, 56)
+
+    await harness.page.onShow()
+    assert.equal(harness.page.data.partnerWelcome, true)
+    assert.equal(harness.page.data.calendarRowHeightPx, 47.4)
+
+    // 之后重算日历（翻月、刷新）仍把欢迎条计入
+    harness.page.applyHomeCalendarState()
+    assert.equal(harness.page.data.calendarRowHeightPx, 47.4)
+  } finally {
+    harness.teardown()
+    delete require.cache[require.resolve(safeAreaPath)]
+  }
+})
+
+function loadPageHarness({ client, calendarState, room, storage, deferRenderCommits = false } = {}) {
   const absolutePagePath = path.join(repoRoot, 'pages/index/index.js')
   const absoluteMocks = new Map([
     [path.join(repoRoot, 'utils/cloud.js'), { createRoomDataClient: () => client }],
@@ -834,11 +923,15 @@ function loadPageHarness({ client, calendarState, room, storage } = {}) {
   require(absolutePagePath)
   Module._load = originalLoad
 
+  // deferRenderCommits：setData 的渲染回调先排队，commitRender() 模拟视图层渲染完成后按序回调
+  const pendingRenders = []
   const page = {
     data: { ...(registered.data || {}) },
     setData(update, callback) {
       this.data = { ...this.data, ...update }
-      if (typeof callback === 'function') callback()
+      if (typeof callback !== 'function') return
+      if (deferRenderCommits) pendingRenders.push(callback)
+      else callback()
     }
   }
   for (const [key, value] of Object.entries(registered)) {
@@ -847,6 +940,9 @@ function loadPageHarness({ client, calendarState, room, storage } = {}) {
   return {
     page,
     toasts: toastLog,
+    commitRender() {
+      while (pendingRenders.length) pendingRenders.shift()()
+    },
     teardown() {
       Module._load = originalLoad
       global.Page = originalPage

@@ -89,6 +89,16 @@ function verticalPaddingRpx(decls) {
   return toRpx(top) + toRpx(bottom)
 }
 
+function readAppTokens() {
+  const tokens = {}
+  for (const rule of parseWxssRules(readRepo('app.wxss'))) {
+    for (const [prop, value] of Object.entries(rule.decls)) {
+      if (prop.startsWith('--')) tokens[prop] = value
+    }
+  }
+  return tokens
+}
+
 function rpxNumber(decls, prop) {
   const raw = decls[prop] || ''
   const fallback = /var\(\s*--[a-z0-9-]+\s*,\s*(\d+(?:\.\d+)?)rpx\s*\)/i.exec(raw)
@@ -314,6 +324,95 @@ test('calendar row height stays between 44px and the previous cap for 5- and 6-r
     })
     assert.equal(row.actionsFit, true, `${sample.width} ${sample.density} record actions leave the first screen`)
   }
+})
+
+// issue #149：一次性配对欢迎条在吸顶占位之后的正常文档流里，显示时和「回到今天」一样占掉可用高度。
+// 它是行高账本的显式输入：行高随之变矮但守 44px 下限，记录入口放不进首屏时如实报告。
+test('the one-time partner welcome bar is an explicit input of the calendar row-height ledger', () => {
+  const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
+  // 页高 = 手机高度 − 底栏；without / with 是不显示 / 显示欢迎条时的行高，fits 是显示时记录入口是否仍在首屏
+  const samples = [
+    { width: 390, height: 761, nav: 91, density: 'compact', rowCount: 6, showBackToToday: false, without: 72.8, with: 68.24, fits: true },
+    { width: 390, height: 761, nav: 91, density: 'full', rowCount: 6, showBackToToday: true, without: 69.56, with: 60.61, fits: true },
+    { width: 375, height: 619, nav: 64, density: 'compact', rowCount: 6, showBackToToday: false, without: 59.33, with: 50.73, fits: true },
+    { width: 375, height: 619, nav: 64, density: 'compact', rowCount: 6, showBackToToday: true, without: 52, with: 44, fits: false },
+    { width: 320, height: 520, nav: 64, density: 'compact', rowCount: 5, showBackToToday: false, without: 57.17, with: 48.37, fits: true },
+    { width: 320, height: 520, nav: 64, density: 'compact', rowCount: 6, showBackToToday: false, without: 47.64, with: 44, fits: false }
+  ]
+
+  for (const sample of samples) {
+    const key = `${sample.width}x${sample.height} ${sample.density} ${sample.rowCount} rows${sample.showBackToToday ? ' + back-today' : ''}`
+    const input = {
+      viewportWidth: sample.width,
+      viewportHeight: sample.height,
+      navBarHeightPx: sample.nav,
+      density: sample.density,
+      rowCount: sample.rowCount,
+      showBackToToday: sample.showBackToToday
+    }
+    const plain = computeCalendarRowHeight(input)
+    const welcomed = computeCalendarRowHeight({ ...input, showPartnerWelcome: true })
+
+    assert.equal(plain.heightPx, sample.without, `${key} without the welcome`)
+    assert.equal(plain.actionsFit, true, `${key} keeps the record actions on screen without the welcome`)
+    assert.equal(welcomed.heightPx, sample.with, `${key} with the welcome`)
+    assert.equal(welcomed.actionsFit, sample.fits, `${key} reports whether the record actions still fit`)
+    assert.ok(welcomed.heightPx >= 44, `${key} drops below the 44px floor`)
+  }
+})
+
+// issue #149：欢迎条挂在吸顶占位之后、日历之前的正常文档流里，固定的月份导航和状态行盖不住它；
+// 它的盒高（两行 caption × 正文行高，加上下外边距）就是行高账本里的那一项。
+test('the partner welcome bar flows below the sticky spacer and its box matches the ledger entry', () => {
+  const { CALENDAR_PARTNER_WELCOME_RPX } = require('../utils/calendarRowHeight')
+  const wxml = readRepo('pages/index/index.wxml')
+  const welcome = /<text wx:if="\{\{partnerWelcome\}\}" class="partner-welcome">([^<]+)<\/text>/.exec(wxml)
+  const spacerAt = wxml.indexOf('class="home-sticky-spacer')
+  const calendarAt = wxml.indexOf('class="calendar-swipe"')
+  assert.ok(welcome, 'expected the one-time welcome text')
+  assert.ok(
+    spacerAt !== -1 && spacerAt < welcome.index && welcome.index < calendarAt,
+    'welcome bar must sit after the sticky spacer and before the calendar, not under the fixed month nav'
+  )
+
+  const appTokens = readAppTokens()
+  const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+  const bar = findDecls(rules, '.partner-welcome')
+  assert.equal(bar.position, undefined, 'welcome bar stays in normal flow')
+  assert.equal(bar['font-size'], 'var(--font-size-caption)')
+  assert.equal(bar['line-height'], 'var(--line-height-body)')
+  const margin = splitCssTokens(bar.margin).map(token => parseFloat(token))
+  assert.equal(margin.length, 3, 'margin is top / horizontal / bottom')
+  const fontRpx = parseFloat(appTokens['--font-size-caption'])
+  const lineHeight = Number(appTokens['--line-height-body'])
+
+  // 文案恰好两行：CJK 与全角标点 1em；拉丁字母 0.5–0.7em、空格 0.25–0.5em、♥ 0.5–1em 取上下界
+  const contentPadRpx = parseFloat(horizontalPaddingTokens(findDecls(rules, '.content'))[0])
+  const lineEm = (750 - 2 * contentPadRpx - 2 * margin[1]) / fontRpx
+  let minEm = 0
+  let maxEm = 0
+  for (const ch of welcome[1]) {
+    if (/[　-鿿＀-￯]/.test(ch)) { minEm += 1; maxEm += 1 } else if (ch === ' ') { minEm += 0.25; maxEm += 0.5 } else if (/[A-Za-z]/.test(ch)) { minEm += 0.5; maxEm += 0.7 } else { minEm += 0.5; maxEm += 1 }
+  }
+  assert.ok(minEm > lineEm && maxEm <= 2 * lineEm, `welcome copy ${minEm}–${maxEm}em must wrap to exactly two ${lineEm.toFixed(2)}em lines`)
+
+  const boxRpx = margin[0] + 2 * fontRpx * lineHeight + margin[2]
+  assert.ok(Math.abs(boxRpx - 103.2) < 1e-9, `welcome box ${boxRpx}rpx`)
+  assert.equal(CALENDAR_PARTNER_WELCOME_RPX, 103.2, 'ledger entry must equal the rendered welcome box')
+})
+
+// issue #149：绑定页幽灵「进入应用」是内容宽胶囊，高度 = 上下 px 内边距 + 一行字 + 描边，320px 宽下仍 ≥44px
+test('bind ghost enter-app button keeps a 44px touch height at 320px', () => {
+  const appTokens = readAppTokens()
+  const ghost = findDecls(parseWxssRules(readRepo('pages/bind/bind.wxss')), '.btn-ghost')
+  const verticalPadPx = /^(\d+(?:\.\d+)?)px$/.exec(splitCssTokens(ghost.padding)[0])
+  assert.ok(verticalPadPx, 'ghost vertical padding stays in px so it does not shrink with the viewport')
+  const lineHeightToken = /^var\((--line-height-[a-z]+)\)$/.exec(ghost['line-height'])
+  assert.ok(lineHeightToken, 'ghost line-height uses a line-height token')
+  const fontPx = parseFloat(appTokens[/^var\((--[a-z-]+)\)$/.exec(ghost['font-size'])[1]]) * 320 / 750
+  const borderPx = parseFloat(ghost.border)
+  const heightPx = 2 * Number(verticalPadPx[1]) + fontPx * Number(appTokens[lineHeightToken[1]]) + 2 * borderPx
+  assert.ok(heightPx >= 44, `ghost button is ${heightPx.toFixed(2)}px tall at 320px`)
 })
 
 test('leftmost and rightmost calendar columns keep their content off the grid border', () => {

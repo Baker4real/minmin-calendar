@@ -8,9 +8,26 @@ const recordPageSync = require('../../../utils/recordPageSync')
 const safeArea = require('../../../utils/safeArea')
 
 const DRAFT_FIELDS = ['startDate', 'endDate', 'status', 'note', 'flow', 'symptoms']
+// 可定位的校验字段，按表单自上而下的顺序；滚动定位到第一个出错的字段
+const FIELD_ORDER = ['startDate', 'endDate']
 
 function displayDateLabel(dateStr) {
   return util.formatDisplayDate(dateStr, { today: util.formatDate(new Date()) })
+}
+
+// 每个出错字段一句人话；都对时返回 null。只有已结束状态才校验结束日期。
+function collectPeriodFieldErrors({ startDate, endDate, status }, today) {
+  const errors = {}
+  if (!startDate) errors.startDate = '请选择开始日期'
+  else if (!util.isValidDateString(startDate)) errors.startDate = '请选择有效的开始日期'
+  else if (startDate > today) errors.startDate = '开始日期不能晚于今天'
+  if (status === 'known-end') {
+    if (!endDate) errors.endDate = '请选择结束日期；还没结束可以选「进行中」'
+    else if (!util.isValidDateString(endDate)) errors.endDate = '请选择有效的结束日期'
+    else if (!errors.startDate && startDate > endDate) errors.endDate = '结束日期不能早于开始'
+    else if (endDate > today) errors.endDate = '结束日期不能晚于今天'
+  }
+  return Object.keys(errors).length > 0 ? errors : null
 }
 
 // 与 pages/memory/edit/edit.js、pages/period/period.js 共享的一次性
@@ -41,7 +58,8 @@ Page({
     saving: false,
     deleting: false,
     submitted: false,
-    draftRestored: false
+    draftRestored: false,
+    fieldErrors: {}
   },
 
   onLoad(options) {
@@ -123,6 +141,7 @@ Page({
       })
     }
     this.syncPeriodLengthHint()
+    this.refreshFieldErrors()
   },
   onEndChange(e) {
     this.setData({
@@ -130,6 +149,7 @@ Page({
       endDateLabel: displayDateLabel(e.detail.value)
     })
     this.syncPeriodLengthHint()
+    this.refreshFieldErrors()
   },
   selectStatus(e) {
     if (this.data.saving) return
@@ -146,6 +166,7 @@ Page({
     }
     this.setData(update)
     this.syncPeriodLengthHint()
+    this.refreshFieldErrors()
   },
   onNoteInput(e) { this.setData({ note: e.detail.value }) },
   selectFlow(e) {
@@ -192,23 +213,16 @@ Page({
           return submitted || {}
         }
       },
-      validate: () => {
-        if (!startDate) return '请选择日期'
-        if (!util.isValidDateString(startDate)) return '请选择有效日期'
-        if (startDate > today) return '开始日期不能晚于今天'
-        if (status === 'known-end') {
-          if (!endDate) return '请选择结束日期；还没结束可以选「进行中」'
-          if (!util.isValidDateString(endDate)) return '请选择有效日期'
-          if (startDate > endDate) return '结束日期不能早于开始'
-          if (endDate > today) return '结束日期不能晚于今天'
-        }
-        return ''
-      },
+      validate: () => collectPeriodFieldErrors({ startDate, endDate, status }, today),
       successTitle: '保存成功',
       failureTitle: '保存失败',
       mergedTitle: '已打开进行中的经期',
       mergedContent: '房间里已有一条进行中的经期，已为你打开它'
     })
+    if (outcome && outcome.kind === 'validation') {
+      this.showFieldErrors(outcome.fieldErrors)
+      return outcome
+    }
     if (outcome && (outcome.kind === 'success' || outcome.kind === 'merged')) {
       this.discardRecordDraft()
       this.markRecordTabSegmentIntent()
@@ -225,6 +239,29 @@ Page({
       })
     }
     return outcome
+  },
+
+  // 保存校验失败：错误常驻在对应字段下，并把第一个出错字段滚到顶栏下方（即时到位，无滚动动画）。
+  // 输入与草稿都不动。
+  showFieldErrors(fieldErrors) {
+    const errors = fieldErrors || {}
+    this.setData({ fieldErrors: errors })
+    const first = FIELD_ORDER.find(field => errors[field])
+    if (first) {
+      wx.pageScrollTo({ selector: `#field-${first}`, offsetTop: -this.data.navBarHeight, duration: 0 })
+    }
+  },
+
+  // 清除规则：只重算已显示的字段错误——改对的消失，仍不对的换成当前原因；保存前不新增别的字段错误。
+  refreshFieldErrors() {
+    const shown = Object.keys(this.data.fieldErrors || {})
+    if (shown.length === 0) return
+    const current = collectPeriodFieldErrors(this.data, util.formatDate(new Date())) || {}
+    const next = {}
+    shown.forEach(field => {
+      if (current[field]) next[field] = current[field]
+    })
+    this.setData({ fieldErrors: next })
   },
 
   // 新记录的开始日如果落在已有投影里，先问是去编辑那条还是仍然新建。编辑已有记录不拦。

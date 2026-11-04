@@ -222,6 +222,29 @@ button.share-invite::after {
 .share-invite.share-invite-hover {
   transform: scale(0.96);
 }
+/* 刚创建房间时的次操作「进入应用」（issue #149）：DESIGN.md button-ghost——透明底、玫瑰描边和玫瑰字，
+   居中胶囊，视觉权重低于整宽实底的「发给 TA」，不加投影。上下 12px 内边距让 320px 宽下触控高度仍 ≥44px */
+.btn-ghost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  margin: 0 auto;
+  padding: 12px 28px;
+  box-sizing: border-box;
+  background: transparent;
+  color: #E8909E;
+  border: 1.5px solid #E8909E;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-button);
+  font-weight: var(--font-weight-control);
+  line-height: var(--line-height-assist);
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.btn-ghost:active,
+.btn-ghost.btn-ghost-hover {
+  transform: scale(0.95);
+}
 /* 创建/加入被「请先解除绑定」拒绝时，当前屏直接给出的解除绑定入口（needUnbind 中间态，
    错误恢复路径；样式跟随 app 级 .btn-danger 警示红族） */
 .unbind-inline {
@@ -266,10 +289,11 @@ button.share-invite::after {
   background: rgba(249,115,115,0.24);
 }
 
-/* 减弱动效（app.wxss 全局名单外的页面登记）：复制键按下为立即缩放、无 0.2s 过渡；
+/* 减弱动效（app.wxss 全局名单外的页面登记）：复制键、幽灵「进入应用」按下为立即缩放、无过渡；
    政策见 DESIGN.md「动效与性能边界」——按压 = 即时 scale + 既有底色变化 */
 @media (prefers-reduced-motion: reduce) {
   .copy-btn,
+  .btn-ghost,
   .bind-reveal {
     animation: none;
     transition: none;

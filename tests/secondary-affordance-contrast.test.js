@@ -178,6 +178,8 @@ const CASES = [
   // 在海军卡合成面上钉住 ≥4.5:1
   { file: 'pages/bind/bind.wxss', selector: '.bound-status', surfaces: [['app.wxss', '.premium-card']], note: '绑定页已绑定成功标题' },
   { file: 'pages/bind/bind.wxss', selector: '.tab', surfaces: [['app.wxss', '.premium-card'], ['pages/bind/bind.wxss', '.tab-bar']], note: '绑定页未选中 tab' },
+  // issue #149：刚创建房间时的幽灵「进入应用」，玫瑰字落在卡片合成面上
+  { file: 'pages/bind/bind.wxss', selector: '.btn-ghost', surfaces: [['app.wxss', '.premium-card']], note: '绑定页次操作进入应用' },
   { file: 'app.wxss', selector: '.btn-danger', surfaces: [], note: '危险操作（删除记录/解除绑定）' },
   // issue #144：备注占位符不再用 0.35 白，颜色档位不弱于次要文字，落在输入框合成面上
   { file: 'app.wxss', selector: '.input-placeholder', surfaces: [['app.wxss', '.premium-card'], ['pages/period/edit/edit.wxss', '.form-input']], note: '经期编辑备注占位' },
