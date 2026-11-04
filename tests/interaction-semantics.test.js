@@ -218,10 +218,10 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(byHandler('quickMemory', 'quick-btn').attrs['aria-label'], '记欢乐时光')
   assert.match(readPage('pages/index/index.wxml'), /class="quick-text">记欢乐时光</)
 
-  // 弹层遮罩本身是可点的「关闭」操作，必须带角色与可读名称
+  // 弹层遮罩本身是可点的「关闭」操作，必须带角色与可读名称；信息弹层按当前内容命名（issue #155）
   assert.equal(byHandler('closeMonthPicker', 'day-sheet-mask').attrs['aria-label'], '关闭月份选择')
   assert.equal(byHandler('closeDayActions', 'day-sheet-mask').attrs['aria-label'], '关闭当日操作')
-  assert.equal(byHandler('closeInfoSheet', 'day-sheet-mask').attrs['aria-label'], '关闭面板')
+  assert.equal(byHandler('closeInfoSheet', 'day-sheet-mask').attrs['aria-label'], '关闭{{infoSheetName}}')
 
   // 四个 sheet 的 × 关闭按钮（月份跳转 / 日操作 / 信息面板 / 月份工具菜单）
   const closeButtons = elements.filter((element) => classTokens(element).includes('sheet-close'))
@@ -302,7 +302,7 @@ test('sheet mask and panel are siblings so only the mask is announced as close',
     assert.ok(named.length > 0, `${mask.attrs['aria-label']} panel controls stay reachable`)
     assert.ok(named.includes('关闭'), `${mask.attrs['aria-label']} keeps its own close control`)
   }
-  assert.deepEqual(labels.sort(), ['关闭工具菜单', '关闭当日操作', '关闭月份选择', '关闭面板'])
+  assert.deepEqual(labels.sort(), ['关闭{{infoSheetName}}', '关闭工具菜单', '关闭当日操作', '关闭月份选择'])
 })
 
 // issue #154：设置「使用说明」同首页弹层的结构——遮罩单独朗读为「关闭使用说明」，
@@ -352,6 +352,64 @@ test('settings help keeps a separately named mask and a visible close in its tit
   const scale = /transform:\s*scale\(([\d.]+)\)/.exec(pressed || '')
   assert.ok(scale, 'the help close keeps a press scale')
   assert.ok(Number(scale[1]) >= 0.94 && Number(scale[1]) <= 0.98)
+})
+
+// ===== issue #155：首页弹层与设置帮助的读屏模态契约 =====
+// 平台事实以微信官方文档为准（https://developers.weixin.qq.com/miniprogram/dev/component/aria-component.html）：
+// 基础库 2.7.1 起只支持部分 ARIA 标签；非原生组件可以加 aria-hidden、aria-label 等标签；可设的 aria-role
+// 参照 MDN「Widget Roles」，部分 role 在移动端可能无效（dialog 属 Window Roles，不在其中）。文档列出 aria-modal
+// 却没说行为，也没有把读屏焦点移到某个 view 的能力。所以面板是按用途命名的 dialog（role 可能被忽略，
+// 遮罩「关闭+名称」与标题仍给出上下文），背景只靠 aria-hidden 隔离，不写 aria-modal 冒充模态。
+const SHEET_PAGES = [
+  {
+    file: 'pages/index/index.wxml',
+    maskClass: 'day-sheet-mask',
+    slideClass: 'sheet-slide',
+    names: ['月份选择', '当日操作', '工具菜单', '{{infoSheetName}}']
+  },
+  {
+    file: 'pages/settings/settings.wxml',
+    maskClass: 'help-mask',
+    slideClass: 'help-slide',
+    names: ['使用说明']
+  }
+]
+
+function sheetHosts(forest, maskClass) {
+  const hosts = []
+  walkForest(forest, (node) => {
+    if (classTokens(node).includes(maskClass)) hosts.push(node.parent)
+  })
+  return hosts
+}
+
+test('every sheet panel is a dialog named by its purpose, closed by a mask of the same name', () => {
+  for (const { file, maskClass, slideClass, names } of SHEET_PAGES) {
+    const dialogNames = []
+    for (const host of sheetHosts(parseWxmlForest(readPage(file)), maskClass)) {
+      // 读屏顺序固定：先是遮罩（关闭这一层），再是面板；宿主里没有别的可读节点
+      const [mask, slide, ...rest] = host.children
+      assert.deepEqual(rest, [], `${file}: a sheet host holds only its mask and its panel`)
+      assert.ok(classTokens(mask).includes(maskClass), `${file}: the mask is read first`)
+      assert.ok(classTokens(slide).includes(slideClass), `${file}: the panel follows the mask`)
+      assert.equal(slide.children.length, 1, `${file}: the slide wraps one panel`)
+
+      const [dialog] = slide.children
+      assert.equal(dialog.attrs['aria-role'], 'dialog', `${file}: ${describe(dialog)} is the dialog`)
+      const name = dialog.attrs['aria-label']
+      assert.ok(name, `${file}: ${describe(dialog)} needs a readable name`)
+      assert.equal(mask.attrs['aria-role'], 'button')
+      assert.equal(mask.attrs['aria-label'], `关闭${name}`, `${file}: the mask closes the dialog by its name`)
+      dialogNames.push(name)
+    }
+    assert.deepEqual(dialogNames, names)
+  }
+})
+
+test('no page claims WeChat honors aria-modal', () => {
+  for (const file of PAGE_WXML) {
+    assert.doesNotMatch(readPage(file), /aria-modal/, `${file} must not rely on aria-modal`)
+  }
 })
 
 test('home status line opens the prediction sheet and the record count is gone', () => {

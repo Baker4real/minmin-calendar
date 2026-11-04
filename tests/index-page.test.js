@@ -36,6 +36,26 @@ function evaluateWxmlExpression(expr, scope) {
   return new Function(...keys, `return (${expr})`)(...keys.map(key => scope[key]))
 }
 
+// 属性模板里的每段 {{ }} 按页面数据求值后拼回整句，即读屏实际拿到的属性值
+function renderWxmlAttribute(template, data) {
+  return template.replace(/\{\{([\s\S]*?)\}\}/g, (_, expr) => {
+    const value = evaluateWxmlExpression(expr, data)
+    return value === undefined || value === null ? '' : String(value)
+  })
+}
+
+// 模板片段里的开始标签与其双引号属性原文
+function wxmlOpeningTags(fragment) {
+  const source = fragment.replace(/<!--[\s\S]*?-->/g, '')
+  const tags = []
+  for (const match of source.matchAll(/<([a-zA-Z][\w-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*\/?>/g)) {
+    const attrs = {}
+    for (const attr of match[2].matchAll(/([^\s=]+)\s*=\s*"([^"]*)"/g)) attrs[attr[1]] = attr[2]
+    tags.push({ tag: match[1], attrs, classes: (attrs.class || '').split(/\s+/).filter(Boolean) })
+  }
+  return tags
+}
+
 test('initial load publishes home records and clears loading state', async () => {
   const client = createQueuedClient([
     { kind: 'success', data: [period('p1', '2026-06-01')] },
@@ -2693,6 +2713,51 @@ test('an open or leaving homepage sheet obscures the page until every sheet unmo
     mock.timers.tick(200)
     assert.equal(harness.page.data.infoSheetMounted, false)
     assert.equal(harness.page.data.pageObscured, false)
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #155：信息弹层按显示的内容命名。遮罩读「关闭」加名称，面板以同一名称作对话框名；
+// 状态行直接打开、离场途中从小结行换内容重开、从工具菜单交接，名称都跟着当前内容走。
+test('the info sheet mask and dialog are named by what the sheet shows', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  const wxml = readIndexWxml()
+  const host = wxmlOpeningTags(wxml.slice(wxml.indexOf('wx:if="{{infoSheetMounted}}"'), wxml.indexOf('<page-container')))
+  const mask = host.find(tag => tag.classes.includes('day-sheet-mask'))
+  const dialog = host.find(tag => tag.attrs['aria-role'] === 'dialog')
+  assert.ok(mask && dialog, 'expected the info sheet mask and dialog')
+  const heard = () => [
+    renderWxmlAttribute(mask.attrs['aria-label'], harness.page.data),
+    renderWxmlAttribute(dialog.attrs['aria-label'], harness.page.data)
+  ]
+  try {
+    harness.page.onLoad()
+    harness.page.openPredictionSheet()
+    assert.deepEqual(heard(), ['关闭预测说明', '预测说明'])
+    mock.timers.tick(0)
+    harness.page.closeInfoSheet()
+    assert.equal(harness.page.data.infoSheetPhase, 'leaving')
+    assert.deepEqual(heard(), ['关闭预测说明', '预测说明'])
+
+    harness.page.openMonthlyRecap()
+    assert.equal(harness.page.data.infoSheetPhase, 'open')
+    assert.deepEqual(heard(), ['关闭本月小结', '本月小结'])
+    harness.page.closeInfoSheet()
+    mock.timers.tick(200)
+    assert.equal(harness.page.data.infoSheetMounted, false)
+
+    for (const [action, name] of [['legend', '日历图例'], ['prediction', '预测说明'], ['recap', '本月小结']]) {
+      harness.page.openMonthMenu()
+      mock.timers.tick(0)
+      harness.page.onMonthMenuTap({ currentTarget: { dataset: { action } } })
+      assert.equal(harness.page.data.infoSheetHandoff, true)
+      assert.deepEqual(heard(), [`关闭${name}`, name], `${action} hand-off`)
+      harness.page.closeInfoSheet()
+      mock.timers.tick(200)
+    }
   } finally {
     harness.teardown()
     mock.timers.reset()
