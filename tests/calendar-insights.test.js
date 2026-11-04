@@ -18,7 +18,7 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
   assert.deepEqual(insights.buildPredictionExplanation(prediction), {
     available: true,
     title: '预测说明',
-    summary: '预计 8月10日 开始，前后 1 天都正常',
+    summary: '预计 8月10日 开始，前后 1 天是可能开始的窗口',
     lines: [
       '参考最近 5 次有效周期',
       '平均周期 28 天，平均持续 5 天',
@@ -48,10 +48,27 @@ test('prediction explanation uses the shared date and spoken confidence, not a c
 
   const explanation = insights.buildPredictionExplanation(prediction)
 
-  assert.equal(explanation.summary, `预计 ${prediction.nextDisplay} 开始，前后 1 天都正常`)
+  assert.equal(explanation.summary, `预计 ${prediction.nextDisplay} 开始，前后 1 天是可能开始的窗口`)
   assert.equal(explanation.summary.includes('08月'), false)
   assert.equal(explanation.lines.includes('已经有几次记录，大致可以参考'), true)
   assert.equal(explanation.lines.some(line => line.startsWith('置信度：')), false)
+  assert.equal(explanation.lines.at(-1), '根据记录估算，不是医疗建议')
+})
+
+test('prediction summary names the possible start window instead of promising it is normal', () => {
+  // 只有一个有效周期：窗口是预计开始日前后 3 天（7月24日–7月30日）
+  const prediction = cycle.predictNextPeriod([
+    period('2026-06-01', '2026-06-05'),
+    period('2026-06-29', '2026-07-03')
+  ], { today: '2026-07-10' })
+  assert.equal(prediction.rangeDisplay, '7月24日–7月30日')
+
+  const explanation = insights.buildPredictionExplanation(prediction)
+
+  // 首句只描述可能开始的窗口，天数与预测窗口一致；不做「正常」或健康保证
+  assert.equal(explanation.summary, '预计 7月27日 开始，前后 3 天是可能开始的窗口')
+  assert.doesNotMatch(explanation.summary, /正常|健康/)
+  // 非医疗建议声明继续留在说明末尾
   assert.equal(explanation.lines.at(-1), '根据记录估算，不是医疗建议')
 })
 

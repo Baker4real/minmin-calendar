@@ -161,6 +161,8 @@ Page({
     refreshing: false,
     hasLoadedHomeData: false,
     refreshRetryVisible: false,
+    refreshRetryText: '',
+    refreshRetryLabel: '',
     syncStatusVisible: false,
     syncStatusText: '',
     syncStatusMounted: false,
@@ -358,11 +360,15 @@ Page({
 
     state.pendingRevisions = pendingRevisions
     state.activeRequest = null
+    // 只剩一个集合失败时，行内重试改指那个集合；两个集合都成功才清除（issue #151）
+    const failedCollection = snapshot && snapshot.kind === 'partial-success'
+      ? COLLECTIONS.find(collection => this._isRetryableFailure(snapshot[collection + 'Outcome']))
+      : null
     this.setData({
       hasLoadedHomeData: true,
       loading: false,
       refreshing: false,
-      refreshRetryVisible: false,
+      ...refreshRetryState(failedCollection),
       noRoom: false,
       roomStatusTitle: '',
       roomStatusDesc: '',
@@ -399,7 +405,7 @@ Page({
     }
     // 日历已显示过：刷新失败留驻可点的重试句，不自动消失，
     // 直到重试成功或被后一次成功刷新替换（_resolveLoad 成功路径清除）
-    this.setData({ refreshRetryVisible: true })
+    this.setData(refreshRetryState('all'))
     if (this._hasPendingRevisions()) {
       this.showSyncStatus('同步失败，稍后重试', { autoHide: true })
     } else {
@@ -1054,6 +1060,19 @@ function syncPill(page) {
     })
   }
   return page._syncPill
+}
+
+// 行内重试行（issue #79）同时承接只有一个集合同步失败的情况（issue #151）：
+// 可见文案与朗读名指出失败范围；同步胶囊仍只表达状态，不可点
+const REFRESH_RETRY_COPY = {
+  all: { refreshRetryText: '刷新失败，点按重试', refreshRetryLabel: '日历刷新失败，点按重试' },
+  periods: { refreshRetryText: '经期同步失败，点按重试', refreshRetryLabel: '经期同步失败，点按重试' },
+  memories: { refreshRetryText: '欢乐时光同步失败，点按重试', refreshRetryLabel: '欢乐时光同步失败，点按重试' }
+}
+
+function refreshRetryState(scope) {
+  const copy = REFRESH_RETRY_COPY[scope]
+  return copy ? { refreshRetryVisible: true, ...copy } : { refreshRetryVisible: false }
 }
 
 const SHEET_DRAG_TARGETS = {

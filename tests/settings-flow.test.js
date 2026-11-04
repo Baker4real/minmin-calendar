@@ -84,6 +84,7 @@ test('exportRecordsAsJson keeps the JSON shape, writes the backup file, and shar
   assert.equal(env.wx.hideLoadingCalls, 1)
   assert.deepEqual(env.wx.shareCalls, ['/tmp/user-data/minmin-calendar-backup.json'])
   assert.deepEqual(env.wx.clipboardCalls, [])
+  assert.deepEqual(env.wx.actionSheets, [])
   assert.deepEqual(env.wx.toasts, [{ title: '导出成功' }])
   assert.deepEqual(client.calls, [
     { action: 'list', collection: 'periods' },
@@ -100,25 +101,71 @@ test('exportRecordsAsJson keeps the JSON shape, writes the backup file, and shar
   })
 })
 
-test('exportRecordsAsJson falls back to the clipboard when file sharing fails', async () => {
+// issue #150：分享失败只返回可识别结果，由用户在「重试分享／复制 JSON／取消」里明确选择；
+// 只有显式选「复制 JSON」才调用剪贴板 API。「取消」是系统操作菜单自带的取消键。
+const SHARE_FAILURE = { errMsg: 'shareFileMessage:fail system error' }
+const BACKUP_PATH = '/tmp/user-data/minmin-calendar-backup.json'
+
+test('exportRecordsAsJson returns a recognizable share failure and leaves the clipboard alone when the user cancels the choice', async () => {
   assert.equal(typeof settingsFlow.exportRecordsAsJson, 'function')
 
-  const env = createFakeSettingsEnv({ shareError: new Error('share failed') })
+  const env = createFakeSettingsEnv({ shareError: SHARE_FAILURE })
   const client = createFakeRoomDataClient({
     periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05' }],
     memories: [{ _id: 'm1', date: '2026-06-03', note: 'movie' }]
   })
 
-  const result = await settingsFlow.exportRecordsAsJson({
+  const promise = settingsFlow.exportRecordsAsJson({
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
     userDataPath: '/tmp/user-data'
   })
 
-  assert.equal(result.kind, 'clipboard')
+  await waitForAsyncTurn()
+  assert.equal(env.wx.actionSheets.length, 1, 'a failed share asks the user what to do next')
+  const choice = env.wx.actionSheets[0]
+  assert.deepEqual(choice.itemList, ['重试分享', '复制 JSON'])
+  assert.match(choice.alertText, /分享没有完成/)
+  assert.match(choice.alertText, /复制 JSON/)
+  assert.match(choice.alertText, /全部经期和欢乐时光/)
+  assert.match(choice.alertText, /剪贴板/)
+  assert.deepEqual(env.wx.clipboardCalls, [], 'a failed share must not copy anything on its own')
+  assert.deepEqual(env.wx.toasts, [])
+
+  env.wx.tapActionSheet('取消')
+  const result = await promise
+
+  assert.deepEqual(result, { kind: 'share-failed', filePath: BACKUP_PATH })
   assert.equal(env.wx.hideLoadingCalls, 1)
-  assert.deepEqual(env.wx.shareCalls, ['/tmp/user-data/minmin-calendar-backup.json'])
+  assert.deepEqual(env.wx.shareCalls, [BACKUP_PATH])
+  assert.deepEqual(env.wx.clipboardCalls, [], 'cancelling the choice must not copy')
+  assert.deepEqual(env.wx.toasts, [], 'cancelling the choice must not claim anything was copied')
+  assert.deepEqual(env.wx.modals, [])
+})
+
+test('exportRecordsAsJson copies the full export JSON only after the user explicitly chooses 复制 JSON', async () => {
+  const env = createFakeSettingsEnv({ shareError: SHARE_FAILURE })
+  const client = createFakeRoomDataClient({
+    periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05' }],
+    memories: [{ _id: 'm1', date: '2026-06-03', note: 'movie' }]
+  })
+
+  const promise = settingsFlow.exportRecordsAsJson({
+    wx: env.wx,
+    cloud: { createRoomDataClient: () => client },
+    now: () => '2026-06-26T08:00:00.000Z',
+    userDataPath: '/tmp/user-data'
+  })
+
+  await waitForAsyncTurn()
+  assert.equal(env.wx.actionSheets.length, 1)
+  assert.deepEqual(env.wx.clipboardCalls, [], 'nothing is copied before the explicit choice')
+
+  env.wx.tapActionSheet('复制 JSON')
+  const result = await promise
+
+  assert.deepEqual(result, { kind: 'copied', filePath: BACKUP_PATH })
   assert.equal(env.wx.clipboardCalls.length, 1)
   assert.deepEqual(JSON.parse(env.wx.clipboardCalls[0]), {
     exportTime: '2026-06-26T08:00:00.000Z',
@@ -126,6 +173,89 @@ test('exportRecordsAsJson falls back to the clipboard when file sharing fails', 
     memories: [{ _id: 'm1', date: '2026-06-03', note: 'movie' }]
   })
   assert.deepEqual(env.wx.toasts, [{ title: '已复制到剪贴板' }])
+  assert.deepEqual(env.wx.modals, [], 'the explicit copy asks no second confirmation')
+  assert.deepEqual(env.wx.shareCalls, [BACKUP_PATH])
+})
+
+test('exportRecordsAsJson shares the same backup again on 重试分享 and offers the choice again while sharing keeps failing', async () => {
+  const env = createFakeSettingsEnv({
+    shareError: call => (call < 3 ? SHARE_FAILURE : null)
+  })
+  const client = createFakeRoomDataClient({
+    periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05' }],
+    memories: []
+  })
+
+  const promise = settingsFlow.exportRecordsAsJson({
+    wx: env.wx,
+    cloud: { createRoomDataClient: () => client },
+    now: () => '2026-06-26T08:00:00.000Z',
+    userDataPath: '/tmp/user-data'
+  })
+
+  await waitForAsyncTurn()
+  env.wx.tapActionSheet('重试分享')
+  await waitForAsyncTurn()
+  assert.equal(env.wx.actionSheets.length, 2, 'a failed retry offers the same choice again')
+  assert.deepEqual(env.wx.actionSheets[1].itemList, ['重试分享', '复制 JSON'])
+
+  env.wx.tapActionSheet('重试分享')
+  const result = await promise
+
+  assert.deepEqual(result, { kind: 'shared', filePath: BACKUP_PATH })
+  assert.deepEqual(env.wx.shareCalls, [BACKUP_PATH, BACKUP_PATH, BACKUP_PATH])
+  assert.equal(env.fs.writes.length, 1, 'retrying shares the file already written')
+  assert.deepEqual(client.calls, [
+    { action: 'list', collection: 'periods' },
+    { action: 'list', collection: 'memories' }
+  ], 'retrying the share does not reload the records')
+  assert.deepEqual(env.wx.clipboardCalls, [])
+  assert.deepEqual(env.wx.toasts, [{ title: '导出成功' }])
+})
+
+test('exportRecordsAsJson treats a missing share api as a share failure and never copies on its own', async () => {
+  const env = createFakeSettingsEnv()
+  delete env.wx.shareFileMessage
+  const client = createFakeRoomDataClient({ periods: [], memories: [] })
+
+  const promise = settingsFlow.exportRecordsAsJson({
+    wx: env.wx,
+    cloud: { createRoomDataClient: () => client },
+    now: () => '2026-06-26T08:00:00.000Z',
+    userDataPath: '/tmp/user-data'
+  })
+
+  await waitForAsyncTurn()
+  assert.equal(env.wx.actionSheets.length, 1)
+  assert.deepEqual(env.wx.clipboardCalls, [])
+
+  env.wx.tapActionSheet('取消')
+
+  assert.deepEqual(await promise, { kind: 'share-failed', filePath: BACKUP_PATH })
+  assert.deepEqual(env.wx.clipboardCalls, [])
+  assert.deepEqual(env.wx.toasts, [])
+})
+
+test('exportRecordsAsJson reports a failed explicit copy as a copy failure without claiming the JSON was copied', async () => {
+  const env = createFakeSettingsEnv({
+    shareError: SHARE_FAILURE,
+    clipboardError: { errMsg: 'setClipboardData:fail system error' }
+  })
+  const client = createFakeRoomDataClient({ periods: [], memories: [] })
+
+  const promise = settingsFlow.exportRecordsAsJson({
+    wx: env.wx,
+    cloud: { createRoomDataClient: () => client },
+    now: () => '2026-06-26T08:00:00.000Z',
+    userDataPath: '/tmp/user-data'
+  })
+
+  await waitForAsyncTurn()
+  env.wx.tapActionSheet('复制 JSON')
+
+  assert.deepEqual(await promise, { kind: 'copy-failed', filePath: BACKUP_PATH })
+  assert.equal(env.wx.clipboardCalls.length, 1)
+  assert.deepEqual(env.wx.toasts, [{ title: '复制失败', icon: 'error' }])
 })
 
 test('exportRecordsAsJson leaves the clipboard untouched and silent when the user cancels the share panel', async () => {
@@ -151,6 +281,7 @@ test('exportRecordsAsJson leaves the clipboard untouched and silent when the use
   assert.deepEqual(env.wx.shareCalls, ['/tmp/user-data/minmin-calendar-backup.json'])
   assert.deepEqual(env.wx.clipboardCalls, [], 'cancelling the share must not rewrite the clipboard')
   assert.deepEqual(env.wx.toasts, [], 'cancelling the share must not claim the export was copied')
+  assert.deepEqual(env.wx.actionSheets, [], 'cancelling the share panel ends the export without a follow-up choice')
 })
 
 test('exportRecordsAsJson surfaces a retry action and retries the export when the user confirms', async () => {
@@ -1451,10 +1582,15 @@ function createFakeSettingsEnv(options = {}) {
     toasts: [],
     loadingCalls: [],
     modals: [],
+    actionSheets: [],
     navigateToCalls: [],
     hideLoadingCalls: 0,
-    setClipboardData({ data, success }) {
+    setClipboardData({ data, success, fail }) {
       wx.clipboardCalls.push(data)
+      if (options.clipboardError) {
+        if (fail) fail(options.clipboardError)
+        return
+      }
       if (success) success()
     },
     showToast(options) {
@@ -1474,11 +1610,30 @@ function createFakeSettingsEnv(options = {}) {
     },
     shareFileMessage({ filePath, success, fail }) {
       wx.shareCalls.push(filePath)
-      if (options.shareError) {
-        fail(options.shareError)
+      // shareError 可以是固定错误，也可以按第几次分享返回错误（null 表示这次成功）
+      const shareError = typeof options.shareError === 'function'
+        ? options.shareError(wx.shareCalls.length)
+        : options.shareError
+      if (shareError) {
+        fail(shareError)
         return
       }
       if (success) success()
+    },
+    showActionSheet(options) {
+      wx.actionSheets.push(options)
+    },
+    // 按可见文字点最近一次弹出的操作菜单；「取消」走系统取消键的 fail 回调
+    tapActionSheet(label) {
+      const sheet = wx.actionSheets[wx.actionSheets.length - 1]
+      assert.ok(sheet, 'expected a pending action sheet')
+      if (label === '取消') {
+        sheet.fail({ errMsg: 'showActionSheet:fail cancel' })
+        return
+      }
+      const tapIndex = sheet.itemList.indexOf(label)
+      assert.ok(tapIndex !== -1, `expected an action sheet item named ${label}`)
+      sheet.success({ tapIndex, errMsg: 'showActionSheet:ok' })
     },
     navigateTo(options) {
       wx.navigateToCalls.push(options)

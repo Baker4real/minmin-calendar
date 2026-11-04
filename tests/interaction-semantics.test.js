@@ -236,10 +236,11 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
     .filter((element) => element.attrs.bindtap === 'onDayActionTap')
     .map((element) => element.attrs['aria-label'])
   assert.deepEqual(dayActions, ['{{item.label}}'])
+  // issue #157：详情行读屏名由日历投影按记录拼好（区间与状态或日期与备注摘要，配对后加作者），模板只绑定
   const recordRows = elements
     .filter((element) => element.attrs.bindtap === 'onDayRecordTap')
     .map((element) => element.attrs['aria-label'])
-  assert.deepEqual(recordRows, ['编辑经期', '编辑欢乐时光'])
+  assert.deepEqual(recordRows, ['{{item.ariaLabel}}', '{{item.ariaLabel}}'])
 
   // 月份格点一下即跳转，不再有确认按钮
   const jumpOption = byHandler('selectJumpMonth', 'jump-option')
@@ -445,7 +446,8 @@ test('record list rows, retry affordances and settings menu entries announce the
   // 经期行读屏名称带状态：日期走统一显示格式，进行中/结束日期不详由 rangeSummary 表达
   assert.equal(byHandler(period, 'editPeriod', 'list-item').attrs['aria-label'], '编辑经期记录 {{item.rangeSummary}}')
   assert.equal(byHandler(period, 'loadData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
-  assert.equal(byHandler(period, 'editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dayLabel}} 的欢乐时光')
+  // issue #157：欢乐时光月份行的读屏名由月份分组按记录拼好（日期、备注摘要、配对后的作者），模板只绑定
+  assert.equal(byHandler(period, 'editMemory', 'list-item').attrs['aria-label'], '{{item.ariaLabel}}')
   assert.equal(byHandler(memory, 'editMemory', 'list-item'), undefined)
   assert.equal(byHandler(memory, 'loadData', 'empty-state'), undefined)
 
@@ -487,11 +489,11 @@ test('record tab segment control reads as a radio group with a perceivable check
   assert.equal(memoryOption.attrs['aria-label'], '欢乐时光')
   assert.equal(memoryOption.attrs['aria-checked'], "{{segment === 'memory'}}")
 
-  // 欢乐时光分段内的行与重试入口沿用独立页的朗读文案
+  // 欢乐时光分段内的行读屏名来自月份分组数据（issue #157），重试入口沿用独立页的朗读文案
   const byHandler = (handler, cls) =>
     elements.find((element) =>
       element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
-  assert.equal(byHandler('editMemory', 'list-item').attrs['aria-label'], '编辑 {{item.dayLabel}} 的欢乐时光')
+  assert.equal(byHandler('editMemory', 'list-item').attrs['aria-label'], '{{item.ariaLabel}}')
   assert.equal(byHandler('loadMemoryData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
   assert.equal(byHandler('addMemory', 'btn-premium').attrs['aria-label'], '记欢乐时光')
   assert.match(readPage('pages/period/period.wxml'), />＋ 记欢乐时光</)
