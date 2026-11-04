@@ -1,11 +1,11 @@
 <view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
   <view class="reduced-motion-probe" aria-hidden="true"></view>
-  <view class="nav-bar header-gradient">
+  <view aria-hidden="{{pageObscured}}" class="nav-bar header-gradient">
     <view class="nav-placeholder"></view>
     <view class="nav-title">设置</view>
   </view>
 
-  <view class="content">
+  <view class="content" aria-hidden="{{pageObscured}}">
     <view class="settings-group">
       <text class="settings-group-title">房间</text>
       <view class="premium-card">
@@ -92,7 +92,7 @@
   <view wx:if="{{helpMounted}}" class="help-layer">
     <view class="help-mask sheet-{{helpPhase}}" bindtap="closeHelp" aria-role="button" aria-label="关闭使用说明" hover-class="help-mask-hover"></view>
     <view class="help-slide sheet-{{helpPhase}}">
-    <view class="help-sheet premium-card" catchtap="noop">
+    <view class="help-sheet premium-card" catchtap="noop" aria-role="dialog" aria-label="使用说明">
       <view class="help-head">
         <text class="help-title">使用说明</text>
         <view class="sheet-close" bindtap="closeHelp" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">×</view>

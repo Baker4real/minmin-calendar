@@ -27,6 +27,8 @@ const SYNC_STATUS_CLEAR_DELAY = 1600
 const COLLECTIONS = ['periods', 'memories']
 const JUMP_YEAR_MIN = 2001
 const JUMP_YEAR_MAX = 2035
+// issue #155：信息弹层按显示的内容命名。遮罩读「关闭」加这个名称，面板以它作对话框名。
+const INFO_SHEET_NAMES = { legend: '日历图例', prediction: '预测说明', recap: '本月小结' }
 const INITIAL_VIEW_DATE = new Date()
 const INITIAL_HOME_STATE = buildHomeCalendarState({
   year: INITIAL_VIEW_DATE.getFullYear(),
@@ -73,6 +75,10 @@ function calendarRenderState(state) {
   delete render.periods
   delete render.memories
   return render
+}
+
+function infoSheetContent(mode, extra = {}) {
+  return { ...extra, infoSheetMode: mode, infoSheetName: INFO_SHEET_NAMES[mode] }
 }
 
 function emptyDayDetail() {
@@ -143,6 +149,7 @@ Page({
     infoSheetPhase: 'closed',
     infoSheetHandoff: false,
     infoSheetMode: '',
+    infoSheetName: '',
     monthlyRecap: null,
     dayActionSheetVisible: false,
     dayActionMounted: false,
@@ -679,14 +686,13 @@ Page({
     const action = e.currentTarget.dataset.action
     const sheets = homepageSheets(this)
     if (action === 'legend') {
-      handoffSheet(this, sheets.toolsMenu, sheets.info, { infoSheetMode: 'legend' })
+      handoffSheet(this, sheets.toolsMenu, sheets.info, infoSheetContent('legend'))
     } else if (action === 'prediction') {
-      handoffSheet(this, sheets.toolsMenu, sheets.info, { infoSheetMode: 'prediction' })
+      handoffSheet(this, sheets.toolsMenu, sheets.info, infoSheetContent('prediction'))
     } else if (action === 'recap') {
-      handoffSheet(this, sheets.toolsMenu, sheets.info, {
-        infoSheetMode: 'recap',
+      handoffSheet(this, sheets.toolsMenu, sheets.info, infoSheetContent('recap', {
         monthlyRecap: this.data.monthlyRecap
-      })
+      }))
     }
   },
 
@@ -759,24 +765,23 @@ Page({
   goBind() { wx.redirectTo({ url: '/pages/bind/bind' }) },
 
   openLegendSheet() {
-    homepageSheets(this).info.open(this, { infoSheetMode: 'legend' })
+    homepageSheets(this).info.open(this, infoSheetContent('legend'))
   },
 
   openPredictionSheet() {
-    homepageSheets(this).info.open(this, { infoSheetMode: 'prediction' })
+    homepageSheets(this).info.open(this, infoSheetContent('prediction'))
   },
 
   openMonthlyRecap() {
-    homepageSheets(this).info.open(this, {
-      infoSheetMode: 'recap',
+    homepageSheets(this).info.open(this, infoSheetContent('recap', {
       monthlyRecap: this.data.monthlyRecap
-    })
+    }))
   },
 
   closeInfoSheet() {
     this.setData({ infoSheetVisible: false })
     homepageSheets(this).info.leave(this, () => {
-      this.setData({ infoSheetMode: '' })
+      this.setData({ infoSheetMode: '', infoSheetName: '' })
     }, this._takeSheetDragPatch())
   },
 
