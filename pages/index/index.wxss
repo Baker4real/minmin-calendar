@@ -241,12 +241,13 @@
   padding: 0 24rpx;
   background: #0A0E27;
 }
+/* 占位 = 月份导航 130 + 状态行 88（+「回到今天」88），另加月份导航 1px 上下描边，下方第一行不被吸顶区盖住 */
 .home-sticky-spacer {
-  height: 218rpx;
+  height: calc(218rpx + 2px);
   flex-shrink: 0;
 }
 .home-sticky-spacer.with-back-today {
-  height: 306rpx;
+  height: calc(306rpx + 2px);
 }
 .back-today {
   height: 88rpx;
@@ -307,6 +308,8 @@
 .week-cell {
   flex: 1;
   text-align: center;
+  /* 显式行盒，周头高度才是确定的首屏账本项（issue #153） */
+  line-height: 34rpx;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   color: rgba(255,255,255,0.7);
@@ -370,6 +373,31 @@
   height: 30rpx;
   margin-top: 6rpx;
 }
+/* 清爽密度空间不足时（issue #153）：节日/调休与 ♥、「预」并成日期下的一行，信息一项不少、读屏名不变。
+   内容顶对齐，日期停在常规清爽格的位置，色带照旧包住日期；信息行按「预」胶囊高留足，不再向下垂出。
+   几何账本 utils/calendarRowHeight.js 只在这个月每一天都并得进一行时才挂这个类，否则保持常规三行、页面滚动 */
+.calendar-info-merged .day-cell {
+  justify-content: flex-start;
+  padding: 14rpx 0 4rpx;
+}
+.calendar-info-merged .day-info {
+  flex-direction: row;
+  justify-content: center;
+  height: 42rpx;
+  margin-top: 2rpx;
+  gap: 4rpx;
+}
+.calendar-info-merged .day-tag-line {
+  width: auto;
+  min-width: 0;
+  height: 42rpx;
+  margin-top: 0;
+}
+.calendar-info-merged .day-marks {
+  flex-shrink: 0;
+  height: 42rpx;
+  margin-top: 0;
+}
 
 /* 今天标记 — 平静玫瑰底 + 薰衣草内描边（DESIGN.md todayBorder） */
 .day-cell.today {
@@ -417,6 +445,13 @@
 }
 .day-cell.holiday .day-lunar {
   color: rgba(255,255,255,0.62);
+}
+/* 节日/调休行与标记行的容器：常规排版两行竖排，合并信息行时横成一行 */
+.day-info {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 .day-tag-line {
   width: 100%;

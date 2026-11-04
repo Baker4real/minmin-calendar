@@ -53,21 +53,20 @@ function isViewingCurrentMonth(year, month, now = new Date()) {
   return year === now.getFullYear() && month === now.getMonth()
 }
 
-function calendarRowCount(days) {
-  return Math.max(1, Math.ceil((Array.isArray(days) ? days.length : 0) / 7))
-}
-
-function calendarRowHeightPx({ days, density, navBarHeightPx, showBackToToday, showPartnerWelcome = false }) {
+// 行高与清爽密度是否合并信息行只从 utils/calendarRowHeight.js 的几何账本一次求出（issue #153）
+function calendarGeometry({ days, density, navBarHeightPx, showBackToToday, showPartnerWelcome = false, showRefreshRetry = false }) {
   const viewport = readPageViewport()
-  return computeCalendarRowHeight({
+  const row = computeCalendarRowHeight({
     viewportWidth: viewport.viewportWidth,
     viewportHeight: viewport.viewportHeight,
     navBarHeightPx,
     density: density === 'full' ? 'full' : 'compact',
-    rowCount: calendarRowCount(days),
+    days,
     showBackToToday,
-    showPartnerWelcome
-  }).heightPx
+    showPartnerWelcome,
+    showRefreshRetry
+  })
+  return { calendarRowHeightPx: row.heightPx, calendarInfoMerged: row.infoMerged }
 }
 
 function calendarRenderState(state) {
@@ -137,7 +136,7 @@ Page({
     calendarDensity: 'compact',
     ...calendarRenderState(INITIAL_HOME_STATE),
     showBackToToday: !isViewingCurrentMonth(INITIAL_VIEW_DATE.getFullYear(), INITIAL_VIEW_DATE.getMonth()),
-    calendarRowHeightPx: calendarRowHeightPx({
+    ...calendarGeometry({
       days: INITIAL_HOME_STATE.days,
       density: 'compact',
       navBarHeightPx: safeArea.getNavBarHeight(),
@@ -186,20 +185,12 @@ Page({
   onLoad() {
     this.refreshReducedMotion()
     const now = new Date()
-    const calendarDensity = this.getSavedCalendarDensity()
-    const showBackToToday = !isViewingCurrentMonth(now.getFullYear(), now.getMonth())
-    this.setData({
+    this.setData(this.withCalendarGeometry({
       year: now.getFullYear(),
       month: now.getMonth(),
-      calendarDensity,
-      showBackToToday,
-      calendarRowHeightPx: calendarRowHeightPx({
-        days: this.data.days,
-        density: calendarDensity,
-        navBarHeightPx: this.data.navBarHeight,
-        showBackToToday
-      })
-    })
+      calendarDensity: this.getSavedCalendarDensity(),
+      showBackToToday: !isViewingCurrentMonth(now.getFullYear(), now.getMonth())
+    }))
     this._syncState = {
       revisions: { periods: 0, memories: 0 },
       pendingRevisions: { periods: null, memories: null },
@@ -209,9 +200,9 @@ Page({
   },
 
   onShow() {
-    // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效。
+    // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效，行高按新密度同一次重算。
     // 记录加载必须在这次调用里同步开始，不能等房间状态请求回来。
-    this.setData({ calendarDensity: this.getSavedCalendarDensity() })
+    this.setData(this.withCalendarGeometry({ calendarDensity: this.getSavedCalendarDensity() }))
     this.refreshReducedMotion()
     const load = this.loadData({ background: this.canRefreshInBackground() })
     const presence = this.observeRoomPresence()
@@ -244,16 +235,27 @@ Page({
   revealPendingPartnerWelcome() {
     if (this.data.partnerWelcome || !this.data.hasLoadedHomeData || this.data.noRoom) return
     if (!roomPresence.isPartnerWelcomePending()) return
-    this.setData({
-      partnerWelcome: true,
-      calendarRowHeightPx: calendarRowHeightPx({
-        days: this.data.days,
-        density: this.data.calendarDensity,
-        navBarHeightPx: this.data.navBarHeight,
-        showBackToToday: this.data.showBackToToday,
-        showPartnerWelcome: true
+    this.setData(
+      this.withCalendarGeometry({ partnerWelcome: true }),
+      () => roomPresence.markPartnerWelcomeSeen()
+    )
+  },
+
+  // 日历几何的唯一出口（issue #153）：改动日期格、密度、顶栏、「回到今天」、欢迎条或行内重试行的 setData
+  // 都经这里，用改动后的数据一次求出行高与是否合并信息行，与这些改动同一次提交
+  withCalendarGeometry(patch) {
+    const next = { ...this.data, ...patch }
+    return {
+      ...patch,
+      ...calendarGeometry({
+        days: next.days,
+        density: next.calendarDensity,
+        navBarHeightPx: next.navBarHeight,
+        showBackToToday: next.showBackToToday,
+        showPartnerWelcome: next.partnerWelcome,
+        showRefreshRetry: next.refreshRetryVisible
       })
-    }, () => roomPresence.markPartnerWelcomeSeen())
+    }
   },
 
   onReady() {
@@ -386,7 +388,7 @@ Page({
     const failedCollection = snapshot && snapshot.kind === 'partial-success'
       ? COLLECTIONS.find(collection => this._isRetryableFailure(snapshot[collection + 'Outcome']))
       : null
-    this.setData({
+    this.setData(this.withCalendarGeometry({
       hasLoadedHomeData: true,
       loading: false,
       refreshing: false,
@@ -396,7 +398,7 @@ Page({
       roomStatusDesc: '',
       roomStatusActionText: '',
       roomStatusAction: ''
-    })
+    }))
     if (!wasLoaded) this.applyHomeCalendarState()
     this.revealPendingPartnerWelcome()
     this.syncOngoingCompletionReminder()
@@ -428,7 +430,7 @@ Page({
     }
     // 日历已显示过：刷新失败留驻可点的重试句，不自动消失，
     // 直到重试成功或被后一次成功刷新替换（_resolveLoad 成功路径清除）
-    this.setData(refreshRetryState('all'))
+    this.setData(this.withCalendarGeometry(refreshRetryState('all')))
     if (this._hasPendingRevisions()) {
       this.showSyncStatus('同步失败，稍后重试', { autoHide: true })
     } else {
@@ -481,21 +483,12 @@ Page({
     this._dayDetailsByDate = state.dayDetailsByDate || {}
     const quickAction = cycle.buildPeriodQuickAction(periods, { today })
 
-    const showBackToToday = !isViewingCurrentMonth(year, month)
-    const calendarDensity = this.data.calendarDensity === 'full' ? 'full' : 'compact'
     const update = {
       ...calendarRenderState(state),
       hasRecords: this._homeRecords.periods.length > 0 || this._homeRecords.memories.length > 0,
       periodQuickLabel: quickAction.label,
       periodQuickAriaLabel: quickAction.ariaLabel,
-      showBackToToday,
-      calendarRowHeightPx: calendarRowHeightPx({
-        days: state.days,
-        density: calendarDensity,
-        navBarHeightPx: this.data.navBarHeight,
-        showBackToToday,
-        showPartnerWelcome: this.data.partnerWelcome
-      }),
+      showBackToToday: !isViewingCurrentMonth(year, month),
       year,
       month
     }
@@ -503,7 +496,7 @@ Page({
     if (this.data.selectedDate && this.data.dayActionMounted) {
       update.selectedDayDetail = this._dayDetail(this.data.selectedDate)
     }
-    this.setData(update)
+    this.setData(this.withCalendarGeometry(update))
   },
 
   applyRecordChange(change = {}) {
