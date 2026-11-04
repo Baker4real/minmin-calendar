@@ -46,11 +46,12 @@
   color: #fff;
   font-variant-numeric: tabular-nums;
 }
+/* 统计标签走次要文字档：在画布、玻璃回退和渐变两端都 ≥4.5:1（issue #158） */
 .cycle-label {
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
-  color: rgba(255,255,255,0.5);
+  color: var(--text-secondary);
   display: block;
 }
 

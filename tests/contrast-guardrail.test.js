@@ -168,6 +168,74 @@ test('in-progress duration chip text clears 4.5:1 on the list-card composite', (
   )
 })
 
+// issue #158：周期概览卡是玫瑰 → 薰衣草渐变叠在玻璃回退上。标签在画布、玻璃回退
+// 和渐变两端的合成面上都要 ≥4.5:1，颜色走现有 --text-secondary 档，不另写透明度
+test('cycle overview labels clear 4.5:1 on canvas, glass fallback and both gradient ends', () => {
+  const file = 'pages/period/period.wxss'
+  const canvas = hex(pageCanvas())
+  const layers = backgroundLayers(exactDeclaration(file, '.cycle-card', 'background'))
+  assert.equal(layers.length, 2, 'the cycle card paints one gradient over one base color')
+  const base = layerPaint(layers[1])
+  const fallbackSurface = composite(canvas, base, base.a)
+  const stops = gradientStops(layers[0])
+  assert.equal(stops.length, 2, 'the cycle card gradient has a rose end and a lavender end')
+  const surfaces = [
+    ['canvas', canvas],
+    [`glass fallback ${layers[1]}`, fallbackSurface],
+    ...stops.map(stop => [`gradient end ${stop.source}`, composite(fallbackSurface, stop, stop.a)])
+  ]
+
+  const failures = []
+  for (const selector of ['.card-label', '.cycle-label']) {
+    const text = layerPaint(exactDeclaration(file, selector, 'color'))
+    for (const [name, surface] of surfaces) {
+      const ratio = contrastRatio(toHex(composite(surface, text, text.a)), toHex(surface))
+      if (ratio < 4.5) failures.push(`${selector} on ${name} (${toHex(surface)}) = ${ratio.toFixed(2)}:1`)
+    }
+  }
+  assert.deepEqual(failures, [])
+
+  for (const selector of ['.card-label', '.cycle-label']) {
+    assert.equal(exactDeclaration(file, selector, 'color'), 'var(--text-secondary)',
+      `${selector} rides the secondary text tier`)
+  }
+})
+
+// background 按顶层逗号分层，顶层在前；颜色只能是最后一层（DESIGN.md 玻璃叠层）
+function backgroundLayers(declared) {
+  const layers = []
+  let depth = 0
+  let start = 0
+  for (let index = 0; index < declared.length; index += 1) {
+    const char = declared[index]
+    if (char === '(') depth += 1
+    else if (char === ')') depth -= 1
+    else if (char === ',' && depth === 0) {
+      layers.push(declared.slice(start, index).trim())
+      start = index + 1
+    }
+  }
+  layers.push(declared.slice(start).trim())
+  return layers
+}
+
+// 渐变层的各个色标（含 var() token）；角度与色标位置不参与取色
+function gradientStops(layer) {
+  const match = /^linear-gradient\(([\s\S]*)\)$/.exec(layer.trim())
+  assert.ok(match, `expected a linear-gradient layer, got ${layer}`)
+  return [...match[1].matchAll(/var\(--[a-z0-9-]+\)|rgba\([^)]*\)|#[0-9a-f]{6}\b/gi)]
+    .map(stop => ({ ...layerPaint(stop[0]), source: stop[0] }))
+}
+
+// 单个颜色：token 先解析成 app.wxss 里的值；transparent 是零透明度
+function layerPaint(value) {
+  const trimmed = String(value).trim()
+  const token = /^var\((--[a-z0-9-]+)\)$/i.exec(trimmed)
+  if (token) return layerPaint(tokenValue(token[1]))
+  if (trimmed === 'transparent') return { r: 0, g: 0, b: 0, a: 0 }
+  return cssColor(trimmed)
+}
+
 function pageCanvas() {
   const css = readSource('app.wxss').replace(/\/\*[\s\S]*?\*\//g, '')
   const rules = css.matchAll(/(?:^|[}\s])page\s*\{([^}]*)\}/g)
