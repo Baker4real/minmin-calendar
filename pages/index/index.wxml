@@ -90,7 +90,6 @@ module.exports = {
   </view>
 
   <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}">
-    <text wx:if="{{partnerWelcome}}" class="partner-welcome">已和 TA 连上。经期是玫瑰色带，♥ 是欢乐时光，「预」是下次可能开始的日子。</text>
     <view wx:if="{{syncStatusMounted}}" class="sync-pill sync-{{syncStatusPhase}} {{refreshing ? 'syncing' : ''}}" aria-role="status" aria-label="{{syncStatusText}}">
       <view class="sync-dot"></view>
       <text class="sync-text">{{syncStatusText}}</text>
@@ -130,6 +129,8 @@ module.exports = {
       </view>
     </view>
     <view class="home-sticky-spacer {{showBackToToday ? 'with-back-today' : ''}}"></view>
+    <!-- 一次性配对欢迎条：吸顶占位之后的正常文档流，固定的月份导航和状态行盖不住；高度计入日历行高（issue #149） -->
+    <text wx:if="{{partnerWelcome}}" class="partner-welcome">已和 TA 连上。经期是玫瑰色带，♥ 是欢乐时光，「预」是下次可能开始的日子。</text>
 
     <!-- 刷新失败重试句：正常文档流放在月份导航与日历之间，不遮月份标题；留驻到重试成功（issue #79） -->
     <view wx:if="{{refreshRetryVisible}}" class="refresh-retry" bindtap="retryRefresh" aria-role="button" aria-label="{{refreshRetryLabel}}" hover-class="refresh-retry-hover">
