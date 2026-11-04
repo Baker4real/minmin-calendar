@@ -676,10 +676,15 @@
   color: var(--text-secondary);
   line-height: var(--line-height-assist);
 }
+/* 按标签宽度排：长说明句由 .reminder-copy 折行吸收，操作钮不收缩、不折行 */
 .reminder-action {
+  flex-shrink: 0;
   min-width: 72rpx;
   height: 60rpx;
   line-height: 60rpx;
+  padding: 0 var(--space-xs);
+  white-space: nowrap;
+  box-sizing: border-box;
   text-align: center;
   border-radius: var(--radius-md);
   font-size: var(--font-size-caption);

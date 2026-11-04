@@ -538,6 +538,48 @@ test('the ongoing quick-period label wraps only at its spaces and two lines stay
   assert.ok(boxRpx <= rpxNumber(button, 'min-height'), `two label lines need ${boxRpx.toFixed(1)}rpx, more than the ${rpxNumber(button, 'min-height')}rpx button`)
 })
 
+// 提醒行右侧的玫瑰操作钮（「去补填」「记录」）按标签宽度排，不被长说明句挤窄、不折行（430px 运行时截图里
+// 「去补填」溢出底板）；挤压由说明列吸收、自行折行。320px 下说明列仍能单行放下最长的提醒标题，标签不缩字号
+test('the reminder action keeps its label width beside long reminder copy and the copy stays readable at 320px', () => {
+  const wxml = readRepo('pages/index/index.wxml')
+  const labels = [...wxml.matchAll(/class="reminder-action">([^<]+)<\/text>/g)].map(match => match[1])
+  assert.deepEqual([...labels].sort(), ['去补填', '记录'].sort())
+
+  const appTokens = readAppTokens()
+  const tokenRpx = token => {
+    const variable = /^var\((--[a-z0-9-]+)\)$/.exec(token)
+    return parseFloat(variable ? appTokens[variable[1]] : token)
+  }
+  const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+  const action = findDecls(rules, '.reminder-action')
+  const copy = findDecls(rules, '.reminder-copy')
+  const card = findDecls(rules, '.reminder-card')
+  assert.equal(action['flex-shrink'], '0', 'the action never shrinks below its label')
+  assert.equal(action['white-space'], 'nowrap', 'the action label stays on one line')
+  assert.equal(action.width, undefined, 'the action is as wide as its label, not a fixed width')
+  assert.equal(action['font-size'], 'var(--font-size-caption)')
+  assert.equal(copy.flex, '1', 'the copy column takes the remaining width')
+  assert.equal(copy['min-width'], '0', 'the copy column may narrow and wrap instead of pushing the action')
+
+  // 操作钮 = 标签（caption，每字 1em）+ 左右内边距，底板在标签两侧都留出空隙
+  const captionRpx = parseFloat(appTokens['--font-size-caption'])
+  const actionPadRpx = tokenRpx(horizontalPaddingTokens(action)[0] || '0')
+  assert.ok(actionPadRpx > 0, 'the rose plate leaves room on both sides of its label')
+  const actionRpx = Math.max(...labels.map(label => Array.from(label).length * captionRpx + 2 * actionPadRpx))
+
+  // 320px 下说明列 = 视口 − 页边距 − 卡片内边距与描边 − 色条 − 两处间距 − 操作钮
+  const pxToRpx = px => px * 750 / 320
+  const columnRpx = 750 - 2 * parseFloat(horizontalPaddingTokens(findDecls(rules, '.content'))[0]) -
+    2 * parseFloat(horizontalPaddingTokens(card)[0]) - 2 * pxToRpx(borderPx(card)) -
+    rpxNumber(findDecls(rules, '.reminder-rail'), 'width') - 2 * rpxNumber(card, 'gap') - actionRpx
+  const titles = [...readRepo('utils/cycle.js').matchAll(/\btitle: '([^']+)'/g)].map(match => match[1])
+  assert.ok(titles.length >= 4, `expected every reminder title, found ${titles.join(' / ')}`)
+  for (const title of titles) {
+    const titleRpx = Array.from(title).length * captionRpx
+    assert.ok(titleRpx <= columnRpx, `「${title}」 needs ${titleRpx}rpx, more than the ${columnRpx.toFixed(1)}rpx copy column at 320px`)
+  }
+})
+
 // issue #151 的行内重试行（首次加载只有一个集合失败时也会出现）同样在吸顶占位之后的文档流里，占首屏高度
 test('the inline sync-retry row is an explicit input of the first-screen ledger', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
