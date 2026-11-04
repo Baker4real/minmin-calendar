@@ -628,7 +628,7 @@
 .reminder-text {
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
-  color: rgba(255,255,255,0.5);
+  color: var(--text-secondary);
   line-height: var(--line-height-assist);
 }
 .reminder-action {
@@ -737,7 +737,7 @@
 .no-room-desc {
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
-  color: rgba(255,255,255,0.5);
+  color: var(--text-secondary);
   margin-top: 16rpx;
   text-align: center;
   line-height: var(--line-height-assist);

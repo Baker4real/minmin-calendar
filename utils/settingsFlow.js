@@ -3,6 +3,13 @@ const roomSessionApi = require('./room')
 const roomAccessOutcome = require('./roomAccessOutcome')
 const roomRecordsSnapshot = require('./roomRecordsSnapshot')
 
+// issue #150：分享失败后的选择；「取消」是系统操作菜单自带的取消键
+const SHARE_FAILURE_ACTIONS = [
+  { label: '重试分享', choice: 'retry' },
+  { label: '复制 JSON', choice: 'copy' }
+]
+const SHARE_FAILURE_ALERT = '分享没有完成。选「复制 JSON」会把全部经期和欢乐时光放进剪贴板。'
+
 function copyRoomCode(options = {}) {
   const wxApi = resolveWxApi(options)
   const roomCode = normalizeRoomCode(options.roomCode)
@@ -69,7 +76,7 @@ async function exportRecordsAsJson(options = {}) {
     fs.writeFileSync(filePath, json, 'utf8')
     hideLoading()
 
-    return await shareOrCopyJson({
+    return await shareExportJson({
       wxApi,
       filePath,
       json
@@ -177,25 +184,54 @@ function createLoadingGuard(wxApi) {
   }
 }
 
-async function shareOrCopyJson({ wxApi, filePath, json }) {
-  if (typeof wxApi.shareFileMessage === 'function') {
-    const shared = await shareFile(wxApi, filePath)
-    if (shared === 'shared') {
-      showToast(wxApi, { title: '导出成功' })
-      return { kind: 'shared', filePath }
-    }
-    // 用户取消分享面板：不动剪贴板，也不提示已复制
-    if (shared === 'cancelled') {
-      return { kind: 'cancelled', filePath }
-    }
+// issue #150：分享失败只得到可识别的 share-failed，剪贴板只在用户明确选「复制 JSON」后写入
+async function shareExportJson({ wxApi, filePath, json }) {
+  const shared = await shareFile(wxApi, filePath)
+  if (shared === 'shared') {
+    showToast(wxApi, { title: '导出成功' })
+    return { kind: 'shared', filePath }
+  }
+  // 用户取消分享面板：直接结束，不动剪贴板，也不提示已复制
+  if (shared === 'cancelled') {
+    return { kind: 'cancelled', filePath }
   }
 
-  await setClipboardData(wxApi, json)
-  showToast(wxApi, { title: '已复制到剪贴板' })
-  return { kind: 'clipboard', filePath }
+  const choice = await chooseAfterShareFailure(wxApi)
+  if (choice === 'retry') {
+    return shareExportJson({ wxApi, filePath, json })
+  }
+  if (choice === 'copy') {
+    try {
+      await setClipboardData(wxApi, json)
+    } catch (error) {
+      showToast(wxApi, { title: '复制失败', icon: 'error' })
+      return { kind: 'copy-failed', filePath }
+    }
+    showToast(wxApi, { title: '已复制到剪贴板' })
+    return { kind: 'copied', filePath }
+  }
+  return { kind: 'share-failed', filePath }
+}
+
+// 点蒙层在新版微信不会关闭菜单，取消分支不承载业务，只结束流程
+function chooseAfterShareFailure(wxApi) {
+  return new Promise(resolve => {
+    wxApi.showActionSheet({
+      alertText: SHARE_FAILURE_ALERT,
+      itemList: SHARE_FAILURE_ACTIONS.map(action => action.label),
+      success: result => {
+        const action = SHARE_FAILURE_ACTIONS[result && result.tapIndex]
+        resolve(action ? action.choice : 'cancel')
+      },
+      fail: () => resolve('cancel')
+    })
+  })
 }
 
 function shareFile(wxApi, filePath) {
+  if (typeof wxApi.shareFileMessage !== 'function') {
+    return Promise.resolve('failed')
+  }
   return new Promise(resolve => {
     wxApi.shareFileMessage({
       filePath,
