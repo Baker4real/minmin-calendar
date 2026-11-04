@@ -66,12 +66,12 @@ module.exports = {
   <view class="glow-orb glow-orb-1"></view>
   <view class="glow-orb glow-orb-2"></view>
 
-  <view class="nav-bar header-gradient">
+  <view aria-hidden="{{pageObscured}}" class="nav-bar header-gradient">
     <view class="nav-tool" hover-class="nav-tool-hover" bindtap="openMonthMenu" aria-role="button" aria-label="打开工具菜单">工具</view>
     <view class="nav-title">美少女的日历</view>
   </view>
 
-  <view wx:if="{{noRoom}}" class="no-room">
+  <view wx:if="{{noRoom}}" class="no-room" aria-hidden="{{pageObscured}}">
     <!-- 爱心画面只属于未绑定/需要重新绑定；加载失败保持失败标题 + 重试，不复用这颗心（issue #79） -->
     <view wx:if="{{roomStatusAction == 'bind'}}" class="no-room-icon">♥</view>
     <text class="no-room-title">{{roomStatusTitle}}</text>
@@ -79,7 +79,7 @@ module.exports = {
     <view class="btn-premium" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}" hover-class="btn-premium-hover">{{roomStatusActionText}}</view>
   </view>
 
-  <view wx:elif="{{loading && !hasLoadedHomeData}}" class="calendar-skeleton" aria-label="正在加载">
+  <view wx:elif="{{loading && !hasLoadedHomeData}}" class="calendar-skeleton" aria-label="正在加载" aria-hidden="{{pageObscured}}">
     <view class="skeleton-month-bar"></view>
     <view class="skeleton-week">
       <view class="skeleton-week-cell" wx:for="{{[0, 1, 2, 3, 4, 5, 6]}}" wx:key="*this"></view>
@@ -89,7 +89,7 @@ module.exports = {
     </view>
   </view>
 
-  <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}">
+  <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}" aria-hidden="{{pageObscured}}">
     <text wx:if="{{partnerWelcome}}" class="partner-welcome">已和 TA 连上。经期是玫瑰色带，♥ 是欢乐时光，「预」是下次可能开始的日子。</text>
     <view wx:if="{{syncStatusMounted}}" class="sync-pill sync-{{syncStatusPhase}} {{refreshing ? 'syncing' : ''}}" aria-role="status" aria-label="{{syncStatusText}}">
       <view class="sync-dot"></view>

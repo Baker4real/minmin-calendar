@@ -412,6 +412,84 @@ test('no page claims WeChat honors aria-modal', () => {
   }
 })
 
+// 背景隔离：页面根下除弹层宿主、装饰光球、减弱动效探针和返回拦截外，每一块都与 page-obscured 同一状态
+// aria-hidden。打开弹层的触发器都在这些块里：弹层盖住时一起静音，卸载后随背景回到原位置、原名称。
+// 弹层宿主直接挂在页面根下，不在任何被隐藏的块里。
+const SHEET_TRIGGERS = {
+  'pages/index/index.wxml': [
+    ['openMonthPicker', 'month-title-trigger'],
+    ['onDayTap', 'day-cell'],
+    ['openMonthMenu', 'nav-tool'],
+    ['openPredictionSheet', 'home-status'],
+    ['openMonthlyRecap', 'month-summary']
+  ],
+  'pages/settings/settings.wxml': [
+    ['openHelp', 'menu-item']
+  ]
+}
+
+test('a sheet silences the page behind it, and every trigger returns with that page', () => {
+  for (const { file, maskClass } of SHEET_PAGES) {
+    const forest = parseWxmlForest(readPage(file))
+    const root = forest.find((node) => classTokens(node).includes('page'))
+    assert.ok(root, `${file}: expected the page root`)
+    assert.equal(root.attrs['aria-hidden'], undefined, `${file}: the page root itself stays readable`)
+
+    const hosts = []
+    const regions = []
+    for (const child of root.children) {
+      if (child.tag === 'wxs' || child.tag === 'page-container') continue
+      if (child.children.some((node) => classTokens(node).includes(maskClass))) {
+        hosts.push(child)
+        continue
+      }
+      if (classTokens(child).includes('glow-orb')) continue
+      if (child.attrs['aria-hidden'] === 'true') continue
+      regions.push(child)
+      assert.equal(
+        child.attrs['aria-hidden'],
+        '{{pageObscured}}',
+        `${file}: ${describe(child)} must go silent while a sheet covers it`
+      )
+    }
+    assert.ok(regions.length >= 2, `${file}: expected the navbar and the content to be background regions`)
+    assert.equal(hosts.length, sheetHosts(forest, maskClass).length, `${file}: every sheet host sits at the page root`)
+    for (const host of hosts) {
+      assert.equal(host.attrs['aria-hidden'], undefined, `${file}: a sheet host is never hidden with the page`)
+    }
+
+    const regionOf = (node) => {
+      let current = node
+      while (current.parent && current.parent !== root) current = current.parent
+      return current
+    }
+    for (const [handler, cls] of SHEET_TRIGGERS[file]) {
+      const triggers = []
+      walkForest([root], (node) => {
+        if (node.attrs.bindtap === handler && classTokens(node).includes(cls)) triggers.push(node)
+      })
+      assert.equal(triggers.length, 1, `${file}: expected one ${handler} trigger`)
+      const [trigger] = triggers
+      assert.equal(trigger.attrs['aria-role'], 'button', `${file}: ${handler} trigger is a button`)
+      assert.ok(trigger.attrs['aria-label'], `${file}: ${handler} trigger keeps a readable name`)
+      assert.ok(regions.includes(regionOf(trigger)), `${file}: ${handler} trigger comes back with the page`)
+    }
+  }
+
+  // 图例、预测说明、本月小结从工具菜单交接：入口在「工具菜单」对话框里，原触发器是顶栏「工具」
+  const entries = []
+  walkForest(parseWxmlForest(readPage('pages/index/index.wxml')), (node) => {
+    if (node.attrs.bindtap === 'onMonthMenuTap') entries.push(node)
+  })
+  assert.equal(entries.length, 3)
+  for (const entry of entries) {
+    let dialog = entry
+    while (dialog && dialog.attrs['aria-role'] !== 'dialog') dialog = dialog.parent
+    assert.ok(dialog, `${entry.attrs['aria-label']} lives inside a dialog`)
+    assert.equal(dialog.attrs['aria-label'], '工具菜单')
+  }
+})
+
 test('home status line opens the prediction sheet and the record count is gone', () => {
   const elements = collectElements(readPage('pages/index/index.wxml'))
   const statusLine = elements.find((element) =>

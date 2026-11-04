@@ -36,7 +36,7 @@ async function main() {
   const evidence = []
   try {
     const wxml = fs.readFileSync(path.join(root, 'pages/index/index.wxml'), 'utf8')
-    const nav = wxml.match(/<view class="nav-bar header-gradient">([\s\S]*?)<\/view>\s*<\/view>/)
+    const nav = wxml.match(/<view\b[^>]*\bclass="nav-bar header-gradient"[^>]*>([\s\S]*?)<\/view>\s*<\/view>/)
     assert.ok(nav, 'navbar fixture must be extracted from the current WXML')
     assert.match(nav[0], /class="nav-tool"[^>]*bindtap="openMonthMenu"/)
     for (const width of widths) {
