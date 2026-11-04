@@ -148,6 +148,20 @@ test('settings clear-local-data uses warning-red text and warning-red border bef
   assert.equal(declarationOf('app.wxss', '.btn-danger', 'border'), `1px solid ${WARNING_RED_BORDER}`)
 })
 
+test('edit-form field errors reuse the one warning red and clear 4.5:1 on the form card', () => {
+  // issue #156：字段错误是警示红族的一种形态，不另立一种红；红字直接落在表单玻璃卡上
+  const canvas = hex(pageCanvas())
+  const fallback = cssColor(tokenValue('--glass-fallback'))
+  const glass = cssColor(tokenValue('--glass-bg'))
+  const card = toHex(composite(composite(canvas, fallback, fallback.a), glass, glass.a))
+  for (const file of ['pages/period/edit/edit.wxss', 'pages/memory/edit/edit.wxss']) {
+    const color = declarationOf(file, '.field-error', 'color')
+    assert.equal(color, WARNING_RED, `${file} field errors must reuse the warning red`)
+    const ratio = contrastRatio(color, card)
+    assert.ok(ratio >= 4.5, `${file} .field-error ${color} on ${card} is ${ratio.toFixed(2)}:1, below 4.5:1`)
+  }
+})
+
 test('the light heart stays the happy-time color on memory rows', () => {
   assert.equal(wxssRuleBody('pages/settings/settings.wxss', '.menu-heart'), null)
   assert.equal(declarationOf('pages/memory/memory.wxss', '.memory-heart', 'color'), LIGHT_HEART)
