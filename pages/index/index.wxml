@@ -198,9 +198,9 @@ module.exports = {
       hover-class="month-summary-hover"
       bindtap="openMonthlyRecap"
       aria-role="button"
-      aria-label="查看本月小结，本月 经期 {{monthPeriodDays}} 天 · 欢乐时光 {{monthMemoryCount}} 条"
+      aria-label="查看本月小结，{{monthSummaryLine}}"
     >
-      <text class="month-summary-text">本月 经期 {{monthPeriodDays}} 天 · 欢乐时光 {{monthMemoryCount}} 条 ›</text>
+      <text class="month-summary-text">{{monthSummaryLine}} ›</text>
     </view>
 
     <!-- issue #98：超期进行中记录的一次非阻塞完成提示。整行，不再套在状态卡里。 -->

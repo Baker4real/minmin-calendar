@@ -52,8 +52,19 @@ const CALENDAR_LEGEND_ITEMS = [
   }
 ]
 
-function buildHomeCalendarState({ year, month, periods = [], memories = [], today = util.formatDate(new Date()), roomPaired = false }) {
-  const prediction = cycle.predictNextPeriod(periods, { today })
+// periodsSynced / memoriesSynced：该集合在这个房间里是否成功同步过一次。没同步过时手里的列表不是事实，
+// 状态行、本月小结与预测说明只说它未同步；经期没同步时也不预测（不画「预」、不给推迟提醒）
+function buildHomeCalendarState({
+  year,
+  month,
+  periods = [],
+  memories = [],
+  today = util.formatDate(new Date()),
+  roomPaired = false,
+  periodsSynced = true,
+  memoriesSynced = true
+}) {
+  const prediction = cycle.predictNextPeriod(periodsSynced ? periods : [], { today })
   const predictionWindow = prediction.canPredict
     ? {
         rangeStart: prediction.rangeStart,
@@ -69,7 +80,16 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
     predictionWindow,
     today
   })
-  const monthlyRecap = calendarInsights.buildMonthlyRecap({ year, month, periods, memories, prediction, today })
+  const monthlyRecap = calendarInsights.buildMonthlyRecap({
+    year,
+    month,
+    periods,
+    memories,
+    prediction,
+    today,
+    periodsSynced,
+    memoriesSynced
+  })
 
   return {
     avgCycle: prediction.canPredict ? prediction.avgCycle : null,
@@ -83,10 +103,9 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
     predictionDetail: prediction,
     legendItems: CALENDAR_LEGEND_ITEMS,
     periodBandSample: PERIOD_BAND_SAMPLE,
-    predictionExplanation: calendarInsights.buildPredictionExplanation(prediction),
-    homeStatus: cycle.buildHomeStatusLine(periods, { today, prediction }),
-    monthPeriodDays: monthlyRecap.periodDays,
-    monthMemoryCount: monthlyRecap.memoryCount,
+    predictionExplanation: calendarInsights.buildPredictionExplanation(prediction, { periodsSynced }),
+    homeStatus: cycle.buildHomeStatusLine(periods, { today, prediction, periodsSynced }),
+    monthSummaryLine: monthlyRecap.summaryLine,
     cycleReminders: prediction.canPredict ? cycle.buildCycleReminders(prediction, periods, { today }) : [],
     monthlyRecap,
     days,

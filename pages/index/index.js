@@ -192,12 +192,8 @@ Page({
       calendarDensity: this.getSavedCalendarDensity(),
       showBackToToday: !isViewingCurrentMonth(now.getFullYear(), now.getMonth())
     }))
-    this._syncState = {
-      revisions: { periods: 0, memories: 0 },
-      pendingRevisions: { periods: null, memories: null },
-      nextRequestId: 1,
-      activeRequest: null
-    }
+    this._syncState = null
+    this._ensureSyncState()
   },
 
   onShow() {
@@ -318,10 +314,17 @@ Page({
     this._syncState = {
       revisions: { periods: 0, memories: 0 },
       pendingRevisions: { periods: null, memories: null },
+      // 这个房间里该集合是否成功同步过一次。没同步过的集合手里是空的或只有本地刚记的，
+      // 状态行、小结行和说明只说它未同步，不拿空列表当事实
+      synced: { periods: false, memories: false },
       nextRequestId: 1,
       activeRequest: null
     }
     return this._syncState
+  },
+
+  _collectionSynced(collection) {
+    return this._ensureSyncState().synced[collection] === true
   },
 
   _startLoad(background) {
@@ -379,11 +382,16 @@ Page({
     const wasLoaded = this.data.hasLoadedHomeData
     let recordsChanged = false
     let confirmedPending = false
+    let syncedChanged = false
     const pendingRevisions = { ...state.pendingRevisions }
 
     for (const collection of COLLECTIONS) {
       const outcome = snapshot && snapshot[collection + 'Outcome']
       if (!outcome || outcome.kind !== 'success') continue
+      if (!state.synced[collection]) {
+        state.synced[collection] = true
+        syncedChanged = true
+      }
       if (state.revisions[collection] > request.startRevisions[collection]) continue
 
       if (this._applySnapshotCollection(collection, snapshot[collection])) {
@@ -408,7 +416,8 @@ Page({
       roomStatusActionText: '',
       roomStatusAction: ''
     }))
-    if (!wasLoaded) this.applyHomeCalendarState()
+    // 集合第一次同步上时记录可能没变（比如本来就是空的），状态行和小结行仍要从「未同步」改回按记录说
+    if (!wasLoaded || syncedChanged) this.applyHomeCalendarState()
     this.revealPendingPartnerWelcome()
     this.syncOngoingCompletionReminder()
 
@@ -479,6 +488,8 @@ Page({
     const year = hasOwn('year') ? overrides.year : this.data.year
     const month = hasOwn('month') ? overrides.month : this.data.month
     const today = hasOwn('today') ? overrides.today : util.formatDate(new Date())
+    const periodsSynced = this._collectionSynced('periods')
+    const memoriesSynced = this._collectionSynced('memories')
 
     const state = buildHomeCalendarState({
       year,
@@ -486,7 +497,9 @@ Page({
       periods,
       memories,
       today,
-      roomPaired: this._roomPaired === true
+      roomPaired: this._roomPaired === true,
+      periodsSynced,
+      memoriesSynced
     })
     this._rememberRecords(periods, memories)
     this._dayDetailsByDate = state.dayDetailsByDate || {}
@@ -494,7 +507,9 @@ Page({
 
     const update = {
       ...calendarRenderState(state),
-      hasRecords: this._homeRecords.periods.length > 0 || this._homeRecords.memories.length > 0,
+      // 有集合没同步上时不知道房间里有没有记录：留着小结行（说未同步），不换成首条记录引导
+      hasRecords: this._homeRecords.periods.length > 0 || this._homeRecords.memories.length > 0 ||
+        !periodsSynced || !memoriesSynced,
       periodQuickLabel: quickAction.label,
       periodQuickAriaLabel: quickAction.ariaLabel,
       showBackToToday: !isViewingCurrentMonth(year, month),
@@ -1009,6 +1024,8 @@ Page({
 
   showRoomStatus({ title, desc, actionText, action }) {
     this.hideSyncStatus()
+    // 下一次能显示日历时按那次同步的结果重新判定哪些集合同步上了
+    this._ensureSyncState().synced = { periods: false, memories: false }
     this.setData({
       hasLoadedHomeData: false,
       refreshing: false,

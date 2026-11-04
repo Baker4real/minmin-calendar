@@ -881,6 +881,17 @@ test('home status line asks for more records when a prediction is not possible',
   })
 })
 
+// 经期集合一次都没同步上时，空列表不是「记录不够」：状态行只说没同步，不说经期第几天、不估算、不要更多记录
+test('home status line says periods are not synced instead of judging an empty list', () => {
+  const unsynced = { status: 'unsynced', text: '经期未同步，暂不预测', tone: 'neutral' }
+  assert.deepEqual(cycle.buildHomeStatusLine([], { today: '2026-08-01', periodsSynced: false }), unsynced)
+  // 本地刚记的一条（乐观更新）也不让没同步的集合冒充完整记录
+  assert.deepEqual(
+    cycle.buildHomeStatusLine([{ startDate: '2026-07-30', endDate: '', status: 'ongoing' }], { today: '2026-08-01', periodsSynced: false }),
+    unsynced
+  )
+})
+
 function period(startDate, endDate) {
   return {
     startDate,

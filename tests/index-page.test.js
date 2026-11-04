@@ -1201,7 +1201,7 @@ test('homepage render data omits record arrays and the per-day detail map', asyn
     assert.equal(harness.page._dayDetailsByDate['2026-06-04'].memories[0].note, '只有四号的备注')
 
     const wxml = readIndexWxml()
-    assert.match(wxml, /class="month-summary-text">本月 经期 \{\{monthPeriodDays\}\} 天 · 欢乐时光 \{\{monthMemoryCount\}\} 条 ›<\/text>/)
+    assert.match(wxml, /class="month-summary-text">\{\{monthSummaryLine\}\} ›<\/text>/)
     assert.doesNotMatch(wxml, /periodCount|status-card|stat-label">经期记录/)
     assert.doesNotMatch(wxml, /periods\.length|memories\.length|dayDetailsByDate/)
   } finally {
@@ -1320,6 +1320,74 @@ test('status line opens the existing prediction sheet without leaving the home p
   }
 })
 
+// 本月小结行：按页面数据渲染出可见文字与读屏名
+function renderMonthSummary(data) {
+  const wxml = readIndexWxml()
+  const start = wxml.lastIndexOf('<view', wxml.indexOf('class="month-summary"'))
+  const block = wxml.slice(start, wxml.indexOf('</view>', start))
+  const [row] = wxmlOpeningTags(block)
+  const text = /class="month-summary-text">([^<]*)<\/text>/.exec(block)
+  assert.ok(text, 'expected the month summary text')
+  return { text: renderWxmlAttribute(text[1], data), ariaLabel: renderWxmlAttribute(row.attrs['aria-label'], data) }
+}
+
+// 首次加载只有经期没同步上：经期一次都没到过，空列表不是事实。状态行、本月小结行和它们打开的说明
+// 都不说经期 0 天或记录不够，只说经期未同步；欢乐时光照常计数，也不换成首条记录引导。重试成功后回到按记录说
+test('a first load without periods says periods are not synced instead of asserting zero days', async () => {
+  const harness = loadPageHarness({
+    calendarState: 'real',
+    client: createQueuedClient([
+      { kind: 'retryable-failure', message: 'period network down' },
+      { kind: 'success', data: [memory('m1', '2026-06-02')] },
+      { kind: 'success', data: [period('p1', '2026-06-01')] },
+      { kind: 'success', data: [memory('m1', '2026-06-02')] }
+    ])
+  })
+  const view = { year: 2026, month: 5, today: '2026-06-26' }
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+    harness.page.applyHomeCalendarState(view)
+    assert.deepEqual(harness.page.data.homeStatus, { status: 'unsynced', text: '经期未同步，暂不预测', tone: 'neutral' })
+    assert.equal(harness.page.data.hasRecords, true)
+    assert.deepEqual(renderMonthSummary(harness.page.data), {
+      text: '本月 经期未同步 · 欢乐时光 1 条 ›',
+      ariaLabel: '查看本月小结，本月 经期未同步 · 欢乐时光 1 条'
+    })
+    assert.equal(harness.page.data.predictionExplanation.summary, '经期未同步，暂不预测')
+    assert.equal(harness.page.data.monthlyRecap.periodSummary, '本月经期未同步')
+    assert.equal(harness.page.data.monthlyRecap.memorySummary, '留下 1 条欢乐时光')
+
+    await harness.page.retryRefresh()
+    harness.page.applyHomeCalendarState(view)
+    assert.equal(harness.page.data.homeStatus.text, '多记几次后就能预测')
+    assert.deepEqual(renderMonthSummary(harness.page.data), {
+      text: '本月 经期 1 天 · 欢乐时光 1 条 ›',
+      ariaLabel: '查看本月小结，本月 经期 1 天 · 欢乐时光 1 条'
+    })
+  } finally {
+    harness.teardown()
+  }
+
+  // 欢乐时光也是空的：经期没同步时不知道房间里有没有记录，仍给小结行（说未同步），不给首条记录引导
+  const empty = loadPageHarness({
+    calendarState: 'real',
+    client: createQueuedClient([
+      { kind: 'retryable-failure', message: 'period network down' },
+      { kind: 'success', data: [] }
+    ])
+  })
+  try {
+    empty.page.onLoad()
+    await empty.page.onShow()
+    empty.page.applyHomeCalendarState(view)
+    assert.equal(empty.page.data.hasRecords, true)
+    assert.equal(renderMonthSummary(empty.page.data).text, '本月 经期未同步 · 欢乐时光 0 条 ›')
+  } finally {
+    empty.teardown()
+  }
+})
+
 test('viewed records supply the status line, the month summary, and back-to-today', async () => {
   const harness = loadPageHarness({
     calendarState: 'real',
@@ -1342,8 +1410,7 @@ test('viewed records supply the status line, the month summary, and back-to-toda
 
     assert.equal(harness.page.data.homeStatus.text, '经期第 3 天')
     assert.equal(harness.page.data.homeStatus.tone, 'default')
-    assert.equal(harness.page.data.monthPeriodDays, 8)
-    assert.equal(harness.page.data.monthMemoryCount, 1)
+    assert.equal(renderMonthSummary(harness.page.data).text, '本月 经期 8 天 · 欢乐时光 1 条 ›')
     assert.equal(harness.page.data.showBackToToday, true)
 
     harness.page.openMonthlyRecap()
