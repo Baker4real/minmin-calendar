@@ -1457,6 +1457,75 @@ test('tapping a day detail row opens that record in the editor', () => {
   }
 })
 
+// issue #157：同一天多条经期和欢乐时光时，详情行的读屏名各自可辨。名称由日历投影提供、模板只绑定；
+// 作者只在房间已配对时出现，空白备注不留多余标点；可见行不新增元数据
+test('day detail rows read out distinct names for same-day records, naming the author only when paired', async () => {
+  const periods = [
+    { _id: 'p-mine', startDate: '2026-06-01', endDate: '2026-06-03', status: 'known-end', createdByMe: true },
+    { _id: 'p-theirs', startDate: '2026-06-02', endDate: '2026-06-02', status: 'known-end', createdByMe: false }
+  ]
+  const memories = [
+    { _id: 'm-theirs', date: '2026-06-02', note: '散步', createdByMe: false },
+    { _id: 'm-blank', date: '2026-06-02', note: '', createdByMe: true }
+  ]
+  const client = {
+    async list(collection) {
+      return { kind: 'success', data: collection === 'periods' ? periods : memories }
+    }
+  }
+
+  const wxml = readIndexWxml()
+  const detailList = wxml.slice(wxml.indexOf("daySheetMode == 'detail'"), wxml.indexOf('compact-actions'))
+  const rowNameBinding = kind => {
+    const at = detailList.indexOf(`data-kind="${kind}"`)
+    const tag = detailList.slice(detailList.lastIndexOf('<view', at), detailList.indexOf('>', at))
+    const binding = /aria-label="\{\{([^}]+)\}\}"/.exec(tag)
+    assert.ok(binding, `${kind} detail row binds a screen-reader name from the row data`)
+    return item => evaluateWxmlExpression(binding[1], { item })
+  }
+  const periodName = rowNameBinding('period')
+  const memoryName = rowNameBinding('memory')
+  // 读屏名只进 aria-label，不作为可见文字渲染
+  assert.equal(
+    (detailList.match(/ariaLabel/g) || []).length,
+    (detailList.match(/aria-label="\{\{item\.ariaLabel\}\}"/g) || []).length
+  )
+
+  async function namesFor(status) {
+    const harness = loadPageHarness({
+      client,
+      calendarState: 'real',
+      room: {
+        async getVerifiedActiveRoom() {
+          return { kind: 'success', bound: true, roomCode: 'ROOM01', status }
+        }
+      }
+    })
+    try {
+      await harness.page.onShow()
+      harness.page.applyHomeCalendarState({ year: 2026, month: 5, today: '2026-06-26' })
+      harness.page.showDayDetail('2026-06-02')
+      const detail = harness.page.data.selectedDayDetail
+      return [...detail.periods.map(periodName), ...detail.memories.map(memoryName)]
+    } finally {
+      harness.teardown()
+    }
+  }
+
+  assert.deepEqual(await namesFor('paired'), [
+    '编辑经期，6月1日–6月3日，已结束，我记的',
+    '编辑经期，6月2日–6月2日，已结束，TA 记的',
+    '编辑欢乐时光，6月2日，散步，TA 记的',
+    '编辑欢乐时光，6月2日，我记的'
+  ])
+  assert.deepEqual(await namesFor('waiting'), [
+    '编辑经期，6月1日–6月3日，已结束',
+    '编辑经期，6月2日–6月2日，已结束',
+    '编辑欢乐时光，6月2日，散步',
+    '编辑欢乐时光，6月2日'
+  ])
+})
+
 test('a period day action edits the covering record instead of creating an overlap', () => {
   const harness = loadDaySheetHarness()
   try {

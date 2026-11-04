@@ -1279,6 +1279,68 @@ test('paired record tab rows name who recorded them, and quiet rows stay blank',
   }
 })
 
+// issue #157：月份列表里同一天的多条欢乐时光读屏名各自可辨。名称由月份分组提供、模板只绑定；
+// 作者只在房间已配对时出现，空白备注不留多余标点；读屏名不作为可见文字渲染
+test('record tab memory rows read out distinct names, naming the author only when paired', async () => {
+  const realUtil = require(path.join(repoRoot, 'utils/util.js'))
+  const memories = [
+    { _id: 'm-mine', date: '2026-09-18', note: '散步', createdByMe: true },
+    { _id: 'm-theirs', date: '2026-09-18', note: ' ', createdByMe: false },
+    { _id: 'm-old', date: '2026-09-02', note: '旧记录' }
+  ]
+
+  const wxml = readPageFile('pages/period/period.wxml')
+  const rowTag = /<view class="list-item"[^>]*bindtap="editMemory"[^>]*>/.exec(wxml)
+  assert.ok(rowTag, 'expected the memory month row')
+  assert.match(rowTag[0], /aria-label="\{\{item\.ariaLabel\}\}"/)
+  const memoryList = wxml.slice(wxml.indexOf('class="memory-month-list"'))
+  assert.equal(
+    (memoryList.match(/item\.ariaLabel/g) || []).length,
+    (memoryList.match(/aria-label="\{\{item\.ariaLabel\}\}"/g) || []).length
+  )
+
+  async function namesFor(status) {
+    const harness = loadRecordPageHarness('pages/period/period.js', {
+      mocks: {
+        'utils/util.js': { ...realUtil, formatDate: () => '2026-09-20' },
+        'utils/cloud.js': {
+          createRoomDataClient() {
+            return {
+              async list(collection) {
+                return { kind: 'success', data: collection === 'memories' ? memories : [] }
+              }
+            }
+          }
+        },
+        'utils/room.js': {
+          async getVerifiedActiveRoom() {
+            return { kind: 'success', bound: true, roomCode: 'ROOM01', status }
+          }
+        }
+      }
+    })
+    try {
+      await harness.page.selectSegment({ currentTarget: { dataset: { segment: 'memory' } } })
+      return harness.page.data.memoryGroups
+        .flatMap(group => (group.expanded ? group.records : []))
+        .map(row => row.ariaLabel)
+    } finally {
+      harness.teardown()
+    }
+  }
+
+  assert.deepEqual(await namesFor('paired'), [
+    '编辑欢乐时光，9月18日，散步，我记的',
+    '编辑欢乐时光，9月18日，TA 记的',
+    '编辑欢乐时光，9月2日，旧记录'
+  ])
+  assert.deepEqual(await namesFor('waiting'), [
+    '编辑欢乐时光，9月18日，散步',
+    '编辑欢乐时光，9月18日',
+    '编辑欢乐时光，9月2日，旧记录'
+  ])
+})
+
 test('an unknown-end period list row says 结束日期不详 only once', async () => {
   const harness = loadRecordPageHarness('pages/period/period.js', {
     mocks: {
@@ -1729,10 +1791,11 @@ test('record tab memory segment renders month cards with the grouped row contrac
   assert.match(excerptRule[0], /text-overflow:\s*ellipsis/)
 
   // 行：收起时组内行不渲染（wx:if，不是 css 隐藏，读屏不会念出来）；
-  // 定位用记录 id；可见日期和读屏名都走显示格式，ISO 日期仍留在行数据里供编辑跳转
+  // 定位用记录 id；可见日期走显示格式，读屏名由月份分组按记录拼好（issue #157），
+  // ISO 日期仍留在行数据里供编辑跳转
   assert.match(
     periodWxml,
-    /wx:if="\{\{group\.expanded\}\}" wx:for="\{\{group\.records\}\}" wx:key="_id" bindtap="editMemory" data-id="\{\{item\._id\}\}" aria-role="button" aria-label="编辑 \{\{item\.dayLabel\}\} 的欢乐时光"/
+    /wx:if="\{\{group\.expanded\}\}" wx:for="\{\{group\.records\}\}" wx:key="_id" bindtap="editMemory" data-id="\{\{item\._id\}\}" aria-role="button" aria-label="\{\{item\.ariaLabel\}\}"/
   )
   assert.match(periodWxml, /class="memory-date">\{\{item\.dayLabel\}\}/)
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}" class="memory-note">\{\{item\.note\}\}/)
