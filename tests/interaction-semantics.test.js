@@ -218,10 +218,10 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(byHandler('quickMemory', 'quick-btn').attrs['aria-label'], '记欢乐时光')
   assert.match(readPage('pages/index/index.wxml'), /class="quick-text">记欢乐时光</)
 
-  // 弹层遮罩本身是可点的「关闭」操作，必须带角色与可读名称
+  // 弹层遮罩本身是可点的「关闭」操作，必须带角色与可读名称；信息弹层按当前内容命名（issue #155）
   assert.equal(byHandler('closeMonthPicker', 'day-sheet-mask').attrs['aria-label'], '关闭月份选择')
   assert.equal(byHandler('closeDayActions', 'day-sheet-mask').attrs['aria-label'], '关闭当日操作')
-  assert.equal(byHandler('closeInfoSheet', 'day-sheet-mask').attrs['aria-label'], '关闭面板')
+  assert.equal(byHandler('closeInfoSheet', 'day-sheet-mask').attrs['aria-label'], '关闭{{infoSheetName}}')
 
   // 四个 sheet 的 × 关闭按钮（月份跳转 / 日操作 / 信息面板 / 月份工具菜单）
   const closeButtons = elements.filter((element) => classTokens(element).includes('sheet-close'))
@@ -302,7 +302,7 @@ test('sheet mask and panel are siblings so only the mask is announced as close',
     assert.ok(named.length > 0, `${mask.attrs['aria-label']} panel controls stay reachable`)
     assert.ok(named.includes('关闭'), `${mask.attrs['aria-label']} keeps its own close control`)
   }
-  assert.deepEqual(labels.sort(), ['关闭工具菜单', '关闭当日操作', '关闭月份选择', '关闭面板'])
+  assert.deepEqual(labels.sort(), ['关闭{{infoSheetName}}', '关闭工具菜单', '关闭当日操作', '关闭月份选择'])
 })
 
 // issue #154：设置「使用说明」同首页弹层的结构——遮罩单独朗读为「关闭使用说明」，
@@ -352,6 +352,142 @@ test('settings help keeps a separately named mask and a visible close in its tit
   const scale = /transform:\s*scale\(([\d.]+)\)/.exec(pressed || '')
   assert.ok(scale, 'the help close keeps a press scale')
   assert.ok(Number(scale[1]) >= 0.94 && Number(scale[1]) <= 0.98)
+})
+
+// ===== issue #155：首页弹层与设置帮助的读屏模态契约 =====
+// 平台事实以微信官方文档为准（https://developers.weixin.qq.com/miniprogram/dev/component/aria-component.html）：
+// 基础库 2.7.1 起只支持部分 ARIA 标签；非原生组件可以加 aria-hidden、aria-label 等标签；可设的 aria-role
+// 参照 MDN「Widget Roles」，部分 role 在移动端可能无效（dialog 属 Window Roles，不在其中）。文档列出 aria-modal
+// 却没说行为，也没有把读屏焦点移到某个 view 的能力。所以面板是按用途命名的 dialog（role 可能被忽略，
+// 遮罩「关闭+名称」与标题仍给出上下文），背景只靠 aria-hidden 隔离，不写 aria-modal 冒充模态。
+const SHEET_PAGES = [
+  {
+    file: 'pages/index/index.wxml',
+    maskClass: 'day-sheet-mask',
+    slideClass: 'sheet-slide',
+    names: ['月份选择', '当日操作', '工具菜单', '{{infoSheetName}}']
+  },
+  {
+    file: 'pages/settings/settings.wxml',
+    maskClass: 'help-mask',
+    slideClass: 'help-slide',
+    names: ['使用说明']
+  }
+]
+
+function sheetHosts(forest, maskClass) {
+  const hosts = []
+  walkForest(forest, (node) => {
+    if (classTokens(node).includes(maskClass)) hosts.push(node.parent)
+  })
+  return hosts
+}
+
+test('every sheet panel is a dialog named by its purpose, closed by a mask of the same name', () => {
+  for (const { file, maskClass, slideClass, names } of SHEET_PAGES) {
+    const dialogNames = []
+    for (const host of sheetHosts(parseWxmlForest(readPage(file)), maskClass)) {
+      // 读屏顺序固定：先是遮罩（关闭这一层），再是面板；宿主里没有别的可读节点
+      const [mask, slide, ...rest] = host.children
+      assert.deepEqual(rest, [], `${file}: a sheet host holds only its mask and its panel`)
+      assert.ok(classTokens(mask).includes(maskClass), `${file}: the mask is read first`)
+      assert.ok(classTokens(slide).includes(slideClass), `${file}: the panel follows the mask`)
+      assert.equal(slide.children.length, 1, `${file}: the slide wraps one panel`)
+
+      const [dialog] = slide.children
+      assert.equal(dialog.attrs['aria-role'], 'dialog', `${file}: ${describe(dialog)} is the dialog`)
+      const name = dialog.attrs['aria-label']
+      assert.ok(name, `${file}: ${describe(dialog)} needs a readable name`)
+      assert.equal(mask.attrs['aria-role'], 'button')
+      assert.equal(mask.attrs['aria-label'], `关闭${name}`, `${file}: the mask closes the dialog by its name`)
+      dialogNames.push(name)
+    }
+    assert.deepEqual(dialogNames, names)
+  }
+})
+
+test('no page claims WeChat honors aria-modal', () => {
+  for (const file of PAGE_WXML) {
+    assert.doesNotMatch(readPage(file), /aria-modal/, `${file} must not rely on aria-modal`)
+  }
+})
+
+// 背景隔离：页面根下除弹层宿主、装饰光球、减弱动效探针和返回拦截外，每一块都与 page-obscured 同一状态
+// aria-hidden。打开弹层的触发器都在这些块里：弹层盖住时一起静音，卸载后随背景回到原位置、原名称。
+// 弹层宿主直接挂在页面根下，不在任何被隐藏的块里。
+const SHEET_TRIGGERS = {
+  'pages/index/index.wxml': [
+    ['openMonthPicker', 'month-title-trigger'],
+    ['onDayTap', 'day-cell'],
+    ['openMonthMenu', 'nav-tool'],
+    ['openPredictionSheet', 'home-status'],
+    ['openMonthlyRecap', 'month-summary']
+  ],
+  'pages/settings/settings.wxml': [
+    ['openHelp', 'menu-item']
+  ]
+}
+
+test('a sheet silences the page behind it, and every trigger returns with that page', () => {
+  for (const { file, maskClass } of SHEET_PAGES) {
+    const forest = parseWxmlForest(readPage(file))
+    const root = forest.find((node) => classTokens(node).includes('page'))
+    assert.ok(root, `${file}: expected the page root`)
+    assert.equal(root.attrs['aria-hidden'], undefined, `${file}: the page root itself stays readable`)
+
+    const hosts = []
+    const regions = []
+    for (const child of root.children) {
+      if (child.tag === 'wxs' || child.tag === 'page-container') continue
+      if (child.children.some((node) => classTokens(node).includes(maskClass))) {
+        hosts.push(child)
+        continue
+      }
+      if (classTokens(child).includes('glow-orb')) continue
+      if (child.attrs['aria-hidden'] === 'true') continue
+      regions.push(child)
+      assert.equal(
+        child.attrs['aria-hidden'],
+        '{{pageObscured}}',
+        `${file}: ${describe(child)} must go silent while a sheet covers it`
+      )
+    }
+    assert.ok(regions.length >= 2, `${file}: expected the navbar and the content to be background regions`)
+    assert.equal(hosts.length, sheetHosts(forest, maskClass).length, `${file}: every sheet host sits at the page root`)
+    for (const host of hosts) {
+      assert.equal(host.attrs['aria-hidden'], undefined, `${file}: a sheet host is never hidden with the page`)
+    }
+
+    const regionOf = (node) => {
+      let current = node
+      while (current.parent && current.parent !== root) current = current.parent
+      return current
+    }
+    for (const [handler, cls] of SHEET_TRIGGERS[file]) {
+      const triggers = []
+      walkForest([root], (node) => {
+        if (node.attrs.bindtap === handler && classTokens(node).includes(cls)) triggers.push(node)
+      })
+      assert.equal(triggers.length, 1, `${file}: expected one ${handler} trigger`)
+      const [trigger] = triggers
+      assert.equal(trigger.attrs['aria-role'], 'button', `${file}: ${handler} trigger is a button`)
+      assert.ok(trigger.attrs['aria-label'], `${file}: ${handler} trigger keeps a readable name`)
+      assert.ok(regions.includes(regionOf(trigger)), `${file}: ${handler} trigger comes back with the page`)
+    }
+  }
+
+  // 图例、预测说明、本月小结从工具菜单交接：入口在「工具菜单」对话框里，原触发器是顶栏「工具」
+  const entries = []
+  walkForest(parseWxmlForest(readPage('pages/index/index.wxml')), (node) => {
+    if (node.attrs.bindtap === 'onMonthMenuTap') entries.push(node)
+  })
+  assert.equal(entries.length, 3)
+  for (const entry of entries) {
+    let dialog = entry
+    while (dialog && dialog.attrs['aria-role'] !== 'dialog') dialog = dialog.parent
+    assert.ok(dialog, `${entry.attrs['aria-label']} lives inside a dialog`)
+    assert.equal(dialog.attrs['aria-label'], '工具菜单')
+  }
 })
 
 test('home status line opens the prediction sheet and the record count is gone', () => {

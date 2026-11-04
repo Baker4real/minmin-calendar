@@ -66,12 +66,12 @@ module.exports = {
   <view class="glow-orb glow-orb-1"></view>
   <view class="glow-orb glow-orb-2"></view>
 
-  <view class="nav-bar header-gradient">
+  <view aria-hidden="{{pageObscured}}" class="nav-bar header-gradient">
     <view class="nav-tool" hover-class="nav-tool-hover" bindtap="openMonthMenu" aria-role="button" aria-label="打开工具菜单">工具</view>
     <view class="nav-title">美少女的日历</view>
   </view>
 
-  <view wx:if="{{noRoom}}" class="no-room">
+  <view wx:if="{{noRoom}}" class="no-room" aria-hidden="{{pageObscured}}">
     <!-- 爱心画面只属于未绑定/需要重新绑定；加载失败保持失败标题 + 重试，不复用这颗心（issue #79） -->
     <view wx:if="{{roomStatusAction == 'bind'}}" class="no-room-icon">♥</view>
     <text class="no-room-title">{{roomStatusTitle}}</text>
@@ -79,7 +79,7 @@ module.exports = {
     <view class="btn-premium" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}" hover-class="btn-premium-hover">{{roomStatusActionText}}</view>
   </view>
 
-  <view wx:elif="{{loading && !hasLoadedHomeData}}" class="calendar-skeleton" aria-label="正在加载">
+  <view wx:elif="{{loading && !hasLoadedHomeData}}" class="calendar-skeleton" aria-label="正在加载" aria-hidden="{{pageObscured}}">
     <view class="skeleton-month-bar"></view>
     <view class="skeleton-week">
       <view class="skeleton-week-cell" wx:for="{{[0, 1, 2, 3, 4, 5, 6]}}" wx:key="*this"></view>
@@ -89,7 +89,7 @@ module.exports = {
     </view>
   </view>
 
-  <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}">
+  <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}" aria-hidden="{{pageObscured}}">
     <view wx:if="{{syncStatusMounted}}" class="sync-pill sync-{{syncStatusPhase}} {{refreshing ? 'syncing' : ''}}" aria-role="status" aria-label="{{syncStatusText}}">
       <view class="sync-dot"></view>
       <text class="sync-text">{{syncStatusText}}</text>
@@ -242,7 +242,7 @@ module.exports = {
   <view wx:if="{{monthPickerMounted}}" class="sheet-host month-jump-mask">
     <view class="day-sheet-mask sheet-{{monthPickerPhase}}" bindtap="closeMonthPicker" aria-role="button" aria-label="关闭月份选择" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-monthPicker sheet-{{monthPickerPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.monthPicker}}">
-    <view class="calendar-jump-sheet safe-bottom" catchtap="noop">
+    <view class="calendar-jump-sheet safe-bottom" catchtap="noop" aria-role="dialog" aria-label="月份选择">
       <view class="sheet-drag-zone" data-sheet="monthPicker" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -305,7 +305,7 @@ module.exports = {
   <view wx:if="{{dayActionMounted}}" class="sheet-host">
     <view class="day-sheet-mask sheet-{{dayActionPhase}}" bindtap="closeDayActions" aria-role="button" aria-label="关闭当日操作" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-dayActions sheet-{{dayActionPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.dayActions}}">
-    <view class="day-action-sheet safe-bottom" catchtap="noop">
+    <view class="day-action-sheet safe-bottom" catchtap="noop" aria-role="dialog" aria-label="当日操作">
       <view class="sheet-drag-zone" data-sheet="dayActions" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -405,7 +405,7 @@ module.exports = {
   <view wx:if="{{monthMenuMounted}}" class="sheet-host">
     <view class="day-sheet-mask sheet-{{monthMenuPhase}}" bindtap="closeMonthMenu" aria-role="button" aria-label="关闭工具菜单" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-toolsMenu sheet-{{monthMenuPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.toolsMenu}}">
-    <view class="day-action-sheet safe-bottom" catchtap="noop">
+    <view class="day-action-sheet safe-bottom" catchtap="noop" aria-role="dialog" aria-label="工具菜单">
       <view class="sheet-drag-zone" data-sheet="toolsMenu" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -448,9 +448,9 @@ module.exports = {
   </view>
 
   <view wx:if="{{infoSheetMounted}}" class="sheet-host calendar-info-sheet">
-    <view class="day-sheet-mask sheet-{{infoSheetPhase}}{{infoSheetHandoff ? ' sheet-handoff' : ''}}" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭面板" hover-class="day-sheet-mask-hover"></view>
+    <view class="day-sheet-mask sheet-{{infoSheetPhase}}{{infoSheetHandoff ? ' sheet-handoff' : ''}}" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭{{infoSheetName}}" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-info sheet-{{infoSheetPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.info}}">
-    <view class="day-action-sheet calendar-info-panel safe-bottom" catchtap="noop">
+    <view class="day-action-sheet calendar-info-panel safe-bottom" catchtap="noop" aria-role="dialog" aria-label="{{infoSheetName}}">
       <view class="sheet-drag-zone" data-sheet="info" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">

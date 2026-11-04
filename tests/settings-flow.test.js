@@ -984,6 +984,55 @@ test('system back closes the settings help instead of leaving the page', (t) => 
   }
 })
 
+// issue #155：使用说明盖住设置页时读屏只听得到帮助。顶栏和内容的 aria-hidden 按模板绑定求值：
+// 打开后静音，离场途中不放出来，帮助卸载的同一次更新里恢复；离场途中再打开则一直静音。
+test('the settings help silences the page behind it until the help unmounts', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const wxml = readPageFile('pages/settings/settings.wxml')
+  const bindings = ['nav-bar', 'content'].map((cls) => {
+    const tag = new RegExp(`<view\\b[^>]*\\bclass="${cls}[\\s"][^>]*>`).exec(wxml)
+    assert.ok(tag, `expected the ${cls} region`)
+    const binding = /\saria-hidden="\{\{([^}]*)\}\}"/.exec(tag[0])
+    assert.ok(binding, `the ${cls} region binds aria-hidden to page state`)
+    return binding[1]
+  })
+  const harness = loadSettingsPageHarness({
+    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+  const silenced = () => bindings.map((expr) => {
+    const data = harness.page.data
+    const keys = Object.keys(data)
+    return new Function(...keys, `return (${expr})`)(...keys.map((key) => data[key]))
+  })
+  try {
+    assert.deepEqual(silenced(), [false, false])
+    harness.page.openHelp()
+    t.mock.timers.tick(0)
+    assert.equal(harness.page.data.helpPhase, 'open')
+    assert.deepEqual(silenced(), [true, true])
+
+    harness.page.closeHelp()
+    assert.equal(harness.page.data.helpPhase, 'leaving')
+    assert.deepEqual(silenced(), [true, true])
+    t.mock.timers.tick(199)
+    assert.deepEqual(silenced(), [true, true])
+    t.mock.timers.tick(1)
+    assert.equal(harness.page.data.helpMounted, false)
+    assert.deepEqual(silenced(), [false, false])
+
+    harness.page.openHelp()
+    t.mock.timers.tick(0)
+    harness.page.closeHelp()
+    t.mock.timers.tick(100)
+    harness.page.openHelp()
+    t.mock.timers.tick(200)
+    assert.equal(harness.page.data.helpMounted, true)
+    assert.deepEqual(silenced(), [true, true])
+  } finally {
+    harness.teardown()
+  }
+})
+
 test('exportRecordsAsJson explains the export and proceeds after confirmation when confirmBeforeExport is set', async () => {
   const env = createFakeSettingsEnv()
   const client = createFakeRoomDataClient({ periods: [], memories: [] })
