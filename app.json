@@ -22,8 +22,8 @@
       },
       {
         "pagePath": "pages/period/period",
-        "iconPath": "images/add.png",
-        "selectedIconPath": "images/add_active.png",
+        "iconPath": "images/list.png",
+        "selectedIconPath": "images/list_active.png",
         "text": "记录"
       },
       {
