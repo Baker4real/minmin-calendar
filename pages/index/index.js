@@ -15,7 +15,8 @@ const {
   homepageSheets,
   handoffSheet,
   homepageSheetMounted,
-  readReducedMotionProbe
+  dismissSheetOnSystemBack,
+  probeReducedMotion
 } = require('../../utils/sheetLifecycle')
 
 // 与 pages/settings/settings.js 共享同一存储键；写入方在设置页
@@ -235,16 +236,8 @@ Page({
     this.refreshReducedMotion()
   },
 
-  // 微信逻辑层没有 matchMedia。探针宽度在减弱动效下是 1px，computed style 会保留这个用值。
   refreshReducedMotion() {
-    if (typeof wx === 'undefined' || !wx || typeof wx.createSelectorQuery !== 'function') return
-    wx.createSelectorQuery()
-      .select('.reduced-motion-probe')
-      .fields({ computedStyle: ['width'] })
-      .exec((res) => {
-        const width = res && res[0] && res[0].width
-        this._reducedMotion = readReducedMotionProbe(width)
-      })
+    probeReducedMotion(this)
   },
 
   loadData(options = {}) {
@@ -853,27 +846,12 @@ Page({
 
   noop() {},
 
-  // issue #134：page-container 吃掉系统返回后会自己离场。弹层还在时下一帧重新挂上，避免第二次返回离开页面。
-  // 把 show 设为 false 时组件会再次触发 beforeleave，用锁挡住这次重入。
+  // issue #134：系统返回先关掉最上层弹层，走现有离场，不离开页面。
   onSheetSystemBack() {
-    if (this._sheetBackLock) return
-    this._sheetBackLock = true
-    this._dismissTopHomepageSheet()
-    const stillMounted = homepageSheetMounted(this.data)
-    this.setData({ sheetExitGuard: false })
-    if (!stillMounted) {
-      this._sheetBackLock = false
-      return
-    }
-    const rearm = () => {
-      this._sheetBackLock = false
-      if (homepageSheetMounted(this.data)) this.setData({ sheetExitGuard: true })
-    }
-    if (typeof wx !== 'undefined' && wx && typeof wx.nextTick === 'function') {
-      wx.nextTick(rearm)
-      return
-    }
-    setTimeout(rearm, 0)
+    dismissSheetOnSystemBack(this, {
+      dismissTop: () => this._dismissTopHomepageSheet(),
+      isMounted: () => homepageSheetMounted(this.data)
+    })
   },
 
   _dismissTopHomepageSheet() {

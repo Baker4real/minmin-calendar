@@ -102,8 +102,6 @@ function handoffSheet(page, from, to, extra = {}) {
   to.open(page, extra, { handoff: true, dismiss: () => from.dismissPatch() })
 }
 
-// 打开或离场才算遮挡。进场第一拍仍是 closed，页面还没被盖住。
-// 交接标记例外：遮罩已经完全不透明，装饰继续暂停。
 const HOMEPAGE_SHEET_PHASES = [
   'monthPickerPhase',
   'dayActionPhase',
@@ -126,11 +124,24 @@ function readReducedMotionProbe(width) {
   return parseFloat(width) > 0
 }
 
+// 微信逻辑层没有 matchMedia。探针宽度在减弱动效下是 1px，computed style 会保留这个用值。
+// 页面要放一个 .reduced-motion-probe 节点；结果记在页面上，tabBar 隐藏和恢复据此决定是否播动画。
+function probeReducedMotion(page) {
+  if (typeof wx === 'undefined' || !wx || typeof wx.createSelectorQuery !== 'function') return
+  wx.createSelectorQuery()
+    .select('.reduced-motion-probe')
+    .fields({ computedStyle: ['width'] })
+    .exec((res) => {
+      const width = res && res[0] && res[0].width
+      page._reducedMotion = readReducedMotionProbe(width)
+    })
+}
+
 function sheetTabBarAnimates(reducedMotion) {
   return !reducedMotion
 }
 
-function syncHomepageTabBar(page, obscured) {
+function syncSheetTabBar(page, obscured) {
   const animation = sheetTabBarAnimates(Boolean(page._reducedMotion))
   if (obscured) {
     if (page._sheetTabBarHidden) return
@@ -147,12 +158,41 @@ function syncHomepageTabBar(page, obscured) {
   }
 }
 
-function homepageSheetPatch(page, patch) {
-  const next = { ...page.data, ...patch }
-  const phaseCovered = HOMEPAGE_SHEET_PHASES.some((key) => next[key] === 'open' || next[key] === 'leaving')
-  const pageObscured = phaseCovered || next.infoSheetHandoff === true
-  syncHomepageTabBar(page, pageObscured)
-  return { ...patch, pageObscured, sheetExitGuard: homepageSheetMounted(next) }
+// 一页里的底部弹层共用一套遮挡规则。打开或离场才算遮挡，进场第一拍仍是 closed，页面还没被盖住。
+// 交接标记例外：遮罩已经完全不透明，装饰继续暂停。遮挡期间藏起原生 tabBar，
+// 还有弹层挂载时留着系统返回拦截（sheetExitGuard）。
+function sheetPageDecorator({ phaseKeys, mountedKeys, handoffKeys = [] }) {
+  return function decorate(page, patch) {
+    const next = { ...page.data, ...patch }
+    const phaseCovered = phaseKeys.some((key) => next[key] === 'open' || next[key] === 'leaving')
+    const pageObscured = phaseCovered || handoffKeys.some((key) => next[key] === true)
+    syncSheetTabBar(page, pageObscured)
+    return { ...patch, pageObscured, sheetExitGuard: mountedKeys.some((key) => Boolean(next[key])) }
+  }
+}
+
+const homepageSheetPatch = sheetPageDecorator({
+  phaseKeys: HOMEPAGE_SHEET_PHASES,
+  mountedKeys: HOMEPAGE_SHEET_MOUNTED_KEYS,
+  handoffKeys: ['infoSheetHandoff']
+})
+
+// issue #134：page-container 吃掉系统返回后会自己离场。弹层还在时下一帧重新挂上，避免第二次返回离开页面。
+// 把 show 设为 false 时组件会再次触发 beforeleave，用锁挡住这次重入。
+function dismissSheetOnSystemBack(page, { dismissTop, isMounted }) {
+  if (page._sheetBackLock) return
+  page._sheetBackLock = true
+  dismissTop()
+  const stillMounted = isMounted()
+  page.setData({ sheetExitGuard: false })
+  if (!stillMounted) {
+    page._sheetBackLock = false
+    return
+  }
+  nextRender(() => {
+    page._sheetBackLock = false
+    if (isMounted()) page.setData({ sheetExitGuard: true })
+  })
 }
 
 function homepageSheets(page) {
@@ -193,6 +233,8 @@ module.exports = {
   homepageSheets,
   handoffSheet,
   homepageSheetMounted,
+  dismissSheetOnSystemBack,
+  probeReducedMotion,
   readReducedMotionProbe,
   sheetTabBarAnimates
 }
