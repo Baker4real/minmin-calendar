@@ -95,19 +95,24 @@ const INFO_ROW_BORDER_PX = { grid: 1, workday: 1, predict: 1 }
 
 function infoRowFits(day, viewportWidth) {
   if (!day || day.isEmpty) return true
-  const r = viewportWidth / 750
-  const R = INFO_ROW_RPX
+  const pxPerRpx = viewportWidth / 750
+  const infoRpx = INFO_ROW_RPX
   const tagChars = day.holidayName ? Array.from(String(day.holidayName)).length : (day.isWorkday ? 1 : 0)
-  const tagPx = tagChars ? (tagChars * R.tagFont + 2 * R.tagPadding) * r + (day.holidayName ? 0 : 2 * INFO_ROW_BORDER_PX.workday) : 0
-  const heartPx = day.isMemory ? R.heart * r : 0
-  const predictPx = day.isPredict
-    ? Math.max(R.predictMinWidth * r, (R.predictFont + 2 * R.predictPadding) * r + 2 * INFO_ROW_BORDER_PX.predict)
+  const tagPx = tagChars
+    ? (tagChars * infoRpx.tagFont + 2 * infoRpx.tagPadding) * pxPerRpx + (day.holidayName ? 0 : 2 * INFO_ROW_BORDER_PX.workday)
     : 0
-  const marksPx = heartPx + predictPx + (heartPx && predictPx ? R.marksGap * r : 0)
+  const heartPx = day.isMemory ? infoRpx.heart * pxPerRpx : 0
+  const predictPx = day.isPredict
+    ? Math.max(
+      infoRpx.predictMinWidth * pxPerRpx,
+      (infoRpx.predictFont + 2 * infoRpx.predictPadding) * pxPerRpx + 2 * INFO_ROW_BORDER_PX.predict
+    )
+    : 0
+  const marksPx = heartPx + predictPx + (heartPx && predictPx ? infoRpx.marksGap * pxPerRpx : 0)
   if (!tagPx || !marksPx) return true
-  const columnPx = (viewportWidth - 2 * (R.contentPadding + R.gridPadding) * r - 2 * INFO_ROW_BORDER_PX.grid) *
-    R.columnPercent / 100
-  return tagPx + R.infoGap * r + marksPx <= columnPx + 1e-6
+  const columnPx = (viewportWidth - 2 * (infoRpx.contentPadding + infoRpx.gridPadding) * pxPerRpx - 2 * INFO_ROW_BORDER_PX.grid) *
+    infoRpx.columnPercent / 100
+  return tagPx + infoRpx.infoGap * pxPerRpx + marksPx <= columnPx + 1e-6
 }
 
 function floor2(value) {
@@ -167,7 +172,6 @@ module.exports = {
   calendarCellContentMinRpx: cellContentMinRpx,
   CALENDAR_ROW_CAP_RPX: ROW_CAP_RPX,
   CALENDAR_ROW_FLOOR_PX: ROW_FLOOR_PX,
-  CALENDAR_PARTNER_WELCOME_RPX: FIRST_SCREEN_RPX.partnerWelcome,
   // 同一份账本，供样式测试逐项核对 CSS
   CALENDAR_LEDGER: {
     firstScreenRpx: FIRST_SCREEN_RPX,

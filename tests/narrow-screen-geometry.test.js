@@ -594,7 +594,7 @@ test('the one-time partner welcome bar is an explicit input of the calendar row-
 // issue #149：欢迎条挂在吸顶占位之后、日历之前的正常文档流里，固定的月份导航和状态行盖不住它；
 // 它的盒高（两行 caption × 正文行高，加上下外边距）就是行高账本里的那一项。
 test('the partner welcome bar flows below the sticky spacer and its box matches the ledger entry', () => {
-  const { CALENDAR_PARTNER_WELCOME_RPX } = require('../utils/calendarRowHeight')
+  const { CALENDAR_LEDGER } = require('../utils/calendarRowHeight')
   const wxml = readRepo('pages/index/index.wxml')
   const welcome = /<text wx:if="\{\{partnerWelcome\}\}" class="partner-welcome">([^<]+)<\/text>/.exec(wxml)
   const spacerAt = wxml.indexOf('class="home-sticky-spacer')
@@ -628,7 +628,7 @@ test('the partner welcome bar flows below the sticky spacer and its box matches 
 
   const boxRpx = margin[0] + 2 * fontRpx * lineHeight + margin[2]
   assert.ok(Math.abs(boxRpx - 103.2) < 1e-9, `welcome box ${boxRpx}rpx`)
-  assert.equal(CALENDAR_PARTNER_WELCOME_RPX, 103.2, 'ledger entry must equal the rendered welcome box')
+  assert.equal(CALENDAR_LEDGER.firstScreenRpx.partnerWelcome, 103.2, 'ledger entry must equal the rendered welcome box')
 })
 
 // issue #149：绑定页幽灵「进入应用」是内容宽胶囊，高度 = 上下 px 内边距 + 一行字 + 描边，320px 宽下仍 ≥44px
