@@ -894,6 +894,18 @@ test('legend items use the same marker description the calendar cells draw', () 
   assert.deepEqual(legend.workday.parts, [{ kind: 'tag', className: 'day-tag workday-tag', text: '班' }])
 })
 
+// issue #159：首页「记经期」和当日弹层的经期动作画的就是图例里那段单日色带，不再另有一个圆点
+test('the period record actions draw the same band sample as the legend', () => {
+  const state = buildHomeCalendarState({ year: 2026, month: 7, today: '2026-08-10' })
+  const legendPeriod = state.legendItems.find(item => item.key === 'period')
+
+  assert.deepEqual(state.periodBandSample, {
+    cellClass: 'period period-single',
+    parts: [{ kind: 'band', className: 'period-band', text: '' }]
+  })
+  assert.deepEqual(state.periodBandSample, { cellClass: legendPeriod.cellClass, parts: legendPeriod.parts })
+})
+
 test('buildHomeCalendarState keeps fallback detail keys stable when records are inserted', () => {
   const periodA = { startDate: '2026-08-12', endDate: '2026-08-12', duration: 1, flow: 'light' }
   const periodB = { startDate: '2026-08-12', endDate: '2026-08-12', duration: 1, flow: 'heavy' }

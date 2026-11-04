@@ -2187,16 +2187,16 @@ test('quick record buttons use the calendar legend marks, not emoji, and reach 4
   const wxml = readIndexWxml()
   const wxss = readIndexWxss()
 
-  // issue #73：图标 = 日历图例的经期玫瑰圆点与欢乐时光浅色心，画在海军圆盘上
+  // issue #73、#159：图标 = 日历图例的单日经期色带与欢乐时光浅色心，画在海军圆盘上
   const quickStart = wxml.indexOf('class="quick-actions"')
   const quickEnd = wxml.indexOf('class="month-summary"')
   const quickBlock = wxml.slice(quickStart, quickEnd)
-  assert.match(quickBlock, /class="quick-icon period-tone">●<\/text>/)
+  const periodButton = quickBlock.slice(0, quickBlock.indexOf('bindtap="quickMemory"'))
+  assert.match(periodButton, /class="quick-icon sample-plate">\s*<view class="action-sample day-cell /)
   assert.match(quickBlock, /class="quick-icon memory-tone">♥<\/text>/)
-  // 不再用表情（🩸 / ❤️ 表情形态），图标是文本字形圆点与心
-  assert.doesNotMatch(quickBlock, /🩸|❤️/)
-  // 语义色沿用图例标记：玫瑰圆点 / 浅色心
-  assert.match(ruleBody(wxss, '.period-tone'), /color:\s*#E8909E/i)
+  // 不再用表情（🩸 / ❤️ 表情形态），也不再用另一套经期圆点
+  assert.doesNotMatch(quickBlock, /🩸|❤️|●/)
+  // 欢乐时光的语义色沿用图例标记：浅色心；色带颜色由 .period-band 给（calendar-display.test.js 钉住）
   assert.match(ruleBody(wxss, '.memory-tone'), /color:\s*#F0C4C0/i)
   assert.match(ruleBody(wxss, '.quick-icon'), /background:\s*#0A0E27/i)
   assert.match(ruleBody(wxss, '.quick-icon'), /border-radius:\s*var\(--radius-circle\)/)

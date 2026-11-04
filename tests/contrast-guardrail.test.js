@@ -16,7 +16,7 @@ test('white on rose #E8909E fails the 4.5:1 guardrail', () => {
 
 // ===== issue #77：颜色角色护栏 =====
 // 不可点标题（导航标题、未绑定/加载失败标题、设置名称、绑定页大标题、年份数字）用中性文字色；
-// 月份标题、经期数字、今天与经期点保持玫瑰；清除本地数据行在点之前就是警告红字 + 警告红描边。
+// 月份标题、经期数字与今天保持玫瑰；清除本地数据行在点之前就是警告红字 + 警告红描边。
 
 const repoRoot = path.join(__dirname, '..')
 const NEUTRAL_TITLE_COLOR = 'rgba(255,255,255,0.92)'
@@ -82,11 +82,10 @@ test('non-interactive titles use the neutral text color, not rose', () => {
   assert.equal(declarationOf('pages/settings/settings.wxss', '.settings-group-title', 'color'), NEUTRAL_TITLE_COLOR)
 })
 
-test('month title, period figures, today and the period dot stay rose', () => {
+// issue #159：记录动作上的经期标记改为图例色带样本，颜色随 .period-band（下一条测试钉住），不再有单独的玫瑰圆点
+test('month title and today stay rose', () => {
   assert.equal(declarationOf('pages/index/index.wxss', '.month-title', 'color'), ROSE,
     'the month title opens the month picker, it keeps rose')
-  assert.equal(declarationOf('pages/index/index.wxss', '.period-tone', 'color'), ROSE,
-    'the period mark on the record action stays rose')
   assert.equal(declarationOf('pages/index/index.wxss', '.day-cell.today .day-num', 'color'), ROSE,
     "today's date stays rose")
 })

@@ -718,7 +718,7 @@
   transform: scale(0.96);
   box-shadow: 0 4rpx 14rpx rgba(232,144,158,0.18);
 }
-/* 记录入口图标 = 日历图例标记：海军圆盘上承载经期玫瑰圆点 / 欢乐时光浅色心（.period-tone / .memory-tone） */
+/* 记录入口图标 = 日历图例标记：海军圆盘上承载图例的单日经期色带 / 欢乐时光浅色心（.action-sample / .memory-tone） */
 .quick-icon {
   flex: 0 0 auto;
   width: 40rpx;
@@ -1120,10 +1120,6 @@
   font-weight: 800;
   background: var(--glass-bg);
 }
-.period-tone {
-  color: #E8909E;
-  box-shadow: inset 0 0 0 1px rgba(232,144,158,0.3);
-}
 .memory-tone {
   color: #F0C4C0;
   box-shadow: inset 0 0 0 1px rgba(240,196,192,0.28);
@@ -1369,6 +1365,27 @@
   flex: none;
   padding: 0;
   justify-content: center;
+}
+/* 经期记录动作的图标（issue #159）：就是图例那段单日色带，同一组 .day-cell.period.period-single 与 .period-band。
+   这里只把它缩进圆盘、让色带铺满样本；颜色和胶囊形仍由色带自己的规则给。样本不接收点按，按压归外层按钮 */
+.sample-plate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.action-sample.day-cell {
+  flex: none;
+  width: 30rpx;
+  height: 18rpx;
+  padding: 0;
+  pointer-events: none;
+}
+.sheet-action-icon .action-sample.day-cell {
+  width: 40rpx;
+  height: 24rpx;
+}
+.action-sample .period-band {
+  height: 100%;
 }
 .legend-copy {
   flex: 1;
