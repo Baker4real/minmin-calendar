@@ -39,7 +39,7 @@ function buildPredictionExplanation(prediction) {
   return {
     available: true,
     title: '预测说明',
-    summary: `预计 ${prediction.nextDisplay} 开始，前后 ${windowDays(prediction)} 天都正常`,
+    summary: `预计 ${prediction.nextDisplay} 开始，前后 ${windowDays(prediction)} 天是可能开始的窗口`,
     lines,
     lineItems: buildTextItems(lines, 'prediction')
   }
