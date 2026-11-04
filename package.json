@@ -9,6 +9,8 @@
     "browser:install": "node tests/tools/installBrowser.cjs",
     "test:hit": "node tests/tools/navHitTest.cjs",
     "devtools:preflight": "node tests/tools/devtoolsPreflight.mjs",
+    "devtools:resources": "node tests/tools/devtoolsResources.mjs",
+    "devtools:cli": "node tests/tools/devtoolsCli.mjs",
     "devtools:mcp": "node tests/tools/wechatMcp.mjs"
   },
   "devDependencies": {

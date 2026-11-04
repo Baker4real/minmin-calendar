@@ -50,7 +50,7 @@ Two details make `watchOptions.ignore` easy to get wrong:
 
 `packOptions.ignore` is not reliably reloaded either: after a `project.config.json` edit DevTools sometimes rebuilds its compiler with the new list and sometimes keeps the old one until the project is reopened. Run `npm run devtools:preflight` after editing either list; it compares what DevTools loaded with the file and prints the last code-quality result. `tests/package-contents.test.js` pins which roots may ship, and [代码质量扫描口径](docs/devtools-verification.md#代码质量扫描口径) records how the scan counts.
 
-2026-08-14：开发者工具控制台若只有 `WAServiceMainContext.js` 的 `Error: timeout`、堆栈不含本仓库路径，视为工具内部通信噪音，不要当成 `utils/cloud.js` 或云函数超时去改业务代码。本机重新编译后该行未再出现，小程序可正常使用。
+开发者工具内部脚本的加载错误、连接超时和 Console 提示先按 [开发者工具验证](docs/devtools-verification.md) 分层检查；不能仅凭 `WAServiceMainContext.js` 文件名或堆栈不含本仓库路径，就判定为可忽略噪音或业务故障。
 
 The mini program initializes WeChat Cloud in `app.js` with:
 

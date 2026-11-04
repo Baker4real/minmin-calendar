@@ -1,9 +1,9 @@
-import { spawn } from 'node:child_process'
-import { mkdirSync, writeFileSync, existsSync, readFileSync, statSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync, statSync } from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { findProjectState, findWatcherIgnore, staleConfig, summarizeQuality, userDataDirs } from './devtoolsState.mjs'
+import { runOfficialCli } from './devtoolsCli.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 export function probeEndpoint(endpoint, timeoutMs = 2500) {
@@ -21,28 +21,10 @@ export function probeEndpoint(endpoint, timeoutMs = 2500) {
 }
 
 async function checkLogin(ide) {
-  const executable = path.join(ide, '微信开发者工具.exe')
-  const entry = path.join(ide, 'resources/app.asar.unpacked/js/common/cli/index.js')
-  if (!existsSync(executable) || !existsSync(entry)) throw new Error('DevTools CLI missing; use --ide with the installed directory')
-  // Same official CLI bootstrap as cli.bat; avoids shell quoting and .bat spawn restrictions.
-  const bootstrap = "const e=process.argv[1],a=process.argv.slice(2);process.argv=[process.execPath,'--ms-enable-electron-run-as-node',e,'--electron'].concat(a);require(e)"
-  return new Promise((resolve, reject) => {
-    const child = spawn(executable, ['-e', bootstrap, entry, 'islogin'], {
-      cwd: ide, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', cwd: root }, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe']
-    })
-    let output = ''
-    child.stdout.on('data', chunk => { output += chunk })
-    child.stderr.on('data', chunk => { output += chunk })
-    const timer = setTimeout(() => { child.kill(); reject(new Error('CLI islogin timed out; check service port, then use MCP preflight')) }, 10000)
-    child.once('error', error => { clearTimeout(timer); reject(error) })
-    child.once('close', code => {
-      clearTimeout(timer)
-      // Retain no raw login output: CLI implementations may include account data.
-      if (code !== 0 || !/['"]?login['"]?\s*:\s*true/.test(output)) {
-        reject(new Error(`CLI islogin did not confirm login (exit ${code}); check IDE login and Settings > Security > service port`))
-      } else resolve()
-    })
-  })
+  const result = await runOfficialCli({ ide, command: 'islogin' })
+  if (result.status !== 'ok' || !/['"]?login['"]?\s*:\s*true/.test(result.output)) {
+    throw new Error(`CLI islogin did not confirm login (${result.status}, exit ${result.exitCode}); check IDE login and Settings > Security > service port`)
+  }
 }
 
 // 读开发者工具落盘的项目状态和监听器日志：已加载的配置是否与磁盘一致，以及最近一次代码质量结果。

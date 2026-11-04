@@ -2,12 +2,12 @@
 type: reference
 title: "微信开发者工具验证"
 tags: [verification, devtools]
-intent: "连接预检、MCP 调用及截图证据边界"
+intent: "连接与资源诊断、官方 CLI/MCP 入口及 GUI 验收边界"
 ---
 
 # 微信开发者工具验证
 
-在项目根运行以下命令。开发者工具需已打开本项目并登录，安全设置中的服务端口需开启。自动操作沿用当前任务授权；脚本不会重启 IDE、修改全局配置或部署云函数。
+在项目根运行以下命令。开发者工具需已打开本项目并登录，安全设置中的服务端口需开启。预检与资源探针只读；CLI 的 `open`、`close`、`auto` 及 MCP/GUI 操作按当前任务授权执行。本文入口不修改官方安装文件或部署云函数。
 
 ## 连接路径
 
@@ -19,15 +19,38 @@ intent: "连接预检、MCP 调用及截图证据边界"
 | CLI 未确认登录或超时 | 检查 IDE 登录与服务端口；脚本 10 秒后退出，保留诊断摘要。 |
 | CLI 正常，9420 未监听 | 运行下面的 `auto` 命令一次；若仍停在 preparing，使用 MCP 备用路径。 |
 | 9420 已监听 | 运行 `devtoolsCapture.mjs --ws`；握手超过 15 秒即失败，转 MCP。 |
+| 只需外观确认，automator / MCP 均不可用 | 在任务已授权只读截图与窗口激活时，Kimi Code 可用 `kimi-cu-win` 直接按「微信开发者工具」定位窗口，最小化时先激活再截图；只证明当时可见画面，不证明实际视口、交互或小屏验收。 |
 | MCP 预检失败 | 先看 FAIL 行附带的错误摘要；不够再定向查看本次脱敏日志，核对 IDE 中现有 MCP token、项目路径和已打开的项目窗口。 |
 | MCP 返回 `Client authorization pending` | 在 IDE 中批准 `minmin-devtools` 客户端后重跑；token 有效不等于新客户端已获准。 |
 
 ```powershell
-& 'D:/Program Files (x86)/Tencent/微信web开发者工具/cli.bat' auto --project 'D:/agents/projects/敏敏子日历' --auto-port 9420 --trust-project
+npm run devtools:cli -- auto --project 'D:\agents\projects\敏敏子日历' --port 9420 --timeout 15000
 node tests/devtoolsCapture.mjs --ws ws://127.0.0.1:9420 --states 'home,home:tools,home:legend'
 ```
 
 `--trust-project` 是自动化首次连接所需参数。CLI 的服务端口和 automator 的 9420 是不同通路；开启服务端口不保证 9420 会监听。不要因 `auto` 卡住而把业务代码改成兜底逻辑。
+
+`devtools:cli` 使用安装包中的官方 CLI 入口，自动把项目路径规范为 Windows 原生绝对路径，并为 `auto` 添加 `--trust-project`。支持 `islogin`、`open`、`close`、`auto`，默认 10 秒、最多 60 秒；输出只含命令、状态和退出码，不输出登录原文。超时返回 124，并终止本次启动的 CLI 进程树；不会终止已运行的 IDE。`ok` 只代表 CLI 退出成功，页面是否就绪仍需运行态检查。预检的登录检查共用此入口。
+
+## 基础库资源诊断
+
+遇到 `WAServiceMainContext.js`、`WAAutoService.js` 或 `WAWebview.js` 的加载错误，运行 `npm run devtools:resources`。入口使用当前仓库路径，从开发者工具项目状态定位 profile，再从最近 12 份日志关联本项目窗口和模拟器地址；版本取本项目 private/config 的 `libVersion`。请求自动带上 `winId` 和 `sid`，不钉死端口、窗口 ID 或基础库版本。日志只是上下文线索，三份资源的现场响应才是本次结果；未发现上下文时失败退出，不猜地址。新日志中本项目尚未创建模拟器时，不回退旧日志中的可用端口。
+
+| 状态 | 含义 |
+|---|---|
+| `resource-ok` | 当前请求返回非空 JavaScript；不代表 automator 握手或页面交互通过。 |
+| `invalid-request` | 返回 `no winId` 等上下文错误；不能当成基础库损坏。 |
+| `library-missing` | 响应明确包含 vendor 内容缺失或版本配置缺失。 |
+| `unclassified-response` | 仅有 HTTP 500、空体或非 JavaScript 响应，证据不足，需按当前错误定向读日志。 |
+| `context-unavailable` / `unreachable` / `timeout` | 未定位项目上下文、端口不可达或单资源超过 5 秒。 |
+
+输出仅保留资源名、分类、HTTP 状态、字节数、上下文与版本，不打印资源正文、账号数据或整行压缩源码。失败退出 1；只有三份资源均正常才退出 0。当前日志格式已在 2.02.2609240 验证，IDE 升级后的格式变化可能需要更新解析器。
+
+## Console 提示过滤与 GUI 操作
+
+本机 GUI 会话与 preload 过滤验收入口见 [GUI 会话适配层](D:/agents/projects/统一环境/docs/env-governance/gui-session.md)。经当前任务授权后，在官方 `node_repl` 中使用同一个 `@oai/sky` 会话；绑定失败只重观察一次，输入失败不自动重放，用户 Esc 立即停止。
+
+只针对 `WAServiceMainContext.js` 和 `WAAutoService.js` 的未使用 preload 提示过滤：先用实际消息校验规则，写入后检查两条提示隐藏、普通 warning 和真实 error 保留，再重新编译检查。普通失败恢复原过滤值并读回确认；Esc 停止后不继续回滚。过滤仅改变 Console 显示，不修复开发者工具的 preload 行为；规则测试通过也不等于当前窗口已生效。
 
 ## MCP 备用路径
 
