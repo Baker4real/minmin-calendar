@@ -97,7 +97,7 @@ module.exports = {
 
     <view class="home-sticky">
       <view class="month-nav">
-        <view class="nav-btn" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月">‹</view>
+        <view class="nav-btn {{prevMonthDisabled ? 'disabled' : ''}}" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月" aria-disabled="{{prevMonthDisabled}}">‹</view>
         <view
           class="month-title month-title-trigger"
           bindtap="openMonthPicker"
@@ -108,7 +108,7 @@ module.exports = {
           <text>{{year}}年{{month + 1}}月</text>
           <text class="month-title-caret">⌄</text>
         </view>
-        <view class="nav-btn" hover-class="nav-btn-hover" bindtap="nextMonth" aria-role="button" aria-label="下一个月">›</view>
+        <view class="nav-btn {{nextMonthDisabled ? 'disabled' : ''}}" hover-class="nav-btn-hover" bindtap="nextMonth" aria-role="button" aria-label="下一个月" aria-disabled="{{nextMonthDisabled}}">›</view>
       </view>
       <view
         wx:if="{{showBackToToday}}"

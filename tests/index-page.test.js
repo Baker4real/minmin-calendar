@@ -2398,6 +2398,89 @@ test('month navigation clamps at the jump year bounds so the picker stays in syn
   }
 })
 
+// issue #159：到最早（2001 年 1 月）或最晚（2035 年 12 月）可看的月份时，对应箭头同时
+// 显示禁用、按了没有任何更新、读屏读出禁用；滑动到边界同样安静，不翻月也不提示。
+test('month arrows read as disabled at the first and last viewable month and stay quiet there', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]) })
+  try {
+    harness.page.onLoad()
+    const arrows = wxmlOpeningTags(readIndexWxml()).filter(tag => tag.classes.includes('nav-btn'))
+    assert.deepEqual(arrows.map(tag => tag.attrs.bindtap), ['prevMonth', 'nextMonth'])
+    const arrowStates = () => arrows.map(tag => ({
+      disabled: renderWxmlAttribute(tag.attrs.class, harness.page.data).split(/\s+/).includes('disabled'),
+      ariaDisabled: renderWxmlAttribute(tag.attrs['aria-disabled'] || '', harness.page.data)
+    }))
+    const enabled = { disabled: false, ariaDisabled: 'false' }
+    const disabled = { disabled: true, ariaDisabled: 'true' }
+    const quietly = (use) => {
+      const updates = []
+      const setData = harness.page.setData
+      harness.page.setData = (update, callback) => {
+        updates.push(update)
+        setData.call(harness.page, update, callback)
+      }
+      try {
+        use()
+      } finally {
+        harness.page.setData = setData
+      }
+      assert.deepEqual(updates, [], 'a disabled arrow or a swipe past the bound publishes nothing')
+      assert.deepEqual(harness.toasts, [], 'reaching a bound is not an error')
+    }
+
+    assert.deepEqual(arrowStates(), [enabled, enabled])
+
+    harness.page.setData({ year: 2001, month: 1 })
+    harness.page.prevMonth()
+    assert.deepEqual([harness.page.data.year, harness.page.data.month], [2001, 0])
+    assert.deepEqual(arrowStates(), [disabled, enabled])
+    quietly(() => {
+      harness.page.prevMonth()
+      harness.page.onCalendarSwipe({ dx: 80, dy: 0 })
+    })
+    assert.deepEqual([harness.page.data.year, harness.page.data.month], [2001, 0])
+    harness.page.nextMonth()
+    assert.deepEqual(arrowStates(), [enabled, enabled])
+
+    harness.page.setData({ year: 2035, month: 10 })
+    harness.page.nextMonth()
+    assert.deepEqual([harness.page.data.year, harness.page.data.month], [2035, 11])
+    assert.deepEqual(arrowStates(), [enabled, disabled])
+    quietly(() => {
+      harness.page.nextMonth()
+      harness.page.onCalendarSwipe({ dx: -80, dy: 0 })
+    })
+    assert.deepEqual([harness.page.data.year, harness.page.data.month], [2035, 11])
+
+    // 选月面板与「回到今天」改变查看月份时，箭头状态跟着同一个月份
+    harness.page.openMonthPicker()
+    harness.page.selectJumpMonth({ currentTarget: { dataset: { month: '0' } } })
+    assert.deepEqual([harness.page.data.year, harness.page.data.month], [2035, 0])
+    assert.deepEqual(arrowStates(), [enabled, enabled])
+    harness.page.setData({ year: 2001, month: 5 })
+    harness.page.openMonthPicker()
+    harness.page.selectJumpMonth({ currentTarget: { dataset: { month: '0' } } })
+    assert.deepEqual(arrowStates(), [disabled, enabled])
+    harness.page.jumpToToday()
+    assert.deepEqual(arrowStates(), [enabled, enabled])
+  } finally {
+    harness.teardown()
+  }
+})
+
+test('a disabled month arrow is dimmed and does not press', () => {
+  const wxss = readIndexWxss()
+  const opacity = Number(/opacity:\s*([\d.]+)/.exec(ruleBody(wxss, '.nav-btn.disabled'))?.[1])
+  assert.ok(opacity > 0 && opacity <= 0.5, `.nav-btn.disabled opacity ${opacity} does not read as disabled`)
+
+  // 按住禁用的箭头：不缩放，按压底色停在静止那一档
+  assert.match(wxss, /\.nav-btn:active\.disabled,\s*\.nav-btn\.nav-btn-hover\.disabled\s*\{[^}]*transform:\s*none/)
+  const restingTint = /background-color:\s*([^;]+);/.exec(ruleBody(wxss, '.nav-btn::before'))[1]
+  const pressedDisabled = /\.nav-btn:active\.disabled::before,\s*\.nav-btn\.nav-btn-hover\.disabled::before\s*\{([^}]*)\}/.exec(wxss)
+  assert.ok(pressedDisabled, 'expected the pressed-disabled tint rule')
+  assert.equal(/background-color:\s*([^;]+);/.exec(pressedDisabled[1])?.[1], restingTint)
+})
+
 test('month arrows publish the new month and its calendar grid in one update', () => {
   const harness = loadPageHarness({ client: createQueuedClient([]), calendarState: 'real' })
   const originalSetTimeout = global.setTimeout

@@ -203,6 +203,18 @@
 .nav-btn.nav-btn-hover::before {
   background-color: rgba(255,255,255,0.2);
 }
+/* 到了最早或最晚可看的月份（issue #159），那一侧的箭头禁用：变淡，按下不缩放、底色不变 */
+.nav-btn.disabled {
+  opacity: 0.35;
+}
+.nav-btn:active.disabled,
+.nav-btn.nav-btn-hover.disabled {
+  transform: none;
+}
+.nav-btn:active.disabled::before,
+.nav-btn.nav-btn-hover.disabled::before {
+  background-color: rgba(255,255,255,0.1);
+}
 
 /* 顶栏左侧工具入口：矩形文字钮，不跟月份箭头共用圆钮。 */
 .nav-tool {
