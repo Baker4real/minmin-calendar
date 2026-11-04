@@ -1371,11 +1371,13 @@
   justify-content: center;
 }
 /* 经期记录动作的图标（issue #159）：就是图例那段单日色带，同一组 .day-cell.period.period-single 与 .period-band。
-   这里只把它缩进圆盘、让色带铺满样本；颜色和胶囊形仍由色带自己的规则给。样本不接收点按，按压归外层按钮 */
+   这里只把它缩进圆盘、让色带铺满样本；颜色和胶囊形仍由色带自己的规则给。样本不接收点按，按压归外层按钮。
+   圆盘保留原来的玫瑰细描边，和欢乐时光圆盘的浅色描边成对 */
 .sample-plate {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: inset 0 0 0 1px rgba(232,144,158,0.3);
 }
 .action-sample.day-cell {
   flex: none;
