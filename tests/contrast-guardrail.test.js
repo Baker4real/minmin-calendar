@@ -153,12 +153,11 @@ test('edit-form field errors reuse the one warning red and clear 4.5:1 on the fo
   const fallback = cssColor(tokenValue('--glass-fallback'))
   const glass = cssColor(tokenValue('--glass-bg'))
   const card = toHex(composite(composite(canvas, fallback, fallback.a), glass, glass.a))
-  for (const file of ['pages/period/edit/edit.wxss', 'pages/memory/edit/edit.wxss']) {
-    const color = declarationOf(file, '.field-error', 'color')
-    assert.equal(color, WARNING_RED, `${file} field errors must reuse the warning red`)
-    const ratio = contrastRatio(color, card)
-    assert.ok(ratio >= 4.5, `${file} .field-error ${color} on ${card} is ${ratio.toFixed(2)}:1, below 4.5:1`)
-  }
+  // 两个编辑页共用 app.wxss 的同一条规则
+  const color = declarationOf('app.wxss', '.field-error', 'color')
+  assert.equal(color, WARNING_RED, 'field errors must reuse the warning red')
+  const ratio = contrastRatio(color, card)
+  assert.ok(ratio >= 4.5, `.field-error ${color} on ${card} is ${ratio.toFixed(2)}:1, below 4.5:1`)
 })
 
 test('the light heart stays the happy-time color on memory rows', () => {

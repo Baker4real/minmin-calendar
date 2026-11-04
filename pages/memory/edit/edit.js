@@ -3,10 +3,13 @@ const cloud = require('../../../utils/cloud')
 const recordCommands = require('../../../utils/recordCommands')
 const recordDraft = require('../../../utils/recordDraft')
 const recordEditRoute = require('../../../utils/recordEditRoute')
+const recordFieldErrors = require('../../../utils/recordFieldErrors')
 const recordPageSync = require('../../../utils/recordPageSync')
 const safeArea = require('../../../utils/safeArea')
 
 const DRAFT_FIELDS = ['date', 'note']
+// 可定位的校验字段（只有日期）
+const FIELD_ORDER = ['date']
 
 function displayDateLabel(dateStr) {
   return util.formatDisplayDate(dateStr, { today: util.formatDate(new Date()) })
@@ -91,20 +94,13 @@ Page({
   },
   onNoteInput(e) { this.setData({ note: e.detail.value }) },
 
-  // 保存校验失败：错误常驻在日期字段下，并把它滚到顶栏下方（即时到位，无滚动动画）。输入与草稿都不动。
+  // 字段错误的显示与清除规则和经期编辑页共用一份（utils/recordFieldErrors.js）
   showFieldErrors(fieldErrors) {
-    const errors = fieldErrors || {}
-    this.setData({ fieldErrors: errors })
-    if (errors.date) {
-      wx.pageScrollTo({ selector: '#field-date', offsetTop: -this.data.navBarHeight, duration: 0 })
-    }
+    recordFieldErrors.showFieldErrors(this, fieldErrors, FIELD_ORDER)
   },
 
-  // 清除规则与经期编辑页相同：只重算已显示的错误——改对即消失，仍不对就换成当前原因。
   refreshFieldErrors() {
-    if (!this.data.fieldErrors || !this.data.fieldErrors.date) return
-    const current = collectMemoryFieldErrors(this.data, util.formatDate(new Date())) || {}
-    this.setData({ fieldErrors: current.date ? { date: current.date } : {} })
+    recordFieldErrors.refreshFieldErrors(this, data => collectMemoryFieldErrors(data, util.formatDate(new Date())))
   },
 
   goBack() {

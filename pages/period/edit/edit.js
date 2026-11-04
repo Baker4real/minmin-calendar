@@ -4,6 +4,7 @@ const cycle = require('../../../utils/cycle')
 const recordCommands = require('../../../utils/recordCommands')
 const recordDraft = require('../../../utils/recordDraft')
 const recordEditRoute = require('../../../utils/recordEditRoute')
+const recordFieldErrors = require('../../../utils/recordFieldErrors')
 const recordPageSync = require('../../../utils/recordPageSync')
 const safeArea = require('../../../utils/safeArea')
 
@@ -241,27 +242,13 @@ Page({
     return outcome
   },
 
-  // 保存校验失败：错误常驻在对应字段下，并把第一个出错字段滚到顶栏下方（即时到位，无滚动动画）。
-  // 输入与草稿都不动。
+  // 字段错误的显示与清除规则和欢乐时光编辑页共用一份（utils/recordFieldErrors.js）
   showFieldErrors(fieldErrors) {
-    const errors = fieldErrors || {}
-    this.setData({ fieldErrors: errors })
-    const first = FIELD_ORDER.find(field => errors[field])
-    if (first) {
-      wx.pageScrollTo({ selector: `#field-${first}`, offsetTop: -this.data.navBarHeight, duration: 0 })
-    }
+    recordFieldErrors.showFieldErrors(this, fieldErrors, FIELD_ORDER)
   },
 
-  // 清除规则：只重算已显示的字段错误——改对的消失，仍不对的换成当前原因；保存前不新增别的字段错误。
   refreshFieldErrors() {
-    const shown = Object.keys(this.data.fieldErrors || {})
-    if (shown.length === 0) return
-    const current = collectPeriodFieldErrors(this.data, util.formatDate(new Date())) || {}
-    const next = {}
-    shown.forEach(field => {
-      if (current[field]) next[field] = current[field]
-    })
-    this.setData({ fieldErrors: next })
+    recordFieldErrors.refreshFieldErrors(this, data => collectPeriodFieldErrors(data, util.formatDate(new Date())))
   },
 
   // 新记录的开始日如果落在已有投影里，先问是去编辑那条还是仍然新建。编辑已有记录不拦。

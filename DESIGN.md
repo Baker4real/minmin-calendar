@@ -274,7 +274,7 @@ Prediction metadata, reminder cards, and period tag chips stay compact and low-n
 | 危险操作按钮 | `.btn-danger`（删除记录；绑定页 needUnbind 中间态的解除绑定入口；app 级基类） | 红字 + `rgba(249,115,115,0.28)` 描边，不透明海军实底（`var(--glass-bg)` 叠 `rgba(18,22,61,0.92)`）；Pressed 叠 `rgba(249,115,115,0.12)`、`scale(0.95)` |
 | 危险菜单行 | `.menu-item.danger`（设置页页底危险区：解除绑定） | 红字 + `rgba(249,115,115,0.28)` 描边 + 海军实底；Pressed 叠 `rgba(249,115,115,0.12)`、`scale(0.95)` |
 | 表单错误 | `.error-msg`（绑定页） | 红字 + `rgba(249,115,115,0.1)` 浅底 + `rgba(249,115,115,0.24)` 描边 |
-| 字段错误 | `.field-error`（经期 / 欢乐时光编辑页，issue #156） | 红字 caption 一句，紧贴所属日期 picker 下方常驻；不铺底、不描边、不做过渡 |
+| 字段错误 | `.field-error`（`app.wxss` 一条规则，经期 / 欢乐时光编辑页共用，issue #156） | 红字 caption 一句，紧贴所属日期 picker 下方常驻；不铺底、不描边、不做过渡 |
 
 推迟提醒不在这一族里。`.reminder-card.overdue .reminder-rail` 用中性色 `#FFFFFF`，没有警示红辉光。文案也只陈述事实：标题「可能开始的日子已过」，正文「如果已经开始，可以补记」，点按仍去记经期；不写「很正常」这类安抚判断，估算的边界由预测说明里的「根据记录估算，不是医疗建议」交代。
 
