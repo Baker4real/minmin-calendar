@@ -1261,6 +1261,87 @@ test('a future day keeps holiday information and offers no record actions', () =
   }
 })
 
+// 模板片段里 marker 处会不会渲染：包住它的每一层 wx:if 都按真实页面数据求值为真
+function wxmlRendersAt(fragment, marker, data) {
+  const source = fragment.replace(/<!--[\s\S]*?-->/g, '')
+  const at = source.indexOf(marker)
+  assert.ok(at !== -1, `expected ${marker} in the template`)
+  const conditions = []
+  const tagPattern = /<(\/?)([a-zA-Z][\w-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*(\/?)>/g
+  let match
+  while ((match = tagPattern.exec(source)) && match.index < at) {
+    if (match[1]) {
+      conditions.pop()
+      continue
+    }
+    if (match[4]) continue
+    const condition = /\swx:if="\{\{([\s\S]*?)\}\}"/.exec(match[3])
+    conditions.push(condition ? condition[1] : '')
+  }
+  return conditions.every(expr => !expr || Boolean(evaluateWxmlExpression(expr, data)))
+}
+
+// issue #152：普通未来日期的当日弹层不再只剩标题和关闭键。真实日历投影给出持久说明，弹层模板渲染它；
+// 节日和调休句照常显示。今天与过去的日子仍是记录动作，没有这句说明。
+// harness 的 util 桩把任何 Date 都格式化成固定的今天，预测窗口在这里算不准；未来「预」由 home-calendar-state 覆盖
+test('a future day sheet explains why it cannot be recorded while today and past days keep their actions', () => {
+  const harness = loadPageHarness({ client: createQueuedClient([]), calendarState: 'real' })
+  const wxml = readIndexWxml()
+  const sheetStart = wxml.lastIndexOf('<view', wxml.indexOf('wx:if="{{dayActionMounted}}"'))
+  const daySheet = wxml.slice(sheetStart, wxml.indexOf('wx:if="{{monthMenuMounted}}"'))
+  const futureNotice = { title: '未来日期不能新增记录', text: '到了这一天，再来记经期或欢乐时光' }
+  const renderedNotice = () => {
+    const data = harness.page.data
+    if (!wxmlRendersAt(daySheet, '{{selectedDayDetail.futureNotice.title}}', data)) return null
+    assert.ok(wxmlRendersAt(daySheet, '{{selectedDayDetail.futureNotice.text}}', data))
+    return {
+      title: evaluateWxmlExpression('selectedDayDetail.futureNotice.title', data),
+      text: evaluateWxmlExpression('selectedDayDetail.futureNotice.text', data)
+    }
+  }
+  const tapDay = date => harness.page.onDayTap({ currentTarget: { dataset: { date } } })
+  try {
+    const navigation = []
+    global.wx.navigateTo = options => navigation.push(options.url)
+    harness.page.applyHomeCalendarState({ year: 2026, month: 5, periods: [], memories: [], today: '2026-06-26' })
+
+    // 普通未来日期（harness 今天固定为 2026-06-26）：弹层照常打开，只有说明，没有记录动作
+    tapDay('2026-06-30')
+    assert.equal(harness.page.data.dayActionMounted, true)
+    assert.equal(harness.page.data.daySheetMode, 'actions')
+    assert.equal(harness.page.data.selectedDateIsFuture, true)
+    assert.deepEqual(harness.page.data.selectedDayDetail.meanings, [])
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions, [])
+    assert.deepEqual(renderedNotice(), futureNotice)
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'period' } } })
+    harness.page.onDayActionTap({ currentTarget: { dataset: { action: 'memory' } } })
+
+    // 今天与过去的日子：记录动作还在，没有这句说明
+    tapDay('2026-06-26')
+    assert.equal(harness.page.data.selectedDateIsFuture, false)
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions.map(item => item.label), ['记经期', '记欢乐时光'])
+    assert.equal(renderedNotice(), null)
+    tapDay('2026-06-10')
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions.map(item => item.label), ['补记经期', '补记欢乐时光'])
+    assert.equal(renderedNotice(), null)
+
+    // 未来的节日与调休：句子照常显示，同样只有说明
+    harness.page.applyHomeCalendarState({ year: 2026, month: 8 })
+    tapDay('2026-09-25')
+    assert.equal(harness.page.data.selectedDateSubtitle, '八月十五 · 中秋')
+    assert.deepEqual(harness.page.data.selectedDayDetail.meanings.map(item => item.text), ['中秋。'])
+    assert.deepEqual(harness.page.data.selectedDayDetail.actions, [])
+    assert.deepEqual(renderedNotice(), futureNotice)
+    tapDay('2026-09-20')
+    assert.deepEqual(harness.page.data.selectedDayDetail.meanings.map(item => item.text), ['官方调休上班日。'])
+    assert.deepEqual(renderedNotice(), futureNotice)
+
+    assert.deepEqual(navigation, [])
+  } finally {
+    harness.teardown()
+  }
+})
+
 // issue #129：超期完成提醒不在渲染时记为已提醒。刷新仍可见；离开首页后才持久化，回来不再出现。
 test('an overdue completion reminder stays visible until the home page is left', async () => {
   const ongoing = { _id: 'p2', startDate: '2026-06-20', endDate: '', status: 'ongoing' }
