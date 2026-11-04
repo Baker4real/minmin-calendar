@@ -93,7 +93,7 @@
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
-  color: rgba(255,255,255,0.5);
+  color: var(--text-secondary);
   margin-top: 6rpx;
   white-space: nowrap;
   overflow: hidden;
@@ -277,7 +277,7 @@
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
-  color: rgba(255,255,255,0.5);
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -317,7 +317,7 @@
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
-  color: rgba(255,255,255,0.5);
+  color: var(--text-secondary);
   margin-top: 4rpx;
   white-space: nowrap;
   overflow: hidden;
@@ -354,7 +354,7 @@
 .empty-state {
   padding: 80rpx 40rpx;
   text-align: center;
-  color: rgba(255,255,255,0.5);
+  color: var(--text-secondary);
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);

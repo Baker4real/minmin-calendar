@@ -70,11 +70,12 @@ test('non-interactive titles use the neutral text color, not rose', () => {
     'the year readout must be neutral'
   )
 
-  // 加载失败标题：无独立颜色声明，继承 .empty-state 的中性色
+  // 加载失败标题：无独立颜色声明，继承 .empty-state 的中性白（不是玫瑰）
   for (const file of ['pages/period/period.wxss', 'pages/memory/memory.wxss']) {
     assert.equal(wxssRuleBody(file, '.load-failed-text'), null,
       `${file} load-failed title must not override the neutral empty-state color`)
-    assert.equal(declarationOf(file, '.empty-state', 'color'), 'rgba(255,255,255,0.5)')
+    const emptyText = layerPaint(declarationOf(file, '.empty-state', 'color'))
+    assert.deepEqual([emptyText.r, emptyText.g, emptyText.b], [1, 1, 1], `${file} empty-state text stays neutral white`)
   }
 
   // 设置分组标题
@@ -189,7 +190,7 @@ test('cycle overview labels clear 4.5:1 on canvas, glass fallback and both gradi
   for (const selector of ['.card-label', '.cycle-label']) {
     const text = layerPaint(exactDeclaration(file, selector, 'color'))
     for (const [name, surface] of surfaces) {
-      const ratio = contrastRatio(toHex(composite(surface, text, text.a)), toHex(surface))
+      const ratio = contrastOn(text, surface)
       if (ratio < 4.5) failures.push(`${selector} on ${name} (${toHex(surface)}) = ${ratio.toFixed(2)}:1`)
     }
   }
@@ -200,6 +201,70 @@ test('cycle overview labels clear 4.5:1 on canvas, glass fallback and both gradi
       `${selector} rides the secondary text tier`)
   }
 })
+
+// issue #158：承载操作后果、记录内容或关键说明的辅助文字不弱于 --text-secondary 档，
+// 并在实际合成表面上 ≥4.5:1。stacks 列出元素可能落在的表面栈：自下而上叠在画布上，
+// 空栈就是画布本身。只登记关键文字，其余文字保留逐元素调校的透明度（DESIGN.md）。
+const KEY_ASSIST_TEXT = [
+  { file: 'pages/period/period.wxss', selector: '.item-note', stacks: [[['app.wxss', '.premium-card']]], note: '经期列表行的作者与备注' },
+  { file: 'pages/period/period.wxss', selector: '.memory-note', stacks: [[['app.wxss', '.premium-card']], []], note: '欢乐时光行的作者与备注；刷新失败说明行在画布上' },
+  { file: 'pages/period/period.wxss', selector: '.month-excerpt', stacks: [[['app.wxss', '.premium-card']]], note: '收起月份卡的备注摘要' },
+  { file: 'pages/period/period.wxss', selector: '.empty-state', stacks: [[['pages/period/period.wxss', '.empty-state']]], note: '记录 tab 空态引导与加载失败标题' },
+  { file: 'pages/period/edit/edit.wxss', selector: '.form-hint', stacks: [[['app.wxss', '.premium-card']]], note: '经期状态的后果、天数与时长确认' },
+  { file: 'pages/index/index.wxss', selector: '.reminder-text', stacks: [[['pages/index/index.wxss', '.reminder-card']]], note: '首页提醒行的下一步说明' },
+  { file: 'pages/index/index.wxss', selector: '.no-room-desc', stacks: [[]], note: '未绑定与加载失败说明' }
+]
+
+// 不承载后果或内容的分组文字保留更安静的一档，不并入关键文字档，但仍 ≥4.5:1
+const QUIET_ASSIST_TEXT = [
+  { file: 'pages/period/edit/edit.wxss', selector: '.symptom-group-label', stacks: [[['app.wxss', '.premium-card']]], note: '症状分组标题（芯片自己说明内容）' }
+]
+
+test('key auxiliary text is no weaker than secondary text and clears 4.5:1 on its real surfaces', () => {
+  const secondary = layerPaint('var(--text-secondary)')
+  const failures = []
+  for (const item of KEY_ASSIST_TEXT) {
+    const text = layerPaint(exactDeclaration(item.file, item.selector, 'color'))
+    for (const surface of item.stacks.flatMap(stackSurfaces)) {
+      const ratio = contrastOn(text, surface)
+      const secondaryRatio = contrastOn(secondary, surface)
+      if (ratio < 4.5 || ratio + 1e-9 < secondaryRatio) {
+        failures.push(`${item.note} ${item.selector} on ${toHex(surface)} = ${ratio.toFixed(2)}:1 (secondary ${secondaryRatio.toFixed(2)}:1)`)
+      }
+    }
+  }
+  assert.deepEqual(failures, [])
+})
+
+test('non-key grouping labels keep their quieter tier and still clear 4.5:1', () => {
+  const secondary = layerPaint('var(--text-secondary)')
+  for (const item of QUIET_ASSIST_TEXT) {
+    const text = layerPaint(exactDeclaration(item.file, item.selector, 'color'))
+    for (const surface of item.stacks.flatMap(stackSurfaces)) {
+      const ratio = contrastOn(text, surface)
+      assert.ok(ratio >= 4.5, `${item.note} ${item.selector} on ${toHex(surface)} = ${ratio.toFixed(2)}:1`)
+      assert.ok(ratio < contrastOn(secondary, surface),
+        `${item.note} ${item.selector} is not key text; keep its hand-tuned quieter tier`)
+    }
+  }
+})
+
+// 表面栈自下而上叠在画布上；渐变层在每个色标处各算一次
+function stackSurfaces(stack) {
+  let surfaces = [hex(pageCanvas())]
+  for (const [file, selector] of stack) {
+    const layers = backgroundLayers(exactDeclaration(file, selector, 'background')).reverse()
+    for (const layer of layers) {
+      const paints = layer.startsWith('linear-gradient(') ? gradientStops(layer) : [layerPaint(layer)]
+      surfaces = surfaces.flatMap(surface => paints.map(paintLayer => composite(surface, paintLayer, paintLayer.a)))
+    }
+  }
+  return [...new Map(surfaces.map(surface => [toHex(surface), surface])).values()]
+}
+
+function contrastOn(text, surface) {
+  return contrastRatio(toHex(composite(surface, text, text.a)), toHex(surface))
+}
 
 // background 按顶层逗号分层，顶层在前；颜色只能是最后一层（DESIGN.md 玻璃叠层）
 function backgroundLayers(declared) {
