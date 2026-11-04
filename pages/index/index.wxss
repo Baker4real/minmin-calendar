@@ -377,15 +377,8 @@
   box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
 }
 .day-cell.today.period {
+  background: transparent;
   box-shadow: none;
-}
-.day-cell.today.period::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 2;
-  box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
 }
 .day-cell.workday:not(.today) {
   background: rgba(255,255,255,0.035);
@@ -470,13 +463,21 @@
   border-radius: var(--radius-circle);
 }
 
-/* Period band: 22% rose wash. Caps live on the cell so a row connects; no transition. */
+/* Period band: a compact 22% rose wash behind the date. Caps live on the band so a row connects; no transition. */
 .period-band {
   position: absolute;
-  inset: 0;
+  inset: 0 0 auto;
+  height: 44rpx;
   z-index: 0;
   pointer-events: none;
   background: rgba(232,144,158,0.22);
+}
+.calendar-density-compact .period-band {
+  top: 8rpx;
+  height: 48rpx;
+}
+.day-cell.period {
+  border-radius: 0;
 }
 .day-num,
 .day-lunar,
@@ -485,29 +486,32 @@
   position: relative;
   z-index: 1;
 }
-.day-cell.period-start {
+.day-cell.today.period .period-band {
+  box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
+}
+.day-cell.period-start .period-band {
   border-top-left-radius: var(--radius-full);
   border-bottom-left-radius: var(--radius-full);
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
-.day-cell.period-middle {
+.day-cell.period-middle .period-band {
   border-radius: 0;
 }
-.day-cell.period-end {
+.day-cell.period-end .period-band {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
   border-top-right-radius: var(--radius-full);
   border-bottom-right-radius: var(--radius-full);
 }
-.day-cell.period-single {
+.day-cell.period-single .period-band {
   border-radius: var(--radius-full);
 }
-.day-cell.period-open.period-end {
+.day-cell.period-open.period-end .period-band {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
-.day-cell.period-open.period-single {
+.day-cell.period-open.period-single .period-band {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }

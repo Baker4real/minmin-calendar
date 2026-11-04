@@ -104,8 +104,13 @@ test('period band stays a translucent rose and date numbers on it clear 4.5:1', 
   )
   const rose = hex('#E8909E')
   const bandOnGrid = composite(grid, rose, alpha)
-  const todaySurface = composite(composite(grid, rose, 0.16), rose, alpha)
+  const todaySurface = bandOnGrid
   const holidaySurface = composite(composite(grid, hex('#D4A574'), 0.08), rose, alpha)
+  assert.equal(
+    exactDeclaration('pages/index/index.wxss', '.day-cell.today.period', 'background'),
+    'transparent',
+    'today period must not add a second full-cell wash behind the compact band'
+  )
 
   const dayNum = exactDeclaration('pages/index/index.wxss', '.day-num', 'color')
   const todayOnBand = exactDeclaration('pages/index/index.wxss', '.day-cell.today.period .day-num', 'color')

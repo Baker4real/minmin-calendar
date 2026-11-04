@@ -565,41 +565,51 @@ test('full density first-screen stack stays within the ratcheted budget', () => 
   )
 })
 
-test('period band connects across a week and caps the open end without animating', () => {
+test('period band stays compact, connects across a week and caps the open end without animating', () => {
   const wxss = readWxss()
   const band = ruleBody(wxss, '.period-band')
-  assert.match(band, /inset:\s*0/)
+  assert.match(band, /inset:\s*0\s+0\s+auto/)
+  assert.match(band, /height:\s*44rpx/)
   assert.match(band, /background:\s*rgba\(232,\s*144,\s*158,\s*0\.(?:1[89]|2[0-4])\)/)
   assert.doesNotMatch(band, /transition\s*:/)
   assert.doesNotMatch(band, /animation\s*:/)
 
-  const start = ruleBody(wxss, '.day-cell.period-start')
+  const compactBand = ruleBody(wxss, '.calendar-density-compact .period-band')
+  assert.match(compactBand, /top:\s*8rpx/)
+  assert.match(compactBand, /height:\s*48rpx/)
+
+  const cell = ruleBody(wxss, '.day-cell.period')
+  assert.match(cell, /border-radius:\s*0/)
+
+  const start = ruleBody(wxss, '.day-cell.period-start .period-band')
   assert.match(start, /border-top-left-radius:\s*var\(--radius-full\)/)
   assert.match(start, /border-bottom-left-radius:\s*var\(--radius-full\)/)
   assert.match(start, /border-top-right-radius:\s*0/)
   assert.match(start, /border-bottom-right-radius:\s*0/)
 
-  const middle = ruleBody(wxss, '.day-cell.period-middle')
+  const middle = ruleBody(wxss, '.day-cell.period-middle .period-band')
   assert.match(middle, /border-radius:\s*0/)
 
-  const end = ruleBody(wxss, '.day-cell.period-end')
+  const end = ruleBody(wxss, '.day-cell.period-end .period-band')
   assert.match(end, /border-top-right-radius:\s*var\(--radius-full\)/)
   assert.match(end, /border-bottom-right-radius:\s*var\(--radius-full\)/)
   assert.match(end, /border-top-left-radius:\s*0/)
   assert.match(end, /border-bottom-left-radius:\s*0/)
 
-  const single = ruleBody(wxss, '.day-cell.period-single')
+  const single = ruleBody(wxss, '.day-cell.period-single .period-band')
   assert.match(single, /border-radius:\s*var\(--radius-full\)/)
 
-  const openEnd = ruleBody(wxss, '.day-cell.period-open.period-end')
+  const openEnd = ruleBody(wxss, '.day-cell.period-open.period-end .period-band')
   assert.match(openEnd, /border-top-right-radius:\s*0/)
   assert.match(openEnd, /border-bottom-right-radius:\s*0/)
-  const openSingle = ruleBody(wxss, '.day-cell.period-open.period-single')
+  const openSingle = ruleBody(wxss, '.day-cell.period-open.period-single .period-band')
   assert.match(openSingle, /border-top-right-radius:\s*0/)
   assert.match(openSingle, /border-bottom-right-radius:\s*0/)
 
-  const ring = ruleBody(wxss, '.day-cell.today.period::after')
-  assert.match(ring, /inset\s+0\s+0\s+0\s+3rpx\s+rgba\(196,\s*160,\s*210,\s*0\.55\)/)
+  const ring = ruleBody(wxss, '.day-cell.today.period .period-band')
+  assert.match(ring, /box-shadow:\s*inset\s+0\s+0\s+0\s+3rpx\s+rgba\(196,\s*160,\s*210,\s*0\.55\)/)
+  const todayPeriod = ruleBody(wxss, '.day-cell.today.period')
+  assert.match(todayPeriod, /background:\s*transparent/)
 })
 
 function verticalBox(body, property) {
