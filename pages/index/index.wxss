@@ -705,7 +705,7 @@
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  padding: 18rpx 24rpx;
+  padding: 14rpx 24rpx;
   background: var(--aurora-pink);
   color: #0A0E27;
   border-radius: var(--radius-md);
@@ -729,9 +729,13 @@
   font-size: 32rpx;
   background: #0A0E27;
 }
+/* 进行中经期的「经期第 N 天 · 记结束」一行放不下（issue #159）：连写的中文不拆，只在空格处折成两行，
+   两行紧行高仍在 104rpx 按钮里（上下内边距因此是 14rpx），首屏账本的记录入口高度不变 */
 .quick-text {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-control);
+  line-height: var(--line-height-title);
+  word-break: keep-all;
   color: #0A0E27;
 }
 
