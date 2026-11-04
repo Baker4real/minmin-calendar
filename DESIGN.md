@@ -276,7 +276,7 @@ Prediction metadata, reminder cards, and period tag chips stay compact and low-n
 | 表单错误 | `.error-msg`（绑定页） | 红字 + `rgba(249,115,115,0.1)` 浅底 + `rgba(249,115,115,0.24)` 描边 |
 | 字段错误 | `.field-error`（经期 / 欢乐时光编辑页，issue #156） | 红字 caption 一句，紧贴所属日期 picker 下方常驻；不铺底、不描边、不做过渡 |
 
-推迟提醒不在这一族里。`.reminder-card.overdue .reminder-rail` 用中性色 `#FFFFFF`，没有警示红辉光。
+推迟提醒不在这一族里。`.reminder-card.overdue .reminder-rail` 用中性色 `#FFFFFF`，没有警示红辉光。文案也只陈述事实：标题「可能开始的日子已过」，正文「如果已经开始，可以补记」，点按仍去记经期；不写「很正常」这类安抚判断，估算的边界由预测说明里的「根据记录估算，不是医疗建议」交代。
 
 「解除绑定」属危险操作：设置页页底危险区的 `.menu-item.danger` 菜单行（issue #102 从绑定页已绑定卡迁入，issue #139 再从房间组挪到页底；有房间码才出现，解绑成功回绑定页）与绑定页 needUnbind 中间态（错误恢复路径）的就地解除入口（跟随 app 级 `.btn-danger` 基类）；issue #88 试点的粉幽灵形态已随 issue #104 收敛移除，不再存在红族之外的解除绑定样式。重新同步房间不是危险操作，不用这行样式。绑定页的校验失败重试 `.error-retry`（issue #102）是表单错误同族的轻量按钮——红字 + 同款浅底描边，Pressed 叠更深一档红 tint `rgba(249,115,115,0.24)`，无 transform 过渡。
 

@@ -147,9 +147,10 @@ function buildCycleReminders(prediction, periods, options = {}) {
       date: today
     })
   } else if (daysAfterRangeEnd > 0 && daysAfterRangeEnd <= 7) {
+    // 推迟只陈述事实，不下「很正常」这类判断（判断留给预测说明的「不是医疗建议」）
     reminders.push({
       type: 'overdue',
-      title: '周期有波动很正常',
+      title: '可能开始的日子已过',
       text: '如果已经开始，可以补记',
       action: 'quickPeriod',
       date: today

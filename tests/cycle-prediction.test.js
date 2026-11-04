@@ -140,17 +140,18 @@ test('buildCycleReminders returns upcoming and overdue reminder states', () => {
     }
   ])
 
+  // 推迟提醒只陈述事实（窗口已过、可以补记），不下「很正常」这类判断；点按仍走记经期
   const late = cycle.buildCycleReminders(prediction, periods, { today: '2026-08-13' })
   assert.deepEqual(late, [
     {
       type: 'overdue',
-      title: '周期有波动很正常',
+      title: '可能开始的日子已过',
       text: '如果已经开始，可以补记',
       action: 'quickPeriod',
       date: '2026-08-13'
     }
   ])
-  assert.equal(`${late[0].title}；${late[0].text}`, '周期有波动很正常；如果已经开始，可以补记')
+  assert.equal(`${late[0].title}；${late[0].text}`, '可能开始的日子已过；如果已经开始，可以补记')
 })
 
 test('period duration is the inclusive day count when stored duration conflicts with the dates', () => {
