@@ -182,9 +182,7 @@ module.exports = {
     <view class="quick-actions">
       <view class="quick-btn" bindtap="quickPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-class="quick-btn-hover">
         <view class="quick-icon sample-plate">
-          <view class="action-sample day-cell {{periodBandSample.cellClass}}">
-            <view wx:for="{{periodBandSample.parts}}" wx:for-item="part" wx:key="className" class="{{part.className}}"></view>
-          </view>
+          <template is="periodBandSample" data="{{...periodBandSample}}" />
         </view>
         <text class="quick-text">{{periodQuickLabel}}</text>
       </view>
@@ -398,9 +396,7 @@ module.exports = {
           hover-class="sheet-action-hover"
         >
           <view wx:if="{{item.key == 'period'}}" class="sheet-action-icon sample-plate">
-            <view class="action-sample day-cell {{periodBandSample.cellClass}}">
-              <view wx:for="{{periodBandSample.parts}}" wx:for-item="part" wx:key="className" class="{{part.className}}"></view>
-            </view>
+            <template is="periodBandSample" data="{{...periodBandSample}}" />
           </view>
           <text wx:else class="sheet-action-icon memory-tone">♥</text>
           <view class="sheet-action-copy">
@@ -528,3 +524,11 @@ module.exports = {
     bindbeforeleave="onSheetSystemBack"
   ></page-container>
 </view>
+
+<!-- 记经期动作的图标：日历图例那段单日经期色带（issue #159）。首页记录入口和当日弹层的经期动作共用，
+     放在页面根之外，不进读屏树的背景块；数据是 homeCalendarState 的 periodBandSample -->
+<template name="periodBandSample">
+  <view class="action-sample day-cell {{cellClass}}">
+    <view wx:for="{{parts}}" wx:for-item="part" wx:key="className" class="{{part.className}}"></view>
+  </view>
+</template>

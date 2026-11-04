@@ -2205,7 +2205,7 @@ test('quick record buttons use the calendar legend marks, not emoji, and reach 4
   const quickEnd = wxml.indexOf('class="month-summary"')
   const quickBlock = wxml.slice(quickStart, quickEnd)
   const periodButton = quickBlock.slice(0, quickBlock.indexOf('bindtap="quickMemory"'))
-  assert.match(periodButton, /class="quick-icon sample-plate">\s*<view class="action-sample day-cell /)
+  assert.match(periodButton, /class="quick-icon sample-plate">\s*<template is="periodBandSample" data="\{\{\.\.\.periodBandSample\}\}"\s*\/>/)
   assert.match(quickBlock, /class="quick-icon memory-tone">♥<\/text>/)
   // 不再用表情（🩸 / ❤️ 表情形态），也不再用另一套经期圆点
   assert.doesNotMatch(quickBlock, /🩸|❤️|●/)
