@@ -782,10 +782,15 @@ test('homepage consumes the one-time partner welcome only after the bar is commi
     assert.deepEqual(harness.toasts, [])
     assert.match(readIndexWxml(), /已和 TA 连上。经期是玫瑰色带，♥ 是欢乐时光，「预」是下次可能开始的日子。/)
 
-    // 同一页面实例再次进入：欢迎条留在原处，不再消费
+    // 同一次停留里重算日历，欢迎条留在原处
+    harness.page.applyHomeCalendarState()
+    assert.equal(harness.page.data.partnerWelcome, true)
+
+    // 离开首页（切 tab 或进编辑页）再回来：欢迎条只陪第一次显示它的那次停留，不再出现
+    harness.page.onHide()
     await harness.page.onShow()
     harness.commitRender()
-    assert.equal(harness.page.data.partnerWelcome, true)
+    assert.equal(harness.page.data.partnerWelcome, false)
     assert.equal(storage.get('partnerWelcome'), 'seen')
   } finally {
     harness.teardown()
@@ -849,6 +854,8 @@ test('the partner welcome shortens the calendar rows through the row-height ledg
   const harness = loadPageHarness({
     client: createQueuedClient([
       { kind: 'success', data: [] },
+      { kind: 'success', data: [] },
+      { kind: 'success', data: [] },
       { kind: 'success', data: [] }
     ]),
     room: pairedRoom,
@@ -872,6 +879,12 @@ test('the partner welcome shortens the calendar rows through the row-height ledg
     // 之后重算日历（翻月、刷新）仍把欢迎条计入
     harness.page.applyHomeCalendarState()
     assert.equal(harness.page.data.calendarRowHeightPx, 50)
+
+    // 离开首页再回来：欢迎条收起，账本去掉它的 103.2rpx，行高回到 55.33
+    harness.page.onHide()
+    await harness.page.onShow()
+    assert.equal(harness.page.data.partnerWelcome, false)
+    assert.equal(harness.page.data.calendarRowHeightPx, 55.33)
   } finally {
     harness.teardown()
     delete require.cache[require.resolve(safeAreaPath)]

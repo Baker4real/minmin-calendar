@@ -238,8 +238,19 @@ Page({
     if (!roomPresence.isPartnerWelcomePending()) return
     this.setData(
       this.withCalendarGeometry({ partnerWelcome: true }),
-      () => roomPresence.markPartnerWelcomeSeen()
+      () => {
+        roomPresence.markPartnerWelcomeSeen()
+        this._partnerWelcomeSeen = true
+      }
     )
+  },
+
+  // 欢迎条只陪第一次显示它的那次停留：已经看过的欢迎条在首页隐藏时收起（画面不可见，不跳动），
+  // 再回到首页时不再出现，行高同一次 setData 去掉它
+  dismissSeenPartnerWelcome() {
+    if (!this.data.partnerWelcome || !this._partnerWelcomeSeen) return
+    this._partnerWelcomeSeen = false
+    this.setData(this.withCalendarGeometry({ partnerWelcome: false }))
   },
 
   // 日历几何的唯一出口（issue #153）：改动日期格、密度、顶栏、「回到今天」、欢迎条或行内重试行的 setData
@@ -969,6 +980,7 @@ Page({
 
   onHide() {
     this.persistOngoingReminderSeen()
+    this.dismissSeenPartnerWelcome()
   },
 
   onUnload() {
