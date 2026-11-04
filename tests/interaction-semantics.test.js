@@ -305,6 +305,55 @@ test('sheet mask and panel are siblings so only the mask is announced as close',
   assert.deepEqual(labels.sort(), ['关闭工具菜单', '关闭当日操作', '关闭月份选择', '关闭面板'])
 })
 
+// issue #154：设置「使用说明」同首页弹层的结构——遮罩单独朗读为「关闭使用说明」，
+// 面板标题行里有可见的「×」关闭键（读屏名「关闭」），触控高度至少 88rpx。
+test('settings help keeps a separately named mask and a visible close in its title row', () => {
+  const forest = parseWxmlForest(readPage('pages/settings/settings.wxml'))
+  const masks = []
+  walkForest(forest, (node) => {
+    if (classTokens(node).includes('help-mask')) masks.push(node)
+  })
+  assert.equal(masks.length, 1)
+  const [mask] = masks
+  assert.equal(mask.attrs.bindtap, 'closeHelp')
+  assert.equal(mask.attrs['aria-role'], 'button')
+  assert.equal(mask.attrs['aria-label'], '关闭使用说明')
+  assert.equal(mask.children.length, 0, 'the mask must not wrap the help panel')
+
+  const host = mask.parent
+  assert.ok(host, 'the mask needs a sibling panel')
+  assert.equal(host.attrs['aria-role'], undefined)
+  assert.equal(host.attrs['aria-label'], undefined)
+  const panel = host.children.find((child) => classTokens(child).includes('help-slide'))
+  assert.ok(panel, 'the help panel should be the mask sibling')
+  assert.equal(panel.attrs['aria-role'], undefined)
+
+  const closes = []
+  walkForest(panel.children, (node) => {
+    if (classTokens(node).includes('sheet-close')) closes.push(node)
+  })
+  assert.equal(closes.length, 1, 'the help panel has one visible close')
+  const [close] = closes
+  assert.equal(close.attrs.bindtap, 'closeHelp')
+  assert.equal(close.attrs['aria-role'], 'button')
+  assert.equal(close.attrs['aria-label'], '关闭')
+  assert.ok(
+    close.parent.children.some((node) => classTokens(node).includes('help-title')),
+    'the close sits in the title row'
+  )
+
+  const closeRule = wxssRuleBody('pages/settings/settings.wxss', '.sheet-close')
+  assert.ok(closeRule, 'expected .sheet-close in settings.wxss')
+  for (const side of ['width', 'height']) {
+    const size = new RegExp(`(?:^|[;\\s])${side}:\\s*(\\d+)rpx`).exec(closeRule)
+    assert.ok(size && Number(size[1]) >= 88, `the help close ${side} must be at least 88rpx`)
+  }
+  const pressed = wxssRuleBody('pages/settings/settings.wxss', '.sheet-close:active')
+  const scale = /transform:\s*scale\(([\d.]+)\)/.exec(pressed || '')
+  assert.ok(scale, 'the help close keeps a press scale')
+  assert.ok(Number(scale[1]) >= 0.94 && Number(scale[1]) <= 0.98)
+})
+
 test('home status line opens the prediction sheet and the record count is gone', () => {
   const elements = collectElements(readPage('pages/index/index.wxml'))
   const statusLine = elements.find((element) =>

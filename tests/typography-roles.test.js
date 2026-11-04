@@ -50,7 +50,8 @@ const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'pages/bind/bind.wxss', selector: '.hero-title', kind: 'display', value: '48rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.code-input', kind: 'display', value: '40rpx' },
   { file: 'pages/settings/settings.wxss', selector: '.menu-arrow', kind: 'glyph', value: '32rpx' },
-  { file: 'pages/settings/settings.wxss', selector: '.room-code-value', kind: 'display', value: '36rpx' }
+  { file: 'pages/settings/settings.wxss', selector: '.room-code-value', kind: 'display', value: '36rpx' },
+  { file: 'pages/settings/settings.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' }
 ]
 
 function readAppTokens() {

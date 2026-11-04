@@ -164,6 +164,8 @@ const CASES = [
   { file: 'pages/memory/memory.wxss', selector: '.memory-arrow', surfaces: [['app.wxss', '.premium-card']], note: '欢乐时光列表行箭头' },
   { file: 'pages/index/index.wxss', selector: '.sheet-action-arrow', surfaces: [['pages/index/index.wxss', '.day-action-sheet'], ['pages/index/index.wxss', '.sheet-action']], note: '弹层操作行箭头' },
   { file: 'pages/index/index.wxss', selector: '.sheet-close', surfaces: [['pages/index/index.wxss', '.day-action-sheet']], note: '弹层关闭按钮' },
+  // issue #154：设置「使用说明」面板是玻璃卡，关闭键叠在卡面上
+  { file: 'pages/settings/settings.wxss', selector: '.sheet-close', surfaces: [['app.wxss', '.premium-card']], note: '设置使用说明关闭按钮' },
   { file: 'pages/index/index.wxss', selector: '.nav-btn', surfaces: [], note: '月份前后切换箭头' },
   { file: 'app.wxss', selector: '.nav-back', surfaces: [['app.wxss', '.nav-back-surface']], note: '导航返回箭头' },
   { file: 'pages/index/index.wxss', selector: '.month-title-caret', surfaces: [['pages/index/index.wxss', '.month-title-trigger']], note: '月份选择器 caret' },
