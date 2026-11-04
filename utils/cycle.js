@@ -244,6 +244,12 @@ function recordNoteSummary(note) {
   return `${chars.slice(0, NOTE_SUMMARY_MAX_CHARS).join('').trim()}…`
 }
 
+// 欢乐时光编辑入口的读屏名（issue #157）：首页当日详情行和「记录」tab 月份卡行共用这一处。
+// 动作 + 日期 + 非空备注的短摘要 + 作者（只在房间已配对时有值），同一天的多条各自可辨；空的部分跳过，不留多余标点
+function memoryEditAriaLabel({ dateText, note, authorLabel }) {
+  return ['编辑欢乐时光', dateText, recordNoteSummary(note), authorLabel].filter(Boolean).join('，')
+}
+
 function decoratePeriod(period, { today } = {}) {
   const status = getPeriodStatus(period)
   const range = status === 'known-end' ? util.normalizeDateRange(period) : null
@@ -678,7 +684,7 @@ module.exports = {
   projectPeriodRange,
   getPeriodDuration,
   recordAuthorLabel,
-  recordNoteSummary,
+  memoryEditAriaLabel,
   decoratePeriod,
   buildSymptomOptions,
   formatPredictionRange

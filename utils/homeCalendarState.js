@@ -262,7 +262,11 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
           key: memoryKeys[index],
           recordId: recordIdentity(memory),
           note: memory.note || '欢乐时光',
-          ariaLabel: buildMemoryDetailAriaLabel(memory, authorLabel, today)
+          ariaLabel: cycle.memoryEditAriaLabel({
+            dateText: util.formatDisplayDate(memory.date, { today }),
+            note: memory.note,
+            authorLabel
+          })
         }, authorLabel)
       })
     const meanings = buildDayMeanings(day).filter(isDayDetailSentence)
@@ -337,12 +341,6 @@ function describePeriodDetail(range, authorLabel, today) {
     range: range.status === 'known-end' ? dates : `${dates}（${status}）`,
     ariaLabel: joinAriaParts([PERIOD_EDIT_ACTION, dates, status, authorLabel])
   }
-}
-
-// 欢乐时光编辑入口：日期 + 非空备注的短摘要 + 作者
-function buildMemoryDetailAriaLabel(memory, authorLabel, today) {
-  const date = util.formatDisplayDate(memory.date, { today })
-  return joinAriaParts(['编辑欢乐时光', date, cycle.recordNoteSummary(memory.note), authorLabel])
 }
 
 function periodStatusText(status) {
