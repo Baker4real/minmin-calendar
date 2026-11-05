@@ -24,11 +24,12 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 - `utils/recordPageSync.js` - edit-page-to-homepage record sync helper for optimistic homepage refresh.
 - `utils/recordDraft.js` - edit-form draft stash with an injected storage adapter; `createWxDraftStorage` is the only wx local-storage seam.
 - `utils/recordEditRoute.js` - Period/Memory edit URL construction and edit-page route option hydration, including the Memory date ceiling at today.
+- `utils/recordFieldErrors.js` - shared edit-page field errors: each error stays under its field, the first one scrolls below the fixed nav bar, and later edits re-check only the errors already shown.
 - `utils/roomRecordsSnapshot.js` - room-scoped Period/Memory snapshot loader for homepage partial sync and Settings all-or-nothing export.
 - `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
 - `utils/roomAccessOutcome.js` - client-side classification of room access failures plus outcome presentation mapping.
 - `utils/homeCalendarState.js` - pure homepage calendar state, marker meanings, and marker composition.
-- `utils/calendarRowHeight.js` - homepage calendar row height from the available viewport, between the 44px floor and the density cap.
+- `utils/calendarRowHeight.js` - homepage calendar geometry ledger: row height between the 44px floor and the density cap, per-density cell content minimums, the compact merged info row, and whether the record entry fits the first screen; rows never shrink below their content, so a short screen scrolls instead of clipping.
 - `utils/safeArea.js` - runtime safe-area top/bottom computation; every page root injects `--safe-top`, `--safe-bottom`, `--nav-bar-height`, and `--capsule-right`.
 - `utils/util.js` - date, lunar, holiday, base calendar-grid helpers, and the month-swipe decision.
 - `utils/chinaHolidays.js` - official China holiday and adjusted-workday data table (2001-2026).
