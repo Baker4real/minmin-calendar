@@ -29,6 +29,19 @@ const ALLOWED_IMAGES = {
   'docs/evidence/issue-152/today-sheet-430x932.png': '今天的弹层：记经期、记欢乐时光两个动作，没有记录数据',
   'docs/evidence/issue-152/past-sheet-430x932.png': '过去日期弹层：补记经期、补记欢乐时光两个动作，没有记录数据',
   'docs/evidence/issue-152/empty-state-430x932.png': '零记录替身房间的首页引导，没有记录数据',
+  // #153–#158：同样是 430×932 替身房间里的裁剪图；日期上的经期、♥、「预」和备注都来自替身记录。
+  'docs/evidence/issue-153/merged-info-row-430x932.png': '清爽密度合并信息行：节日 + ♥、「班」+ ♥、♥ +「预」各在日期下同一行；标记来自替身记录',
+  'docs/evidence/issue-153/scroll-fallback-430x932.png': '放不下的月份改为页面滚动：月份导航与状态行吸顶，记录入口可达；标记来自替身记录',
+  'docs/evidence/issue-153/band-shapes-smallest-rows-430x932.png': '最小行高下的经期色带形状（单日、跨周收口、连续段）；色带来自替身记录',
+  'docs/evidence/issue-154/help-close-button-430x932.png': '设置页使用说明弹层右上角的关闭 ×，没有记录数据',
+  'docs/evidence/issue-154/help-closed-tabbar-back-430x932.png': '关闭使用说明后底部 tabBar 恢复，没有记录数据',
+  'docs/evidence/issue-155/day-actions-panel-430x932.png': '过去一天的当日操作弹层（补记经期、补记欢乐时光），没有记录数据',
+  'docs/evidence/issue-155/prediction-panel-430x932.png': '预测说明弹层；预测日期与周期来自替身记录',
+  'docs/evidence/issue-155/help-panel-430x932.png': '设置页使用说明弹层的正文，没有记录数据',
+  'docs/evidence/issue-157/day-detail-paired-430x932.png': '替身房间同一天的三条经期与两条欢乐时光，带作者和备注摘要；全部是替身记录，备注以「替身」开头',
+  'docs/evidence/issue-157/records-memory-month-430x932.png': '记录页欢乐时光月份卡里同一天的两条；替身记录',
+  'docs/evidence/issue-158/prediction-sheet-430x932.png': '预测说明首句「前后 N 天是可能开始的窗口」与「不是医疗建议」；预测来自替身记录',
+  'docs/evidence/issue-158/records-cycle-overview-430x932.png': '记录页经期分段的周期概览卡；数字来自替身记录',
 }
 
 // 读 index 而不是工作区：提交钩子里跑时，读到的正是这次要提交的文件。
