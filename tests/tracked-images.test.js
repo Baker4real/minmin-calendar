@@ -42,6 +42,25 @@ const ALLOWED_IMAGES = {
   'docs/evidence/issue-157/records-memory-month-430x932.png': '记录页欢乐时光月份卡里同一天的两条；替身记录',
   'docs/evidence/issue-158/prediction-sheet-430x932.png': '预测说明首句「前后 N 天是可能开始的窗口」与「不是医疗建议」；预测来自替身记录',
   'docs/evidence/issue-158/records-cycle-overview-430x932.png': '记录页经期分段的周期概览卡；数字来自替身记录',
+  // #156、#158 补跑与 #159：仍是 430×932 替身房间；表单里的日期是脚本按当天推算填的，备注以「替身」开头。
+  'docs/evidence/issue-156/period-end-missing-430x932.png': '经期编辑页选「已结束」不填结束日期时，错误常驻在结束日期下；没有记录数据',
+  'docs/evidence/issue-156/both-future-430x932.png': '开始日和结束日都晚于今天时两个字段下各有错误；日期是脚本填的未来日子，没有记录数据',
+  'docs/evidence/issue-156/fix-start-430x932.png': '把开始日改对后只剩结束日期的错误；日期是脚本填的，没有记录数据',
+  'docs/evidence/issue-156/memory-future-430x932.png': '欢乐时光编辑页日期晚于今天时，错误常驻在日期下；日期是脚本填的，没有记录数据',
+  'docs/evidence/issue-156/draft-restored-430x932.png': '校验失败后离开再进来，草稿恢复（经量、症状与 500 字替身备注都在）；没有记录数据',
+  'docs/evidence/issue-158/edit-hints-known-end-430x932.png': '经期编辑页「共 N 天」与时长确认提示；日期是脚本填的，「通常的 5 天」来自替身记录',
+  'docs/evidence/issue-158/edit-hints-unknown-end-430x932.png': '经期编辑页选「结束日期不详」时的后果说明，没有记录数据',
+  'docs/evidence/issue-158/home-unbound-430x932.png': '首页未绑定画面：说明文字与「去绑定」按钮之间有间距，没有记录数据',
+  'docs/evidence/issue-158/home-load-failed-430x932.png': '首页日历加载失败画面：说明文字与「重试」按钮之间有间距，没有记录数据',
+  'docs/evidence/issue-159/tabbar-home-430x932.png': '在首页时的底部 tabBar：记录 tab 是未选中的列表图标，没有记录数据',
+  'docs/evidence/issue-159/tabbar-records-430x932.png': '在记录页时的底部 tabBar：记录 tab 是选中的列表图标，没有记录数据',
+  'docs/evidence/issue-159/home-compact-430x932.png': '清爽密度首页整屏：「记经期」用色带样本；状态行与「预」来自替身记录',
+  'docs/evidence/issue-159/home-full-430x932.png': '完整密度首页整屏（带农历）：「记经期」用色带样本；状态行与「预」来自替身记录',
+  'docs/evidence/issue-159/plate-ongoing-430x932.png': '进行中时「经期第 N 天 · 记结束」只在空格处换行；天数来自替身记录',
+  'docs/evidence/issue-159/day-actions-period-430x932.png': '当日操作弹层里「补记经期」用同一个色带样本，没有记录数据',
+  'docs/evidence/issue-159/legend-period-row-430x932.png': '图例里的经期色带样本，没有记录数据',
+  'docs/evidence/issue-159/bound-2001-430x932.png': '2001年1月：上一月箭头禁用，没有记录数据',
+  'docs/evidence/issue-159/bound-2035-430x932.png': '2035年12月：下一月箭头禁用，没有记录数据',
 }
 
 // 读 index 而不是工作区：提交钩子里跑时，读到的正是这次要提交的文件。
