@@ -797,10 +797,11 @@
   line-height: var(--line-height-assist);
 }
 /* 主按钮在居中的列里按内容收缩，而基类左右内边距为 0（「重试」曾只有字宽）：
-   两个方向都至少 88rpx 触控档，标签左右留 --space-lg */
+   两个方向都至少 88rpx 触控档，标签左右留 --space-lg；基类没有外边距，按钮曾贴着说明文字，上方同样留 --space-lg */
 .no-room .btn-premium {
   min-width: 88rpx;
   min-height: 88rpx;
+  margin-top: var(--space-lg);
   padding-left: var(--space-lg);
   padding-right: var(--space-lg);
   box-sizing: border-box;

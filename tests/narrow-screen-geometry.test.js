@@ -596,6 +596,9 @@ test('the homepage room-status button keeps the 88rpx touch size in both axes fo
   assert.ok(rpxNumber(button, 'min-height') >= 88, 'the button is at least 88rpx tall')
   const [sidePad] = horizontalPaddingTokens(button)
   assert.match(sidePad || '', /^var\(--space-[a-z]+\)$/, 'the side padding comes from a spacing token')
+  // 430px 截图里按钮贴着说明文字（中间只有说明行距的半个行间）：上方留一档间距 token，至少 --space-md
+  assert.match(button['margin-top'] || '', /^var\(--space-[a-z]+\)$/, 'the gap above the button comes from a spacing token')
+  assert.ok(tokenRpx(button['margin-top'], appTokens) >= 32, 'the button sits at least --space-md below the description')
 
   // 每个动作标签（按钮字号，每字 1em）加左右内边距都不低于 88rpx，标签两侧留出空隙
   const labels = [...new Set([...readRepo('utils/roomAccessOutcome.js')
