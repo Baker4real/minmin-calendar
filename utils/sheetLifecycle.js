@@ -158,6 +158,16 @@ function syncSheetTabBar(page, obscured) {
   }
 }
 
+// 原生 tabBar 的显隐是整个小程序共用的状态。弹层开着时页面被卸载（reLaunch、redirectTo、热启动换路径）
+// 不经过离场，藏起的 tabBar 会一直藏着。tab 页每次显示时调用：本页没有弹层盖着就立即交还，
+// 盖着时不动，仍由离场恢复。
+function restoreTabBarOnShow(page) {
+  if (page && page._sheetTabBarHidden) return
+  if (typeof wx !== 'undefined' && wx && typeof wx.showTabBar === 'function') {
+    wx.showTabBar({ animation: false })
+  }
+}
+
 // 一页里的底部弹层共用一套遮挡规则。打开或离场才算遮挡，进场第一拍仍是 closed，页面还没被盖住。
 // 交接标记例外：遮罩已经完全不透明，装饰继续暂停。遮挡期间藏起原生 tabBar，
 // 还有弹层挂载时留着系统返回拦截（sheetExitGuard）。
@@ -255,5 +265,6 @@ module.exports = {
   dismissSheetOnSystemBack,
   probeReducedMotion,
   readReducedMotionProbe,
+  restoreTabBarOnShow,
   sheetTabBarAnimates
 }

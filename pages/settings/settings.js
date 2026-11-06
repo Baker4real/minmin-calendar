@@ -7,7 +7,8 @@ const safeArea = require('../../utils/safeArea')
 const {
   settingsHelpSheet,
   dismissSheetOnSystemBack,
-  probeReducedMotion
+  probeReducedMotion,
+  restoreTabBarOnShow
 } = require('../../utils/sheetLifecycle')
 
 // 与 pages/index/index.js 共享同一存储键；首页 onShow 重读本偏好
@@ -46,6 +47,7 @@ Page({
   },
 
   async onShow() {
+    restoreTabBarOnShow(this)
     this.setData({ calendarDensity: getSavedCalendarDensity() })
     probeReducedMotion(this)
     await this.resolveRoom()

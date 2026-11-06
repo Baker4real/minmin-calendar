@@ -6,6 +6,7 @@ const recordEditRoute = require('../../utils/recordEditRoute')
 const memoryMonthGroups = require('../../utils/memoryMonthGroups')
 const safeArea = require('../../utils/safeArea')
 const roomSession = require('../../utils/room')
+const { restoreTabBarOnShow } = require('../../utils/sheetLifecycle')
 
 // 与 pages/period/edit/edit.js、pages/memory/edit/edit.js 共享的
 // 一次性「目标分段」意图键：switchTab 不能带 query，入口先写键，本页 onShow 消费并立即清除（issue #103）
@@ -20,6 +21,8 @@ Page({
   memoryMonthChoices: {},
 
   onShow() {
+    // 本页没有弹层：别的页面在弹层开着时被卸载留下的隐藏 tabBar，在这里交还
+    restoreTabBarOnShow(this)
     this.consumeSegmentIntent()
     return this.data.segment === 'memory' ? this.loadMemoryData() : this.loadData()
   },

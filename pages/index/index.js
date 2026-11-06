@@ -16,7 +16,8 @@ const {
   handoffSheet,
   homepageSheetMounted,
   dismissSheetOnSystemBack,
-  probeReducedMotion
+  probeReducedMotion,
+  restoreTabBarOnShow
 } = require('../../utils/sheetLifecycle')
 
 // 与 pages/settings/settings.js 共享同一存储键；写入方在设置页
@@ -197,6 +198,7 @@ Page({
   },
 
   onShow() {
+    restoreTabBarOnShow(this)
     // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效，行高按新密度同一次重算。
     // 记录加载必须在这次调用里同步开始，不能等房间状态请求回来。
     this.setData(this.withCalendarGeometry({ calendarDensity: this.getSavedCalendarDensity() }))

@@ -925,14 +925,42 @@ test('under reduced motion the settings help hides and restores the tab bar inst
   }
   try {
     await harness.page.onShow()
+    // 显示时先交还可能被别的页面留在隐藏的 tabBar（见下一条测试）
+    assert.deepEqual(tabBar, [['show', false]])
     harness.page.openHelp()
     t.mock.timers.tick(0)
-    assert.deepEqual(tabBar, [['hide', false]])
+    assert.deepEqual(tabBar, [['show', false], ['hide', false]])
 
     harness.page.closeHelp()
     t.mock.timers.tick(200)
     assert.equal(harness.page.data.helpMounted, false)
-    assert.deepEqual(tabBar, [['hide', false], ['show', false]])
+    assert.deepEqual(tabBar, [['show', false], ['hide', false], ['show', false]])
+  } finally {
+    harness.teardown()
+  }
+})
+
+// 原生 tabBar 的显隐是整个小程序共用的状态：别的页面在弹层开着时被卸载，会把它留在隐藏。
+// 设置页每次显示时，帮助没盖着就立即交还；帮助盖着时仍由离场恢复。
+test('showing the settings page gives the native tab bar back unless the help covers the page', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const harness = loadSettingsPageHarness({
+    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
+  })
+  const tabBar = []
+  harness.wx.hideTabBar = (options) => tabBar.push(['hide', options && options.animation])
+  harness.wx.showTabBar = (options) => tabBar.push(['show', options && options.animation])
+  try {
+    await harness.page.onShow()
+    assert.deepEqual(tabBar, [['show', false]])
+
+    harness.page.openHelp()
+    t.mock.timers.tick(0)
+    assert.equal(harness.page.data.helpPhase, 'open')
+    assert.deepEqual(tabBar, [['show', false], ['hide', true]])
+
+    await harness.page.onShow()
+    assert.deepEqual(tabBar, [['show', false], ['hide', true]])
   } finally {
     harness.teardown()
   }

@@ -52,6 +52,38 @@ test('record tab segments period and memory lists behind one radio group', () =>
   assert.match(wxml, /nav-title">记录</)
 })
 
+// 记录 tab 没有弹层。首页弹层开着时页面被 reLaunch 卸载，藏起的原生 tabBar（整个小程序共用）不会回来，
+// 所以记录 tab 每次显示都立即交还它。
+test('showing the record tab gives back a native tab bar that another page left hidden', async () => {
+  const tabBar = []
+  const harness = loadPageHarness('pages/period/period.js', {
+    mocks: {
+      'utils/cloud.js': {
+        createRoomDataClient() {
+          return {
+            async list() {
+              return { kind: 'success', data: [] }
+            }
+          }
+        }
+      },
+      'utils/util.js': createUtilStub()
+    },
+    wxOverrides: {
+      showTabBar(options) {
+        tabBar.push(['show', options && options.animation])
+      }
+    }
+  })
+
+  try {
+    await awaitPageOnShow(harness.page)
+    assert.deepEqual(tabBar, [['show', false]])
+  } finally {
+    harness.teardown()
+  }
+})
+
 test('record tab onShow consumes a stored segment intent once and lands on the memory segment', async () => {
   const storage = { recordTabSegment: 'memory' }
   const removedKeys = []

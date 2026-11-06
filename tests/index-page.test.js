@@ -2892,6 +2892,40 @@ test('reduced motion hides and restores the native tab bar instantly', () => {
   }
 })
 
+// 原生 tabBar 的显隐是整个小程序共用的状态。弹层开着时页面被卸载（reLaunch、redirectTo、热启动换路径）
+// 不经过离场，藏起的 tabBar 会一直藏着。首页每次显示时，没有弹层盖着就立即交还；弹层盖着时仍由离场恢复。
+test('showing the homepage gives the native tab bar back unless one of its sheets covers the page', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  const client = createQueuedClient([
+    { kind: 'success', data: [] },
+    { kind: 'success', data: [] },
+    { kind: 'success', data: [] },
+    { kind: 'success', data: [] }
+  ])
+  const harness = loadPageHarness({ client })
+  try {
+    const tabBar = []
+    global.wx.hideTabBar = (options) => tabBar.push(['hide', options && options.animation])
+    global.wx.showTabBar = (options) => tabBar.push(['show', options && options.animation])
+
+    harness.page.onLoad()
+    await harness.page.onShow()
+    assert.deepEqual(tabBar, [['show', false]])
+
+    harness.page.openMonthPicker()
+    mock.timers.tick(0)
+    assert.equal(harness.page.data.monthPickerPhase, 'open')
+    assert.deepEqual(tabBar, [['show', false], ['hide', true]])
+
+    // 弹层还盖着时再次显示（例如从后台回来）：不交还，留给弹层离场
+    await harness.page.onShow()
+    assert.deepEqual(tabBar, [['show', false], ['hide', true]])
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
 test('opening the month picker during leave cancels the unmount and returns to open', () => {
   mock.timers.enable({ apis: ['setTimeout'] })
   const harness = loadPageHarness({ client: createQueuedClient([]) })
