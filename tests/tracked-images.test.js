@@ -98,6 +98,12 @@ const ALLOWED_IMAGES = {
   'docs/evidence/issue-164/settings-danger-zone-390x844.png': '设置页「解除绑定」离「关于」组 48rpx，没有记录数据',
   'docs/evidence/issue-164/period-edit-save-gap-390x844.png': '新增经期页：保存按钮离表单卡 20rpx，没有记录数据',
   'docs/evidence/issue-164/memory-edit-error-long-note-390x844.png': '欢乐时光编辑页：脚本填的未来日期报错常驻在日期下，长备注是替身文字，都在卡片内，没有记录数据',
+  // #166：worktree 项目窗口，视口 390×844（没切机型），替身房间；刷新失败由替身云端造出。动画时序看 computedStyle 读回，图只证明终态。
+  'docs/evidence/issue-166/sheet-tools-menu-open-390x844.png': '首页工具菜单弹层停在打开态：标题行和内容块都已到位，内容块晚标题一拍进场；菜单项没有记录数据',
+  'docs/evidence/issue-166/sheet-settings-help-open-390x844.png': '设置页使用说明弹层停在打开态：标题与关闭在上，说明文字在内容块里；固定文案，没有记录数据',
+  'docs/evidence/issue-166/records-period-list-retry-390x844.png': '记录页经期段刷新失败重试行（静止）：玻璃回退底加 0.1 白描边，说明文字读得清；没有记录数据',
+  'docs/evidence/issue-166/records-period-list-retry-pressed-390x844.png': '同一行按住时：描边提亮到 0.14、平涂层加深、缩到 0.97；没有记录数据',
+  'docs/evidence/issue-166/records-memory-list-retry-390x844.png': '记录页欢乐时光段刷新失败：和经期段是同一条重试行；没有记录数据',
 }
 
 // 读 index 而不是工作区：提交钩子里跑时，读到的正是这次要提交的文件。

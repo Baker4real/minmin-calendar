@@ -263,7 +263,7 @@ test('cycle overview labels clear 4.5:1 on canvas, glass fallback and both gradi
 const REMINDER_ROW = [['pages/index/index.wxss', '.reminder-card'], ['pages/index/index.wxss', '.reminder-card::before']]
 const KEY_ASSIST_TEXT = [
   { file: 'pages/period/period.wxss', selector: '.item-note', stacks: [[['app.wxss', '.premium-card']]], note: '经期列表行的作者与备注' },
-  { file: 'pages/period/period.wxss', selector: '.memory-note', stacks: [[['app.wxss', '.premium-card']], []], note: '欢乐时光行的作者与备注；刷新失败说明行在画布上' },
+  { file: 'pages/period/period.wxss', selector: '.memory-note', stacks: [[['app.wxss', '.premium-card']]], note: '欢乐时光行的作者与备注' },
   { file: 'pages/period/period.wxss', selector: '.month-excerpt', stacks: [[['app.wxss', '.premium-card']]], note: '收起月份卡的备注摘要' },
   { file: 'pages/period/period.wxss', selector: '.empty-state', stacks: [[['pages/period/period.wxss', '.empty-state']]], note: '记录 tab 空态引导与加载失败标题' },
   { file: 'pages/period/edit/edit.wxss', selector: '.form-hint', stacks: [[['app.wxss', '.premium-card']]], note: '经期状态的后果、天数与时长确认' },
@@ -319,7 +319,7 @@ test('non-key grouping labels keep their quieter tier and still clear 4.5:1', ()
 })
 
 // issue #163：内容画在极光之上。直接压在背景上的文字和叠在半透明行上的文字，在画布和极光最亮处
-// 都要 ≥4.5:1。那几条半透明行（提醒、刷新重试、记录分段、绑定页错误条与重试）因此都叠在
+// 都要 ≥4.5:1。那几条半透明行（提醒、刷新重试、记录分段与记录 tab 重试行、绑定页错误条与重试）因此都叠在
 // var(--glass-fallback) 上，淡白或淡红只是上面的一层平涂。上面关键辅助文字表里登记过的不重复。
 const TEXT_ON_AURORA = [
   { file: 'pages/index/index.wxss', selector: '.partner-welcome', stacks: [[]], note: '首页配对欢迎条' },
@@ -330,7 +330,7 @@ const TEXT_ON_AURORA = [
   { file: 'pages/index/index.wxss', selector: '.no-room-title', stacks: [[]], note: '未绑定与加载失败标题' },
   { file: 'pages/period/period.wxss', selector: '.segment-option', stacks: [[['pages/period/period.wxss', '.segment-control']]], note: '记录 tab 分段未选项' },
   { file: 'pages/period/period.wxss', selector: '.segment-option.active', stacks: [[['pages/period/period.wxss', '.segment-control'], ['pages/period/period.wxss', '.segment-option.active']]], note: '记录 tab 分段选中项' },
-  { file: 'pages/period/period.wxss', selector: '.list-retry-text', stacks: [[]], note: '记录 tab 刷新失败重试行' },
+  { file: 'pages/period/period.wxss', selector: '.list-retry-text', stacks: [[['pages/period/period.wxss', '.list-retry'], ['pages/period/period.wxss', '.list-retry::before']]], note: '记录 tab 刷新失败重试行' },
   { file: 'pages/settings/settings.wxss', selector: '.settings-group-title', stacks: [[]], note: '设置分组标题' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-title', stacks: [[]], note: '绑定页大标题' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-desc', stacks: [[]], note: '绑定页说明' },
@@ -339,7 +339,8 @@ const TEXT_ON_AURORA = [
   // 这几条行按下时平涂层加深，按下的那一刻文字也要读得清
   { file: 'pages/index/index.wxss', selector: '.refresh-retry-text', stacks: [[['pages/index/index.wxss', '.refresh-retry'], ['pages/index/index.wxss', '.refresh-retry.refresh-retry-hover::before']]], note: '首页刷新失败重试行（按下）' },
   { file: 'pages/index/index.wxss', selector: '.reminder-text', stacks: [[['pages/index/index.wxss', '.reminder-card'], ['pages/index/index.wxss', '.reminder-card.reminder-card-hover::before']]], note: '首页提醒行说明（按下）' },
-  { file: 'pages/bind/bind.wxss', selector: '.error-retry', stacks: [[['pages/bind/bind.wxss', '.error-retry'], ['pages/bind/bind.wxss', '.error-retry.error-retry-hover::before']]], note: '绑定页校验失败重试（按下）' }
+  { file: 'pages/bind/bind.wxss', selector: '.error-retry', stacks: [[['pages/bind/bind.wxss', '.error-retry'], ['pages/bind/bind.wxss', '.error-retry.error-retry-hover::before']]], note: '绑定页校验失败重试（按下）' },
+  { file: 'pages/period/period.wxss', selector: '.list-retry-text', stacks: [[['pages/period/period.wxss', '.list-retry'], ['pages/period/period.wxss', '.list-retry.list-retry-hover::before']]], note: '记录 tab 刷新失败重试行（按下）' }
 ]
 
 test('text on the aurora and on translucent rows clears 4.5:1 at the aurora brightest point', () => {

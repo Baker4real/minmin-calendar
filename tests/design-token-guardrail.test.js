@@ -687,11 +687,17 @@ function declsFor(relative, selector) {
 
 // issue #146：辉光只留在主按钮和复制键上。月份导航、加载圈、同步点不发光；
 // 绑定页爱心只留一层字阴影。提醒和详情的彩色 rail 继续承载状态色。
+// issue #166：主按钮和复制键的玫瑰光画在 ::before 柔光层上，按钮本身不带阴影（按压契约见 motion-performance）。
 test('glow stays on primary buttons and the copy control', () => {
   const roseGlow = '0 4px 15px rgba(232,144,158,0.28)'
-  assert.equal(declsFor('app.wxss', '.btn-premium')['box-shadow'], roseGlow)
-  assert.equal(declsFor('pages/settings/settings.wxss', '.copy-btn')['box-shadow'], roseGlow)
-  assert.equal(declsFor('pages/bind/bind.wxss', '.copy-btn')['box-shadow'], roseGlow)
+  for (const [relative, selector] of [
+    ['app.wxss', '.btn-premium'],
+    ['pages/settings/settings.wxss', '.copy-btn'],
+    ['pages/bind/bind.wxss', '.copy-btn']
+  ]) {
+    assert.equal(declsFor(relative, `${selector}::before`)['box-shadow'], roseGlow, `${relative} ${selector} glow layer`)
+    assert.equal(declsFor(relative, selector)['box-shadow'], undefined, `${relative} ${selector} itself carries no shadow`)
+  }
 
   const monthNav = declsFor('pages/index/index.wxss', '.month-nav')['box-shadow'] || ''
   assert.doesNotMatch(monthNav, /232,\s*144,\s*158/)

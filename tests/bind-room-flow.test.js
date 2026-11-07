@@ -74,7 +74,8 @@ test('bind and settings copy buttons are the same rose small button pixel-for-pi
   const bindRule = findRule(readPageFile('pages/bind/bind.wxss'), '.copy-btn')
   const settingsRule = findRule(readPageFile('pages/settings/settings.wxss'), '.copy-btn')
 
-  // 契约五属性：fill / label / radius / padding / shadow，两页逐值全等
+  // 契约五属性：fill / label / radius / padding / shadow，两页逐值全等。
+  // 玫瑰光从 issue #166 起画在 ::before 柔光层上，按钮本身不带阴影
   for (const prop of ['background', 'color', 'border-radius', 'padding', 'box-shadow']) {
     assert.equal(bindRule[prop], settingsRule[prop], `copy button ${prop} must match the settings anchor`)
   }
@@ -82,14 +83,21 @@ test('bind and settings copy buttons are the same rose small button pixel-for-pi
   assert.equal(settingsRule.color, '#0A0E27')
   assert.equal(settingsRule['border-radius'], 'var(--radius-sm)')
   assert.equal(settingsRule.padding, '0 28rpx')
-  assert.equal(settingsRule['box-shadow'], '0 4px 15px rgba(232,144,158,0.28)')
+  assert.equal(settingsRule['box-shadow'], undefined)
+  const bindGlow = findRule(readPageFile('pages/bind/bind.wxss'), '.copy-btn::before')
+  const settingsGlow = findRule(readPageFile('pages/settings/settings.wxss'), '.copy-btn::before')
+  assert.equal(settingsGlow['box-shadow'], '0 4px 15px rgba(232,144,158,0.28)')
+  assert.equal(bindGlow['box-shadow'], settingsGlow['box-shadow'], 'copy button glow must match the settings anchor')
 
-  // 88rpx 触控高度与按下缩放在两页同样同款
+  // 88rpx 触控高度、按下缩放和按下时柔光沉下去的程度在两页同样同款
   assert.equal(bindRule['min-height'], '88rpx')
   assert.equal(settingsRule['min-height'], '88rpx')
   const bindActive = findRule(readPageFile('pages/bind/bind.wxss'), '.copy-btn:active')
   const settingsActive = findRule(readPageFile('pages/settings/settings.wxss'), '.copy-btn:active')
   assert.equal(bindActive.transform, settingsActive.transform)
+  const bindPressedGlow = findRule(readPageFile('pages/bind/bind.wxss'), '.copy-btn:active::before')
+  const settingsPressedGlow = findRule(readPageFile('pages/settings/settings.wxss'), '.copy-btn:active::before')
+  assert.equal(bindPressedGlow.opacity, settingsPressedGlow.opacity)
 })
 
 // issue #104：粉胶囊/粉幽灵页面级覆盖整体移除——绑定页主按钮回 app 级玫瑰基类，
@@ -239,6 +247,11 @@ test('copy buttons press instantly under reduced motion on both bind and setting
       css.slice(rmStart),
       /\.copy-btn[^{]*\{[^}]*transition:\s*none/,
       `${file} reduced-motion block must neutralize the copy button transform transition`
+    )
+    assert.match(
+      css.slice(rmStart),
+      /\.copy-btn::before[^{]*\{[^}]*transition:\s*none/,
+      `${file} reduced-motion block must make the copy button glow switch instantly`
     )
   }
 })

@@ -349,7 +349,9 @@
     animation: none;
   }
   .load-failed,
+  .retry-btn,
   .list-retry,
+  .list-retry::before,
   .segment-option {
     transition: none;
   }
@@ -391,26 +393,54 @@
   color: #0A0E27;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
+  transition: transform var(--duration-press) var(--ease-out);
 }
 .retry-btn:active,
 .retry-btn.retry-btn-hover {
   transform: scale(0.96);
 }
 
-/* 已有数据后刷新失败：列表与数字保留，重试行留在列表区域 */
+/* 已有数据后刷新失败：列表与数字保留，重试行留在列表区域（经期与欢乐时光两段同一条行）。
+   行叠在玻璃回退上，淡白只是 ::before 平涂层：原来按下才铺 5% 淡白、透出极光，
+   说明文字在极光最亮处只剩约 4.25:1（issue #163 留下、#166 收口，和首页刷新重试行同一种做法） */
 .list-retry {
+  position: relative;
+  z-index: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16rpx;
+  box-sizing: border-box;
   min-height: 88rpx;
   margin-top: 16rpx;
-  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
+  padding: 0 28rpx;
+  border-radius: var(--radius-md);
+  background: var(--glass-fallback);
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: border-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
+.list-retry::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-md);
+  background-color: rgba(255,255,255,0.05);
+  transition: background-color var(--duration-press) ease;
+  pointer-events: none;
+  z-index: -1;
+}
+/* 平涂层盖不到描边带：按下时描边和平涂层一起提亮（issue #166） */
 .list-retry:active,
 .list-retry.list-retry-hover {
-  background: rgba(255,255,255,0.05);
   transform: scale(0.97);
+  border-color: rgba(255,255,255,0.14);
+}
+.list-retry:active::before,
+.list-retry.list-retry-hover::before {
+  background-color: rgba(255,255,255,0.09);
 }
 .list-retry-text {
   font-size: var(--font-size-caption);

@@ -103,9 +103,12 @@
         <text class="help-title">使用说明</text>
         <view class="sheet-close" bindtap="closeHelp" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">×</view>
       </view>
-      <text class="help-copy">房间是你们两个人共用的日历。把房间码发给对方，对方加入后就能一起看同一份经期和欢乐时光。</text>
-      <text class="help-copy">解除绑定后你退出房间。对方还在时，对方留在房间里。房间里只剩你时，房间会归档，记录还在。之后在绑定页点「创建」可以恢复。</text>
-      <text class="help-copy">预测是根据已有记录做的估算，不是医疗建议。</text>
+      <!-- issue #166：标题行随面板到，说明文字晚一拍跟上，同首页弹层 -->
+      <view class="sheet-body">
+        <text class="help-copy">房间是你们两个人共用的日历。把房间码发给对方，对方加入后就能一起看同一份经期和欢乐时光。</text>
+        <text class="help-copy">解除绑定后你退出房间。对方还在时，对方留在房间里。房间里只剩你时，房间会归档，记录还在。之后在绑定页点「创建」可以恢复。</text>
+        <text class="help-copy">预测是根据已有记录做的估算，不是医疗建议。</text>
+      </view>
     </view>
     </view>
   </view>

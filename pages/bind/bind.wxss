@@ -179,7 +179,7 @@
   margin-bottom: 30rpx;
 }
 /* 已绑定画面与设置页共用同一种复制小按钮（issue #78 像素同款契约，锚定 settings 的 .copy-btn）：
-   玫瑰底、海军字、radius-sm 小操作圆角，横向 padding、玫瑰辉光投影与 box-shadow 过渡全部同款；
+   玫瑰底、海军字、radius-sm 小操作圆角，横向 padding、柔光层上的玫瑰光和按下时沉下去的程度全部同款；
    按钮紧随房间码同排（issue #83），不再是独占一行的居中复制行 */
 .copy-btn {
   min-height: 88rpx;
@@ -194,15 +194,34 @@
   border-radius: var(--radius-sm);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
-  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
+  position: relative;
   transition: transform var(--duration-press) var(--ease-out);
+}
+/* 柔光层同 .btn-premium（issue #166）：按下沉到 0.5，和缩放同一拍 */
+.copy-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
+  transition: opacity var(--duration-press) ease;
+  pointer-events: none;
 }
 .copy-btn:active,
 .copy-btn.copy-btn-hover {
   transform: scale(0.94);
 }
+.copy-btn:active::before,
+.copy-btn.copy-btn-hover::before {
+  opacity: 0.5;
+}
 /* 原生分享按钮（issue #140）：组件自带灰底、5px 圆角和 ::after 描边，
-   特异性要高于 .btn-premium 才能盖住。视觉仍是同一枚玫瑰主按钮。 */
+   特异性要高于 .btn-premium 才能盖住。视觉仍是同一枚玫瑰主按钮。
+   组件自带的 overflow: hidden 会裁掉 .btn-premium 的 ::before 柔光层，这里放开（issue #166）；
+   按压类是 share-invite-hover，柔光跟着缩放一起沉 */
 button.share-invite {
   margin: 0 0 30rpx;
   width: 100%;
@@ -215,12 +234,16 @@ button.share-invite {
   font-size: var(--font-size-button);
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-body);
+  overflow: visible;
 }
 button.share-invite::after {
   border: none;
 }
 .share-invite.share-invite-hover {
   transform: scale(0.96);
+}
+.share-invite.share-invite-hover::before {
+  opacity: 0.5;
 }
 /* 刚创建房间时的次操作「进入应用」（issue #149）：DESIGN.md button-ghost——透明底、玫瑰描边和玫瑰字，
    居中胶囊，视觉权重低于整宽实底的「发给 TA」，不加投影。上下 12px 内边距让 320px 宽下触控高度仍 ≥44px */
@@ -288,6 +311,12 @@ button.share-invite::after {
   background: var(--glass-fallback);
   border: 1px solid rgba(249,115,115,0.24);
   border-radius: var(--radius-sm);
+  transition: border-color var(--duration-press) ease;
+}
+/* 平涂层盖不到描边带：按下时描边同色提亮，和红色平涂层一起亮（issue #166） */
+.error-retry:active,
+.error-retry.error-retry-hover {
+  border-color: rgba(249,115,115,0.32);
 }
 .error-retry::before {
   content: '';
@@ -298,6 +327,7 @@ button.share-invite::after {
   left: 0;
   border-radius: var(--radius-sm);
   background-color: rgba(249,115,115,0.1);
+  transition: background-color var(--duration-press) ease;
   pointer-events: none;
   z-index: -1;
 }
@@ -310,7 +340,10 @@ button.share-invite::after {
    政策见 DESIGN.md「动效与性能边界」——按压 = 即时 scale + 既有底色变化 */
 @media (prefers-reduced-motion: reduce) {
   .copy-btn,
+  .copy-btn::before,
   .btn-ghost,
+  .error-retry,
+  .error-retry::before,
   .bind-reveal {
     animation: none;
     transition: none;

@@ -1785,12 +1785,14 @@ test('record tab memory segment mirrors the standalone memory list state contrac
   assert.doesNotMatch(emptyBlock[1], /点上面按钮新增/)
   assert.doesNotMatch(emptyBlock[1], /retry-btn|bindtap/)
 
-  // 已加载后失败：列表保留，重试行留在列表区域
+  // 已加载后失败：列表保留，重试行留在列表区域；和经期段是同一条重试行，
+  // 按下时说明文字在极光上同样读得清（issue #166）
   assert.match(
     periodWxml,
-    /wx:if="\{\{memoryLoadFailed && memoryHasLoaded && !memoryLoading\}\}" class="list-item" bindtap="loadMemoryData" aria-role="button" aria-label="刷新失败，点按重试"/
+    /wx:if="\{\{memoryLoadFailed && memoryHasLoaded && !memoryLoading\}\}" class="list-retry" bindtap="loadMemoryData" aria-role="button" aria-label="刷新失败，点按重试" hover-class="list-retry-hover"/
   )
-  assert.match(periodWxml, /class="memory-note">刷新失败，正在显示上次的内容</)
+  assert.equal((periodWxml.match(/class="list-retry-text">刷新失败，正在显示上次的内容</g) || []).length, 2,
+    'both segments explain the refresh failure with the same retry row text')
 
   // 欢乐时光骨架是圆点变体（经期侧是 pill，形态差异刻意保留），复用已注册的 skeletonPulse
   assert.match(periodWxml, /wx:if="\{\{memoryLoading\}\}" class="skeleton-card"/)
