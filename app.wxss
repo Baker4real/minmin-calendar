@@ -371,6 +371,24 @@ page {
 .btn-danger.btn-danger-hover::before {
   background-color: rgba(249,115,115,0.12);
 }
+/* 删除中与不可删（issue #166）：用类名表达，不写内联透明度；按下不缩放、描边和平涂层停在静止值 */
+.btn-danger.loading,
+.btn-danger.disabled {
+  opacity: 0.5;
+}
+.btn-danger:active.loading,
+.btn-danger.btn-danger-hover.loading,
+.btn-danger:active.disabled,
+.btn-danger.btn-danger-hover.disabled {
+  transform: none;
+  border-color: rgba(249,115,115,0.28);
+}
+.btn-danger:active.loading::before,
+.btn-danger.btn-danger-hover.loading::before,
+.btn-danger:active.disabled::before,
+.btn-danger.btn-danger-hover.disabled::before {
+  background-color: var(--glass-bg);
+}
 
 /* ===== Field Error（issue #156）— 经期、欢乐时光编辑页共用 =====
    警示红族「字段错误」形态：红字一句，紧贴所属 picker 下方常驻，改对即消失；

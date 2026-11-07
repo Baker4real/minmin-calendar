@@ -19,8 +19,8 @@
       <view wx:if="{{draftRestored}}" class="draft-notice">已恢复上次未完成的输入</view>
       <view class="form-item" id="field-date">
         <text class="form-label">日期</text>
-        <picker mode="date" value="{{date}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onDateChange" aria-role="button" aria-label="选择日期{{fieldErrors.date ? '，' + fieldErrors.date : ''}}">
-          <view class="form-picker" hover-class="form-picker-hover">
+        <picker mode="date" value="{{date}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onDateChange" aria-role="button" aria-disabled="{{saving}}" aria-label="选择日期{{fieldErrors.date ? '，' + fieldErrors.date : ''}}">
+          <view class="form-picker{{saving ? ' disabled' : ''}}" hover-class="form-picker-hover">
             <text>{{dateLabel}}</text>
             <text class="form-picker-arrow">›</text>
           </view>
@@ -40,8 +40,8 @@
     </view>
     <view wx:if="{{isEdit}}" class="delete-zone">
       <view wx:if="{{isEdit && !deleting && !saving && !submitted}}" class="btn-danger" hover-class="btn-danger-hover" bindtap="delete" aria-role="button" aria-label="删除此记录">删除此记录</view>
-      <view wx:elif="{{isEdit && deleting}}" class="btn-danger" style="opacity: 0.5;" aria-role="button" aria-disabled="true">删除中...</view>
-      <view wx:elif="{{isEdit}}" class="btn-danger" style="opacity: 0.5;" aria-role="button" aria-disabled="true">删除此记录</view>
+      <view wx:elif="{{isEdit && deleting}}" class="btn-danger loading" aria-role="button" aria-disabled="true">删除中...</view>
+      <view wx:elif="{{isEdit}}" class="btn-danger disabled" aria-role="button" aria-disabled="true">删除此记录</view>
     </view>
   </view>
 </view>
