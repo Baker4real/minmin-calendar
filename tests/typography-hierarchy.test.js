@@ -14,7 +14,7 @@ const PERIOD_EDIT_WXSS = 'pages/period/edit/edit.wxss'
 const CAPTION_FLOOR_RPX = 26
 const MICRO_FLOOR_RPX = 24
 const CAPTION_LINE_HEIGHT = 1.4
-const MONTH_NAV_AVAILABLE_RPX = 390 // 750 视口 - content 24×2 - month-nav padding 24×2 - nav-btn 88×2 - 月份工具菜单触发器 88（issue #105）
+const NARROWEST_VIEWPORT_PX = 320 // 1px 描边不随 rpx 缩放，按最窄视口折成 rpx 最宽
 const NAV_TOUCH_RPX = 88
 
 function readAppTokens() {
@@ -51,6 +51,35 @@ function horizontalPaddingRpx(decls, label) {
   const match = /^(\d+(?:\.\d+)?)rpx$/.exec(token || '')
   assert.ok(match, `expected horizontal padding in rpx on ${label}`)
   return Number(match[1])
+}
+
+function borderRpxAtNarrowest(decls) {
+  const match = /(\d+(?:\.\d+)?)px\s+solid/.exec(String(decls.border || ''))
+  return match ? Number(match[1]) * 750 / NARROWEST_VIEWPORT_PX : 0
+}
+
+// 月份导航行里两枚箭头之间留给月份胶囊的宽度。吸顶区按视口定位（不在 .content 的页边距里）；
+// 工具入口已移到顶栏（.nav-tool），不再占这一行。
+function monthNavAvailableRpx(tokens) {
+  const sticky = ruleDecls(INDEX_WXSS, '.home-sticky')
+  const nav = ruleDecls(INDEX_WXSS, '.month-nav')
+  const navBtn = ruleDecls(INDEX_WXSS, '.nav-btn')
+  return 750 -
+    2 * horizontalPaddingRpx(sticky, '.home-sticky') -
+    2 * horizontalPaddingRpx(nav, '.month-nav') -
+    2 * borderRpxAtNarrowest(nav) -
+    2 * resolveRpx(navBtn, 'width', tokens, '.nav-btn')
+}
+
+// 最坏文案「2026年12月」：6 个数字（按 0.6em 上限）+ 2 个 CJK（1em）+ 间距 + caret + 胶囊左右内边距。
+function worstMonthTitleRpx(tokens) {
+  const monthTitle = ruleDecls(INDEX_WXSS, '.month-title')
+  const fontSize = resolveRpx(monthTitle, 'font-size', tokens, '.month-title')
+  const caretSize = resolveRpx(ruleDecls(INDEX_WXSS, '.month-title-caret'), 'font-size', tokens, '.month-title-caret')
+  const trigger = ruleDecls(INDEX_WXSS, '.month-title-trigger')
+  const padX = horizontalPaddingRpx(trigger, '.month-title-trigger')
+  const gap = resolveRpx(trigger, 'gap', tokens, '.month-title-trigger')
+  return 6 * 0.6 * fontSize + 2 * fontSize + gap + caretSize + 2 * padX
 }
 
 test('home month title sits one level above the shared nav title', () => {
@@ -126,20 +155,33 @@ test('month title stays single-line and inside its 88rpx trigger', () => {
 test('month title worst-case CJK label fits the month-nav row on a 750rpx viewport', () => {
   const tokens = readAppTokens()
   const monthTitle = ruleDecls(INDEX_WXSS, '.month-title')
-  const fontSize = resolveRpx(monthTitle, 'font-size', tokens, '.month-title')
   assert.equal(monthTitle['letter-spacing'], undefined, 'month title must not add tracking')
-  const letterSpacing = 0
-  const caretSize = resolveRpx(ruleDecls(INDEX_WXSS, '.month-title-caret'), 'font-size', tokens, '.month-title-caret')
-  const trigger = ruleDecls(INDEX_WXSS, '.month-title-trigger')
-  const padX = horizontalPaddingRpx(trigger, '.month-title-trigger')
-  const gap = resolveRpx(trigger, 'gap', tokens, '.month-title-trigger')
-
-  // 最坏文案「2026年12月」：6 个数字（按 0.6em 上限）+ 2 个 CJK（1em）+ 逐字 letter-spacing。
-  const labelWidth = 6 * 0.6 * fontSize + 2 * fontSize + 8 * letterSpacing
-  const total = labelWidth + gap + caretSize + 2 * padX
+  const total = worstMonthTitleRpx(tokens)
+  const available = monthNavAvailableRpx(tokens)
   assert.ok(
-    total <= MONTH_NAV_AVAILABLE_RPX,
-    `month title needs ${total.toFixed(0)}rpx of the ${MONTH_NAV_AVAILABLE_RPX}rpx available between the nav buttons`
+    total <= available,
+    `month title needs ${total.toFixed(0)}rpx of the ${available.toFixed(0)}rpx available between the nav buttons`
+  )
+})
+
+test('month title keeps one trigger width and position when the month gains or loses a digit', () => {
+  // issue #164：9 月 → 10 月、年份变化时，月份胶囊不变宽、不左右挪；数字等宽，最小宽度兜住最坏文案。
+  const tokens = readAppTokens()
+  const monthTitle = ruleDecls(INDEX_WXSS, '.month-title')
+  assert.equal(monthTitle['font-variant-numeric'], 'tabular-nums', 'year and month digits share one advance width')
+
+  const trigger = ruleDecls(INDEX_WXSS, '.month-title-trigger')
+  assert.equal(trigger['box-sizing'], 'border-box', 'min-width counts the trigger border')
+  const minWidth = resolveRpx(trigger, 'min-width', tokens, '.month-title-trigger')
+  const needed = worstMonthTitleRpx(tokens) + 2 * borderRpxAtNarrowest(trigger)
+  assert.ok(
+    minWidth >= needed,
+    `trigger min-width ${minWidth}rpx must hold the worst-case label (${needed.toFixed(1)}rpx) so 1- and 2-digit months share one width`
+  )
+  const available = monthNavAvailableRpx(tokens)
+  assert.ok(
+    minWidth <= available,
+    `trigger min-width ${minWidth}rpx overflows the ${available.toFixed(1)}rpx between the nav buttons`
   )
 })
 

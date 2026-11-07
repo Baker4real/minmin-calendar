@@ -15,7 +15,8 @@
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: var(--radius-card);
   padding: 32rpx;
-  margin: 24rpx 0 20rpx;
+  /* 顶上不再多出 4rpx：与「欢乐时光」段的第一块同样离分段控件一个块间距（issue #164） */
+  margin: 0 0 20rpx;
   box-shadow: 0 8px 32px rgba(232,144,158,0.15);
   position: relative;
   overflow: hidden;
@@ -132,6 +133,7 @@
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
+  font-variant-numeric: tabular-nums;
   color: #E8909E;
   background: rgba(232,144,158,0.12);
   padding: 4rpx 16rpx;
@@ -269,6 +271,7 @@
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-body);
+  font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.85);
   white-space: nowrap;
 }

@@ -24,7 +24,7 @@
 }
 .form-label {
   font-size: var(--font-size-caption);
-  color: rgba(255,255,255,0.6);
+  color: var(--text-secondary);
   display: block;
   margin-bottom: 12rpx;
   font-weight: var(--font-weight-assist);
@@ -94,9 +94,9 @@
   margin-bottom: 24rpx;
 }
 
-/* Buttons */
+/* Buttons：保存紧跟表单卡，一个块间距；删除另在下方危险区（issue #164） */
 .btns {
-  margin-top: 30rpx;
+  margin-top: 20rpx;
 }
 .btn-premium,
 .btn-danger {

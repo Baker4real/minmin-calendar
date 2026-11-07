@@ -60,7 +60,7 @@
   min-width: 0;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
-  line-height: 1.25;
+  line-height: var(--line-height-title);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -158,14 +158,16 @@
   font-size: var(--font-size-month-title);
   font-weight: var(--font-weight-title);
   line-height: var(--line-height-title);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   position: relative;
   z-index: 1;
   color: #E8909E;
 }
+/* 最小宽度兜住最坏文案「2026年12月」：1 位数和 2 位数月份同宽，切月时胶囊不变宽、不挪位（issue #164） */
 .month-title-trigger {
   min-height: 88rpx;
-  min-width: 260rpx;
+  min-width: 320rpx;
   padding: 0 28rpx;
   display: flex;
   align-items: center;
@@ -671,6 +673,7 @@
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1194,6 +1197,7 @@
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
+  font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.78);
   word-break: break-all;
   overflow-wrap: anywhere;
@@ -1270,7 +1274,7 @@
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
   color: rgba(255,255,255,0.9);
-  line-height: 1.25;
+  line-height: var(--line-height-title);
   word-break: break-word;
   overflow-wrap: anywhere;
 }
@@ -1538,7 +1542,7 @@
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
   color: rgba(255,255,255,0.88);
-  line-height: 1.25;
+  line-height: var(--line-height-title);
   word-break: break-word;
   overflow-wrap: anywhere;
 }
