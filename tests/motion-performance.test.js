@@ -284,7 +284,11 @@ const LITERAL_DURATION_ANIMATIONS = new Set([...Object.keys(CONTINUOUS_ANIMATION
 const ONE_SHOT_ANIMATIONS = {
   pageEnter: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   bindReveal: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
-  dayDetailFade: { duration: 'var(--duration-state)', easing: 'var(--ease-out)' }
+  dayDetailFade: { duration: 'var(--duration-state)', easing: 'var(--ease-out)' },
+  calendarFlipNextA: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  calendarFlipNextB: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  calendarFlipPrevA: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  calendarFlipPrevB: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' }
 }
 const COLOR_TRANSITION_PROPS = new Set(['background', 'background-color', 'color', 'border-color'])
 const PRESS_DURATION = 'var(--duration-press)'
@@ -733,7 +737,91 @@ test('state channels survive reduced motion: sync color, refresh dim, sheet mask
   assert.match(mask.decls.background, /rgba\(10,\s*14,\s*39,\s*0\.88\)/)
 })
 
-test('month flips keep only the refresh dim, and day colors switch immediately', () => {
+// @keyframes 的逐帧声明，按源码顺序；at 是 from / to / 百分比
+function keyframeFrames(css, name) {
+  const block = topLevelBlocks(css).find((item) => item.header === `@keyframes ${name}`)
+  assert.ok(block, `expected @keyframes ${name}`)
+  return topLevelBlocks(block.body).map((frame) => ({ at: frame.header, decls: parseDecls(frame.body) }))
+}
+
+// 模板里一段 class 属性按页面数据求值后的类名
+function renderedClasses(template, data) {
+  const text = template.replace(/\{\{([\s\S]*?)\}\}/g, (_, expr) => {
+    const value = new Function(...Object.keys(data), `return (${expr})`)(...Object.values(data))
+    return value === undefined || value === null ? '' : String(value)
+  })
+  return text.split(/\s+/).filter(Boolean)
+}
+
+// issue #165：翻月记号（index.js 的 calendarFlip）与它对应的关键帧。a、b 两份内容相同，记号交替才会从头重播
+const CALENDAR_FLIPS = {
+  'next-a': 'calendarFlipNextA',
+  'next-b': 'calendarFlipNextB',
+  'prev-a': 'calendarFlipPrevA',
+  'prev-b': 'calendarFlipPrevB'
+}
+
+// issue #165：新月份的格子和月标题同一次更新换上，再从翻月方向滑入：下一月从右、上一月从左，透明度从半透明到实。
+// 动的是格子外的一层 .calendar-days；卡片、周头和月份标题不动，日期格仍只有自己的按压缩放。
+// 这一层没有盒子，日期格宽度和几何账本不变；位移不超过网格左右内边距，内容不出卡片。减弱动效下即时替换。
+test('month flips slide the new days in from the flip direction inside the card, and land instantly under reduced motion', () => {
+  const css = readRepo('pages/index/index.wxss')
+  const index = analyzeFile(css)
+  const declsOf = (selector) => {
+    const rule = index.rules.find((item) => !item.inReducedMotion && item.selectors.includes(selector))
+    assert.ok(rule, `expected ${selector}`)
+    return rule.decls
+  }
+
+  const wxml = readRepo('pages/index/index.wxml')
+  const grid = wxml.slice(wxml.indexOf('class="calendar-grid'), wxml.indexOf('class="quick-actions"'))
+    .replace(/<!--[\s\S]*?-->/g, '')
+  const layer = /^[^>]*>\s*<view class="(calendar-days[^"]*)">\s*<view\s+class="day-cell/.exec(grid)
+  assert.ok(layer, 'the day cells sit in one .calendar-days layer, the only child of .calendar-grid')
+  assert.deepEqual(renderedClasses(layer[1], { calendarFlip: '' }), ['calendar-days'], 'no flip, no slide')
+  for (const token of Object.keys(CALENDAR_FLIPS)) {
+    assert.deepEqual(renderedClasses(layer[1], { calendarFlip: token }), ['calendar-days', `calendar-flip-${token}`])
+  }
+
+  const days = declsOf('.calendar-days')
+  assert.equal(days.display, 'flex')
+  assert.equal(days['flex-wrap'], 'wrap')
+  const boxProps = Object.keys(days).filter((prop) => /^(?:padding|margin|border|width|height)/.test(prop))
+  assert.deepEqual(boxProps, [], 'the flip layer adds no box: cell widths and the row-height ledger stay as they were')
+  const gridPadding = declsOf('.calendar-grid').padding.split(/\s+/)
+  const inlinePaddingRpx = Number(/^(\d+)rpx$/.exec(gridPadding[1] || gridPadding[0])[1])
+
+  for (const [token, name] of Object.entries(CALENDAR_FLIPS)) {
+    const selector = `.calendar-days.calendar-flip-${token}`
+    assert.equal(declsOf(selector).animation, `${name} var(--duration-enter) var(--ease-out)`)
+
+    const frames = keyframeFrames(css, name)
+    assert.deepEqual(frames.map((frame) => frame.at), ['from', 'to'])
+    for (const frame of frames) {
+      assert.deepEqual(Object.keys(frame.decls).sort(), ['opacity', 'transform'], `${name} moves only on the compositor`)
+    }
+    const [from, to] = frames
+    const opacity = Number(from.decls.opacity)
+    assert.ok(opacity >= 0.5 && opacity < 1, `${name} starts at ${opacity}: soft, never blank`)
+    const offset = Number(/^translateX\((-?\d+(?:\.\d+)?)rpx\)$/.exec(from.decls.transform)?.[1])
+    assert.ok(token.startsWith('next') ? offset > 0 : offset < 0, `${name} enters from the ${token.startsWith('next') ? 'right' : 'left'}`)
+    assert.ok(Math.abs(offset) <= inlinePaddingRpx, `${name} travels ${offset}rpx, past the ${inlinePaddingRpx}rpx grid padding`)
+    assert.deepEqual(to.decls, { opacity: '1', transform: 'translateX(0)' })
+
+    const reduced = index.reducedMotionRules.find((rule) => rule.selectors.includes(selector))
+    assert.ok(reduced, `reduced motion must cover ${selector}`)
+    assert.equal(reduced.decls.animation, 'none', `${selector} lands instantly under reduced motion`)
+  }
+  assert.deepEqual(keyframeFrames(css, 'calendarFlipNextA'), keyframeFrames(css, 'calendarFlipNextB'))
+  assert.deepEqual(keyframeFrames(css, 'calendarFlipPrevA'), keyframeFrames(css, 'calendarFlipPrevB'))
+
+  // 卡片和日期格自己不跟着滑：网格只有刷新变暗，日期格只有按压缩放
+  for (const selector of ['.calendar-grid', '.day-cell']) {
+    assert.equal(declsOf(selector).animation, undefined, `${selector} must not slide`)
+  }
+})
+
+test('day cells keep only their press scale, and day colors switch immediately', () => {
   const app = analyzeFile(readRepo('app.wxss'))
   const index = analyzeFile(readRepo('pages/index/index.wxss'))
   const design = readRepo('DESIGN.md')
@@ -763,7 +851,6 @@ test('month flips keep only the refresh dim, and day colors switch immediately',
     assert.equal(rule.decls.transition, undefined, `${selector} must switch fill and text color immediately`)
   }
 
-  assert.match(design, /翻月没有计时器，即时替换/)
   assert.match(design, /日期格不做颜色过渡/)
 })
 

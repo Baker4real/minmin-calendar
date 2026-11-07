@@ -2628,6 +2628,80 @@ test('month arrows publish the new month and its calendar grid in one update', (
   }
 })
 
+// issue #165：翻月方向跟着那一次日历提交走（下一月 next、上一月 prev），不另起计时器、不推迟数据。
+// 动画进行中（--duration-enter 240ms 内）同方向再翻：只换数据，进行中的动画接着播，接续不续期；
+// 反向或动画播完后再翻：换一个记号从头播（a、b 交替，类名变了 CSS 才重播）。选月和回到今天取消翻月动画、即时替换。
+test('month flips carry their direction with the grid, continue on quick repeats and restart on reversal', () => {
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 10, 8, 9, 30) })
+  const harness = loadPageHarness({ client: createQueuedClient([]), calendarState: 'real' })
+  try {
+    harness.page.onLoad()
+    assert.equal(harness.page.data.calendarFlip, '', 'the first paint does not slide')
+    const updates = []
+    const setData = harness.page.setData.bind(harness.page)
+    harness.page.setData = (update, callback) => {
+      updates.push(update)
+      setData(update, callback)
+    }
+    const flip = (invoke) => {
+      updates.length = 0
+      invoke()
+      assert.equal(updates.length, 1, 'a flip is one update')
+      return updates[0]
+    }
+    const firstDate = (update) => update.days.find(day => day.date).date
+
+    let update = flip(() => harness.page.nextMonth())
+    assert.equal(firstDate(update), '2026-12-01')
+    assert.equal(update.calendarFlip, 'next-a')
+
+    mock.timers.tick(100)
+    update = flip(() => harness.page.onCalendarSwipe({ dx: -80, dy: 0 }))
+    assert.equal(firstDate(update), '2027-01-01', 'a quick repeat still changes the month at once')
+    assert.equal('calendarFlip' in update, false, 'a quick repeat keeps the running slide')
+    assert.equal(harness.page.data.calendarFlip, 'next-a')
+
+    mock.timers.tick(140)
+    update = flip(() => harness.page.nextMonth())
+    assert.equal(firstDate(update), '2027-02-01')
+    assert.equal(update.calendarFlip, 'next-b', '240ms after the slide began it has ended, so the next flip restarts')
+
+    mock.timers.tick(60)
+    update = flip(() => harness.page.prevMonth())
+    assert.equal(firstDate(update), '2027-01-01')
+    assert.equal(update.calendarFlip, 'prev-a', 'reversing mid-slide restarts in the new direction')
+    mock.timers.tick(60)
+    update = flip(() => harness.page.onCalendarSwipe({ dx: 80, dy: 0 }))
+    assert.equal(firstDate(update), '2026-12-01')
+    assert.equal('calendarFlip' in update, false)
+    mock.timers.tick(60)
+    update = flip(() => harness.page.nextMonth())
+    assert.equal(update.calendarFlip, 'next-b')
+
+    // 选月：取消翻月动画，那个月即时替换；之后再翻从头开始
+    harness.page.openMonthPicker()
+    updates.length = 0
+    harness.page.selectJumpMonth({ currentTarget: { dataset: { month: '3' } } })
+    const jump = updates.find(item => 'month' in item)
+    assert.equal(jump.calendarFlip, '')
+    assert.equal(firstDate(jump), '2027-04-01')
+    mock.timers.tick(10)
+    update = flip(() => harness.page.prevMonth())
+    assert.equal(update.calendarFlip, 'prev-a', 'a cancelled slide does not count as running')
+
+    // 回到今天同样取消
+    mock.timers.tick(10)
+    updates.length = 0
+    harness.page.jumpToToday()
+    const back = updates.find(item => 'month' in item)
+    assert.equal(back.calendarFlip, '')
+    assert.equal(firstDate(back), '2026-11-01')
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
 // issue #165：选月和「回到今天」与箭头一样，月标题和那个月的格子在同一次更新里发布。
 // 原来先发年月、渲染回调里才排格子：视图层先画出新标题，下一帧格子才换，新旧月份混在一帧里
 test('month selection and back-to-today publish the month title with its grid in one update', () => {

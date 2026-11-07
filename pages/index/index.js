@@ -31,6 +31,8 @@ const JUMP_YEAR_MIN = 2001
 const JUMP_YEAR_MAX = 2035
 // issue #155：信息弹层按显示的内容命名。遮罩读「关闭」加这个名称，面板以它作对话框名。
 const INFO_SHEET_NAMES = { legend: '日历图例', prediction: '预测说明', recap: '本月小结' }
+// issue #165：翻月滑入的时长，与 --duration-enter 同值；这段时间内同方向再翻算接续
+const CALENDAR_FLIP_MS = 240
 const INITIAL_VIEW_DATE = new Date()
 const INITIAL_HOME_STATE = buildHomeCalendarState({
   year: INITIAL_VIEW_DATE.getFullYear(),
@@ -96,6 +98,7 @@ function emptyDayDetail() {
 Page({
   _homeRecords: { periods: [], memories: [] },
   _dayDetailsByDate: INITIAL_HOME_STATE.dayDetailsByDate || {},
+  _calendarFlip: null,
 
   data: {
     safeTop: safeArea.getSafeTop(),
@@ -138,6 +141,8 @@ Page({
     monthMenuMounted: false,
     monthMenuPhase: 'closed',
     calendarDensity: 'compact',
+    // 翻月方向记号（next-a/next-b/prev-a/prev-b）挂在 .calendar-days 上，空串即不滑动（issue #165）
+    calendarFlip: '',
     ...calendarRenderState(INITIAL_HOME_STATE),
     showBackToToday: !isViewingCurrentMonth(INITIAL_VIEW_DATE.getFullYear(), INITIAL_VIEW_DATE.getMonth()),
     ...calendarGeometry({
@@ -624,14 +629,30 @@ Page({
     let { year, month } = this.data
     if (monthNavState(year, month).prevMonthDisabled) return
     month--; if (month < 0) { month = 11; year-- }
-    this.applyHomeCalendarState({ year, month }, { monthPickerVisible: false })
+    this.applyHomeCalendarState({ year, month }, { monthPickerVisible: false, ...this._calendarFlipPatch('prev') })
   },
 
   nextMonth() {
     let { year, month } = this.data
     if (monthNavState(year, month).nextMonthDisabled) return
     month++; if (month > 11) { month = 0; year++ }
-    this.applyHomeCalendarState({ year, month }, { monthPickerVisible: false })
+    this.applyHomeCalendarState({ year, month }, { monthPickerVisible: false, ...this._calendarFlipPatch('next') })
+  },
+
+  // issue #165：翻月滑入。进行中（CALENDAR_FLIP_MS 内）同方向再翻只换数据、动画接着播，接续不续期；
+  // 反向或已播完就换记号从头播。数据总在这一次提交里更新，动画不推迟任何操作
+  _calendarFlipPatch(direction) {
+    const now = Date.now()
+    const running = this._calendarFlip
+    if (running && running.direction === direction && now - running.startedAt < CALENDAR_FLIP_MS) return {}
+    this._calendarFlip = { direction, startedAt: now }
+    return { calendarFlip: nextCalendarToken(this.data.calendarFlip, direction) }
+  },
+
+  // 选月、回到今天：取消翻月滑入，新月份即时替换
+  _cancelCalendarFlip() {
+    this._calendarFlip = null
+    return { calendarFlip: '' }
   },
 
   // 日历滑动松手：判定在纯函数里，页面只做一次既有翻月更新，不跟手。
@@ -729,7 +750,8 @@ Page({
     if (!Number.isInteger(month) || month < 0 || month > 11) return
     this.applyHomeCalendarState({ year: this.data.jumpYear, month }, {
       jumpMonth: month,
-      monthPickerVisible: false
+      monthPickerVisible: false,
+      ...this._cancelCalendarFlip()
     })
     homepageSheets(this).monthPicker.leave(this)
   },
@@ -741,7 +763,8 @@ Page({
     this.applyHomeCalendarState({ year, month }, {
       jumpMonth: month,
       ...buildJumpYearState(year),
-      monthPickerVisible: false
+      monthPickerVisible: false,
+      ...this._cancelCalendarFlip()
     })
     homepageSheets(this).monthPicker.leave(this)
   },
@@ -1148,6 +1171,11 @@ function decideSheetDragRelease(displacement, elapsed, panelHeight) {
   const pastDistance = panelHeight > 0 && displacement > panelHeight * 0.25
   const pastSpeed = elapsed > 0 && displacement / elapsed > 0.11
   return pastDistance || pastSpeed ? 'close' : 'reset'
+}
+
+// 日历动画记号在 a、b 间交替：同一段动画要从头再播，类名必须变（issue #165）
+function nextCalendarToken(current, kind) {
+  return `${kind}-${typeof current === 'string' && current.endsWith('-a') ? 'b' : 'a'}`
 }
 
 function buildJumpYearState(year) {

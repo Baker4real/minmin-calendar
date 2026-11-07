@@ -350,13 +350,48 @@
 
 /* ===== Calendar Grid – Glass ===== */
 .calendar-grid {
-  display: flex;
-  flex-wrap: wrap;
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 0 0 var(--radius-card) var(--radius-card);
   padding: 6rpx 10rpx;
   box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+/* 格子外的一层（issue #165）：翻月滑入只动这一层，卡片、周头和月份标题不动。这一层没有盒子
+   （无内外边距、无描边、不定宽高），日期格宽度仍按网格内容宽算，几何账本不变 */
+.calendar-days {
+  display: flex;
+  flex-wrap: wrap;
+}
+/* 翻月滑入（issue #165）：新月份的格子与月标题同一次更新换上，再从翻月方向滑入 10rpx、透明度 0.5 → 1。
+   10rpx 等于网格左右内边距，内容不出卡片、不用裁切。a、b 两份关键帧内容相同，记号交替才会从头重播；
+   接续、反向与取消的策略在 index.js（_calendarFlipPatch）。减弱动效下即时替换 */
+.calendar-days.calendar-flip-next-a {
+  animation: calendarFlipNextA var(--duration-enter) var(--ease-out);
+}
+.calendar-days.calendar-flip-next-b {
+  animation: calendarFlipNextB var(--duration-enter) var(--ease-out);
+}
+.calendar-days.calendar-flip-prev-a {
+  animation: calendarFlipPrevA var(--duration-enter) var(--ease-out);
+}
+.calendar-days.calendar-flip-prev-b {
+  animation: calendarFlipPrevB var(--duration-enter) var(--ease-out);
+}
+@keyframes calendarFlipNextA {
+  from { opacity: 0.5; transform: translateX(10rpx); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes calendarFlipNextB {
+  from { opacity: 0.5; transform: translateX(10rpx); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes calendarFlipPrevA {
+  from { opacity: 0.5; transform: translateX(-10rpx); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes calendarFlipPrevB {
+  from { opacity: 0.5; transform: translateX(-10rpx); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 /* Day Cells */
@@ -1661,6 +1696,10 @@
   .sheet-close,
   .day-detail-fade,
   .day-cell,
+  .calendar-days.calendar-flip-next-a,
+  .calendar-days.calendar-flip-next-b,
+  .calendar-days.calendar-flip-prev-a,
+  .calendar-days.calendar-flip-prev-b,
   .nav-tool,
   .back-today,
   .home-status,

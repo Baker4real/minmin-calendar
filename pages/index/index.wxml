@@ -153,28 +153,31 @@ module.exports = {
 
     <!-- 行高与清爽密度是否合并信息行都来自 utils/calendarRowHeight.js 的同一份几何账本（issue #153） -->
     <view class="calendar-grid calendar-density-{{calendarDensity}}{{calendarInfoMerged ? ' calendar-info-merged' : ''}}" style="--calendar-row-height: {{calendarRowHeightPx}}px">
-      <view
-        class="day-cell {{item.isToday ? 'today' : ''}} {{item.isPeriod ? 'period' : ''}} {{item.periodSegment === 'start' ? 'period-start' : ''}} {{item.periodSegment === 'middle' ? 'period-middle' : ''}} {{item.periodSegment === 'end' ? 'period-end' : ''}} {{item.periodSegment === 'single' ? 'period-single' : ''}} {{item.periodOpenEnd ? 'period-open' : ''}} {{item.isMemory ? 'memory' : ''}} {{item.isPredict ? 'predict' : ''}} {{item.isHoliday ? 'holiday' : ''}} {{item.isWorkday ? 'workday' : ''}} {{item.isEmpty ? 'empty' : ''}}"
-        wx:for="{{days}}"
-        wx:key="index"
-        bindtap="onDayTap"
-        data-date="{{item.date}}"
-        aria-role="button"
-        aria-hidden="{{item.isEmpty}}"
-        aria-label="{{item.ariaLabel}}"
-        hover-class="day-cell-hover"
-      >
-        <view wx:if="{{item.periodSegment != 'none'}}" class="period-band"></view>
-        <view class="day-num">{{item.day}}</view>
-        <view wx:if="{{!item.isEmpty && calendarDensity == 'full'}}" class="day-lunar">{{item.lunarCellText}}</view>
-        <view class="day-info">
-          <view wx:if="{{!item.isEmpty}}" class="day-tag-line">
-            <text wx:if="{{item.holidayName}}" class="day-tag holiday-tag">{{item.holidayName}}</text>
-            <text wx:elif="{{item.isWorkday}}" class="day-tag workday-tag">班</text>
-          </view>
-          <view class="day-marks">
-            <view wx:if="{{item.isMemory}}" class="mark memory-mark">♥</view>
-            <view wx:if="{{item.isPredict}}" class="mark predict-mark">预</view>
+      <!-- 翻月滑入只动这一层（issue #165）：方向记号与新月份的格子同一次更新换上 -->
+      <view class="calendar-days{{calendarFlip ? ' calendar-flip-' + calendarFlip : ''}}">
+        <view
+          class="day-cell {{item.isToday ? 'today' : ''}} {{item.isPeriod ? 'period' : ''}} {{item.periodSegment === 'start' ? 'period-start' : ''}} {{item.periodSegment === 'middle' ? 'period-middle' : ''}} {{item.periodSegment === 'end' ? 'period-end' : ''}} {{item.periodSegment === 'single' ? 'period-single' : ''}} {{item.periodOpenEnd ? 'period-open' : ''}} {{item.isMemory ? 'memory' : ''}} {{item.isPredict ? 'predict' : ''}} {{item.isHoliday ? 'holiday' : ''}} {{item.isWorkday ? 'workday' : ''}} {{item.isEmpty ? 'empty' : ''}}"
+          wx:for="{{days}}"
+          wx:key="index"
+          bindtap="onDayTap"
+          data-date="{{item.date}}"
+          aria-role="button"
+          aria-hidden="{{item.isEmpty}}"
+          aria-label="{{item.ariaLabel}}"
+          hover-class="day-cell-hover"
+        >
+          <view wx:if="{{item.periodSegment != 'none'}}" class="period-band"></view>
+          <view class="day-num">{{item.day}}</view>
+          <view wx:if="{{!item.isEmpty && calendarDensity == 'full'}}" class="day-lunar">{{item.lunarCellText}}</view>
+          <view class="day-info">
+            <view wx:if="{{!item.isEmpty}}" class="day-tag-line">
+              <text wx:if="{{item.holidayName}}" class="day-tag holiday-tag">{{item.holidayName}}</text>
+              <text wx:elif="{{item.isWorkday}}" class="day-tag workday-tag">班</text>
+            </view>
+            <view class="day-marks">
+              <view wx:if="{{item.isMemory}}" class="mark memory-mark">♥</view>
+              <view wx:if="{{item.isPredict}}" class="mark predict-mark">预</view>
+            </view>
           </view>
         </view>
       </view>
