@@ -262,13 +262,18 @@ button.share-invite::after {
   color: #F97373;
   margin-top: 20rpx;
   text-align: center;
-  background: rgba(249,115,115,0.1);
+  /* 错误条压在极光上：10% 红是叠在海军回退上的平涂层（issue #163），否则极光最亮处红字不到 4.5:1 */
+  background: linear-gradient(rgba(249,115,115,0.1), rgba(249,115,115,0.1)), var(--glass-fallback);
   padding: 16rpx 30rpx;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(249,115,115,0.24);
 }
 /* 校验失败的可点重试（issue #102）：警示红族轻量按钮，按下叠同族更深 tint（无 transform 过渡） */
+/* 与错误条同族：海军回退上叠 10% 红，按下换成 18% 红（平涂层在 ::before，issue #163）。
+   海军回退比画布亮，24% 红按下时红字只剩约 4.4:1 */
 .error-retry {
+  position: relative;
+  z-index: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -280,13 +285,25 @@ button.share-invite::after {
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-assist);
   color: #F97373;
-  background: rgba(249,115,115,0.1);
+  background: var(--glass-fallback);
   border: 1px solid rgba(249,115,115,0.24);
   border-radius: var(--radius-sm);
 }
-.error-retry:active,
-.error-retry.error-retry-hover {
-  background: rgba(249,115,115,0.24);
+.error-retry::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-sm);
+  background-color: rgba(249,115,115,0.1);
+  pointer-events: none;
+  z-index: -1;
+}
+.error-retry:active::before,
+.error-retry.error-retry-hover::before {
+  background-color: rgba(249,115,115,0.18);
 }
 
 /* 减弱动效（app.wxss 全局名单外的页面登记）：复制键、幽灵「进入应用」按下为立即缩放、无过渡；

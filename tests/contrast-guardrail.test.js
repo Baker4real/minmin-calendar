@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
-const { contrastRatio, meetsContrast } = require('./contrast')
+const { auroraPeakHex, contrastRatio, meetsContrast } = require('./contrast')
 
 test('white on black is the WCAG 21:1 reference pair and meets 4.5:1', () => {
   assert.equal(contrastRatio('#FFFFFF', '#000000'), 21)
@@ -12,6 +12,17 @@ test('white on black is the WCAG 21:1 reference pair and meets 4.5:1', () => {
 
 test('white on rose #E8909E fails the 4.5:1 guardrail', () => {
   assert.equal(meetsContrast('#FFFFFF', '#E8909E'), false)
+})
+
+test('the aurora peak lays every bloom at full strength over the brightest base stop', () => {
+  const css = `
+    .page::before { background: linear-gradient(180deg, #000000 0%, #202020 60%, #101010 100%); }
+    .aurora-bloom-a { background: radial-gradient(closest-side, rgba(255,255,255,0.5), rgba(255,255,255,0)); }
+    .aurora-bloom-b { background: radial-gradient(closest-side, rgba(0,0,0,0.1), rgba(0,0,0,0.25) 40%, rgba(0,0,0,0)); }
+    .page.page-hidden .aurora-bloom-a { animation-play-state: paused; }
+  `
+  // 最亮色标 #202020 叠满 bloom-a 的 50% 白 = #909090；bloom-b 只会让这里变暗，最亮处没有它
+  assert.equal(auroraPeakHex(css), '#909090')
 })
 
 // ===== issue #77：颜色角色护栏 =====
@@ -149,15 +160,14 @@ test('settings clear-local-data uses warning-red text and warning-red border bef
 
 test('edit-form field errors reuse the one warning red and clear 4.5:1 on the form card', () => {
   // issue #156：字段错误是警示红族的一种形态，不另立一种红；红字直接落在表单玻璃卡上
-  const canvas = hex(pageCanvas())
-  const fallback = cssColor(tokenValue('--glass-fallback'))
-  const glass = cssColor(tokenValue('--glass-bg'))
-  const card = toHex(composite(composite(canvas, fallback, fallback.a), glass, glass.a))
   // 两个编辑页共用 app.wxss 的同一条规则
   const color = declarationOf('app.wxss', '.field-error', 'color')
   assert.equal(color, WARNING_RED, 'field errors must reuse the warning red')
-  const ratio = contrastRatio(color, card)
-  assert.ok(ratio >= 4.5, `.field-error ${color} on ${card} is ${ratio.toFixed(2)}:1, below 4.5:1`)
+  for (const surface of stackSurfaces([['app.wxss', '.premium-card']])) {
+    const card = toHex(surface)
+    const ratio = contrastRatio(color, card)
+    assert.ok(ratio >= 4.5, `.field-error ${color} on ${card} is ${ratio.toFixed(2)}:1, below 4.5:1`)
+  }
 })
 
 test('the light heart stays the happy-time color on memory rows', () => {
@@ -166,37 +176,37 @@ test('the light heart stays the happy-time color on memory rows', () => {
 })
 
 test('in-progress duration chip text clears 4.5:1 on the list-card composite', () => {
-  // 进行中胶囊叠在经期列表卡上：画布 → 玻璃卡（回退海军 + 8% 白）→ 胶囊底
+  // 进行中胶囊叠在经期列表卡上：背景 → 玻璃卡（回退海军 + 8% 白）→ 胶囊底
   const color = declarationOf('pages/period/period.wxss', '.item-duration.ongoing', 'color')
   const fill = cssColor(declarationOf('pages/period/period.wxss', '.item-duration.ongoing', 'background'))
-  const canvas = hex(pageCanvas())
-  const fallback = cssColor(tokenValue('--glass-fallback'))
-  const glass = cssColor(tokenValue('--glass-bg'))
-  const card = composite(composite(canvas, fallback, fallback.a), glass, glass.a)
-  const surface = composite(card, fill, fill.a)
-  const ratio = contrastRatio(paint(color, surface), toHex(surface))
-  assert.ok(
-    ratio >= 4.5,
-    `in-progress duration chip ${color} on ${toHex(surface)} is ${ratio.toFixed(2)}:1, below 4.5:1`
-  )
+  for (const card of stackSurfaces([['app.wxss', '.premium-card']])) {
+    const surface = composite(card, fill, fill.a)
+    const ratio = contrastRatio(paint(color, surface), toHex(surface))
+    assert.ok(
+      ratio >= 4.5,
+      `in-progress duration chip ${color} on ${toHex(surface)} is ${ratio.toFixed(2)}:1, below 4.5:1`
+    )
+  }
 })
 
 // issue #158：周期概览卡是玫瑰 → 薰衣草渐变叠在玻璃回退上。标签在画布、玻璃回退
 // 和渐变两端的合成面上都要 ≥4.5:1，颜色走现有 --text-secondary 档，不另写透明度
 test('cycle overview labels clear 4.5:1 on canvas, glass fallback and both gradient ends', () => {
   const file = 'pages/period/period.wxss'
-  const canvas = hex(pageCanvas())
   const layers = backgroundLayers(exactDeclaration(file, '.cycle-card', 'background'))
   assert.equal(layers.length, 2, 'the cycle card paints one gradient over one base color')
   const base = layerPaint(layers[1])
-  const fallbackSurface = composite(canvas, base, base.a)
   const stops = gradientStops(layers[0])
   assert.equal(stops.length, 2, 'the cycle card gradient has a rose end and a lavender end')
-  const surfaces = [
-    ['canvas', canvas],
-    [`glass fallback ${layers[1]}`, fallbackSurface],
-    ...stops.map(stop => [`gradient end ${stop.source}`, composite(fallbackSurface, stop, stop.a)])
-  ]
+  // 画布之外还有极光最亮处（issue #163）：卡面下面是哪一块背景都要过线
+  const surfaces = grounds().flatMap(([groundName, ground]) => {
+    const fallbackSurface = composite(ground, base, base.a)
+    return [
+      [groundName, ground],
+      [`glass fallback ${layers[1]} on ${groundName}`, fallbackSurface],
+      ...stops.map(stop => [`gradient end ${stop.source} on ${groundName}`, composite(fallbackSurface, stop, stop.a)])
+    ]
+  })
 
   const failures = []
   for (const selector of ['.card-label', '.cycle-label']) {
@@ -215,15 +225,17 @@ test('cycle overview labels clear 4.5:1 on canvas, glass fallback and both gradi
 })
 
 // issue #158：承载操作后果、记录内容或关键说明的辅助文字不弱于 --text-secondary 档，
-// 并在实际合成表面上 ≥4.5:1。stacks 列出元素可能落在的表面栈：自下而上叠在画布上，
-// 空栈就是画布本身。只登记关键文字，其余文字保留逐元素调校的透明度（DESIGN.md）。
+// 并在实际合成表面上 ≥4.5:1。stacks 列出元素可能落在的表面栈：自下而上叠在背景上
+// （画布和极光最亮处各算一次，issue #163），空栈就是背景本身。只登记关键文字，
+// 其余文字保留逐元素调校的透明度（DESIGN.md）。
+const REMINDER_ROW = [['pages/index/index.wxss', '.reminder-card'], ['pages/index/index.wxss', '.reminder-card::before']]
 const KEY_ASSIST_TEXT = [
   { file: 'pages/period/period.wxss', selector: '.item-note', stacks: [[['app.wxss', '.premium-card']]], note: '经期列表行的作者与备注' },
   { file: 'pages/period/period.wxss', selector: '.memory-note', stacks: [[['app.wxss', '.premium-card']], []], note: '欢乐时光行的作者与备注；刷新失败说明行在画布上' },
   { file: 'pages/period/period.wxss', selector: '.month-excerpt', stacks: [[['app.wxss', '.premium-card']]], note: '收起月份卡的备注摘要' },
   { file: 'pages/period/period.wxss', selector: '.empty-state', stacks: [[['pages/period/period.wxss', '.empty-state']]], note: '记录 tab 空态引导与加载失败标题' },
   { file: 'pages/period/edit/edit.wxss', selector: '.form-hint', stacks: [[['app.wxss', '.premium-card']]], note: '经期状态的后果、天数与时长确认' },
-  { file: 'pages/index/index.wxss', selector: '.reminder-text', stacks: [[['pages/index/index.wxss', '.reminder-card']]], note: '首页提醒行的下一步说明' },
+  { file: 'pages/index/index.wxss', selector: '.reminder-text', stacks: [REMINDER_ROW], note: '首页提醒行的下一步说明' },
   { file: 'pages/index/index.wxss', selector: '.no-room-desc', stacks: [[]], note: '未绑定与加载失败说明' }
 ]
 
@@ -261,17 +273,71 @@ test('non-key grouping labels keep their quieter tier and still clear 4.5:1', ()
   }
 })
 
-// 表面栈自下而上叠在画布上；渐变层在每个色标处各算一次
+// issue #163：内容画在极光之上。直接压在背景上的文字和叠在半透明行上的文字，在画布和极光最亮处
+// 都要 ≥4.5:1。那几条半透明行（提醒、刷新重试、记录分段、绑定页错误条与重试）因此都叠在
+// var(--glass-fallback) 上，淡白或淡红只是上面的一层平涂。上面关键辅助文字表里登记过的不重复。
+const TEXT_ON_AURORA = [
+  { file: 'pages/index/index.wxss', selector: '.partner-welcome', stacks: [[]], note: '首页配对欢迎条' },
+  { file: 'pages/index/index.wxss', selector: '.month-summary', stacks: [[]], note: '首页本月小结行' },
+  { file: 'pages/index/index.wxss', selector: '.refresh-retry-text', stacks: [[['pages/index/index.wxss', '.refresh-retry'], ['pages/index/index.wxss', '.refresh-retry::before']]], note: '首页刷新失败重试行' },
+  { file: 'pages/index/index.wxss', selector: '.reminder-title', stacks: [REMINDER_ROW], note: '首页提醒行标题' },
+  { file: 'pages/index/index.wxss', selector: '.empty-guide-text', stacks: [[['pages/index/index.wxss', '.empty-guide']]], note: '首页空态引导' },
+  { file: 'pages/index/index.wxss', selector: '.no-room-title', stacks: [[]], note: '未绑定与加载失败标题' },
+  { file: 'pages/period/period.wxss', selector: '.segment-option', stacks: [[['pages/period/period.wxss', '.segment-control']]], note: '记录 tab 分段未选项' },
+  { file: 'pages/period/period.wxss', selector: '.segment-option.active', stacks: [[['pages/period/period.wxss', '.segment-control'], ['pages/period/period.wxss', '.segment-option.active']]], note: '记录 tab 分段选中项' },
+  { file: 'pages/period/period.wxss', selector: '.list-retry-text', stacks: [[]], note: '记录 tab 刷新失败重试行' },
+  { file: 'pages/settings/settings.wxss', selector: '.settings-group-title', stacks: [[]], note: '设置分组标题' },
+  { file: 'pages/bind/bind.wxss', selector: '.hero-title', stacks: [[]], note: '绑定页大标题' },
+  { file: 'pages/bind/bind.wxss', selector: '.hero-desc', stacks: [[]], note: '绑定页说明' },
+  { file: 'pages/bind/bind.wxss', selector: '.error-msg', stacks: [[['pages/bind/bind.wxss', '.error-msg']]], note: '绑定页错误条' },
+  { file: 'pages/bind/bind.wxss', selector: '.error-retry', stacks: [[['pages/bind/bind.wxss', '.error-retry'], ['pages/bind/bind.wxss', '.error-retry::before']]], note: '绑定页校验失败重试' },
+  // 这几条行按下时平涂层加深，按下的那一刻文字也要读得清
+  { file: 'pages/index/index.wxss', selector: '.refresh-retry-text', stacks: [[['pages/index/index.wxss', '.refresh-retry'], ['pages/index/index.wxss', '.refresh-retry.refresh-retry-hover::before']]], note: '首页刷新失败重试行（按下）' },
+  { file: 'pages/index/index.wxss', selector: '.reminder-text', stacks: [[['pages/index/index.wxss', '.reminder-card'], ['pages/index/index.wxss', '.reminder-card.reminder-card-hover::before']]], note: '首页提醒行说明（按下）' },
+  { file: 'pages/bind/bind.wxss', selector: '.error-retry', stacks: [[['pages/bind/bind.wxss', '.error-retry'], ['pages/bind/bind.wxss', '.error-retry.error-retry-hover::before']]], note: '绑定页校验失败重试（按下）' }
+]
+
+test('text on the aurora and on translucent rows clears 4.5:1 at the aurora brightest point', () => {
+  const failures = []
+  for (const item of TEXT_ON_AURORA) {
+    const text = layerPaint(exactDeclaration(item.file, item.selector, 'color'))
+    for (const surface of item.stacks.flatMap(stackSurfaces)) {
+      const ratio = contrastOn(text, surface)
+      if (ratio < 4.5) failures.push(`${item.note} ${item.selector} on ${toHex(surface)} = ${ratio.toFixed(2)}:1`)
+    }
+  }
+  assert.deepEqual(failures, [])
+})
+
+// 背景两处：画布，和极光最亮处（基底最亮色标叠满三个色团，见 tests/contrast.js）
+function grounds() {
+  return [
+    ['canvas', hex(pageCanvas())],
+    ['aurora peak', hex(auroraPeakHex(readSource('app.wxss')))]
+  ]
+}
+
+// 表面栈自下而上叠在背景上；渐变层在每个色标处各算一次
 function stackSurfaces(stack) {
-  let surfaces = [hex(pageCanvas())]
+  let surfaces = grounds().map(([, ground]) => ground)
   for (const [file, selector] of stack) {
-    const layers = backgroundLayers(exactDeclaration(file, selector, 'background')).reverse()
+    const layers = backgroundLayers(surfaceFill(file, selector)).reverse()
     for (const layer of layers) {
       const paints = layer.startsWith('linear-gradient(') ? gradientStops(layer) : [layerPaint(layer)]
       surfaces = surfaces.flatMap(surface => paints.map(paintLayer => composite(surface, paintLayer, paintLayer.a)))
     }
   }
   return [...new Map(surfaces.map(surface => [toHex(surface), surface])).values()]
+}
+
+// 表面的填充：background 简写；按压着色要能过渡的平涂伪元素只写 background-color（issue #145）
+function surfaceFill(relativePath, selector) {
+  const body = exactRuleBody(relativePath, selector)
+  for (const property of ['background', 'background-color']) {
+    const decl = new RegExp(`(?:^|\\s)${property}\\s*:\\s*([^;]+);`).exec(body)
+    if (decl) return decl[1].trim()
+  }
+  assert.fail(`expected background or background-color on ${selector}`)
 }
 
 function contrastOn(text, surface) {
@@ -342,12 +408,16 @@ function cssColor(value) {
   }
 }
 
-function exactDeclaration(relativePath, selector, property) {
+function exactRuleBody(relativePath, selector) {
   const css = readSource(relativePath).replace(/\/\*[\s\S]*?\*\//g, '')
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const match = new RegExp(`(?:^|[}\\n])\\s*${escaped}\\s*\\{([^}]*)\\}`).exec(css)
   assert.ok(match, `expected exact rule ${selector}`)
-  const decl = new RegExp(`(?:^|\\s)${property}\\s*:\\s*([^;]+);`).exec(match[1])
+  return match[1]
+}
+
+function exactDeclaration(relativePath, selector, property) {
+  const decl = new RegExp(`(?:^|\\s)${property}\\s*:\\s*([^;]+);`).exec(exactRuleBody(relativePath, selector))
   assert.ok(decl, `expected ${property} on ${selector}`)
   return decl[1].trim()
 }

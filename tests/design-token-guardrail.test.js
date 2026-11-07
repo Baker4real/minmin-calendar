@@ -328,6 +328,8 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/index/index.wxss', '.calendar-grid'],
     ['pages/bind/bind.wxss', '.tab-bar'],
     ['pages/bind/bind.wxss', '.code-input'],
+    ['pages/bind/bind.wxss', '.error-msg'],
+    ['pages/period/period.wxss', '.segment-control'],
     ['pages/period/period.wxss', '.skeleton-card'],
     ['pages/period/period.wxss', '.empty-state'],
     ['pages/period/edit/edit.wxss', '.form-picker'],
