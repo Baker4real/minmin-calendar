@@ -242,20 +242,45 @@ test('--ease-spring / --transition-spring tokens stay retired; --ease-out remain
   assert.deepEqual(violations, [])
 })
 
-// 持续动画注册表（DESIGN.md「动效与性能边界」登记为同一清单）：
-// 装饰性 = 慢周期 6–12s；功能性 = 加载/同步/骨架等状态指示（可快）；reducedMotion = RM 下的无位移替代。
-const DECORATIVE_INFINITE = { auroraPulse: true, orbFloat: true, float: true, pulse: true }
-const FUNCTIONAL_INFINITE = { spin: true, syncDotPulse: true, skeletonPulse: true }
-const REDUCED_MOTION_INFINITE = { loadingPulse: true }
-const RETIRED_ANIMATIONS = ['orbRotate', 'bounceIn']
+// 常驻动画注册表，与 DESIGN.md「常驻动画注册表」是同一张表，新增或删除时两边一起改（issue #163）。
+// decorative：装饰，周期 6–12s，弹层遮挡和页面不可见时暂停在当前帧，减弱动效下静止；
+// functional：状态指示，只在对应状态期间存在，可以快于 6s，遮挡和隐藏时照常；
+// reduced-motion：减弱动效下的无位移替代。
+const CONTINUOUS_ANIMATIONS = {
+  auroraViolet: 'decorative',
+  auroraRose: 'decorative',
+  auroraLavender: 'decorative',
+  float: 'decorative',
+  pulse: 'decorative',
+  spin: 'functional',
+  syncDotPulse: 'functional',
+  skeletonPulse: 'functional',
+  loadingPulse: 'reduced-motion'
+}
+const RETIRED_ANIMATIONS = ['orbRotate', 'bounceIn', 'auroraPulse', 'orbFloat']
+
+// 每个页面根下的极光色团（issue #163）
+const AURORA_BLOOMS = ['violet', 'rose', 'lavender']
+const AURORA_MARKUP = new RegExp(
+  '<view class="aurora" aria-hidden="true">\\s*' +
+  AURORA_BLOOMS.map((name) => `<view class="aurora-bloom aurora-bloom-${name}"></view>\\s*`).join('') +
+  '</view>'
+)
+
+function appPages() {
+  return JSON.parse(readRepo('app.json')).pages
+}
+
+function continuousRole(name) {
+  return Object.prototype.hasOwnProperty.call(CONTINUOUS_ANIMATIONS, name) ? CONTINUOUS_ANIMATIONS[name] : null
+}
+
+function namesWithRole(role) {
+  return Object.keys(CONTINUOUS_ANIMATIONS).filter((name) => CONTINUOUS_ANIMATIONS[name] === role).sort()
+}
 
 // issue #111：一次性时长必须引用五档 token；常驻动画、其周期、减弱动效替代和 heroIn 保持字面时长。
-const LITERAL_DURATION_ANIMATIONS = new Set([
-  ...Object.keys(DECORATIVE_INFINITE),
-  ...Object.keys(FUNCTIONAL_INFINITE),
-  ...Object.keys(REDUCED_MOTION_INFINITE),
-  'heroIn'
-])
+const LITERAL_DURATION_ANIMATIONS = new Set([...Object.keys(CONTINUOUS_ANIMATIONS), 'heroIn'])
 const ONE_SHOT_ANIMATIONS = {
   pageEnter: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   bindReveal: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
@@ -378,10 +403,9 @@ test('one-shot transitions and animations use the shared duration tokens and rol
       if (rule.inReducedMotion) continue
       const where = `${file.relative} ${rule.selectors.join(', ')}`
 
+      // 周期只写在 animation 简写里，注册表和错相检查才读得到（issue #163 起没有长写例外）
       if (rule.decls['animation-duration']) {
-        const duration = rule.decls['animation-duration']
-        const orbCycle = rule.selectors.includes('.glow-orb-2') && duration === '8s'
-        if (!orbCycle) violations.push(`${where} animation-duration ${duration} is not a registered ambient cycle`)
+        violations.push(`${where} animation-duration ${rule.decls['animation-duration']} must live in the animation shorthand`)
       }
 
       if (rule.decls.animation && rule.decls.animation !== 'none') {
@@ -491,41 +515,54 @@ test('single-use --transition token and unused app-level .nav-btn rule are retir
   assert.equal(leftovers.length, 0)
 })
 
+// 每个常驻动画在 WXSS 里实际跑的周期（float 两个光斑各一个周期）
+function continuousCycles() {
+  const cycles = new Map()
+  for (const file of analyzedWxssFiles()) {
+    for (const rule of file.rules) {
+      for (const animation of ruleAnimations(rule)) {
+        if (!animation.infinite) continue
+        if (!cycles.has(animation.name)) cycles.set(animation.name, new Set())
+        cycles.get(animation.name).add(animation.durationSec)
+      }
+    }
+  }
+  return cycles
+}
+
 test('infinite animations stay inside the registered registry with slow decorative cycles', () => {
-  const foundDecorative = new Map()
-  const foundFunctional = new Map()
+  const found = { decorative: new Set(), functional: new Set(), 'reduced-motion': new Set() }
   const violations = []
 
   for (const file of analyzedWxssFiles()) {
     for (const rule of file.rules) {
       for (const animation of ruleAnimations(rule)) {
         if (!animation.infinite) continue
+        const role = continuousRole(animation.name)
         if (rule.inReducedMotion) {
-          if (!REDUCED_MOTION_INFINITE[animation.name]) {
-            violations.push(`${file.relative} reduced-motion block runs unregistered infinite ${animation.name}`)
+          if (role !== 'reduced-motion') {
+            violations.push(`${file.relative} reduced-motion block runs ${animation.name}, which is not a registered substitute`)
           }
+          found['reduced-motion'].add(animation.name)
           continue
         }
-        if (DECORATIVE_INFINITE[animation.name]) {
-          foundDecorative.set(animation.name, animation.durationSec)
-          const duration = animation.durationSec
-          if (!(duration >= 6 && duration <= 12)) {
-            violations.push(`${file.relative} decorative ${animation.name} runs ${duration}s outside the 6-12s slow band`)
-          }
+        if (!role || role === 'reduced-motion') {
+          violations.push(`${file.relative} runs unregistered infinite animation ${animation.name}`)
           continue
         }
-        if (FUNCTIONAL_INFINITE[animation.name]) {
-          foundFunctional.set(animation.name, animation.durationSec)
-          continue
+        found[role].add(animation.name)
+        const duration = animation.durationSec
+        if (role === 'decorative' && !(duration >= 6 && duration <= 12)) {
+          violations.push(`${file.relative} decorative ${animation.name} runs ${duration}s outside the 6-12s slow band`)
         }
-        violations.push(`${file.relative} runs unregistered infinite animation ${animation.name}`)
       }
     }
   }
 
   assert.deepEqual(violations, [])
-  assert.deepEqual([...foundDecorative.keys()].sort(), Object.keys(DECORATIVE_INFINITE).sort())
-  assert.deepEqual([...foundFunctional.keys()].sort(), Object.keys(FUNCTIONAL_INFINITE).sort())
+  for (const role of Object.keys(found)) {
+    assert.deepEqual([...found[role]].sort(), namesWithRole(role), `every registered ${role} animation is in use`)
+  }
 })
 
 test('retired second-layer / bounce animations stay gone', () => {
@@ -538,75 +575,48 @@ test('retired second-layer / bounce animations stay gone', () => {
   }
 })
 
-// blur 预算：单面 ≤20px；每页玻璃面数量上限（棘轮，只允许收紧）；全屏遮罩 ≤8px。
+// issue #163：模糊是材质选择，不是减层预算。取代 issue #58 的按文件玻璃面棘轮、阴影声明数棘轮，
+// 以及 issue #146 的「近不透明面不模糊」默认规则。模糊的面逐个登记在这里和 DESIGN.md「玻璃叠层」，
+// 新增或拿掉都两边一起改。仍然有效的：-webkit- 成对写，单面 ≤20px，全屏遮罩 ≤8px，
+// 实色回退由 glass-fallback 管，阴影颜色由 design-token-guardrail 的阴影注册表管。
 const BLUR_RADIUS_CAP_PX = 20
 const MASK_BLUR_CAP_PX = 8
-const BLUR_RULE_CEILINGS = {
-  'app.wxss': 0,
-  'pages/index/index.wxss': 1,
-  'pages/bind/bind.wxss': 0,
-  'pages/settings/settings.wxss': 0,
-  'pages/period/period.wxss': 0,
-  'pages/memory/memory.wxss': 0,
-  'pages/period/edit/edit.wxss': 0,
-  'pages/memory/edit/edit.wxss': 0
+const BLURRED_SURFACES = {
+  'pages/index/index.wxss': ['.day-sheet-mask'],
+  'pages/settings/settings.wxss': ['.help-mask']
 }
 
-test('backdrop blur stays within the radius cap and per-file glass surface budget', () => {
-  const files = analyzedWxssFiles()
-  for (const file of files) {
-    assert.ok(
-      Object.prototype.hasOwnProperty.call(BLUR_RULE_CEILINGS, file.relative),
-      `${file.relative} is not registered in BLUR_RULE_CEILINGS`
-    )
-    const blurRules = file.rules.filter(
-      (rule) => !rule.inReducedMotion && Object.prototype.hasOwnProperty.call(rule.decls, 'backdrop-filter')
-    )
-    assert.ok(
-      blurRules.length <= BLUR_RULE_CEILINGS[file.relative],
-      `${file.relative} has ${blurRules.length} blurred surfaces, budget ${BLUR_RULE_CEILINGS[file.relative]}`
-    )
-    for (const rule of blurRules) {
+test('blurred surfaces are the registered ones, paired and within the radius caps', () => {
+  const found = {}
+  for (const file of analyzedWxssFiles()) {
+    for (const rule of file.rules) {
+      if (rule.inReducedMotion || !Object.prototype.hasOwnProperty.call(rule.decls, 'backdrop-filter')) continue
+      const where = `${file.relative} ${rule.selectors.join(', ')}`
       const radius = Number(/blur\((\d+)px\)/.exec(rule.decls['backdrop-filter'])?.[1])
-      assert.ok(radius > 0 && radius <= BLUR_RADIUS_CAP_PX, `${file.relative} ${rule.selectors.join(', ')} blur ${radius}px exceeds ${BLUR_RADIUS_CAP_PX}px`)
-      assert.equal(
-        rule.decls['-webkit-backdrop-filter'],
-        rule.decls['backdrop-filter'],
-        `${file.relative} ${rule.selectors.join(', ')} must pair -webkit-backdrop-filter`
-      )
+      assert.ok(radius > 0 && radius <= BLUR_RADIUS_CAP_PX, `${where} blur ${radius}px exceeds ${BLUR_RADIUS_CAP_PX}px`)
+      assert.equal(rule.decls['-webkit-backdrop-filter'], rule.decls['backdrop-filter'], `${where} must pair -webkit-backdrop-filter`)
       if (rule.selectors.some((selector) => /mask/.test(selector))) {
-        assert.ok(radius <= MASK_BLUR_CAP_PX, `${file.relative} ${rule.selectors.join(', ')} full-screen mask blur ${radius}px exceeds ${MASK_BLUR_CAP_PX}px`)
+        assert.ok(radius <= MASK_BLUR_CAP_PX, `${where} full-screen mask blur ${radius}px exceeds ${MASK_BLUR_CAP_PX}px`)
       }
+      found[file.relative] = [...(found[file.relative] || []), ...rule.selectors]
     }
   }
-})
+  assert.deepEqual(found, BLURRED_SURFACES)
 
-// 阴影预算：颜色由 design-token-guardrail 的阴影注册表管，本表管每文件声明数上限（棘轮）。
-const SHADOW_DECL_CEILINGS = {
-  'app.wxss': 6,
-  'pages/index/index.wxss': 26,
-  'pages/bind/bind.wxss': 1,
-  'pages/settings/settings.wxss': 2,
-  'pages/period/period.wxss': 1,
-  'pages/memory/memory.wxss': 1,
-  'pages/period/edit/edit.wxss': 3,
-  'pages/memory/edit/edit.wxss': 2
-}
-
-test('box-shadow declaration counts stay within per-file ceilings', () => {
-  for (const file of analyzedWxssFiles()) {
-    assert.ok(
-      Object.prototype.hasOwnProperty.call(SHADOW_DECL_CEILINGS, file.relative),
-      `${file.relative} is not registered in SHADOW_DECL_CEILINGS`
-    )
-    const shadowDecls = file.rules.filter(
-      (rule) => !rule.inReducedMotion && rule.decls['box-shadow'] && rule.decls['box-shadow'] !== 'none'
-    )
-    assert.ok(
-      shadowDecls.length <= SHADOW_DECL_CEILINGS[file.relative],
-      `${file.relative} declares ${shadowDecls.length} box-shadows, ceiling ${SHADOW_DECL_CEILINGS[file.relative]}`
-    )
+  // 两个弹层遮罩是同一种材质：frontmatter modal-overlay 登记的模糊
+  const design = readRepo('DESIGN.md')
+  const overlay = /modal-overlay:\s*\n\s*backgroundColor:\s*"([^"]+)"\s*\n\s*backdropFilter:\s*"([^"]+)"/.exec(design)
+  assert.ok(overlay, 'DESIGN.md frontmatter registers the modal overlay')
+  for (const [relative, selectors] of Object.entries(BLURRED_SURFACES)) {
+    const rules = analyzeFile(readRepo(relative)).rules
+    for (const selector of selectors) {
+      const mask = rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes(selector) && rule.decls['backdrop-filter'])
+      assert.equal(mask.decls['backdrop-filter'], overlay[2], `${relative} ${selector} uses the registered overlay blur`)
+      assert.equal(mask.decls.background, overlay[1], `${relative} ${selector} uses the registered overlay fill`)
+      assert.ok(design.includes(`\`${selector}\``), `DESIGN.md registers ${selector} as a blurred surface`)
+    }
   }
+  assert.doesNotMatch(design, /只允许收紧|玻璃面数量上限|声明数上限/, 'the retired blur and shadow ratchets stay retired')
 })
 
 test('every transform-based animation is neutralized or replaced under reduced motion', () => {
@@ -782,8 +792,7 @@ test('reduced-motion blocks keep covering the named sheet, sync, and ambient lay
   const appCovered = new Set(app.reducedMotionRules.flatMap((rule) => rule.selectors))
   for (const selector of [
     '.page',
-    '.page::before',
-    '.glow-orb',
+    ...AURORA_BLOOMS.map((name) => `.aurora-bloom-${name}`),
     '.header-gradient::before',
     '.header-gradient::after',
     '.hero-icon',
@@ -1015,21 +1024,46 @@ test('sync pill fades and rises with reversible transitions', () => {
   assert.match(design, /translateY\(-8rpx\)/)
 })
 
+// DESIGN.md「常驻动画注册表」：每行一个动画，列为 动画 / 挂在 / 用途 / 节奏 / 弹层遮挡 / 页面不可见 / 减弱动效
+function designAnimationRegistry(design) {
+  const start = design.indexOf('\n## 常驻动画注册表')
+  assert.ok(start !== -1, 'DESIGN.md needs a 常驻动画注册表 section')
+  const rest = design.slice(start + 1)
+  const end = rest.indexOf('\n## ')
+  const section = end === -1 ? rest : rest.slice(0, end)
+  const rows = new Map()
+  for (const line of section.split('\n')) {
+    const cells = line.split('|').slice(1, -1).map((cell) => cell.trim())
+    const name = /^`([A-Za-z]+)`$/.exec(cells[0] || '')
+    if (name) rows.set(name[1], cells)
+  }
+  return rows
+}
+
+// issue #163：每个常驻动画逐项登记用途、节奏、弹层遮挡与页面不可见时的行为、减弱动效替代
+test('DESIGN.md registers every continuous animation with its rhythm, cover, hidden and reduced-motion behavior', () => {
+  const rows = designAnimationRegistry(readRepo('DESIGN.md'))
+  assert.deepEqual([...rows.keys()].sort(), Object.keys(CONTINUOUS_ANIMATIONS).sort())
+  const cycles = continuousCycles()
+  for (const [name, cells] of rows) {
+    assert.equal(cells.length, 7, `${name} row fills 动画 / 挂在 / 用途 / 节奏 / 弹层遮挡 / 页面不可见 / 减弱动效`)
+    assert.ok(cells.every(Boolean), `${name} row leaves no column empty`)
+    const [, , , rhythm, covered, hidden] = cells
+    for (const seconds of cycles.get(name) || []) {
+      assert.ok(rhythm.includes(`${seconds}s`), `${name} rhythm must name its ${seconds}s cycle`)
+    }
+    if (CONTINUOUS_ANIMATIONS[name] === 'decorative') {
+      assert.match(covered, /暂停在当前帧/, `${name} pauses under a sheet`)
+      assert.match(hidden, /暂停在当前帧/, `${name} pauses while the page is hidden`)
+    } else {
+      assert.doesNotMatch(`${covered}${hidden}`, /暂停/, `${name} is a state indicator and keeps running`)
+    }
+  }
+})
+
 test('DESIGN.md registers the motion and performance budgets', () => {
   const design = readRepo('DESIGN.md')
-  for (const name of [
-    'auroraPulse',
-    'orbFloat',
-    'float',
-    'pulse',
-    'spin',
-    'syncDotPulse',
-    'skeletonPulse',
-    'loadingPulse'
-  ]) {
-    assert.ok(design.includes(name), `DESIGN.md is missing the ${name} registration`)
-  }
-  for (const retired of ['--ease-spring', '--transition-spring', 'orbRotate']) {
+  for (const retired of ['--ease-spring', '--transition-spring', ...RETIRED_ANIMATIONS]) {
     assert.ok(design.includes(retired), `DESIGN.md is missing the ${retired} retirement note`)
   }
   assert.match(design, /prefers-reduced-motion/)
@@ -1054,71 +1088,160 @@ test('DESIGN.md registers the motion and performance budgets', () => {
   )
 })
 
-// issue #118：遮挡只暂停播放，不改动画名或周期；animation: none 会丢掉当前帧。
-test('an obscured homepage pauses the five covered decorations on the current frame', () => {
-  const index = analyzeFile(readRepo('pages/index/index.wxss'))
-  const paused = index.rules.filter((rule) => rule.decls['animation-play-state'] === 'paused')
-  assert.equal(paused.length, 1)
-  assert.equal(paused[0].inReducedMotion, false)
-  assert.deepEqual(Object.keys(paused[0].decls), ['animation-play-state'])
-  assert.deepEqual([...paused[0].selectors].sort(), [
-    '.page.page-obscured .glow-orb',
-    '.page.page-obscured .header-gradient::after',
-    '.page.page-obscured .header-gradient::before',
-    '.page.page-obscured::before'
+// 有弹层的页面（弹层开着时根节点带 page-obscured）；兼容路由 memory 在 onShow 里立即 switchTab 被关掉，
+// 没有「被隐藏」这一态，其余页面都在 onHide 到下一次 onShow 之间带 page-hidden（issue #163）
+const SHEET_PAGES = ['pages/index/index', 'pages/settings/settings']
+const PAGE_HIDDEN_EXEMPT = { 'pages/memory/memory': 'compat route closed by its own switchTab' }
+
+function rootClassAttribute(page) {
+  const root = /^<view\b[^>]*\bclass="([^"]*)"/.exec(readRepo(`${page}.wxml`))
+  assert.ok(root, `${page}.wxml starts with the page root`)
+  return root[1]
+}
+
+// issue #118 → #163：弹层遮挡和页面不可见都只暂停播放，不改动画名或周期；animation: none 会丢掉当前帧。
+// 全仓只有一条暂停规则，在 app.wxss，盖住注册表里每个装饰性常驻动画。
+test('obscured or hidden pages pause every decorative continuous animation on the current frame', () => {
+  const files = analyzedWxssFiles()
+  const pauses = files.flatMap((file) => file.rules
+    .filter((rule) => rule.decls['animation-play-state'] === 'paused')
+    .map((rule) => ({ relative: file.relative, rule })))
+  assert.equal(pauses.length, 1, 'one pause rule for the whole app')
+  const [{ relative, rule }] = pauses
+  assert.equal(relative, 'app.wxss')
+  assert.equal(rule.inReducedMotion, false)
+  assert.deepEqual(Object.keys(rule.decls), ['animation-play-state'])
+
+  const decorative = new Set()
+  for (const file of files) {
+    for (const item of file.rules) {
+      if (item.inReducedMotion) continue
+      if (!ruleAnimations(item).some((entry) => entry.infinite && continuousRole(entry.name) === 'decorative')) continue
+      for (const selector of item.selectors) decorative.add(selector)
+    }
+  }
+  assert.ok(decorative.size > 0)
+  const expected = [...decorative].flatMap((selector) => [
+    `.page.page-obscured ${selector}`,
+    `.page.page-hidden ${selector}`
   ])
+  assert.deepEqual([...rule.selectors].sort(), expected.sort())
+
+  for (const page of appPages()) {
+    const classes = rootClassAttribute(page)
+    assert.match(classes, /^page safe-top\b/)
+    const obscures = classes.includes("{{pageObscured ? 'page-obscured' : ''}}")
+    assert.equal(obscures, SHEET_PAGES.includes(page), `${page} binds page-obscured only when it has sheets`)
+    const hides = classes.includes("{{pageHidden ? 'page-hidden' : ''}}")
+    assert.equal(hides, !PAGE_HIDDEN_EXEMPT[page], `${page} binds page-hidden`)
+  }
 
   const design = readRepo('DESIGN.md')
   assert.match(design, /issue #118/)
   assert.match(design, /page-obscured/)
+  assert.match(design, /page-hidden/)
   assert.match(design, /animation-play-state: paused/)
 })
 
-// issue #146：极光层从 200%×200% 收到刚好盖住 scale(1.05) 的尺寸。动画名、周期和遮挡暂停不变。
-test('the aurora layer covers a 1.05 scale without renaming auroraPulse', () => {
+// issue #163：极光是一层静止基底加三个有边界的色团，取代整页缩放的 auroraPulse（issue #146 的 105% 尺寸随之退役）。
+// 色团各自一层动画，周期和起点都错开；基底与色团固定在视口，滚动时不跟着走（不拦截点按见 interaction-semantics）。
+test('the aurora is a still base under three bounded blooms that breathe out of phase', () => {
   const app = analyzeFile(readRepo('app.wxss'))
-  const aurora = app.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.page::before'))
-  assert.ok(aurora, 'expected .page::before')
-  assert.equal(aurora.decls.top, '-2.5%')
-  assert.equal(aurora.decls.left, '-2.5%')
-  assert.equal(aurora.decls.width, '105%')
-  assert.equal(aurora.decls.height, '105%')
-  assert.equal(aurora.decls.animation, 'auroraPulse 8s ease infinite')
+  const declsOf = (selector) => {
+    const rule = app.rules.find((item) => !item.inReducedMotion && item.selectors.includes(selector))
+    assert.ok(rule, `expected ${selector} in app.wxss`)
+    return rule.decls
+  }
 
-  const source = readRepo('app.wxss')
-  assert.match(source, /@keyframes auroraPulse/)
-  assert.match(source, /transform:\s*scale\(1\.05\)/)
-  assert.doesNotMatch(source, /width:\s*200%/)
-  assert.doesNotMatch(source, /height:\s*200%/)
+  const base = declsOf('.page::before')
+  assert.equal(base.position, 'fixed')
+  for (const side of ['top', 'right', 'bottom', 'left']) {
+    assert.equal(base[side], '0', `the base covers the viewport exactly (${side})`)
+  }
+  assert.equal(base.animation, undefined, 'the base gradient holds still')
 
-  const index = analyzeFile(readRepo('pages/index/index.wxss'))
-  const paused = index.rules.find((rule) => rule.decls['animation-play-state'] === 'paused')
-  assert.ok(paused, 'sheet cover must still pause the aurora')
-  assert.ok(paused.selectors.includes('.page.page-obscured::before'))
+  const layer = declsOf('.aurora')
+  assert.equal(layer.position, 'fixed')
+  assert.equal(layer.overflow, 'hidden')
+  assert.equal(layer.animation, undefined)
+
+  const cycles = new Set()
+  const offsets = new Set()
+  const keyframeNames = new Set()
+  for (const name of AURORA_BLOOMS) {
+    const bloom = declsOf(`.aurora-bloom-${name}`)
+    const stops = /^radial-gradient\(closest-side,\s*(.+)\)$/.exec(bloom.background || '')
+    assert.ok(stops, `.aurora-bloom-${name} fades out inside its own box (closest-side radial)`)
+    const colors = [...stops[1].matchAll(/rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)/g)]
+    assert.ok(colors.length >= 2, `.aurora-bloom-${name} needs at least two stops`)
+    assert.equal(new Set(colors.map((color) => color.slice(1, 4).join(','))).size, 1, `.aurora-bloom-${name} keeps one hue`)
+    assert.equal(Number(colors[colors.length - 1][4]), 0, `.aurora-bloom-${name} ends fully transparent: no hard edge`)
+
+    const [animation, ...extra] = parseAnimationShorthand(bloom.animation || '')
+    assert.ok(animation && extra.length === 0, `.aurora-bloom-${name} runs exactly one animation`)
+    assert.equal(animation.infinite, true)
+    assert.ok(/\balternate\b/.test(bloom.animation), `.aurora-bloom-${name} breathes back and forth`)
+    const offset = /\s(-\d+(?:\.\d+)?s)\s/.exec(bloom.animation)
+    assert.ok(offset, `.aurora-bloom-${name} starts mid-cycle through a negative delay`)
+    cycles.add(animation.durationSec)
+    offsets.add(offset[1])
+    keyframeNames.add(animation.name)
+    assert.deepEqual([...app.keyframes[animation.name]].sort(), ['opacity', 'transform'],
+      `${animation.name} moves only on the compositor`)
+  }
+  assert.equal(keyframeNames.size, AURORA_BLOOMS.length, 'each bloom has its own path')
+  assert.equal(cycles.size, AURORA_BLOOMS.length, 'bloom cycles differ, so the phases keep drifting apart')
+  assert.equal(offsets.size, AURORA_BLOOMS.length, 'bloom start offsets differ')
+
+  // 不再整页缩放：页面根、基底和色团容器都没有常驻动画
+  for (const selector of ['.page', '.page::before', '.aurora']) {
+    const looping = app.rules.filter((rule) => !rule.inReducedMotion && rule.selectors.includes(selector))
+      .flatMap(ruleAnimations).filter((entry) => entry.infinite)
+    assert.deepEqual(looping, [], `${selector} must not loop`)
+  }
+  const source = maskComments(readRepo('app.wxss'))
+  for (const match of source.matchAll(/scale\(\s*([\d.]+)\s*\)/g)) {
+    assert.ok(Number(match[1]) <= 1.1, `ambient scale ${match[1]} grows past 1.1`)
+  }
+
+  // 每个页面根下第一层都有同一份极光，放在顶栏之前
+  for (const page of appPages()) {
+    const wxml = readRepo(`${page}.wxml`)
+    const found = wxml.match(new RegExp(AURORA_MARKUP.source, 'g')) || []
+    assert.equal(found.length, 1, `${page}.wxml renders the aurora once`)
+    const at = wxml.search(AURORA_MARKUP)
+    assert.ok(at < wxml.indexOf('class="nav-bar'), `${page}.wxml paints the aurora before the nav bar`)
+  }
 
   const design = readRepo('DESIGN.md')
-  assert.match(design, /105%×105%/)
-  assert.match(design, /scale\(1\.05\)/)
+  assert.match(design, /三个有边界的色团/)
+  assert.doesNotMatch(design, /105%×105%/)
 })
 
-// issue #146：月份栏本身已近不透明，不再模糊。首页玻璃面只剩 88% 遮罩。
-test('month navigation does not blur, and the homepage glass cap is 1', () => {
-  const index = analyzeFile(readRepo('pages/index/index.wxss'))
-  const navBtn = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.nav-btn'))
-  assert.ok(navBtn, 'expected .nav-btn')
-  assert.equal(navBtn.decls['backdrop-filter'], undefined)
-  assert.equal(navBtn.decls['-webkit-backdrop-filter'], undefined)
-  assert.equal(BLUR_RULE_CEILINGS['pages/index/index.wxss'], 1)
-
-  const monthNav = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.month-nav'))
-  assert.equal(monthNav.decls['backdrop-filter'], undefined)
-  assert.equal(monthNav.decls['-webkit-backdrop-filter'], undefined)
-
-  const mask = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.day-sheet-mask'))
-  assert.equal(mask.decls['backdrop-filter'], 'blur(8px)')
-
-  const design = readRepo('DESIGN.md')
-  assert.match(design, /玻璃面数量上限收紧为 1/)
+// 极光基底不透明、和色团一样是 z-index 0 的固定层：根下没有定位的块会画在它下面，整块看不见。
+// 页面根下每个可见块都要定位并且 z-index ≥ 1（issue #163 发现首页骨架屏缺这一条）。
+test('every visible block at a page root paints above the aurora', () => {
+  const app = analyzeFile(readRepo('app.wxss'))
+  const decorative = new Set(['aurora', 'reduced-motion-probe'])
+  const violations = []
+  for (const page of appPages()) {
+    const own = analyzeFile(readRepo(`${page}.wxss`))
+    const wxml = readRepo(`${page}.wxml`)
+    const body = wxml.slice(0, wxml.search(/\n<template\b/) === -1 ? wxml.length : wxml.search(/\n<template\b/))
+    for (const match of body.matchAll(/^ {2}<view\b[^>]*?\bclass="([^"]*)"/gm)) {
+      const token = match[1].replace(/\{\{[^}]*\}\}/g, ' ').trim().split(/\s+/)[0]
+      if (!token || decorative.has(token)) continue
+      const selector = `.${token}`
+      const decls = [...app.rules, ...own.rules]
+        .filter((rule) => !rule.inReducedMotion && rule.selectors.includes(selector))
+        .reduce((merged, rule) => ({ ...merged, ...rule.decls }), {})
+      const positioned = ['relative', 'absolute', 'fixed'].includes(decls.position)
+      if (!positioned || !(Number(decls['z-index']) >= 1)) {
+        violations.push(`${page} ${selector} (position ${decls.position}, z-index ${decls['z-index']})`)
+      }
+    }
+  }
+  assert.deepEqual(violations, [])
 })
 
 // issue #137：滑动翻月不跟手、没有翻页动画；减弱动效下同样是一次即时替换。

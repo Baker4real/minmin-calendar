@@ -82,8 +82,12 @@
 
 /* 刷新失败重试句（issue #79）：已加载后的后台刷新失败留驻的可点行。
    正常文档流（非 fixed/absolute）放在月份导航与周头之间，不遮月份标题；
-   文案行玫瑰可点色，88rpx 触控高度。 */
+   文案行玫瑰可点色，88rpx 触控高度。
+   底是海军回退，淡白在 ::before 平涂层上（issue #163）：只铺 5% 淡白时极光最亮处会透上来，
+   玫瑰字掉到 4.5:1 以下。按压着色仍落在可以过渡的 background-color 上（issue #145）。 */
 .refresh-retry {
+  position: relative;
+  z-index: 0;
   min-height: 88rpx;
   display: flex;
   align-items: center;
@@ -92,14 +96,30 @@
   margin: 0 0 8rpx;
   padding: 0 28rpx;
   border-radius: var(--radius-md);
-  background: rgba(255,255,255,0.05);
+  background: var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.1);
-  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-press) ease;
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.refresh-retry::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-md);
+  background-color: rgba(255,255,255,0.05);
+  transition: background-color var(--duration-press) ease;
+  pointer-events: none;
+  z-index: -1;
 }
 .refresh-retry:active,
 .refresh-retry.refresh-retry-hover {
   transform: scale(0.98);
-  background: rgba(255,255,255,0.09);
+}
+.refresh-retry:active::before,
+.refresh-retry.refresh-retry-hover::before {
+  background-color: rgba(255,255,255,0.09);
 }
 .refresh-retry-text {
   font-size: var(--font-size-caption);
@@ -160,10 +180,11 @@
   transform: scale(0.97);
   background: rgba(232,144,158,0.16);
 }
+/* 和月份标题同一玫瑰：按吸顶区 → 月份导航 → 触发钮的实际合成面算，85% 玫瑰只有约 4.2:1（issue #163） */
 .month-title-caret {
   font-size: 24rpx;
   line-height: 1;
-  color: rgba(232,144,158,0.85);
+  color: #E8909E;
   transform: translateY(-2rpx);
 }
 .nav-btn {
@@ -656,7 +677,11 @@
 }
 
 /* ===== Cycle Reminders ===== */
+/* 提醒行直接压在极光上：底是海军回退，7.5% 淡白在 ::before 平涂层上（issue #163），
+   否则极光最亮处透上来，次要说明掉到 4.5:1 以下。按压着色落在 ::before 的 background-color 上 */
 .reminder-card {
+  position: relative;
+  z-index: 0;
   width: 100%;
   min-height: 88rpx;
   margin-top: 16rpx;
@@ -664,17 +689,33 @@
   align-items: center;
   gap: 18rpx;
   padding: 18rpx 20rpx;
-  background: rgba(255,255,255,0.075);
+  background: var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: var(--radius-md);
   box-shadow: 0 6px 24px rgba(0,0,0,0.13);
   box-sizing: border-box;
-  transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
+  transition: border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
+}
+.reminder-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-md);
+  background-color: rgba(255,255,255,0.075);
+  transition: background-color var(--duration-press) ease;
+  pointer-events: none;
+  z-index: -1;
 }
 .reminder-card:active,
 .reminder-card.reminder-card-hover {
   transform: scale(0.98);
-  background: rgba(255,255,255,0.12);
+}
+.reminder-card:active::before,
+.reminder-card.reminder-card-hover::before {
+  background-color: rgba(255,255,255,0.12);
 }
 .reminder-rail {
   width: 6rpx;
@@ -1543,14 +1584,10 @@
 .copy-recap.copy-recap-hover {
   transform: scale(0.98);
 }
-/* issue #118：弹层盖住首页时暂停这五层装饰，卸掉标记后从当前帧继续。减弱动效仍是 animation: none。 */
-.page.page-obscured::before,
-.page.page-obscured .glow-orb,
-.page.page-obscured .header-gradient::before,
-.page.page-obscured .header-gradient::after {
-  animation-play-state: paused;
-}
+/* 骨架和 .content、.no-room 一样画在极光固定层之上（issue #163） */
 .calendar-skeleton {
+  position: relative;
+  z-index: 1;
   padding: 10rpx 0 0;
 }
 .skeleton-month-bar,
@@ -1605,6 +1642,7 @@
   .sync-pill.sync-open,
   .sync-pill.syncing .sync-dot,
   .refresh-retry,
+  .refresh-retry::before,
   .day-sheet-mask,
   .day-sheet-mask::after,
   .day-action-sheet,
@@ -1627,6 +1665,7 @@
   .skeleton-week-cell,
   .skeleton-cell,
   .reminder-card,
+  .reminder-card::before,
   .quick-btn,
   .no-room-icon {
     animation: none;

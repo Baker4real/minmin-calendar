@@ -10,6 +10,7 @@ const { computeCalendarRowHeight } = require('../../utils/calendarRowHeight')
 const safeArea = require('../../utils/safeArea')
 const roomSession = require('../../utils/room')
 const roomPresence = require('../../utils/roomPresence')
+const { markPageHidden, markPageShown } = require('../../utils/pageVisibility')
 const {
   createSheetLifecycle,
   homepageSheets,
@@ -125,6 +126,7 @@ Page({
     monthPickerMounted: false,
     monthPickerPhase: 'closed',
     pageObscured: false,
+    pageHidden: false,
     sheetExitGuard: false,
     sheetDragClear: {
       monthPicker: { token: 0, action: '' },
@@ -198,6 +200,7 @@ Page({
   },
 
   onShow() {
+    markPageShown(this)
     restoreTabBarOnShow(this)
     // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效，行高按新密度同一次重算。
     // 记录加载必须在这次调用里同步开始，不能等房间状态请求回来。
@@ -997,6 +1000,7 @@ Page({
   },
 
   onHide() {
+    markPageHidden(this)
     this.persistOngoingReminderSeen()
     this.dismissSeenPartnerWelcome()
   },

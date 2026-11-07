@@ -205,7 +205,9 @@
   padding: 4rpx;
   box-sizing: border-box;
   border-radius: var(--radius-card);
-  background: rgba(255,255,255,0.055);
+  /* 分段控件直接压在极光上：5.5% 淡白是叠在海军回退上的平涂层（issue #163），
+     否则极光最亮处透上来，选中项的玫瑰字掉到 4.5:1 以下 */
+  background: linear-gradient(rgba(255,255,255,0.055), rgba(255,255,255,0.055)), var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.11);
 }
 .segment-option {
@@ -233,7 +235,7 @@
 }
 
 /* Memory Segment – 欢乐时光月份分组（issue #108）：每月一张卡复用 app 级 .premium-card 玻璃面，
-   本文件不新增玻璃/阴影面（per-file backdrop-filter/box-shadow 预算已满）。
+   不另做一种卡面。
    卡头可点切换展开/收起（issue #109）：即时生效、无动画（不写 transition/animation），
    右侧「展开/收起」是文字不是字形（「›」表示点开编辑、「⌄」已用于首页选月，见 DESIGN.md） */
 .month-card {

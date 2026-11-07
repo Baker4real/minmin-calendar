@@ -306,10 +306,11 @@ test('press color does not ride a gradient image', () => {
 // 它不是装饰渐变，也不是新的 CTA 填充。任意新渐变仍然拒绝。
 const GRADIENT_FILL_ALLOWLIST = new Set(
   [
-    // 极光背景、环境光斑、导航头辉光、卡缘高光、底部 sheet 面板、周期卡：装饰性渐变，非可操作填充
+    // 极光基底与三个色团、导航头辉光、卡缘高光、底部 sheet 面板、周期卡：装饰性渐变，非可操作填充
     ['app.wxss', '.page::before'],
-    ['app.wxss', '.glow-orb-1'],
-    ['app.wxss', '.glow-orb-2'],
+    ['app.wxss', '.aurora-bloom-violet'],
+    ['app.wxss', '.aurora-bloom-rose'],
+    ['app.wxss', '.aurora-bloom-lavender'],
     ['app.wxss', '.header-gradient::before'],
     ['app.wxss', '.header-gradient::after'],
     ['app.wxss', '.premium-card::after'],
@@ -329,6 +330,8 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/index/index.wxss', '.legend-sample.day-cell'],
     ['pages/bind/bind.wxss', '.tab-bar'],
     ['pages/bind/bind.wxss', '.code-input'],
+    ['pages/bind/bind.wxss', '.error-msg'],
+    ['pages/period/period.wxss', '.segment-control'],
     ['pages/period/period.wxss', '.skeleton-card'],
     ['pages/period/period.wxss', '.empty-state'],
     ['pages/period/edit/edit.wxss', '.form-picker'],

@@ -82,13 +82,16 @@ page {
 
 /* ===== Aurora Background ===== */
 page {
-  /* 实色基底；极光渐变在 .page::before 上按视口固定，滚动时底部不再出现色带分层 */
+  /* 实色基底；极光画在视口固定层上，滚动时底部不出现色带分层 */
   background: #0A0E27;
   color: var(--text-primary);
   min-height: 100vh;
 }
 
-/* ===== Aurora Overlay — 只用玫瑰/薰衣草/柔金三音色 ===== */
+/* ===== Aurora（issue #163）— 一层静止基底 + 三个有边界的色团 =====
+   基底 .page::before 只画海军 → 深蓝 → 深梅的纵向过渡，不动。动感交给每页根下 .aurora 里的三个色团：
+   每个色团一层动画（位移、轻微缩放、透明度），周期 12s / 10s / 8s，负延迟错开起点，往返呼吸；
+   不再整页缩放。色团的颜色只取玫瑰、薰衣草和蓝紫，柔金留给预测与节日。 */
 .page {
   position: relative;
   min-height: 100vh;
@@ -98,55 +101,73 @@ page {
 .page::before {
   content: '';
   position: fixed;
-  top: -2.5%;
-  left: -2.5%;
-  width: 105%;
-  height: 105%;
-  background:
-    radial-gradient(ellipse at 30% 20%, rgba(232,144,158,0.12) 0%, transparent 50%),
-    radial-gradient(ellipse at 70% 80%, rgba(196,160,210,0.09) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, rgba(212,165,116,0.05) 0%, transparent 50%),
-    linear-gradient(135deg, #0A0E27, #1A0A2E, #2D1B69, #0A0E27);
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(168deg, #0A0E27 0%, #0A0E27 28%, #12163D 62%, #1A0A2E 100%);
   pointer-events: none;
-  animation: auroraPulse 8s ease infinite;
   z-index: 0;
 }
-
-@keyframes auroraPulse {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.05); }
+.aurora {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.aurora-bloom {
+  position: absolute;
+  pointer-events: none;
+}
+/* 蓝紫深处：大而暗的色团压在下半屏，给画面纵深 */
+.aurora-bloom-violet {
+  left: -30%;
+  top: 38%;
+  width: 160%;
+  height: 80%;
+  background: radial-gradient(closest-side, rgba(45,27,105,0.75), rgba(45,27,105,0.36) 48%, rgba(45,27,105,0));
+  animation: auroraViolet 12s ease-in-out -6s infinite alternate;
+}
+/* 玫瑰：左上的暖光 */
+.aurora-bloom-rose {
+  left: -40%;
+  top: -12%;
+  width: 120%;
+  height: 62%;
+  background: radial-gradient(closest-side, rgba(232,144,158,0.14), rgba(232,144,158,0.06) 50%, rgba(232,144,158,0));
+  animation: auroraRose 10s ease-in-out -3s infinite alternate;
+}
+/* 薰衣草：右侧中段的冷光 */
+.aurora-bloom-lavender {
+  left: 30%;
+  top: 20%;
+  width: 110%;
+  height: 56%;
+  background: radial-gradient(closest-side, rgba(196,160,210,0.11), rgba(196,160,210,0.05) 50%, rgba(196,160,210,0));
+  animation: auroraLavender 8s ease-in-out -5s infinite alternate;
+}
+@keyframes auroraViolet {
+  from { opacity: 0.7; transform: translate(-4%, 3%) scale(1); }
+  to { opacity: 1; transform: translate(4%, -3%) scale(1.06); }
+}
+@keyframes auroraRose {
+  from { opacity: 0.55; transform: translate(0, 0) scale(0.96); }
+  to { opacity: 1; transform: translate(9%, 7%) scale(1.08); }
+}
+@keyframes auroraLavender {
+  from { opacity: 1; transform: translate(0, 0) scale(1.04); }
+  to { opacity: 0.6; transform: translate(-10%, 6%) scale(0.94); }
 }
 
 /* 页面入场动画：只淡入。位移动画会让 .page 永久保留 transform（fill-mode both），
-   使 position:fixed 的 .page::before 退化为相对文档定位，滚动时背景跟着滚动出现分层 */
+   使 position:fixed 的 .page::before 与 .aurora 退化为相对文档定位，滚动时背景跟着滚动出现分层 */
 @keyframes pageEnter {
   from { opacity: 0; }
   to { opacity: 1; }
-}
-
-/* ===== Glow Orbs — 每个 orb 只保留一层持续动画（orbFloat）；orbRotate 第二层随 issue #58 退役 ===== */
-.glow-orb {
-  position: absolute;
-  border-radius: var(--radius-circle);
-  pointer-events: none;
-  z-index: 0;
-  animation: orbFloat 6s ease-in-out infinite;
-}
-.glow-orb-1 {
-  width: 300rpx; height: 300rpx;
-  background: radial-gradient(circle, rgba(232,144,158,0.2), transparent);
-  top: -100rpx; right: -80rpx;
-}
-.glow-orb-2 {
-  width: 200rpx; height: 200rpx;
-  background: radial-gradient(circle, rgba(196,160,210,0.13), transparent);
-  bottom: 100rpx; left: -60rpx;
-  animation-duration: 8s;
-  animation-direction: reverse;
-}
-@keyframes orbFloat {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-20rpx) scale(1.1); }
 }
 
 /* ===== Custom Nav Bar ===== */
@@ -374,6 +395,25 @@ page {
   100% { transform: translate(20rpx, -20rpx) scale(1.1); }
 }
 
+/* ===== 常驻装饰暂停（issue #118 → #163）=====
+   弹层开着时页面根带 page-obscured，页面不可见（onHide 到下一次 onShow）时带 page-hidden。
+   两种标记下，注册表里的装饰性常驻动画都暂停在当前帧，去掉标记后从这一帧继续，动画名和周期不变。
+   只暂停、不写 animation: none（那会丢掉当前帧）；状态指示（spin、syncDotPulse、skeletonPulse）照常播放。 */
+.page.page-obscured .aurora-bloom-violet,
+.page.page-obscured .aurora-bloom-rose,
+.page.page-obscured .aurora-bloom-lavender,
+.page.page-obscured .header-gradient::before,
+.page.page-obscured .header-gradient::after,
+.page.page-obscured .no-room-icon,
+.page.page-hidden .aurora-bloom-violet,
+.page.page-hidden .aurora-bloom-rose,
+.page.page-hidden .aurora-bloom-lavender,
+.page.page-hidden .header-gradient::before,
+.page.page-hidden .header-gradient::after,
+.page.page-hidden .no-room-icon {
+  animation-play-state: paused;
+}
+
 /* ===== Loading Spinner ===== */
 .loading-view {
   display: flex;
@@ -435,8 +475,9 @@ page {
    加载中不静默：spinner 的旋转替换为 loadingPulse 透明度脉冲。 */
 @media (prefers-reduced-motion: reduce) {
   .page,
-  .page::before,
-  .glow-orb,
+  .aurora-bloom-violet,
+  .aurora-bloom-rose,
+  .aurora-bloom-lavender,
   .header-gradient::before,
   .header-gradient::after {
     animation: none;
