@@ -167,7 +167,7 @@ components:
 - 各页 0.62–0.94 信息文本透明度是逐元素调校，不要机械归并。承载操作后果、记录内容或关键说明的辅助文字不弱于 `--text-secondary` 档，并在实际合成表面上 ≥4.5:1（issue #158）：记录 tab 周期概览的标签（`.card-label`、`.cycle-label`；卡面是玫瑰 → 薰衣草渐变叠在玻璃回退上，画布、玻璃回退和渐变两端都要过线）、列表行的作者与备注（`.item-note`、`.memory-note`）、收起月份卡的备注摘要（`.month-excerpt`）、空态引导与加载失败标题（`.empty-state`），经期编辑页的状态后果、天数与时长确认（`.form-hint`），两个编辑页的字段名（`.form-label`，与字段说明同样直接引用 `--text-secondary`，issue #164），首页提醒说明（`.reminder-text`）与未绑定/加载失败说明（`.no-room-desc`）。只给芯片分组的症状分组标题（`.symptom-group-label`）不在此列，保留更安静的一档，仍 ≥4.5:1。护栏 `tests/contrast-guardrail.test.js`。
 - 可点控件只描述 Default 与 Pressed。Pressed 用 `:active` `scale(0.94–0.98)`；主按钮 `.btn-premium` 为 `0.96`。
 - `calendar-cell` 与下文日历状态表对齐 `pages/index`。经期是只包住日期数字的 22% 玫瑰连续色带，不是实色整格选中底。今天只在日期数字外加一枚胶囊（`todayCapsule*`），不铺整格底、不描整格边；经期中的今天不另加胶囊，只在色带外缘描边（issue #162）。
-- 日历微字 `.day-tag` / `.predict-mark` 字号为 `26rpx`（caption 量级）。节日是无底金字，调休「班」仍是低调小标签；`.day-tag` 与 `.day-tag-line` 盒高 `38rpx`（大于字号，覆盖 caption 行高），避免 CJK 被裁切。compact 密度下仍放进日期与标记，不把微字再缩小。
+- 日历微字 `.day-tag` / `.predict-mark` 字号为 `26rpx`（caption 量级）。节日是无底金字，调休「班」仍是低调小标签；`.day-tag` 与 `.day-tag-line` 盒高 `38rpx`（大于字号，覆盖 caption 行高），避免 CJK 被裁切。清爽密度的节日/调休标签走 `--font-size-calendar-micro`（24rpx，格内下限），盒高 34rpx，日期与标记仍都放得下，不再更小（几何账本 `CALENDAR_LEDGER.infoRowRpx.tagFont` 钉住）。
 
 主填充按钮是玫瑰底 `#E8909E` + 画布海军字 `#0A0E27`，玫瑰填充一律写 `var(--aurora-pink)`（`.btn-premium`、`.copy-btn` 与首页的 `.quick-btn`、`.reminder-action`、`.jump-option.active`、`.copy-recap` 由 `tests/design-token-guardrail.test.js` 钉住单一来源，`tests/filled-cta-contrast.test.js` 钉住玫瑰底海军字 4.5:1 对比度）。全页面（含绑定页）同一套玫瑰主操作，无页面级例外。护栏为 deny-by-default：任何选择器的渐变填充（linear/radial/conic）与实色玫瑰字面量填充（`#E8909E` / `rgb(232,144,158)` / `rgba(232,144,158,1)`）都必须落在测试登记的装饰例外白名单内，新增主操作按钮写字面量玫瑰或渐变填充会被直接拒绝。同结构的复制键和选中块走同一对色。不要把白字叠玫瑰写成规范。记录 tab 进行中经期的时长胶囊（`.item-duration.ongoing`）也用这一对：画布海军字叠 92% 玫瑰底，合成在列表卡上后文字对比度 ≥4.5:1，由 `tests/contrast-guardrail.test.js` 钉住。主按钮（`.btn-premium`、`.quick-btn`、`.reminder-action`、`.copy-recap`）只有一种形状：`var(--radius-md)`。复制键和重试小按钮不是主按钮。分段控件（记录分类 `.segment-option`、设置密度 `.density-option`、绑定页创建/加入 `.tab`）只有一种选中态：玫瑰字 `#E8909E`、`rgba(232,144,158,0.08)` 底、`rgba(232,144,158,0.45)` 描边，不用实色玫瑰填充。
 
@@ -225,7 +225,7 @@ frontmatter 的 rem 值是设计参照；实现层全部走下表 rpx 角色 tok
 | `--font-size-caption` | `26rpx` | caption（页面外下限） | 说明/标签/统计文字、`.day-tag`、`.predict-mark`、`.form-label`、流量/症状 chips、`.copy-btn`、`.month-toggle`（月份卡「展开/收起」，issue #109）等次级小操作 |
 | `--font-size-calendar-date` | `28rpx` | 日历日期（full 密度） | `.day-num` |
 | `--font-size-calendar-date-compact` | `30rpx` | 日历日期（compact 密度） | `.calendar-density-compact .day-num` |
-| `--font-size-calendar-micro` | `24rpx` | 日历格内微字（下限） | `.day-lunar`、`.memory-mark` |
+| `--font-size-calendar-micro` | `24rpx` | 日历格内微字（下限） | `.day-lunar`、`.memory-mark`、清爽密度的 `.day-tag` |
 | `--font-size-button` | `30rpx` | 主按钮 | `.btn-premium`、`.btn-danger` |
 | `--font-size-input` | `32rpx` | 输入文字 | `.form-input`、`.form-picker` |
 
