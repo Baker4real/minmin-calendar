@@ -2628,28 +2628,49 @@ test('month arrows publish the new month and its calendar grid in one update', (
   }
 })
 
-test('month selection jumps immediately, and back-to-today keeps its behavior', () => {
-  const harness = loadPageHarness({ client: createQueuedClient([]) })
+// issue #165：选月和「回到今天」与箭头一样，月标题和那个月的格子在同一次更新里发布。
+// 原来先发年月、渲染回调里才排格子：视图层先画出新标题，下一帧格子才换，新旧月份混在一帧里
+test('month selection and back-to-today publish the month title with its grid in one update', () => {
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 10, 8, 9, 30) })
+  const harness = loadPageHarness({ client: createQueuedClient([]), calendarState: 'real', deferRenderCommits: true })
   try {
     harness.page.onLoad()
+    const updates = []
+    const setData = harness.page.setData.bind(harness.page)
+    harness.page.setData = (update, callback) => {
+      updates.push(update)
+      setData(update, callback)
+    }
+    const firstDate = (days) => (days || []).find(day => day.date)?.date
+    const monthCommits = () => updates.filter(update => 'year' in update || 'month' in update)
+
     harness.page.setData({ year: 2020, month: 5 })
     harness.page.openMonthPicker()
     harness.page.shiftJumpYear({ currentTarget: { dataset: { delta: '1' } } })
+    updates.length = 0
     harness.page.selectJumpMonth({ currentTarget: { dataset: { month: '11' } } })
-    assert.equal(harness.page.data.year, 2021)
-    assert.equal(harness.page.data.month, 11)
-    assert.equal(harness.page.data.jumpMonth, 11)
-    assert.equal(harness.page.data.monthPickerVisible, false)
+    let [commit, ...later] = monthCommits()
+    assert.deepEqual(later, [], 'the jump publishes its month once')
+    assert.deepEqual([commit.year, commit.month, commit.jumpMonth, commit.monthPickerVisible], [2021, 11, 11, false])
+    assert.equal(firstDate(commit.days), '2021-12-01', 'the title and the grid of December 2021 land together')
+    assert.equal(commit.showBackToToday, true)
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
 
     harness.page.openMonthPicker()
     harness.page.shiftJumpYear({ currentTarget: { dataset: { delta: '1' } } })
+    updates.length = 0
     harness.page.jumpToToday()
-    const today = new Date()
-    assert.equal(harness.page.data.year, today.getFullYear())
-    assert.equal(harness.page.data.month, today.getMonth())
-    assert.equal(harness.page.data.monthPickerVisible, false)
+    ;[commit, ...later] = monthCommits()
+    assert.deepEqual(later, [], 'back-to-today publishes its month once')
+    assert.deepEqual(
+      [commit.year, commit.month, commit.jumpMonth, commit.jumpYear, commit.monthPickerVisible],
+      [2026, 10, 10, 2026, false]
+    )
+    assert.equal(firstDate(commit.days), '2026-11-01', 'the title and the grid of the current month land together')
+    assert.equal(commit.showBackToToday, false)
   } finally {
     harness.teardown()
+    mock.timers.reset()
   }
 })
 

@@ -466,10 +466,6 @@ Page({
     this.applyHomeCalendarState({ periods })
   },
 
-  renderCalendar() {
-    this.applyHomeCalendarState()
-  },
-
   _recordList(collection) {
     const stored = this._homeRecords && this._homeRecords[collection]
     return Array.isArray(stored) ? stored : []
@@ -487,7 +483,8 @@ Page({
     return details[date] || emptyDayDetail()
   },
 
-  applyHomeCalendarState(overrides = {}) {
+  // overrides 决定投影（年月、记录、今天）；extra 是跟日历同一次提交的其他字段（选月面板、翻月方向）
+  applyHomeCalendarState(overrides = {}, extra = {}) {
     const hasOwn = (key) => Object.prototype.hasOwnProperty.call(overrides, key)
     const periods = hasOwn('periods') ? overrides.periods : this._recordList('periods')
     const memories = hasOwn('memories') ? overrides.memories : this._recordList('memories')
@@ -521,9 +518,9 @@ Page({
       showBackToToday: !isViewingCurrentMonth(year, month),
       ...monthNavState(year, month),
       year,
-      month
+      month,
+      ...extra
     }
-    if (hasOwn('monthPickerVisible')) update.monthPickerVisible = overrides.monthPickerVisible
     if (this.data.selectedDate && this.data.dayActionMounted) {
       update.selectedDayDetail = this._dayDetail(this.data.selectedDate)
     }
@@ -627,14 +624,14 @@ Page({
     let { year, month } = this.data
     if (monthNavState(year, month).prevMonthDisabled) return
     month--; if (month < 0) { month = 11; year-- }
-    this.applyHomeCalendarState({ year, month, monthPickerVisible: false })
+    this.applyHomeCalendarState({ year, month }, { monthPickerVisible: false })
   },
 
   nextMonth() {
     let { year, month } = this.data
     if (monthNavState(year, month).nextMonthDisabled) return
     month++; if (month > 11) { month = 0; year++ }
-    this.applyHomeCalendarState({ year, month, monthPickerVisible: false })
+    this.applyHomeCalendarState({ year, month }, { monthPickerVisible: false })
   },
 
   // 日历滑动松手：判定在纯函数里，页面只做一次既有翻月更新，不跟手。
@@ -726,15 +723,14 @@ Page({
     this.setData(buildJumpYearState(this.data.jumpYear + delta))
   },
 
+  // 选月与回到今天：月标题和那个月的格子同一次提交（issue #165），不在渲染回调里补排格子
   selectJumpMonth(e) {
     const month = Number(e.currentTarget.dataset.month)
     if (!Number.isInteger(month) || month < 0 || month > 11) return
-    this.setData({
-      year: this.data.jumpYear,
-      month,
+    this.applyHomeCalendarState({ year: this.data.jumpYear, month }, {
       jumpMonth: month,
       monthPickerVisible: false
-    }, () => this.renderCalendar())
+    })
     homepageSheets(this).monthPicker.leave(this)
   },
 
@@ -742,13 +738,11 @@ Page({
     const today = new Date()
     const year = today.getFullYear()
     const month = today.getMonth()
-    this.setData({
-      year,
-      month,
+    this.applyHomeCalendarState({ year, month }, {
       jumpMonth: month,
       ...buildJumpYearState(year),
       monthPickerVisible: false
-    }, () => this.renderCalendar())
+    })
     homepageSheets(this).monthPicker.leave(this)
   },
 
