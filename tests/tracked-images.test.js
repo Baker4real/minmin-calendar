@@ -72,6 +72,21 @@ const ALLOWED_IMAGES = {
   'docs/evidence/issue-162/today-period-single-full-390x844.png': '完整密度今天是一天的经期：单日色带描四边，没有第二枚胶囊；经期是替身记录',
   'docs/evidence/issue-162/today-period-single-compact-390x844.png': '清爽密度今天是一天的经期：单日色带描四边，没有第二枚胶囊；经期是替身记录',
   'docs/evidence/issue-162/legend-today-period-390x844.png': '日历图例：今天和经期样本是铺网格玻璃底的 72rpx 日历格，没有记录数据',
+  // #163：同样是 worktree 项目窗口，视口 390×844（没切机型）。整屏图里的经期、♥、提醒和列表都来自按当天推算的替身记录，
+  // 房间是替身房间；弹层整屏图的底下是被遮罩模糊的同一份替身首页或设置页。
+  'docs/evidence/issue-163/aurora-home-390x844.png': '首页整屏：静止基底上的三个极光色团，同步失败重试行在玻璃回退底上；经期与状态行来自替身记录',
+  'docs/evidence/issue-163/aurora-records-scrolled-end-390x844.png': '记录页滚到底：极光层仍铺满视口，底部没有色带分层；列表是替身经期记录',
+  'docs/evidence/issue-163/aurora-period-edit-390x844.png': '新增经期编辑页整屏的极光背景，表单是新建空白记录，没有记录数据',
+  'docs/evidence/issue-163/aurora-memory-edit-390x844.png': '新增欢乐时光编辑页整屏的极光背景，表单是新建空白记录，没有记录数据',
+  'docs/evidence/issue-163/sheet-day-390x844.png': '首页当日操作弹层：88% 海军加 8px 模糊的遮罩、海军实底面板；底下是替身首页',
+  'docs/evidence/issue-163/sheet-month-picker-390x844.png': '首页选择月份弹层：同一遮罩与面板材质；底下是替身首页，没有记录数据',
+  'docs/evidence/issue-163/sheet-tools-menu-390x844.png': '首页工具菜单弹层：同一遮罩与面板材质；底下是替身首页，菜单项没有记录数据',
+  'docs/evidence/issue-163/sheet-legend-390x844.png': '首页日历图例弹层：同一遮罩与面板材质；图例是固定样本，没有记录数据',
+  'docs/evidence/issue-163/sheet-settings-help-390x844.png': '设置页使用说明弹层：遮罩同首页（88% 海军 + 8px 模糊）；底下设置页的房间是替身房间',
+  'docs/evidence/issue-163/row-refresh-retry-390x844.png': '首页「欢乐时光同步失败，点按重试」行：玫瑰字在玻璃回退底上；失败由替身云端造出',
+  'docs/evidence/issue-163/row-reminder-390x844.png': '首页「这几天可能开始」提醒行：左侧色条与「记录」按钮在玻璃回退底上；预测来自替身记录',
+  'docs/evidence/issue-163/row-segment-control-390x844.png': '记录页「经期 / 欢乐时光」分段控件：平铺浅白层叠在玻璃回退底上，没有记录数据',
+  'docs/evidence/issue-163/row-bind-error-retry-390x844.png': '绑定页房间校验失败的警示红错误条与重试按钮，失败由替身云端造出，没有房间码',
 }
 
 // 读 index 而不是工作区：提交钩子里跑时，读到的正是这次要提交的文件。
