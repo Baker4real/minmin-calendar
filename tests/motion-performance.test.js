@@ -398,7 +398,8 @@ function expectedTransitionDuration(files, pressTargets, selector, prop) {
   if (COLOR_TRANSITION_PROPS.has(prop)) {
     return activeSetsProperty(files, target, prop) ? PRESS_DURATION : STATE_DURATION
   }
-  if (prop === 'opacity') return STATE_DURATION
+  // 按压会改的透明度（柔光层，issue #166）跟着按压走；其余透明度变化是状态
+  if (prop === 'opacity') return activeSetsProperty(files, target, 'opacity') ? PRESS_DURATION : STATE_DURATION
   return null
 }
 
@@ -694,6 +695,129 @@ test('loading keeps an opacity-only pulse under reduced motion instead of going 
   const props = app.keyframes.loadingPulse
   assert.ok(props, 'expected @keyframes loadingPulse in app.wxss')
   assert.deepEqual([...props].sort(), ['opacity'], 'loadingPulse must be opacity-only (movement-free)')
+})
+
+// issue #166：按压改变的每一路——缩放、底色、描边、柔光层透明度——都在 --duration-press 里一起走，
+// 松手按同一拍回来，没有哪一路先跳到位。按压不换 box-shadow：阴影不能过渡，柔光的变化落在柔光层的透明度上。
+// 禁用与加载变体不算按压（它们把每一路钉在静止值，见 interaction-semantics）。
+// 唯一例外是「记录」tab 欢乐时光卡头：issue #109 让卡头不写过渡，它的按压只有一层底色，没有第二路要对齐。
+const PRESS_BEAT_EXCEPTIONS = {
+  'pages/period/period.wxss .month-header': 'issue #109: the collapsible month header writes no transition'
+}
+const PRESS_CHANNELS = {
+  transform: 'transform',
+  background: 'background-color',
+  'background-color': 'background-color',
+  'border-color': 'border-color',
+  opacity: 'opacity',
+  color: 'color'
+}
+const INERT_CLASSES = ['disabled', 'loading']
+const PURE_CLASS_COMPOUND = /^(?:\.[A-Za-z_][\w-]*)+(?:::(?:before|after))?$/
+
+test('a press moves every channel it changes on the press beat, and never swaps a shadow', () => {
+  const files = analyzedWxssFiles()
+  // 基类候选：只由类组成的单段选择器（可带 ::before/::after），类集合是按压目标的子集、伪元素相同。
+  // 页面里的按压看本页和 app.wxss 的基类；app.wxss 的按压落在各页元素上，看所有页面。
+  // 页面 WXSS 在 app.wxss 之后加载：同特异度时页面侧的 transition 生效
+  const bases = files.flatMap((file) => file.rules
+    .filter((rule) => !rule.inReducedMotion && rule.decls.transition)
+    .flatMap((rule) => rule.selectors
+      .filter((selector) => PURE_CLASS_COMPOUND.test(selector))
+      .map((selector) => ({ ...selectorSignature(selector), relative: file.relative, transition: rule.decls.transition }))))
+  const effectiveTransition = (relative, target) => {
+    const { classes, pseudo } = selectorSignature(target)
+    const candidates = bases.filter((base) =>
+      (relative === 'app.wxss' || base.relative === relative || base.relative === 'app.wxss') &&
+      base.pseudo === pseudo && base.classes.every((cls) => classes.includes(cls)))
+    const pageFirst = (base) => (base.relative === 'app.wxss' ? 0 : 1)
+    candidates.sort((a, b) => (b.classes.length - a.classes.length) || (pageFirst(b) - pageFirst(a)))
+    return candidates[0] ? candidates[0].transition : null
+  }
+
+  const violations = []
+  let checked = 0
+  for (const file of files) {
+    for (const rule of file.rules) {
+      if (rule.inReducedMotion) continue
+      for (const selector of rule.selectors.filter((item) => item.includes(':active'))) {
+        const target = lastCompound(selector)
+        if (selectorSignature(target).classes.some((cls) => INERT_CLASSES.includes(cls))) continue
+        const where = `${file.relative} ${selector}`
+        if (rule.decls['box-shadow']) violations.push(`${where} swaps its box-shadow; dim a glow layer instead`)
+        if (PRESS_BEAT_EXCEPTIONS[`${file.relative} ${target}`]) continue
+        const transition = effectiveTransition(file.relative, target)
+        const segments = splitTopLevelComma(transition || '')
+        for (const [prop, channel] of Object.entries(PRESS_CHANNELS)) {
+          if (!rule.decls[prop]) continue
+          checked += 1
+          const segment = segments.find((part) => part.startsWith(`${channel} `))
+          if (!segment || !segment.includes(PRESS_DURATION)) {
+            violations.push(`${where} changes ${prop} but ${target} does not move ${channel} on ${PRESS_DURATION} (transition: ${transition || 'none'})`)
+          }
+        }
+      }
+    }
+  }
+  assert.ok(checked > 40, 'the survey reaches the press rules')
+  assert.deepEqual(violations, [])
+
+  const design = readRepo('DESIGN.md')
+  assert.match(design, /按压的四路（issue #166）/)
+})
+
+// issue #166：柔光只在玫瑰主按钮和复制键上，画在 ::before 柔光层，不画在按钮本身。柔光层铺满按钮、
+// 跟按钮同一个圆角 token、不拦点按；按下时透明度沉到 0.5，和缩放同一拍（--duration-press），松手同一拍回来。
+// 减弱动效下柔光层即时切换。
+const GLOW_CONTROLS = [
+  ['app.wxss', '.btn-premium', '0 4px 15px rgba(232,144,158,0.28)'],
+  ['pages/index/index.wxss', '.quick-btn', '0 10rpx 26rpx rgba(232,144,158,0.22)'],
+  ['pages/index/index.wxss', '.copy-recap', '0 14rpx 34rpx rgba(232,144,158,0.18)'],
+  ['pages/settings/settings.wxss', '.copy-btn', '0 4px 15px rgba(232,144,158,0.28)'],
+  ['pages/bind/bind.wxss', '.copy-btn', '0 4px 15px rgba(232,144,158,0.28)']
+]
+const PRESSED_GLOW_OPACITY = '0.5'
+
+test('rose glow sits on a glow layer that sinks with the press on the same beat', () => {
+  for (const [relative, selector, glow] of GLOW_CONTROLS) {
+    const file = analyzeFile(readRepo(relative))
+    const merged = (wanted) => file.rules
+      .filter((rule) => !rule.inReducedMotion && rule.selectors.includes(wanted))
+      .reduce((decls, rule) => ({ ...decls, ...rule.decls }), {})
+    const host = merged(selector)
+    assert.equal(host['box-shadow'], undefined, `${relative} ${selector} carries no shadow of its own`)
+    assert.equal(host.position, 'relative', `${relative} ${selector} anchors its glow layer`)
+
+    const layer = merged(`${selector}::before`)
+    assert.equal(layer.content, "''")
+    assert.equal(layer.position, 'absolute')
+    for (const side of ['top', 'right', 'bottom', 'left']) assert.equal(layer[side], '0', `${selector}::before covers the button (${side})`)
+    assert.ok(host['border-radius'], `${relative} ${selector} names its radius token`)
+    assert.equal(layer['border-radius'], host['border-radius'], `${relative} ${selector} glow follows the button corner`)
+    assert.equal(layer['box-shadow'], glow, `${relative} ${selector} keeps its registered glow`)
+    assert.equal(layer['pointer-events'], 'none')
+    assert.equal(layer.transition, `opacity ${PRESS_DURATION} ease`)
+
+    const pressed = merged(`${selector}:active::before`)
+    assert.equal(pressed.opacity, PRESSED_GLOW_OPACITY, `${relative} ${selector} glow sinks while pressed`)
+    assert.equal(merged(`${selector}.${selector.slice(1)}-hover::before`).opacity, PRESSED_GLOW_OPACITY)
+
+    const reduced = file.reducedMotionRules.find((rule) => rule.selectors.includes(`${selector}::before`))
+    assert.ok(reduced, `reduced motion must cover ${relative} ${selector}::before`)
+    assert.equal(reduced.decls.transition, 'none')
+  }
+
+  // 原生分享按钮也是 .btn-premium：组件自带的 overflow: hidden 会裁掉柔光层，按压类是 share-invite-hover
+  const bind = analyzeFile(readRepo('pages/bind/bind.wxss'))
+  const share = bind.rules.find((rule) => rule.selectors.includes('button.share-invite'))
+  assert.equal(share.decls.overflow, 'visible', 'the native share button lets its glow layer show')
+  const sharePressed = bind.rules.find((rule) => rule.selectors.includes('.share-invite.share-invite-hover::before'))
+  assert.ok(sharePressed, 'the share button glow sinks under its own hover class')
+  assert.equal(sharePressed.decls.opacity, PRESSED_GLOW_OPACITY)
+
+  const design = readRepo('DESIGN.md')
+  assert.match(design, /柔光层/)
+  assert.doesNotMatch(design, /按压时可以随缩放即时变化/)
 })
 
 // issue #73：月份箭头与弹层关闭的按压缩放落在登记的 0.94–0.98 区间；

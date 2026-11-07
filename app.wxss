@@ -251,12 +251,10 @@ page {
 .nav-back.nav-back-hover {
   transform: scale(0.94);
 }
+/* 按下：缩放、描边、底色同一拍变化；投影不换，随按钮一起缩（issue #166） */
 .nav-back:active .nav-back-surface,
 .nav-back.nav-back-hover .nav-back-surface {
   border-color: rgba(232,144,158,0.42);
-  box-shadow:
-    0 4rpx 12rpx rgba(10,14,39,0.16),
-    inset 0 1rpx 0 rgba(255,255,255,0.22);
 }
 .nav-back:active .nav-back-surface::before,
 .nav-back.nav-back-hover .nav-back-surface::before {
@@ -292,14 +290,30 @@ page {
   padding: 26rpx 0;
   font-size: var(--font-size-button);
   font-weight: var(--font-weight-control);
-  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-state) ease;
   position: relative;
+}
+/* 柔光层（issue #166）：玫瑰光画在 ::before 上，不画在按钮本身。按下时透明度沉到 0.5，
+   和缩放同一拍（box-shadow 不能过渡，透明度可以）；禁用和加载中没有柔光 */
+.btn-premium::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
+  transition: opacity var(--duration-press) ease;
+  pointer-events: none;
 }
 .btn-premium:active,
 .btn-premium.btn-premium-hover {
   transform: scale(0.96);
-  box-shadow: 0 2px 8px rgba(232,144,158,0.2);
+}
+.btn-premium:active::before,
+.btn-premium.btn-premium-hover::before {
+  opacity: 0.5;
 }
 .btn-premium.loading,
 .btn-premium.disabled {
@@ -310,6 +324,14 @@ page {
 .btn-premium:active.disabled,
 .btn-premium.btn-premium-hover.disabled{
   transform: none;
+}
+.btn-premium.loading::before,
+.btn-premium.disabled::before,
+.btn-premium:active.loading::before,
+.btn-premium.btn-premium-hover.loading::before,
+.btn-premium:active.disabled::before,
+.btn-premium.btn-premium-hover.disabled::before {
+  opacity: 0;
 }
 
 /* ===== Danger Button — 柔红，与玫瑰体系同族 ===== */
@@ -486,6 +508,7 @@ page {
   }
   .premium-card,
   .btn-premium,
+  .btn-premium::before,
   .btn-danger,
   .btn-danger::before,
   .nav-btn,

@@ -346,6 +346,7 @@
     animation: none;
   }
   .load-failed,
+  .retry-btn,
   .list-retry,
   .segment-option {
     transition: none;
@@ -388,6 +389,7 @@
   color: #0A0E27;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
+  transition: transform var(--duration-press) var(--ease-out);
 }
 .retry-btn:active,
 .retry-btn.retry-btn-hover {
