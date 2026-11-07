@@ -12,7 +12,7 @@ const CALENDAR_LEGEND_ITEMS = [
   {
     key: 'today',
     title: '今天',
-    text: '薰衣草描边、玫瑰底，日期数字是玫瑰色。',
+    text: '日期外的浅玫瑰色小胶囊表示今天，胶囊描着细薰衣草边；经期中的今天改在色带边缘描边。',
     cellClass: 'today',
     parts: [{ kind: 'num', className: 'day-num', text: '8' }]
   },

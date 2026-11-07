@@ -350,7 +350,7 @@ function monthDays(rows, cells = {}) {
 test('a calendar row never drops below the cell content minimum; full density scrolls instead of squeezing', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
   // 390×844：页高 761、顶栏 91。完整密度格内是 上内边距 4 + 日期 32 + 农历 2+34 + 节日 2+38 + 标记 2+30，
-  // 「预」胶囊 42 比标记行高 12、向下垂出，还要让开今天 3rpx 的内描边：最小 4 + 140 + 12 + 3 = 159rpx = 82.68px
+  // 「预」胶囊 42 比标记行高 12、向下垂出，离格子下沿还要留 3rpx：最小 4 + 140 + 12 + 3 = 159rpx = 82.68px
   const sixRows = computeCalendarRowHeight({
     viewportWidth: 390,
     viewportHeight: 761,
@@ -380,7 +380,7 @@ test('compact density merges the holiday row into the mark row only when the sta
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
   // 375×667：页高 619、顶栏 64，6 行且显示「回到今天」。首屏 = 吸顶占位 306 + 周头 50 + 网格内边距 12 + 记录入口 114
   // = 482rpx = 241px，另有 6px 描边：每行可用 (619 − 64 − 247) / 6 = 51.33px = 102.67rpx。
-  // 常规清爽格（日期 38 + 节日 2+34 + 标记 6+30 居中，「预」垂出 12 并让开今天内描边）要 138rpx = 69px，放不下；
+  // 常规清爽格（日期 38 + 节日 2+34 + 标记 6+30 居中，「预」垂出 12 并留 3rpx 格底）要 138rpx = 69px，放不下；
   // 合并后 上内边距 14 + 日期 38 + 信息行 2+42 + 下内边距 4 = 100rpx = 50px，放得下，记录入口仍在首屏。
   const short = computeCalendarRowHeight({
     viewportWidth: 375,

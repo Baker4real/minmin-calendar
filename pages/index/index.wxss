@@ -409,16 +409,8 @@
   margin-top: 0;
 }
 
-/* 今天标记 — 平静玫瑰底 + 薰衣草内描边（DESIGN.md todayBorder） */
-.day-cell.today {
-  background: rgba(232,144,158,0.16);
-  box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
-}
-.day-cell.today.period {
-  background: transparent;
-  box-shadow: none;
-}
-.day-cell.workday:not(.today) {
+/* 调休格的低对比底；今天只在日期上加胶囊，这层底照常铺（issue #162） */
+.day-cell.workday {
   background: rgba(255,255,255,0.035);
 }
 
@@ -438,6 +430,32 @@
 }
 .day-cell.today.period .day-num {
   color: rgba(255,255,255,0.92);
+}
+/* 今天（issue #162）：围住日期数字的紧凑胶囊——浅玫瑰底、薰衣草细描边，数字仍是玫瑰色。格子本身不上色，
+   整日点按范围仍是整格；农历、节日/调休与标记都在胶囊外。胶囊挂在日期身后（日期自成叠放层，见下方 z-index 1）。
+   完整密度：胶囊从格子顶画起（0–41rpx）。清爽与合并信息行：日期上方 5rpx 起。下沿都离下一槽
+   （农历字框、节日/调休或信息行）留 2rpx：rpx 按段取整成整数 px，贴着槽顶画会在部分屏宽上压到「班」1px。
+   经期今天不画胶囊，今天只描在色带外缘 */
+.day-cell.today:not(.period) .day-num::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -4rpx;
+  left: 50%;
+  width: 60rpx;
+  height: 41rpx;
+  margin-left: -30rpx;
+  box-sizing: border-box;
+  border: 2rpx solid rgba(196,160,210,0.55);
+  border-radius: var(--radius-full);
+  background: rgba(232,144,158,0.14);
+  pointer-events: none;
+}
+.calendar-density-compact .day-cell.today:not(.period) .day-num::before {
+  top: -5rpx;
+  width: 64rpx;
+  height: 43rpx;
+  margin-left: -32rpx;
 }
 
 .day-lunar {
@@ -531,8 +549,24 @@
   position: relative;
   z-index: 1;
 }
+/* 经期今天（issue #162）：不叠第二枚胶囊，只在色带外缘描今天，宽度和颜色同今天胶囊；描边画在色带盒子里，色带高度不变。
+   和邻格相连的一侧、进行中开口的一端不描：中段只描上下两条边，不在色带里画竖线 */
 .day-cell.today.period .period-band {
-  box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
+  box-sizing: border-box;
+  border: 2rpx solid rgba(196,160,210,0.55);
+}
+.day-cell.today.period-middle .period-band {
+  border-left-width: 0;
+  border-right-width: 0;
+}
+.day-cell.today.period-start .period-band {
+  border-right-width: 0;
+}
+.day-cell.today.period-end .period-band {
+  border-left-width: 0;
+}
+.day-cell.today.period-open .period-band {
+  border-right-width: 0;
 }
 .day-cell.period-start .period-band {
   border-top-left-radius: var(--radius-full);
@@ -1376,12 +1410,19 @@
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1);
 }
+/* 图例样本就是一枚日历格（issue #162）：铺日历网格同款玻璃底、同款圆角，今天胶囊和各个标记落在和网格相同的合成面上。
+   要写在 .day-cell.period 后面：同特异度，经期样本才不会被改成直角。经期色带在样本格里竖向居中 */
 .legend-sample.day-cell {
   width: 72rpx;
   height: 72rpx;
   flex: none;
   padding: 0;
   justify-content: center;
+  border-radius: var(--radius-md);
+  background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
+}
+.legend-sample .period-band {
+  top: 14rpx;
 }
 /* 经期记录动作的图标（issue #159）：就是图例那段单日色带，同一组 .day-cell.period.period-single 与 .period-band。
    这里只把它缩进圆盘、让色带铺满样本；颜色和胶囊形仍由色带自己的规则给。样本不接收点按，按压归外层按钮。
