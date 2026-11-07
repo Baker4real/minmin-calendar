@@ -77,7 +77,7 @@ npm run devtools:mcp -- --requests .scratch/devtools/requests.json
 
 JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、超时、bridge 异常退出都会产生非零退出码并停止后续请求。默认每个请求 25 秒，可用 `--timeout` 调整。常规输出仅显示工具结果摘要和日志位置。工具返回失败时，FAIL 行附带脱敏后的错误摘要，最长 300 字符：只取 `code`、`errCode`、`errno`、`error`、`errMsg`、`message`、`msg`、`reason` 字段，嵌套的 `error` 对象只取一层；没有这些字段时只列字段名，`isError` 的纯文本截取原文。其余字段可能是页面数据，只写进完整脱敏通信日志 `.scratch/devtools/mcp.jsonl`，每次运行覆盖上一次；摘要不够判断时再从该日志定向读取。日志可能包含当前页面数据，仅供本地检查，不上传或入库。
 
-读 console 用 `get_simulator_console`（network 用 `get_simulator_network`）。`command` 是 grep 字符串，只认 `-n`、`-i`、`-E`、`-C N`、`-m N` 和一个模式，不带 `-E` 时按字面匹配。它读的是项目窗口最近 200 条 console 缓存，不是实时流。以下按开发者工具 2.02.2609250 安装包源码推断（as of 2026-11-07），未实测：逻辑层顶层窗口的输出要开调试开关才进缓存，所以主上下文（`WAServiceMainContext.js`）的报错，如 `getPageTypeById`、`routeDone`，大概率读不到，仍以 IDE 界面为准。模拟器生命周期日志只有 `[log]` 级，也没有这些报错。实测办法：点一次编译，再用 `.scratch/devtools/console-probe.json` 读缓存（git 忽略，内容是 `grep -n -E "WeChatLib|Subpackages|LazyCodeLoading"` 和 `grep -n .` 两次调用）。`WeChatLib`、`Subpackages` 只由主上下文打印，子上下文也打印 `LazyCodeLoading`。
+读 console 用 `get_simulator_console`（network 用 `get_simulator_network`）。`command` 是 grep 字符串，只认 `-n`、`-i`、`-E`、`-C N`、`-m N` 和一个模式，不带 `-E` 时按字面匹配。它读的是项目窗口最近 200 条 console 缓存，不是实时流。2026-11-07 点编译后实测（开发者工具 2.02.2609250、基础库 3.18.0），请求 `grep -n -E "WeChatLib|Subpackages|LazyCodeLoading"` 和 `grep -n .` 都只返回 1 行，即主上下文（`WAServiceMainContext.js`）打印的 `[system] WeChatLib: 3.18.0`。所以主上下文的输出能进缓存，但缓存不全：按基础库源码，同一次启动主上下文还会打印 `Subpackages`，子上下文会打印 `LazyCodeLoading`，这两行都没进来，原因没查实。用它查 `getPageTypeById`、`routeDone` 这类报错时，命中可以当证据，没命中不能说明 console 干净，仍以 IDE 界面为准。模拟器生命周期日志只有 `[log]` 级，也没有这些报错。
 
 ## 代码质量扫描口径
 
