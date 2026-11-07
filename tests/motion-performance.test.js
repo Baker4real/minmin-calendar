@@ -575,75 +575,48 @@ test('retired second-layer / bounce animations stay gone', () => {
   }
 })
 
-// blur 预算：单面 ≤20px；每页玻璃面数量上限（棘轮，只允许收紧）；全屏遮罩 ≤8px。
+// issue #163：模糊是材质选择，不是减层预算。取代 issue #58 的按文件玻璃面棘轮、阴影声明数棘轮，
+// 以及 issue #146 的「近不透明面不模糊」默认规则。模糊的面逐个登记在这里和 DESIGN.md「玻璃叠层」，
+// 新增或拿掉都两边一起改。仍然有效的：-webkit- 成对写，单面 ≤20px，全屏遮罩 ≤8px，
+// 实色回退由 glass-fallback 管，阴影颜色由 design-token-guardrail 的阴影注册表管。
 const BLUR_RADIUS_CAP_PX = 20
 const MASK_BLUR_CAP_PX = 8
-const BLUR_RULE_CEILINGS = {
-  'app.wxss': 0,
-  'pages/index/index.wxss': 1,
-  'pages/bind/bind.wxss': 0,
-  'pages/settings/settings.wxss': 0,
-  'pages/period/period.wxss': 0,
-  'pages/memory/memory.wxss': 0,
-  'pages/period/edit/edit.wxss': 0,
-  'pages/memory/edit/edit.wxss': 0
+const BLURRED_SURFACES = {
+  'pages/index/index.wxss': ['.day-sheet-mask'],
+  'pages/settings/settings.wxss': ['.help-mask']
 }
 
-test('backdrop blur stays within the radius cap and per-file glass surface budget', () => {
-  const files = analyzedWxssFiles()
-  for (const file of files) {
-    assert.ok(
-      Object.prototype.hasOwnProperty.call(BLUR_RULE_CEILINGS, file.relative),
-      `${file.relative} is not registered in BLUR_RULE_CEILINGS`
-    )
-    const blurRules = file.rules.filter(
-      (rule) => !rule.inReducedMotion && Object.prototype.hasOwnProperty.call(rule.decls, 'backdrop-filter')
-    )
-    assert.ok(
-      blurRules.length <= BLUR_RULE_CEILINGS[file.relative],
-      `${file.relative} has ${blurRules.length} blurred surfaces, budget ${BLUR_RULE_CEILINGS[file.relative]}`
-    )
-    for (const rule of blurRules) {
+test('blurred surfaces are the registered ones, paired and within the radius caps', () => {
+  const found = {}
+  for (const file of analyzedWxssFiles()) {
+    for (const rule of file.rules) {
+      if (rule.inReducedMotion || !Object.prototype.hasOwnProperty.call(rule.decls, 'backdrop-filter')) continue
+      const where = `${file.relative} ${rule.selectors.join(', ')}`
       const radius = Number(/blur\((\d+)px\)/.exec(rule.decls['backdrop-filter'])?.[1])
-      assert.ok(radius > 0 && radius <= BLUR_RADIUS_CAP_PX, `${file.relative} ${rule.selectors.join(', ')} blur ${radius}px exceeds ${BLUR_RADIUS_CAP_PX}px`)
-      assert.equal(
-        rule.decls['-webkit-backdrop-filter'],
-        rule.decls['backdrop-filter'],
-        `${file.relative} ${rule.selectors.join(', ')} must pair -webkit-backdrop-filter`
-      )
+      assert.ok(radius > 0 && radius <= BLUR_RADIUS_CAP_PX, `${where} blur ${radius}px exceeds ${BLUR_RADIUS_CAP_PX}px`)
+      assert.equal(rule.decls['-webkit-backdrop-filter'], rule.decls['backdrop-filter'], `${where} must pair -webkit-backdrop-filter`)
       if (rule.selectors.some((selector) => /mask/.test(selector))) {
-        assert.ok(radius <= MASK_BLUR_CAP_PX, `${file.relative} ${rule.selectors.join(', ')} full-screen mask blur ${radius}px exceeds ${MASK_BLUR_CAP_PX}px`)
+        assert.ok(radius <= MASK_BLUR_CAP_PX, `${where} full-screen mask blur ${radius}px exceeds ${MASK_BLUR_CAP_PX}px`)
       }
+      found[file.relative] = [...(found[file.relative] || []), ...rule.selectors]
     }
   }
-})
+  assert.deepEqual(found, BLURRED_SURFACES)
 
-// 阴影预算：颜色由 design-token-guardrail 的阴影注册表管，本表管每文件声明数上限（棘轮）。
-const SHADOW_DECL_CEILINGS = {
-  'app.wxss': 6,
-  'pages/index/index.wxss': 26,
-  'pages/bind/bind.wxss': 1,
-  'pages/settings/settings.wxss': 2,
-  'pages/period/period.wxss': 1,
-  'pages/memory/memory.wxss': 1,
-  'pages/period/edit/edit.wxss': 3,
-  'pages/memory/edit/edit.wxss': 2
-}
-
-test('box-shadow declaration counts stay within per-file ceilings', () => {
-  for (const file of analyzedWxssFiles()) {
-    assert.ok(
-      Object.prototype.hasOwnProperty.call(SHADOW_DECL_CEILINGS, file.relative),
-      `${file.relative} is not registered in SHADOW_DECL_CEILINGS`
-    )
-    const shadowDecls = file.rules.filter(
-      (rule) => !rule.inReducedMotion && rule.decls['box-shadow'] && rule.decls['box-shadow'] !== 'none'
-    )
-    assert.ok(
-      shadowDecls.length <= SHADOW_DECL_CEILINGS[file.relative],
-      `${file.relative} declares ${shadowDecls.length} box-shadows, ceiling ${SHADOW_DECL_CEILINGS[file.relative]}`
-    )
+  // 两个弹层遮罩是同一种材质：frontmatter modal-overlay 登记的模糊
+  const design = readRepo('DESIGN.md')
+  const overlay = /modal-overlay:\s*\n\s*backgroundColor:\s*"([^"]+)"\s*\n\s*backdropFilter:\s*"([^"]+)"/.exec(design)
+  assert.ok(overlay, 'DESIGN.md frontmatter registers the modal overlay')
+  for (const [relative, selectors] of Object.entries(BLURRED_SURFACES)) {
+    const rules = analyzeFile(readRepo(relative)).rules
+    for (const selector of selectors) {
+      const mask = rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes(selector) && rule.decls['backdrop-filter'])
+      assert.equal(mask.decls['backdrop-filter'], overlay[2], `${relative} ${selector} uses the registered overlay blur`)
+      assert.equal(mask.decls.background, overlay[1], `${relative} ${selector} uses the registered overlay fill`)
+      assert.ok(design.includes(`\`${selector}\``), `DESIGN.md registers ${selector} as a blurred surface`)
+    }
   }
+  assert.doesNotMatch(design, /只允许收紧|玻璃面数量上限|声明数上限/, 'the retired blur and shadow ratchets stay retired')
 })
 
 test('every transform-based animation is neutralized or replaced under reduced motion', () => {
@@ -1268,26 +1241,6 @@ test('every visible block at a page root paints above the aurora', () => {
     }
   }
   assert.deepEqual(violations, [])
-})
-
-// issue #146：月份栏本身已近不透明，不再模糊。首页玻璃面只剩 88% 遮罩。
-test('month navigation does not blur, and the homepage glass cap is 1', () => {
-  const index = analyzeFile(readRepo('pages/index/index.wxss'))
-  const navBtn = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.nav-btn'))
-  assert.ok(navBtn, 'expected .nav-btn')
-  assert.equal(navBtn.decls['backdrop-filter'], undefined)
-  assert.equal(navBtn.decls['-webkit-backdrop-filter'], undefined)
-  assert.equal(BLUR_RULE_CEILINGS['pages/index/index.wxss'], 1)
-
-  const monthNav = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.month-nav'))
-  assert.equal(monthNav.decls['backdrop-filter'], undefined)
-  assert.equal(monthNav.decls['-webkit-backdrop-filter'], undefined)
-
-  const mask = index.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.day-sheet-mask'))
-  assert.equal(mask.decls['backdrop-filter'], 'blur(8px)')
-
-  const design = readRepo('DESIGN.md')
-  assert.match(design, /玻璃面数量上限收紧为 1/)
 })
 
 // issue #137：滑动翻月不跟手、没有翻页动画；减弱动效下同样是一次即时替换。

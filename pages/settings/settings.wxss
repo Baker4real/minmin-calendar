@@ -57,7 +57,8 @@
   color: rgba(255,255,255,0.85);
 }
 /* 使用说明弹层（issue #154）：进出与首页底部弹层同一套。宿主只负责铺满与叠层，自己不是关闭控件；
-   遮罩只动透明度（按压着色在 ::after 上，同首页），面板 translateY(100%) 升降，离场时两者都不拦截点按。 */
+   遮罩只动透明度（按压着色在 ::after 上，同首页），面板 translateY(100%) 升降，离场时两者都不拦截点按。
+   遮罩和首页弹层遮罩同一种材质：88% 海军加 blur(8px)，把帮助面板和后面的页面分开（issue #163）。 */
 .help-layer {
   position: fixed;
   left: 0;
@@ -77,6 +78,8 @@
   bottom: 0;
   pointer-events: auto;
   background: rgba(10,14,39,0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   opacity: 0;
   transition: opacity var(--duration-exit) var(--ease-out);
 }
