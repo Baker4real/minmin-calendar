@@ -659,7 +659,7 @@ Page({
     return { calendarFlip: '' }
   },
 
-  // 日历滑动松手：判定在纯函数里，页面只做一次既有翻月更新，不跟手。
+  // 日历滑动松手：判定在纯函数里，页面只做一次既有翻月更新（和箭头同一段滑入，issue #165），不跟手。
   onCalendarSwipe(detail) {
     const decision = util.decideMonthSwipe(detail && detail.dx, detail && detail.dy)
     if (decision === 'next') this.nextMonth()

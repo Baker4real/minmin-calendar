@@ -211,14 +211,15 @@ test('every cubic-bezier is the registered ease-out curve (no overshoot y>1)', (
   assert.deepEqual(violations, [])
 })
 
-test('app.wxss defines the five shared one-shot duration tokens', () => {
+test('app.wxss defines the six shared one-shot duration tokens', () => {
   const app = maskComments(readRepo('app.wxss'))
   const expected = {
     '--duration-press': '160ms',
     '--duration-state': '200ms',
     '--duration-enter': '240ms',
     '--duration-exit': '200ms',
-    '--duration-sheet': '280ms'
+    '--duration-sheet': '280ms',
+    '--duration-emphasis': '600ms'
   }
   for (const [name, value] of Object.entries(expected)) {
     assert.match(app, new RegExp(`${name}\\s*:\\s*${value}\\s*;`), `${name} must be ${value}`)
@@ -279,7 +280,8 @@ function namesWithRole(role) {
   return Object.keys(CONTINUOUS_ANIMATIONS).filter((name) => CONTINUOUS_ANIMATIONS[name] === role).sort()
 }
 
-// issue #111：一次性时长必须引用五档 token；常驻动画、其周期、减弱动效替代和 heroIn 保持字面时长。
+// issue #111：一次性时长必须引用六档 token（issue #165 加 --duration-emphasis）；常驻动画、其周期、减弱动效替代和 heroIn 保持字面时长。
+// 与 DESIGN.md「一次性动效注册表」是同一张表（heroIn 也登记在那里），新增或删除时两边一起改。
 const LITERAL_DURATION_ANIMATIONS = new Set([...Object.keys(CONTINUOUS_ANIMATIONS), 'heroIn'])
 const ONE_SHOT_ANIMATIONS = {
   pageEnter: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
@@ -1222,6 +1224,40 @@ test('DESIGN.md registers every continuous animation with its rhythm, cover, hid
   }
 })
 
+// DESIGN.md「一次性动效注册表」：一行登记一段一次性关键帧，或内容相同、交替重播的一对（a/b），
+// 列为 动效 / 挂在 / 用途与触发 / 时长与曲线 / 中断与取消 / 弹层遮挡与页面不可见 / 减弱动效
+function designOneShotRegistry(design) {
+  const start = design.indexOf('\n## 一次性动效注册表')
+  assert.ok(start !== -1, 'DESIGN.md needs a 一次性动效注册表 section')
+  const rest = design.slice(start + 1)
+  const end = rest.indexOf('\n## ')
+  const section = end === -1 ? rest : rest.slice(0, end)
+  const rows = []
+  for (const line of section.split('\n')) {
+    const cells = line.split('|').slice(1, -1).map((cell) => cell.trim())
+    const names = [...(cells[0] || '').matchAll(/`([A-Za-z]+)`/g)].map((match) => match[1])
+    if (names.length) rows.push({ names, cells })
+  }
+  return rows
+}
+
+// issue #165：每段一次性动画逐项登记用途与触发、时长与曲线、中断与取消、弹层遮挡与页面不可见时的行为、减弱动效替代
+test('DESIGN.md registers every one-shot animation with its trigger, timing, cancel policy, cover and reduced-motion behavior', () => {
+  const rows = designOneShotRegistry(readRepo('DESIGN.md'))
+  assert.deepEqual(rows.flatMap((row) => row.names).sort(), [...Object.keys(ONE_SHOT_ANIMATIONS), 'heroIn'].sort())
+  for (const { names, cells } of rows) {
+    const label = names.join(' / ')
+    assert.equal(cells.length, 7, `${label} row fills 动效 / 挂在 / 用途与触发 / 时长与曲线 / 中断与取消 / 弹层遮挡与页面不可见 / 减弱动效`)
+    assert.ok(cells.every(Boolean), `${label} row leaves no column empty`)
+    for (const name of names) {
+      const registered = ONE_SHOT_ANIMATIONS[name]
+      const duration = registered ? /var\((--duration-[a-z]+)\)/.exec(registered.duration)[1] : '0.6s'
+      assert.ok(cells[3].includes(duration), `${name} timing must name ${duration}`)
+    }
+    assert.doesNotMatch(cells[5], /暂停在当前帧/, `${label} plays once and finishes; only decorative loops pause`)
+  }
+})
+
 test('DESIGN.md registers the motion and performance budgets', () => {
   const design = readRepo('DESIGN.md')
   for (const retired of ['--ease-spring', '--transition-spring', ...RETIRED_ANIMATIONS]) {
@@ -1233,7 +1269,8 @@ test('DESIGN.md registers the motion and performance budgets', () => {
     '--duration-state',
     '--duration-enter',
     '--duration-exit',
-    '--duration-sheet'
+    '--duration-sheet',
+    '--duration-emphasis'
   ]) {
     assert.ok(design.includes(token), `DESIGN.md is missing ${token}`)
   }
@@ -1242,6 +1279,7 @@ test('DESIGN.md registers the motion and performance budgets', () => {
   assert.match(design, /--duration-enter` 240ms/)
   assert.match(design, /--duration-exit` 200ms/)
   assert.match(design, /--duration-sheet` 280ms/)
+  assert.match(design, /--duration-emphasis` 600ms/)
   assert.match(
     design,
     /按压只属于可点控件，容器和不可点的行不缩放、不变底色/,
@@ -1405,13 +1443,14 @@ test('every visible block at a page root paints above the aurora', () => {
   assert.deepEqual(violations, [])
 })
 
-// issue #137：滑动翻月不跟手、没有翻页动画；减弱动效下同样是一次即时替换。
-test('calendar month swipe stays instant under reduced motion', () => {
+// issue #137：滑动翻月不跟手，松手后一次页面更新；issue #165 起和箭头翻月同一段滑入，减弱动效下即时替换。
+test('calendar month swipes do not follow the finger and slide in like the arrows', () => {
   const design = readRepo('DESIGN.md')
   assert.match(design, /滑动翻月（issue #137）/)
   assert.match(design, /水平位移超过 48px 且大于竖直位移才翻月/)
-  assert.match(design, /不跟手、不加翻页动画/)
-  assert.match(design, /减弱动效下同样即时/)
+  assert.match(design, /不跟手，松手后一次页面更新完成，和箭头翻月同一段滑入/)
+  assert.match(design, /翻月滑入与日历状态强调（issue #165）/)
+  assert.doesNotMatch(design, /不加翻页动画|翻月没有计时器，即时替换/, 'the instant-flip rule of issue #137 is retired')
 
   const inline = readRepo('pages/index/index.wxml').match(/<wxs module="monthSwipe">([\s\S]*?)<\/wxs>/)
   assert.ok(inline, 'month swipe script is inline')
