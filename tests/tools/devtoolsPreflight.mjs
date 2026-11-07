@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync, readFileSync, statSync } from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
@@ -43,6 +44,42 @@ function checkLoadedConfig(ide) {
   return { result, quality: quality && { ...quality, predatesConfig: quality.scannedAt.getTime() < statSync(configPath).mtimeMs } }
 }
 
+// A minimized project window keeps the CLI and automator answering while mp.screenshot() fails with
+// "fail to capture screenshot" (2026-11-04), so the preflight reads the window state before a capture run.
+// Input: one "<pid>\t<True|False>" line per DevTools window titled with the project name.
+export function projectWindowResult(output, projectName) {
+  const name = 'DevTools project window'
+  const windows = output.split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => {
+    const [pid, minimized] = line.split('\t')
+    return { pid, minimized: minimized === 'True' }
+  })
+  if (!windows.length) return { name, skipped: true, error: `no DevTools window titled ${projectName}; open the project in DevTools first` }
+  const minimized = windows.filter(window => window.minimized).map(window => window.pid)
+  return minimized.length
+    ? { name, ok: false, error: `minimized (pid ${minimized.join(', ')}); ask the maintainer to restore the window, captures fail while it stays minimized` }
+    : { name, ok: true }
+}
+
+// Match by process name and window title: the process that owns the project window may not expose its Path.
+const WINDOW_SCRIPT = [
+  `Add-Type -Namespace MinminPreflight -Name User32 -MemberDefinition '[DllImport("user32.dll")] public static extern bool IsIconic(System.IntPtr h);'`,
+  "Get-Process -Name $env:MINMIN_DEVTOOLS_PROCESS -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -eq $env:MINMIN_DEVTOOLS_PROJECT } | ForEach-Object { \"$($_.Id)`t$([MinminPreflight.User32]::IsIconic($_.MainWindowHandle))\" }"
+].join('; ')
+
+function checkProjectWindow() {
+  const name = 'DevTools project window'
+  if (process.platform !== 'win32') return { name, skipped: true, error: 'window state is read on Windows only' }
+  const projectName = JSON.parse(readFileSync(path.join(root, 'project.config.json'), 'utf8')).projectname
+  const result = spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', WINDOW_SCRIPT], {
+    encoding: 'utf8', timeout: 15000, windowsHide: true,
+    env: { ...process.env, MINMIN_DEVTOOLS_PROCESS: '微信开发者工具', MINMIN_DEVTOOLS_PROJECT: projectName }
+  })
+  if (result.error || result.status !== 0) {
+    return { name, skipped: true, error: `window probe failed: ${result.error ? result.error.message : String(result.stderr).trim().split(/\r?\n/)[0]}` }
+  }
+  return projectWindowResult(result.stdout, projectName)
+}
+
 async function main() {
   const options = { ide: 'D:/Program Files (x86)/Tencent/微信web开发者工具', ws: 'ws://127.0.0.1:9420' }
   for (let i = 2; i < process.argv.length; i += 2) {
@@ -57,7 +94,7 @@ async function main() {
   }
   const connectionFailed = results.some(result => !result.ok)
   const { result: configResult, quality } = checkLoadedConfig(options.ide)
-  results.push(configResult)
+  results.push(configResult, checkProjectWindow())
   const out = path.join(root, '.scratch', 'devtools')
   mkdirSync(out, { recursive: true })
   const log = path.join(out, 'preflight.json')

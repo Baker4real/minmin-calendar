@@ -14,3 +14,12 @@ test('automator preflight distinguishes a listening port from a closed port', as
   await assert.rejects(probeEndpoint(endpoint), /ECONNREFUSED/)
   assert.throws(() => probeEndpoint('ws://example.com:9420'), /local/)
 })
+
+test('preflight fails while the project window is minimized, because captures fail then even with CLI and automator up', async () => {
+  const { projectWindowResult } = await import('./tools/devtoolsPreflight.mjs')
+  assert.deepEqual(projectWindowResult('50236\tFalse\r\n', 'minmin-calendar'), { name: 'DevTools project window', ok: true })
+  const minimized = projectWindowResult('50236\tTrue\r\n', 'minmin-calendar')
+  assert.equal(minimized.ok, false)
+  assert.match(minimized.error, /minimized \(pid 50236\)/)
+  assert.equal(projectWindowResult('', 'minmin-calendar').skipped, true)
+})

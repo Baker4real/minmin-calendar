@@ -35,11 +35,38 @@ function runLogged(name, args, logDir, cwd = root, summarize = () => '') {
   return ok
 }
 
+function listIndex(cwd) {
+  const result = spawnSync('git', ['ls-files', '-z', '--', 'app.js', 'pages', 'utils', 'cloudfunctions', 'tests'], { cwd, encoding: 'utf8' })
+  if (result.status !== 0 || result.error) throw new Error(`git ls-files failed: ${result.error ? result.error.message : result.stderr.trim()}`)
+  return result.stdout
+}
+
+// The pre-commit hook passes --tracked: the syntax and test lists then come from the git index (tracked plus staged
+// files), so another session's untracked files in a shared work tree neither fail nor pass this commit.
+function trackedFiles(cwd = root, list = listIndex) {
+  return list(cwd).split('\0').filter(file => file && fs.existsSync(path.join(cwd, file)))
+}
+
+function pickTargets(files) {
+  return {
+    sources: files.filter(file => /\.(?:c|m)?js$/.test(file)),
+    tests: files.filter(file => /^tests\/[^/]+\.test\.js$/.test(file))
+  }
+}
+
+function targets(tracked) {
+  if (tracked) return pickTargets(trackedFiles())
+  return {
+    sources: ['app.js', ...['pages', 'utils', 'cloudfunctions', 'tests'].flatMap(dir => sourceFiles(path.join(root, dir)))],
+    tests: fs.readdirSync(path.join(root, 'tests')).filter(name => name.endsWith('.test.js')).sort().map(name => `tests/${name}`)
+  }
+}
+
 function main() {
   // One fixed directory that each run overwrites, so runs never pile up under .scratch.
   const logDir = path.join(root, '.scratch', 'verify')
   fs.mkdirSync(logDir, { recursive: true })
-  const files = ['app.js', ...['pages', 'utils', 'cloudfunctions', 'tests'].flatMap(dir => sourceFiles(path.join(root, dir)))]
+  const { sources: files, tests } = targets(process.argv.includes('--tracked'))
   const syntaxLog = path.join(logDir, 'syntax.log')
   const fd = fs.openSync(syntaxLog, 'w')
   let syntaxOK = true
@@ -54,7 +81,6 @@ function main() {
     }
   } finally { fs.closeSync(fd) }
   console.log(`${syntaxOK ? 'PASS' : 'FAIL'} syntax (${files.length} files): ${syntaxLog}`)
-  const tests = fs.readdirSync(path.join(root, 'tests')).filter(name => name.endsWith('.test.js')).sort().map(name => `tests/${name}`)
   const results = [syntaxOK,
     runLogged('tests', ['--test', '--test-reporter=spec', ...tests], logDir, root, testCounts),
     runLogged('room-artifacts', ['cloudfunctions/_shared/syncRoomMembershipLifecycle.js', '--check'], logDir),
@@ -63,4 +89,4 @@ function main() {
 }
 
 if (require.main === module) main()
-module.exports = { sourceFiles, runLogged, testCounts }
+module.exports = { sourceFiles, runLogged, testCounts, trackedFiles, pickTargets }

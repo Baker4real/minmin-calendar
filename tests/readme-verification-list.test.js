@@ -4,13 +4,23 @@ const path = require('node:path')
 const test = require('node:test')
 
 const repoRoot = path.join(__dirname, '..')
-const { sourceFiles, runLogged, testCounts } = require('./tools/verify.cjs')
+const { sourceFiles, runLogged, testCounts, trackedFiles, pickTargets } = require('./tools/verify.cjs')
 
 test('README, CI and pre-commit use the same verification entry', () => {
   for (const file of ['README.md', '.github/workflows/ci.yml', '.githooks/pre-commit']) {
     assert.match(fs.readFileSync(path.join(repoRoot, file), 'utf8'), /npm run verify/, file)
   }
   assert.equal(require('../package.json').scripts.verify, 'node tests/tools/verify.cjs')
+})
+
+test('the pre-commit run takes its syntax and test lists from the git index, so untracked files stay out', () => {
+  assert.match(fs.readFileSync(path.join(repoRoot, '.githooks/pre-commit'), 'utf8'), /npm run verify -- --tracked/)
+  const picked = pickTargets(['app.js', 'pages/index/index.js', 'pages/index/index.wxml', 'tests/a.test.js', 'tests/tools/verify.cjs', 'tests/fixtures/b.test.js'])
+  assert.deepEqual(picked.sources, ['app.js', 'pages/index/index.js', 'tests/a.test.js', 'tests/tools/verify.cjs', 'tests/fixtures/b.test.js'])
+  assert.deepEqual(picked.tests, ['tests/a.test.js'])
+  // An index entry deleted from the work tree is skipped rather than failing someone else's commit.
+  assert.deepEqual(trackedFiles(repoRoot, () => 'app.js\0tests/no-such-file.test.js\0'), ['app.js'])
+  assert.ok(trackedFiles().includes('tests/readme-verification-list.test.js'))
 })
 
 test('syntax discovery excludes dependencies and finds nested source and tools', () => {

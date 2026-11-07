@@ -53,6 +53,8 @@ Two details make `watchOptions.ignore` easy to get wrong:
 
 开发者工具内部脚本的加载错误、连接超时和 Console 提示先按 [开发者工具验证](docs/devtools-verification.md) 分层检查；不能仅凭 `WAServiceMainContext.js` 文件名或堆栈不含本仓库路径，就判定为可忽略噪音或业务故障。
 
+多个 git worktree 并行开发时，每个 worktree 用 `npm ci --prefer-offline` 装自己的 `node_modules`，依赖装成真实文件，不从主检出硬链接：硬链接的目录树会被本机的受管删除拒收，worktree 用完就没法整棵回收。Playwright 浏览器只在主检出的 `.scratch/browsers/` 装一份，链接 worktree 里的 `npm run browser:install` 和 `npm run test:hit` 都直接用主检出这份。
+
 The mini program initializes WeChat Cloud in `app.js` with:
 
 ```js
@@ -91,7 +93,7 @@ npm run browser:install
 npm run verify
 ```
 
-`npm run verify` 是本地、提交钩子与 CI 的共同入口：检查 app、pages、utils、cloudfunctions、tests 中的 JavaScript 语法，自动发现全部 `tests/*.test.js`，核对 Room artifact，再运行 320/375/430 宽度的坐标命中回归。依赖和临时目录不进入语法清单；新增源文件无需维护 README 清单。
+`npm run verify` 是本地、提交钩子与 CI 的共同入口：检查 app、pages、utils、cloudfunctions、tests 中的 JavaScript 语法，自动发现全部 `tests/*.test.js`，核对 Room artifact，再运行 320/375/430 宽度的坐标命中回归。依赖和临时目录不进入语法清单；新增源文件无需维护 README 清单。提交钩子传 `--tracked`：语法和测试清单改从 git 索引取（已跟踪加已暂存的文件），共享工作树里别的会话还没跟踪的文件不进本次提交的检查。
 
 首次安装及 Playwright 版本升级后运行 `browser:install`，浏览器保存在项目 `.scratch/browsers/`。日常输出只显示每项结果、测试条数和日志路径；完整日志在 `.scratch/verify/`，坐标与截图证据在 `.scratch/coordinate-hit/`，两处都只保留最近一次运行。任何检查失败均退出非零；CI 失败时保留这些诊断产物。`npm test`、`npm run check`、`npm run test:hit` 可用于单独定位，不能代替完整验收。
 

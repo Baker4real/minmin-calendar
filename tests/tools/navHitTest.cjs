@@ -3,6 +3,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const { parseWxssRules } = require('../designTokens')
+const { browsersPath } = require('./playwrightBrowsers.cjs')
 const root = path.resolve(__dirname, '../..')
 
 // Chromium once failed a capture with "Unable to capture screenshot" after the click had already worked (2026-10-11).
@@ -20,7 +21,7 @@ async function screenshotWithRetry(page, options, { attempts = 2, warn = console
 
 async function main() {
   // Playwright reads the browser path when it loads, so set it first; loading here keeps the helper testable without it.
-  process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(root, '.scratch', 'browsers')
+  process.env.PLAYWRIGHT_BROWSERS_PATH = browsersPath(root)
   const { chromium } = require('playwright')
   const out = path.join(root, '.scratch', 'coordinate-hit')
   const widths = [320, 375, 430]

@@ -11,7 +11,7 @@ intent: "连接与资源诊断、官方 CLI/MCP 入口及 GUI 验收边界"
 
 ## 连接路径
 
-先运行 `npm run devtools:preflight`。它分别检查官方 CLI 的服务/登录响应，以及本机 automator 端口；TCP 监听只表示可开始握手，不代表页面可用。它还比对开发者工具已加载的 `packOptions`、`watchOptions` 与磁盘上的 `project.config.json`，并打印最近一次代码质量结果（见下文「代码质量扫描口径」）。可传 `-- --ide <安装目录> --ws ws://127.0.0.1:9420`。
+先运行 `npm run devtools:preflight`。它分别检查官方 CLI 的服务/登录响应，以及本机 automator 端口；TCP 监听只表示可开始握手，不代表页面可用。它还比对开发者工具已加载的 `packOptions`、`watchOptions` 与磁盘上的 `project.config.json`，并打印最近一次代码质量结果（见下文「代码质量扫描口径」）。在 Windows 上它还回读本项目窗口（标题为 `project.config.json` 的 `projectname`）是否最小化。可传 `-- --ide <安装目录> --ws ws://127.0.0.1:9420`。
 
 | 结果 | 下一步 |
 |---|---|
@@ -19,6 +19,7 @@ intent: "连接与资源诊断、官方 CLI/MCP 入口及 GUI 验收边界"
 | CLI 未确认登录或超时 | 检查 IDE 登录与服务端口；脚本 10 秒后退出，保留诊断摘要。 |
 | CLI 正常，9420 未监听 | 运行下面的 `auto` 命令一次；若仍停在 preparing，使用 MCP 备用路径。 |
 | 9420 已监听 | 运行 `devtoolsCapture.mjs --ws`；握手超过 15 秒即失败，转 MCP。 |
+| `DevTools project window` 为 FAIL，或 CLI 与 9420 都正常、截图却报 `fail to capture screenshot` 或等 `.page` 渲染超时 | 项目窗口最小化时截图会失败（2026-11-04 实测）：请维护者还原窗口，重跑预检后再截。窗口正常仍失败时，看是否有别的程序窗口挡住模拟器区域，同样请维护者处理；还失败就停下，报失败行和截图目录。SKIP 表示没找到这个窗口，先在开发者工具里打开项目。本机排查记录见知识库「微信开发者工具 CLI 自动化验收环境坑」。 |
 | 只需外观确认，automator / MCP 均不可用 | 在任务已授权只读截图与窗口激活时，Kimi Code 可用 `kimi-cu-win` 直接按「微信开发者工具」定位窗口，最小化时先激活再截图；只证明当时可见画面，不证明实际视口、交互或小屏验收。 |
 | MCP 预检失败 | 先看 FAIL 行附带的错误摘要；不够再定向查看本次脱敏日志，核对 IDE 中现有 MCP token、项目路径和已打开的项目窗口。 |
 | MCP 返回 `Client authorization pending` | 在 IDE 中批准 `minmin-devtools` 客户端后重跑；token 有效不等于新客户端已获准。 |
@@ -96,8 +97,8 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 
 实现者与评审者按改动面核对以下各项；不适用项写明理由。`npm run verify` 和 Chromium 坐标回归不能替代微信运行态验收。
 
-- **实际视口**：从 `systemInfo` 或 MCP 回读 `windowWidth/windowHeight`，记录页面、视口、状态和证据位置；小屏必须先选择对应机型再回读，不从截图尺寸或机型名称推断。
+- **实际视口**：从 `systemInfo` 或 MCP 回读 `windowWidth/windowHeight`，记录页面、视口、状态和证据位置，不从截图尺寸或机型名称推断。运行态只在模拟器当前机型上验收，不切换机型，也不做兼容性测试（维护者 2026-11-06 的决定）；小屏由 `npm run test:hit` 与 `tests/narrow-screen-geometry.test.js` 覆盖，交付报告把小屏运行态写成「按维护者决定不做」。
 - **页面状态与密度**：日历改动覆盖完整、清爽两种密度，并按改动面覆盖单日、连续段和今天态；其他页面改动覆盖受影响状态。只读 GUI 截图只能证明当时可见画面。
 - **关键交互**：按改动面走完相关端到端流程；选择器 `tap()` 的状态变化不证明实际坐标可达。
-- **交付报告**：逐项写明已验证与未验证内容。缺少小屏、密度或关键交互证据时，明确列出缺口，不写笼统的「全部验证通过」。
+- **交付报告**：逐项写明已验证与未验证内容。缺少密度或关键交互证据时，明确列出缺口，不写笼统的「全部验证通过」。
 - **证据外发**：开发者工具用维护者的微信号运行，绑定的是真实房间，截图里的日历、统计和实读到的日期、条数都是真实记录。证据留在 `.scratch/`；贴进 issue 或提交进仓库前，按 [Issue Tracker](agents/issue-tracker.md) 的证据规则裁到被测控件或换成替身数据。

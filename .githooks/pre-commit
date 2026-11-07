@@ -6,7 +6,8 @@ set -e
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 
-npm run verify
+# --tracked checks only files in the index, so another session's untracked files in a shared work tree stay out.
+npm run verify -- --tracked
 
 echo "pre-commit: git diff --cached --check"
 git diff --cached --check
