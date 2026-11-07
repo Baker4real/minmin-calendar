@@ -59,21 +59,23 @@ const CELL_RPX = {
   }
 }
 const PREDICT_MARK_RPX = 42
-const TODAY_RING_RPX = 3
+// 格底留白：垂出的「预」底边离格子下沿至少这么多。下一行的今天胶囊和经期色带从格子顶上画起，「预」不能贴上去。
+// issue #162 之前这 3rpx 留给今天的整格内描边；今天改成日期胶囊后数值不变，行高与合并判定都不变
+const EDGE_CLEARANCE_RPX = 3
 
 function cellContentMinRpx(layout) {
   const cell = CELL_RPX[layout]
   const stack = cell.stack.reduce((sum, slot) => sum + slot.gap + slot.height, 0)
   const overhang = Math.max(0, PREDICT_MARK_RPX - cell.stack[cell.stack.length - 1].height)
   if (cell.align === 'center') {
-    // 居中：内容盒装下整列；整列居中后，垂出的「预」底边仍要让开今天的内描边
+    // 居中：内容盒装下整列；整列居中后，垂出的「预」底边仍要留出格底留白
     return Math.max(
       cell.paddingTop + stack + cell.paddingBottom,
-      cell.paddingTop - cell.paddingBottom + stack + 2 * (overhang + TODAY_RING_RPX)
+      cell.paddingTop - cell.paddingBottom + stack + 2 * (overhang + EDGE_CLEARANCE_RPX)
     )
   }
-  // 顶对齐：内容盒装下整列，最低处（垂出的「预」）还要让开今天的内描边
-  return cell.paddingTop + stack + Math.max(cell.paddingBottom, overhang + TODAY_RING_RPX)
+  // 顶对齐：内容盒装下整列，最低处（垂出的「预」）还要留出格底留白
+  return cell.paddingTop + stack + Math.max(cell.paddingBottom, overhang + EDGE_CLEARANCE_RPX)
 }
 
 // 合并信息行的横向账本：节日/调休胶囊 + 4rpx + ♥ /「预」须放进一列（格子没有水平内边距）。
@@ -178,7 +180,7 @@ module.exports = {
     firstScreenBorderPx: FIRST_SCREEN_BORDER_PX,
     cellRpx: CELL_RPX,
     predictMarkRpx: PREDICT_MARK_RPX,
-    todayRingRpx: TODAY_RING_RPX,
+    edgeClearanceRpx: EDGE_CLEARANCE_RPX,
     infoRowRpx: INFO_ROW_RPX,
     infoRowBorderPx: INFO_ROW_BORDER_PX
   }

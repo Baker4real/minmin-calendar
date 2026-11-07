@@ -169,10 +169,10 @@ function dayColumnRpx(wxss, viewportPx) {
   return innerRpx * widthPct / 100
 }
 
-function todayRingRpx(wxss) {
-  const match = ruleBody(wxss, '.day-cell.today').match(/inset\s+0\s+0\s+0\s+(\d+(?:\.\d+)?)rpx/)
-  assert.ok(match, 'expected the today inset ring')
-  return Number(match[1])
+// 垂出的「预」到格子下沿的留白（issue #162）：下一行的今天胶囊和经期色带从格子顶上画起，「预」不能贴上去。
+// 今天不再画整格内描边，这 3rpx 不对应哪条 CSS，由几何账本给出
+function edgeClearanceRpx() {
+  return require('../utils/calendarRowHeight').CALENDAR_LEDGER.edgeClearanceRpx
 }
 
 function paddingVertical(body) {
@@ -336,7 +336,7 @@ test('full-density lunar shows ordinary month and day names inside a 320px colum
   }
 })
 
-test('leap-month lunar stays on one line without ellipsis because a second line crosses the today ring', () => {
+test('leap-month lunar stays on one line without ellipsis because a second line eats the row-edge clearance', () => {
   const wxss = readWxss()
   const lunar = ruleBody(wxss, '.day-lunar')
   const cell = ruleBody(wxss, '.day-cell')
@@ -354,7 +354,7 @@ test('leap-month lunar stays on one line without ellipsis because a second line 
   const twoLineSlack = contentHeightRpx(cell) - twoLineStack
   const predict = ruleBody(wxss, '.predict-mark')
   const overhang = Math.max(0, declarationRpx(predict, 'height') - declarationRpx(ruleBody(wxss, '.day-marks'), 'height'))
-  const room = twoLineSlack + paddingVertical(cell).bottom - todayRingRpx(wxss)
+  const room = twoLineSlack + paddingVertical(cell).bottom - edgeClearanceRpx()
 
   assert.ok(font >= MIN_CAPTION_RPX, `lunar font ${font}rpx is below the micro floor`)
   assert.match(lunar, /white-space:\s*nowrap/)
@@ -366,7 +366,7 @@ test('leap-month lunar stays on one line without ellipsis because a second line 
   )
   assert.ok(
     overhang > room,
-    `a second lunar line still clears the today ring (overhang ${overhang}rpx, room ${room}rpx)`
+    `a second lunar line still leaves the row-edge clearance (overhang ${overhang}rpx, room ${room}rpx)`
   )
 })
 
@@ -376,7 +376,7 @@ test('holiday, workday, and predict capsules center their labels with inset at 3
   const predict = ruleBody(wxss, '.predict-mark')
   const column = dayColumnRpx(wxss, NARROW_VIEWPORT_PX) -
     horizontalPaddingRpx(ruleBody(wxss, '.day-cell'))
-  const ring = todayRingRpx(wxss)
+  const clearance = edgeClearanceRpx()
 
   for (const selector of ['.day-tag', '.predict-mark']) {
     const body = selector === '.day-tag' ? tag : predict
@@ -430,8 +430,8 @@ test('holiday, workday, and predict capsules center their labels with inset at 3
   )
   const fullBelow = fullSlack + paddingVertical(fullCell).bottom
   assert.ok(
-    overhang <= fullBelow - ring,
-    `predict capsule overhang ${overhang}rpx crosses the today ring (room ${fullBelow - ring}rpx)`
+    overhang <= fullBelow - clearance,
+    `predict capsule overhang ${overhang}rpx eats the row-edge clearance (room ${fullBelow - clearance}rpx)`
   )
 
   const compactCell = ruleBody(wxss, '.calendar-density-compact .day-cell')
@@ -442,8 +442,8 @@ test('holiday, workday, and predict capsules center their labels with inset at 3
   )
   const compactBelow = compactSlack / 2 + paddingVertical(compactCell).bottom
   assert.ok(
-    overhang <= compactBelow - ring,
-    `predict capsule overhang ${overhang}rpx crosses the compact today ring (room ${compactBelow - ring}rpx)`
+    overhang <= compactBelow - clearance,
+    `predict capsule overhang ${overhang}rpx eats the compact row-edge clearance (room ${compactBelow - clearance}rpx)`
   )
 })
 
@@ -512,7 +512,7 @@ test('earlier/later month navigation buttons keep 44px touch targets', () => {
 })
 
 // issue #153：格内槽位账本就是 CSS 的那一列数字。几何模块按它算出每种排版的内容最小高度，行高从不低于它；
-// 这里在最小高度上用 CSS 的真实槽位复核：整列放进内容盒，向下垂出的「预」让开今天的内描边，再矮 1rpx 就不行。
+// 这里在最小高度上用 CSS 的真实槽位复核：整列放进内容盒，向下垂出的「预」离格子下沿留足留白，再矮 1rpx 就不行。
 const CELL_LAYOUT_SELECTORS = {
   full: {
     cell: '.day-cell',
@@ -550,7 +550,7 @@ function cssCellLayout(wxss, layout) {
   }
 }
 
-// 行高 height 下，CSS 这一列是否既不溢出内容盒、垂出的「预」也不压到今天的内描边
+// 行高 height 下，CSS 这一列是否既不溢出内容盒、垂出的「预」也离格子下沿留足留白
 function cellHoldsContent(layout, height, wxss) {
   const cell = cssCellLayout(wxss, layout)
   const stack = cell.stack.reduce((sum, slot) => sum + slot.gap + slot.height, 0)
@@ -558,15 +558,16 @@ function cellHoldsContent(layout, height, wxss) {
   const overhang = Math.max(0, declarationRpx(ruleBody(wxss, '.predict-mark'), 'height') - marks)
   const slack = height - cell.paddingTop - cell.paddingBottom - stack
   const below = (cell.align === 'center' ? slack / 2 : slack) + cell.paddingBottom
-  return slack >= 0 && overhang <= below - todayRingRpx(wxss)
+  return slack >= 0 && overhang <= below - edgeClearanceRpx()
 }
 
 test('the cell slot ledger is the CSS stack and each layout holds its content exactly at the ledger minimum', () => {
   const { CALENDAR_LEDGER, calendarCellContentMinRpx } = require('../utils/calendarRowHeight')
   const wxss = readWxss()
-  // 完整：4 + 日期 32 + 农历 36 + 节日 40 + 标记 32，「预」垂出 12 再让开内描边 3 → 159
-  // 清爽：居中的 日期 38 + 节日 36 + 标记 36 = 110，内边距 10 / 12；居中后「预」垂出 12 + 内描边 3 → 138
+  // 完整：4 + 日期 32 + 农历 36 + 节日 40 + 标记 32，「预」垂出 12 再留格底 3 → 159
+  // 清爽：居中的 日期 38 + 节日 36 + 标记 36 = 110，内边距 10 / 12；居中后「预」垂出 12 + 格底 3 → 138
   // 合并：顶对齐 14 + 日期 38 + 信息行 2+42 + 4 → 100（信息行按「预」胶囊高留足，不垂出）
+  // issue #162：今天改成日期胶囊后，这 3rpx 从「让开整格内描边」改记为格底留白，数值不变，行高与合并判定都不变
   const expectedMin = { full: 159, compact: 138, merged: 100 }
   for (const layout of Object.keys(CELL_LAYOUT_SELECTORS)) {
     assert.deepEqual(CALENDAR_LEDGER.cellRpx[layout], cssCellLayout(wxss, layout), `${layout} ledger must equal the CSS slots`)
@@ -578,7 +579,8 @@ test('the cell slot ledger is the CSS stack and each layout holds its content ex
     assert.ok(min <= cap, `${layout} minimum ${min}rpx must stay under the ${cap}rpx cap`)
   }
   assert.equal(CALENDAR_LEDGER.predictMarkRpx, declarationRpx(ruleBody(wxss, '.predict-mark'), 'height'))
-  assert.equal(CALENDAR_LEDGER.todayRingRpx, todayRingRpx(wxss))
+  assert.equal(CALENDAR_LEDGER.edgeClearanceRpx, 3, 'the row-edge clearance keeps the pre-capsule 3rpx so row heights do not move')
+  assert.equal('todayRingRpx' in CALENDAR_LEDGER, false, 'today no longer draws a full-cell ring, so the ledger has no ring width')
 })
 
 function borderWidthPx(body) {
