@@ -325,6 +325,8 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/index/index.wxss', '.nav-btn:active'],
     ['pages/index/index.wxss', '.week-header'],
     ['pages/index/index.wxss', '.calendar-grid'],
+    // issue #162：图例样本格铺日历网格同一层玻璃
+    ['pages/index/index.wxss', '.legend-sample.day-cell'],
     ['pages/bind/bind.wxss', '.tab-bar'],
     ['pages/bind/bind.wxss', '.code-input'],
     ['pages/period/period.wxss', '.skeleton-card'],

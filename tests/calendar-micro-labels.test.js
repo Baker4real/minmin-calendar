@@ -877,6 +877,24 @@ test('period band stays compact, connects across a week and caps the open end wi
 
 })
 
+// issue #162：图例样本就是一枚日历格：铺日历网格同款玻璃底、同款圆角，今天胶囊和各个标记落在和网格相同的合成面上；
+// 经期样本的色带在样本格里竖向居中，不贴在格子顶上
+test('legend samples are calendar cells on the grid glass', () => {
+  const wxss = readWxss()
+  const legend = ruleBody(wxss, '.legend-sample.day-cell')
+  assert.equal(
+    anchoredDeclaration(legend, 'background'),
+    anchoredDeclaration(ruleBody(wxss, '.calendar-grid'), 'background'),
+    'the legend sample paints the calendar grid glass'
+  )
+  // 与经期格的直角同特异度，图例规则写在后面才压得住，经期样本也保留格子圆角
+  assert.equal(anchoredDeclaration(legend, 'border-radius'), anchoredDeclaration(ruleBody(wxss, '.day-cell'), 'border-radius'))
+  assert.ok(wxss.indexOf('\n.legend-sample.day-cell {') > wxss.indexOf('\n.day-cell.period {'), 'the legend corner rule must follow the period square-corner rule')
+  const tile = declarationRpx(legend, 'height')
+  const band = declarationRpx(ruleBody(wxss, '.period-band'), 'height')
+  assert.equal(declarationRpx(ruleBody(wxss, '.legend-sample .period-band'), 'top'), (tile - band) / 2, 'the band sample sits in the middle of its tile')
+})
+
 const BAND_SIDES = ['top', 'right', 'bottom', 'left']
 
 function strokeWidthOf(value) {

@@ -130,7 +130,7 @@ test('the in-cell 预 stays at least 4.5:1 on the grid, outside the today capsul
 // 胶囊底和网格只差约 1.3:1，形状靠描边：描边叠在胶囊底上，对胶囊外的面 ≥3:1
 const TODAY_CAPSULE = '.day-cell.today:not(.period) .day-num::before'
 
-test('today capsule keeps the rose date at 4.5:1 and its lavender edge at 3:1 on the grid and the workday wash', () => {
+test('today capsule keeps the rose date at 4.5:1 and its lavender edge at 3:1 on the grid, the workday wash and the legend sample', () => {
   const file = 'pages/index/index.wxss'
   const fill = cssColor(exactDeclaration(file, TODAY_CAPSULE, 'background'))
   assert.deepEqual([fill.r, fill.g, fill.b].map(channel => Math.round(channel * 255)), [232, 144, 158], 'the capsule fill is a rose wash')
@@ -140,8 +140,15 @@ test('today capsule keeps the rose date at 4.5:1 and its lavender edge at 3:1 on
   // 今天是调休日时，胶囊叠在调休格的低对比底上
   const wash = cssColor(exactDeclaration(file, '.day-cell.workday', 'background'))
   const workdaySurface = composite(gridSurface(), wash, wash.a)
+  // 图例的今天样本：遮罩 → 信息弹层（渐变每个色标各算一次）→ 图例行 → 样本格的网格玻璃底
+  const legendSurfaces = stackSurfaces([
+    [file, '.day-sheet-mask'],
+    [file, '.day-action-sheet'],
+    [file, '.legend-row'],
+    [file, '.legend-sample.day-cell']
+  ]).map(surface => [`legend sample ${toHex(surface)}`, surface])
 
-  for (const [name, outside] of [['grid', gridSurface()], ['workday wash', workdaySurface]]) {
+  for (const [name, outside] of [['grid', gridSurface()], ['workday wash', workdaySurface], ...legendSurfaces]) {
     const capsule = composite(outside, fill, fill.a)
     const edge = composite(capsule, stroke, stroke.a)
     const dateRatio = contrastRatio(date, toHex(capsule))
