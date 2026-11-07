@@ -108,7 +108,7 @@ const ALLOWED_IMAGES = {
   // 翻月滑入与光晕的时序看 page data / computedStyle 读回，图只证明落定后的终态：格子回到原位、没有残留的位移、淡出或光晕。
   'docs/evidence/issue-165/month-flip-next-settled-compact-390x844.png': '清爽密度翻到下一月落定后的整屏：格子与周头对齐，没有残留位移或淡出；「预」来自替身记录',
   'docs/evidence/issue-165/month-flip-prev-settled-full-390x844.png': '完整密度翻到上一月落定后的整屏：农历与节日在格子里，几何不变；经期来自替身记录',
-  'docs/evidence/issue-165/back-to-today-settled-compact-390x844.png': '回到今天之后：新月份即时换上，今天的胶囊在光晕落回后恢复原样；经期与 ♥ 来自替身记录',
+  'docs/evidence/issue-165/back-to-today-settled-compact-390x844.png': '回到今天之后：今天的月份即时换上；今天在进行中的经期色带上（没有胶囊），光晕落回后色带与日期恢复原样；经期与 ♥ 来自替身记录',
   'docs/evidence/issue-165/prediction-close-settled-compact-390x844.png': '关掉预测说明之后：当月的「预」在光晕落回后恢复原样、位置不变；预测来自替身记录',
 }
 
