@@ -143,7 +143,7 @@ Page({
     calendarDensity: 'compact',
     // 翻月方向记号（next-a/next-b/prev-a/prev-b）挂在 .calendar-days 上，空串即不滑动（issue #165）
     calendarFlip: '',
-    // 一次性状态强调（today-a/today-b），只跟着触发它的那次日历提交（issue #165）
+    // 一次性状态强调（today-a/today-b/predict-a/predict-b），只跟着触发它的那次日历提交（issue #165）
     calendarEmphasis: '',
     ...calendarRenderState(INITIAL_HOME_STATE),
     showBackToToday: !isViewingCurrentMonth(INITIAL_VIEW_DATE.getFullYear(), INITIAL_VIEW_DATE.getMonth()),
