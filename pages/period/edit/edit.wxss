@@ -164,9 +164,9 @@
   box-shadow: 0 0 18rpx rgba(232,144,158,0.22);
 }
 
-/* Buttons */
+/* Buttons：保存紧跟表单卡，一个块间距；删除另在下方危险区（issue #164） */
 .btns {
-  margin-top: 30rpx;
+  margin-top: 20rpx;
 }
 .btn-premium,
 .btn-danger {
