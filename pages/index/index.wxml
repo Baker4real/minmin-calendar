@@ -156,7 +156,7 @@ module.exports = {
       <!-- 翻月滑入只动这一层（issue #165）：方向记号与新月份的格子同一次更新换上；状态强调记号也挂在这里 -->
       <view class="calendar-days{{calendarFlip ? ' calendar-flip-' + calendarFlip : ''}}{{calendarEmphasis ? ' calendar-emphasis-' + calendarEmphasis : ''}}">
         <view
-          class="day-cell {{item.isToday ? 'today' : ''}} {{item.isPeriod ? 'period' : ''}} {{item.periodSegment === 'start' ? 'period-start' : ''}} {{item.periodSegment === 'middle' ? 'period-middle' : ''}} {{item.periodSegment === 'end' ? 'period-end' : ''}} {{item.periodSegment === 'single' ? 'period-single' : ''}} {{item.periodOpenEnd ? 'period-open' : ''}} {{item.isMemory ? 'memory' : ''}} {{item.isPredict ? 'predict' : ''}} {{item.isHoliday ? 'holiday' : ''}} {{item.isWorkday ? 'workday' : ''}} {{item.isEmpty ? 'empty' : ''}}"
+          class="day-cell {{item.isToday ? 'today' : ''}} {{item.isPeriod ? 'period' : ''}} {{item.periodSegment === 'start' ? 'period-start' : ''}} {{item.periodSegment === 'middle' ? 'period-middle' : ''}} {{item.periodSegment === 'end' ? 'period-end' : ''}} {{item.periodSegment === 'single' ? 'period-single' : ''}} {{item.periodOpenEnd ? 'period-open' : ''}} {{item.isMemory ? 'memory' : ''}} {{item.isPredict ? 'predict' : ''}} {{item.isHoliday ? 'holiday' : ''}} {{item.isWorkday ? 'workday' : ''}} {{item.isEmpty ? 'empty' : ''}} {{recordFeedback[item.date] ? 'record-feedback-' + recordFeedback[item.date] : ''}}"
           wx:for="{{days}}"
           wx:key="index"
           bindtap="onDayTap"

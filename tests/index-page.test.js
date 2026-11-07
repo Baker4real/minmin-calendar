@@ -2885,6 +2885,275 @@ test('month selection and back-to-today publish the month title with its grid in
   }
 })
 
+// issue #167：日历格 class 模板按页面数据求值，列出带记录成功反馈类的格子（日期 + 反馈类）
+function recordFeedbackCells(data) {
+  const wxml = readIndexWxml()
+  const grid = wxml.slice(wxml.indexOf('class="calendar-days'), wxml.indexOf('class="quick-actions"'))
+  const cell = wxmlOpeningTags(grid).find(tag => tag.classes[0] === 'day-cell')
+  assert.ok(cell, 'expected the calendar day cell')
+  return (data.days || []).flatMap(day => {
+    const classes = renderWxmlAttribute(cell.attrs.class, { ...data, item: day }).split(/\s+/)
+    return classes.filter(name => name.startsWith('record-feedback')).map(name => [day.date, name])
+  })
+}
+
+function recordSetDataCalls(page) {
+  const updates = []
+  const setData = page.setData.bind(page)
+  page.setData = (update, callback) => {
+    updates.push(update)
+    setData(update, callback)
+  }
+  return updates
+}
+
+// issue #167：欢乐时光新增保存成功时，首页正被编辑页盖着，收到的就是云端确认写入的那条记录。
+// 那一天的格子带上一次性反馈类，WXSS 在 page-hidden 下按住、回到首页才播；回来时确认保存的后台刷新不打断它。
+// 首页再隐藏时先去掉反馈再挂 page-hidden（离场途中 ♥ 不消失），之后再回来不重播
+test('a saved new memory marks its day for one bloom on the way back home, and hiding the page clears it', async () => {
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 5, 26, 9, 30) })
+  const existing = memory('m1', '2026-06-02')
+  const saved = { _id: 'm2', date: '2026-06-10', note: '' }
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: [] },
+      { kind: 'success', data: [existing] },
+      { kind: 'success', data: [] },
+      { kind: 'success', data: [saved, existing] },
+      { kind: 'success', data: [] },
+      { kind: 'success', data: [saved, existing] }
+    ]),
+    calendarState: 'real'
+  })
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+    assert.deepEqual(harness.page.data.recordFeedback, {}, 'loading the calendar plays nothing')
+    assert.deepEqual(recordFeedbackCells(harness.page.data), [])
+
+    harness.page.onHide()
+    harness.page.applyRecordChange({ collection: 'memories', mode: 'add', record: saved })
+    assert.deepEqual(harness.page.data.recordFeedback, { '2026-06-10': 'memory' })
+    assert.deepEqual(recordFeedbackCells(harness.page.data), [['2026-06-10', 'record-feedback-memory']])
+
+    await harness.page.onShow()
+    assert.equal(harness.page.data.pageHidden, false)
+    assert.deepEqual(harness.page.data.recordFeedback, { '2026-06-10': 'memory' },
+      'the refresh that confirms the save leaves the bloom alone')
+
+    const updates = recordSetDataCalls(harness.page)
+    harness.page.onHide()
+    const cleared = updates.findIndex(update => 'recordFeedback' in update)
+    const hidden = updates.findIndex(update => update.pageHidden === true)
+    assert.ok(cleared !== -1 && cleared < hidden, 'the feedback goes before the page is marked hidden')
+    assert.deepEqual(harness.page.data.recordFeedback, {})
+
+    await harness.page.onShow()
+    assert.deepEqual(harness.page.data.recordFeedback, {}, 'coming back again does not replay it')
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// 真实日历投影：harness 的 util 桩把 Date 一律格式化成「今天」，在它之下加载的 homeCalendarState 和 cycle
+// 按天展开经期时只剩今天一格。绕开模块缓存另载一份真实 util 下的投影，只给要看真实色带的用例
+function cleanHomeCalendarState() {
+  const files = ['utils/homeCalendarState.js', 'utils/cycle.js', 'utils/calendarInsights.js']
+    .map(file => path.join(repoRoot, file))
+  const cached = files.map(file => require.cache[file])
+  files.forEach(file => { delete require.cache[file] })
+  try {
+    return require(files[0]).buildHomeCalendarState
+  } finally {
+    files.forEach((file, index) => {
+      if (cached[index]) require.cache[file] = cached[index]
+      else delete require.cache[file]
+    })
+  }
+}
+
+// 已加载日历后被编辑页盖住的首页（今天 2026-06-26，看的是 2026 年 6 月）
+async function loadedHiddenHome(periods = [], memories = []) {
+  const harness = loadPageHarness({
+    client: createQueuedClient([
+      { kind: 'success', data: periods },
+      { kind: 'success', data: memories }
+    ]),
+    calendarState: cleanHomeCalendarState()
+  })
+  harness.page.onLoad()
+  await harness.page.onShow()
+  harness.page.onHide()
+  return harness
+}
+
+// issue #167：新增经期，或给没有结束日的经期（进行中、结束日期不详）填上结束日（ADR 0007：填写结束日期完成同一条记录），
+// 保存成功后这段色带在当月的每一格一起带上反馈类，跨行的两段也算，连续段不断开；别的经期和其他日子不带
+test('a saved new or completed period marks every day of its band, across rows', async () => {
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 5, 26, 9, 30) })
+  const earlier = { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03', status: 'known-end', duration: 3 }
+  const ongoing = { _id: 'p2', startDate: '2026-06-24', endDate: '', status: 'ongoing' }
+  const unknownEnd = { _id: 'p3', startDate: '2026-06-08', endDate: '', status: 'unknown-end' }
+  const cases = [
+    {
+      label: 'a new period from Friday 12 to Monday 15 wraps onto the next row',
+      periods: [ongoing, unknownEnd, earlier],
+      change: { mode: 'add', record: { _id: 'p9', startDate: '2026-06-12', endDate: '2026-06-15', status: 'known-end', duration: 4 } },
+      dates: ['2026-06-12', '2026-06-13', '2026-06-14', '2026-06-15']
+    },
+    {
+      label: 'a new ongoing period runs to today',
+      periods: [unknownEnd, earlier],
+      change: { mode: 'add', record: { _id: 'p9', startDate: '2026-06-20', endDate: '', status: 'ongoing' } },
+      dates: ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26']
+    },
+    {
+      label: 'ending the ongoing period',
+      periods: [ongoing, unknownEnd, earlier],
+      change: { mode: 'update', record: { ...ongoing, endDate: '2026-06-25', status: 'known-end', duration: 2 } },
+      dates: ['2026-06-24', '2026-06-25']
+    },
+    {
+      label: 'filling in the end of a period whose end was unknown',
+      periods: [ongoing, unknownEnd, earlier],
+      change: { mode: 'update', record: { ...unknownEnd, endDate: '2026-06-10', status: 'known-end', duration: 3 } },
+      dates: ['2026-06-08', '2026-06-09', '2026-06-10']
+    }
+  ]
+  try {
+    for (const { label, periods, change, dates } of cases) {
+      const home = await loadedHiddenHome(periods, [])
+      try {
+        home.page.applyRecordChange({ collection: 'periods', ...change })
+        assert.deepEqual(
+          recordFeedbackCells(home.page.data),
+          dates.map(date => [date, 'record-feedback-period']),
+          label
+        )
+        assert.ok(
+          dates.every(date => home.page.data.days.find(day => day.date === date).periodSegment !== 'none'),
+          `${label}: every marked day draws the band`
+        )
+      } finally {
+        home.teardown()
+      }
+    }
+  } finally {
+    mock.timers.reset()
+  }
+})
+
+// issue #167：只有新增或完成才亮。改写已有记录（含改日期）、合并到已有进行中、改成结束日期不详、删除、
+// 不带 mode 的回流、记在别的月份的记录，以及日历还没显示时收到的通知，都不带反馈类
+test('edits, merges, deletions, other months and an unshown calendar play no record feedback', async () => {
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 5, 26, 9, 30) })
+  const kept = memory('m1', '2026-06-02')
+  const known = { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-03', status: 'known-end', duration: 3, note: '' }
+  const ongoing = { _id: 'p2', startDate: '2026-06-24', endDate: '', status: 'ongoing', note: '' }
+  const cases = [
+    ['a memory note edit', 'memories', { mode: 'update', record: { ...kept, note: '补一句' } }],
+    ['a memory moved to another day', 'memories', { mode: 'update', record: { ...kept, date: '2026-06-05' } }],
+    ['a deleted memory', 'memories', { mode: 'remove', record: { _id: 'm1' } }],
+    ['a memory upsert without a mode', 'memories', { record: { _id: 'm9', date: '2026-06-09', note: '' } }],
+    ['a new memory dated in July', 'memories', { mode: 'add', record: { _id: 'm9', date: '2026-07-01', note: '' } }],
+    ['a save merged into the ongoing period', 'periods', { mode: 'update', record: { ...ongoing, note: '已经记录过的经期' } }],
+    ['an ongoing period marked as ended without a date', 'periods', {
+      mode: 'update', record: { ...ongoing, status: 'unknown-end' }
+    }],
+    ['a finished period with new dates', 'periods', {
+      mode: 'update', record: { ...known, endDate: '2026-06-04', duration: 4 }
+    }],
+    ['a deleted period', 'periods', { mode: 'remove', record: { _id: 'p1' } }],
+    ['a period re-sent under add', 'periods', { mode: 'add', record: { ...known, note: '重复回流' } }]
+  ]
+  try {
+    for (const [label, collection, change] of cases) {
+      const home = await loadedHiddenHome([ongoing, known], [kept])
+      try {
+        home.page.applyRecordChange({ collection, ...change })
+        assert.deepEqual(home.page.data.recordFeedback, {}, label)
+        assert.deepEqual(recordFeedbackCells(home.page.data), [], label)
+      } finally {
+        home.teardown()
+      }
+    }
+
+    // 首次加载还没回来：日历没显示，记录照常并进去，但不亮
+    const loading = loadPageHarness({
+      client: { list: () => new Promise(() => {}) },
+      calendarState: cleanHomeCalendarState()
+    })
+    try {
+      loading.page.onLoad()
+      loading.page.onShow()
+      loading.page.onHide()
+      loading.page.applyRecordChange({ collection: 'memories', mode: 'add', record: { _id: 'm9', date: '2026-06-09', note: '' } })
+      assert.equal(loading.page.data.hasLoadedHomeData, false)
+      assert.equal(loading.page.data.days.find(day => day.date === '2026-06-09').isMemory, true)
+      assert.deepEqual(loading.page.data.recordFeedback, {})
+    } finally {
+      loading.teardown()
+    }
+  } finally {
+    mock.timers.reset()
+  }
+})
+
+// issue #167：反馈只陪那一次回到首页。连续保存时后一次换掉前一次，不叠加；翻月（再翻回来也不重播）、
+// 带来记录变化的刷新、未绑定或加载失败画面都把它去掉；确认保存、没有变化的刷新不打断它
+test('record feedback is replaced by the next save and dropped by the next calendar change, never replayed', async () => {
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 5, 26, 9, 30) })
+  let page = null
+  const partner = { periods: [], memories: [] }
+  // 云端镜像：后台刷新拿回的就是本地已经并进去的记录，再加上 TA 新记的
+  const client = {
+    async list(collection) {
+      const local = page ? page._homeRecords[collection] : []
+      const remote = partner[collection].filter(item => !local.some(saved => saved._id === item._id))
+      return { kind: 'success', data: [...local, ...remote].map(item => ({ ...item })) }
+    }
+  }
+  const harness = loadPageHarness({ client, calendarState: cleanHomeCalendarState() })
+  page = harness.page
+  const saveAndReturn = async (collection, record) => {
+    harness.page.onHide()
+    harness.page.applyRecordChange({ collection, mode: 'add', record })
+    await harness.page.onShow()
+  }
+  try {
+    harness.page.onLoad()
+    await harness.page.onShow()
+
+    await saveAndReturn('memories', { _id: 'm1', date: '2026-06-10', note: '' })
+    assert.deepEqual(harness.page.data.recordFeedback, { '2026-06-10': 'memory' })
+    await saveAndReturn('periods', { _id: 'p1', startDate: '2026-06-12', endDate: '2026-06-13', status: 'known-end', duration: 2 })
+    assert.deepEqual(harness.page.data.recordFeedback, { '2026-06-12': 'period', '2026-06-13': 'period' },
+      'the second save replaces the first; nothing piles up')
+
+    harness.page.nextMonth()
+    assert.deepEqual(harness.page.data.recordFeedback, {}, 'a month flip drops it')
+    harness.page.prevMonth()
+    assert.deepEqual(harness.page.data.recordFeedback, {}, 'flipping back does not replay it')
+
+    await saveAndReturn('memories', { _id: 'm2', date: '2026-06-18', note: '' })
+    await harness.page.onPullDownRefresh()
+    assert.deepEqual(harness.page.data.recordFeedback, { '2026-06-18': 'memory' }, 'a refresh with nothing new leaves it')
+    partner.memories.push({ _id: 'm3', date: '2026-06-19', note: '' })
+    await harness.page.onPullDownRefresh()
+    assert.equal(harness.page.data.days.find(day => day.date === '2026-06-19').isMemory, true)
+    assert.deepEqual(harness.page.data.recordFeedback, {}, 'a refresh that brings new records drops it and lights nothing')
+
+    await saveAndReturn('memories', { _id: 'm4', date: '2026-06-20', note: '' })
+    assert.notDeepEqual(harness.page.data.recordFeedback, {})
+    harness.page.showRoomStatus({ title: '日历加载失败', desc: '请检查网络后重试', actionText: '重试', action: 'retry' })
+    assert.deepEqual(harness.page.data.recordFeedback, {}, 'the room status screen drops it')
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
 // issue #116：进场先以关闭姿态挂载，下一次渲染才进入打开，CSS 过渡才有起点可反向。
 test('month picker mounts in the closed pose and opens on the next render', () => {
   mock.timers.enable({ apis: ['setTimeout'] })
