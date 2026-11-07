@@ -547,8 +547,24 @@
   position: relative;
   z-index: 1;
 }
+/* 经期今天（issue #162）：不叠第二枚胶囊，只在色带外缘描今天，宽度和颜色同今天胶囊；描边画在色带盒子里，色带高度不变。
+   和邻格相连的一侧、进行中开口的一端不描：中段只描上下两条边，不在色带里画竖线 */
 .day-cell.today.period .period-band {
-  box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
+  box-sizing: border-box;
+  border: 2rpx solid rgba(196,160,210,0.55);
+}
+.day-cell.today.period-middle .period-band {
+  border-left-width: 0;
+  border-right-width: 0;
+}
+.day-cell.today.period-start .period-band {
+  border-right-width: 0;
+}
+.day-cell.today.period-end .period-band {
+  border-left-width: 0;
+}
+.day-cell.today.period-open .period-band {
+  border-right-width: 0;
 }
 .day-cell.period-start .period-band {
   border-top-left-radius: var(--radius-full);

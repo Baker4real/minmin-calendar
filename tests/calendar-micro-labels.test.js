@@ -875,8 +875,91 @@ test('period band stays compact, connects across a week and caps the open end wi
   assert.match(openSingle, /border-top-right-radius:\s*0/)
   assert.match(openSingle, /border-bottom-right-radius:\s*0/)
 
+})
+
+const BAND_SIDES = ['top', 'right', 'bottom', 'left']
+
+function strokeWidthOf(value) {
+  const token = String(value).trim().split(/\s+/).find(part => /^(?:0|none|hidden|-?\d+(?:\.\d+)?(?:rpx|px))$/.test(part))
+  if (!token || token === 'none' || token === 'hidden') return 0
+  return Number.parseFloat(token)
+}
+
+function boxSides(value) {
+  const parts = String(value).trim().split(/\s+/).map(strokeWidthOf)
+  const [top, right = top, bottom = top, left = right] = parts
+  return { top, right, bottom, left }
+}
+
+// 一个经期格的色带最后描了哪几条边：按真实层叠（特异度、再按源码顺序）解析所有落到 .period-band 上的
+// border 与 inset 阴影。只认「<格子类> .period-band」这种选择器；:not(.x) 要求格子不带 x。
+function bandStrokeSides(rules, cellClasses) {
+  const matched = []
+  rules.forEach((rule, order) => {
+    for (const selector of rule.selectors) {
+      const compounds = selector.trim().split(/\s+/)
+      if (compounds.length !== 2 || compounds[1] !== '.period-band') continue
+      const cell = compounds[0]
+      const excluded = [...cell.matchAll(/:not\(\.([\w-]+)\)/g)].map(match => match[1])
+      const required = [...cell.replace(/:not\([^)]*\)/g, '').matchAll(/\.([\w-]+)/g)].map(match => match[1])
+      if (!required.every(name => cellClasses.includes(name)) || excluded.some(name => cellClasses.includes(name))) continue
+      matched.push({ specificity: required.length + excluded.length + 1, order, decls: rule.decls })
+    }
+  })
+  matched.sort((a, b) => a.specificity - b.specificity || a.order - b.order)
+  const width = { top: 0, right: 0, bottom: 0, left: 0 }
+  for (const { decls } of matched) {
+    for (const [property, value] of Object.entries(decls)) {
+      if (property === 'border') BAND_SIDES.forEach(name => { width[name] = strokeWidthOf(value) })
+      else if (property === 'border-width') Object.assign(width, boxSides(value))
+      else {
+        const side = /^border-(top|right|bottom|left)(?:-width)?$/.exec(property)
+        if (side) width[side[1]] = strokeWidthOf(value)
+      }
+      if (property === 'box-shadow') {
+        for (const shadow of value.split(/,(?![^(]*\))/)) {
+          const lengths = shadow.trim().startsWith('inset') ? (shadow.match(/-?\d+(?:\.\d+)?(?:rpx|px)|\b0\b/g) || []).map(Number.parseFloat) : []
+          if (lengths.length < 2) continue
+          const [x, y, , spread = 0] = lengths
+          if (spread > 0) BAND_SIDES.forEach(name => { width[name] = Math.max(width[name], spread) })
+          if (y > 0) width.top = Math.max(width.top, y)
+          if (y < 0) width.bottom = Math.max(width.bottom, -y)
+          if (x > 0) width.left = Math.max(width.left, x)
+          if (x < 0) width.right = Math.max(width.right, -x)
+        }
+      }
+    }
+  }
+  return BAND_SIDES.filter(name => width[name] > 0)
+}
+
+// issue #162：经期今天不叠第二枚胶囊，只在色带外缘描今天。和邻格相连的一侧、进行中开口的一端都不描，
+// 色带的连接与开口保持原样：中段只有上下两条边，不会在色带里画出竖线
+test("today on a period band strokes only the band's outer edges and never cuts the run", () => {
+  const { parseWxssRules } = require('./designTokens')
+  const wxss = readWxss()
+  const rules = parseWxssRules(wxss)
+  const cases = [
+    [['period-single'], ['top', 'right', 'bottom', 'left']],
+    [['period-start'], ['top', 'bottom', 'left']],
+    [['period-middle'], ['top', 'bottom']],
+    [['period-end'], ['top', 'right', 'bottom']],
+    [['period-open', 'period-end'], ['top', 'bottom']],
+    [['period-open', 'period-single'], ['top', 'bottom', 'left']]
+  ]
+  for (const [segment, expected] of cases) {
+    assert.deepEqual(
+      bandStrokeSides(rules, ['day-cell', 'today', 'period', ...segment]),
+      expected,
+      `today on a ${segment.join(' ')} band strokes the wrong sides`
+    )
+    assert.deepEqual(bandStrokeSides(rules, ['day-cell', 'period', ...segment]), [], `a ${segment.join(' ')} band that is not today stays unstroked`)
+  }
+
+  // 今天只有一种描边：经期今天的色带边与今天胶囊同宽同色；描边画在色带盒子里，色带仍是 44 / 48rpx 高
   const ring = ruleBody(wxss, '.day-cell.today.period .period-band')
-  assert.match(ring, /box-shadow:\s*inset\s+0\s+0\s+0\s+3rpx\s+rgba\(196,\s*160,\s*210,\s*0\.55\)/)
+  assert.equal(anchoredDeclaration(ring, 'border'), anchoredDeclaration(ruleBody(wxss, TODAY_CAPSULE_SELECTOR), 'border'))
+  assert.match(ring, /box-sizing:\s*border-box/)
 })
 
 function verticalBox(body, property) {
