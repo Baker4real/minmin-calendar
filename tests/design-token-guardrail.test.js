@@ -586,11 +586,13 @@ test('retired gradient tokens stay out of tokens and screens', () => {
 
 // 首页金语义白名单（issue #55）：实色金 token / 金 rgba tint / 金辉光只允许落在
 // 预测、区间、确定性及日历元数据（节日/调休标签、同步状态点）相关规则上；
-// CTA、导航 affordance 与工具图标不再用金。
+// CTA、导航 affordance 与工具图标不再用金。「预」的强调光晕仍是预测（issue #165）。
 const INDEX_GOLD_ALLOWLIST = new Set([
   '.sync-dot',
   '.holiday-tag',
   '.predict-mark',
+  '.calendar-days.calendar-emphasis-predict-a .predict-mark::after',
+  '.calendar-days.calendar-emphasis-predict-b .predict-mark::after',
   '.reminder-rail',
   '.predict-date',
   '.detail-meaning.predict',

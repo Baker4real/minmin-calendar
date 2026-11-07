@@ -104,6 +104,12 @@ const ALLOWED_IMAGES = {
   'docs/evidence/issue-166/records-period-list-retry-390x844.png': '记录页经期段刷新失败重试行（静止）：玻璃回退底加 0.1 白描边，说明文字读得清；没有记录数据',
   'docs/evidence/issue-166/records-period-list-retry-pressed-390x844.png': '同一行按住时：描边提亮到 0.14、平涂层加深、缩到 0.97；没有记录数据',
   'docs/evidence/issue-166/records-memory-list-retry-390x844.png': '记录页欢乐时光段刷新失败：和经期段是同一条重试行；没有记录数据',
+  // #165：worktree 项目窗口，视口 390×844（没切机型），替身房间；经期、「预」和状态行来自按当天推算的替身记录。
+  // 翻月滑入与光晕的时序看 page data / computedStyle 读回，图只证明落定后的终态：格子回到原位、没有残留的位移、淡出或光晕。
+  'docs/evidence/issue-165/month-flip-next-settled-compact-390x844.png': '清爽密度翻到下一月落定后的整屏：格子与周头对齐，没有残留位移或淡出；「预」来自替身记录',
+  'docs/evidence/issue-165/month-flip-prev-settled-full-390x844.png': '完整密度翻到上一月落定后的整屏：农历与节日在格子里，几何不变；经期来自替身记录',
+  'docs/evidence/issue-165/back-to-today-settled-compact-390x844.png': '回到今天之后：今天的月份即时换上；今天在进行中的经期色带上（没有胶囊），光晕落回后色带与日期恢复原样；经期与 ♥ 来自替身记录',
+  'docs/evidence/issue-165/prediction-close-settled-compact-390x844.png': '关掉预测说明之后：当月的「预」在光晕落回后恢复原样、位置不变；预测来自替身记录',
 }
 
 // 读 index 而不是工作区：提交钩子里跑时，读到的正是这次要提交的文件。

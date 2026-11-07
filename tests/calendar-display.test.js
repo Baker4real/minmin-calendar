@@ -457,7 +457,8 @@ test('index month title opens a themed year-month jump sheet', () => {
   assert.match(js, /shiftJumpYear\(e\)\s*{[\s\S]*dataset\.delta/)
   assert.match(js, /selectJumpMonth\(e\)\s*{[\s\S]*dataset\.month[\s\S]*year:\s*this\.data\.jumpYear[\s\S]*monthPickerVisible:\s*false/)
   assert.doesNotMatch(js, /confirmMonthJump/)
-  assert.match(js, /jumpToToday\(\)\s*{[\s\S]*new Date\(\)[\s\S]*monthPickerVisible:\s*false[\s\S]*renderCalendar/)
+  // 回到今天和选月一样，经日历提交同一次发布年月与格子（issue #165）
+  assert.match(js, /jumpToToday\(\)\s*{[\s\S]*new Date\(\)[\s\S]*applyHomeCalendarState\([\s\S]*monthPickerVisible:\s*false/)
   assert.match(js, /closeMonthPicker\(\)\s*{[\s\S]*monthPickerVisible:\s*false/)
   assert.doesNotMatch(js, /buildMonthJumpYears|shiftJumpYears|selectJumpYear|jumpYears/)
 

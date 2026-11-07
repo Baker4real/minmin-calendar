@@ -211,14 +211,15 @@ test('every cubic-bezier is the registered ease-out curve (no overshoot y>1)', (
   assert.deepEqual(violations, [])
 })
 
-test('app.wxss defines the five shared one-shot duration tokens', () => {
+test('app.wxss defines the six shared one-shot duration tokens', () => {
   const app = maskComments(readRepo('app.wxss'))
   const expected = {
     '--duration-press': '160ms',
     '--duration-state': '200ms',
     '--duration-enter': '240ms',
     '--duration-exit': '200ms',
-    '--duration-sheet': '280ms'
+    '--duration-sheet': '280ms',
+    '--duration-emphasis': '600ms'
   }
   for (const [name, value] of Object.entries(expected)) {
     assert.match(app, new RegExp(`${name}\\s*:\\s*${value}\\s*;`), `${name} must be ${value}`)
@@ -279,12 +280,19 @@ function namesWithRole(role) {
   return Object.keys(CONTINUOUS_ANIMATIONS).filter((name) => CONTINUOUS_ANIMATIONS[name] === role).sort()
 }
 
-// issue #111：一次性时长必须引用五档 token；常驻动画、其周期、减弱动效替代和 heroIn 保持字面时长。
+// issue #111：一次性时长必须引用六档 token（issue #165 加 --duration-emphasis）；常驻动画、其周期、减弱动效替代和 heroIn 保持字面时长。
+// 与 DESIGN.md「一次性动效注册表」是同一张表（heroIn 也登记在那里），新增或删除时两边一起改。
 const LITERAL_DURATION_ANIMATIONS = new Set([...Object.keys(CONTINUOUS_ANIMATIONS), 'heroIn'])
 const ONE_SHOT_ANIMATIONS = {
   pageEnter: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   bindReveal: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
-  dayDetailFade: { duration: 'var(--duration-state)', easing: 'var(--ease-out)' }
+  dayDetailFade: { duration: 'var(--duration-state)', easing: 'var(--ease-out)' },
+  calendarFlipNextA: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  calendarFlipNextB: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  calendarFlipPrevA: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  calendarFlipPrevB: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  calendarHaloA: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)' },
+  calendarHaloB: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)' }
 }
 const COLOR_TRANSITION_PROPS = new Set(['background', 'background-color', 'color', 'border-color'])
 const PRESS_DURATION = 'var(--duration-press)'
@@ -911,7 +919,163 @@ test('state channels survive reduced motion: sync color, refresh dim, sheet mask
   assert.match(mask.decls.background, /rgba\(10,\s*14,\s*39,\s*0\.88\)/)
 })
 
-test('month flips keep only the refresh dim, and day colors switch immediately', () => {
+// @keyframes 的逐帧声明，按源码顺序；at 是 from / to / 百分比
+function keyframeFrames(css, name) {
+  const block = topLevelBlocks(css).find((item) => item.header === `@keyframes ${name}`)
+  assert.ok(block, `expected @keyframes ${name}`)
+  return topLevelBlocks(block.body).map((frame) => ({ at: frame.header, decls: parseDecls(frame.body) }))
+}
+
+// 模板里一段 class 属性按页面数据求值后的类名
+function renderedClasses(template, data) {
+  const text = template.replace(/\{\{([\s\S]*?)\}\}/g, (_, expr) => {
+    const value = new Function(...Object.keys(data), `return (${expr})`)(...Object.values(data))
+    return value === undefined || value === null ? '' : String(value)
+  })
+  return text.split(/\s+/).filter(Boolean)
+}
+
+// issue #165：翻月记号（index.js 的 calendarFlip）与它对应的关键帧。a、b 两份内容相同，记号交替才会从头重播
+const CALENDAR_FLIPS = {
+  'next-a': 'calendarFlipNextA',
+  'next-b': 'calendarFlipNextB',
+  'prev-a': 'calendarFlipPrevA',
+  'prev-b': 'calendarFlipPrevB'
+}
+
+// issue #165：新月份的格子和月标题同一次更新换上，再从翻月方向滑入：下一月从右、上一月从左，透明度从半透明到实。
+// 动的是格子外的一层 .calendar-days；卡片、周头和月份标题不动，日期格仍只有自己的按压缩放。
+// 这一层没有盒子，日期格宽度和几何账本不变；位移不超过网格左右内边距，内容不出卡片。减弱动效下即时替换。
+test('month flips slide the new days in from the flip direction inside the card, and land instantly under reduced motion', () => {
+  const css = readRepo('pages/index/index.wxss')
+  const index = analyzeFile(css)
+  const declsOf = (selector) => {
+    const rule = index.rules.find((item) => !item.inReducedMotion && item.selectors.includes(selector))
+    assert.ok(rule, `expected ${selector}`)
+    return rule.decls
+  }
+
+  const wxml = readRepo('pages/index/index.wxml')
+  const grid = wxml.slice(wxml.indexOf('class="calendar-grid'), wxml.indexOf('class="quick-actions"'))
+    .replace(/<!--[\s\S]*?-->/g, '')
+  const layer = /^[^>]*>\s*<view class="(calendar-days[^"]*)">\s*<view\s+class="day-cell/.exec(grid)
+  assert.ok(layer, 'the day cells sit in one .calendar-days layer, the only child of .calendar-grid')
+  const resting = { calendarFlip: '', calendarEmphasis: '' }
+  assert.deepEqual(renderedClasses(layer[1], resting), ['calendar-days'], 'no flip, no slide')
+  for (const token of Object.keys(CALENDAR_FLIPS)) {
+    assert.deepEqual(renderedClasses(layer[1], { ...resting, calendarFlip: token }), ['calendar-days', `calendar-flip-${token}`])
+  }
+
+  const days = declsOf('.calendar-days')
+  assert.equal(days.display, 'flex')
+  assert.equal(days['flex-wrap'], 'wrap')
+  const boxProps = Object.keys(days).filter((prop) => /^(?:padding|margin|border|width|height)/.test(prop))
+  assert.deepEqual(boxProps, [], 'the flip layer adds no box: cell widths and the row-height ledger stay as they were')
+  const gridPadding = declsOf('.calendar-grid').padding.split(/\s+/)
+  const inlinePaddingRpx = Number(/^(\d+)rpx$/.exec(gridPadding[1] || gridPadding[0])[1])
+
+  for (const [token, name] of Object.entries(CALENDAR_FLIPS)) {
+    const selector = `.calendar-days.calendar-flip-${token}`
+    assert.equal(declsOf(selector).animation, `${name} var(--duration-enter) var(--ease-out)`)
+
+    const frames = keyframeFrames(css, name)
+    assert.deepEqual(frames.map((frame) => frame.at), ['from', 'to'])
+    for (const frame of frames) {
+      assert.deepEqual(Object.keys(frame.decls).sort(), ['opacity', 'transform'], `${name} moves only on the compositor`)
+    }
+    const [from, to] = frames
+    const opacity = Number(from.decls.opacity)
+    assert.ok(opacity >= 0.5 && opacity < 1, `${name} starts at ${opacity}: soft, never blank`)
+    const offset = Number(/^translateX\((-?\d+(?:\.\d+)?)rpx\)$/.exec(from.decls.transform)?.[1])
+    assert.ok(token.startsWith('next') ? offset > 0 : offset < 0, `${name} enters from the ${token.startsWith('next') ? 'right' : 'left'}`)
+    assert.ok(Math.abs(offset) <= inlinePaddingRpx, `${name} travels ${offset}rpx, past the ${inlinePaddingRpx}rpx grid padding`)
+    assert.deepEqual(to.decls, { opacity: '1', transform: 'translateX(0)' })
+
+    const reduced = index.reducedMotionRules.find((rule) => rule.selectors.includes(selector))
+    assert.ok(reduced, `reduced motion must cover ${selector}`)
+    assert.equal(reduced.decls.animation, 'none', `${selector} lands instantly under reduced motion`)
+  }
+  assert.deepEqual(keyframeFrames(css, 'calendarFlipNextA'), keyframeFrames(css, 'calendarFlipNextB'))
+  assert.deepEqual(keyframeFrames(css, 'calendarFlipPrevA'), keyframeFrames(css, 'calendarFlipPrevB'))
+
+  // 卡片和日期格自己不跟着滑：网格只有刷新变暗，日期格只有按压缩放
+  for (const selector of ['.calendar-grid', '.day-cell']) {
+    assert.equal(declsOf(selector).animation, undefined, `${selector} must not slide`)
+  }
+})
+
+// issue #165：状态强调记号（index.js 的 calendarEmphasis）与它点亮的光晕。回到今天亮今天的日期胶囊，
+// 关掉预测说明亮当月的「预」。光晕是一次性的透明度变化，从 0 亮起再落回 0，不循环；content 只写在记号作用域下，
+// 静止的日历一点不变。只动透明度，减弱动效下照常，是温和的反馈
+const CALENDAR_EMPHASES = {
+  'today-a': 'calendarHaloA',
+  'today-b': 'calendarHaloB',
+  'predict-a': 'calendarHaloA',
+  'predict-b': 'calendarHaloB'
+}
+const HALO_TARGETS = { today: '.day-cell.today .day-num::after', predict: '.predict-mark::after' }
+
+test('state emphasis is a one-shot opacity halo that exists only under its token', () => {
+  const css = readRepo('pages/index/index.wxss')
+  const index = analyzeFile(css)
+  assert.match(maskComments(readRepo('app.wxss')), /--duration-emphasis\s*:\s*600ms\s*;/)
+  const declsOf = (selector) => {
+    const rules = index.rules.filter((item) => !item.inReducedMotion && item.selectors.includes(selector))
+    assert.ok(rules.length, `expected ${selector}`)
+    return Object.assign({}, ...rules.map((rule) => rule.decls))
+  }
+
+  const wxml = readRepo('pages/index/index.wxml')
+  const layer = /<view class="(calendar-days[^"]*)">/.exec(wxml)
+  assert.ok(layer, 'expected the .calendar-days layer')
+  assert.deepEqual(renderedClasses(layer[1], { calendarFlip: '', calendarEmphasis: '' }), ['calendar-days'])
+  assert.deepEqual(
+    renderedClasses(layer[1], { calendarFlip: 'next-a', calendarEmphasis: 'today-b' }),
+    ['calendar-days', 'calendar-flip-next-a', 'calendar-emphasis-today-b']
+  )
+
+  for (const [token, name] of Object.entries(CALENDAR_EMPHASES)) {
+    const selector = `.calendar-days.calendar-emphasis-${token} ${HALO_TARGETS[token.split('-')[0]]}`
+    const halo = declsOf(selector)
+    assert.equal(halo.content, "''")
+    assert.equal(halo.position, 'absolute')
+    assert.equal(halo.opacity, '0', `${selector} rests invisible once it has played`)
+    assert.equal(halo['pointer-events'], 'none', `${selector} never takes the tap`)
+    assert.equal(halo.animation, `${name} var(--duration-emphasis) var(--ease-out)`, `${selector} plays once`)
+    assert.equal(
+      index.reducedMotionRules.some((rule) => rule.selectors.includes(selector)),
+      false,
+      `${selector} only fades, so it stays under reduced motion`
+    )
+  }
+  for (const name of ['calendarHaloA', 'calendarHaloB']) {
+    const frames = keyframeFrames(css, name)
+    assert.ok(frames.every((frame) => Object.keys(frame.decls).join() === 'opacity'), `${name} only changes opacity`)
+    assert.equal(frames[0].decls.opacity, '0')
+    assert.equal(frames[frames.length - 1].decls.opacity, '0', `${name} leaves nothing behind`)
+    assert.ok(frames.some((frame) => frame.decls.opacity === '1'), `${name} lights up fully once`)
+  }
+  assert.deepEqual(keyframeFrames(css, 'calendarHaloA'), keyframeFrames(css, 'calendarHaloB'))
+
+  // 静止的日历没有光晕：日期和「预」的 ::after 只在记号作用域下出现
+  const stray = index.rules.flatMap((rule) => rule.selectors)
+    .filter((selector) => /(?:\.day-num|\.predict-mark)::after/.test(selector) && !/\.calendar-days\.calendar-emphasis-/.test(selector))
+  assert.deepEqual(stray, [])
+
+  // 今天的光晕就是日期胶囊自己的形状，两档密度都和胶囊重合
+  const box = (decls) => ['top', 'left', 'width', 'height', 'margin-left'].map((prop) => decls[prop])
+  const capsule = declsOf('.day-cell.today:not(.period) .day-num::before')
+  const compactCapsule = { ...capsule, ...declsOf('.calendar-density-compact .day-cell.today:not(.period) .day-num::before') }
+  for (const token of ['today-a', 'today-b']) {
+    const selector = `.calendar-days.calendar-emphasis-${token} ${HALO_TARGETS.today}`
+    const halo = declsOf(selector)
+    assert.deepEqual(box(halo), box(capsule), `${selector} sits on the capsule`)
+    assert.deepEqual(box({ ...halo, ...declsOf(`.calendar-density-compact ${selector}`) }), box(compactCapsule),
+      `${selector} sits on the compact capsule`)
+  }
+})
+
+test('day cells keep only their press scale, and day colors switch immediately', () => {
   const app = analyzeFile(readRepo('app.wxss'))
   const index = analyzeFile(readRepo('pages/index/index.wxss'))
   const design = readRepo('DESIGN.md')
@@ -941,7 +1105,6 @@ test('month flips keep only the refresh dim, and day colors switch immediately',
     assert.equal(rule.decls.transition, undefined, `${selector} must switch fill and text color immediately`)
   }
 
-  assert.match(design, /翻月没有计时器，即时替换/)
   assert.match(design, /日期格不做颜色过渡/)
 })
 
@@ -1298,6 +1461,40 @@ test('DESIGN.md registers every continuous animation with its rhythm, cover, hid
   }
 })
 
+// DESIGN.md「一次性动效注册表」：一行登记一段一次性关键帧，或内容相同、交替重播的一对（a/b），
+// 列为 动效 / 挂在 / 用途与触发 / 时长与曲线 / 中断与取消 / 弹层遮挡与页面不可见 / 减弱动效
+function designOneShotRegistry(design) {
+  const start = design.indexOf('\n## 一次性动效注册表')
+  assert.ok(start !== -1, 'DESIGN.md needs a 一次性动效注册表 section')
+  const rest = design.slice(start + 1)
+  const end = rest.indexOf('\n## ')
+  const section = end === -1 ? rest : rest.slice(0, end)
+  const rows = []
+  for (const line of section.split('\n')) {
+    const cells = line.split('|').slice(1, -1).map((cell) => cell.trim())
+    const names = [...(cells[0] || '').matchAll(/`([A-Za-z]+)`/g)].map((match) => match[1])
+    if (names.length) rows.push({ names, cells })
+  }
+  return rows
+}
+
+// issue #165：每段一次性动画逐项登记用途与触发、时长与曲线、中断与取消、弹层遮挡与页面不可见时的行为、减弱动效替代
+test('DESIGN.md registers every one-shot animation with its trigger, timing, cancel policy, cover and reduced-motion behavior', () => {
+  const rows = designOneShotRegistry(readRepo('DESIGN.md'))
+  assert.deepEqual(rows.flatMap((row) => row.names).sort(), [...Object.keys(ONE_SHOT_ANIMATIONS), 'heroIn'].sort())
+  for (const { names, cells } of rows) {
+    const label = names.join(' / ')
+    assert.equal(cells.length, 7, `${label} row fills 动效 / 挂在 / 用途与触发 / 时长与曲线 / 中断与取消 / 弹层遮挡与页面不可见 / 减弱动效`)
+    assert.ok(cells.every(Boolean), `${label} row leaves no column empty`)
+    for (const name of names) {
+      const registered = ONE_SHOT_ANIMATIONS[name]
+      const duration = registered ? /var\((--duration-[a-z]+)\)/.exec(registered.duration)[1] : '0.6s'
+      assert.ok(cells[3].includes(duration), `${name} timing must name ${duration}`)
+    }
+    assert.doesNotMatch(cells[5], /暂停在当前帧/, `${label} plays once and finishes; only decorative loops pause`)
+  }
+})
+
 test('DESIGN.md registers the motion and performance budgets', () => {
   const design = readRepo('DESIGN.md')
   for (const retired of ['--ease-spring', '--transition-spring', ...RETIRED_ANIMATIONS]) {
@@ -1309,7 +1506,8 @@ test('DESIGN.md registers the motion and performance budgets', () => {
     '--duration-state',
     '--duration-enter',
     '--duration-exit',
-    '--duration-sheet'
+    '--duration-sheet',
+    '--duration-emphasis'
   ]) {
     assert.ok(design.includes(token), `DESIGN.md is missing ${token}`)
   }
@@ -1318,6 +1516,7 @@ test('DESIGN.md registers the motion and performance budgets', () => {
   assert.match(design, /--duration-enter` 240ms/)
   assert.match(design, /--duration-exit` 200ms/)
   assert.match(design, /--duration-sheet` 280ms/)
+  assert.match(design, /--duration-emphasis` 600ms/)
   assert.match(
     design,
     /按压只属于可点控件，容器和不可点的行不缩放、不变底色/,
@@ -1481,13 +1680,14 @@ test('every visible block at a page root paints above the aurora', () => {
   assert.deepEqual(violations, [])
 })
 
-// issue #137：滑动翻月不跟手、没有翻页动画；减弱动效下同样是一次即时替换。
-test('calendar month swipe stays instant under reduced motion', () => {
+// issue #137：滑动翻月不跟手，松手后一次页面更新；issue #165 起和箭头翻月同一段滑入，减弱动效下即时替换。
+test('calendar month swipes do not follow the finger and slide in like the arrows', () => {
   const design = readRepo('DESIGN.md')
   assert.match(design, /滑动翻月（issue #137）/)
   assert.match(design, /水平位移超过 48px 且大于竖直位移才翻月/)
-  assert.match(design, /不跟手、不加翻页动画/)
-  assert.match(design, /减弱动效下同样即时/)
+  assert.match(design, /不跟手，松手后一次页面更新完成，和箭头翻月同一段滑入/)
+  assert.match(design, /翻月滑入与日历状态强调（issue #165）/)
+  assert.doesNotMatch(design, /不加翻页动画|翻月没有计时器，即时替换/, 'the instant-flip rule of issue #137 is retired')
 
   const inline = readRepo('pages/index/index.wxml').match(/<wxs module="monthSwipe">([\s\S]*?)<\/wxs>/)
   assert.ok(inline, 'month swipe script is inline')

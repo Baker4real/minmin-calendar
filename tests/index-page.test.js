@@ -2628,28 +2628,260 @@ test('month arrows publish the new month and its calendar grid in one update', (
   }
 })
 
-test('month selection jumps immediately, and back-to-today keeps its behavior', () => {
-  const harness = loadPageHarness({ client: createQueuedClient([]) })
+// issue #165：翻月方向跟着那一次日历提交走（下一月 next、上一月 prev），不另起计时器、不推迟数据。
+// 动画进行中（--duration-enter 240ms 内）同方向再翻：只换数据，进行中的动画接着播，接续不续期；
+// 反向或动画播完后再翻：换一个记号从头播（a、b 交替，类名变了 CSS 才重播）。选月和回到今天取消翻月动画、即时替换。
+test('month flips carry their direction with the grid, continue on quick repeats and restart on reversal', () => {
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 10, 8, 9, 30) })
+  const harness = loadPageHarness({ client: createQueuedClient([]), calendarState: 'real' })
   try {
     harness.page.onLoad()
+    assert.equal(harness.page.data.calendarFlip, '', 'the first paint does not slide')
+    const updates = []
+    const setData = harness.page.setData.bind(harness.page)
+    harness.page.setData = (update, callback) => {
+      updates.push(update)
+      setData(update, callback)
+    }
+    const flip = (invoke) => {
+      updates.length = 0
+      invoke()
+      assert.equal(updates.length, 1, 'a flip is one update')
+      return updates[0]
+    }
+    const firstDate = (update) => update.days.find(day => day.date).date
+
+    let update = flip(() => harness.page.nextMonth())
+    assert.equal(firstDate(update), '2026-12-01')
+    assert.equal(update.calendarFlip, 'next-a')
+
+    mock.timers.tick(100)
+    update = flip(() => harness.page.onCalendarSwipe({ dx: -80, dy: 0 }))
+    assert.equal(firstDate(update), '2027-01-01', 'a quick repeat still changes the month at once')
+    assert.equal('calendarFlip' in update, false, 'a quick repeat keeps the running slide')
+    assert.equal(harness.page.data.calendarFlip, 'next-a')
+
+    mock.timers.tick(140)
+    update = flip(() => harness.page.nextMonth())
+    assert.equal(firstDate(update), '2027-02-01')
+    assert.equal(update.calendarFlip, 'next-b', '240ms after the slide began it has ended, so the next flip restarts')
+
+    mock.timers.tick(60)
+    update = flip(() => harness.page.prevMonth())
+    assert.equal(firstDate(update), '2027-01-01')
+    assert.equal(update.calendarFlip, 'prev-a', 'reversing mid-slide restarts in the new direction')
+    mock.timers.tick(60)
+    update = flip(() => harness.page.onCalendarSwipe({ dx: 80, dy: 0 }))
+    assert.equal(firstDate(update), '2026-12-01')
+    assert.equal('calendarFlip' in update, false)
+    mock.timers.tick(60)
+    update = flip(() => harness.page.nextMonth())
+    assert.equal(update.calendarFlip, 'next-b')
+
+    // 选月：取消翻月动画，那个月即时替换；之后再翻从头开始
+    harness.page.openMonthPicker()
+    updates.length = 0
+    harness.page.selectJumpMonth({ currentTarget: { dataset: { month: '3' } } })
+    const jump = updates.find(item => 'month' in item)
+    assert.equal(jump.calendarFlip, '')
+    assert.equal(firstDate(jump), '2027-04-01')
+    mock.timers.tick(10)
+    update = flip(() => harness.page.prevMonth())
+    assert.equal(update.calendarFlip, 'prev-a', 'a cancelled slide does not count as running')
+
+    // 回到今天同样取消
+    mock.timers.tick(10)
+    updates.length = 0
+    harness.page.jumpToToday()
+    const back = updates.find(item => 'month' in item)
+    assert.equal(back.calendarFlip, '')
+    assert.equal(firstDate(back), '2026-11-01')
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #165：「回到今天」在换上当月的同一次更新里点亮今天一次；已在当月时再点（选月面板里的「回到今天」）
+// 换一个记号从头再亮（today-a/today-b 交替）。强调只跟着触发它的那次提交：之后任何一次日历更新
+// （记录变化、翻月、选月、刷新）都把它去掉，换月或节点重建不会重播；记录变化不碰翻月记号。
+test('back-to-today lights today once with the jump, and the next calendar update clears it', () => {
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 10, 8, 9, 30) })
+  const harness = loadPageHarness({ client: createQueuedClient([]), calendarState: 'real' })
+  try {
+    harness.page.onLoad()
+    assert.equal(harness.page.data.calendarEmphasis, '', 'nothing is emphasized on the first paint')
+    const updates = []
+    const setData = harness.page.setData.bind(harness.page)
+    harness.page.setData = (update, callback) => {
+      updates.push(update)
+      setData(update, callback)
+    }
+    const calendarCommit = () => {
+      const commits = updates.filter(update => 'days' in update)
+      assert.equal(commits.length, 1, 'one calendar update')
+      return commits[0]
+    }
+
+    harness.page.setData({ year: 2026, month: 2 })
+    updates.length = 0
+    harness.page.jumpToToday()
+    let commit = calendarCommit()
+    assert.equal(commit.month, 10)
+    assert.equal(commit.calendarEmphasis, 'today-a', 'today lights up in the update that brings it back')
+
+    harness.page.openMonthPicker()
+    updates.length = 0
+    harness.page.jumpToToday()
+    assert.equal(calendarCommit().calendarEmphasis, 'today-b', 'asking again replays it from the start')
+
+    updates.length = 0
+    harness.page.applyRecordChange({ collection: 'memories', record: { _id: 'm1', date: '2026-11-03' } })
+    commit = calendarCommit()
+    assert.equal(commit.calendarEmphasis, '', 'a record change re-renders without the emphasis')
+    assert.equal('calendarFlip' in commit, false, 'a record change leaves the flip token alone')
+
+    for (const [label, invoke] of [
+      ['a flip', () => harness.page.nextMonth()],
+      ['a month jump', () => {
+        harness.page.openMonthPicker()
+        harness.page.selectJumpMonth({ currentTarget: { dataset: { month: '1' } } })
+      }]
+    ]) {
+      harness.page.jumpToToday()
+      assert.notEqual(harness.page.data.calendarEmphasis, '')
+      updates.length = 0
+      invoke()
+      assert.equal(calendarCommit().calendarEmphasis, '', `${label} clears the emphasis`)
+    }
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #165：关掉预测说明时，当月的「预」亮一次（predict-a/predict-b 交替）：说明讲的就是这几天。
+// 只有开着的预测说明被关掉才算；图例、本月小结、离场途中的重复关闭、当月没有「预」都不亮。
+// 强调和离场在同一次更新里开始，不等弹层卸载
+test('closing the prediction explanation lights the predicted days of the month once', () => {
+  mock.timers.enable({ apis: ['setTimeout'] })
+  let predicted = true
+  const harness = loadPageHarness({
+    client: createQueuedClient([]),
+    calendarState: (input) => ({
+      ...buildHomeCalendarState(input),
+      days: [{ date: '2026-06-01', day: 1, isPredict: false }, { date: '2026-06-02', day: 2, isPredict: predicted }]
+    })
+  })
+  try {
+    harness.page.onLoad()
+    harness.page.applyHomeCalendarState({ year: 2026, month: 5 })
+    const closeAfterOpening = (open) => {
+      open()
+      mock.timers.tick(0)
+      harness.page.closeInfoSheet()
+      const emphasis = harness.page.data.calendarEmphasis
+      assert.equal(harness.page.data.infoSheetPhase, 'leaving')
+      mock.timers.tick(200)
+      return emphasis
+    }
+
+    assert.equal(closeAfterOpening(() => harness.page.openPredictionSheet()), 'predict-a')
+    assert.equal(closeAfterOpening(() => harness.page.openPredictionSheet()), 'predict-b', 'reading it again replays it')
+
+    harness.page.applyHomeCalendarState()
+    assert.equal(harness.page.data.calendarEmphasis, '')
+    assert.equal(closeAfterOpening(() => harness.page.openLegendSheet()), '', 'the legend does not light the predictions')
+    assert.equal(closeAfterOpening(() => harness.page.openMonthlyRecap()), '', 'the recap does not light the predictions')
+
+    harness.page.openPredictionSheet()
+    mock.timers.tick(0)
+    harness.page.closeInfoSheet()
+    assert.equal(harness.page.data.calendarEmphasis, 'predict-a')
+    harness.page.closeInfoSheet()
+    assert.equal(harness.page.data.calendarEmphasis, 'predict-a', 'closing a sheet that is already leaving does not replay')
+    mock.timers.tick(200)
+
+    predicted = false
+    harness.page.applyHomeCalendarState()
+    assert.equal(closeAfterOpening(() => harness.page.openPredictionSheet()), '', 'no 预 this month, nothing to light')
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #165：未绑定或加载失败画面换下日历时，翻月和强调记号一起清掉。日历回来时是新挂载的节点，
+// 带着旧记号会重播一次滑入或强调
+test('the room status screen drops the flip and emphasis tokens so a returning calendar does not replay them', () => {
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 10, 8, 9, 30) })
+  const harness = loadPageHarness({ client: createQueuedClient([]), calendarState: 'real' })
+  const status = { title: '日历加载失败', desc: '请检查网络后重试', actionText: '重试', action: 'retry' }
+  try {
+    harness.page.onLoad()
+    harness.page.nextMonth()
+    assert.equal(harness.page.data.calendarFlip, 'next-a')
+    harness.page.showRoomStatus(status)
+    assert.equal(harness.page.data.noRoom, true)
+    assert.equal(harness.page.data.calendarFlip, '')
+
+    mock.timers.tick(10)
+    harness.page.nextMonth()
+    assert.equal(harness.page.data.calendarFlip, 'next-a', 'the dropped slide no longer counts as running')
+
+    harness.page.jumpToToday()
+    assert.equal(harness.page.data.calendarEmphasis, 'today-a')
+    harness.page.showRoomStatus(status)
+    assert.equal(harness.page.data.calendarEmphasis, '')
+  } finally {
+    harness.teardown()
+    mock.timers.reset()
+  }
+})
+
+// issue #165：选月和「回到今天」与箭头一样，月标题和那个月的格子在同一次更新里发布。
+// 原来先发年月、渲染回调里才排格子：视图层先画出新标题，下一帧格子才换，新旧月份混在一帧里
+test('month selection and back-to-today publish the month title with its grid in one update', () => {
+  mock.timers.enable({ apis: ['Date'], now: new Date(2026, 10, 8, 9, 30) })
+  const harness = loadPageHarness({ client: createQueuedClient([]), calendarState: 'real', deferRenderCommits: true })
+  try {
+    harness.page.onLoad()
+    const updates = []
+    const setData = harness.page.setData.bind(harness.page)
+    harness.page.setData = (update, callback) => {
+      updates.push(update)
+      setData(update, callback)
+    }
+    const firstDate = (days) => (days || []).find(day => day.date)?.date
+    const monthCommits = () => updates.filter(update => 'year' in update || 'month' in update)
+
     harness.page.setData({ year: 2020, month: 5 })
     harness.page.openMonthPicker()
     harness.page.shiftJumpYear({ currentTarget: { dataset: { delta: '1' } } })
+    updates.length = 0
     harness.page.selectJumpMonth({ currentTarget: { dataset: { month: '11' } } })
-    assert.equal(harness.page.data.year, 2021)
-    assert.equal(harness.page.data.month, 11)
-    assert.equal(harness.page.data.jumpMonth, 11)
-    assert.equal(harness.page.data.monthPickerVisible, false)
+    let [commit, ...later] = monthCommits()
+    assert.deepEqual(later, [], 'the jump publishes its month once')
+    assert.deepEqual([commit.year, commit.month, commit.jumpMonth, commit.monthPickerVisible], [2021, 11, 11, false])
+    assert.equal(firstDate(commit.days), '2021-12-01', 'the title and the grid of December 2021 land together')
+    assert.equal(commit.showBackToToday, true)
+    assert.equal(harness.page.data.monthPickerPhase, 'leaving')
 
     harness.page.openMonthPicker()
     harness.page.shiftJumpYear({ currentTarget: { dataset: { delta: '1' } } })
+    updates.length = 0
     harness.page.jumpToToday()
-    const today = new Date()
-    assert.equal(harness.page.data.year, today.getFullYear())
-    assert.equal(harness.page.data.month, today.getMonth())
-    assert.equal(harness.page.data.monthPickerVisible, false)
+    ;[commit, ...later] = monthCommits()
+    assert.deepEqual(later, [], 'back-to-today publishes its month once')
+    assert.deepEqual(
+      [commit.year, commit.month, commit.jumpMonth, commit.jumpYear, commit.monthPickerVisible],
+      [2026, 10, 10, 2026, false]
+    )
+    assert.equal(firstDate(commit.days), '2026-11-01', 'the title and the grid of the current month land together')
+    assert.equal(commit.showBackToToday, false)
   } finally {
     harness.teardown()
+    mock.timers.reset()
   }
 })
 
