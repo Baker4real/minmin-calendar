@@ -53,10 +53,15 @@
   color: var(--text-secondary);
   line-height: 1;
 }
+/* 按下只换玫瑰描边，和输入框焦点同一种 1px 实线、不加光晕（issue #81、#166） */
 .form-picker:active,
 .form-picker.form-picker-hover {
   border-color: rgba(232,144,158,0.4);
-  box-shadow: 0 0 20px rgba(232,144,158,0.1);
+}
+/* 保存中日期选择器停用：字段跟着变淡、不再亮描边，和经期编辑页同一档（issue #166） */
+.form-picker.disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 .form-input {
   box-sizing: border-box;

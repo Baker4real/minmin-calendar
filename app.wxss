@@ -77,6 +77,8 @@ page {
   --duration-sheet: 280ms;
   /* 一次性状态强调（今天、「预」的光晕）：亮起再落回，只动透明度（issue #165） */
   --duration-emphasis: 600ms;
+  /* 弹层内容块进场晚标题一拍（issue #166），只给 .sheet-body 的打开姿态用；40 + 240 = 面板的 280，内容和面板一起落定 */
+  --delay-stagger: 40ms;
 
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -251,12 +253,10 @@ page {
 .nav-back.nav-back-hover {
   transform: scale(0.94);
 }
+/* 按下：缩放、描边、底色同一拍变化；投影不换，随按钮一起缩（issue #166） */
 .nav-back:active .nav-back-surface,
 .nav-back.nav-back-hover .nav-back-surface {
   border-color: rgba(232,144,158,0.42);
-  box-shadow:
-    0 4rpx 12rpx rgba(10,14,39,0.16),
-    inset 0 1rpx 0 rgba(255,255,255,0.22);
 }
 .nav-back:active .nav-back-surface::before,
 .nav-back.nav-back-hover .nav-back-surface::before {
@@ -292,14 +292,30 @@ page {
   padding: 26rpx 0;
   font-size: var(--font-size-button);
   font-weight: var(--font-weight-control);
-  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-state) ease;
   position: relative;
+}
+/* 柔光层（issue #166）：玫瑰光画在 ::before 上，不画在按钮本身。按下时透明度沉到 0.5，
+   和缩放同一拍（box-shadow 不能过渡，透明度可以）；禁用和加载中没有柔光 */
+.btn-premium::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
+  transition: opacity var(--duration-press) ease;
+  pointer-events: none;
 }
 .btn-premium:active,
 .btn-premium.btn-premium-hover {
   transform: scale(0.96);
-  box-shadow: 0 2px 8px rgba(232,144,158,0.2);
+}
+.btn-premium:active::before,
+.btn-premium.btn-premium-hover::before {
+  opacity: 0.5;
 }
 .btn-premium.loading,
 .btn-premium.disabled {
@@ -310,6 +326,14 @@ page {
 .btn-premium:active.disabled,
 .btn-premium.btn-premium-hover.disabled{
   transform: none;
+}
+.btn-premium.loading::before,
+.btn-premium.disabled::before,
+.btn-premium:active.loading::before,
+.btn-premium.btn-premium-hover.loading::before,
+.btn-premium:active.disabled::before,
+.btn-premium.btn-premium-hover.disabled::before {
+  opacity: 0;
 }
 
 /* ===== Danger Button — 柔红，与玫瑰体系同族 ===== */
@@ -324,7 +348,7 @@ page {
   font-size: var(--font-size-button);
   font-weight: var(--font-weight-control);
   border: 1px solid rgba(249,115,115,0.28);
-  transition: border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
+  transition: border-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
 .btn-danger::before {
   content: '';
@@ -339,13 +363,33 @@ page {
   pointer-events: none;
   z-index: -1;
 }
+/* 平涂层盖不到描边带：按下时描边同色提亮，和红色平涂层一起亮（issue #166） */
 .btn-danger:active,
 .btn-danger.btn-danger-hover {
   transform: scale(0.95);
+  border-color: rgba(249,115,115,0.4);
 }
 .btn-danger:active::before,
 .btn-danger.btn-danger-hover::before {
   background-color: rgba(249,115,115,0.12);
+}
+/* 删除中与不可删（issue #166）：用类名表达，不写内联透明度；按下不缩放、描边和平涂层停在静止值 */
+.btn-danger.loading,
+.btn-danger.disabled {
+  opacity: 0.5;
+}
+.btn-danger:active.loading,
+.btn-danger.btn-danger-hover.loading,
+.btn-danger:active.disabled,
+.btn-danger.btn-danger-hover.disabled {
+  transform: none;
+  border-color: rgba(249,115,115,0.28);
+}
+.btn-danger:active.loading::before,
+.btn-danger.btn-danger-hover.loading::before,
+.btn-danger:active.disabled::before,
+.btn-danger.btn-danger-hover.disabled::before {
+  background-color: var(--glass-bg);
 }
 
 /* ===== Field Error（issue #156）— 经期、欢乐时光编辑页共用 =====
@@ -486,6 +530,7 @@ page {
   }
   .premium-card,
   .btn-premium,
+  .btn-premium::before,
   .btn-danger,
   .btn-danger::before,
   .nav-btn,

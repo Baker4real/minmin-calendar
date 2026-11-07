@@ -190,6 +190,86 @@ test('disabled and loading states cannot be confused with operable controls', ()
   assert.deepEqual(failures, [])
 })
 
+// issue #166：禁用与加载中的控件按下时不缩放、不换底色、不提亮描边、没有柔光。做法二选一：整块不接点按
+// （pointer-events: none），或者每一路按压都被 :active.<状态> 钉回静止值；带柔光层的控件在这两种状态下柔光为 0。
+test('disabled and loading variants show no press feedback and no glow', () => {
+  const { parseWxssRules } = require('./designTokens')
+  const failures = []
+  let checked = 0
+  for (const file of PAGE_WXML) {
+    const rules = [
+      ...parseWxssRules(readPage('app.wxss')),
+      ...parseWxssRules(readPage(file.replace(/\.wxml$/, '.wxss')))
+    ]
+    const declsOf = (selector) => rules
+      .filter((rule) => rule.selectors.includes(selector))
+      .reduce((decls, rule) => ({ ...decls, ...rule.decls }), {})
+    const restValue = (decls, prop) => {
+      if (prop === 'border-color') return decls['border-color'] || (/rgba\([^)]*\)/.exec(decls.border || '') || [])[0]
+      if (prop === 'background' || prop === 'background-color') return decls.background || decls['background-color']
+      return decls[prop]
+    }
+    for (const element of collectElements(readPage(file))) {
+      const classAttr = element.attrs.class || ''
+      const states = ['disabled', 'loading'].filter((state) => new RegExp(`(^|[\\s'"])${state}(?=[\\s'"]|$)`).test(classAttr))
+      if (!states.length) continue
+      const base = classTokens(element)[0]
+      for (const state of states) {
+        checked += 1
+        const where = `${file}: .${base}.${state}`
+        if (declsOf(`.${base}.${state}`)['pointer-events'] === 'none') continue
+        for (const layer of ['', '::before']) {
+          const pressed = declsOf(`.${base}:active${layer}`)
+          const rest = declsOf(`.${base}${layer}`)
+          const pinned = declsOf(`.${base}:active.${state}${layer}`)
+          const glowLayer = layer === '::before' && Boolean(rest['box-shadow'])
+          if (glowLayer) {
+            if (declsOf(`.${base}.${state}${layer}`).opacity !== '0') failures.push(`${where} still glows`)
+            if (pinned.opacity !== '0') failures.push(`${where} glows again while pressed`)
+            continue
+          }
+          for (const prop of Object.keys(pressed)) {
+            const expected = prop === 'transform' ? 'none' : restValue(rest, prop)
+            const actual = prop === 'transform' ? pinned.transform : restValue(pinned, prop)
+            if (actual !== expected) failures.push(`${where}${layer} pressed ${prop} is ${actual || '(pressed value)'}, expected rest ${expected}`)
+          }
+        }
+      }
+    }
+  }
+  assert.ok(checked >= 10, 'the disabled and loading variants are found')
+
+  // 惰性变体靠类名命名，样式表才能把每一路按压钉住：不写内联透明度冒充禁用
+  for (const file of PAGE_WXML) {
+    for (const element of collectElements(readPage(file))) {
+      if (element.attrs['aria-disabled'] !== 'true') continue
+      const tokens = classTokens(element)
+      if (!tokens.includes('disabled') && !tokens.includes('loading')) {
+        failures.push(`${file}: ${describe(element)} reads as disabled but carries no disabled/loading class`)
+      }
+      if (/opacity/.test(element.attrs.style || '')) {
+        failures.push(`${file}: ${describe(element)} dims itself with an inline style`)
+      }
+    }
+    // picker 被禁用时，里面那块可按的字段同条件带 disabled，不再亮起按压；
+    // 读屏念的是 picker 本身（它带角色和名称），所以 aria-disabled 写在 picker 上、同一条件
+    walkForest(parseWxmlForest(readPage(file)), (node) => {
+      if (node.tag !== 'picker' || !node.attrs.disabled) return
+      if (node.attrs['aria-role'] && normalizeExpr(node.attrs['aria-disabled'] || '') !== normalizeExpr(node.attrs.disabled)) {
+        failures.push(`${file}: <picker bindchange="${node.attrs.bindchange}"> disabled=${node.attrs.disabled} but aria-disabled=${node.attrs['aria-disabled'] || '(missing)'}`)
+      }
+      const condition = /^\{\{(.+)\}\}$/.exec(node.attrs.disabled)
+      walkForest(node.children, (child) => {
+        if (!child.attrs['hover-class']) return
+        const classAttr = child.attrs.class || ''
+        const bound = new RegExp(`\\{\\{\\s*${(condition ? condition[1] : '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\?\\s*'\\s*disabled'`).test(classAttr)
+        if (!bound) failures.push(`${file}: ${describe(child)} keeps its press while its picker is disabled`)
+      })
+    })
+  }
+  assert.deepEqual(failures, [])
+})
+
 test('calendar day cells keep composed domain aria labels, a button role, and hidden empty cells', () => {
   const elements = collectElements(readPage('pages/index/index.wxml'))
   const dayCell = elements.find((element) => classTokens(element).includes('day-cell'))
@@ -365,12 +445,16 @@ const SHEET_PAGES = [
     file: 'pages/index/index.wxml',
     maskClass: 'day-sheet-mask',
     slideClass: 'sheet-slide',
+    titleRowClass: 'sheet-drag-zone',
+    titleClass: 'sheet-title',
     names: ['月份选择', '当日操作', '工具菜单', '{{infoSheetName}}']
   },
   {
     file: 'pages/settings/settings.wxml',
     maskClass: 'help-mask',
     slideClass: 'help-slide',
+    titleRowClass: 'help-head',
+    titleClass: 'help-title',
     names: ['使用说明']
   }
 ]
@@ -403,6 +487,30 @@ test('every sheet panel is named by its purpose without a dialog role, closed by
       panelNames.push(name)
     }
     assert.deepEqual(panelNames, names)
+  }
+})
+
+// issue #166：内容错相只动标题行下面的内容块。面板里先是标题行（标题和关闭键都在这里，随面板一起到），
+// 再是唯一的内容块 .sheet-body，面板的其余内容都在它里面；读屏顺序因此仍是标题、关闭、内容。
+test('every sheet panel keeps its title and close in a title row above one content tier', () => {
+  for (const { file, maskClass, titleRowClass, titleClass } of SHEET_PAGES) {
+    for (const host of sheetHosts(parseWxmlForest(readPage(file)), maskClass)) {
+      const [panel] = host.children[1].children
+      const name = panel.attrs['aria-label']
+      const [titleRow, body, ...rest] = panel.children
+      assert.deepEqual(rest, [], `${file} ${name}: the panel holds a title row and one content tier`)
+      assert.ok(classTokens(titleRow).includes(titleRowClass), `${file} ${name}: the title row comes first`)
+      assert.ok(body && classTokens(body).includes('sheet-body'), `${file} ${name}: the content tier follows the title row`)
+
+      const inTitleRow = []
+      walkForest(titleRow.children, (node) => inTitleRow.push(...classTokens(node)))
+      assert.ok(inTitleRow.includes(titleClass), `${file} ${name}: the title arrives with the panel`)
+      assert.ok(inTitleRow.includes('sheet-close'), `${file} ${name}: the close arrives with the panel`)
+      const inBody = []
+      walkForest(body.children, (node) => inBody.push(...classTokens(node)))
+      assert.equal(inBody.includes('sheet-close'), false, `${file} ${name}: the close is not staggered`)
+      assert.equal(inBody.includes(titleClass), false, `${file} ${name}: the title is not staggered`)
+    }
   }
 })
 

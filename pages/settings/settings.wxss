@@ -120,6 +120,17 @@
   transform: translateY(0);
   transition: transform var(--duration-sheet) var(--ease-out);
 }
+/* 标题与内容错相（issue #166），同首页弹层：标题行随面板到，说明文字晚一拍跟上，离场一起走；不拦点按 */
+.sheet-body {
+  opacity: 0;
+  transform: translateY(16rpx);
+  transition: opacity var(--duration-exit) var(--ease-out), transform var(--duration-exit) var(--ease-out);
+}
+.help-slide.sheet-open .sheet-body {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--duration-enter) var(--ease-out) var(--delay-stagger), transform var(--duration-enter) var(--ease-out) var(--delay-stagger);
+}
 .help-sheet {
   position: relative;
   z-index: 1;
@@ -158,6 +169,7 @@
   color: rgba(255,255,255,0.92);
   background: var(--glass-bg);
   border: 1px solid rgba(255,255,255,0.12);
+  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
 .sheet-close:active,
 .sheet-close.sheet-close-hover {
@@ -188,6 +200,7 @@
   border-radius: var(--radius-md);
   box-sizing: border-box;
   background: var(--glass-fallback);
+  transition: border-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
 .menu-item.danger::before {
   content: '';
@@ -205,9 +218,11 @@
 .menu-item.danger .menu-text {
   color: #F97373;
 }
+/* 平涂层盖不到描边带：按下时描边同色提亮，和红色平涂层一起亮（issue #166） */
 .menu-item.danger:active,
 .menu-item.danger.danger-hover {
   transform: scale(0.95);
+  border-color: rgba(249,115,115,0.4);
 }
 .menu-item.danger:active::before,
 .menu-item.danger.danger-hover::before {
@@ -261,12 +276,29 @@
   border-radius: var(--radius-sm);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
-  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
+  position: relative;
   transition: transform var(--duration-press) var(--ease-out);
+}
+/* 柔光层同 .btn-premium（issue #166）：按下沉到 0.5，和缩放同一拍 */
+.copy-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
+  transition: opacity var(--duration-press) ease;
+  pointer-events: none;
 }
 .copy-btn:active,
 .copy-btn.copy-btn-hover {
   transform: scale(0.94);
+}
+.copy-btn:active::before,
+.copy-btn.copy-btn-hover::before {
+  opacity: 0.5;
 }
 
 /* 拿不到房间码时的下一步操作（issue #79）：重试/去绑定。
@@ -354,6 +386,7 @@
     width: 1px;
   }
   .copy-btn,
+  .copy-btn::before,
   .density-option,
   .room-action-btn,
   .menu-item.danger,
@@ -363,6 +396,8 @@
   .help-mask.sheet-open,
   .help-slide,
   .help-slide.sheet-open,
+  .sheet-body,
+  .help-slide.sheet-open .sheet-body,
   .sheet-close {
     animation: none;
     transition: none;
