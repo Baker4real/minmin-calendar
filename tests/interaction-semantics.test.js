@@ -412,7 +412,7 @@ test('no page claims WeChat honors aria-modal', () => {
   }
 })
 
-// 背景隔离：页面根下除弹层宿主、装饰光球、减弱动效探针和返回拦截外，每一块都与 page-obscured 同一状态
+// 背景隔离：页面根下除弹层宿主、装饰极光、减弱动效探针和返回拦截外，每一块都与 page-obscured 同一状态
 // aria-hidden。打开弹层的触发器都在这些块里：弹层盖住时一起静音，卸载后随背景回到原位置、原名称。
 // 弹层宿主直接挂在页面根下，不在任何被隐藏的块里。
 const SHEET_TRIGGERS = {
@@ -443,7 +443,6 @@ test('a sheet silences the page behind it, and every trigger returns with that p
         hosts.push(child)
         continue
       }
-      if (classTokens(child).includes('glow-orb')) continue
       if (child.attrs['aria-hidden'] === 'true') continue
       regions.push(child)
       assert.equal(
@@ -837,10 +836,17 @@ test('every tappable control carries a hover-class painted with its :active rule
   assert.deepEqual(failures, [])
 })
 
-test('header decorations cannot intercept taps on navigation controls', () => {
+// 顶栏光斑和极光（基底、色团容器、每个色团）都是纯装饰，点按穿过它们落到下面的控件（issue #163）
+test('ambient decorations cannot intercept taps on page controls', () => {
   const { parseWxssRules } = require('./designTokens')
   const rules = parseWxssRules(readPage('app.wxss'))
-  for (const selector of ['.header-gradient::before', '.header-gradient::after']) {
+  for (const selector of [
+    '.header-gradient::before',
+    '.header-gradient::after',
+    '.page::before',
+    '.aurora',
+    '.aurora-bloom'
+  ]) {
     const declarations = Object.assign({}, ...rules
       .filter(rule => rule.selectors.includes(selector))
       .map(rule => rule.decls))

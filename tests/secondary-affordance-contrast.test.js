@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
-const { contrastRatio } = require('./contrast')
+const { auroraPeakHex, contrastRatio } = require('./contrast')
 const { parseWxssRules } = require('./designTokens')
 
 // issue #57：可点击箭头与其他次要入口的对比度对齐「正文次级」基准 ——
@@ -130,6 +130,11 @@ function canvasColor() {
   return parseColor(pageDecls.background)
 }
 
+// 表面下面的背景：画布，和极光最亮处（issue #163，见 tests/contrast.js）
+function grounds() {
+  return [canvasColor(), parseColor(auroraPeakHex(APP_WXSS))]
+}
+
 function applySurface(bg, decl) {
   const layers = backgroundLayers(decl)
   let next = bg
@@ -139,12 +144,18 @@ function applySurface(bg, decl) {
   return next
 }
 
-function effectivePair(caseItem) {
-  let bg = canvasColor()
+// 表面的填充：background 简写；按压着色要能过渡的平涂伪元素只写 background-color（issue #145）
+function surfaceFill(file, selector) {
+  const decls = declarationsFor(file, selector)
+  const decl = decls.background || decls['background-color']
+  assert.ok(decl, `expected background on ${selector} (${file})`)
+  return decl
+}
+
+function effectivePair(caseItem, ground) {
+  let bg = ground
   for (const [file, selector] of caseItem.surfaces) {
-    const decl = declarationsFor(file, selector).background
-    assert.ok(decl, `expected background on ${selector} (${file})`)
-    bg = applySurface(bg, decl)
+    bg = applySurface(bg, surfaceFill(file, selector))
   }
   const own = declarationsFor(caseItem.file, caseItem.selector)
   if (own.background) bg = applySurface(bg, own.background)
@@ -166,9 +177,10 @@ const CASES = [
   { file: 'pages/index/index.wxss', selector: '.sheet-close', surfaces: [['pages/index/index.wxss', '.day-action-sheet']], note: '弹层关闭按钮' },
   // issue #154：设置「使用说明」面板是玻璃卡，关闭键叠在卡面上
   { file: 'pages/settings/settings.wxss', selector: '.sheet-close', surfaces: [['app.wxss', '.premium-card']], note: '设置使用说明关闭按钮' },
-  { file: 'pages/index/index.wxss', selector: '.nav-btn', surfaces: [], note: '月份前后切换箭头' },
+  // 月份导航在吸顶区里，吸顶区是不透明的画布海军，极光透不上来（issue #163）
+  { file: 'pages/index/index.wxss', selector: '.nav-btn', surfaces: [['pages/index/index.wxss', '.home-sticky'], ['pages/index/index.wxss', '.month-nav']], note: '月份前后切换箭头' },
   { file: 'app.wxss', selector: '.nav-back', surfaces: [['app.wxss', '.nav-back-surface']], note: '导航返回箭头' },
-  { file: 'pages/index/index.wxss', selector: '.month-title-caret', surfaces: [['pages/index/index.wxss', '.month-title-trigger']], note: '月份选择器 caret' },
+  { file: 'pages/index/index.wxss', selector: '.month-title-caret', surfaces: [['pages/index/index.wxss', '.home-sticky'], ['pages/index/index.wxss', '.month-nav'], ['pages/index/index.wxss', '.month-title-trigger']], note: '月份选择器 caret' },
   { file: 'pages/period/period.wxss', selector: '.empty-state', surfaces: [], note: '经期列表加载失败重试入口' },
   { file: 'pages/memory/memory.wxss', selector: '.empty-state', surfaces: [], note: '欢乐时光加载失败重试入口' },
   // 绑定页条目按收敛后的 Aurora 海军面验收（issue #104）：紫域画布/紫卡覆盖已删，
@@ -197,10 +209,12 @@ test('the 4.5:1 benchmark: unselected tab grey on canvas navy', () => {
 test('every clickable arrow and secondary entry meets the secondary-text contrast floor on its real surface', () => {
   const failures = []
   for (const caseItem of CASES) {
-    const { fg, bg } = effectivePair(caseItem)
-    const ratio = contrastRatio(fg, bg)
-    if (ratio < MIN_SECONDARY_RATIO) {
-      failures.push(`${caseItem.note} ${caseItem.selector}: ${fg} on ${bg} = ${ratio.toFixed(2)}:1`)
+    for (const ground of grounds()) {
+      const { fg, bg } = effectivePair(caseItem, ground)
+      const ratio = contrastRatio(fg, bg)
+      if (ratio < MIN_SECONDARY_RATIO) {
+        failures.push(`${caseItem.note} ${caseItem.selector}: ${fg} on ${bg} = ${ratio.toFixed(2)}:1`)
+      }
     }
   }
   assert.deepEqual(failures, [])
@@ -241,11 +255,13 @@ test('the late reminder rail uses registered neutral white and stays readable', 
   assert.equal(rail['box-shadow'], 'none')
   assert.equal(/F97373|249\s*,\s*115\s*,\s*115/.test(JSON.stringify(rail)), false)
 
-  let surface = canvasColor()
-  surface = applySurface(surface, declarationsFor('app.wxss', '.premium-card').background)
-  surface = applySurface(surface, declarationsFor('pages/index/index.wxss', '.reminder-card').background)
-  const ratio = contrastRatio('#FFFFFF', toHex(surface))
-  assert.ok(ratio >= MIN_SECONDARY_RATIO, `neutral rail on the reminder card is ${ratio.toFixed(2)}:1`)
+  // 提醒行是通栏行：背景 → 海军回退 → ::before 上的淡白平涂层（issue #163）
+  for (const ground of grounds()) {
+    let surface = applySurface(ground, surfaceFill('pages/index/index.wxss', '.reminder-card'))
+    surface = applySurface(surface, surfaceFill('pages/index/index.wxss', '.reminder-card::before'))
+    const ratio = contrastRatio('#FFFFFF', toHex(surface))
+    assert.ok(ratio >= MIN_SECONDARY_RATIO, `neutral rail on the reminder card is ${ratio.toFixed(2)}:1`)
+  }
 
   const design = readFile('DESIGN.md')
   assert.equal(design.includes('| 逾期提醒 |'), false)

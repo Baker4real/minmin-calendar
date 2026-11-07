@@ -1,5 +1,11 @@
-<view class="page safe-top" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
+<view class="page safe-top {{pageObscured ? 'page-obscured' : ''}} {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
   <view class="reduced-motion-probe" aria-hidden="true"></view>
+  <!-- 极光色团：纯装饰，固定在视口、不拦截点按（issue #163） -->
+  <view class="aurora" aria-hidden="true">
+    <view class="aurora-bloom aurora-bloom-violet"></view>
+    <view class="aurora-bloom aurora-bloom-rose"></view>
+    <view class="aurora-bloom aurora-bloom-lavender"></view>
+  </view>
   <view aria-hidden="{{pageObscured}}" class="nav-bar header-gradient">
     <view class="nav-placeholder"></view>
     <view class="nav-title">设置</view>

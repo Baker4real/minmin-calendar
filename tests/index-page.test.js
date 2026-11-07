@@ -3056,7 +3056,7 @@ test('an open or leaving homepage sheet obscures the page until every sheet unmo
   const harness = loadPageHarness({ client: createQueuedClient([]) })
   try {
     const root = readIndexWxml().slice(0, readIndexWxml().indexOf('>'))
-    assert.match(root, /class="page safe-top \{\{pageObscured \? 'page-obscured' : ''\}\}"/)
+    assert.match(root, /class="page safe-top \{\{pageObscured \? 'page-obscured' : ''\}\} \{\{pageHidden \? 'page-hidden' : ''\}\}"/)
 
     harness.page.onLoad()
     harness.page.setData({

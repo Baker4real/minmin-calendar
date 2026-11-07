@@ -2,6 +2,7 @@ const roomSession = require('../../utils/room')
 const settingsFlow = require('../../utils/settingsFlow')
 const cloud = require('../../utils/cloud')
 const safeArea = require('../../utils/safeArea')
+const { markPageHidden, markPageShown } = require('../../utils/pageVisibility')
 
 // 云端 create/join 拒绝「已在其他房间」时返回的固定短语（roomMembershipLifecycle），
 // 命中时当前屏直接提供解除绑定，而不是只留一句错误
@@ -52,7 +53,8 @@ Page({
     homeJumpFailed: false,
     // issue #115：第一次显示到第一次校验结果之前只留品牌心
     verifying: true,
-    revealed: false
+    revealed: false,
+    pageHidden: false
   },
 
   onLoad(options) {
@@ -60,8 +62,13 @@ Page({
   },
 
   onShow() {
+    markPageShown(this)
     this.consumeUnbindNotice()
     return this.checkRoom()
+  },
+
+  onHide() {
+    markPageHidden(this)
   },
 
   // issue #139：设置页解绑成功后，绑定页提示一次「已解除绑定」

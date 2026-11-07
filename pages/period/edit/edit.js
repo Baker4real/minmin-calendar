@@ -7,6 +7,7 @@ const recordEditRoute = require('../../../utils/recordEditRoute')
 const recordFieldErrors = require('../../../utils/recordFieldErrors')
 const recordPageSync = require('../../../utils/recordPageSync')
 const safeArea = require('../../../utils/safeArea')
+const { markPageHidden, markPageShown } = require('../../../utils/pageVisibility')
 
 const DRAFT_FIELDS = ['startDate', 'endDate', 'status', 'note', 'flow', 'symptoms']
 // 可定位的校验字段，按表单自上而下的顺序；滚动定位到第一个出错的字段
@@ -60,7 +61,8 @@ Page({
     deleting: false,
     submitted: false,
     draftRestored: false,
-    fieldErrors: {}
+    fieldErrors: {},
+    pageHidden: false
   },
 
   onLoad(options) {
@@ -99,7 +101,12 @@ Page({
     return this.loadPeriodHistory()
   },
 
+  onShow() {
+    markPageShown(this)
+  },
+
   onHide() {
+    markPageHidden(this)
     this.persistRecordDraft()
   },
 

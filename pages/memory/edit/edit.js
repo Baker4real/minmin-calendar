@@ -6,6 +6,7 @@ const recordEditRoute = require('../../../utils/recordEditRoute')
 const recordFieldErrors = require('../../../utils/recordFieldErrors')
 const recordPageSync = require('../../../utils/recordPageSync')
 const safeArea = require('../../../utils/safeArea')
+const { markPageHidden, markPageShown } = require('../../../utils/pageVisibility')
 
 const DRAFT_FIELDS = ['date', 'note']
 // 可定位的校验字段（只有日期）
@@ -28,7 +29,7 @@ function collectMemoryFieldErrors({ date }, today) {
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 
 Page({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false, submitted: false, draftRestored: false, fieldErrors: {} },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false, submitted: false, draftRestored: false, fieldErrors: {}, pageHidden: false },
 
   onLoad(options) {
     const routeState = recordEditRoute.parseMemoryEditOptions(options, {
@@ -54,7 +55,12 @@ Page({
     }
   },
 
+  onShow() {
+    markPageShown(this)
+  },
+
   onHide() {
+    markPageHidden(this)
     this.persistRecordDraft()
   },
 
