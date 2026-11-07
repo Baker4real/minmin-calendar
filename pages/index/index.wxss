@@ -515,6 +515,50 @@
   height: 43rpx;
   margin-left: -32rpx;
 }
+/* 今天的状态强调（issue #165）：回到今天时，日期胶囊的位置亮起一层更亮的胶囊再落回 0，只动透明度、播一次。
+   形状、位置和胶囊重合；经期今天没有胶囊，光晕同样围住日期、叠在色带上，播完不留痕。
+   只在 .calendar-days 带强调记号时存在，静止的日历不多一层；a、b 交替才会从头重播 */
+.calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after,
+.calendar-days.calendar-emphasis-today-b .day-cell.today .day-num::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -4rpx;
+  left: 50%;
+  width: 60rpx;
+  height: 41rpx;
+  margin-left: -30rpx;
+  box-sizing: border-box;
+  border: 2rpx solid rgba(196,160,210,0.95);
+  border-radius: var(--radius-full);
+  background: rgba(232,144,158,0.3);
+  opacity: 0;
+  pointer-events: none;
+}
+.calendar-density-compact .calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after,
+.calendar-density-compact .calendar-days.calendar-emphasis-today-b .day-cell.today .day-num::after {
+  top: -5rpx;
+  width: 64rpx;
+  height: 43rpx;
+  margin-left: -32rpx;
+}
+.calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after {
+  animation: calendarHaloA var(--duration-emphasis) var(--ease-out);
+}
+.calendar-days.calendar-emphasis-today-b .day-cell.today .day-num::after {
+  animation: calendarHaloB var(--duration-emphasis) var(--ease-out);
+}
+/* 光晕：亮起再落回 0，播完什么都不留。a、b 内容相同 */
+@keyframes calendarHaloA {
+  0% { opacity: 0; }
+  30% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes calendarHaloB {
+  0% { opacity: 0; }
+  30% { opacity: 1; }
+  100% { opacity: 0; }
+}
 
 .day-lunar {
   width: 100%;
@@ -684,6 +728,32 @@
   color: var(--aurora-gold);
   background: transparent;
   border: 1px solid rgba(212,165,116,0.55);
+  /* 给强调光晕定位（issue #165）；没有偏移，不改排版 */
+  position: relative;
+}
+/* 「预」的状态强调（issue #165）：关掉预测说明时，当月的「预」在描边处亮起一圈更亮的金再落回 0，
+   画在字后面，只动透明度、播一次；只在 .calendar-days 带强调记号时存在 */
+.calendar-days.calendar-emphasis-predict-a .predict-mark::after,
+.calendar-days.calendar-emphasis-predict-b .predict-mark::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -1px;
+  right: -1px;
+  bottom: -1px;
+  left: -1px;
+  box-sizing: border-box;
+  border: 1px solid rgba(212,165,116,0.95);
+  border-radius: var(--radius-full);
+  background: rgba(212,165,116,0.16);
+  opacity: 0;
+  pointer-events: none;
+}
+.calendar-days.calendar-emphasis-predict-a .predict-mark::after {
+  animation: calendarHaloA var(--duration-emphasis) var(--ease-out);
+}
+.calendar-days.calendar-emphasis-predict-b .predict-mark::after {
+  animation: calendarHaloB var(--duration-emphasis) var(--ease-out);
 }
 
 .month-summary {

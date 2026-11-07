@@ -75,6 +75,8 @@ page {
   --duration-enter: 240ms;
   --duration-exit: 200ms;
   --duration-sheet: 280ms;
+  /* 一次性状态强调（今天、「预」的光晕）：亮起再落回，只动透明度（issue #165） */
+  --duration-emphasis: 600ms;
 
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;
   -webkit-font-smoothing: antialiased;

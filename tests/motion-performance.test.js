@@ -288,7 +288,9 @@ const ONE_SHOT_ANIMATIONS = {
   calendarFlipNextA: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   calendarFlipNextB: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   calendarFlipPrevA: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
-  calendarFlipPrevB: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' }
+  calendarFlipPrevB: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  calendarHaloA: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)' },
+  calendarHaloB: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)' }
 }
 const COLOR_TRANSITION_PROPS = new Set(['background', 'background-color', 'color', 'border-color'])
 const PRESS_DURATION = 'var(--duration-press)'
@@ -778,9 +780,10 @@ test('month flips slide the new days in from the flip direction inside the card,
     .replace(/<!--[\s\S]*?-->/g, '')
   const layer = /^[^>]*>\s*<view class="(calendar-days[^"]*)">\s*<view\s+class="day-cell/.exec(grid)
   assert.ok(layer, 'the day cells sit in one .calendar-days layer, the only child of .calendar-grid')
-  assert.deepEqual(renderedClasses(layer[1], { calendarFlip: '' }), ['calendar-days'], 'no flip, no slide')
+  const resting = { calendarFlip: '', calendarEmphasis: '' }
+  assert.deepEqual(renderedClasses(layer[1], resting), ['calendar-days'], 'no flip, no slide')
   for (const token of Object.keys(CALENDAR_FLIPS)) {
-    assert.deepEqual(renderedClasses(layer[1], { calendarFlip: token }), ['calendar-days', `calendar-flip-${token}`])
+    assert.deepEqual(renderedClasses(layer[1], { ...resting, calendarFlip: token }), ['calendar-days', `calendar-flip-${token}`])
   }
 
   const days = declsOf('.calendar-days')
@@ -818,6 +821,77 @@ test('month flips slide the new days in from the flip direction inside the card,
   // 卡片和日期格自己不跟着滑：网格只有刷新变暗，日期格只有按压缩放
   for (const selector of ['.calendar-grid', '.day-cell']) {
     assert.equal(declsOf(selector).animation, undefined, `${selector} must not slide`)
+  }
+})
+
+// issue #165：状态强调记号（index.js 的 calendarEmphasis）与它点亮的光晕。回到今天亮今天的日期胶囊，
+// 关掉预测说明亮当月的「预」。光晕是一次性的透明度变化，从 0 亮起再落回 0，不循环；content 只写在记号作用域下，
+// 静止的日历一点不变。只动透明度，减弱动效下照常，是温和的反馈
+const CALENDAR_EMPHASES = {
+  'today-a': 'calendarHaloA',
+  'today-b': 'calendarHaloB',
+  'predict-a': 'calendarHaloA',
+  'predict-b': 'calendarHaloB'
+}
+const HALO_TARGETS = { today: '.day-cell.today .day-num::after', predict: '.predict-mark::after' }
+
+test('state emphasis is a one-shot opacity halo that exists only under its token', () => {
+  const css = readRepo('pages/index/index.wxss')
+  const index = analyzeFile(css)
+  assert.match(maskComments(readRepo('app.wxss')), /--duration-emphasis\s*:\s*600ms\s*;/)
+  const declsOf = (selector) => {
+    const rules = index.rules.filter((item) => !item.inReducedMotion && item.selectors.includes(selector))
+    assert.ok(rules.length, `expected ${selector}`)
+    return Object.assign({}, ...rules.map((rule) => rule.decls))
+  }
+
+  const wxml = readRepo('pages/index/index.wxml')
+  const layer = /<view class="(calendar-days[^"]*)">/.exec(wxml)
+  assert.ok(layer, 'expected the .calendar-days layer')
+  assert.deepEqual(renderedClasses(layer[1], { calendarFlip: '', calendarEmphasis: '' }), ['calendar-days'])
+  assert.deepEqual(
+    renderedClasses(layer[1], { calendarFlip: 'next-a', calendarEmphasis: 'today-b' }),
+    ['calendar-days', 'calendar-flip-next-a', 'calendar-emphasis-today-b']
+  )
+
+  for (const [token, name] of Object.entries(CALENDAR_EMPHASES)) {
+    const selector = `.calendar-days.calendar-emphasis-${token} ${HALO_TARGETS[token.split('-')[0]]}`
+    const halo = declsOf(selector)
+    assert.equal(halo.content, "''")
+    assert.equal(halo.position, 'absolute')
+    assert.equal(halo.opacity, '0', `${selector} rests invisible once it has played`)
+    assert.equal(halo['pointer-events'], 'none', `${selector} never takes the tap`)
+    assert.equal(halo.animation, `${name} var(--duration-emphasis) var(--ease-out)`, `${selector} plays once`)
+    assert.equal(
+      index.reducedMotionRules.some((rule) => rule.selectors.includes(selector)),
+      false,
+      `${selector} only fades, so it stays under reduced motion`
+    )
+  }
+  for (const name of ['calendarHaloA', 'calendarHaloB']) {
+    const frames = keyframeFrames(css, name)
+    assert.ok(frames.every((frame) => Object.keys(frame.decls).join() === 'opacity'), `${name} only changes opacity`)
+    assert.equal(frames[0].decls.opacity, '0')
+    assert.equal(frames[frames.length - 1].decls.opacity, '0', `${name} leaves nothing behind`)
+    assert.ok(frames.some((frame) => frame.decls.opacity === '1'), `${name} lights up fully once`)
+  }
+  assert.deepEqual(keyframeFrames(css, 'calendarHaloA'), keyframeFrames(css, 'calendarHaloB'))
+
+  // 静止的日历没有光晕：日期和「预」的 ::after 只在记号作用域下出现
+  const stray = index.rules.flatMap((rule) => rule.selectors)
+    .filter((selector) => /(?:\.day-num|\.predict-mark)::after/.test(selector) && !/\.calendar-days\.calendar-emphasis-/.test(selector))
+  assert.deepEqual(stray, [])
+
+  // 今天的光晕就是日期胶囊自己的形状，两档密度都和胶囊重合
+  const box = (decls) => ['top', 'left', 'width', 'height', 'margin-left'].map((prop) => decls[prop])
+  const capsule = declsOf('.day-cell.today:not(.period) .day-num::before')
+  const compactCapsule = { ...capsule, ...declsOf('.calendar-density-compact .day-cell.today:not(.period) .day-num::before') }
+  for (const token of ['today-a', 'today-b']) {
+    const selector = `.calendar-days.calendar-emphasis-${token} ${HALO_TARGETS.today}`
+    const halo = declsOf(selector)
+    assert.deepEqual(box(halo), box(capsule), `${selector} sits on the capsule`)
+    assert.deepEqual(box({ ...halo, ...declsOf(`.calendar-density-compact ${selector}`) }), box(compactCapsule),
+      `${selector} sits on the compact capsule`)
   }
 })
 

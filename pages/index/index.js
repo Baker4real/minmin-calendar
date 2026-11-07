@@ -143,6 +143,8 @@ Page({
     calendarDensity: 'compact',
     // 翻月方向记号（next-a/next-b/prev-a/prev-b）挂在 .calendar-days 上，空串即不滑动（issue #165）
     calendarFlip: '',
+    // 一次性状态强调（today-a/today-b），只跟着触发它的那次日历提交（issue #165）
+    calendarEmphasis: '',
     ...calendarRenderState(INITIAL_HOME_STATE),
     showBackToToday: !isViewingCurrentMonth(INITIAL_VIEW_DATE.getFullYear(), INITIAL_VIEW_DATE.getMonth()),
     ...calendarGeometry({
@@ -524,6 +526,8 @@ Page({
       ...monthNavState(year, month),
       year,
       month,
+      // 状态强调只跟着触发它的那次提交：之后的每次日历更新都去掉，换月或节点重建不会重播（issue #165）
+      calendarEmphasis: '',
       ...extra
     }
     if (this.data.selectedDate && this.data.dayActionMounted) {
@@ -764,7 +768,9 @@ Page({
       jumpMonth: month,
       ...buildJumpYearState(year),
       monthPickerVisible: false,
-      ...this._cancelCalendarFlip()
+      ...this._cancelCalendarFlip(),
+      // 回到今天就点亮今天一次（issue #165）；已在当月再点也换记号重播
+      calendarEmphasis: nextCalendarToken(this.data.calendarEmphasis, 'today')
     })
     homepageSheets(this).monthPicker.leave(this)
   },
@@ -810,10 +816,19 @@ Page({
   },
 
   closeInfoSheet() {
-    this.setData({ infoSheetVisible: false })
+    this.setData({ infoSheetVisible: false, ...this._predictionEmphasisPatch() })
     homepageSheets(this).info.leave(this, () => {
       this.setData({ infoSheetMode: '', infoSheetName: '' })
     }, this._takeSheetDragPatch())
+  },
+
+  // issue #165：关掉预测说明时把当月的「预」点亮一次，说明讲的就是这几天。只认开着的预测说明被关掉，
+  // 离场途中的重复关闭不算；当月没有「预」就没有可亮的
+  _predictionEmphasisPatch() {
+    const { infoSheetMode, infoSheetMounted, infoSheetPhase, days } = this.data
+    if (infoSheetMode !== 'prediction' || !infoSheetMounted || infoSheetPhase === 'leaving') return {}
+    if (!(days || []).some(day => day.isPredict)) return {}
+    return { calendarEmphasis: nextCalendarToken(this.data.calendarEmphasis, 'predict') }
   },
 
   copyMonthlyRecap() {
@@ -1054,6 +1069,9 @@ Page({
       hasLoadedHomeData: false,
       refreshing: false,
       refreshRetryVisible: false,
+      // 日历被换下：回来时是新挂载的节点，带着旧记号会重播滑入或强调（issue #165）
+      ...this._cancelCalendarFlip(),
+      calendarEmphasis: '',
       noRoom: true,
       roomStatusTitle: title,
       roomStatusDesc: desc,
