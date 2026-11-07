@@ -24,7 +24,7 @@
 }
 .form-label {
   font-size: var(--font-size-caption);
-  color: rgba(255,255,255,0.6);
+  color: var(--text-secondary);
   display: block;
   margin-bottom: 12rpx;
   font-weight: var(--font-weight-assist);

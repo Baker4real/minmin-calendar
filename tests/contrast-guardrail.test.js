@@ -255,6 +255,8 @@ const KEY_ASSIST_TEXT = [
   { file: 'pages/period/period.wxss', selector: '.month-excerpt', stacks: [[['app.wxss', '.premium-card']]], note: '收起月份卡的备注摘要' },
   { file: 'pages/period/period.wxss', selector: '.empty-state', stacks: [[['pages/period/period.wxss', '.empty-state']]], note: '记录 tab 空态引导与加载失败标题' },
   { file: 'pages/period/edit/edit.wxss', selector: '.form-hint', stacks: [[['app.wxss', '.premium-card']]], note: '经期状态的后果、天数与时长确认' },
+  { file: 'pages/period/edit/edit.wxss', selector: '.form-label', stacks: [[['app.wxss', '.premium-card']]], note: '经期编辑页的字段名' },
+  { file: 'pages/memory/edit/edit.wxss', selector: '.form-label', stacks: [[['app.wxss', '.premium-card']]], note: '欢乐时光编辑页的字段名' },
   { file: 'pages/index/index.wxss', selector: '.reminder-text', stacks: [[['pages/index/index.wxss', '.reminder-card']]], note: '首页提醒行的下一步说明' },
   { file: 'pages/index/index.wxss', selector: '.no-room-desc', stacks: [[]], note: '未绑定与加载失败说明' }
 ]
@@ -278,6 +280,17 @@ test('key auxiliary text is no weaker than secondary text and clears 4.5:1 on it
     }
   }
   assert.deepEqual(failures, [])
+})
+
+// issue #164：编辑表单里字段名和字段下的说明是同一档辅助文字，直接引用 --text-secondary，不抄一份同值字面量
+test('edit form field labels and hints ride the secondary text token', () => {
+  for (const [file, selector] of [
+    ['pages/period/edit/edit.wxss', '.form-label'],
+    ['pages/period/edit/edit.wxss', '.form-hint'],
+    ['pages/memory/edit/edit.wxss', '.form-label']
+  ]) {
+    assert.equal(exactDeclaration(file, selector, 'color'), 'var(--text-secondary)', `${file} ${selector}`)
+  }
 })
 
 test('non-key grouping labels keep their quieter tier and still clear 4.5:1', () => {
