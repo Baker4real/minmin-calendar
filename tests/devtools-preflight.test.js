@@ -23,3 +23,17 @@ test('preflight fails while the project window is minimized, because captures fa
   assert.match(minimized.error, /minimized \(pid 50236\)/)
   assert.equal(projectWindowResult('', 'minmin-calendar').skipped, true)
 })
+
+test('preflight fails when the latest app launch loaded no page, because page logic stays dead until the next compile', async () => {
+  const { launchResult } = await import('./tools/devtoolsPreflight.mjs')
+  const launchedAt = new Date(2026, 10, 7, 20, 27, 24)
+  const minuteLater = launchedAt.getTime() + 60000
+  assert.deepEqual(launchResult([{ at: new Date(2026, 10, 7, 20, 27, 20), page: null }, { at: launchedAt, page: 'pages/bind/bind' }], minuteLater), {
+    name: 'Latest app launch loaded a page', ok: true, note: 'pages/bind/bind, launched 2026-11-07 20:27:24',
+  })
+  const noPage = launchResult([{ at: launchedAt, page: null }], minuteLater)
+  assert.equal(noPage.ok, false)
+  assert.match(noPage.error, /launched 2026-11-07 20:27:24 without loading a page; click 编译/)
+  assert.equal(launchResult([{ at: launchedAt, page: null }], launchedAt.getTime() + 2000).skipped, true)
+  assert.equal(launchResult([]).skipped, true)
+})
