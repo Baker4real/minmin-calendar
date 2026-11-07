@@ -288,6 +288,7 @@ const RETURN_DELAY = 'var(--delay-return)'
 const ONE_SHOT_ANIMATIONS = {
   pageEnter: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   bindReveal: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  heroBloom: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)' },
   dayDetailFade: { duration: 'var(--duration-state)', easing: 'var(--ease-out)' },
   calendarFlipNextA: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   calendarFlipNextB: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },

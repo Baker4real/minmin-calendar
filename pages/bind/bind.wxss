@@ -19,6 +19,7 @@
   margin-bottom: 20rpx;
 }
 .hero-icon {
+  position: relative;
   font-size: 120rpx;
   /* 品牌心：玫瑰文本字形，不再用红色心形表情（issue #77） */
   color: #E8909E;
@@ -32,6 +33,26 @@
 @keyframes heroIn {
   from { opacity: 0; transform: scale(0.92); }
   to { opacity: 1; transform: scale(1); }
+}
+/* 刚建好房间（issue #167）：♥ 向外漾开一次。回声是同一个字形的半透明副本，从心上放大淡出，
+   播完即透明；不带字阴影，心仍只有那一层浅粉辉光（issue #146）。动画挂在伪元素上，
+   再次校验去掉 hero-bloom 时心本身的 heroIn 不重播 */
+.hero.hero-bloom .hero-icon::after {
+  content: '♥';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  text-align: center;
+  text-shadow: none;
+  opacity: 0;
+  pointer-events: none;
+  animation: heroBloom var(--duration-emphasis) var(--ease-out) both;
+}
+@keyframes heroBloom {
+  from { opacity: 0.6; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.6); }
 }
 .hero-title {
   max-width: 100%;
@@ -64,6 +85,11 @@
 @keyframes bindReveal {
   from { opacity: 0; transform: translateY(16rpx); }
   to { opacity: 1; transform: translateY(0); }
+}
+/* 刚建好房间（issue #167）：已绑定卡换下创建表单时用同一个显现进来，不硬切；外层 .bind-reveal 早已播完，
+   两段不叠加。再次校验清掉 justCreated 后不重播 */
+.premium-card.bound-reveal {
+  animation: bindReveal var(--duration-enter) var(--ease-out) both;
 }
 
 .premium-card {
@@ -347,5 +373,10 @@ button.share-invite::after {
   .bind-reveal {
     animation: none;
     transition: none;
+  }
+  /* 刚建好房间（issue #167）：♥ 不漾开（回声静止透明），已绑定卡直接出现 */
+  .hero.hero-bloom .hero-icon::after,
+  .premium-card.bound-reveal {
+    animation: none;
   }
 }
