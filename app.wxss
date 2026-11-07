@@ -346,7 +346,7 @@ page {
   font-size: var(--font-size-button);
   font-weight: var(--font-weight-control);
   border: 1px solid rgba(249,115,115,0.28);
-  transition: border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
+  transition: border-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
 .btn-danger::before {
   content: '';
@@ -361,9 +361,11 @@ page {
   pointer-events: none;
   z-index: -1;
 }
+/* 平涂层盖不到描边带：按下时描边同色提亮，和红色平涂层一起亮（issue #166） */
 .btn-danger:active,
 .btn-danger.btn-danger-hover {
   transform: scale(0.95);
+  border-color: rgba(249,115,115,0.4);
 }
 .btn-danger:active::before,
 .btn-danger.btn-danger-hover::before {

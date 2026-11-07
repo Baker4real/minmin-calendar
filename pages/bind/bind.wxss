@@ -311,6 +311,12 @@ button.share-invite::after {
   background: var(--glass-fallback);
   border: 1px solid rgba(249,115,115,0.24);
   border-radius: var(--radius-sm);
+  transition: border-color var(--duration-press) ease;
+}
+/* 平涂层盖不到描边带：按下时描边同色提亮，和红色平涂层一起亮（issue #166） */
+.error-retry:active,
+.error-retry.error-retry-hover {
+  border-color: rgba(249,115,115,0.32);
 }
 .error-retry::before {
   content: '';
@@ -336,6 +342,7 @@ button.share-invite::after {
   .copy-btn,
   .copy-btn::before,
   .btn-ghost,
+  .error-retry,
   .error-retry::before,
   .bind-reveal {
     animation: none;

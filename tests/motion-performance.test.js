@@ -766,6 +766,41 @@ test('a press moves every channel it changes on the press beat, and never swaps 
   assert.match(design, /按压的四路（issue #166）/)
 })
 
+function rgbaParts(value) {
+  const match = /rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)/.exec(value || '')
+  return match ? { rgb: match.slice(1, 4).join(','), alpha: Number(match[4]) } : null
+}
+
+// issue #166：::before 平涂层只铺内边距盒，盖不到描边带。底色落在平涂层上的控件，按下时描边同色提亮，
+// 和平涂层一起亮（时长由上一条测试管）。底色铺在控件自己 background 上的，描边带画在这层底色之上，自己会跟着亮。
+test('controls tinted on a ::before layer brighten their border with the tint', () => {
+  const violations = []
+  let checked = 0
+  for (const file of analyzedWxssFiles()) {
+    for (const rule of file.rules) {
+      if (rule.inReducedMotion || !(rule.decls['background-color'] || rule.decls.background)) continue
+      for (const selector of rule.selectors.filter((item) => item.includes(':active') && item.endsWith('::before'))) {
+        const pressedHost = selector.slice(0, -'::before'.length)
+        const host = lastCompound(pressedHost)
+        if (selectorSignature(host).classes.some((cls) => INERT_CLASSES.includes(cls))) continue
+        const hostRule = file.rules.find((item) => !item.inReducedMotion && item.selectors.includes(host) &&
+          (item.decls.border || item.decls['border-color']))
+        const rest = hostRule && rgbaParts(hostRule.decls['border-color'] || hostRule.decls.border)
+        if (!rest) continue
+        checked += 1
+        const pressedRule = file.rules.find((item) => !item.inReducedMotion && item.selectors.includes(pressedHost))
+        const pressed = pressedRule && rgbaParts(pressedRule.decls['border-color'])
+        if (!pressed || pressed.rgb !== rest.rgb || !(pressed.alpha > rest.alpha)) {
+          violations.push(`${file.relative} ${pressedHost} keeps border ${rest.rgb}/${rest.alpha} while its ::before tint deepens`)
+        }
+      }
+    }
+  }
+  assert.ok(checked >= 6, 'the tinted, bordered controls are found')
+  assert.deepEqual(violations, [])
+  assert.match(readRepo('DESIGN.md'), /平涂层只铺内边距盒/)
+})
+
 // issue #166：柔光只在玫瑰主按钮和复制键上，画在 ::before 柔光层，不画在按钮本身。柔光层铺满按钮、
 // 跟按钮同一个圆角 token、不拦点按；按下时透明度沉到 0.5，和缩放同一拍（--duration-press），松手同一拍回来。
 // 减弱动效下柔光层即时切换。
