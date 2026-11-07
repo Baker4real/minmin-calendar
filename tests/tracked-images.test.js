@@ -75,6 +75,8 @@ const ALLOWED_IMAGES = {
   // #163：同样是 worktree 项目窗口，视口 390×844（没切机型）。整屏图里的经期、♥、提醒和列表都来自按当天推算的替身记录，
   // 房间是替身房间；弹层整屏图的底下是被遮罩模糊的同一份替身首页或设置页。
   'docs/evidence/issue-163/aurora-home-390x844.png': '首页整屏：静止基底上的三个极光色团，同步失败重试行在玻璃回退底上；经期与状态行来自替身记录',
+  'docs/evidence/issue-163/aurora-home-skeleton-390x844.png': '首页首次加载的日历骨架屏：骨架格画在极光层之上；替身云端故意慢答，没有记录数据',
+  'docs/evidence/issue-163/aurora-home-no-room-390x844.png': '首页未绑定房间态：玫瑰心与说明文字在极光层之上；替身里没有房间，没有记录数据',
   'docs/evidence/issue-163/aurora-records-scrolled-end-390x844.png': '记录页滚到底：极光层仍铺满视口，底部没有色带分层；列表是替身经期记录',
   'docs/evidence/issue-163/aurora-period-edit-390x844.png': '新增经期编辑页整屏的极光背景，表单是新建空白记录，没有记录数据',
   'docs/evidence/issue-163/aurora-memory-edit-390x844.png': '新增欢乐时光编辑页整屏的极光背景，表单是新建空白记录，没有记录数据',
