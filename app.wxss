@@ -75,10 +75,12 @@ page {
   --duration-enter: 240ms;
   --duration-exit: 200ms;
   --duration-sheet: 280ms;
-  /* 一次性状态强调（今天、「预」的光晕）：亮起再落回，只动透明度（issue #165） */
+  /* 一次性状态强调（今天、「预」的光晕；记录成功的 ♥ 与色带，issue #167）：只播一次（issue #165） */
   --duration-emphasis: 600ms;
   /* 弹层内容块进场晚标题一拍（issue #166），只给 .sheet-body 的打开姿态用；40 + 240 = 面板的 280，内容和面板一起落定 */
   --delay-stagger: 40ms;
+  /* 记录成功反馈等编辑页退场、首页滑回来再播（issue #167）：onShow 在返回转场开始时就到了 */
+  --delay-return: 300ms;
 
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;
   -webkit-font-smoothing: antialiased;

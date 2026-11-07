@@ -761,6 +761,31 @@
   animation: calendarHaloB var(--duration-emphasis) var(--ease-out);
 }
 
+/* 记录成功反馈（issue #167）：新增欢乐时光、新增经期或给没有结束日的经期填上结束日，保存成功后首页（这时正被
+   编辑页盖着）给这些日期格挂 record-feedback-memory / -period（index.js 的 recordFeedback）。♥ 从 0.6 倍淡入
+   长到原大；色带在当月的每一格一起淡入，跨行的各段同时到位，连续段不断开。先等 --delay-return 让返回转场走完，
+   再用 --duration-emphasis 播一次。首页不可见时按住：透明、不播，onShow 去掉 page-hidden 才从头开始；
+   onHide 先收掉反馈再挂 page-hidden，离场途中 ♥ 和色带不消失。只在 .calendar-days 的日期格上，样本不受影响 */
+.calendar-days .day-cell.record-feedback-memory .memory-mark {
+  animation: recordBloom var(--duration-emphasis) var(--ease-out) var(--delay-return) both;
+}
+.calendar-days .day-cell.record-feedback-period .period-band {
+  animation: recordAppear var(--duration-emphasis) var(--ease-out) var(--delay-return) both;
+}
+.page.page-hidden .calendar-days .day-cell.record-feedback-memory .memory-mark,
+.page.page-hidden .calendar-days .day-cell.record-feedback-period .period-band {
+  animation: none;
+  opacity: 0;
+}
+@keyframes recordBloom {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes recordAppear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .month-summary {
   min-height: 88rpx;
   margin-top: 16rpx;
@@ -1843,5 +1868,9 @@
   .no-room-icon {
     animation: none;
     transition: none;
+  }
+  /* 记录成功的 ♥ 只淡入、不缩放；色带本来就只动透明度，照常（issue #167） */
+  .calendar-days .day-cell.record-feedback-memory .memory-mark {
+    animation: recordAppear var(--duration-emphasis) var(--ease-out) var(--delay-return) both;
   }
 }
