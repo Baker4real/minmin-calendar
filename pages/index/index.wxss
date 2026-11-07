@@ -1502,14 +1502,10 @@
 .copy-recap.copy-recap-hover {
   transform: scale(0.98);
 }
-/* issue #118：弹层盖住首页时暂停这五层装饰，卸掉标记后从当前帧继续。减弱动效仍是 animation: none。 */
-.page.page-obscured::before,
-.page.page-obscured .glow-orb,
-.page.page-obscured .header-gradient::before,
-.page.page-obscured .header-gradient::after {
-  animation-play-state: paused;
-}
+/* 骨架和 .content、.no-room 一样画在极光固定层之上（issue #163） */
 .calendar-skeleton {
+  position: relative;
+  z-index: 1;
   padding: 10rpx 0 0;
 }
 .skeleton-month-bar,

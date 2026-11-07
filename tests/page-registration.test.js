@@ -2061,6 +2061,47 @@ function buildHomeCalendarState({ year, month, periods = [], memories = [], toda
   }
 }
 
+// issue #163：页面不可见（切走 tab、被编辑页盖住、小程序进后台）时根节点带 page-hidden，常驻装饰暂停在当前帧；
+// 再次显示时第一件事就是去掉标记，不等云端加载结果。兼容路由 pages/memory/memory 会被自己的 switchTab 关掉，不在此列。
+const PAGE_HIDDEN_PAGES = [
+  'pages/index/index.js',
+  'pages/period/period.js',
+  'pages/settings/settings.js',
+  'pages/period/edit/edit.js',
+  'pages/memory/edit/edit.js',
+  'pages/bind/bind.js'
+]
+
+test('pages pause their ambient decorations while hidden and resume as soon as they show again', () => {
+  for (const relativePath of PAGE_HIDDEN_PAGES) {
+    // 云端请求一直挂起：onShow 里的加载停在半路，标记只能来自 onShow 自己
+    const harness = loadPageHarness(relativePath, {
+      wxOverrides: { cloud: { callFunction: () => new Promise(() => {}) } }
+    })
+    try {
+      const { page } = harness
+      if (typeof page.onLoad === 'function') page.onLoad({})
+      assert.equal(page.data.pageHidden, false, `${relativePath} starts visible`)
+
+      page.onHide()
+      assert.equal(page.data.pageHidden, true, `${relativePath} marks itself hidden`)
+      const writes = page.setDataCalls.length
+      page.onHide()
+      assert.equal(page.setDataCalls.slice(writes).some((update) => 'pageHidden' in update), false,
+        `${relativePath} does not re-render an unchanged hidden mark`)
+
+      page.onShow()
+      assert.equal(page.data.pageHidden, false, `${relativePath} resumes on show before any load settles`)
+      const shown = page.setDataCalls.length
+      page.onShow()
+      assert.equal(page.setDataCalls.slice(shown).some((update) => 'pageHidden' in update), false,
+        `${relativePath} does not re-render an unchanged visible mark`)
+    } finally {
+      harness.teardown()
+    }
+  }
+})
+
 test('every backdrop-filter in wxss is immediately followed by -webkit-backdrop-filter', () => {
   const skipDirs = new Set(['node_modules', 'cloudfunctions', '_external'])
   const files = []
