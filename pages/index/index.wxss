@@ -409,7 +409,8 @@
   margin-top: 0;
 }
 
-.day-cell.workday:not(.today) {
+/* 调休格的低对比底；今天只在日期上加胶囊，这层底照常铺（issue #162） */
+.day-cell.workday {
   background: rgba(255,255,255,0.035);
 }
 

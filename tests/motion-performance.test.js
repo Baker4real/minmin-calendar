@@ -745,7 +745,7 @@ test('month flips keep only the refresh dim, and day colors switch immediately',
   // issue #162：今天胶囊挂在日期上，和日期颜色一样即时出现、即时消失
   for (const selector of [
     '.day-cell.today:not(.period) .day-num::before',
-    '.day-cell.workday:not(.today)',
+    '.day-cell.workday',
     '.day-cell.today .day-num'
   ]) {
     const rule = index.rules.find((item) => !item.inReducedMotion && item.selectors.includes(selector))

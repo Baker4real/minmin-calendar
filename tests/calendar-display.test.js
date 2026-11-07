@@ -335,7 +335,9 @@ test('holiday and workday tags read in both densities and stay outside the today
   assert.ok(workdayTagRule, 'expected .workday-tag')
   assert.match(workdayTagRule[1], /background:\s*rgba\(255,\s*255,\s*255,\s*0\.12\)/)
   assert.doesNotMatch(workdayTagRule[1], /aurora-gold|212,\s*165,\s*116/)
-  assert.match(wxss, /\.day-cell\.workday:not\(\.today\)\s*\{/)
+  // 调休格的低对比底在今天也照常铺：今天只在日期上加胶囊，不再整格让位（issue #162）
+  assert.match(wxss, /\.day-cell\.workday\s*\{/)
+  assert.doesNotMatch(wxss, /\.workday:not\(\.today\)/, 'today keeps the workday wash under its capsule')
   assert.match(wxss, /\.day-cell\.today:not\(\.period\) \.day-num::before\s*\{/, 'today hangs a capsule on the date, not a ring on the cell')
 })
 
