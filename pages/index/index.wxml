@@ -262,6 +262,8 @@ module.exports = {
       </view>
       </view>
 
+      <!-- issue #166：标题行随面板到，内容块晚一拍跟上（只动透明度和 16rpx 位移，不挡点按） -->
+      <view class="sheet-body">
       <view
         class="jump-today"
         bindtap="jumpToToday"
@@ -306,6 +308,7 @@ module.exports = {
             aria-checked="{{item.value == jumpMonth}}" hover-class="jump-option-hover">{{item.label}}</view>
         </view>
       </view>
+      </view>
     </view>
     </view>
   </view>
@@ -325,6 +328,7 @@ module.exports = {
       </view>
       </view>
 
+      <view class="sheet-body">
       <view wx:if="{{(selectedDayDetail.meanings && selectedDayDetail.meanings.length) || selectedDayDetail.futureNotice}}" class="detail-meaning-list">
         <view
           wx:for="{{selectedDayDetail.meanings}}"
@@ -408,6 +412,7 @@ module.exports = {
           <text wx:if="{{daySheetMode != 'detail'}}" class="sheet-action-arrow">›</text>
         </view>
       </view>
+      </view>
     </view>
     </view>
   </view>
@@ -428,6 +433,7 @@ module.exports = {
       </view>
       </view>
 
+      <view class="sheet-body">
       <view class="sheet-actions">
         <view class="sheet-action" data-action="legend" bindtap="onMonthMenuTap" aria-role="button" aria-label="打开日历图例" hover-class="sheet-action-hover">
           <text class="sheet-action-icon detail-tone">?</text>
@@ -454,6 +460,7 @@ module.exports = {
           <text class="sheet-action-arrow">›</text>
         </view>
       </view>
+      </view>
     </view>
     </view>
   </view>
@@ -475,6 +482,7 @@ module.exports = {
       </view>
       </view>
 
+      <view class="sheet-body">
       <view wx:if="{{infoSheetMode == 'legend'}}" class="legend-list">
         <view wx:for="{{legendItems}}" wx:key="key" class="legend-row">
           <view class="legend-sample day-cell {{item.cellClass}}">
@@ -511,6 +519,7 @@ module.exports = {
           >{{item.text}}</text>
         </view>
         <view class="copy-recap" bindtap="copyMonthlyRecap" aria-role="button" aria-label="复制小结" hover-class="copy-recap-hover">复制小结</view>
+      </view>
       </view>
     </view>
     </view>

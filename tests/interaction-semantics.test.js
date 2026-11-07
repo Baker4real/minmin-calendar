@@ -365,12 +365,16 @@ const SHEET_PAGES = [
     file: 'pages/index/index.wxml',
     maskClass: 'day-sheet-mask',
     slideClass: 'sheet-slide',
+    titleRowClass: 'sheet-drag-zone',
+    titleClass: 'sheet-title',
     names: ['月份选择', '当日操作', '工具菜单', '{{infoSheetName}}']
   },
   {
     file: 'pages/settings/settings.wxml',
     maskClass: 'help-mask',
     slideClass: 'help-slide',
+    titleRowClass: 'help-head',
+    titleClass: 'help-title',
     names: ['使用说明']
   }
 ]
@@ -403,6 +407,30 @@ test('every sheet panel is named by its purpose without a dialog role, closed by
       panelNames.push(name)
     }
     assert.deepEqual(panelNames, names)
+  }
+})
+
+// issue #166：内容错相只动标题行下面的内容块。面板里先是标题行（标题和关闭键都在这里，随面板一起到），
+// 再是唯一的内容块 .sheet-body，面板的其余内容都在它里面；读屏顺序因此仍是标题、关闭、内容。
+test('every sheet panel keeps its title and close in a title row above one content tier', () => {
+  for (const { file, maskClass, titleRowClass, titleClass } of SHEET_PAGES) {
+    for (const host of sheetHosts(parseWxmlForest(readPage(file)), maskClass)) {
+      const [panel] = host.children[1].children
+      const name = panel.attrs['aria-label']
+      const [titleRow, body, ...rest] = panel.children
+      assert.deepEqual(rest, [], `${file} ${name}: the panel holds a title row and one content tier`)
+      assert.ok(classTokens(titleRow).includes(titleRowClass), `${file} ${name}: the title row comes first`)
+      assert.ok(body && classTokens(body).includes('sheet-body'), `${file} ${name}: the content tier follows the title row`)
+
+      const inTitleRow = []
+      walkForest(titleRow.children, (node) => inTitleRow.push(...classTokens(node)))
+      assert.ok(inTitleRow.includes(titleClass), `${file} ${name}: the title arrives with the panel`)
+      assert.ok(inTitleRow.includes('sheet-close'), `${file} ${name}: the close arrives with the panel`)
+      const inBody = []
+      walkForest(body.children, (node) => inBody.push(...classTokens(node)))
+      assert.equal(inBody.includes('sheet-close'), false, `${file} ${name}: the close is not staggered`)
+      assert.equal(inBody.includes(titleClass), false, `${file} ${name}: the title is not staggered`)
+    }
   }
 })
 

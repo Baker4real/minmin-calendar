@@ -347,17 +347,27 @@ function activeSetsProperty(files, target, prop) {
   return false
 }
 
-// issue #154：设置「使用说明」弹层的面板与遮罩沿用首页弹层的进出时长
+// issue #154：设置「使用说明」弹层的面板与遮罩沿用首页弹层的进出时长；
+// issue #166：内容块的错相也是同一套
 const SHEET_MOTION_TWINS = {
   '.help-slide': '.sheet-slide',
   '.help-slide.sheet-open': '.sheet-slide.sheet-open',
   '.help-mask': '.day-sheet-mask',
-  '.help-mask.sheet-open': '.day-sheet-mask.sheet-open'
+  '.help-mask.sheet-open': '.day-sheet-mask.sheet-open',
+  '.help-slide.sheet-open .sheet-body': '.sheet-slide.sheet-open .sheet-body'
 }
+// 全仓唯一允许写进 transition 第四段的延迟：弹层内容块进场晚标题一拍（issue #166）
+const STAGGER_DELAY = 'var(--delay-stagger)'
 
 function sheetMotionExpectation(selector, prop) {
   const spaced = selector.replace(/\s+/g, ' ').trim()
   const normalized = SHEET_MOTION_TWINS[spaced] || spaced
+  if (normalized === '.sheet-body' && (prop === 'opacity' || prop === 'transform')) {
+    return { duration: 'var(--duration-exit)', easing: 'var(--ease-out)' }
+  }
+  if (normalized === '.sheet-slide.sheet-open .sheet-body' && (prop === 'opacity' || prop === 'transform')) {
+    return { duration: 'var(--duration-enter)', easing: 'var(--ease-out)', delay: STAGGER_DELAY }
+  }
   if (normalized === '.sheet-slide' && prop === 'transform') {
     return { duration: 'var(--duration-exit)', easing: 'var(--ease-out)' }
   }
@@ -442,30 +452,39 @@ test('one-shot transitions and animations use the shared duration tokens and rol
         }
       }
 
+      // 时长、曲线和延迟只写在 transition 简写里，角色检查才读得到（issue #166 补上长写这个缺口）
+      for (const longhand of ['transition-property', 'transition-duration', 'transition-timing-function', 'transition-delay']) {
+        if (rule.decls[longhand]) violations.push(`${where} ${longhand} must live in the transition shorthand`)
+      }
+
       if (!rule.decls.transition || rule.decls.transition === 'none') continue
       for (const segment of splitTopLevelComma(rule.decls.transition)) {
         if (segment.startsWith('box-shadow')) {
           violations.push(`${where} still transitions box-shadow ("${segment}")`)
           continue
         }
-        const parsed = /^([a-z-]+)\s+(\S+)\s+(\S+)$/.exec(segment)
+        const parsed = /^([a-z-]+)\s+(\S+)\s+(\S+)(?:\s+(\S+))?$/.exec(segment)
         if (!parsed) {
           violations.push(`${where} transition "${segment}" must be a property, duration token, and curve`)
           continue
         }
-        const [, prop, duration, easing] = parsed
+        const [, prop, duration, easing, delay] = parsed
         const sheetExpectations = rule.selectors.map((selector) => sheetMotionExpectation(selector, prop))
         if (sheetExpectations.every(Boolean)) {
           const expected = sheetExpectations[0]
           const same = sheetExpectations.every((item) =>
-            item.duration === expected.duration && item.easing === expected.easing)
+            item.duration === expected.duration && item.easing === expected.easing && item.delay === expected.delay)
           if (!same) {
             violations.push(`${where} ${prop} has no single sheet-motion duration`)
             continue
           }
-          if (duration !== expected.duration || easing !== expected.easing) {
-            violations.push(`${where} ${prop} must be ${expected.duration} ${expected.easing}, got ${duration} ${easing}`)
+          if (duration !== expected.duration || easing !== expected.easing || delay !== expected.delay) {
+            violations.push(`${where} ${prop} must be ${[expected.duration, expected.easing, expected.delay].filter(Boolean).join(' ')}, got ${segment}`)
           }
+          continue
+        }
+        if (delay !== undefined) {
+          violations.push(`${where} ${prop} delays its transition; only the registered sheet stagger may ("${segment}")`)
           continue
         }
         const expectedDurations = rule.selectors.map((selector) =>
@@ -984,6 +1003,65 @@ test('settings help slides and fades on the homepage sheet motion and lands inst
   assert.match(readRepo('pages/settings/settings.wxml'), /<view class="reduced-motion-probe" aria-hidden="true"><\/view>/)
 
   assert.match(readRepo('DESIGN.md'), /设置「使用说明」弹层（issue #154）/)
+})
+
+// issue #166：标题行随面板升降，内容块晚一拍跟上。内容块收起时透明、低 16rpx，打开时等 --delay-stagger
+// 再用进场时长到位，正好在面板落定时完成；离场不等，和面板一起走。只用可反向的 transition，
+// 不写子项关键帧；不拦点按、不改显隐，标题、关闭和内容里的操作从第一帧起就能点。减弱动效下立即到位。
+test('sheet content trails the title row by one short reversible beat and never blocks taps', () => {
+  const app = maskComments(readRepo('app.wxss'))
+  const millis = (name) => {
+    const match = new RegExp(`${name}\\s*:\\s*(\\d+)ms\\s*;`).exec(app)
+    assert.ok(match, `app.wxss defines ${name} in ms`)
+    return Number(match[1])
+  }
+  const stagger = millis('--delay-stagger')
+  assert.ok(stagger > 0 && stagger <= 60, `the stagger ${stagger}ms stays one short beat`)
+  assert.ok(stagger + millis('--duration-enter') <= millis('--duration-sheet'),
+    'the content lands no later than the panel it rides in')
+
+  for (const [relative, openPose] of [
+    ['pages/index/index.wxss', '.sheet-slide.sheet-open .sheet-body'],
+    ['pages/settings/settings.wxss', '.help-slide.sheet-open .sheet-body']
+  ]) {
+    const file = analyzeFile(readRepo(relative))
+    const declsOf = (selector) => {
+      const rule = file.rules.find((item) => !item.inReducedMotion && item.selectors.includes(selector))
+      assert.ok(rule, `expected ${selector} in ${relative}`)
+      return rule.decls
+    }
+    const closed = declsOf('.sheet-body')
+    assert.equal(closed.opacity, '0')
+    assert.equal(closed.transform, 'translateY(16rpx)')
+    assert.equal(closed.transition, 'opacity var(--duration-exit) var(--ease-out), transform var(--duration-exit) var(--ease-out)')
+
+    const open = declsOf(openPose)
+    assert.equal(open.opacity, '1')
+    assert.equal(open.transform, 'translateY(0)')
+    assert.equal(
+      open.transition,
+      'opacity var(--duration-enter) var(--ease-out) var(--delay-stagger), transform var(--duration-enter) var(--ease-out) var(--delay-stagger)'
+    )
+
+    for (const selector of ['.sheet-body', openPose]) {
+      const decls = file.rules.filter((rule) => !rule.inReducedMotion && rule.selectors.some((item) => item.includes('sheet-body')))
+        .filter((rule) => rule.selectors.includes(selector)).map((rule) => rule.decls)
+      for (const item of decls) {
+        assert.equal(item.animation, undefined, `${relative} ${selector} must not run a keyframe`)
+        assert.equal(item['pointer-events'], undefined, `${relative} ${selector} must stay tappable mid-stagger`)
+        assert.equal(item.visibility, undefined)
+        assert.equal(item.display, undefined)
+      }
+      const rmRule = file.reducedMotionRules.find((rule) => rule.selectors.includes(selector))
+      assert.ok(rmRule, `reduced motion must cover ${relative} ${selector}`)
+      assert.equal(rmRule.decls.transition, 'none', `${selector} lands immediately under reduced motion`)
+      assert.equal(rmRule.decls.animation, 'none')
+    }
+  }
+
+  const design = readRepo('DESIGN.md')
+  assert.match(design, /--delay-stagger` 40ms/)
+  assert.match(design, /弹层标题与内容错相（issue #166）/)
 })
 
 test('sync pill fades and rises with reversible transitions', () => {

@@ -1104,6 +1104,19 @@
 .sheet-slide.sheet-open.sheet-reset {
   transition: transform var(--duration-exit) var(--ease-out);
 }
+/* 标题与内容错相（issue #166）：标题行（把手、标题、关闭）随面板升降，自己不另动；下面的内容块晚一拍跟上。
+   收起时透明、低 16rpx；打开时等 --delay-stagger，再用进场时长到位，和面板同时落定；离场不等，和面板一起走。
+   全是 transition，中途反向从当前帧接着走。不拦点按、不改显隐：内容里的操作从第一帧起就能点 */
+.sheet-body {
+  opacity: 0;
+  transform: translateY(16rpx);
+  transition: opacity var(--duration-exit) var(--ease-out), transform var(--duration-exit) var(--ease-out);
+}
+.sheet-slide.sheet-open .sheet-body {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--duration-enter) var(--ease-out) var(--delay-stagger), transform var(--duration-enter) var(--ease-out) var(--delay-stagger);
+}
 .day-action-sheet {
   width: 100%;
   max-height: 82vh;
@@ -1638,6 +1651,8 @@
   .sheet-slide.sheet-open,
   .sheet-slide.sheet-open.sheet-reset,
   .sheet-slide,
+  .sheet-body,
+  .sheet-slide.sheet-open .sheet-body,
   .sync-pill,
   .sync-pill.sync-open,
   .sync-pill.syncing .sync-dot,

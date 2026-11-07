@@ -75,6 +75,8 @@ page {
   --duration-enter: 240ms;
   --duration-exit: 200ms;
   --duration-sheet: 280ms;
+  /* 弹层内容块进场晚标题一拍（issue #166），只给 .sheet-body 的打开姿态用；40 + 240 = 面板的 280，内容和面板一起落定 */
+  --delay-stagger: 40ms;
 
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;
   -webkit-font-smoothing: antialiased;
