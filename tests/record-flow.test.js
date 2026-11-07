@@ -3993,6 +3993,105 @@ test('memory edit delete writes the one-shot segment intent', async () => {
   }
 })
 
+// ===== issue #167：首页的记录成功反馈只跟着云端确认写入的那次通知 =====
+// 编辑页只把云端确认写入的记录交给上一页：恢复草稿、校验失败、重新拉取确认没写进去的网络失败、
+// 业务失败、房间同步后取消重试或重试仍失败都不通知；回复丢了但重新拉取找到那条，按新增通知一次
+
+test('only a memory save the cloud confirms reaches the previous page, as one addition', async () => {
+  const memories = []
+  const landed = { _id: 'm-landed', date: '2026-09-18', note: '一起去看了海' }
+  const networkDown = { kind: 'retryable-failure', message: 'network down' }
+  const roomSynced = { kind: 'room-repair', roomCode: 'R1', repair: { kind: 'success', bound: true, roomCode: 'R1' } }
+  const env = createEditFormEnv('pages/memory/edit/edit.js', {
+    memories,
+    addReplies: [
+      networkDown,
+      { kind: 'business-failure', message: '保存失败，请稍后重试' },
+      roomSynced,
+      roomSynced,
+      networkDown,
+      networkDown
+    ]
+  })
+  const settle = () => new Promise(resolve => setImmediate(resolve))
+  const answerLastModal = confirm => env.modals[env.modals.length - 1].success({ confirm, cancel: !confirm })
+
+  try {
+    env.storage.set('recordDraft:memories:new', JSON.stringify({ date: '2026-09-18', note: '一起去看了海' }))
+    env.harness.page.onLoad({})
+    assert.equal(env.harness.page.data.draftRestored, true)
+
+    env.harness.page.onDateChange({ detail: { value: '2026-09-21' } })
+    assert.equal((await env.harness.page.save()).kind, 'validation')
+    env.harness.page.onDateChange({ detail: { value: '2026-09-18' } })
+
+    // 网络失败，重新拉取确认没写进去
+    let saving = env.harness.page.save()
+    await settle()
+    assert.equal(env.modals[env.modals.length - 1].content, '没有保存成功，请重试')
+    answerLastModal(true)
+    assert.equal((await saving).kind, 'retryable-failure')
+
+    assert.equal((await env.harness.page.save()).kind, 'business-failure')
+
+    // 房间状态同步后：先取消重试，再重试一次仍没写进去
+    saving = env.harness.page.save()
+    await settle()
+    assert.equal(env.modals[env.modals.length - 1].confirmText, '重试')
+    answerLastModal(false)
+    assert.equal((await saving).kind, 'room-repair')
+    saving = env.harness.page.save()
+    await settle()
+    answerLastModal(true)
+    await settle()
+    assert.equal(env.modals[env.modals.length - 1].content, '没有保存成功，请重试')
+    answerLastModal(true)
+    assert.equal((await saving).kind, 'retryable-failure')
+
+    env.harness.page.onHide()
+    assert.equal(env.writes.length, 5)
+    assert.deepEqual(env.changes, [], 'nothing that failed to land reaches the previous page')
+
+    // 回复丢了，但这次确实写进去了：重新拉取找到同一条，按新增通知一次
+    memories.push(landed)
+    const outcome = await env.harness.page.save()
+    assert.equal(outcome.kind, 'success')
+    assert.deepEqual(env.changes, [{ collection: 'memories', mode: 'add', record: landed }])
+  } finally {
+    env.harness.teardown()
+  }
+})
+
+// 给进行中的经期补上结束日（ADR 0007：同一条记录完成）：按更新通知上一页，带云端确认的已结束记录，
+// 首页靠前后两版的状态判定「完成」
+test('completing an ongoing period reaches the previous page as an update carrying the ended record', async () => {
+  const env = createEditFormEnv('pages/period/edit/edit.js')
+
+  try {
+    await env.harness.page.onLoad({ id: 'p2', startDate: '2026-09-15', endDate: '', status: 'ongoing' })
+    env.harness.page.selectStatus({ currentTarget: { dataset: { value: 'known-end' } } })
+    env.harness.page.onEndChange({ detail: { value: '2026-09-19' } })
+    assert.equal((await env.harness.page.save()).kind, 'success')
+
+    assert.deepEqual(env.changes, [{
+      collection: 'periods',
+      mode: 'update',
+      record: {
+        _id: 'p2',
+        startDate: '2026-09-15',
+        endDate: '2026-09-19',
+        status: 'known-end',
+        note: '',
+        duration: 5,
+        flow: '',
+        symptoms: []
+      }
+    }])
+  } finally {
+    env.harness.teardown()
+  }
+})
+
 test('period list reopens the existing ongoing record when the add button is tapped again', async () => {
   const navigation = []
   const toasts = []
@@ -4289,8 +4388,10 @@ function createPeriodEditMergeEnv(persistedRecord) {
 // 字段级校验环境（issue #156）：真实 recordCommands 驱动校验与保存生命周期，只桩系统边界——
 // 云端（list/add/update/remove 写入可观察）与 wx（toast、确认框、页面滚动、本地草稿存储）。
 // util 只固定「今天」= 2026-09-20，其余日期能力委托真实模块。
-function createEditFormEnv(relativePath, { periods = [] } = {}) {
+// addReplies 依次替换云端 add 的回复，用完回到成功；changes 是页面通知上一页的记录变化（issue #167）
+function createEditFormEnv(relativePath, { periods = [], memories = [], addReplies = [] } = {}) {
   const writes = []
+  const changes = []
   const toasts = []
   const modals = []
   const scrolls = []
@@ -4303,11 +4404,12 @@ function createEditFormEnv(relativePath, { periods = [] } = {}) {
       'utils/cloud.js': {
         createRoomDataClient() {
           return {
-            async list() {
-              return { kind: 'success', data: periods }
+            async list(collection) {
+              return { kind: 'success', data: collection === 'memories' ? memories : periods }
             },
             async add(collection, payload) {
               writes.push({ op: 'add', collection, payload })
+              if (addReplies.length > 0) return addReplies.shift()
               return { kind: 'success', result: { record: { _id: 'new-1', ...payload } } }
             },
             async update(collection, id, payload) {
@@ -4323,7 +4425,9 @@ function createEditFormEnv(relativePath, { periods = [] } = {}) {
       },
       'utils/recordPageSync.js': {
         getSavedRecord: realRecordPageSync.getSavedRecord,
-        notifyPreviousPageRecordChange() {}
+        notifyPreviousPageRecordChange(change) {
+          changes.push(change)
+        }
       }
     },
     wxOverrides: {
@@ -4347,7 +4451,7 @@ function createEditFormEnv(relativePath, { periods = [] } = {}) {
       }
     }
   })
-  return { harness, writes, toasts, modals, scrolls, storage }
+  return { harness, writes, changes, toasts, modals, scrolls, storage }
 }
 
 function createFakePage(initialData = {}) {

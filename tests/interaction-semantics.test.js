@@ -277,6 +277,11 @@ test('calendar day cells keep composed domain aria labels, a button role, and hi
   assert.equal(dayCell.attrs['aria-role'], 'button')
   assert.equal(dayCell.attrs['aria-label'], '{{item.ariaLabel}}')
   assert.equal(dayCell.attrs['aria-hidden'], '{{item.isEmpty}}')
+  // 记录成功反馈只是格子上的一个类（issue #167）：读屏名、角色、隐藏和点按都不看它
+  for (const [name, value] of Object.entries(dayCell.attrs)) {
+    if (name !== 'class') assert.doesNotMatch(value, /recordFeedback/, `${name} must not depend on the record feedback`)
+  }
+  assert.match(dayCell.attrs.class, /recordFeedback/)
   // 空白格的领域语义由 utils/homeCalendarState.js 保证输出空串（home-calendar-state.test.js 钉住），
   // 这里钉住模板侧：hidden 绑定不变、aria 文案只来自 item.ariaLabel
   const wxml = readPage('pages/index/index.wxml')
