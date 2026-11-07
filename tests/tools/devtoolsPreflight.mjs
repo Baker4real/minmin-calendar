@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync, readFileSync, statSync } from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { findProjectState, findWatcherIgnore, staleConfig, summarizeQuality, userDataDirs } from './devtoolsState.mjs'
+import { appLaunches, findProjectState, findWatcherIgnore, readLifecycleLog, staleConfig, summarizeQuality, userDataDirs } from './devtoolsState.mjs'
 import { runOfficialCli } from './devtoolsCli.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
@@ -80,6 +80,24 @@ function checkProjectWindow() {
   return projectWindowResult(result.stdout, projectName)
 }
 
+// Right after DevTools starts, its second app-service reload can run App onLaunch and load no page (2026-11-07):
+// the CLI and automator still answer, but page logic stays dead until the next compile. The lifecycle log is
+// truncated to the second and written every 3 s, so a launch younger than 5 s without a page is only pending.
+export function launchResult(launches, now = Date.now()) {
+  const name = 'Latest app launch loaded a page'
+  const latest = launches.at(-1)
+  if (!latest) return { name, skipped: true, error: 'no App onLaunch in the simulator lifecycle log; compile the project in DevTools first' }
+  const launched = latest.at.toLocaleString('sv-SE')
+  if (latest.page) return { name, ok: true, note: `${latest.page}, launched ${launched}` }
+  if (now - latest.at.getTime() < 5000) return { name, skipped: true, error: `launched ${launched}, no page logged yet; the log is written every 3 s, rerun in a few seconds` }
+  return { name, ok: false, error: `launched ${launched} without loading a page; click 编译 in DevTools, then rerun` }
+}
+
+function checkLatestLaunch(ide) {
+  const { appid } = JSON.parse(readFileSync(path.join(root, 'project.config.json'), 'utf8'))
+  return launchResult(appLaunches(readLifecycleLog(userDataDirs(ide), appid)))
+}
+
 async function main() {
   const options = { ide: 'D:/Program Files (x86)/Tencent/微信web开发者工具', ws: 'ws://127.0.0.1:9420' }
   for (let i = 2; i < process.argv.length; i += 2) {
@@ -94,7 +112,7 @@ async function main() {
   }
   const connectionFailed = results.some(result => !result.ok)
   const { result: configResult, quality } = checkLoadedConfig(options.ide)
-  results.push(configResult, checkProjectWindow())
+  results.push(configResult, checkProjectWindow(), checkLatestLaunch(options.ide))
   const out = path.join(root, '.scratch', 'devtools')
   mkdirSync(out, { recursive: true })
   const log = path.join(out, 'preflight.json')

@@ -72,3 +72,36 @@ export function summarizeQuality(codeQuality) {
     mainPackageBytes: codeQuality.result.find(item => item.name === 'PACKAGE_SIZE_LIMIT')?.detail?.__APP__?.size,
   }
 }
+
+// 模拟器把基础库生命周期日志写在 profile 下的 WeappSimulator/WeappFileSystem/<微信用户>/<appid>/usr/miniprogramLog/log1..log5，
+// 每 3 秒落盘一次（as of 基础库 3.18.0）。登录过几个微信号就有几个用户目录，最近写入的属于当前实例。
+// 返回按写入先后拼接的日志文本，找不到时为空串；用户目录名是账号标识，不往外返回路径。
+export function readLifecycleLog(dataDirs, appid) {
+  let newest = []
+  for (const fsRoot of dataDirs.map(dir => path.join(path.dirname(dir), 'WeappSimulator', 'WeappFileSystem')).filter(existsSync)) {
+    for (const user of readdirSync(fsRoot)) {
+      const dir = path.join(fsRoot, user, appid, 'usr', 'miniprogramLog')
+      if (!existsSync(dir)) continue
+      const files = readdirSync(dir).filter(name => /^log\d$/.test(name))
+        .map(name => ({ file: path.join(dir, name), mtimeMs: statSync(path.join(dir, name)).mtimeMs }))
+        .sort((a, b) => a.mtimeMs - b.mtimeMs)
+      if (files.length && (!newest.length || files.at(-1).mtimeMs > newest.at(-1).mtimeMs)) newest = files
+    }
+  }
+  return newest.map(entry => readFileSync(entry.file, 'utf8')).join('\n')
+}
+
+// 行形如 `2026-11-7 21:0:32 [log] page pages/bind/bind onLoad have been invoked`，月日时分秒都不补零。
+// 每次 App onLaunch 配上它之后、下一次 onLaunch 之前的第一条页面 onLoad；page 为 null 表示这次启动没加载页面。
+export function appLaunches(logText) {
+  const launches = []
+  for (const line of logText.split(/\r?\n/)) {
+    const match = /^(\d{4})-(\d{1,2})-(\d{1,2}) (\d{1,2}):(\d{1,2}):(\d{1,2}) \[\w+\] (.*)$/.exec(line.trim())
+    if (!match) continue
+    const [year, month, day, hour, minute, second] = match.slice(1, 7).map(Number)
+    if (match[7] === 'App onLaunch have been invoked') launches.push({ at: new Date(year, month - 1, day, hour, minute, second), page: null })
+    const page = /^page (\S+) onLoad have been invoked$/.exec(match[7])
+    if (page && launches.length && !launches.at(-1).page) launches.at(-1).page = page[1]
+  }
+  return launches
+}

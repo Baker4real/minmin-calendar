@@ -10,6 +10,7 @@
     "test:hit": "node tests/tools/navHitTest.cjs",
     "devtools:preflight": "node tests/tools/devtoolsPreflight.mjs",
     "devtools:resources": "node tests/tools/devtoolsResources.mjs",
+    "devtools:timeline": "node tests/tools/devtoolsTimeline.mjs",
     "devtools:cli": "node tests/tools/devtoolsCli.mjs",
     "devtools:mcp": "node tests/tools/wechatMcp.mjs"
   },
