@@ -258,6 +258,7 @@ const GLYPH_WEIGHT_HOLDS = [
 ]
 
 const TABULAR_NUMERIC = [
+  ['pages/index/index.wxss', '.month-title'],
   ['pages/index/index.wxss', '.day-num'],
   ['pages/index/index.wxss', '.home-status-text'],
   ['pages/index/index.wxss', '.jump-year-value'],

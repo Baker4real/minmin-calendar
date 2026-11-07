@@ -136,14 +136,16 @@
   font-size: var(--font-size-month-title);
   font-weight: var(--font-weight-title);
   line-height: var(--line-height-title);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   position: relative;
   z-index: 1;
   color: #E8909E;
 }
+/* 最小宽度兜住最坏文案「2026年12月」：1 位数和 2 位数月份同宽，切月时胶囊不变宽、不挪位（issue #164） */
 .month-title-trigger {
   min-height: 88rpx;
-  min-width: 260rpx;
+  min-width: 320rpx;
   padding: 0 28rpx;
   display: flex;
   align-items: center;
