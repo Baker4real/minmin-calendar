@@ -665,7 +665,10 @@ test('the period band still wraps the date number at every row height the ledger
 // 胶囊不能高出格子顶（overflow 会把它裁平），农历字框又从 43rpx 起，所以完整密度停在 43rpx。
 const TODAY_CAPSULE_SELECTOR = '.day-cell.today:not(.period) .day-num::before'
 const COMPACT_TODAY_CAPSULE_SELECTOR = '.calendar-density-compact .day-cell.today:not(.period) .day-num::before'
-const TODAY_CAPSULE_HEIGHT_RPX = { min: 43, max: 52 }
+const TODAY_CAPSULE_HEIGHT_RPX = { min: 41, max: 52 }
+// 基础库把每段 rpx 各自换成整数 px：正长度向下取整，负偏移向零取整（开发者工具 3.16.1 在 390px 宽实测）。
+// 胶囊各段分开取整、下一槽的位置由好几段累加，两边差得出 1px；留 2rpx，375–430px 宽都碰不到下一槽
+const TODAY_CAPSULE_ROUNDING_RPX = 2
 const CELL_PAINT_PROPERTIES = ['background', 'background-color', 'background-image', 'box-shadow', 'border', 'outline']
 
 // 选择器最后一段（真正被选中的元素）；:not(...) 里的类是排除条件，不算这个元素带的类
@@ -761,7 +764,7 @@ test('today is a compact capsule around the date number and never paints the who
       const top = dateTop + box.top
       const bottom = top + box.height
       // 下面紧挨的一槽：完整密度是农历，农历字框从行盒顶加半行距开始；清爽是节日/调休，合并是信息行，
-      // 「班」「预」胶囊占满自己的槽，胶囊只能碰到槽顶（「班」1px 描边越出槽顶的那一点与它相切）
+      // 「班」「预」胶囊占满自己的槽，从槽顶就有底色。胶囊下沿离它们至少 TODAY_CAPSULE_ROUNDING_RPX
       const nextSlotTop = dateTop + dateLine + cell.stack[1].gap
       const nextInkTop = layout === 'full' ? nextSlotTop + lunarLeading : nextSlotTop
       const where = `${layout} at ${height}rpx: capsule ${top}–${bottom}rpx`
@@ -770,7 +773,10 @@ test('today is a compact capsule around the date number and never paints the who
         top <= dateTop + dateLeading && bottom >= dateTop + dateLine - dateLeading,
         `${where} does not wrap the date glyphs ${dateTop + dateLeading}–${dateTop + dateLine - dateLeading}rpx`
       )
-      assert.ok(bottom <= nextInkTop, `${where} runs into the row below the date, which starts at ${nextInkTop}rpx`)
+      assert.ok(
+        bottom <= nextInkTop - TODAY_CAPSULE_ROUNDING_RPX,
+        `${where} comes within ${TODAY_CAPSULE_ROUNDING_RPX}rpx of the row below the date, which starts at ${nextInkTop}rpx`
+      )
     }
   }
 
