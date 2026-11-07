@@ -60,7 +60,7 @@
   min-width: 0;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
-  line-height: 1.25;
+  line-height: var(--line-height-title);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1196,7 +1196,7 @@
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
   color: rgba(255,255,255,0.9);
-  line-height: 1.25;
+  line-height: var(--line-height-title);
   word-break: break-word;
   overflow-wrap: anywhere;
 }
@@ -1464,7 +1464,7 @@
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
   color: rgba(255,255,255,0.88);
-  line-height: 1.25;
+  line-height: var(--line-height-title);
   word-break: break-word;
   overflow-wrap: anywhere;
 }
