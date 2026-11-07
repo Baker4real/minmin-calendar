@@ -877,6 +877,23 @@ test('period band stays compact, connects across a week and caps the open end wi
 
 })
 
+// DESIGN.md 是唯一视觉权威：frontmatter 的今天胶囊登记就是 CSS 画的那一枚，整格的 todayBg / todayRing 已退役
+test('DESIGN.md registers the today capsule the CSS draws', () => {
+  const design = fs.readFileSync(path.join(__dirname, '..', 'DESIGN.md'), 'utf8')
+  const frontmatter = design.split('\n---')[0]
+  const registered = key => (new RegExp(`\\n\\s+${key}:\\s*"([^"]+)"`).exec(frontmatter) || [])[1]
+  const wxss = readWxss()
+  const capsule = ruleBody(wxss, TODAY_CAPSULE_SELECTOR)
+  const full = todayCapsuleBox(wxss, 'full')
+  const compact = todayCapsuleBox(wxss, 'compact')
+
+  assert.equal(registered('todayCapsuleBg'), anchoredDeclaration(capsule, 'background'))
+  assert.equal(registered('todayCapsuleStroke'), anchoredDeclaration(capsule, 'border'))
+  assert.equal(registered('todayCapsuleSize'), `${full.width}×${full.height}rpx full / ${compact.width}×${compact.height}rpx compact`)
+  assert.equal(registered('todayText'), anchoredDeclaration(ruleBody(wxss, '.day-cell.today .day-num'), 'color'))
+  assert.doesNotMatch(design, /todayBg|todayRing|薰衣草内描边|今天玫瑰底/, 'the full-cell today wording is retired')
+})
+
 // issue #162：图例样本就是一枚日历格：铺日历网格同款玻璃底、同款圆角，今天胶囊和各个标记落在和网格相同的合成面上；
 // 经期样本的色带在样本格里竖向居中，不贴在格子顶上
 test('legend samples are calendar cells on the grid glass', () => {
