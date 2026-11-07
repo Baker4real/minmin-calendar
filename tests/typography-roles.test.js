@@ -257,12 +257,19 @@ const GLYPH_WEIGHT_HOLDS = [
   { file: 'pages/index/index.wxss', selector: '.sheet-action-icon', value: '800' }
 ]
 
+// 翻月就换数字的行（月份标题、本月小结、弹层副标题）和成列扫读的数字（时长胶囊、月份卡头）用等宽数字，
+// 数字变了不改字宽、不推动后面的字（issue #164）。
 const TABULAR_NUMERIC = [
+  ['pages/index/index.wxss', '.month-title'],
   ['pages/index/index.wxss', '.day-num'],
   ['pages/index/index.wxss', '.home-status-text'],
+  ['pages/index/index.wxss', '.month-summary-text'],
+  ['pages/index/index.wxss', '.sheet-subtitle'],
   ['pages/index/index.wxss', '.jump-year-value'],
   ['pages/period/period.wxss', '.cycle-num'],
   ['pages/period/period.wxss', '.item-date'],
+  ['pages/period/period.wxss', '.item-duration'],
+  ['pages/period/period.wxss', '.month-header-text'],
   ['pages/memory/memory.wxss', '.memory-date'],
   ['pages/settings/settings.wxss', '.room-code-value'],
   ['pages/bind/bind.wxss', '.bound-code']
@@ -451,16 +458,30 @@ test('flowing body copy uses the body line-height role', () => {
   }
 })
 
-// 单行控件、基线对齐和胶囊盒高保留局部行高；阅读行高必须走角色 token。
-const LOCAL_LINE_HEIGHT = new Map([
-  ['pages/index/index.wxss::.sync-text', '1.25'],
-  ['pages/index/index.wxss::.sheet-action-title', '1.25'],
-  ['pages/index/index.wxss::.legend-title', '1.25'],
-  ['pages/period/edit/edit.wxss::.flow-chip', '1.2'],
-  ['pages/period/edit/edit.wxss::.symptom-chip', '1.2']
-])
+// 标题与单行标签（含会折成两行的短标签）共用标题行高，不再写 1.25 这类近似值（issue #164）。
+const TITLE_LINE_HEIGHT = [
+  ['pages/index/index.wxss', '.month-title'],
+  ['pages/index/index.wxss', '.sheet-title'],
+  ['pages/index/index.wxss', '.sync-text'],
+  ['pages/index/index.wxss', '.sheet-action-title'],
+  ['pages/index/index.wxss', '.legend-title'],
+  ['pages/index/index.wxss', '.quick-text'],
+  ['pages/settings/settings.wxss', '.help-title'],
+  ['pages/bind/bind.wxss', '.hero-title']
+]
 
-test('reading line-heights use the shared role tokens', () => {
+test('titles and single-line labels share the title line-height role', () => {
+  const cache = new Map()
+  for (const [file, selector] of TITLE_LINE_HEIGHT) {
+    if (!cache.has(file)) cache.set(file, ruleMap(file))
+    const decls = cache.get(file).get(selector)
+    assert.ok(decls, `missing ${file} ${selector}`)
+    assert.equal(decls['line-height'], 'var(--line-height-title)', `${file} ${selector}`)
+  }
+})
+
+// 无单位行高只能是三个角色 token；rpx 盒高行高（按钮、输入框、日历格槽位）和图形符号的 1 不是阅读行高。
+test('unitless line-heights are always one of the three role tokens', () => {
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
@@ -469,12 +490,7 @@ test('reading line-heights use the shared role tokens', () => {
       if (!lineHeight) continue
       if (/^var\(--line-height-(body|assist|title)\)$/.test(lineHeight)) continue
       if (/^\d+(?:\.\d+)?rpx$/.test(lineHeight) || lineHeight === '1') continue
-      for (const selector of rule.selectors) {
-        const key = `${relative}::${selector}`
-        if (LOCAL_LINE_HEIGHT.get(key) !== lineHeight) {
-          violations.push(`${key}: line-height ${lineHeight} is not a shared reading role`)
-        }
-      }
+      violations.push(`${relative} ${rule.selectors.join(', ')}: line-height ${lineHeight} is not a shared role`)
     }
   }
   assert.deepEqual(violations, [])

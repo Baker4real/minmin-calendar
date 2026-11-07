@@ -89,6 +89,15 @@ const ALLOWED_IMAGES = {
   'docs/evidence/issue-163/row-reminder-390x844.png': '首页「这几天可能开始」提醒行：左侧色条与「记录」按钮在玻璃回退底上；预测来自替身记录',
   'docs/evidence/issue-163/row-segment-control-390x844.png': '记录页「经期 / 欢乐时光」分段控件：平铺浅白层叠在玻璃回退底上，没有记录数据',
   'docs/evidence/issue-163/row-bind-error-retry-390x844.png': '绑定页房间校验失败的警示红错误条与重试按钮，失败由替身云端造出，没有房间码',
+  // #164：同样是 worktree 项目窗口，视口 390×844（没切机型），替身房间。记录页里的日期、天数和长备注来自按当天推算的替身记录。
+  'docs/evidence/issue-164/month-pill-two-digit-390x844.png': '月份导航「2026年11月」：月份胶囊最小宽 320rpx，没有记录数据',
+  'docs/evidence/issue-164/month-pill-one-digit-390x844.png': '月份导航「2026年9月」：胶囊与两位数月份同宽、同位置，没有记录数据',
+  'docs/evidence/issue-164/records-period-rhythm-390x844.png': '记录页经期段：分段控件、周期概览、新增按钮、列表之间都是 20rpx；数字、日期与长备注来自替身记录',
+  'docs/evidence/issue-164/records-memory-rhythm-390x844.png': '记录页欢乐时光段：第一块离分段控件同样 20rpx；月份卡与长备注来自替身记录',
+  'docs/evidence/issue-164/settings-first-group-390x844.png': '设置页第一组离顶栏 24rpx；房间码是替身房间的假码，没有记录数据',
+  'docs/evidence/issue-164/settings-danger-zone-390x844.png': '设置页「解除绑定」离「关于」组 48rpx，没有记录数据',
+  'docs/evidence/issue-164/period-edit-save-gap-390x844.png': '新增经期页：保存按钮离表单卡 20rpx，没有记录数据',
+  'docs/evidence/issue-164/memory-edit-error-long-note-390x844.png': '欢乐时光编辑页：脚本填的未来日期报错常驻在日期下，长备注是替身文字，都在卡片内，没有记录数据',
 }
 
 // 读 index 而不是工作区：提交钩子里跑时，读到的正是这次要提交的文件。

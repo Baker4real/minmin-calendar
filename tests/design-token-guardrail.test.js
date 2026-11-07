@@ -148,6 +148,122 @@ test('app.wxss defines the shared spacing scale tokens and DESIGN.md registers t
   }
 })
 
+// 页面节奏角色（issue #164）：记录、欢乐时光、设置和两个编辑页共用一套留白。数值留在各页 WXSS，
+// 这里按角色逐处比对，同一角色不许各页各写一个近似值。首页吸顶区与日历的槽位归几何账本
+// （utils/calendarRowHeight.js），这里只登记它的页边距；绑定页是居中 hero 布局，不在表里。
+const PAGE_RHYTHM_RPX = { gutter: 24, firstBlock: 24, blockGap: 20, rowInset: 30 }
+const PAGE_RHYTHM_SITES = [
+  ['gutter', 'pages/index/index.wxss', '.content', 'padding', 'x'],
+  ['gutter', 'pages/index/index.wxss', '.home-sticky', 'padding', 'x'],
+  ['gutter', 'pages/period/period.wxss', '.content', 'padding', 'x'],
+  ['gutter', 'pages/memory/memory.wxss', '.content', 'padding', 'x'],
+  ['gutter', 'pages/settings/settings.wxss', '.content', 'padding', 'x'],
+  ['gutter', 'pages/period/edit/edit.wxss', '.content', 'padding', 'x'],
+  ['gutter', 'pages/memory/edit/edit.wxss', '.content', 'padding', 'x'],
+  ['firstBlock', 'pages/period/period.wxss', '.segment-control', 'margin', 'top'],
+  ['firstBlock', 'pages/memory/memory.wxss', '.btn-premium', 'margin', 'top'],
+  ['firstBlock', 'pages/settings/settings.wxss', '.content', 'padding', 'top'],
+  ['firstBlock', 'pages/period/edit/edit.wxss', '.content', 'padding', 'top'],
+  ['firstBlock', 'pages/memory/edit/edit.wxss', '.content', 'padding', 'top'],
+  ['blockGap', 'pages/period/period.wxss', '.segment-control', 'margin', 'bottom'],
+  ['blockGap', 'pages/period/period.wxss', '.cycle-card', 'margin', 'bottom'],
+  ['blockGap', 'pages/period/period.wxss', '.btn-premium', 'margin', 'bottom'],
+  ['blockGap', 'pages/period/period.wxss', '.month-card', 'margin', 'bottom'],
+  ['blockGap', 'pages/memory/memory.wxss', '.btn-premium', 'margin', 'bottom'],
+  ['blockGap', 'pages/period/edit/edit.wxss', '.btns', 'margin', 'top'],
+  ['blockGap', 'pages/memory/edit/edit.wxss', '.btns', 'margin', 'top'],
+  ['rowInset', 'pages/period/period.wxss', '.list-item', 'padding', 'x'],
+  ['rowInset', 'pages/period/period.wxss', '.skeleton-item', 'padding', 'x'],
+  ['rowInset', 'pages/period/period.wxss', '.month-header', 'padding', 'x'],
+  ['rowInset', 'pages/memory/memory.wxss', '.list-item', 'padding', 'x'],
+  ['rowInset', 'pages/settings/settings.wxss', '.menu-item', 'padding', 'x'],
+  ['rowInset', 'pages/settings/settings.wxss', '.density-menu-desc', 'padding', 'x'],
+  ['rowInset', 'pages/settings/settings.wxss', '.density-control', 'margin', 'x'],
+  ['rowInset', 'pages/settings/settings.wxss', '.room-code-actions', 'padding', 'x']
+]
+
+function splitBoxValue(value) {
+  const parts = []
+  let depth = 0
+  let current = ''
+  for (const ch of String(value).trim()) {
+    if (ch === '(') depth += 1
+    else if (ch === ')') depth -= 1
+    if (/\s/.test(ch) && depth === 0) {
+      if (current) parts.push(current)
+      current = ''
+    } else {
+      current += ch
+    }
+  }
+  if (current) parts.push(current)
+  return parts
+}
+
+function lengthRpx(raw, tokens) {
+  const value = String(raw || '').trim()
+  if (value === '0') return 0
+  const token = /^var\((--[a-z0-9-]+)\)$/.exec(value)
+  const resolved = token ? tokens[token[1]] : value
+  const rpx = /^(\d+(?:\.\d+)?)rpx$/.exec(resolved || '')
+  return rpx ? Number(rpx[1]) : NaN
+}
+
+// margin/padding 某一边的 rpx；side 为 x 时左右必须相等。没写这一边就是 0。
+function boxSideRpx(file, selector, prop, side, tokens) {
+  const rule = parseWxssRules(fs.readFileSync(path.join(repoRoot, file), 'utf8'))
+    .find((candidate) => candidate.selectors.includes(selector))
+  assert.ok(rule, `expected ${selector} in ${file}`)
+  const sides = { top: '0', right: '0', bottom: '0', left: '0' }
+  if (rule.decls[prop]) {
+    const parts = splitBoxValue(rule.decls[prop])
+    const [top, right = top, bottom = top, left = right] = parts
+    Object.assign(sides, { top, right, bottom, left })
+  }
+  for (const name of Object.keys(sides)) {
+    if (rule.decls[`${prop}-${name}`]) sides[name] = rule.decls[`${prop}-${name}`]
+  }
+  if (side === 'x') {
+    const left = lengthRpx(sides.left, tokens)
+    assert.equal(lengthRpx(sides.right, tokens), left, `${file} ${selector} ${prop} left and right differ`)
+    return left
+  }
+  return lengthRpx(sides[side], tokens)
+}
+
+test('records, memory, settings and edit pages share one value per page-rhythm role', () => {
+  const tokens = appCustomProperties()
+  const drift = []
+  for (const [role, file, selector, prop, side] of PAGE_RHYTHM_SITES) {
+    const rpx = boxSideRpx(file, selector, prop, side, tokens)
+    if (rpx !== PAGE_RHYTHM_RPX[role]) {
+      drift.push(`${role}: ${file} ${selector} ${prop}-${side} is ${rpx}rpx, the role is ${PAGE_RHYTHM_RPX[role]}rpx`)
+    }
+  }
+  assert.deepEqual(drift, [])
+})
+
+test('both record segments start their first block one block gap below the segment control', () => {
+  // 相邻竖向外边距合并取大值：切到另一段时，第一块（周期概览卡 / 记欢乐时光按钮）不上下跳
+  const tokens = appCustomProperties()
+  const file = 'pages/period/period.wxss'
+  const segmentBottom = boxSideRpx(file, '.segment-control', 'margin', 'bottom', tokens)
+  for (const firstBlock of ['.cycle-card', '.btn-premium']) {
+    const gap = Math.max(segmentBottom, boxSideRpx(file, firstBlock, 'margin', 'top', tokens))
+    assert.equal(gap, PAGE_RHYTHM_RPX.blockGap, `${firstBlock} sits ${gap}rpx below the segment control`)
+  }
+})
+
+test('the settings danger zone is set apart from the regular groups by a larger ladder gap', () => {
+  // 外边距合并：只有比分组间距大，危险区的上外边距才真的拉开距离
+  const tokens = appCustomProperties()
+  const file = 'pages/settings/settings.wxss'
+  const groupGap = boxSideRpx(file, '.settings-group', 'margin', 'bottom', tokens)
+  const dangerGap = Math.max(groupGap, boxSideRpx(file, '.settings-danger-zone', 'margin', 'top', tokens))
+  assert.ok(dangerGap > groupGap, `the danger zone sits ${dangerGap}rpx below the last group, no further than the ${groupGap}rpx group gap`)
+  assert.ok(Object.values(SPACING_TOKENS).includes(`${dangerGap}rpx`), `${dangerGap}rpx is not a spacing ladder step`)
+})
+
 test('glass fallback fill has a single token source', () => {
   const tokens = appCustomProperties()
   assert.equal(tokens['--glass-fallback'], 'rgba(18,22,61,0.92)')
