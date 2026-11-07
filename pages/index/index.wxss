@@ -409,15 +409,6 @@
   margin-top: 0;
 }
 
-/* 今天标记 — 平静玫瑰底 + 薰衣草内描边（DESIGN.md todayBorder） */
-.day-cell.today {
-  background: rgba(232,144,158,0.16);
-  box-shadow: inset 0 0 0 3rpx rgba(196,160,210,0.55);
-}
-.day-cell.today.period {
-  background: transparent;
-  box-shadow: none;
-}
 .day-cell.workday:not(.today) {
   background: rgba(255,255,255,0.035);
 }
@@ -438,6 +429,30 @@
 }
 .day-cell.today.period .day-num {
   color: rgba(255,255,255,0.92);
+}
+/* 今天（issue #162）：围住日期数字的紧凑胶囊——浅玫瑰底、薰衣草细描边，数字仍是玫瑰色。格子本身不上色，
+   整日点按范围仍是整格；农历、节日/调休与标记都在胶囊外。胶囊挂在日期身后（日期自成叠放层，见下方 z-index 1）。
+   完整密度：日期贴格子顶，胶囊从格子顶画到农历字框之上（0–43rpx）。清爽与合并信息行：日期上方 4rpx 起，
+   下沿落在下一行（节日/调休或信息行）的槽顶。经期今天不画胶囊，今天只描在色带外缘 */
+.day-cell.today:not(.period) .day-num::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -4rpx;
+  left: 50%;
+  width: 60rpx;
+  height: 43rpx;
+  margin-left: -30rpx;
+  box-sizing: border-box;
+  border: 2rpx solid rgba(196,160,210,0.55);
+  border-radius: var(--radius-full);
+  background: rgba(232,144,158,0.14);
+  pointer-events: none;
+}
+.calendar-density-compact .day-cell.today:not(.period) .day-num::before {
+  width: 64rpx;
+  height: 44rpx;
+  margin-left: -32rpx;
 }
 
 .day-lunar {

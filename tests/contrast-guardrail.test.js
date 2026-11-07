@@ -104,13 +104,9 @@ test('period band stays a translucent rose and date numbers on it clear 4.5:1', 
   )
   const rose = hex('#E8909E')
   const bandOnGrid = composite(grid, rose, alpha)
+  // 经期今天不画胶囊、不铺整格底（calendar-micro-labels 钉住），日期直接落在色带上
   const todaySurface = bandOnGrid
   const holidaySurface = composite(composite(grid, hex('#D4A574'), 0.08), rose, alpha)
-  assert.equal(
-    exactDeclaration('pages/index/index.wxss', '.day-cell.today.period', 'background'),
-    'transparent',
-    'today period must not add a second full-cell wash behind the compact band'
-  )
 
   const dayNum = exactDeclaration('pages/index/index.wxss', '.day-num', 'color')
   const todayOnBand = exactDeclaration('pages/index/index.wxss', '.day-cell.today.period .day-num', 'color')
@@ -120,23 +116,49 @@ test('period band stays a translucent rose and date numbers on it clear 4.5:1', 
   assert.ok(meetsContrast('#F0C4C0', toHex(todaySurface)), 'the memory heart must stay readable on the band')
 })
 
-test('the in-cell 预 stays at least 4.5:1 when today falls in the prediction window', () => {
-  const grid = composite(
-    composite(hex('#0A0E27'), hex('#12163D'), 0.92),
-    { r: 1, g: 1, b: 1 },
-    0.05
-  )
-  const todayBg = exactDeclaration('pages/index/index.wxss', '.day-cell.today', 'background')
-  const todayWash = /^rgba\(\s*232\s*,\s*144\s*,\s*158\s*,\s*(0?\.\d+|1(?:\.0*)?)\s*\)$/.exec(todayBg)
-  assert.ok(todayWash, `today background must be the rose wash, got ${todayBg}`)
-  const todaySurface = composite(grid, hex('#E8909E'), Number(todayWash[1]))
-
+// issue #162：今天胶囊只包住日期，「预」在胶囊外（几何由 calendar-micro-labels 钉住），今天落在预测窗口时
+// 「预」照样直接落在日历网格面上
+test('the in-cell 预 stays at least 4.5:1 on the grid, outside the today capsule', () => {
   const chip = cssLayer(exactDeclaration('pages/index/index.wxss', '.predict-mark', 'background'))
-  const surface = composite(todaySurface, chip.color, chip.alpha)
+  const surface = composite(gridSurface(), chip.color, chip.alpha)
   const foreground = resolvePaint(exactDeclaration('pages/index/index.wxss', '.predict-mark', 'color'))
   const ratio = contrastRatio(foreground, toHex(surface))
-  assert.ok(ratio >= 4.5, `预 on the today composite ${toHex(surface)} is ${ratio.toFixed(2)}:1`)
+  assert.ok(ratio >= 4.5, `预 on the grid ${toHex(surface)} is ${ratio.toFixed(2)}:1`)
 })
+
+// issue #162：今天胶囊是浅玫瑰底 + 薰衣草细描边 + 玫瑰数字。数字在胶囊合成面上 ≥4.5:1；
+// 胶囊底和网格只差约 1.3:1，形状靠描边：描边叠在胶囊底上，对胶囊外的面 ≥3:1
+const TODAY_CAPSULE = '.day-cell.today:not(.period) .day-num::before'
+
+test('today capsule keeps the rose date at 4.5:1 and its lavender edge at 3:1 on the grid', () => {
+  const file = 'pages/index/index.wxss'
+  const fill = cssColor(exactDeclaration(file, TODAY_CAPSULE, 'background'))
+  assert.deepEqual([fill.r, fill.g, fill.b].map(channel => Math.round(channel * 255)), [232, 144, 158], 'the capsule fill is a rose wash')
+  const stroke = strokeColor(exactDeclaration(file, TODAY_CAPSULE, 'border'))
+  assert.deepEqual([stroke.r, stroke.g, stroke.b].map(channel => Math.round(channel * 255)), [196, 160, 210], 'the capsule edge is lavender')
+  const date = resolvePaint(exactDeclaration(file, '.day-cell.today .day-num', 'color'))
+
+  for (const [name, outside] of [['grid', gridSurface()]]) {
+    const capsule = composite(outside, fill, fill.a)
+    const edge = composite(capsule, stroke, stroke.a)
+    const dateRatio = contrastRatio(date, toHex(capsule))
+    assert.ok(dateRatio >= 4.5, `today's date on the capsule over the ${name} ${toHex(capsule)} is ${dateRatio.toFixed(2)}:1`)
+    const edgeRatio = contrastRatio(toHex(edge), toHex(outside))
+    assert.ok(edgeRatio >= 3, `the capsule edge ${toHex(edge)} on the ${name} ${toHex(outside)} is ${edgeRatio.toFixed(2)}:1`)
+  }
+})
+
+// 日历网格面：画布 → 玻璃回退海军 → 网格的 5% 白平涂层，层值都读 CSS
+function gridSurface() {
+  return stackSurfaces([['pages/index/index.wxss', '.calendar-grid']])[0]
+}
+
+// border 简写里的颜色（rgba）
+function strokeColor(declared) {
+  const color = /rgba\([^)]*\)/.exec(declared)
+  assert.ok(color, `expected an rgba stroke, got ${declared}`)
+  return cssColor(color[0])
+}
 
 test('settings clear-local-data uses warning-red text and warning-red border before any tap', () => {
   const wxss = 'pages/settings/settings.wxss'
