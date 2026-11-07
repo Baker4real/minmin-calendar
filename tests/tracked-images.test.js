@@ -61,6 +61,17 @@ const ALLOWED_IMAGES = {
   'docs/evidence/issue-159/legend-period-row-430x932.png': '图例里的经期色带样本，没有记录数据',
   'docs/evidence/issue-159/bound-2001-430x932.png': '2001年1月：上一月箭头禁用，没有记录数据',
   'docs/evidence/issue-159/bound-2035-430x932.png': '2035年12月：下一月箭头禁用，没有记录数据',
+  // #162：把 worktree 当独立项目打开的模拟器窗口，回读视口 390×844（没切机型）。图里是换上替身房间后今天所在的那一行
+  // 或图例；经期、♥、「预」都来自按当天推算的替身记录。
+  'docs/evidence/issue-162/today-capsule-full-390x844.png': '完整密度今天那一行：日期外的浅玫瑰小胶囊，农历在胶囊外；♥ 来自替身记录',
+  'docs/evidence/issue-162/today-capsule-compact-390x844.png': '清爽密度今天那一行：日期外的浅玫瑰小胶囊；♥ 来自替身记录',
+  'docs/evidence/issue-162/today-capsule-heart-predict-full-390x844.png': '完整密度今天带 ♥ 和「预」：标记在胶囊下面；都来自替身记录',
+  'docs/evidence/issue-162/today-capsule-heart-predict-compact-390x844.png': '清爽密度今天带 ♥ 和「预」：标记在胶囊下面；都来自替身记录',
+  'docs/evidence/issue-162/today-period-run-open-full-390x844.png': '完整密度进行中经期连到今天：今天只描色带上下沿，开口端不描；经期是替身记录',
+  'docs/evidence/issue-162/today-period-run-open-compact-390x844.png': '清爽密度进行中经期连到今天：今天只描色带上下沿，开口端不描；经期是替身记录',
+  'docs/evidence/issue-162/today-period-single-full-390x844.png': '完整密度今天是一天的经期：单日色带描四边，没有第二枚胶囊；经期是替身记录',
+  'docs/evidence/issue-162/today-period-single-compact-390x844.png': '清爽密度今天是一天的经期：单日色带描四边，没有第二枚胶囊；经期是替身记录',
+  'docs/evidence/issue-162/legend-today-period-390x844.png': '日历图例：今天和经期样本是铺网格玻璃底的 72rpx 日历格，没有记录数据',
 }
 
 // 读 index 而不是工作区：提交钩子里跑时，读到的正是这次要提交的文件。

@@ -306,7 +306,7 @@ test('index calendar keeps marker and tag semantics explicit for each meaning', 
   assert.match(wxml, /wx:elif="{{item\.isWorkday}}" class="day-tag workday-tag"/)
 })
 
-test('holiday and workday tags read in both densities and never displace the today ring', () => {
+test('holiday and workday tags read in both densities and stay outside the today capsule', () => {
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
 
@@ -317,7 +317,7 @@ test('holiday and workday tags read in both densities and never displace the tod
   // 农历文字仍只在完整密度出现，清爽密度不带回农历
   assert.match(wxml, /calendarDensity == 'full'\}\}" class="day-lunar"/)
 
-  // 标签的显示条件与今天无关：今天是节日/调休时，短标记与今日光圈同时在
+  // 标签的显示条件与今天无关：今天是节日/调休时，短标记与今天胶囊同时在
   const holidayTag = /<text wx:if="{{item\.holidayName}}"[^>]*>/.exec(wxml)
   assert.ok(holidayTag, 'expected the holiday tag binding')
   assert.doesNotMatch(holidayTag[0], /isToday/)
@@ -325,7 +325,7 @@ test('holiday and workday tags read in both densities and never displace the tod
   assert.ok(workdayTag, 'expected the workday tag binding')
   assert.doesNotMatch(workdayTag[0], /isToday/)
 
-  // 节日是无底金字，没有整格金底；调休「班」仍是低调小标签。今天仍用玫瑰底和薰衣草描边。
+  // 节日是无底金字，没有整格金底；调休「班」仍是低调小标签。今天的胶囊只挂在日期上，标签在自己的行里。
   assert.doesNotMatch(wxss, /\.day-cell\.holiday[^{]*\{[^}]*background\s*:/)
   const holidayTagRule = wxss.match(/\.holiday-tag\s*\{([^}]+)\}/)
   assert.ok(holidayTagRule, 'expected .holiday-tag')
@@ -335,8 +335,10 @@ test('holiday and workday tags read in both densities and never displace the tod
   assert.ok(workdayTagRule, 'expected .workday-tag')
   assert.match(workdayTagRule[1], /background:\s*rgba\(255,\s*255,\s*255,\s*0\.12\)/)
   assert.doesNotMatch(workdayTagRule[1], /aurora-gold|212,\s*165,\s*116/)
-  assert.match(wxss, /\.day-cell\.workday:not\(\.today\)\s*\{/)
-  assert.match(wxss, /\.day-cell\.today\s*\{[\s\S]*?inset 0 0 0 3rpx rgba\(196,\s*160,\s*210,\s*0\.55\)/)
+  // 调休格的低对比底在今天也照常铺：今天只在日期上加胶囊，不再整格让位（issue #162）
+  assert.match(wxss, /\.day-cell\.workday\s*\{/)
+  assert.doesNotMatch(wxss, /\.workday:not\(\.today\)/, 'today keeps the workday wash under its capsule')
+  assert.match(wxss, /\.day-cell\.today:not\(\.period\) \.day-num::before\s*\{/, 'today hangs a capsule on the date, not a ring on the cell')
 })
 
 test('legend samples reuse the calendar cell marker classes', () => {

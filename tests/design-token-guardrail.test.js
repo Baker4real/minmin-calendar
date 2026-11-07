@@ -326,6 +326,8 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/index/index.wxss', '.nav-btn:active'],
     ['pages/index/index.wxss', '.week-header'],
     ['pages/index/index.wxss', '.calendar-grid'],
+    // issue #162：图例样本格铺日历网格同一层玻璃
+    ['pages/index/index.wxss', '.legend-sample.day-cell'],
     ['pages/bind/bind.wxss', '.tab-bar'],
     ['pages/bind/bind.wxss', '.code-input'],
     ['pages/bind/bind.wxss', '.error-msg'],
@@ -519,8 +521,8 @@ const SHADOW_COLOR_FAMILIES = [
   { name: 'soft pink glow', rgb: [240, 196, 192], allow: (a) => a >= 0.28 && a <= 0.32 },
   { name: 'gold glow', rgb: [212, 165, 116], allow: (a) => a >= 0.3 && a <= 0.5 },
   { name: 'warning glow', rgb: [249, 115, 115], allow: (a) => a === 0.38 },
-  { name: 'inset highlight', rgb: [255, 255, 255], allow: (a) => a >= 0.09 && a <= 0.22 },
-  { name: 'today ring lavender', rgb: [196, 160, 210], allow: (a) => a === 0.55 }
+  { name: 'inset highlight', rgb: [255, 255, 255], allow: (a) => a >= 0.09 && a <= 0.22 }
+  // issue #162：今天的薰衣草描边改成胶囊与色带的 border，不再是阴影，阴影登记里没有薰衣草
 ]
 
 function shadowColorAllowed(r, g, b, a) {
