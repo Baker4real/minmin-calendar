@@ -846,6 +846,12 @@ test('bind page reveals an unbound or failed check with the shared enter motion'
     /wx:if="\{\{revealed\}\}" class="bind-reveal"[\s\S]*wx:if="\{\{bound\}\}"[\s\S]*class="error-msg"[\s\S]*class="error-retry"/,
     'the card, the error strip, and retry share one reveal'
   )
+  // issue #167：心下面的大标题和说明跟卡片同一刻、同一个显现进来，不先硬切出来
+  assert.match(
+    wxml,
+    /<view wx:if="\{\{revealed\}\}" class="bind-reveal">\s*<text class="hero-title">[^<]*<\/text>\s*<text class="hero-desc">[^<]*<\/text>\s*<\/view>/,
+    'the title and the subtitle under the heart reveal with the card'
+  )
 
   const room = createRoomSessionStub({
     getVerifiedActiveRoom: {
@@ -940,6 +946,64 @@ test('bind page keeps the current room content when a later check or retry runs'
   } finally {
     retryHarness.teardown()
   }
+})
+
+// issue #167：创建房间是真正存下的绑定。成功那一刻 ♥ 向外漾开一次（同一字形的半透明回声，不加阴影，播完即透明），
+// 已绑定卡用同一个 bindReveal 显现，卡里的主次和分享不变；创建失败不漾开，之后再次校验去掉记号，不重播
+test('bind page answers a created room with one heart bloom and the bound card reveal', async () => {
+  const room = createRoomSessionStub({
+    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
+    createRoom: { code: -1, msg: '创建失败' }
+  })
+  const harness = loadPageHarness('pages/bind/bind.js', { room, switchTabFail: true })
+  const boundCard = attrs => attrs.includes('wx:if="{{bound}}"')
+
+  try {
+    await harness.page.onShow()
+    assert.deepEqual(renderedClasses('hero', harness.page.data), ['hero'])
+
+    await harness.page.createRoom()
+    assert.equal(harness.page.data.errorMsg, '创建失败')
+    assert.deepEqual(renderedClasses('hero', harness.page.data), ['hero'], 'a failed create does not bloom')
+
+    room.createRoom = async () => ({ code: 0, roomCode: 'ROOM05' })
+    await harness.page.createRoom()
+    assert.deepEqual(renderedClasses('hero', harness.page.data), ['hero', 'hero-bloom'])
+    assert.deepEqual(renderedClasses('premium-card', harness.page.data, boundCard), ['premium-card', 'bound-reveal'])
+    assert.deepEqual(boundCardActions(harness.page.data), [
+      { tier: 'primary', label: '发给 TA', action: 'share' },
+      { tier: 'secondary', label: '进入应用', action: 'goHome' }
+    ])
+
+    room.getVerifiedActiveRoom = async () => ({ kind: 'success', bound: true, roomCode: 'ROOM05' })
+    await harness.page.onShow()
+    assert.equal(harness.page.data.bound, true)
+    assert.deepEqual(renderedClasses('hero', harness.page.data), ['hero'], 'the next check does not replay the bloom')
+    assert.deepEqual(renderedClasses('premium-card', harness.page.data, boundCard), ['premium-card'])
+  } finally {
+    harness.teardown()
+  }
+
+  const css = readPageFile('pages/bind/bind.wxss')
+  const frames = /@keyframes heroBloom\s*\{([\s\S]*?)\n\}/.exec(css)
+  assert.ok(frames, 'the heart bloom has its own keyframes')
+  assert.match(frames[1], /from\s*\{\s*opacity:\s*0\.\d+;\s*transform:\s*scale\(1\);\s*\}/)
+  assert.match(frames[1], /to\s*\{\s*opacity:\s*0;\s*transform:\s*scale\(1\.\d+\);\s*\}/)
+  const echo = findRule(css, '.hero.hero-bloom .hero-icon::after')
+  assert.equal(echo.content, "'♥'")
+  assert.equal(echo.animation, 'heroBloom var(--duration-emphasis) var(--ease-out) both')
+  assert.equal(echo.opacity, '0', 'the echo rests invisible')
+  assert.equal(echo['text-shadow'], 'none', 'the echo adds no glow; the heart keeps its one text shadow')
+  assert.equal(echo['pointer-events'], 'none')
+  const card = findRule(css, '.premium-card.bound-reveal')
+  assert.equal(card.animation, 'bindReveal var(--duration-enter) var(--ease-out) both')
+  assert.equal(card.opacity, undefined, 'the card rests visible')
+  assert.equal(card.transform, undefined, 'the card rests in place')
+
+  // 减弱动效下：♥ 不漾开（回声静止透明），已绑定卡直接出现
+  const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
+  assert.equal(findRule(reduced, '.hero.hero-bloom .hero-icon::after').animation, 'none')
+  assert.equal(findRule(reduced, '.premium-card.bound-reveal').animation, 'none')
 })
 
 test('bind page shows the unbind notice once and then clears it', async () => {
@@ -1066,6 +1130,22 @@ function boundCardActions(data) {
     })
   }
   return actions
+}
+
+// issue #167：bind.wxml 里类名以 firstClass 开头（并满足 where）的第一个开始标签，按页面数据求值它的 class 模板
+function renderedClasses(firstClass, data, where = () => true) {
+  const source = readPageFile('pages/bind/bind.wxml').replace(/<!--[\s\S]*?-->/g, '')
+  const keys = Object.keys(data).filter(key => /^[A-Za-z_$][\w$]*$/.test(key))
+  const evaluate = expr => new Function(...keys, `return (${expr})`)(...keys.map(key => data[key]))
+  for (const [, attrs] of source.matchAll(/<[a-zA-Z][\w-]*((?:\s+[^\s=/>]+(?:="[^"]*")?)*)\s*\/?>/g)) {
+    const template = (/\sclass="([^"]*)"/.exec(attrs) || [])[1] || ''
+    if (template.split(/\s+/)[0] !== firstClass || !where(attrs)) continue
+    return template
+      .replace(/\{\{([\s\S]*?)\}\}/g, (_, expr) => String(evaluate(expr) ?? ''))
+      .split(/\s+/)
+      .filter(Boolean)
+  }
+  assert.fail(`expected an element whose class starts with ${firstClass}`)
 }
 
 function findRule(css, selector) {

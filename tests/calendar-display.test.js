@@ -385,9 +385,11 @@ test('record-period actions draw the legend band sample instead of a dot', () =>
   assert.match(dayActions, /class="sheet-action-icon memory-tone">♥<\/text>/)
   assert.equal(rules.some(rule => rule.selectors.includes('.period-tone')), false, 'the dot tone is gone')
 
-  // 色带的颜色只在 .period-band 一处：动作样本只改尺寸，不另上色、不调透明度
+  // 色带的颜色只在 .period-band 一处：动作样本只改尺寸，不另上色、不调透明度。
+  // 记录成功反馈在首页不可见时把日历格里的色带按在透明（issue #167，动效状态由 motion-performance 钉住），不算另一种颜色
   const paints = rules
     .filter(rule => rule.selectors.some(selector => /period-band|action-sample/.test(selector)))
+    .filter(rule => !rule.selectors.every(selector => selector.includes('.record-feedback-')))
     .filter(rule => ['background', 'background-color', 'color', 'opacity', 'filter'].some(prop => prop in rule.decls))
     .map(rule => rule.selectors.join(', '))
   assert.deepEqual(paints, ['.period-band'])

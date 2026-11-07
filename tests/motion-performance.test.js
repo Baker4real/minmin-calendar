@@ -282,17 +282,22 @@ function namesWithRole(role) {
 
 // issue #111：一次性时长必须引用六档 token（issue #165 加 --duration-emphasis）；常驻动画、其周期、减弱动效替代和 heroIn 保持字面时长。
 // 与 DESIGN.md「一次性动效注册表」是同一张表（heroIn 也登记在那里），新增或删除时两边一起改。
+// delay：一次性动画的延迟也登记在这里，只有记录成功反馈等返回转场（--delay-return，issue #167），别的一次性动画不写延迟。
 const LITERAL_DURATION_ANIMATIONS = new Set([...Object.keys(CONTINUOUS_ANIMATIONS), 'heroIn'])
+const RETURN_DELAY = 'var(--delay-return)'
 const ONE_SHOT_ANIMATIONS = {
   pageEnter: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   bindReveal: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  heroBloom: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)' },
   dayDetailFade: { duration: 'var(--duration-state)', easing: 'var(--ease-out)' },
   calendarFlipNextA: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   calendarFlipNextB: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   calendarFlipPrevA: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   calendarFlipPrevB: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   calendarHaloA: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)' },
-  calendarHaloB: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)' }
+  calendarHaloB: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)' },
+  recordBloom: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)', delay: RETURN_DELAY },
+  recordAppear: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)', delay: RETURN_DELAY }
 }
 const COLOR_TRANSITION_PROPS = new Set(['background', 'background-color', 'color', 'border-color'])
 const PRESS_DURATION = 'var(--duration-press)'
@@ -457,6 +462,12 @@ test('one-shot transitions and animations use the shared duration tokens and rol
           }
           if (duration !== expected.duration || easing !== expected.easing) {
             violations.push(`${where} ${name} must be ${expected.duration} ${expected.easing}, got ${duration} ${easing}`)
+          }
+          // 时长、曲线之后的时间值就是延迟：只能是注册表里给这段动画登记的那一档
+          const delay = part.slice(parsed[0].length).trim().split(/\s+/)
+            .find((token) => /^var\(--delay-[a-z-]+\)$/.test(token) || /^-?[\d.]+m?s$/.test(token))
+          if (delay !== expected.delay) {
+            violations.push(`${where} ${name} delay must be ${expected.delay || 'none'}, got ${delay || 'none'}`)
           }
         }
       }
@@ -1075,6 +1086,65 @@ test('state emphasis is a one-shot opacity halo that exists only under its token
   }
 })
 
+// issue #167：记录成功反馈。index.js 的 recordFeedback 给这次新增或完成的记录所在的日期格挂 record-feedback-memory /
+// record-feedback-period：♥ 从 0.6 倍淡入长到原大（recordBloom），色带每一格一起淡入（recordAppear），都先等
+// --delay-return 让返回转场走完，再用 --duration-emphasis 播一次。首页不可见（page-hidden）时按住：透明、不播，
+// 去掉 page-hidden 才从头开始。只在 .calendar-days 的日期格上：图例和记录入口的样本也是 day-cell、period-band、
+// memory-mark，静止的日历和样本一点不变。减弱动效下 ♥ 只淡入不缩放，色带本来就只动透明度，照常
+const RECORD_FEEDBACK_TARGETS = {
+  '.calendar-days .day-cell.record-feedback-memory .memory-mark': { name: 'recordBloom', reduced: 'recordAppear' },
+  '.calendar-days .day-cell.record-feedback-period .period-band': { name: 'recordAppear', reduced: null }
+}
+
+test('record success feedback blooms the heart and fades the band in once, held while the page is hidden', () => {
+  const css = readRepo('pages/index/index.wxss')
+  const index = analyzeFile(css)
+  assert.match(maskComments(readRepo('app.wxss')), /--delay-return\s*:\s*300ms\s*;/)
+  const declsOf = (selector, reduced = false) => {
+    const rules = index.rules.filter((rule) => rule.inReducedMotion === reduced && rule.selectors.includes(selector))
+    assert.ok(rules.length, `expected ${selector}${reduced ? ' under reduced motion' : ''}`)
+    return Object.assign({}, ...rules.map((rule) => rule.decls))
+  }
+  const played = (name) => `${name} var(--duration-emphasis) var(--ease-out) var(--delay-return) both`
+
+  const wxml = readRepo('pages/index/index.wxml')
+  const cell = /<view\s+class="(day-cell [^"]*)"\s+wx:for="\{\{days\}\}"/.exec(wxml)
+  assert.ok(cell, 'expected the calendar day cell')
+  const feedbackClasses = (recordFeedback) => renderedClasses(cell[1], { item: { date: '2026-06-10' }, recordFeedback })
+    .filter((name) => name.startsWith('record-feedback'))
+  assert.deepEqual(feedbackClasses({}), [], 'a resting cell carries no feedback class')
+  assert.deepEqual(feedbackClasses({ '2026-06-10': 'memory' }), ['record-feedback-memory'])
+  assert.deepEqual(feedbackClasses({ '2026-06-10': 'period' }), ['record-feedback-period'])
+  assert.deepEqual(feedbackClasses({ '2026-06-11': 'memory' }), [], 'only the saved day is marked')
+
+  for (const [selector, { name, reduced }] of Object.entries(RECORD_FEEDBACK_TARGETS)) {
+    assert.equal(declsOf(selector).animation, played(name), `${selector} plays once after the way back`)
+    const held = declsOf(`.page.page-hidden ${selector}`)
+    assert.equal(held.animation, 'none', `${selector} does not start while the page is hidden`)
+    assert.equal(held.opacity, '0', `${selector} waits unseen for the page to show`)
+    const rm = index.reducedMotionRules.find((rule) => rule.selectors.includes(selector))
+    if (reduced) assert.equal(rm && rm.decls.animation, played(reduced), `${selector} only fades in under reduced motion`)
+    else assert.equal(rm, undefined, `${selector} only fades, so it stays under reduced motion`)
+  }
+  assert.deepEqual(keyframeFrames(css, 'recordBloom'), [
+    { at: 'from', decls: { opacity: '0', transform: 'scale(0.6)' } },
+    { at: 'to', decls: { opacity: '1', transform: 'scale(1)' } }
+  ])
+  assert.deepEqual(keyframeFrames(css, 'recordAppear'), [
+    { at: 'from', decls: { opacity: '0' } },
+    { at: 'to', decls: { opacity: '1' } }
+  ])
+
+  // 反馈类只在日历网格的日期格上起作用；静止的色带和 ♥ 没有动画
+  const stray = index.rules.flatMap((rule) => rule.selectors)
+    .filter((selector) => selector.includes('record-feedback') &&
+      !/^(?:\.page\.page-hidden )?\.calendar-days \.day-cell\.record-feedback-(?:memory|period) /.test(selector))
+  assert.deepEqual(stray, [])
+  for (const selector of ['.period-band', '.memory-mark']) {
+    assert.equal(declsOf(selector).animation, undefined, `${selector} rests still`)
+  }
+})
+
 test('day cells keep only their press scale, and day colors switch immediately', () => {
   const app = analyzeFile(readRepo('app.wxss'))
   const index = analyzeFile(readRepo('pages/index/index.wxss'))
@@ -1517,6 +1587,8 @@ test('DESIGN.md registers the motion and performance budgets', () => {
   assert.match(design, /--duration-exit` 200ms/)
   assert.match(design, /--duration-sheet` 280ms/)
   assert.match(design, /--duration-emphasis` 600ms/)
+  // 一次性关键帧的唯一延迟：记录成功反馈等返回转场（issue #167）
+  assert.match(design, /--delay-return` 300ms/)
   assert.match(
     design,
     /按压只属于可点控件，容器和不可点的行不缩放、不变底色/,
