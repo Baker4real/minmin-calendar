@@ -257,13 +257,19 @@ const GLYPH_WEIGHT_HOLDS = [
   { file: 'pages/index/index.wxss', selector: '.sheet-action-icon', value: '800' }
 ]
 
+// 翻月就换数字的行（月份标题、本月小结、弹层副标题）和成列扫读的数字（时长胶囊、月份卡头）用等宽数字，
+// 数字变了不改字宽、不推动后面的字（issue #164）。
 const TABULAR_NUMERIC = [
   ['pages/index/index.wxss', '.month-title'],
   ['pages/index/index.wxss', '.day-num'],
   ['pages/index/index.wxss', '.home-status-text'],
+  ['pages/index/index.wxss', '.month-summary-text'],
+  ['pages/index/index.wxss', '.sheet-subtitle'],
   ['pages/index/index.wxss', '.jump-year-value'],
   ['pages/period/period.wxss', '.cycle-num'],
   ['pages/period/period.wxss', '.item-date'],
+  ['pages/period/period.wxss', '.item-duration'],
+  ['pages/period/period.wxss', '.month-header-text'],
   ['pages/memory/memory.wxss', '.memory-date'],
   ['pages/settings/settings.wxss', '.room-code-value'],
   ['pages/bind/bind.wxss', '.bound-code']

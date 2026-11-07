@@ -229,7 +229,7 @@ frontmatter 的 rem 值是设计参照；实现层全部走下表 rpx 角色 tok
 | `--font-size-button` | `30rpx` | 主按钮 | `.btn-premium`、`.btn-danger` |
 | `--font-size-input` | `32rpx` | 输入文字 | `.form-input`、`.form-picker` |
 
-主按钮角色（30rpx）只属于主按钮族；sheet 确认、复制等小操作文字按正文/caption 角色，不另立按钮字号。glyph/display 例外清单（`.nav-back` 46rpx、`.sheet-close` 46rpx、箭头 42/32rpx、emoji 图标、`.stat-num` 36rpx、`.cycle-num` 44rpx、`.hero-title` 48rpx、`.code-input` 40rpx、`.room-code-value` 36rpx 等）是收敛过程中登记的历史单点，后续字号层级 ticket 可逐项消化，但新增例外必须先登记。
+主按钮角色（30rpx）只属于主按钮族；sheet 确认、复制等小操作文字按正文/caption 角色，不另立按钮字号。glyph/display 例外清单（`.nav-back` 46rpx、`.sheet-close` 46rpx、箭头 42/32rpx、emoji 图标、`.cycle-num` 44rpx、`.hero-title` 48rpx、`.code-input` 40rpx、`.room-code-value` 36rpx 等）是收敛过程中登记的历史单点，后续字号层级 ticket 可逐项消化，但新增例外必须先登记。
 
 ### 共享文字字重、行高与字距（issue #62）
 
@@ -250,7 +250,9 @@ frontmatter 的 rem 值是设计参照；实现层全部走下表 rpx 角色 tok
 
 今天（`.day-cell.today .day-num`）复用 `--font-weight-title`（700），作为相对普通日期 600 的语义强调；等宽数字仍由 `.day-num` 的 `tabular-nums` 继承。不另设第五档字重。
 
-统计数字（`.stat-num`、`.cycle-num`）按可扫读的数字信息处理，字重走 `--font-weight-control`（600）并保留 `tabular-nums` 与既有展示字号。不因历史展示例外保留 800，也不把它们升成标题。
+统计数字（`.cycle-num`）按可扫读的数字信息处理，字重走 `--font-weight-control`（600）并保留 `tabular-nums` 与既有展示字号。不因历史展示例外保留 800，也不把它升成标题。
+
+等宽数字（`font-variant-numeric: tabular-nums`）用在三类文字上：日历日期、统计数字和房间码；翻月就换数字的行（月份标题、状态行、本月小结、弹层副标题、选月年份）；成列扫读的数字（记录列表的日期、时长胶囊、欢乐时光月份卡头）。数字变了不改字宽，也不推动后面的字（issue #164）。登记表是 `tests/typography-roles.test.js` 的 `TABULAR_NUMERIC`；房间码输入框是原生输入控件，不在表里。
 
 房间码（`.room-code-value`、`.bound-code`）同样走控件字重 600 与 `tabular-nums`，字距只用 `--letter-spacing-room-code`。无码占位 `.room-code-value.muted` 回到正文 400，字距复位为 0。`.code-input` 是输入文字，字重 400，字距只用 `--letter-spacing-code-input`。它的盒高和行高都是 88rpx，纵向 padding 为 0，六位码在框内完整可见并水平居中；输入框通栏，与上方说明和下方主按钮对齐。占位符走同一行高。
 

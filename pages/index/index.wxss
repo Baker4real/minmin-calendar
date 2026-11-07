@@ -647,6 +647,7 @@
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1119,6 +1120,7 @@
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
+  font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.78);
   word-break: break-all;
   overflow-wrap: anywhere;

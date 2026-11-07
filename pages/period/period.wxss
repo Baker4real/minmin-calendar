@@ -132,6 +132,7 @@
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
+  font-variant-numeric: tabular-nums;
   color: #E8909E;
   background: rgba(232,144,158,0.12);
   padding: 4rpx 16rpx;
@@ -267,6 +268,7 @@
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-body);
+  font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.85);
   white-space: nowrap;
 }
