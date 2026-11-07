@@ -110,6 +110,12 @@ const ALLOWED_IMAGES = {
   'docs/evidence/issue-165/month-flip-prev-settled-full-390x844.png': '完整密度翻到上一月落定后的整屏：农历与节日在格子里，几何不变；经期来自替身记录',
   'docs/evidence/issue-165/back-to-today-settled-compact-390x844.png': '回到今天之后：今天的月份即时换上；今天在进行中的经期色带上（没有胶囊），光晕落回后色带与日期恢复原样；经期与 ♥ 来自替身记录',
   'docs/evidence/issue-165/prediction-close-settled-compact-390x844.png': '关掉预测说明之后：当月的「预」在光晕落回后恢复原样、位置不变；预测来自替身记录',
+  // #167：worktree 项目窗口，视口 390×844（没切机型），替身房间；保存走替身云端，经期与 ♥ 来自按当天推算的替身记录。
+  // 首页反馈的按住、等待、淡入/放大和绑定页的显现靠 page data / computedStyle 采样读回，图只证明落定后的终态。
+  'docs/evidence/issue-167/memory-saved-heart-settled-390x844.png': '新增欢乐时光保存成功、回到首页后的日历（落定）：♥ 在保存的那天（今天，叠在进行中经期的色带上），另一个 ♥ 是更早的替身记录；都来自替身记录',
+  'docs/evidence/issue-167/period-ended-band-settled-390x844.png': '记结束补上结束日、回到首页后的日历（落定）：这段经期三格色带连续到今天，没有残留的透明或位移；经期与 ♥ 来自替身记录',
+  'docs/evidence/issue-167/bind-first-reveal-390x844.png': '未绑定首屏显现后（落定）：♥ 下的大标题、说明和创建/加入卡同一刻显现后的样子；替身未绑定状态，没有记录数据',
+  'docs/evidence/issue-167/bind-room-created-390x844.png': '刚建好房间（落定）：已绑定卡、「把房间码发给 TA」、「发给 TA」主按钮与「进入应用」幽灵次按钮；房间码 ABC123 是替身码，没有记录数据',
 }
 
 // 读 index 而不是工作区：提交钩子里跑时，读到的正是这次要提交的文件。
