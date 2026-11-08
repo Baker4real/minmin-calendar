@@ -97,7 +97,7 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 
 `devtoolsCapture.mjs` 在已渲染的 `.page` 出现后截图，将微信 `systemInfo` 的实际 `windowWidth/windowHeight`、页面路径、具名状态、日历密度、采集时间和 `captureToolVersion` 追加到截图目录的 `captures.jsonl`。每条另带 `source`：`app.*`、`pages/**`、`utils/**` 运行源码的 SHA-256 指纹与范围。评审先比对该指纹：一致才是 `current`，不一致是 `stale`，旧图缺少指纹则是 `historical-unbound`；后两类不得冒充当前版本验收。MCP `--preflight` 同样报告实际视口。要验收小屏，先在 IDE 选择小屏机型，再回读视口；不能根据图片尺寸或机型名称推断已验证 320px。
 
-开始组件级视觉审计时先运行 `node tests/impeccableAudit.mjs --component <id>`（ID 用 `--list-components` 查看）。它把相关 DESIGN.md 片段、静态选择器、动效、测试和截图账本压成一份 JSON；截图分类复用上述指纹规则。先读这些定位信息，再按疑点打开源码和 current 证据，避免先读完整规范或遍历所有历史截图。摘要失败或没有 current 证据时按缺口记录，不把静态索引或旧图当作运行态验收。
+开始组件级视觉审计时先运行 `node tests/impeccableAudit.mjs --component <id>`（ID 用 `--list-components` 查看）。它把相关 DESIGN.md 与 `docs/motion-and-interaction.md` 片段、静态选择器、动效、测试和截图账本压成一份 JSON；截图分类复用上述指纹规则。先读这些定位信息，再按疑点打开源码和 current 证据，避免先读完整规范或遍历所有历史截图。摘要失败或没有 current 证据时按缺口记录，不把静态索引或旧图当作运行态验收。
 
 选择器 `tap()` 可能绕过命中遮挡。验证“按钮点不到”时，CSS 坐标回归之外还需在微信中实际坐标点击或人工点击；菜单打开、图例交接、关闭等状态流可用选择器自动化验证。截图若出现空白或未完成状态，先确认目标页面已就绪再重截，不能将文件写入成功当作界面验收。
 

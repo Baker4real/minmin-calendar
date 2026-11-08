@@ -22,17 +22,18 @@ function run(args) {
 function project(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'minmin-impeccable-audit-'))
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
-  for (const directory of ['pages/index', 'pages/bind', 'pages/settings', 'pages/period/edit', 'pages/memory/edit', 'tests', 'utils']) {
+  for (const directory of ['pages/index', 'pages/bind', 'pages/settings', 'pages/period/edit', 'pages/memory/edit', 'tests', 'utils', 'docs']) {
     fs.mkdirSync(path.join(root, directory), { recursive: true })
   }
   fs.writeFileSync(path.join(root, 'DESIGN.md'), [
     '## Colors',
     '',
-    'Use the rose token for the compact 今天 capsule and preserve the aurora atmosphere.',
-    '',
+    'Use the rose token for the compact 今天 capsule and preserve the aurora atmosphere.'
+  ].join('\n'))
+  fs.writeFileSync(path.join(root, 'docs/motion-and-interaction.md'), [
     '## Motion',
     '',
-    'Keep pageEnter and provide a reduced-motion alternative.'
+    'Keep pageEnter on --duration-enter and provide a prefers-reduced-motion alternative.'
   ].join('\n'))
   fs.writeFileSync(path.join(root, 'app.wxss'), [
     '.page { animation: pageEnter 240ms ease both; }',
@@ -106,6 +107,8 @@ test('motion summary includes related keyframes and inline declarations across e
   const root = project(t)
   const { buildAuditSummary, listAuditComponents } = await loadModule()
   const motion = buildAuditSummary({ projectPath: root, component: 'motion' })
+  // 动效规则从 DESIGN.md 下沉到了 docs/motion-and-interaction.md，摘要要从那里取段落
+  assert.ok(motion.designSections.some(section => section.file === 'docs/motion-and-interaction.md' && section.heading === 'Motion'))
   assert.ok(motion.motion.some(item => item.type === 'keyframes' && item.selector === '@keyframes pageEnter'))
   assert.ok(motion.motion.some(item => item.type === 'animation' && item.selector === '.page'))
 

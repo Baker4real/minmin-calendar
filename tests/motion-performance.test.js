@@ -15,6 +15,9 @@ function readRepo(relative) {
   return fs.readFileSync(path.join(repoRoot, relative), 'utf8')
 }
 
+// 动效、弹层、按压与交互语义（含两张动效注册表）写在这份文档里，DESIGN.md 指向它；frontmatter token 与玻璃叠层仍在 DESIGN.md
+const MOTION_DOC = 'docs/motion-and-interaction.md'
+
 function maskComments(css) {
   return String(css).replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
 }
@@ -261,7 +264,7 @@ test('--ease-spring / --transition-spring tokens stay retired; --ease-out remain
   assert.deepEqual(violations, [])
 })
 
-// 常驻动画注册表，与 DESIGN.md「常驻动画注册表」是同一张表，新增或删除时两边一起改（issue #163）。
+// 常驻动画注册表，与 docs/motion-and-interaction.md「常驻动画注册表」是同一张表，新增或删除时两边一起改（issue #163）。
 // decorative：装饰，周期 6–12s，弹层遮挡和页面不可见时暂停在当前帧，减弱动效下静止；
 // functional：状态指示，只在对应状态期间存在，可以快于 6s，遮挡和隐藏时照常；
 // reduced-motion：减弱动效下的无位移替代。
@@ -316,7 +319,7 @@ function namesWithRole(role) {
 }
 
 // issue #111：一次性时长必须引用六档 token（issue #165 加 --duration-emphasis）；常驻动画、其周期、减弱动效替代和 heroIn 保持字面时长。
-// 与 DESIGN.md「一次性动效注册表」是同一张表（heroIn 也登记在那里），新增或删除时两边一起改。
+// 与 docs/motion-and-interaction.md「一次性动效注册表」是同一张表（heroIn 也登记在那里），新增或删除时两边一起改。
 // delay：一次性动画的延迟也登记在这里，只有记录成功反馈等返回转场（--delay-return，issue #167），别的一次性动画不写延迟。
 const LITERAL_DURATION_ANIMATIONS = new Set([...Object.keys(CONTINUOUS_ANIMATIONS), 'heroIn'])
 const RETURN_DELAY = 'var(--delay-return)'
@@ -690,7 +693,7 @@ test('blurred surfaces are the registered ones, paired and within the radius cap
       assert.ok(design.includes(`\`${selector}\``), `DESIGN.md registers ${selector} as a blurred surface`)
     }
   }
-  assert.doesNotMatch(design, /只允许收紧|玻璃面数量上限|声明数上限/, 'the retired blur and shadow ratchets stay retired')
+  assert.doesNotMatch(`${design}\n${readRepo(MOTION_DOC)}`, /只允许收紧|玻璃面数量上限|声明数上限/, 'the retired blur and shadow ratchets stay retired')
 })
 
 test('every transform-based animation is neutralized or replaced under reduced motion', () => {
@@ -812,7 +815,7 @@ test('a press moves every channel it changes on the press beat, and never swaps 
   assert.ok(checked > 40, 'the survey reaches the press rules')
   assert.deepEqual(violations, [])
 
-  const design = readRepo('DESIGN.md')
+  const design = readRepo(MOTION_DOC)
   assert.match(design, /按压的四路（issue #166）/)
 })
 
@@ -848,7 +851,7 @@ test('controls tinted on a ::before layer brighten their border with the tint', 
   }
   assert.ok(checked >= 6, 'the tinted, bordered controls are found')
   assert.deepEqual(violations, [])
-  assert.match(readRepo('DESIGN.md'), /平涂层只铺内边距盒/)
+  assert.match(readRepo(MOTION_DOC), /平涂层只铺内边距盒/)
 })
 
 // issue #163、#166：压在极光上的行和按钮把淡白、淡红画在 ::before 平涂层上，底是海军回退。平涂层铺满宿主的
@@ -930,9 +933,9 @@ test('rose glow sits on a glow layer that sinks with the press on the same beat'
   assert.ok(sharePressed, 'the share button glow sinks under its own hover class')
   assert.equal(sharePressed.decls.opacity, PRESSED_GLOW_OPACITY)
 
-  const design = readRepo('DESIGN.md')
+  const design = readRepo(MOTION_DOC)
   assert.match(design, /柔光层/)
-  assert.doesNotMatch(design, /按压时可以随缩放即时变化/)
+  assert.doesNotMatch(`${readRepo('DESIGN.md')}\n${design}`, /按压时可以随缩放即时变化/)
 })
 
 // issue #73：月份箭头与弹层关闭的按压缩放落在登记的 0.94–0.98 区间；
@@ -1185,7 +1188,7 @@ test('record success feedback blooms the heart and fades the band in once, held 
 test('day cells keep only their press scale, and day colors switch immediately', () => {
   const app = analyzeFile(readRepo('app.wxss'))
   const index = analyzeFile(readRepo('pages/index/index.wxss'))
-  const design = readRepo('DESIGN.md')
+  const design = readRepo(MOTION_DOC)
 
   const grid = app.rules.find((rule) => !rule.inReducedMotion && rule.selectors.includes('.calendar-grid'))
   assert.ok(grid, 'expected .calendar-grid')
@@ -1253,7 +1256,7 @@ test('reduced-motion blocks keep covering the named sheet, sync, and ambient lay
 })
 
 test('edit page border and background transitions switch instantly under reduced motion', () => {
-  // issue #106：两个编辑页的 transition 全部被本文件 reduced-motion 块覆盖（DESIGN.md 政策：即时切换）；
+  // issue #106：两个编辑页的 transition 全部被本文件 reduced-motion 块覆盖（docs/motion-and-interaction.md 政策：即时切换）；
   // 覆盖判定与动画同规——同类集合、同伪元素层级，RM 规则必须把 transition 置 none
   for (const relative of ['pages/period/edit/edit.wxss', 'pages/memory/edit/edit.wxss']) {
     const file = analyzeFile(readRepo(relative))
@@ -1295,7 +1298,7 @@ test('day detail content fades opacity only and shows immediately under reduced 
   assert.ok(reduced, 'reduced motion must cover .day-detail-fade')
   assert.equal(reduced.decls.animation, 'none')
 
-  const design = readRepo('DESIGN.md')
+  const design = readRepo(MOTION_DOC)
   assert.match(design, /dayDetailFade/)
   assert.match(design, /只动透明度/)
 })
@@ -1312,7 +1315,7 @@ test('a handed-off info mask stays fully visible and does not fade in', () => {
   assert.equal(openSlide.decls.transform, 'translateY(0)')
   assert.equal(openSlide.decls.transition, 'transform var(--duration-sheet) var(--ease-out)')
 
-  const design = readRepo('DESIGN.md')
+  const design = readRepo(MOTION_DOC)
   assert.match(design, /issue #117/)
   assert.match(design, /sheet-handoff/)
 })
@@ -1378,7 +1381,7 @@ test('homepage sheets slide in and out with reversible transitions', () => {
     assert.equal(rmRule.decls.transition, 'none', `${selector} must finish immediately under reduced motion`)
   }
 
-  const design = readRepo('DESIGN.md')
+  const design = readRepo(MOTION_DOC)
   assert.match(design, /issue #116/)
   assert.match(design, /translateY\(100%\)/)
   assert.match(design, /issue #119/)
@@ -1426,7 +1429,7 @@ test('settings help slides and fades on the homepage sheet motion and lands inst
   assert.equal(probe.decls.width, '1px')
   assert.match(readRepo('pages/settings/settings.wxml'), /<view class="reduced-motion-probe" aria-hidden="true"><\/view>/)
 
-  assert.match(readRepo('DESIGN.md'), /设置「使用说明」弹层（issue #154）/)
+  assert.match(readRepo(MOTION_DOC), /设置「使用说明」弹层（issue #154）/)
 })
 
 // issue #166：标题行随面板升降，内容块晚一拍跟上。内容块收起时透明、低 16rpx，打开时等 --delay-stagger
@@ -1476,7 +1479,7 @@ test('sheet content trails the title row by one short reversible beat and never 
     }
   }
 
-  const design = readRepo('DESIGN.md')
+  const design = readRepo(MOTION_DOC)
   assert.match(design, /--delay-stagger` 40ms/)
   assert.match(design, /弹层标题与内容错相（issue #166）/)
 })
@@ -1514,15 +1517,15 @@ test('sync pill fades and rises with reversible transitions', () => {
     assert.equal(rmRule.decls.transition, 'none', `${selector} must finish immediately under reduced motion`)
   }
 
-  const design = readRepo('DESIGN.md')
+  const design = readRepo(MOTION_DOC)
   assert.match(design, /issue #120/)
   assert.match(design, /translateY\(-8rpx\)/)
 })
 
-// DESIGN.md「常驻动画注册表」：每行一个动画，列为 动画 / 挂在 / 用途 / 节奏 / 弹层遮挡 / 页面不可见 / 减弱动效
+// docs/motion-and-interaction.md「常驻动画注册表」：每行一个动画，列为 动画 / 挂在 / 用途 / 节奏 / 弹层遮挡 / 页面不可见 / 减弱动效
 function designAnimationRegistry(design) {
   const start = design.indexOf('\n## 常驻动画注册表')
-  assert.ok(start !== -1, 'DESIGN.md needs a 常驻动画注册表 section')
+  assert.ok(start !== -1, `${MOTION_DOC} needs a 常驻动画注册表 section`)
   const rest = design.slice(start + 1)
   const end = rest.indexOf('\n## ')
   const section = end === -1 ? rest : rest.slice(0, end)
@@ -1536,8 +1539,8 @@ function designAnimationRegistry(design) {
 }
 
 // issue #163：每个常驻动画逐项登记用途、节奏、弹层遮挡与页面不可见时的行为、减弱动效替代
-test('DESIGN.md registers every continuous animation with its rhythm, cover, hidden and reduced-motion behavior', () => {
-  const rows = designAnimationRegistry(readRepo('DESIGN.md'))
+test('the motion doc registers every continuous animation with its rhythm, cover, hidden and reduced-motion behavior', () => {
+  const rows = designAnimationRegistry(readRepo(MOTION_DOC))
   assert.deepEqual([...rows.keys()].sort(), Object.keys(CONTINUOUS_ANIMATIONS).sort())
   const cycles = continuousCycles()
   for (const [name, cells] of rows) {
@@ -1556,11 +1559,11 @@ test('DESIGN.md registers every continuous animation with its rhythm, cover, hid
   }
 })
 
-// DESIGN.md「一次性动效注册表」：一行登记一段一次性关键帧，或内容相同、交替重播的一对（a/b），
+// docs/motion-and-interaction.md「一次性动效注册表」：一行登记一段一次性关键帧，或内容相同、交替重播的一对（a/b），
 // 列为 动效 / 挂在 / 用途与触发 / 时长与曲线 / 中断与取消 / 弹层遮挡与页面不可见 / 减弱动效
 function designOneShotRegistry(design) {
   const start = design.indexOf('\n## 一次性动效注册表')
-  assert.ok(start !== -1, 'DESIGN.md needs a 一次性动效注册表 section')
+  assert.ok(start !== -1, `${MOTION_DOC} needs a 一次性动效注册表 section`)
   const rest = design.slice(start + 1)
   const end = rest.indexOf('\n## ')
   const section = end === -1 ? rest : rest.slice(0, end)
@@ -1574,8 +1577,8 @@ function designOneShotRegistry(design) {
 }
 
 // issue #165：每段一次性动画逐项登记用途与触发、时长与曲线、中断与取消、弹层遮挡与页面不可见时的行为、减弱动效替代
-test('DESIGN.md registers every one-shot animation with its trigger, timing, cancel policy, cover and reduced-motion behavior', () => {
-  const rows = designOneShotRegistry(readRepo('DESIGN.md'))
+test('the motion doc registers every one-shot animation with its trigger, timing, cancel policy, cover and reduced-motion behavior', () => {
+  const rows = designOneShotRegistry(readRepo(MOTION_DOC))
   assert.deepEqual(rows.flatMap((row) => row.names).sort(), [...Object.keys(ONE_SHOT_ANIMATIONS), 'heroIn'].sort())
   for (const { names, cells } of rows) {
     const label = names.join(' / ')
@@ -1590,10 +1593,10 @@ test('DESIGN.md registers every one-shot animation with its trigger, timing, can
   }
 })
 
-test('DESIGN.md registers the motion and performance budgets', () => {
-  const design = readRepo('DESIGN.md')
+test('the motion doc registers the motion and performance budgets', () => {
+  const design = readRepo(MOTION_DOC)
   for (const retired of ['--ease-spring', '--transition-spring', ...RETIRED_ANIMATIONS]) {
-    assert.ok(design.includes(retired), `DESIGN.md is missing the ${retired} retirement note`)
+    assert.ok(design.includes(retired), `${MOTION_DOC} is missing the ${retired} retirement note`)
   }
   assert.match(design, /prefers-reduced-motion/)
   for (const token of [
@@ -1604,7 +1607,7 @@ test('DESIGN.md registers the motion and performance budgets', () => {
     '--duration-sheet',
     '--duration-emphasis'
   ]) {
-    assert.ok(design.includes(token), `DESIGN.md is missing ${token}`)
+    assert.ok(design.includes(token), `${MOTION_DOC} is missing ${token}`)
   }
   assert.match(design, /--duration-press` 160ms/)
   assert.match(design, /--duration-state` 200ms/)
@@ -1674,7 +1677,7 @@ test('obscured or hidden pages pause every decorative continuous animation on th
     assert.equal(hides, !PAGE_HIDDEN_EXEMPT[page], `${page} binds page-hidden`)
   }
 
-  const design = readRepo('DESIGN.md')
+  const design = readRepo(MOTION_DOC)
   assert.match(design, /issue #118/)
   assert.match(design, /page-obscured/)
   assert.match(design, /page-hidden/)
@@ -1781,7 +1784,7 @@ test('every visible block at a page root paints above the aurora', () => {
 
 // issue #137：滑动翻月不跟手，松手后一次页面更新；issue #165 起和箭头翻月同一段滑入，减弱动效下即时替换。
 test('calendar month swipes do not follow the finger and slide in like the arrows', () => {
-  const design = readRepo('DESIGN.md')
+  const design = readRepo(MOTION_DOC)
   assert.match(design, /滑动翻月（issue #137）/)
   assert.match(design, /水平位移超过 48px 且大于竖直位移才翻月/)
   assert.match(design, /不跟手，松手后一次页面更新完成，和箭头翻月同一段滑入/)

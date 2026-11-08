@@ -38,7 +38,7 @@ web
 
 - 名称：Minmin Calendar（敏敏子日历）。
 - 语气：柔和、私人，可读性优先于氛围。
-- 视觉规则只在 `DESIGN.md`（Aurora Bloom）里维护，本文件不重复。
+- 视觉规则只在 `DESIGN.md`（Aurora Bloom）和它下沉的 `docs/motion-and-interaction.md` 里维护，本文件不重复。
 
 ## Evidence on Hand
 

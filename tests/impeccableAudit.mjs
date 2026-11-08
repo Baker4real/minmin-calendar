@@ -77,50 +77,54 @@ function excerpt(text, index, term) {
   return text.slice(start, end).replace(/\s+/g, ' ').trim()
 }
 
+// DESIGN.md 把动效、弹层、按压与交互语义下沉到 docs/motion-and-interaction.md，两份一起是现行视觉说明
+const DESIGN_DOCS = ['DESIGN.md', 'docs/motion-and-interaction.md']
+
 function designSections(projectPath, terms) {
-  const { text } = readSource(projectPath, 'DESIGN.md')
-  const lines = text.split('\n')
   const sections = []
   const sectionTerms = new Map()
-  let heading = 'DESIGN.md'
-  let headingLine = 1
-  let paragraph = []
-  let paragraphLine = 1
+  for (const file of DESIGN_DOCS) {
+    const { text } = readSource(projectPath, file)
+    let heading = file
+    let headingLine = 1
+    let paragraph = []
+    let paragraphLine = 1
 
-  function collectParagraph() {
-    if (!paragraph.length) return
-    const body = paragraph.join('\n')
-    const matched = terms.filter(term => body.toLowerCase().includes(term.toLowerCase()))
-    if (matched.length) {
-      const first = matched.map(term => body.toLowerCase().indexOf(term.toLowerCase())).sort((a, b) => a - b)[0]
-      const term = matched.find(candidate => body.toLowerCase().indexOf(candidate.toLowerCase()) === first)
-      let section = sections.find(item => item.heading === heading && item.line === headingLine)
-      if (!section) {
-        section = { file: 'DESIGN.md', line: headingLine, heading, matches: [] }
-        sections.push(section)
-        sectionTerms.set(section, new Set())
+    function collectParagraph() {
+      if (!paragraph.length) return
+      const body = paragraph.join('\n')
+      const matched = terms.filter(term => body.toLowerCase().includes(term.toLowerCase()))
+      if (matched.length) {
+        const first = matched.map(term => body.toLowerCase().indexOf(term.toLowerCase())).sort((a, b) => a - b)[0]
+        const term = matched.find(candidate => body.toLowerCase().indexOf(candidate.toLowerCase()) === first)
+        let section = sections.find(item => item.file === file && item.heading === heading && item.line === headingLine)
+        if (!section) {
+          section = { file, line: headingLine, heading, matches: [] }
+          sections.push(section)
+          sectionTerms.set(section, new Set())
+        }
+        matched.forEach(item => sectionTerms.get(section).add(item))
+        if (section.matches.length < 3) {
+          section.matches.push({ line: paragraphLine, terms: matched, excerpt: excerpt(body, first, term) })
+        }
       }
-      matched.forEach(item => sectionTerms.get(section).add(item))
-      if (section.matches.length < 3) {
-        section.matches.push({ line: paragraphLine, terms: matched, excerpt: excerpt(body, first, term) })
-      }
+      paragraph = []
     }
-    paragraph = []
+
+    text.split('\n').forEach((line, index) => {
+      if (/^#{1,4} /.test(line)) {
+        collectParagraph()
+        heading = line.replace(/^#{1,4} /, '').trim()
+        headingLine = index + 1
+      } else if (!line.trim()) {
+        collectParagraph()
+      } else {
+        if (!paragraph.length) paragraphLine = index + 1
+        paragraph.push(line)
+      }
+    })
+    collectParagraph()
   }
-
-  lines.forEach((line, index) => {
-    if (/^#{1,4} /.test(line)) {
-      collectParagraph()
-      heading = line.replace(/^#{1,4} /, '').trim()
-      headingLine = index + 1
-    } else if (!line.trim()) {
-      collectParagraph()
-    } else {
-      if (!paragraph.length) paragraphLine = index + 1
-      paragraph.push(line)
-    }
-  })
-  collectParagraph()
   // 只留命中关键词种类最多的 8 节（同分取靠前的），输出仍按文档顺序；按文档顺序截断会让后面的专门章节被前文的零星提及挤掉
   const kept = new Set([...sections].sort((a, b) => sectionTerms.get(b).size - sectionTerms.get(a).size).slice(0, 8))
   return sections.filter(section => kept.has(section))
