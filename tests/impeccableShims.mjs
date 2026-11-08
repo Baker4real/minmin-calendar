@@ -6,7 +6,9 @@
 // 转换规则：
 //   - 样式：先内联 app.wxss，再内联页面 .wxss，层叠顺序与小程序一致；rpx 按 viewport/750 换成 px；
 //     page 选择器换成 body。
-//   - 标签：view 等容器类 → div，text/icon → span，image → img；wxs/import/include/template 删除。
+//   - 标签：view 等容器类 → div，text/icon → span，image → img；wxs/import/template 删除。
+//   - include：与小程序一样，把 src 指向的文件原地展开（其中的 template、wxs 同样不带），
+//     展开出的元素 data-src 指回片段文件；展开过的片段随结果列出。
 //   - 属性：保留 class、style、id、placeholder、maxlength、aria-*（aria-role → role），
 //     丢弃 wx:*、bind*、catch*、hover-class、data-* 等小程序专属属性。
 //   - {{ }}：三元表达式取第一个分支的字面量，其余 class 表达式取第一个字符串字面量，文字取「示例」，
@@ -95,7 +97,14 @@ function lineAt(source, index) {
   return line
 }
 
-function convertWxml(source, wxmlRel) {
+function includePath(rawAttrs, wxmlRel) {
+  const src = rawAttrs.match(/\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/)
+  const value = src[1] ?? src[2]
+  // 以 / 开头的路径相对小程序根目录（即仓库根），其余相对当前文件
+  return value.startsWith('/') ? path.posix.normalize(value.slice(1)) : path.posix.join(path.posix.dirname(wxmlRel), value)
+}
+
+function convertWxml(source, wxmlRel, inlined) {
   // 注释换成等长空白，保持下标和行号不变。
   let text = source.replace(/<!--[\s\S]*?-->/g, m => m.replace(/[^\n]/g, ' '))
   for (const tag of DROPPED_BLOCK_TAGS) {
@@ -111,6 +120,12 @@ function convertWxml(source, wxmlRel) {
     cursor = tagPattern.lastIndex
     const [, closing, rawName, rawAttrs, selfClosing] = match
     const name = rawName.toLowerCase()
+    if (name === 'include' && !closing) {
+      const includeRel = includePath(rawAttrs, wxmlRel)
+      inlined.add(includeRel)
+      html.push(convertWxml(read(includeRel), includeRel, inlined))
+      continue
+    }
     if (DROPPED_VOID_TAGS.has(name)) continue
     let htmlTag = name
     if (CONTAINER_TAGS.has(name)) htmlTag = 'div'
@@ -145,10 +160,11 @@ export function generateImpeccableShims({ outDir, viewport = 390 } = {}) {
   mkdirSync(resolvedOut, { recursive: true })
 
   const written = []
+  const inlined = new Set()
   for (const route of app.pages) {
     const wxmlRel = `${route}.wxml`
     const wxssRel = `${route}.wxss`
-    const body = convertWxml(read(wxmlRel), wxmlRel)
+    const body = convertWxml(read(wxmlRel), wxmlRel, inlined)
     let pageCss = ''
     try {
       pageCss = convertWxss(read(wxssRel), rpxRatio)
@@ -170,7 +186,7 @@ export function generateImpeccableShims({ outDir, viewport = 390 } = {}) {
     writeFileSync(file, doc, 'utf8')
     written.push(path.relative(repoRoot, file))
   }
-  return { outDir: resolvedOut, viewport: numericViewport, files: written }
+  return { outDir: resolvedOut, viewport: numericViewport, files: written, inlined: [...inlined].sort() }
 }
 
 function runCli() {
@@ -184,6 +200,7 @@ function runCli() {
   })
   console.log(`wrote ${result.files.length} shims to ${path.relative(repoRoot, result.outDir)}:`)
   for (const file of result.files) console.log(`  ${file}`)
+  if (result.inlined.length) console.log(`inlined: ${result.inlined.join(', ')}`)
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) runCli()

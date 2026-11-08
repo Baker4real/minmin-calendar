@@ -93,6 +93,7 @@ console.log(JSON.stringify({
     target,
     sourceWxml: sourceWxml.length,
     generatedHtml: generated.files.length,
+    inlinedWxml: generated.inlined,
     extensions: ['.wxml', '.wxss'],
     viewport: generated.viewport,
     outDir: generated.outDir

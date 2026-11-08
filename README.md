@@ -97,7 +97,7 @@ npm run verify
 
 首次安装及 Playwright 版本升级后运行 `browser:install`，浏览器保存在项目 `.scratch/browsers/`。日常输出只显示每项结果、测试条数和日志路径；完整日志在 `.scratch/verify/`，坐标与截图证据在 `.scratch/coordinate-hit/`，两处都只保留最近一次运行。任何检查失败均退出非零；CI 失败时保留这些诊断产物。`npm test`、`npm run check`、`npm run test:hit` 可用于单独定位，不能代替完整验收。
 
-WXML/WXSS 的 Impeccable 静态检查走 `npm run impeccable:detect -- --target pages --launcher <impeccable(.cmd) 路径>`。入口先把 `app.json` 注册的页面转换成 HTML shim，输出源 WXML 数、生成 HTML 数、扫描类型和 findings 摘要；没有 WXML 时失败闭锁，不把直接检测 `pages/` 的空数组当成已覆盖。本机存在受管 `D:\agents\tmp` 时默认把每次运行写入其独立子目录，其他环境回退到 `.scratch/impeccable-shims/`；可用 `--out` 或 `MINMIN_IMPECCABLE_TEMP` 覆盖。完整 findings 保留在输出目录，退出码 0 表示无命中、2 表示有候选、1 表示覆盖或调用失败。候选仍须回源复核，本检查不进入 CI，也不替代微信验收。
+WXML/WXSS 的 Impeccable 静态检查走 `npm run impeccable:detect -- --target pages --launcher <impeccable(.cmd) 路径>`。入口先把 `app.json` 注册的页面转换成 HTML shim，`<include>` 的片段原地展开进引用它的页面，展开出的元素 `data-src` 指回片段文件；输出源 WXML 数、生成 HTML 数、展开过的片段、扫描类型和 findings 摘要；没有 WXML 时失败闭锁，不把直接检测 `pages/` 的空数组当成已覆盖。本机存在受管 `D:\agents\tmp` 时默认把每次运行写入其独立子目录，其他环境回退到 `.scratch/impeccable-shims/`；可用 `--out` 或 `MINMIN_IMPECCABLE_TEMP` 覆盖。完整 findings 保留在输出目录，退出码 0 表示无命中、2 表示有候选、1 表示覆盖或调用失败。候选仍须回源复核，本检查不进入 CI，也不替代微信验收。
 
 组件级视觉审计先用 `node tests/impeccableAudit.mjs --component calendar`；`--list-components` 列出 calendar、atmosphere、typography、sheets、feedback、motion 六个视角。只读 JSON 摘要给出带行号的设计段落、静态选择器引用、动效、相关测试，以及 `.scratch/screenshots/captures.jsonl` 的 current / stale / historical-unbound 分类；`--captures <路径>` 可指定其他账本。缺失源码、未知组件和损坏账本会直接失败。摘要是定位入口，不替代 DESIGN.md、真实界面审美判断或微信验收；检测器命中也只是待回源候选。需要直接管道解析 stdout 时使用上述 `node` 入口；`npm run impeccable:audit` 是等价的交互命令，但 npm notice 会混进 stdout。
 

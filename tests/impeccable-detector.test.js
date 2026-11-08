@@ -37,18 +37,24 @@ test('WXML targets are converted into explicit HTML coverage before detection', 
 
   assert.equal(result.status, 0, result.stderr || result.stdout)
   const report = JSON.parse(result.stdout)
-  // 源 WXML 含 include 片段（pages/shared/aurora.wxml），shim 只按 app.json 的页面路由各生成一页
+  // 每个 app.json 路由生成一页 shim；pages/shared/aurora.wxml 不是路由，是各页 include 的片段，原地展开进引用它的页面
+  const routes = JSON.parse(fs.readFileSync(path.join(repo, 'app.json'), 'utf8')).pages
   const wxmlCount = fs.readdirSync(path.join(repo, 'pages'), { recursive: true }).filter(file => file.endsWith('.wxml')).length
-  const routeCount = JSON.parse(fs.readFileSync(path.join(repo, 'app.json'), 'utf8')).pages.length
   assert.equal(report.coverage.scanKind, 'wxml-shim')
+  assert.equal(report.coverage.generatedHtml, routes.length)
+  assert.ok(report.coverage.inlinedWxml.includes('pages/shared/aurora.wxml'))
   assert.equal(report.coverage.sourceWxml, wxmlCount)
-  assert.equal(report.coverage.generatedHtml, routeCount)
+  assert.equal(wxmlCount, routes.length + report.coverage.inlinedWxml.length, 'every WXML is a route page or an inlined fragment')
   assert.deepEqual(report.coverage.extensions, ['.wxml', '.wxss'])
   assert.equal(report.findings.count, 0)
 
   const calls = fs.readFileSync(capture, 'utf8').trim().split('\n').map(JSON.parse)
   assert.deepEqual(calls, [['detect', '--json', out]])
-  assert.equal(fs.readdirSync(out).filter(file => file.endsWith('.html')).length, routeCount)
+  const shims = fs.readdirSync(out).filter(file => file.endsWith('.html')).map(file => fs.readFileSync(path.join(out, file), 'utf8'))
+  assert.equal(shims.length, routes.length)
+  const includers = routes.filter(route => fs.readFileSync(path.join(repo, `${route}.wxml`), 'utf8').includes('src="/pages/shared/aurora.wxml"'))
+  const withAurora = shims.filter(html => /<div class="aurora"[^>]*data-src="pages\/shared\/aurora\.wxml:\d+"/.test(html))
+  assert.equal(withAurora.length, includers.length, 'the aurora markup lands in every page that includes it, traced back to the fragment')
 })
 
 test('a target without recognizable WXML fails closed instead of reporting a clean scan', t => {
