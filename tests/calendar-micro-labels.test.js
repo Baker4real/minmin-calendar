@@ -692,17 +692,26 @@ function signedRpx(value, label) {
   return Number(match[1])
 }
 
+// 一个选择器的全部声明，按出现顺序合并：胶囊的几何和今天的光晕共用一组规则，颜色各写一条（issue #165）
+function mergedDecls(wxss, selector) {
+  const { parseWxssRules } = require('./designTokens')
+  const rules = parseWxssRules(wxss).filter(rule => rule.selectors.includes(selector))
+  assert.ok(rules.length > 0, `expected rule for ${selector}`)
+  return Object.assign({}, ...rules.map(rule => rule.decls))
+}
+
 // 胶囊相对日期行盒顶的位置与尺寸；清爽密度（含合并信息行）先读清爽覆盖，再退回基础规则
 function todayCapsuleBox(wxss, density) {
-  const bodies = [ruleBody(wxss, TODAY_CAPSULE_SELECTOR)]
-  if (density === 'compact') bodies.unshift(ruleBody(wxss, COMPACT_TODAY_CAPSULE_SELECTOR))
-  const read = (property) => bodies.map(body => anchoredDeclaration(body, property)).find(value => value !== undefined)
+  const decls = {
+    ...mergedDecls(wxss, TODAY_CAPSULE_SELECTOR),
+    ...(density === 'compact' ? mergedDecls(wxss, COMPACT_TODAY_CAPSULE_SELECTOR) : {})
+  }
   return {
-    top: signedRpx(read('top'), 'capsule top'),
-    height: signedRpx(read('height'), 'capsule height'),
-    width: signedRpx(read('width'), 'capsule width'),
-    left: read('left'),
-    marginLeft: signedRpx(read('margin-left'), 'capsule margin-left')
+    top: signedRpx(decls.top, 'capsule top'),
+    height: signedRpx(decls.height, 'capsule height'),
+    width: signedRpx(decls.width, 'capsule width'),
+    left: decls.left,
+    marginLeft: signedRpx(decls['margin-left'], 'capsule margin-left')
   }
 }
 
@@ -725,12 +734,12 @@ test('today is a compact capsule around the date number and never paints the who
   assert.deepEqual(cellPaint, [], 'today paints only the date capsule, never the whole cell')
 
   // 胶囊是日期身后的一层：日期自成叠放层，胶囊在数字后面、在格子与色带之上
-  const capsule = ruleBody(wxss, TODAY_CAPSULE_SELECTOR)
-  assert.match(capsule, /content:\s*(?:''|"");/)
-  assert.match(capsule, /position:\s*absolute/)
-  assert.match(capsule, /z-index:\s*-1/)
-  assert.match(capsule, /box-sizing:\s*border-box/)
-  assert.match(capsule, /border-radius:\s*var\(--radius-full\)/)
+  const capsule = mergedDecls(wxss, TODAY_CAPSULE_SELECTOR)
+  assert.match(capsule.content, /^(?:''|"")$/)
+  assert.equal(capsule.position, 'absolute')
+  assert.equal(capsule['z-index'], '-1')
+  assert.equal(capsule['box-sizing'], 'border-box')
+  assert.equal(capsule['border-radius'], 'var(--radius-full)')
   const dateLayer = parseWxssRules(wxss).find(rule => rule.selectors.includes('.day-num') && rule.decls.position === 'relative')
   assert.ok(dateLayer && Number(dateLayer.decls['z-index']) >= 1, 'the date must be its own stacking layer above the band')
 
@@ -889,12 +898,12 @@ test('DESIGN.md registers the today capsule the CSS draws', () => {
   const frontmatter = design.split('\n---')[0]
   const registered = key => (new RegExp(`\\n\\s+${key}:\\s*"([^"]+)"`).exec(frontmatter) || [])[1]
   const wxss = readWxss()
-  const capsule = ruleBody(wxss, TODAY_CAPSULE_SELECTOR)
+  const capsule = mergedDecls(wxss, TODAY_CAPSULE_SELECTOR)
   const full = todayCapsuleBox(wxss, 'full')
   const compact = todayCapsuleBox(wxss, 'compact')
 
-  assert.equal(registered('todayCapsuleBg'), anchoredDeclaration(capsule, 'background'))
-  assert.equal(registered('todayCapsuleStroke'), anchoredDeclaration(capsule, 'border'))
+  assert.equal(registered('todayCapsuleBg'), capsule.background)
+  assert.equal(registered('todayCapsuleStroke'), capsule.border)
   assert.equal(registered('todayCapsuleSize'), `${full.width}×${full.height}rpx full / ${compact.width}×${compact.height}rpx compact`)
   assert.equal(registered('todayText'), anchoredDeclaration(ruleBody(wxss, '.day-cell.today .day-num'), 'color'))
   assert.doesNotMatch(design, /todayBg|todayRing|薰衣草内描边|今天玫瑰底/, 'the full-cell today wording is retired')

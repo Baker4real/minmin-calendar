@@ -498,31 +498,9 @@
    整日点按范围仍是整格；农历、节日/调休与标记都在胶囊外。胶囊挂在日期身后（日期自成叠放层，见下方 z-index 1）。
    完整密度：胶囊从格子顶画起（0–41rpx）。清爽与合并信息行：日期上方 5rpx 起。下沿都离下一槽
    （农历字框、节日/调休或信息行）留 2rpx：rpx 按段取整成整数 px，贴着槽顶画会在部分屏宽上压到「班」1px。
-   经期今天不画胶囊，今天只描在色带外缘 */
-.day-cell.today:not(.period) .day-num::before {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  top: -4rpx;
-  left: 50%;
-  width: 60rpx;
-  height: 41rpx;
-  margin-left: -30rpx;
-  box-sizing: border-box;
-  border: 2rpx solid rgba(196,160,210,0.55);
-  border-radius: var(--radius-full);
-  background: rgba(232,144,158,0.14);
-  pointer-events: none;
-}
-.calendar-density-compact .day-cell.today:not(.period) .day-num::before {
-  top: -5rpx;
-  width: 64rpx;
-  height: 43rpx;
-  margin-left: -32rpx;
-}
-/* 今天的状态强调（issue #165）：回到今天时，日期胶囊的位置亮起一层更亮的胶囊再落回 0，只动透明度、播一次。
-   形状、位置和胶囊重合；经期今天没有胶囊，光晕同样围住日期、叠在色带上，播完不留痕。
-   只在 .calendar-days 带强调记号时存在，静止的日历不多一层；a、b 交替才会从头重播 */
+   经期今天不画胶囊，今天只描在色带外缘。
+   今天的状态强调（issue #165）用同一个框：两档密度的几何只写在这里，胶囊和光晕各自只写颜色 */
+.day-cell.today:not(.period) .day-num::before,
 .calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after,
 .calendar-days.calendar-emphasis-today-b .day-cell.today .day-num::after {
   content: '';
@@ -534,18 +512,29 @@
   height: 41rpx;
   margin-left: -30rpx;
   box-sizing: border-box;
-  border: 2rpx solid rgba(196,160,210,0.95);
   border-radius: var(--radius-full);
-  background: rgba(232,144,158,0.3);
-  opacity: 0;
   pointer-events: none;
 }
+.calendar-density-compact .day-cell.today:not(.period) .day-num::before,
 .calendar-density-compact .calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after,
 .calendar-density-compact .calendar-days.calendar-emphasis-today-b .day-cell.today .day-num::after {
   top: -5rpx;
   width: 64rpx;
   height: 43rpx;
   margin-left: -32rpx;
+}
+.day-cell.today:not(.period) .day-num::before {
+  border: 2rpx solid rgba(196,160,210,0.55);
+  background: rgba(232,144,158,0.14);
+}
+/* 今天的状态强调（issue #165）：回到今天时，日期胶囊的位置亮起一层更亮的胶囊再落回 0，只动透明度、播一次。
+   形状、位置和胶囊重合（框见上）；经期今天没有胶囊，光晕同样围住日期、叠在色带上，播完不留痕。
+   只在 .calendar-days 带强调记号时存在，静止的日历不多一层；a、b 交替才会从头重播 */
+.calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after,
+.calendar-days.calendar-emphasis-today-b .day-cell.today .day-num::after {
+  border: 2rpx solid rgba(196,160,210,0.95);
+  background: rgba(232,144,158,0.3);
+  opacity: 0;
 }
 .calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after {
   animation: calendarHaloA var(--duration-emphasis) var(--ease-out);
