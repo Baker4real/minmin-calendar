@@ -793,7 +793,7 @@ test('glows sit only on the places DESIGN.md registers', () => {
     'drop-shadow(0 0 10px rgba(240,196,192,0.3))',
     '0 8px 32px rgba(232,144,158,0.15)',
     '`.jump-option.active`',
-    '经期编辑页选中的经量和症状芯片'
+    '经期编辑页选中的状态、经量和症状芯片'
   ]) {
     assert.ok(design.includes(registered), `DESIGN.md Shadow / overlay registers ${registered}`)
   }
