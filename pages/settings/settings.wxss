@@ -120,17 +120,7 @@
   transform: translateY(0);
   transition: transform var(--duration-sheet) var(--ease-out);
 }
-/* 标题与内容错相（issue #166），同首页弹层：标题行随面板到，说明文字晚一拍跟上，离场一起走；不拦点按 */
-.sheet-body {
-  opacity: 0;
-  transform: translateY(16rpx);
-  transition: opacity var(--duration-exit) var(--ease-out), transform var(--duration-exit) var(--ease-out);
-}
-.help-slide.sheet-open .sheet-body {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity var(--duration-enter) var(--ease-out) var(--delay-stagger), transform var(--duration-enter) var(--ease-out) var(--delay-stagger);
-}
+/* 标题与内容错相（issue #166），同首页弹层：说明文字 .sheet-body 晚一拍跟上，规则在 app.wxss「弹层内容块」 */
 .help-sheet {
   position: relative;
   z-index: 1;
@@ -396,8 +386,6 @@
   .help-mask.sheet-open,
   .help-slide,
   .help-slide.sheet-open,
-  .sheet-body,
-  .help-slide.sheet-open .sheet-body,
   .sheet-close {
     animation: none;
     transition: none;

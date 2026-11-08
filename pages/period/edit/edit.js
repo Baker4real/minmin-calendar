@@ -7,7 +7,7 @@ const recordEditRoute = require('../../../utils/recordEditRoute')
 const recordFieldErrors = require('../../../utils/recordFieldErrors')
 const recordPageSync = require('../../../utils/recordPageSync')
 const safeArea = require('../../../utils/safeArea')
-const { markPageHidden, markPageShown } = require('../../../utils/pageVisibility')
+const { withPageVisibility } = require('../../../utils/pageVisibility')
 
 const DRAFT_FIELDS = ['startDate', 'endDate', 'status', 'note', 'flow', 'symptoms']
 // 可定位的校验字段，按表单自上而下的顺序；滚动定位到第一个出错的字段
@@ -36,7 +36,7 @@ function collectPeriodFieldErrors({ startDate, endDate, status }, today) {
 // 「目标分段」意图键：从首页等入口进入本页保存/删除后写键，记录 tab onShow 消费并落到经期分段（issue #103）
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 
-Page({
+Page(withPageVisibility({
   data: {
     safeTop: safeArea.getSafeTop(),
     safeBottom: safeArea.getSafeBottom(),
@@ -61,8 +61,7 @@ Page({
     deleting: false,
     submitted: false,
     draftRestored: false,
-    fieldErrors: {},
-    pageHidden: false
+    fieldErrors: {}
   },
 
   onLoad(options) {
@@ -101,12 +100,7 @@ Page({
     return this.loadPeriodHistory()
   },
 
-  onShow() {
-    markPageShown(this)
-  },
-
   onHide() {
-    markPageHidden(this)
     this.persistRecordDraft()
   },
 
@@ -378,4 +372,4 @@ Page({
       this._deleteConfirming = false
     }
   }
-})
+}))

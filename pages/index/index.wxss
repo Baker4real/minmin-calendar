@@ -100,18 +100,9 @@
   border: 1px solid rgba(255,255,255,0.1);
   transition: border-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
+/* 平涂层的结构在 app.wxss「平涂层」，这里只写颜色 */
 .refresh-retry::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: var(--radius-md);
   background-color: rgba(255,255,255,0.05);
-  transition: background-color var(--duration-press) ease;
-  pointer-events: none;
-  z-index: -1;
 }
 /* 平涂层盖不到描边带：按下时描边和平涂层一起提亮（issue #166） */
 .refresh-retry:active,
@@ -498,31 +489,9 @@
    整日点按范围仍是整格；农历、节日/调休与标记都在胶囊外。胶囊挂在日期身后（日期自成叠放层，见下方 z-index 1）。
    完整密度：胶囊从格子顶画起（0–41rpx）。清爽与合并信息行：日期上方 5rpx 起。下沿都离下一槽
    （农历字框、节日/调休或信息行）留 2rpx：rpx 按段取整成整数 px，贴着槽顶画会在部分屏宽上压到「班」1px。
-   经期今天不画胶囊，今天只描在色带外缘 */
-.day-cell.today:not(.period) .day-num::before {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  top: -4rpx;
-  left: 50%;
-  width: 60rpx;
-  height: 41rpx;
-  margin-left: -30rpx;
-  box-sizing: border-box;
-  border: 2rpx solid rgba(196,160,210,0.55);
-  border-radius: var(--radius-full);
-  background: rgba(232,144,158,0.14);
-  pointer-events: none;
-}
-.calendar-density-compact .day-cell.today:not(.period) .day-num::before {
-  top: -5rpx;
-  width: 64rpx;
-  height: 43rpx;
-  margin-left: -32rpx;
-}
-/* 今天的状态强调（issue #165）：回到今天时，日期胶囊的位置亮起一层更亮的胶囊再落回 0，只动透明度、播一次。
-   形状、位置和胶囊重合；经期今天没有胶囊，光晕同样围住日期、叠在色带上，播完不留痕。
-   只在 .calendar-days 带强调记号时存在，静止的日历不多一层；a、b 交替才会从头重播 */
+   经期今天不画胶囊，今天只描在色带外缘。
+   今天的状态强调（issue #165）用同一个框：两档密度的几何只写在这里，胶囊和光晕各自只写颜色 */
+.day-cell.today:not(.period) .day-num::before,
 .calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after,
 .calendar-days.calendar-emphasis-today-b .day-cell.today .day-num::after {
   content: '';
@@ -534,18 +503,29 @@
   height: 41rpx;
   margin-left: -30rpx;
   box-sizing: border-box;
-  border: 2rpx solid rgba(196,160,210,0.95);
   border-radius: var(--radius-full);
-  background: rgba(232,144,158,0.3);
-  opacity: 0;
   pointer-events: none;
 }
+.calendar-density-compact .day-cell.today:not(.period) .day-num::before,
 .calendar-density-compact .calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after,
 .calendar-density-compact .calendar-days.calendar-emphasis-today-b .day-cell.today .day-num::after {
   top: -5rpx;
   width: 64rpx;
   height: 43rpx;
   margin-left: -32rpx;
+}
+.day-cell.today:not(.period) .day-num::before {
+  border: 2rpx solid rgba(196,160,210,0.55);
+  background: rgba(232,144,158,0.14);
+}
+/* 今天的状态强调（issue #165）：回到今天时，日期胶囊的位置亮起一圈更亮、更粗的薰衣草描边再落回 0，只动透明度、播一次。
+   形状、位置和胶囊重合（框见上）；经期今天没有胶囊，光晕同样围住日期、叠在色带上，播完不留痕。
+   不铺底：日期就在框里，再叠一层玫瑰底，峰值时玫瑰日期掉到约 3:1；描边 4rpx 落在框边，不压数字。
+   只在 .calendar-days 带强调记号时存在，静止的日历不多一层；a、b 交替才会从头重播 */
+.calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after,
+.calendar-days.calendar-emphasis-today-b .day-cell.today .day-num::after {
+  border: 4rpx solid rgba(196,160,210,0.95);
+  opacity: 0;
 }
 .calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after {
   animation: calendarHaloA var(--duration-emphasis) var(--ease-out);
@@ -834,18 +814,9 @@
   box-sizing: border-box;
   transition: border-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
+/* 平涂层的结构在 app.wxss「平涂层」，这里只写颜色 */
 .reminder-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: var(--radius-md);
   background-color: rgba(255,255,255,0.075);
-  transition: background-color var(--duration-press) ease;
-  pointer-events: none;
-  z-index: -1;
 }
 /* 平涂层盖不到描边带：按下时描边和平涂层一起提亮（issue #166） */
 .reminder-card:active,
@@ -931,26 +902,13 @@
   position: relative;
   transition: transform var(--duration-press) var(--ease-out);
 }
-/* 柔光层同 .btn-premium（issue #166）：按下沉到 0.5，和缩放同一拍 */
+/* 柔光层同 .btn-premium（issue #166，结构和按下沉到 0.5 在 app.wxss「柔光层」）：这里只写光的大小 */
 .quick-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: var(--radius-md);
   box-shadow: 0 10rpx 26rpx rgba(232,144,158,0.22);
-  transition: opacity var(--duration-press) ease;
-  pointer-events: none;
 }
 .quick-btn:active,
 .quick-btn.quick-btn-hover {
   transform: scale(0.96);
-}
-.quick-btn:active::before,
-.quick-btn.quick-btn-hover::before {
-  opacity: 0.5;
 }
 /* 记录入口图标 = 日历图例标记：海军圆盘上承载图例的单日经期色带 / 欢乐时光浅色心（.action-sample / .memory-tone） */
 .quick-icon {
@@ -1260,19 +1218,7 @@
 .sheet-slide.sheet-open.sheet-reset {
   transition: transform var(--duration-exit) var(--ease-out);
 }
-/* 标题与内容错相（issue #166）：标题行（把手、标题、关闭）随面板升降，自己不另动；下面的内容块晚一拍跟上。
-   收起时透明、低 16rpx；打开时等 --delay-stagger，再用进场时长到位，和面板同时落定；离场不等，和面板一起走。
-   全是 transition，中途反向从当前帧接着走。不拦点按、不改显隐：内容里的操作从第一帧起就能点 */
-.sheet-body {
-  opacity: 0;
-  transform: translateY(16rpx);
-  transition: opacity var(--duration-exit) var(--ease-out), transform var(--duration-exit) var(--ease-out);
-}
-.sheet-slide.sheet-open .sheet-body {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity var(--duration-enter) var(--ease-out) var(--delay-stagger), transform var(--duration-enter) var(--ease-out) var(--delay-stagger);
-}
+/* 标题与内容错相（issue #166）：内容块 .sheet-body 晚标题一拍跟上，规则在 app.wxss「弹层内容块」 */
 .day-action-sheet {
   width: 100%;
   max-height: 82vh;
@@ -1752,26 +1698,13 @@
   position: relative;
   transition: transform var(--duration-press) var(--ease-out);
 }
-/* 柔光层同 .btn-premium（issue #166）：按下沉到 0.5，和缩放同一拍 */
+/* 柔光层同 .btn-premium（issue #166，结构和按下沉到 0.5 在 app.wxss「柔光层」）：这里只写光的大小 */
 .copy-recap::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: var(--radius-md);
   box-shadow: 0 14rpx 34rpx rgba(232,144,158,0.18);
-  transition: opacity var(--duration-press) ease;
-  pointer-events: none;
 }
 .copy-recap:active,
 .copy-recap.copy-recap-hover {
   transform: scale(0.98);
-}
-.copy-recap:active::before,
-.copy-recap.copy-recap-hover::before {
-  opacity: 0.5;
 }
 /* 骨架和 .content、.no-room 一样画在极光固定层之上（issue #163） */
 .calendar-skeleton {
@@ -1827,13 +1760,10 @@
   .sheet-slide.sheet-open,
   .sheet-slide.sheet-open.sheet-reset,
   .sheet-slide,
-  .sheet-body,
-  .sheet-slide.sheet-open .sheet-body,
   .sync-pill,
   .sync-pill.sync-open,
   .sync-pill.syncing .sync-dot,
   .refresh-retry,
-  .refresh-retry::before,
   .day-sheet-mask,
   .day-sheet-mask::after,
   .day-action-sheet,
@@ -1860,11 +1790,8 @@
   .skeleton-week-cell,
   .skeleton-cell,
   .reminder-card,
-  .reminder-card::before,
   .quick-btn,
-  .quick-btn::before,
   .copy-recap,
-  .copy-recap::before,
   .no-room-icon {
     animation: none;
     transition: none;

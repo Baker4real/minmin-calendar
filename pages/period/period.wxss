@@ -351,7 +351,6 @@
   .load-failed,
   .retry-btn,
   .list-retry,
-  .list-retry::before,
   .segment-option {
     transition: none;
   }
@@ -413,24 +412,15 @@
   box-sizing: border-box;
   min-height: 88rpx;
   margin-top: 16rpx;
-  padding: 0 28rpx;
+  padding: 0 30rpx;
   border-radius: var(--radius-md);
   background: var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.1);
   transition: border-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
+/* 平涂层的结构在 app.wxss「平涂层」，这里只写颜色 */
 .list-retry::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: var(--radius-md);
   background-color: rgba(255,255,255,0.05);
-  transition: background-color var(--duration-press) ease;
-  pointer-events: none;
-  z-index: -1;
 }
 /* 平涂层盖不到描边带：按下时描边和平涂层一起提亮（issue #166） */
 .list-retry:active,

@@ -6,7 +6,8 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
-const { listWxssFiles } = require('./designTokens')
+const { FILL_PROPERTIES, fillOf, listWxssFiles } = require('./designTokens')
+const { renderWxmlClasses } = require('./wxmlTemplate')
 
 const repoRoot = path.join(__dirname, '..')
 
@@ -144,14 +145,17 @@ function selectorSignature(selector) {
   return { classes, pseudo: pseudo ? pseudo[0] : null }
 }
 
-function reducedMotionSelectorCovers(animatedSelector, rmSelector) {
+// sameElement：标记里和某个类总在同一个元素上的类（类名 → 类名数组）
+function reducedMotionSelectorCovers(animatedSelector, rmSelector, sameElement = {}) {
   const animated = selectorSignature(animatedSelector)
   const rm = selectorSignature(rmSelector)
   if (rm.classes.length === 0) return false
-  // 覆盖必须落在同一元素同一层级：类集合完全相同（低特异的 RM 规则压不住高特异动画声明），
+  // 覆盖必须落在同一元素同一层级：类的个数相同（低特异的 RM 规则压不住高特异动画声明），
+  // 每个类都写在动画选择器里，或在标记里和它同在一个元素上；
   // 伪元素 scope 相同（.page::before 的动画不能被只写 .page 的 RM 规则覆盖）
   if (rm.classes.length !== animated.classes.length) return false
-  if (!rm.classes.every((cls) => animated.classes.includes(cls))) return false
+  const onElement = new Set(animated.classes.flatMap((cls) => [cls, ...(sameElement[cls] || [])]))
+  if (!rm.classes.every((cls) => onElement.has(cls))) return false
   if (animated.pseudo !== rm.pseudo) return false
   return true
 }
@@ -163,6 +167,10 @@ test('reduced-motion coverage requires matching pseudo-element scope', () => {
   assert.equal(reducedMotionSelectorCovers('.glow-orb', '.glow-orb'), true)
   assert.equal(reducedMotionSelectorCovers('.sync-pill.syncing .sync-dot', '.sync-pill'), false)
   assert.equal(reducedMotionSelectorCovers('.sync-pill.syncing .sync-dot', '.sync-pill.syncing .sync-dot'), true)
+  // 共有类只在标记证明它和动画类同在一个元素上时才算覆盖
+  assert.equal(reducedMotionSelectorCovers('.bloom-a', '.bloom'), false)
+  assert.equal(reducedMotionSelectorCovers('.bloom-a', '.bloom', { 'bloom-a': ['bloom'] }), true)
+  assert.equal(reducedMotionSelectorCovers('.bloom-a::before', '.bloom', { 'bloom-a': ['bloom'] }), false)
 })
 
 function analyzedWxssFiles() {
@@ -170,6 +178,16 @@ function analyzedWxssFiles() {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
     return { relative, ...analyzeFile(fs.readFileSync(file, 'utf8')) }
   })
+}
+
+// 一个选择器的有效声明。files 是一份分析过的 WXSS，或按加载顺序排的几份（app.wxss 在前、页面在后：
+// 共享层写在 app.wxss、各页只写自己的值时两边一起看）；同一选择器的各条规则按出现顺序层叠。
+// reduced 为 true 时只看减弱动效块里的规则，否则只看块外的
+function declsOf(files, selector, { reduced = false } = {}) {
+  const rules = [files].flat().flatMap((file) => file.rules)
+    .filter((rule) => rule.inReducedMotion === reduced && rule.selectors.includes(selector))
+  assert.ok(rules.length > 0, `expected ${selector}${reduced ? ' under reduced motion' : ''}`)
+  return Object.assign({}, ...rules.map((rule) => rule.decls))
 }
 
 const REGISTERED_EASE_OUT = [0.16, 1, 0.3, 1]
@@ -260,13 +278,30 @@ const CONTINUOUS_ANIMATIONS = {
 }
 const RETIRED_ANIMATIONS = ['orbRotate', 'bounceIn', 'auroraPulse', 'orbFloat']
 
-// 每个页面根下的极光色团（issue #163）
+// 每个页面根下的极光色团（issue #163）。标记只写在共享文件一处，各页面在根节点下第一层 include 它
 const AURORA_BLOOMS = ['violet', 'rose', 'lavender']
+const AURORA_SHARED_MARKUP = 'pages/shared/aurora.wxml'
 const AURORA_MARKUP = new RegExp(
   '<view class="aurora" aria-hidden="true">\\s*' +
   AURORA_BLOOMS.map((name) => `<view class="aurora-bloom aurora-bloom-${name}"></view>\\s*`).join('') +
   '</view>'
 )
+const AURORA_INCLUDE = /^ {2}<include src="\/pages\/shared\/aurora\.wxml" \/>$/gm
+
+// 共享极光标记里和每个类同在一个元素上的类。色团元素都带 aurora-bloom 和自己的色名类，
+// 所以暂停规则和减弱动效名单写一个 .aurora-bloom 就落在每个色团上，增减色团不用改这两处
+function auroraSameElementClasses() {
+  const sameElement = {}
+  for (const match of readRepo(AURORA_SHARED_MARKUP).matchAll(/<view class="([^"]+)"/g)) {
+    const classes = match[1].split(/\s+/)
+    for (const cls of classes) {
+      const others = classes.filter((other) => other !== cls)
+      sameElement[cls] = sameElement[cls] ? sameElement[cls].filter((other) => others.includes(other)) : others
+    }
+  }
+  return sameElement
+}
+const AURORA_SAME_ELEMENT = auroraSameElementClasses()
 
 function appPages() {
   return JSON.parse(readRepo('app.json')).pages
@@ -676,7 +711,7 @@ test('every transform-based animation is neutralized or replaced under reduced m
 
         const covering = rmRules.find((rmRule) =>
           rmRule.selectors.some((rmSelector) =>
-            rule.selectors.some((selector) => reducedMotionSelectorCovers(selector, rmSelector)
+            rule.selectors.some((selector) => reducedMotionSelectorCovers(selector, rmSelector, AURORA_SAME_ELEMENT)
             )
           )
         )
@@ -723,14 +758,9 @@ test('loading keeps an opacity-only pulse under reduced motion instead of going 
 const PRESS_BEAT_EXCEPTIONS = {
   'pages/period/period.wxss .month-header': 'issue #109: the collapsible month header writes no transition'
 }
-const PRESS_CHANNELS = {
-  transform: 'transform',
-  background: 'background-color',
-  'background-color': 'background-color',
-  'border-color': 'border-color',
-  opacity: 'opacity',
-  color: 'color'
-}
+// 按压会改的各路；两种底色写法在 transition 里都走 background-color 这一路
+const PRESS_CHANNELS = ['transform', ...FILL_PROPERTIES, 'border-color', 'opacity', 'color']
+const transitionChannel = (prop) => (FILL_PROPERTIES.includes(prop) ? 'background-color' : prop)
 const INERT_CLASSES = ['disabled', 'loading']
 const PURE_CLASS_COMPOUND = /^(?:\.[A-Za-z_][\w-]*)+(?:::(?:before|after))?$/
 
@@ -767,9 +797,10 @@ test('a press moves every channel it changes on the press beat, and never swaps 
         if (PRESS_BEAT_EXCEPTIONS[`${file.relative} ${target}`]) continue
         const transition = effectiveTransition(file.relative, target)
         const segments = splitTopLevelComma(transition || '')
-        for (const [prop, channel] of Object.entries(PRESS_CHANNELS)) {
+        for (const prop of PRESS_CHANNELS) {
           if (!rule.decls[prop]) continue
           checked += 1
+          const channel = transitionChannel(prop)
           const segment = segments.find((part) => part.startsWith(`${channel} `))
           if (!segment || !segment.includes(PRESS_DURATION)) {
             violations.push(`${where} changes ${prop} but ${target} does not move ${channel} on ${PRESS_DURATION} (transition: ${transition || 'none'})`)
@@ -797,7 +828,7 @@ test('controls tinted on a ::before layer brighten their border with the tint', 
   let checked = 0
   for (const file of analyzedWxssFiles()) {
     for (const rule of file.rules) {
-      if (rule.inReducedMotion || !(rule.decls['background-color'] || rule.decls.background)) continue
+      if (rule.inReducedMotion || !fillOf(rule.decls)) continue
       for (const selector of rule.selectors.filter((item) => item.includes(':active') && item.endsWith('::before'))) {
         const pressedHost = selector.slice(0, -'::before'.length)
         const host = lastCompound(pressedHost)
@@ -820,6 +851,38 @@ test('controls tinted on a ::before layer brighten their border with the tint', 
   assert.match(readRepo('DESIGN.md'), /平涂层只铺内边距盒/)
 })
 
+// issue #163、#166：压在极光上的行和按钮把淡白、淡红画在 ::before 平涂层上，底是海军回退。平涂层铺满宿主的
+// 内边距盒、跟宿主同一个圆角、垫在内容下面（z-index -1，宿主自成叠放层）、不拦点按，底色和按压同一拍，
+// 减弱动效下即时切换。结构写在 app.wxss「平涂层」一处，各页只写平涂色
+const TINT_CONTROLS = [
+  ['pages/index/index.wxss', '.refresh-retry'],
+  ['pages/index/index.wxss', '.reminder-card'],
+  ['pages/period/period.wxss', '.list-retry'],
+  ['pages/bind/bind.wxss', '.error-retry']
+]
+
+test('tint layers under the aurora rows cover their host, stay behind the content and never take the tap', () => {
+  const app = analyzeFile(readRepo('app.wxss'))
+  for (const [relative, selector] of TINT_CONTROLS) {
+    const files = [app, analyzeFile(readRepo(relative))]
+    const host = declsOf(files, selector)
+    assert.equal(host.position, 'relative', `${relative} ${selector} anchors its tint layer`)
+    assert.equal(host['z-index'], '0', `${relative} ${selector} keeps the tint layer behind its own content`)
+    assert.equal(host.background, 'var(--glass-fallback)', `${relative} ${selector} sits on the navy fallback`)
+
+    const layer = declsOf(files, `${selector}::before`)
+    assert.equal(layer.content, "''")
+    assert.equal(layer.position, 'absolute')
+    for (const side of ['top', 'right', 'bottom', 'left']) assert.equal(layer[side], '0', `${selector}::before covers the host (${side})`)
+    assert.ok(['inherit', host['border-radius']].includes(layer['border-radius']), `${relative} ${selector} tint follows the host corner`)
+    assert.equal(layer['z-index'], '-1')
+    assert.equal(layer['pointer-events'], 'none', `${relative} ${selector}::before never takes the tap`)
+    assert.ok(rgbaParts(layer['background-color']), `${relative} ${selector}::before paints its tint`)
+    assert.equal(layer.transition, `background-color ${PRESS_DURATION} ease`)
+    assert.equal(declsOf(files, `${selector}::before`, { reduced: true }).transition, 'none')
+  }
+})
+
 // issue #166：柔光只在玫瑰主按钮和复制键上，画在 ::before 柔光层，不画在按钮本身。柔光层铺满按钮、
 // 跟按钮同一个圆角 token、不拦点按；按下时透明度沉到 0.5，和缩放同一拍（--duration-press），松手同一拍回来。
 // 减弱动效下柔光层即时切换。
@@ -833,32 +896,30 @@ const GLOW_CONTROLS = [
 const PRESSED_GLOW_OPACITY = '0.5'
 
 test('rose glow sits on a glow layer that sinks with the press on the same beat', () => {
+  const app = analyzeFile(readRepo('app.wxss'))
   for (const [relative, selector, glow] of GLOW_CONTROLS) {
-    const file = analyzeFile(readRepo(relative))
-    const merged = (wanted) => file.rules
-      .filter((rule) => !rule.inReducedMotion && rule.selectors.includes(wanted))
-      .reduce((decls, rule) => ({ ...decls, ...rule.decls }), {})
-    const host = merged(selector)
+    // 页面 WXSS 在 app.wxss 之后加载：共享的柔光层（结构、按下、减弱动效）写在 app.wxss，各页写自己的光
+    const files = relative === 'app.wxss' ? [app] : [app, analyzeFile(readRepo(relative))]
+    const host = declsOf(files, selector)
     assert.equal(host['box-shadow'], undefined, `${relative} ${selector} carries no shadow of its own`)
     assert.equal(host.position, 'relative', `${relative} ${selector} anchors its glow layer`)
 
-    const layer = merged(`${selector}::before`)
+    const layer = declsOf(files, `${selector}::before`)
     assert.equal(layer.content, "''")
     assert.equal(layer.position, 'absolute')
     for (const side of ['top', 'right', 'bottom', 'left']) assert.equal(layer[side], '0', `${selector}::before covers the button (${side})`)
     assert.ok(host['border-radius'], `${relative} ${selector} names its radius token`)
-    assert.equal(layer['border-radius'], host['border-radius'], `${relative} ${selector} glow follows the button corner`)
+    assert.ok(['inherit', host['border-radius']].includes(layer['border-radius']), `${relative} ${selector} glow follows the button corner`)
     assert.equal(layer['box-shadow'], glow, `${relative} ${selector} keeps its registered glow`)
     assert.equal(layer['pointer-events'], 'none')
     assert.equal(layer.transition, `opacity ${PRESS_DURATION} ease`)
 
-    const pressed = merged(`${selector}:active::before`)
+    const pressed = declsOf(files, `${selector}:active::before`)
     assert.equal(pressed.opacity, PRESSED_GLOW_OPACITY, `${relative} ${selector} glow sinks while pressed`)
-    assert.equal(merged(`${selector}.${selector.slice(1)}-hover::before`).opacity, PRESSED_GLOW_OPACITY)
+    assert.equal(declsOf(files, `${selector}.${selector.slice(1)}-hover::before`).opacity, PRESSED_GLOW_OPACITY)
 
-    const reduced = file.reducedMotionRules.find((rule) => rule.selectors.includes(`${selector}::before`))
-    assert.ok(reduced, `reduced motion must cover ${relative} ${selector}::before`)
-    assert.equal(reduced.decls.transition, 'none')
+    const reduced = declsOf(files, `${selector}::before`, { reduced: true })
+    assert.equal(reduced.transition, 'none', `reduced motion must stop ${relative} ${selector}::before`)
   }
 
   // 原生分享按钮也是 .btn-premium：组件自带的 overflow: hidden 会裁掉柔光层，按压类是 share-invite-hover
@@ -937,15 +998,6 @@ function keyframeFrames(css, name) {
   return topLevelBlocks(block.body).map((frame) => ({ at: frame.header, decls: parseDecls(frame.body) }))
 }
 
-// 模板里一段 class 属性按页面数据求值后的类名
-function renderedClasses(template, data) {
-  const text = template.replace(/\{\{([\s\S]*?)\}\}/g, (_, expr) => {
-    const value = new Function(...Object.keys(data), `return (${expr})`)(...Object.values(data))
-    return value === undefined || value === null ? '' : String(value)
-  })
-  return text.split(/\s+/).filter(Boolean)
-}
-
 // issue #165：翻月记号（index.js 的 calendarFlip）与它对应的关键帧。a、b 两份内容相同，记号交替才会从头重播
 const CALENDAR_FLIPS = {
   'next-a': 'calendarFlipNextA',
@@ -960,11 +1012,6 @@ const CALENDAR_FLIPS = {
 test('month flips slide the new days in from the flip direction inside the card, and land instantly under reduced motion', () => {
   const css = readRepo('pages/index/index.wxss')
   const index = analyzeFile(css)
-  const declsOf = (selector) => {
-    const rule = index.rules.find((item) => !item.inReducedMotion && item.selectors.includes(selector))
-    assert.ok(rule, `expected ${selector}`)
-    return rule.decls
-  }
 
   const wxml = readRepo('pages/index/index.wxml')
   const grid = wxml.slice(wxml.indexOf('class="calendar-grid'), wxml.indexOf('class="quick-actions"'))
@@ -972,22 +1019,22 @@ test('month flips slide the new days in from the flip direction inside the card,
   const layer = /^[^>]*>\s*<view class="(calendar-days[^"]*)">\s*<view\s+class="day-cell/.exec(grid)
   assert.ok(layer, 'the day cells sit in one .calendar-days layer, the only child of .calendar-grid')
   const resting = { calendarFlip: '', calendarEmphasis: '' }
-  assert.deepEqual(renderedClasses(layer[1], resting), ['calendar-days'], 'no flip, no slide')
+  assert.deepEqual(renderWxmlClasses(layer[1], resting), ['calendar-days'], 'no flip, no slide')
   for (const token of Object.keys(CALENDAR_FLIPS)) {
-    assert.deepEqual(renderedClasses(layer[1], { ...resting, calendarFlip: token }), ['calendar-days', `calendar-flip-${token}`])
+    assert.deepEqual(renderWxmlClasses(layer[1], { ...resting, calendarFlip: token }), ['calendar-days', `calendar-flip-${token}`])
   }
 
-  const days = declsOf('.calendar-days')
+  const days = declsOf(index, '.calendar-days')
   assert.equal(days.display, 'flex')
   assert.equal(days['flex-wrap'], 'wrap')
   const boxProps = Object.keys(days).filter((prop) => /^(?:padding|margin|border|width|height)/.test(prop))
   assert.deepEqual(boxProps, [], 'the flip layer adds no box: cell widths and the row-height ledger stay as they were')
-  const gridPadding = declsOf('.calendar-grid').padding.split(/\s+/)
+  const gridPadding = declsOf(index, '.calendar-grid').padding.split(/\s+/)
   const inlinePaddingRpx = Number(/^(\d+)rpx$/.exec(gridPadding[1] || gridPadding[0])[1])
 
   for (const [token, name] of Object.entries(CALENDAR_FLIPS)) {
     const selector = `.calendar-days.calendar-flip-${token}`
-    assert.equal(declsOf(selector).animation, `${name} var(--duration-enter) var(--ease-out)`)
+    assert.equal(declsOf(index, selector).animation, `${name} var(--duration-enter) var(--ease-out)`)
 
     const frames = keyframeFrames(css, name)
     assert.deepEqual(frames.map((frame) => frame.at), ['from', 'to'])
@@ -1011,7 +1058,7 @@ test('month flips slide the new days in from the flip direction inside the card,
 
   // 卡片和日期格自己不跟着滑：网格只有刷新变暗，日期格只有按压缩放
   for (const selector of ['.calendar-grid', '.day-cell']) {
-    assert.equal(declsOf(selector).animation, undefined, `${selector} must not slide`)
+    assert.equal(declsOf(index, selector).animation, undefined, `${selector} must not slide`)
   }
 })
 
@@ -1030,24 +1077,19 @@ test('state emphasis is a one-shot opacity halo that exists only under its token
   const css = readRepo('pages/index/index.wxss')
   const index = analyzeFile(css)
   assert.match(maskComments(readRepo('app.wxss')), /--duration-emphasis\s*:\s*600ms\s*;/)
-  const declsOf = (selector) => {
-    const rules = index.rules.filter((item) => !item.inReducedMotion && item.selectors.includes(selector))
-    assert.ok(rules.length, `expected ${selector}`)
-    return Object.assign({}, ...rules.map((rule) => rule.decls))
-  }
 
   const wxml = readRepo('pages/index/index.wxml')
   const layer = /<view class="(calendar-days[^"]*)">/.exec(wxml)
   assert.ok(layer, 'expected the .calendar-days layer')
-  assert.deepEqual(renderedClasses(layer[1], { calendarFlip: '', calendarEmphasis: '' }), ['calendar-days'])
+  assert.deepEqual(renderWxmlClasses(layer[1], { calendarFlip: '', calendarEmphasis: '' }), ['calendar-days'])
   assert.deepEqual(
-    renderedClasses(layer[1], { calendarFlip: 'next-a', calendarEmphasis: 'today-b' }),
+    renderWxmlClasses(layer[1], { calendarFlip: 'next-a', calendarEmphasis: 'today-b' }),
     ['calendar-days', 'calendar-flip-next-a', 'calendar-emphasis-today-b']
   )
 
   for (const [token, name] of Object.entries(CALENDAR_EMPHASES)) {
     const selector = `.calendar-days.calendar-emphasis-${token} ${HALO_TARGETS[token.split('-')[0]]}`
-    const halo = declsOf(selector)
+    const halo = declsOf(index, selector)
     assert.equal(halo.content, "''")
     assert.equal(halo.position, 'absolute')
     assert.equal(halo.opacity, '0', `${selector} rests invisible once it has played`)
@@ -1075,13 +1117,13 @@ test('state emphasis is a one-shot opacity halo that exists only under its token
 
   // 今天的光晕就是日期胶囊自己的形状，两档密度都和胶囊重合
   const box = (decls) => ['top', 'left', 'width', 'height', 'margin-left'].map((prop) => decls[prop])
-  const capsule = declsOf('.day-cell.today:not(.period) .day-num::before')
-  const compactCapsule = { ...capsule, ...declsOf('.calendar-density-compact .day-cell.today:not(.period) .day-num::before') }
+  const capsule = declsOf(index, '.day-cell.today:not(.period) .day-num::before')
+  const compactCapsule = { ...capsule, ...declsOf(index, '.calendar-density-compact .day-cell.today:not(.period) .day-num::before') }
   for (const token of ['today-a', 'today-b']) {
     const selector = `.calendar-days.calendar-emphasis-${token} ${HALO_TARGETS.today}`
-    const halo = declsOf(selector)
+    const halo = declsOf(index, selector)
     assert.deepEqual(box(halo), box(capsule), `${selector} sits on the capsule`)
-    assert.deepEqual(box({ ...halo, ...declsOf(`.calendar-density-compact ${selector}`) }), box(compactCapsule),
+    assert.deepEqual(box({ ...halo, ...declsOf(index, `.calendar-density-compact ${selector}`) }), box(compactCapsule),
       `${selector} sits on the compact capsule`)
   }
 })
@@ -1100,17 +1142,12 @@ test('record success feedback blooms the heart and fades the band in once, held 
   const css = readRepo('pages/index/index.wxss')
   const index = analyzeFile(css)
   assert.match(maskComments(readRepo('app.wxss')), /--delay-return\s*:\s*300ms\s*;/)
-  const declsOf = (selector, reduced = false) => {
-    const rules = index.rules.filter((rule) => rule.inReducedMotion === reduced && rule.selectors.includes(selector))
-    assert.ok(rules.length, `expected ${selector}${reduced ? ' under reduced motion' : ''}`)
-    return Object.assign({}, ...rules.map((rule) => rule.decls))
-  }
   const played = (name) => `${name} var(--duration-emphasis) var(--ease-out) var(--delay-return) both`
 
   const wxml = readRepo('pages/index/index.wxml')
   const cell = /<view\s+class="(day-cell [^"]*)"\s+wx:for="\{\{days\}\}"/.exec(wxml)
   assert.ok(cell, 'expected the calendar day cell')
-  const feedbackClasses = (recordFeedback) => renderedClasses(cell[1], { item: { date: '2026-06-10' }, recordFeedback })
+  const feedbackClasses = (recordFeedback) => renderWxmlClasses(cell[1], { item: { date: '2026-06-10' }, recordFeedback })
     .filter((name) => name.startsWith('record-feedback'))
   assert.deepEqual(feedbackClasses({}), [], 'a resting cell carries no feedback class')
   assert.deepEqual(feedbackClasses({ '2026-06-10': 'memory' }), ['record-feedback-memory'])
@@ -1118,8 +1155,8 @@ test('record success feedback blooms the heart and fades the band in once, held 
   assert.deepEqual(feedbackClasses({ '2026-06-11': 'memory' }), [], 'only the saved day is marked')
 
   for (const [selector, { name, reduced }] of Object.entries(RECORD_FEEDBACK_TARGETS)) {
-    assert.equal(declsOf(selector).animation, played(name), `${selector} plays once after the way back`)
-    const held = declsOf(`.page.page-hidden ${selector}`)
+    assert.equal(declsOf(index, selector).animation, played(name), `${selector} plays once after the way back`)
+    const held = declsOf(index, `.page.page-hidden ${selector}`)
     assert.equal(held.animation, 'none', `${selector} does not start while the page is hidden`)
     assert.equal(held.opacity, '0', `${selector} waits unseen for the page to show`)
     const rm = index.reducedMotionRules.find((rule) => rule.selectors.includes(selector))
@@ -1141,7 +1178,7 @@ test('record success feedback blooms the heart and fades the band in once, held 
       !/^(?:\.page\.page-hidden )?\.calendar-days \.day-cell\.record-feedback-(?:memory|period) /.test(selector))
   assert.deepEqual(stray, [])
   for (const selector of ['.period-band', '.memory-mark']) {
-    assert.equal(declsOf(selector).animation, undefined, `${selector} rests still`)
+    assert.equal(declsOf(index, selector).animation, undefined, `${selector} rests still`)
   }
 })
 
@@ -1203,7 +1240,7 @@ test('reduced-motion blocks keep covering the named sheet, sync, and ambient lay
   const appCovered = new Set(app.reducedMotionRules.flatMap((rule) => rule.selectors))
   for (const selector of [
     '.page',
-    ...AURORA_BLOOMS.map((name) => `.aurora-bloom-${name}`),
+    '.aurora-bloom',
     '.header-gradient::before',
     '.header-gradient::after',
     '.hero-icon',
@@ -1358,11 +1395,6 @@ test('homepage sheets slide in and out with reversible transitions', () => {
 test('settings help slides and fades on the homepage sheet motion and lands instantly under reduced motion', () => {
   const index = analyzeFile(readRepo('pages/index/index.wxss'))
   const settings = analyzeFile(readRepo('pages/settings/settings.wxss'))
-  const declsOf = (file, selector) => {
-    const rule = file.rules.find((item) => !item.inReducedMotion && item.selectors.includes(selector))
-    assert.ok(rule, `expected ${selector}`)
-    return rule.decls
-  }
   const segment = (decls, prop) =>
     splitTopLevelComma(decls.transition || '').find((part) => part.startsWith(`${prop} `))
 
@@ -1412,22 +1444,19 @@ test('sheet content trails the title row by one short reversible beat and never 
   assert.ok(stagger + millis('--duration-enter') <= millis('--duration-sheet'),
     'the content lands no later than the panel it rides in')
 
+  // 两处弹层共用 app.wxss 的内容块规则；页面在它之后加载，两边一起看
+  const appRules = analyzeFile(readRepo('app.wxss'))
   for (const [relative, openPose] of [
     ['pages/index/index.wxss', '.sheet-slide.sheet-open .sheet-body'],
     ['pages/settings/settings.wxss', '.help-slide.sheet-open .sheet-body']
   ]) {
-    const file = analyzeFile(readRepo(relative))
-    const declsOf = (selector) => {
-      const rule = file.rules.find((item) => !item.inReducedMotion && item.selectors.includes(selector))
-      assert.ok(rule, `expected ${selector} in ${relative}`)
-      return rule.decls
-    }
-    const closed = declsOf('.sheet-body')
+    const file = [appRules, analyzeFile(readRepo(relative))]
+    const closed = declsOf(file, '.sheet-body')
     assert.equal(closed.opacity, '0')
     assert.equal(closed.transform, 'translateY(16rpx)')
     assert.equal(closed.transition, 'opacity var(--duration-exit) var(--ease-out), transform var(--duration-exit) var(--ease-out)')
 
-    const open = declsOf(openPose)
+    const open = declsOf(file, openPose)
     assert.equal(open.opacity, '1')
     assert.equal(open.transform, 'translateY(0)')
     assert.equal(
@@ -1436,18 +1465,14 @@ test('sheet content trails the title row by one short reversible beat and never 
     )
 
     for (const selector of ['.sheet-body', openPose]) {
-      const decls = file.rules.filter((rule) => !rule.inReducedMotion && rule.selectors.some((item) => item.includes('sheet-body')))
-        .filter((rule) => rule.selectors.includes(selector)).map((rule) => rule.decls)
-      for (const item of decls) {
-        assert.equal(item.animation, undefined, `${relative} ${selector} must not run a keyframe`)
-        assert.equal(item['pointer-events'], undefined, `${relative} ${selector} must stay tappable mid-stagger`)
-        assert.equal(item.visibility, undefined)
-        assert.equal(item.display, undefined)
-      }
-      const rmRule = file.reducedMotionRules.find((rule) => rule.selectors.includes(selector))
-      assert.ok(rmRule, `reduced motion must cover ${relative} ${selector}`)
-      assert.equal(rmRule.decls.transition, 'none', `${selector} lands immediately under reduced motion`)
-      assert.equal(rmRule.decls.animation, 'none')
+      const item = declsOf(file, selector)
+      assert.equal(item.animation, undefined, `${relative} ${selector} must not run a keyframe`)
+      assert.equal(item['pointer-events'], undefined, `${relative} ${selector} must stay tappable mid-stagger`)
+      assert.equal(item.visibility, undefined)
+      assert.equal(item.display, undefined)
+      const reduced = declsOf(file, selector, { reduced: true })
+      assert.equal(reduced.transition, 'none', `${selector} lands immediately under reduced motion`)
+      assert.equal(reduced.animation, 'none')
     }
   }
 
@@ -1629,7 +1654,12 @@ test('obscured or hidden pages pause every decorative continuous animation on th
     }
   }
   assert.ok(decorative.size > 0)
-  const expected = [...decorative].flatMap((selector) => [
+  // 色团的暂停写在它们同一元素上共有的 .aurora-bloom，其余装饰写自己的选择器
+  const pauseTarget = (selector) => {
+    const [shared, ...more] = AURORA_SAME_ELEMENT[selector.slice(1)] || []
+    return shared && more.length === 0 ? `.${shared}` : selector
+  }
+  const expected = [...new Set([...decorative].map(pauseTarget))].flatMap((selector) => [
     `.page.page-obscured ${selector}`,
     `.page.page-hidden ${selector}`
   ])
@@ -1655,20 +1685,15 @@ test('obscured or hidden pages pause every decorative continuous animation on th
 // 色团各自一层动画，周期和起点都错开；基底与色团固定在视口，滚动时不跟着走（不拦截点按见 interaction-semantics）。
 test('the aurora is a still base under three bounded blooms that breathe out of phase', () => {
   const app = analyzeFile(readRepo('app.wxss'))
-  const declsOf = (selector) => {
-    const rule = app.rules.find((item) => !item.inReducedMotion && item.selectors.includes(selector))
-    assert.ok(rule, `expected ${selector} in app.wxss`)
-    return rule.decls
-  }
 
-  const base = declsOf('.page::before')
+  const base = declsOf(app, '.page::before')
   assert.equal(base.position, 'fixed')
   for (const side of ['top', 'right', 'bottom', 'left']) {
     assert.equal(base[side], '0', `the base covers the viewport exactly (${side})`)
   }
   assert.equal(base.animation, undefined, 'the base gradient holds still')
 
-  const layer = declsOf('.aurora')
+  const layer = declsOf(app, '.aurora')
   assert.equal(layer.position, 'fixed')
   assert.equal(layer.overflow, 'hidden')
   assert.equal(layer.animation, undefined)
@@ -1677,7 +1702,7 @@ test('the aurora is a still base under three bounded blooms that breathe out of 
   const offsets = new Set()
   const keyframeNames = new Set()
   for (const name of AURORA_BLOOMS) {
-    const bloom = declsOf(`.aurora-bloom-${name}`)
+    const bloom = declsOf(app, `.aurora-bloom-${name}`)
     const stops = /^radial-gradient\(closest-side,\s*(.+)\)$/.exec(bloom.background || '')
     assert.ok(stops, `.aurora-bloom-${name} fades out inside its own box (closest-side radial)`)
     const colors = [...stops[1].matchAll(/rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)/g)]
@@ -1712,13 +1737,14 @@ test('the aurora is a still base under three bounded blooms that breathe out of 
     assert.ok(Number(match[1]) <= 1.1, `ambient scale ${match[1]} grows past 1.1`)
   }
 
-  // 每个页面根下第一层都有同一份极光，放在顶栏之前
+  // 极光标记只有共享的一份；每个页面在根节点下第一层引入一次，放在顶栏之前
+  assert.match(readRepo(AURORA_SHARED_MARKUP), AURORA_MARKUP)
   for (const page of appPages()) {
     const wxml = readRepo(`${page}.wxml`)
-    const found = wxml.match(new RegExp(AURORA_MARKUP.source, 'g')) || []
-    assert.equal(found.length, 1, `${page}.wxml renders the aurora once`)
-    const at = wxml.search(AURORA_MARKUP)
-    assert.ok(at < wxml.indexOf('class="nav-bar'), `${page}.wxml paints the aurora before the nav bar`)
+    assert.doesNotMatch(wxml, /class="aurora/, `${page}.wxml includes the shared aurora instead of a copy`)
+    const found = wxml.match(AURORA_INCLUDE) || []
+    assert.equal(found.length, 1, `${page}.wxml includes the aurora once at the page root`)
+    assert.ok(wxml.indexOf(found[0]) < wxml.indexOf('class="nav-bar'), `${page}.wxml paints the aurora before the nav bar`)
   }
 
   const design = readRepo('DESIGN.md')
@@ -1730,7 +1756,8 @@ test('the aurora is a still base under three bounded blooms that breathe out of 
 // 页面根下每个可见块都要定位并且 z-index ≥ 1（issue #163 发现首页骨架屏缺这一条）。
 test('every visible block at a page root paints above the aurora', () => {
   const app = analyzeFile(readRepo('app.wxss'))
-  const decorative = new Set(['aurora', 'reduced-motion-probe'])
+  // 极光本身走 include，不是根下的 view
+  const decorative = new Set(['reduced-motion-probe'])
   const violations = []
   for (const page of appPages()) {
     const own = analyzeFile(readRepo(`${page}.wxss`))

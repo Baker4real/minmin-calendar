@@ -661,11 +661,13 @@ test('the period band still wraps the date number at every row height the ledger
 })
 
 // issue #162：今天是围住日期数字的紧凑胶囊，不再给整格铺底、描整格内框；整日点按范围仍是整格。
-// 胶囊挂在日期上，农历、节日/调休与标记都留在胶囊外。目标高约 44–52rpx：完整密度的日期贴着格子顶（上内边距 4rpx），
-// 胶囊不能高出格子顶（overflow 会把它裁平），农历字框又从 43rpx 起，所以完整密度停在 43rpx。
+// 胶囊挂在日期上，农历、节日/调休与标记都留在胶囊外。票面目标高约 44–52rpx。几何给胶囊的余量是从格子顶
+// （再高会被 overflow 裁平）到下一槽字框上方 TODAY_CAPSULE_ROUNDING_RPX：完整密度的日期贴着格子顶（上内边距 4rpx），
+// 农历字框从 43rpx 起，余量只有 41rpx。两档是同一枚记号，高度下限取票面下限和各档余量里最小的那个，
+// 余量够 44rpx 时下限就回到票面（理由见 DESIGN.md 日历状态表「今天」）。
 const TODAY_CAPSULE_SELECTOR = '.day-cell.today:not(.period) .day-num::before'
 const COMPACT_TODAY_CAPSULE_SELECTOR = '.calendar-density-compact .day-cell.today:not(.period) .day-num::before'
-const TODAY_CAPSULE_HEIGHT_RPX = { min: 41, max: 52 }
+const TODAY_CAPSULE_TARGET_RPX = { min: 44, max: 52 }
 // 基础库把每段 rpx 各自换成整数 px：正长度向下取整，负偏移向零取整（开发者工具 3.16.1 在 390px 宽实测）。
 // 胶囊各段分开取整、下一槽的位置由好几段累加，两边差得出 1px；留 2rpx，375–430px 宽都碰不到下一槽
 const TODAY_CAPSULE_ROUNDING_RPX = 2
@@ -692,17 +694,26 @@ function signedRpx(value, label) {
   return Number(match[1])
 }
 
+// 一个选择器的全部声明，按出现顺序合并：胶囊的几何和今天的光晕共用一组规则，颜色各写一条（issue #165）
+function mergedDecls(wxss, selector) {
+  const { parseWxssRules } = require('./designTokens')
+  const rules = parseWxssRules(wxss).filter(rule => rule.selectors.includes(selector))
+  assert.ok(rules.length > 0, `expected rule for ${selector}`)
+  return Object.assign({}, ...rules.map(rule => rule.decls))
+}
+
 // 胶囊相对日期行盒顶的位置与尺寸；清爽密度（含合并信息行）先读清爽覆盖，再退回基础规则
 function todayCapsuleBox(wxss, density) {
-  const bodies = [ruleBody(wxss, TODAY_CAPSULE_SELECTOR)]
-  if (density === 'compact') bodies.unshift(ruleBody(wxss, COMPACT_TODAY_CAPSULE_SELECTOR))
-  const read = (property) => bodies.map(body => anchoredDeclaration(body, property)).find(value => value !== undefined)
+  const decls = {
+    ...mergedDecls(wxss, TODAY_CAPSULE_SELECTOR),
+    ...(density === 'compact' ? mergedDecls(wxss, COMPACT_TODAY_CAPSULE_SELECTOR) : {})
+  }
   return {
-    top: signedRpx(read('top'), 'capsule top'),
-    height: signedRpx(read('height'), 'capsule height'),
-    width: signedRpx(read('width'), 'capsule width'),
-    left: read('left'),
-    marginLeft: signedRpx(read('margin-left'), 'capsule margin-left')
+    top: signedRpx(decls.top, 'capsule top'),
+    height: signedRpx(decls.height, 'capsule height'),
+    width: signedRpx(decls.width, 'capsule width'),
+    left: decls.left,
+    marginLeft: signedRpx(decls['margin-left'], 'capsule margin-left')
   }
 }
 
@@ -725,14 +736,20 @@ test('today is a compact capsule around the date number and never paints the who
   assert.deepEqual(cellPaint, [], 'today paints only the date capsule, never the whole cell')
 
   // 胶囊是日期身后的一层：日期自成叠放层，胶囊在数字后面、在格子与色带之上
-  const capsule = ruleBody(wxss, TODAY_CAPSULE_SELECTOR)
-  assert.match(capsule, /content:\s*(?:''|"");/)
-  assert.match(capsule, /position:\s*absolute/)
-  assert.match(capsule, /z-index:\s*-1/)
-  assert.match(capsule, /box-sizing:\s*border-box/)
-  assert.match(capsule, /border-radius:\s*var\(--radius-full\)/)
+  const capsule = mergedDecls(wxss, TODAY_CAPSULE_SELECTOR)
+  assert.match(capsule.content, /^(?:''|"")$/)
+  assert.equal(capsule.position, 'absolute')
+  assert.equal(capsule['z-index'], '-1')
+  assert.equal(capsule['box-sizing'], 'border-box')
+  assert.equal(capsule['border-radius'], 'var(--radius-full)')
   const dateLayer = parseWxssRules(wxss).find(rule => rule.selectors.includes('.day-num') && rule.decls.position === 'relative')
   assert.ok(dateLayer && Number(dateLayer.decls['z-index']) >= 1, 'the date must be its own stacking layer above the band')
+
+  // 回到今天的光晕（issue #165）和胶囊同一个框，只有更粗的描边，border-box 向内画：描边内沿也不能压到日期字形
+  const haloRing = signedRpx(
+    mergedDecls(wxss, '.calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after').border.split(/\s+/)[0],
+    'halo ring width'
+  )
 
   const column = dayColumnRpx(wxss, NARROW_VIEWPORT_PX)
   const lunar = ruleBody(wxss, '.day-lunar')
@@ -741,11 +758,31 @@ test('today is a compact capsule around the date number and never paints the who
     full: declarationRpx(ruleBody(wxss, '.day-num'), 'font-size'),
     compact: declarationRpx(ruleBody(wxss, '.calendar-density-compact .day-num'), 'font-size')
   }
-  for (const [layout, density, cap] of [['full', 'full', 160], ['compact', 'compact', 140], ['merged', 'compact', 140]]) {
+  const layouts = [['full', 'full', 160], ['compact', 'compact', 140], ['merged', 'compact', 140]]
+    .map(([layout, density, cap]) => ({ layout, density, heights: [calendarCellContentMinRpx(layout), cap] }))
+  // 一档排版在某个行高下日期行盒的顶和高，以及紧挨的下一槽字框的顶：完整密度是农历，农历字框从行盒顶加半行距开始；
+  // 清爽是节日/调休，合并是信息行，「班」「预」胶囊占满自己的槽，从槽顶就有底色
+  const dateSlot = (layout, height) => {
+    const cell = cssCellLayout(wxss, layout)
+    const stack = cell.stack.reduce((sum, slot) => sum + slot.gap + slot.height, 0)
+    const dateTop = cell.align === 'center'
+      ? cell.paddingTop + (height - cell.paddingTop - cell.paddingBottom - stack) / 2
+      : cell.paddingTop
+    const dateLine = cell.stack[0].height
+    const nextSlotTop = dateTop + dateLine + cell.stack[1].gap
+    return { dateTop, dateLine, nextInkTop: layout === 'full' ? nextSlotTop + lunarLeading : nextSlotTop }
+  }
+  // 余量：格子顶到下一槽字框上方 TODAY_CAPSULE_ROUNDING_RPX。下限是票面下限和各档余量里最小的那个
+  const rooms = layouts.flatMap(({ layout, heights }) =>
+    heights.map((height) => dateSlot(layout, height).nextInkTop - TODAY_CAPSULE_ROUNDING_RPX))
+  const floor = Math.min(TODAY_CAPSULE_TARGET_RPX.min, ...rooms)
+
+  for (const { layout, density, heights } of layouts) {
     const box = todayCapsuleBox(wxss, density)
     assert.ok(
-      box.height >= TODAY_CAPSULE_HEIGHT_RPX.min && box.height <= TODAY_CAPSULE_HEIGHT_RPX.max,
-      `${layout} capsule is ${box.height}rpx tall, outside ${TODAY_CAPSULE_HEIGHT_RPX.min}–${TODAY_CAPSULE_HEIGHT_RPX.max}rpx`
+      box.height >= floor && box.height <= TODAY_CAPSULE_TARGET_RPX.max,
+      `${layout} capsule is ${box.height}rpx tall, outside ${floor}–${TODAY_CAPSULE_TARGET_RPX.max}rpx ` +
+      `(ticket ${TODAY_CAPSULE_TARGET_RPX.min}–${TODAY_CAPSULE_TARGET_RPX.max}rpx, lowered only to the tightest room ${Math.min(...rooms)}rpx)`
     )
     // 横向是胶囊（比高宽），居中在日期上，左右给格子留出空，不框住整格
     assert.ok(box.width > box.height, `${layout} capsule ${box.width}×${box.height}rpx should be wider than tall`)
@@ -753,25 +790,21 @@ test('today is a compact capsule around the date number and never paints the who
     assert.equal(box.left, '50%', `${layout} capsule centers on the date`)
     assert.equal(box.marginLeft, -box.width / 2, `${layout} capsule centers on the date`)
 
-    const cell = cssCellLayout(wxss, layout)
-    const stack = cell.stack.reduce((sum, slot) => sum + slot.gap + slot.height, 0)
-    const dateLine = cell.stack[0].height
-    const dateLeading = (dateLine - dateFont[density]) / 2
-    for (const height of [calendarCellContentMinRpx(layout), cap]) {
-      const dateTop = cell.align === 'center'
-        ? cell.paddingTop + (height - cell.paddingTop - cell.paddingBottom - stack) / 2
-        : cell.paddingTop
+    for (const height of heights) {
+      const { dateTop, dateLine, nextInkTop } = dateSlot(layout, height)
+      const dateLeading = (dateLine - dateFont[density]) / 2
       const top = dateTop + box.top
       const bottom = top + box.height
-      // 下面紧挨的一槽：完整密度是农历，农历字框从行盒顶加半行距开始；清爽是节日/调休，合并是信息行，
-      // 「班」「预」胶囊占满自己的槽，从槽顶就有底色。胶囊下沿离它们至少 TODAY_CAPSULE_ROUNDING_RPX
-      const nextSlotTop = dateTop + dateLine + cell.stack[1].gap
-      const nextInkTop = layout === 'full' ? nextSlotTop + lunarLeading : nextSlotTop
+      // 胶囊下沿离下一槽的字框至少 TODAY_CAPSULE_ROUNDING_RPX
       const where = `${layout} at ${height}rpx: capsule ${top}–${bottom}rpx`
       assert.ok(top >= 0 && bottom <= height, `${where} is clipped by the ${height}rpx cell`)
       assert.ok(
         top <= dateTop + dateLeading && bottom >= dateTop + dateLine - dateLeading,
         `${where} does not wrap the date glyphs ${dateTop + dateLeading}–${dateTop + dateLine - dateLeading}rpx`
+      )
+      assert.ok(
+        top + haloRing <= dateTop + dateLeading && bottom - haloRing >= dateTop + dateLine - dateLeading,
+        `${where}: the ${haloRing}rpx halo ring reaches into the date glyphs ${dateTop + dateLeading}–${dateTop + dateLine - dateLeading}rpx`
       )
       assert.ok(
         bottom <= nextInkTop - TODAY_CAPSULE_ROUNDING_RPX,
@@ -889,12 +922,12 @@ test('DESIGN.md registers the today capsule the CSS draws', () => {
   const frontmatter = design.split('\n---')[0]
   const registered = key => (new RegExp(`\\n\\s+${key}:\\s*"([^"]+)"`).exec(frontmatter) || [])[1]
   const wxss = readWxss()
-  const capsule = ruleBody(wxss, TODAY_CAPSULE_SELECTOR)
+  const capsule = mergedDecls(wxss, TODAY_CAPSULE_SELECTOR)
   const full = todayCapsuleBox(wxss, 'full')
   const compact = todayCapsuleBox(wxss, 'compact')
 
-  assert.equal(registered('todayCapsuleBg'), anchoredDeclaration(capsule, 'background'))
-  assert.equal(registered('todayCapsuleStroke'), anchoredDeclaration(capsule, 'border'))
+  assert.equal(registered('todayCapsuleBg'), capsule.background)
+  assert.equal(registered('todayCapsuleStroke'), capsule.border)
   assert.equal(registered('todayCapsuleSize'), `${full.width}×${full.height}rpx full / ${compact.width}×${compact.height}rpx compact`)
   assert.equal(registered('todayText'), anchoredDeclaration(ruleBody(wxss, '.day-cell.today .day-num'), 'color'))
   assert.doesNotMatch(design, /todayBg|todayRing|薰衣草内描边|今天玫瑰底/, 'the full-cell today wording is retired')

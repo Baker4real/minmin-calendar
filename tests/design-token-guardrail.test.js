@@ -89,7 +89,9 @@ test('radius guardrail accepts tokens and zero resets', () => {
   const css = [
     '.a { border-radius: var(--radius-md); }',
     '.b { border-radius: var(--radius-card) var(--radius-card) 0 0; }',
-    '.c { border-radius: 0; }'
+    '.c { border-radius: 0; }',
+    // 平涂层、柔光层跟宿主同一个圆角：inherit 取的是宿主的 token，宿主那条照样受检
+    '.a::before { border-radius: inherit; }'
   ].join('\n')
   assert.deepEqual(findOffTokenRadii(css, defined), [])
 })
@@ -175,6 +177,8 @@ const PAGE_RHYTHM_SITES = [
   ['rowInset', 'pages/period/period.wxss', '.list-item', 'padding', 'x'],
   ['rowInset', 'pages/period/period.wxss', '.skeleton-item', 'padding', 'x'],
   ['rowInset', 'pages/period/period.wxss', '.month-header', 'padding', 'x'],
+  // 刷新失败重试行站在列表行的位置上（经期与欢乐时光两段同一条行），按列表行的内边距
+  ['rowInset', 'pages/period/period.wxss', '.list-retry', 'padding', 'x'],
   ['rowInset', 'pages/memory/memory.wxss', '.list-item', 'padding', 'x'],
   ['rowInset', 'pages/settings/settings.wxss', '.menu-item', 'padding', 'x'],
   ['rowInset', 'pages/settings/settings.wxss', '.density-menu-desc', 'padding', 'x'],
@@ -210,18 +214,21 @@ function lengthRpx(raw, tokens) {
 }
 
 // margin/padding 某一边的 rpx；side 为 x 时左右必须相等。没写这一边就是 0。
+// 同一选择器的多条规则按出现顺序层叠（例如减弱动效块里只写 transition 的那条不清掉内边距）。
 function boxSideRpx(file, selector, prop, side, tokens) {
-  const rule = parseWxssRules(fs.readFileSync(path.join(repoRoot, file), 'utf8'))
-    .find((candidate) => candidate.selectors.includes(selector))
-  assert.ok(rule, `expected ${selector} in ${file}`)
+  const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, file), 'utf8'))
+    .filter((candidate) => candidate.selectors.includes(selector))
+  assert.ok(rules.length > 0, `expected ${selector} in ${file}`)
   const sides = { top: '0', right: '0', bottom: '0', left: '0' }
-  if (rule.decls[prop]) {
-    const parts = splitBoxValue(rule.decls[prop])
-    const [top, right = top, bottom = top, left = right] = parts
-    Object.assign(sides, { top, right, bottom, left })
-  }
-  for (const name of Object.keys(sides)) {
-    if (rule.decls[`${prop}-${name}`]) sides[name] = rule.decls[`${prop}-${name}`]
+  for (const rule of rules) {
+    if (rule.decls[prop]) {
+      const parts = splitBoxValue(rule.decls[prop])
+      const [top, right = top, bottom = top, left = right] = parts
+      Object.assign(sides, { top, right, bottom, left })
+    }
+    for (const name of Object.keys(sides)) {
+      if (rule.decls[`${prop}-${name}`]) sides[name] = rule.decls[`${prop}-${name}`]
+    }
   }
   if (side === 'x') {
     const left = lengthRpx(sides.left, tokens)
@@ -680,11 +687,12 @@ test('every box-shadow/text-shadow color stays inside the DESIGN.md shadow regis
   assert.deepEqual(violations, [])
 })
 
+// 选择器在一份 WXSS 里的声明，同一选择器的各条规则按出现顺序层叠（共享层的结构写在一组，光写在自己那条）
 function declsFor(relative, selector) {
   const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
-  const rule = rules.find((item) => item.selectors.includes(selector))
-  assert.ok(rule, `expected ${relative} ${selector}`)
-  return rule.decls
+    .filter((item) => item.selectors.includes(selector))
+  assert.ok(rules.length > 0, `expected ${relative} ${selector}`)
+  return Object.assign({}, ...rules.map((rule) => rule.decls))
 }
 
 // issue #146：辉光只留在主按钮和复制键上。月份导航、加载圈、同步点不发光；

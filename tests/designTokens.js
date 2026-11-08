@@ -84,7 +84,8 @@ function findOffTokenRadii(css, definedTokens) {
     for (const match of line.matchAll(/\bborder(?:-(?:top|bottom)-(?:left|right))?-radius\s*:\s*([^;}]+)/gi)) {
       const value = match[1].trim().replace(/var\(\s+/g, 'var(').replace(/\s+\)/g, ')')
       for (const component of value.split(/\s+/)) {
-        if (component === '0') continue
+        // inherit 跟着父元素（::before 层跟宿主）的圆角走，那个圆角自己受这条检查
+        if (component === '0' || component === 'inherit') continue
         const tokenRef = /^var\(--(radius-[a-z0-9-]+)\)$/i.exec(component)
         if (tokenRef && definedTokens.has(tokenRef[1].toLowerCase())) continue
         violations.push({ line: index + 1, value, component })
@@ -140,6 +141,15 @@ function parseWxssRules(css) {
   return rules
 }
 
+// 底色有两种写法：background 简写，或平涂层只写的 background-color（按压着色要能过渡，issue #145）。
+// 两种是同一路底色，取值先看简写
+const FILL_PROPERTIES = ['background', 'background-color']
+
+function fillOf(decls) {
+  const property = FILL_PROPERTIES.find((name) => decls[name])
+  return property ? decls[property] : undefined
+}
+
 function listFilesByExtension(root, extension) {
   const skipDirs = new Set(['node_modules', 'cloudfunctions', '_external'])
   const files = []
@@ -169,8 +179,10 @@ function listWxmlFiles(root) {
 }
 
 module.exports = {
+  FILL_PROPERTIES,
   PALETTE_HEXES,
   definedRadiusTokens,
+  fillOf,
   findOffPaletteHexes,
   findOffPaletteHexesInInlineStyles,
   findOffTokenRadii,

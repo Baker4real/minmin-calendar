@@ -10,7 +10,7 @@ const { computeCalendarRowHeight } = require('../../utils/calendarRowHeight')
 const safeArea = require('../../utils/safeArea')
 const roomSession = require('../../utils/room')
 const roomPresence = require('../../utils/roomPresence')
-const { markPageHidden, markPageShown } = require('../../utils/pageVisibility')
+const { withPageVisibility } = require('../../utils/pageVisibility')
 const {
   createSheetLifecycle,
   homepageSheets,
@@ -31,7 +31,8 @@ const JUMP_YEAR_MIN = 2001
 const JUMP_YEAR_MAX = 2035
 // issue #155：信息弹层按显示的内容命名。遮罩读「关闭」加这个名称，面板以它作对话框名。
 const INFO_SHEET_NAMES = { legend: '日历图例', prediction: '预测说明', recap: '本月小结' }
-// issue #165：翻月滑入的时长，与 --duration-enter 同值；这段时间内同方向再翻算接续
+// issue #165：翻月滑入的时长，与 app.wxss 的 --duration-enter 同值；这段时间内同方向再翻算接续。
+// tests/index-page.test.js 从 app.wxss 读出这个 token 卡住接续的边界，两边只改一处会失配
 const CALENDAR_FLIP_MS = 240
 const INITIAL_VIEW_DATE = new Date()
 const INITIAL_HOME_STATE = buildHomeCalendarState({
@@ -95,10 +96,11 @@ function emptyDayDetail() {
   }
 }
 
-Page({
+Page(withPageVisibility({
   _homeRecords: { periods: [], memories: [] },
   _dayDetailsByDate: INITIAL_HOME_STATE.dayDetailsByDate || {},
-  _calendarFlip: null,
+  // 正在播的那段翻月滑入 { direction, startedAt }（issue #165）；挂在格子层上的类名记号是 data.calendarFlip
+  _flipRun: null,
 
   data: {
     safeTop: safeArea.getSafeTop(),
@@ -129,7 +131,6 @@ Page({
     monthPickerMounted: false,
     monthPickerPhase: 'closed',
     pageObscured: false,
-    pageHidden: false,
     sheetExitGuard: false,
     sheetDragClear: {
       monthPicker: { token: 0, action: '' },
@@ -209,7 +210,6 @@ Page({
   },
 
   onShow() {
-    markPageShown(this)
     restoreTabBarOnShow(this)
     // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效，行高按新密度同一次重算。
     // 记录加载必须在这次调用里同步开始，不能等房间状态请求回来。
@@ -492,9 +492,10 @@ Page({
     return details[date] || emptyDayDetail()
   },
 
-  // overrides 决定投影（年月、记录、今天）和这次要亮的那条记录（recordFeedback，issue #167）；
-  // extra 是跟日历同一次提交的其他字段（选月面板、翻月方向）
-  applyHomeCalendarState(overrides = {}, extra = {}) {
+  // overrides 决定投影：年月、记录、今天，以及这次的记录变化（recordChange：投影据此给出记录成功反馈，
+  // 随渲染数据一起提交，issue #167）。第二个参数是跟日历同一次提交的其他东西：flip / emphasis 是这次带的
+  // 一次性记号（见 _calendarMarks），fields 是其他字段（选月面板），不覆盖投影和记号
+  applyHomeCalendarState(overrides = {}, { flip, emphasis, fields = {} } = {}) {
     const hasOwn = (key) => Object.prototype.hasOwnProperty.call(overrides, key)
     const periods = hasOwn('periods') ? overrides.periods : this._recordList('periods')
     const memories = hasOwn('memories') ? overrides.memories : this._recordList('memories')
@@ -512,13 +513,15 @@ Page({
       today,
       roomPaired: this._roomPaired === true,
       periodsSynced,
-      memoriesSynced
+      memoriesSynced,
+      recordChange: hasOwn('recordChange') ? overrides.recordChange : null
     })
     this._rememberRecords(periods, memories)
     this._dayDetailsByDate = state.dayDetailsByDate || {}
     const quickAction = cycle.buildPeriodQuickAction(periods, { today })
 
     const update = {
+      ...fields,
       ...calendarRenderState(state),
       // 有集合没同步上时不知道房间里有没有记录：留着小结行（说未同步），不换成首条记录引导
       hasRecords: this._homeRecords.periods.length > 0 || this._homeRecords.memories.length > 0 ||
@@ -529,11 +532,7 @@ Page({
       ...monthNavState(year, month),
       year,
       month,
-      // 状态强调只跟着触发它的那次提交：之后的每次日历更新都去掉，换月或节点重建不会重播（issue #165）
-      calendarEmphasis: '',
-      // 记录成功反馈同样只跟着那次记录变化的提交（issue #167）
-      recordFeedback: recordFeedbackByDate(state.days, hasOwn('recordFeedback') ? overrides.recordFeedback : null, today),
-      ...extra
+      ...this._calendarMarks({ flip, emphasis })
     }
     if (this.data.selectedDate && this.data.dayActionMounted) {
       update.selectedDayDetail = this._dayDetail(this.data.selectedDate)
@@ -558,14 +557,10 @@ Page({
     if (this.data.hasLoadedHomeData) state.pendingRevisions[collection] = revision
 
     // issue #167：编辑页只在云端确认写入后才通知（utils/recordPageSync.js），通知里的就是保存后的记录。
-    // 反馈只给已经显示的日历
-    const recordId = record._id || record.id || ''
-    const previous = recordId ? currentRecords.find(item => (item._id || item.id || '') === recordId) : null
-    const saved = recordId ? nextRecords.find(item => (item._id || item.id || '') === recordId) : null
-    const kind = this.data.hasLoadedHomeData ? recordFeedbackKind(collection, previous, saved, mode) : ''
+    // 反馈只给已经显示的日历；哪条记录算新增或完成、亮哪几格由日历投影判定
     this.applyHomeCalendarState({
       [collection]: nextRecords,
-      recordFeedback: kind ? { kind, record: saved } : null
+      recordChange: this.data.hasLoadedHomeData ? { collection, mode, record, before: currentRecords } : null
     })
     this.syncOngoingCompletionReminder()
     if (this.data.hasLoadedHomeData) {
@@ -647,30 +642,42 @@ Page({
     let { year, month } = this.data
     if (monthNavState(year, month).prevMonthDisabled) return
     month--; if (month < 0) { month = 11; year-- }
-    this.applyHomeCalendarState({ year, month }, { monthPickerVisible: false, ...this._calendarFlipPatch('prev') })
+    this.applyHomeCalendarState({ year, month }, { flip: 'prev', fields: { monthPickerVisible: false } })
   },
 
   nextMonth() {
     let { year, month } = this.data
     if (monthNavState(year, month).nextMonthDisabled) return
     month++; if (month > 11) { month = 0; year++ }
-    this.applyHomeCalendarState({ year, month }, { monthPickerVisible: false, ...this._calendarFlipPatch('next') })
+    this.applyHomeCalendarState({ year, month }, { flip: 'next', fields: { monthPickerVisible: false } })
   },
 
-  // issue #165：翻月滑入。进行中（CALENDAR_FLIP_MS 内）同方向再翻只换数据、动画接着播，接续不续期；
+  // 日历提交带的三个一次性记号（issue #165、#167）：翻月方向 calendarFlip、状态强调 calendarEmphasis、
+  // 记录成功反馈 recordFeedback（投影按 recordChange 算出，随渲染数据一起提交）。
+  // 强调和反馈只跟着触发它们的那次提交，之后每次日历提交都去掉，换月或节点重建不会重播。
+  // 翻月记号只由翻月（flip: 'next' / 'prev'）和即时替换（flip: 'none'：选月、回到今天）改写，别的提交不带它，
+  // 类名不变就不重播。进行中（CALENDAR_FLIP_MS 内）同方向再翻只换数据、动画接着播，接续不续期；
   // 反向或已播完就换记号从头播。数据总在这一次提交里更新，动画不推迟任何操作
-  _calendarFlipPatch(direction) {
-    const now = Date.now()
-    const running = this._calendarFlip
-    if (running && running.direction === direction && now - running.startedAt < CALENDAR_FLIP_MS) return {}
-    this._calendarFlip = { direction, startedAt: now }
-    return { calendarFlip: nextCalendarToken(this.data.calendarFlip, direction) }
+  _calendarMarks({ flip, emphasis } = {}) {
+    const marks = { calendarEmphasis: emphasis ? nextCalendarToken(this.data.calendarEmphasis, emphasis) : '' }
+    if (flip === 'none') {
+      this._flipRun = null
+      marks.calendarFlip = ''
+    } else if (flip) {
+      const now = Date.now()
+      const run = this._flipRun
+      if (!run || run.direction !== flip || now - run.startedAt >= CALENDAR_FLIP_MS) {
+        this._flipRun = { direction: flip, startedAt: now }
+        marks.calendarFlip = nextCalendarToken(this.data.calendarFlip, flip)
+      }
+    }
+    return marks
   },
 
-  // 选月、回到今天：取消翻月滑入，新月份即时替换
-  _cancelCalendarFlip() {
-    this._calendarFlip = null
-    return { calendarFlip: '' }
+  // 日历被换下（未绑定、加载失败画面）：回来时是新挂载的节点，带着旧记号会重播滑入、强调或记录成功反馈
+  _clearedCalendarMarks() {
+    this._flipRun = null
+    return { calendarFlip: '', calendarEmphasis: '', recordFeedback: {} }
   },
 
   // 日历滑动松手：判定在纯函数里，页面只做一次既有翻月更新（和箭头同一段滑入，issue #165），不跟手。
@@ -767,24 +774,21 @@ Page({
     const month = Number(e.currentTarget.dataset.month)
     if (!Number.isInteger(month) || month < 0 || month > 11) return
     this.applyHomeCalendarState({ year: this.data.jumpYear, month }, {
-      jumpMonth: month,
-      monthPickerVisible: false,
-      ...this._cancelCalendarFlip()
+      flip: 'none',
+      fields: { jumpMonth: month, monthPickerVisible: false }
     })
     homepageSheets(this).monthPicker.leave(this)
   },
 
+  // 回到今天就点亮今天一次（issue #165）；已在当月再点也换记号重播
   jumpToToday() {
     const today = new Date()
     const year = today.getFullYear()
     const month = today.getMonth()
     this.applyHomeCalendarState({ year, month }, {
-      jumpMonth: month,
-      ...buildJumpYearState(year),
-      monthPickerVisible: false,
-      ...this._cancelCalendarFlip(),
-      // 回到今天就点亮今天一次（issue #165）；已在当月再点也换记号重播
-      calendarEmphasis: nextCalendarToken(this.data.calendarEmphasis, 'today')
+      flip: 'none',
+      emphasis: 'today',
+      fields: { jumpMonth: month, ...buildJumpYearState(year), monthPickerVisible: false }
     })
     homepageSheets(this).monthPicker.leave(this)
   },
@@ -1045,11 +1049,10 @@ Page({
     this._ongoingReminderShownKey = ''
   },
 
+  // page-hidden 由 withPageVisibility 在这里跑完之后才挂。issue #167：记录成功反馈要在那之前收掉，
+  // 反馈在 page-hidden 下按住不播，先挂 page-hidden 会让 ♥ 和色带在离场途中消失
   onHide() {
-    // issue #167：先收掉记录成功反馈再标记隐藏。反馈在 page-hidden 下按住不播，
-    // 先挂 page-hidden 会让 ♥ 和色带在离场途中消失
     this.clearRecordFeedback()
-    markPageHidden(this)
     this.persistOngoingReminderSeen()
     this.dismissSeenPartnerWelcome()
   },
@@ -1091,10 +1094,7 @@ Page({
       hasLoadedHomeData: false,
       refreshing: false,
       refreshRetryVisible: false,
-      // 日历被换下：回来时是新挂载的节点，带着旧记号会重播滑入、强调或记录成功反馈（issue #165、#167）
-      ...this._cancelCalendarFlip(),
-      calendarEmphasis: '',
-      recordFeedback: {},
+      ...this._clearedCalendarMarks(),
       noRoom: true,
       roomStatusTitle: title,
       roomStatusDesc: desc,
@@ -1138,7 +1138,7 @@ Page({
     clearTimeout(this._syncStatusTimer)
     this._syncStatusTimer = null
   }
-})
+}))
 
 function syncPill(page) {
   if (!page._syncPill) {
@@ -1212,29 +1212,6 @@ function decideSheetDragRelease(displacement, elapsed, panelHeight) {
   const pastDistance = panelHeight > 0 && displacement > panelHeight * 0.25
   const pastSpeed = elapsed > 0 && displacement / elapsed > 0.11
   return pastDistance || pastSpeed ? 'close' : 'reset'
-}
-
-// issue #167：记录成功反馈只认真正新增或完成的记录：新增的欢乐时光；新增的经期，或给没有结束日的经期
-// （进行中、结束日期不详）填上结束日（ADR 0007：填写结束日期完成同一条记录）
-function recordFeedbackKind(collection, previous, saved, mode) {
-  if (collection === 'memories') return mode === 'add' && !previous ? 'memory' : ''
-  if (collection !== 'periods' || !saved) return ''
-  if (mode === 'add') return previous ? '' : 'period'
-  if (mode !== 'update' || !previous) return ''
-  return cycle.getPeriodStatus(previous) !== 'known-end' && cycle.getPeriodStatus(saved) === 'known-end' ? 'period' : ''
-}
-
-// issue #167：反馈落在当月显示这条记录的格子上：欢乐时光是那一天的 ♥，经期是它投影出的每一格色带
-function recordFeedbackByDate(days, feedback, today) {
-  const marked = {}
-  if (!feedback || !feedback.record) return marked
-  const band = feedback.kind === 'period' ? cycle.projectPeriodRange(feedback.record, today) : null
-  for (const day of days || []) {
-    if (!day || day.isEmpty || !day.date) continue
-    if (feedback.kind === 'memory' && day.isMemory && day.date === feedback.record.date) marked[day.date] = 'memory'
-    if (band && day.isPeriod && day.date >= band.startDate && day.date <= band.endDate) marked[day.date] = 'period'
-  }
-  return marked
 }
 
 // 日历动画记号在 a、b 间交替：同一段动画要从头再播，类名必须变（issue #165）

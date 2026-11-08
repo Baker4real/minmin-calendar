@@ -4,6 +4,7 @@ const Module = require('node:module')
 const path = require('node:path')
 const test = require('node:test')
 const { listWxmlFiles, parseWxssRules } = require('./designTokens')
+const { renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
 
 // issue #78：房间码复制/解除绑定同屏可达、清除本地数据文案与行为对齐的页面接缝测试。
 // issue #102：已绑定冷启动自动 switchTab 进首页（跳转失败才留「进入应用」兜底）；校验失败留在
@@ -956,7 +957,7 @@ test('bind page answers a created room with one heart bloom and the bound card r
     createRoom: { code: -1, msg: '创建失败' }
   })
   const harness = loadPageHarness('pages/bind/bind.js', { room, switchTabFail: true })
-  const boundCard = attrs => attrs.includes('wx:if="{{bound}}"')
+  const boundCard = attrs => attrs['wx:if'] === '{{bound}}'
 
   try {
     await harness.page.onShow()
@@ -1132,20 +1133,12 @@ function boundCardActions(data) {
   return actions
 }
 
-// issue #167：bind.wxml 里类名以 firstClass 开头（并满足 where）的第一个开始标签，按页面数据求值它的 class 模板
+// issue #167：bind.wxml 里类名以 firstClass 开头（并且属性满足 where）的第一个开始标签，按页面数据渲染出的类名
 function renderedClasses(firstClass, data, where = () => true) {
-  const source = readPageFile('pages/bind/bind.wxml').replace(/<!--[\s\S]*?-->/g, '')
-  const keys = Object.keys(data).filter(key => /^[A-Za-z_$][\w$]*$/.test(key))
-  const evaluate = expr => new Function(...keys, `return (${expr})`)(...keys.map(key => data[key]))
-  for (const [, attrs] of source.matchAll(/<[a-zA-Z][\w-]*((?:\s+[^\s=/>]+(?:="[^"]*")?)*)\s*\/?>/g)) {
-    const template = (/\sclass="([^"]*)"/.exec(attrs) || [])[1] || ''
-    if (template.split(/\s+/)[0] !== firstClass || !where(attrs)) continue
-    return template
-      .replace(/\{\{([\s\S]*?)\}\}/g, (_, expr) => String(evaluate(expr) ?? ''))
-      .split(/\s+/)
-      .filter(Boolean)
-  }
-  assert.fail(`expected an element whose class starts with ${firstClass}`)
+  const tag = wxmlOpeningTags(readPageFile('pages/bind/bind.wxml'))
+    .find(candidate => candidate.classes[0] === firstClass && where(candidate.attrs))
+  assert.ok(tag, `expected an element whose class starts with ${firstClass}`)
+  return renderWxmlClasses(tag.attrs.class, data)
 }
 
 function findRule(css, selector) {

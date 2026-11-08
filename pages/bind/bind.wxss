@@ -344,18 +344,9 @@ button.share-invite::after {
 .error-retry.error-retry-hover {
   border-color: rgba(249,115,115,0.32);
 }
+/* 平涂层的结构在 app.wxss「平涂层」，这里只写颜色 */
 .error-retry::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: var(--radius-sm);
   background-color: rgba(249,115,115,0.1);
-  transition: background-color var(--duration-press) ease;
-  pointer-events: none;
-  z-index: -1;
 }
 .error-retry:active::before,
 .error-retry.error-retry-hover::before {
@@ -369,7 +360,6 @@ button.share-invite::after {
   .copy-btn::before,
   .btn-ghost,
   .error-retry,
-  .error-retry::before,
   .bind-reveal {
     animation: none;
     transition: none;

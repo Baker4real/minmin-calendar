@@ -53,7 +53,9 @@ const CALENDAR_LEGEND_ITEMS = [
 ]
 
 // periodsSynced / memoriesSynced：该集合在这个房间里是否成功同步过一次。没同步过时手里的列表不是事实，
-// 状态行、本月小结与预测说明只说它未同步；经期没同步时也不预测（不画「预」、不给推迟提醒）
+// 状态行、本月小结与预测说明只说它未同步；经期没同步时也不预测（不画「预」、不给推迟提醒）。
+// recordChange：这次投影带来的那条记录变化 { collection, mode, record, before }（before 是变化前的那个集合），
+// 投影据此给出记录成功反馈 recordFeedback（日期 → memory / period，issue #167）；没有变化就是空表
 function buildHomeCalendarState({
   year,
   month,
@@ -62,7 +64,8 @@ function buildHomeCalendarState({
   today = util.formatDate(new Date()),
   roomPaired = false,
   periodsSynced = true,
-  memoriesSynced = true
+  memoriesSynced = true,
+  recordChange = null
 }) {
   const prediction = cycle.predictNextPeriod(periodsSynced ? periods : [], { today })
   const predictionWindow = prediction.canPredict
@@ -109,8 +112,37 @@ function buildHomeCalendarState({
     cycleReminders: prediction.canPredict ? cycle.buildCycleReminders(prediction, periods, { today }) : [],
     monthlyRecap,
     days,
+    recordFeedback: buildRecordFeedback(days, recordChange, { periods, memories, today }),
     dayDetailsByDate: buildDayDetailsByDate(days, periods, memories, today, roomPaired)
   }
+}
+
+// 记录成功反馈（issue #167）只认真正新增或完成的那条记录：新增的欢乐时光；新增的经期，或给没有结束日的经期
+// （进行中、结束日期不详）填上结束日（ADR 0007：填写结束日期完成同一条记录）。
+// 反馈落在当月显示这条记录的格子上：欢乐时光是那一天的 ♥，经期是它投影出的每一格色带
+function buildRecordFeedback(days, change, { periods, memories, today }) {
+  const marked = {}
+  const id = recordIdentity(change && change.record)
+  const after = !change ? null : change.collection === 'periods' ? periods : change.collection === 'memories' ? memories : null
+  if (!id || !after) return marked
+  const previous = (change.before || []).find(record => recordIdentity(record) === id) || null
+  const saved = after.find(record => recordIdentity(record) === id) || null
+  const kind = recordFeedbackKind(change.collection, previous, saved, change.mode)
+  const band = kind === 'period' ? cycle.projectPeriodRange(saved, today) : null
+  days.forEach(day => {
+    if (!day || day.isEmpty || !day.date) return
+    if (kind === 'memory' && day.isMemory && day.date === saved.date) marked[day.date] = 'memory'
+    if (band && day.isPeriod && isPeriodActiveOnDate(band, day.date)) marked[day.date] = 'period'
+  })
+  return marked
+}
+
+function recordFeedbackKind(collection, previous, saved, mode) {
+  if (!saved) return ''
+  if (collection === 'memories') return mode === 'add' && !previous ? 'memory' : ''
+  if (mode === 'add') return previous ? '' : 'period'
+  if (mode !== 'update' || !previous) return ''
+  return cycle.getPeriodStatus(previous) !== 'known-end' && cycle.getPeriodStatus(saved) === 'known-end' ? 'period' : ''
 }
 
 function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextPredict = null, predictionWindow = null, today = util.formatDate(new Date()) }) {

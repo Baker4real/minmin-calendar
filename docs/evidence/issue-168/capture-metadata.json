@@ -1,0 +1,1130 @@
+{
+  "ticket": 168,
+  "about": "Stand-in runtime acceptance of epic #161 in WeChat DevTools. Each image was captured from the source named here: head is the full commit, runtimeSourceClean says app.*, pages, utils, images, sitemap and project config on disk equalled it at the start and the end, and files lists the SHA-256 of every file of app.* (root), pages/** and utils/** read from disk. A fingerprint is the SHA-256 of a sha256sum-style manifest of its files (\"<sha256>  <path>\\n\" per file, posix paths sorted in code-unit order); all covers the three groups.",
+  "runId": "168-20261108045229",
+  "head": "c9d7ce96622e5cce360107c6610902dcc9c007f3",
+  "runtimeSourceClean": {
+    "start": true,
+    "end": true
+  },
+  "unchangedDuringRun": true,
+  "startedAt": "2026-11-08T04:52:29.371Z",
+  "finishedAt": "2026-11-08T04:54:16.016Z",
+  "viewport": {
+    "width": 390,
+    "height": 844,
+    "pixelRatio": 3,
+    "model": "iPhone 12/13 (Pro)"
+  },
+  "items": [
+    {
+      "id": "168.0",
+      "status": "PASS",
+      "title": "source and build: HEAD and runtime paths clean on disk, viewport 390x844 read back, the running app has the #166 (quick-btn glow layer host) and #167 (recordFeedback) markers on top of the review-fix markers (withPageVisibility, named calendar marks)"
+    },
+    {
+      "id": "168.1",
+      "status": "PASS",
+      "title": "home, plain today (full and compact): today wears the capsule, no period class, nothing animating or emphasised"
+    },
+    {
+      "id": "168.2",
+      "status": "PASS",
+      "title": "home, period today (full and compact): today sits on the period band (period + today classes), no capsule"
+    },
+    {
+      "id": "168.3",
+      "status": "PASS",
+      "title": "legend sheet settled open: content tier at opacity 1 and no offset, panel inside the viewport; closes and unmounts"
+    },
+    {
+      "id": "168.4",
+      "status": "PASS",
+      "title": "month flip settled (prev arrow, full density): days layer at rest, every cell back where it was, title on the new month"
+    },
+    {
+      "id": "168.5",
+      "status": "PASS",
+      "title": "month picker, day sheet, tools menu, prediction and recap settle open (content tier opacity 1, no offset) and unmount on close"
+    },
+    {
+      "id": "168.6",
+      "status": "PASS",
+      "title": "record success feedback end states: the saved ♥ and the ended band at rest after the return, only those days lit"
+    },
+    {
+      "id": "168.7",
+      "status": "PASS",
+      "title": "bind: first reveal and room created, both settled; 发给 TA primary and 进入应用 ghost"
+    },
+    {
+      "id": "168.8",
+      "status": "PASS",
+      "title": "records tab: period and memory segments settled"
+    },
+    {
+      "id": "168.9",
+      "status": "PASS",
+      "title": "settings page and its help sheet settled open"
+    },
+    {
+      "id": "168.10",
+      "status": "PASS",
+      "title": "edit pages: the ongoing period (selected status, flow and symptom chips carry the static rose glow) and an existing memory"
+    },
+    {
+      "id": "168.11",
+      "status": "PASS",
+      "title": "detector cramped-padding candidates: .month-title-trigger and .list-retry are at least 88rpx tall with the text centred and inset"
+    },
+    {
+      "id": "168.12",
+      "status": "NOT-VERIFIABLE-BY-AUTOMATOR",
+      "title": "[GUI] coordinate taps (168-gui-taps.mjs), real device, VoiceOver/TalkBack, system reduce motion, keyboard push-up, real gestures"
+    },
+    {
+      "id": "168.13",
+      "status": "PASS",
+      "title": "shared aurora include: home, records, both edit pages, settings and bind each render one fixed, non-hit-testable .aurora with the violet, rose and lavender blooms running; every sheet pauses them while open and they run again after it closes"
+    }
+  ],
+  "fingerprints": {
+    "app.*": "d0af7fd4ade5c781e53b7c44b46499107da249de31b09f17f75e57b35c3e253b",
+    "pages/**": "50ba04b092010a589ab76946e8d3b3cf3605f25ae33df3d0fd5ef27f102e0f18",
+    "utils/**": "38d068f7822a8658d179b0b7d68da5d40eeaeec4102c235b6373276ac740785c",
+    "all": "567f3cc79fdb17bae75dd9500e611966d0aa15a4d8fb183e4a9d1ad98c17037a"
+  },
+  "files": [
+    {
+      "file": "app.js",
+      "sha256": "7ea0f5f09f2cbd3c9b56f293dc6370f3853e6205c16442c3061caecdff01e391"
+    },
+    {
+      "file": "app.json",
+      "sha256": "0b8e1235eec012aadaf838cca6092020e5a40cc3b0d1e0f1f0d51fa1dd63669b"
+    },
+    {
+      "file": "app.wxss",
+      "sha256": "e7c355c9c4ac71f646db9fb59f385b28a9a17e46871d1328cdad5b846687157f"
+    },
+    {
+      "file": "pages/bind/bind.js",
+      "sha256": "04b20896acb09c026ea4035739c7709b9ef26ada67d3186ec1db5fe07b6293e2"
+    },
+    {
+      "file": "pages/bind/bind.json",
+      "sha256": "ca28bb52a163fb02065caaaa437bfe23e4bbc22bd710704b3acd50db686c85ea"
+    },
+    {
+      "file": "pages/bind/bind.wxml",
+      "sha256": "880a3f7414ba826c1f12f3e7cd1ac464530538bef9f555cfc44584254f770b1e"
+    },
+    {
+      "file": "pages/bind/bind.wxss",
+      "sha256": "f8e7742e48323d322b3be87d2df20cdae60a0b7815ca345f64bbcbc83bd4098e"
+    },
+    {
+      "file": "pages/index/index.js",
+      "sha256": "73263cdbd3b3cb2a7e556c5da9cfc6683b5c2e7708d6a44408414d62310b7b88"
+    },
+    {
+      "file": "pages/index/index.json",
+      "sha256": "1470891656c1663acecddb939802d6f067826fad5a5e7472f725375436c01dab"
+    },
+    {
+      "file": "pages/index/index.wxml",
+      "sha256": "f75f7a8adf138af0db252be34bb029f4562569acc77672cd28e721490f98683a"
+    },
+    {
+      "file": "pages/index/index.wxss",
+      "sha256": "6d24a48a073815137dad8fd36d4177607c847c3540f22f77492e4fb53a21b95f"
+    },
+    {
+      "file": "pages/memory/edit/edit.js",
+      "sha256": "c3d093ce329cd29fe6554840e5c42c7959615c425ce7f388d25294db2b1c6d64"
+    },
+    {
+      "file": "pages/memory/edit/edit.json",
+      "sha256": "ca28bb52a163fb02065caaaa437bfe23e4bbc22bd710704b3acd50db686c85ea"
+    },
+    {
+      "file": "pages/memory/edit/edit.wxml",
+      "sha256": "544086ff0d2cd869924704635862aa13bd11825ff12d362ac3844fe45a5929ac"
+    },
+    {
+      "file": "pages/memory/edit/edit.wxss",
+      "sha256": "237342c2f8a6174cb9975451013f8376fc0993f8866ba590768480ddcf37ee55"
+    },
+    {
+      "file": "pages/memory/memory.js",
+      "sha256": "a0690a47ca1801eab749adc398f0c543feaaa998640cdd7fcd749c8136bf8554"
+    },
+    {
+      "file": "pages/memory/memory.json",
+      "sha256": "ca28bb52a163fb02065caaaa437bfe23e4bbc22bd710704b3acd50db686c85ea"
+    },
+    {
+      "file": "pages/memory/memory.wxml",
+      "sha256": "cf671b43287505b9f6aad63bcc4f38ff032985851862570090dc4f4ec0de5e0d"
+    },
+    {
+      "file": "pages/memory/memory.wxss",
+      "sha256": "a499c6fa38f124f5ba46e96f4cefee280ac7de07e85e44904f3d0c264cf2e808"
+    },
+    {
+      "file": "pages/period/edit/edit.js",
+      "sha256": "edad35d32020d656d7686b6c8d3e4c6df65828292d8c7d82a27b301f85993642"
+    },
+    {
+      "file": "pages/period/edit/edit.json",
+      "sha256": "ca28bb52a163fb02065caaaa437bfe23e4bbc22bd710704b3acd50db686c85ea"
+    },
+    {
+      "file": "pages/period/edit/edit.wxml",
+      "sha256": "98f478f99479a011716bfe4621b70656f0cd589229fb72f612b632f48c25d726"
+    },
+    {
+      "file": "pages/period/edit/edit.wxss",
+      "sha256": "100d03e934f236aa65453229301b60d446878a8d9f10bada2988ff0f28151649"
+    },
+    {
+      "file": "pages/period/period.js",
+      "sha256": "475679284e1e719ec556cbdff76c74e82931554275cf42f0160b0ceca8f792d2"
+    },
+    {
+      "file": "pages/period/period.json",
+      "sha256": "1470891656c1663acecddb939802d6f067826fad5a5e7472f725375436c01dab"
+    },
+    {
+      "file": "pages/period/period.wxml",
+      "sha256": "e517bb20359d7b0d51ebb7953669a034b8f625558ab611c81fb5a252218e5ed2"
+    },
+    {
+      "file": "pages/period/period.wxss",
+      "sha256": "7601236aab000ac1f47f7a72dcedf7dc9ee0424ea6cb912bffe777174bae9c70"
+    },
+    {
+      "file": "pages/settings/settings.js",
+      "sha256": "09c00f7bf79044f0ebe7b0e4e37f91efe5cc04f03d82598fe2cfaee078a8bcc5"
+    },
+    {
+      "file": "pages/settings/settings.json",
+      "sha256": "ca28bb52a163fb02065caaaa437bfe23e4bbc22bd710704b3acd50db686c85ea"
+    },
+    {
+      "file": "pages/settings/settings.wxml",
+      "sha256": "ddb9788aa44e6c2bc00809a871ecb71418a7a6cac890a01ff17cdaa1b1122039"
+    },
+    {
+      "file": "pages/settings/settings.wxss",
+      "sha256": "0ddf2fbbe6acb09eaed3fa8cb4fecc30ceb839ccaee97344f415b6d41ccce6ce"
+    },
+    {
+      "file": "pages/shared/aurora.wxml",
+      "sha256": "f7087b6216b88bca3197a91b1128f61841cb512374ed71f4bf75f69b690a90d7"
+    },
+    {
+      "file": "utils/calendarInsights.js",
+      "sha256": "38d00d3b71feb1cd4e3de329cb79aa3234d1f3d611ddcb56670174d00ce01a9d"
+    },
+    {
+      "file": "utils/calendarRowHeight.js",
+      "sha256": "8db61d8ade0095eaff4e794a3f7d796ceeeebe1933c013235b143f39f98791f5"
+    },
+    {
+      "file": "utils/chinaHolidays.js",
+      "sha256": "803449621197e36551f8de99a9376d0b4864bea8420e2766efab32b6d1ac1d3b"
+    },
+    {
+      "file": "utils/cloud.js",
+      "sha256": "8e400d33959a3ad82a4a77795e5b7a04502f44515af71b9b4d5bec6a68d0d400"
+    },
+    {
+      "file": "utils/cycle.js",
+      "sha256": "78d49249163bb5c4221230d4bbb543fa8dad6a6b0c570d28502af23df3cc1a60"
+    },
+    {
+      "file": "utils/homeCalendarState.js",
+      "sha256": "deb3bc4a27aaf774ad2b69e445ca114de8c5a9a8bd56a86440b7b248aa208da1"
+    },
+    {
+      "file": "utils/memoryMonthGroups.js",
+      "sha256": "bd003cc3580d5657582e6752ac9dfc21aeb0da4420b370cf6051625d09bd243c"
+    },
+    {
+      "file": "utils/pageVisibility.js",
+      "sha256": "283a4102d68b78dbc7c2e7af347b179e6b1fbd1f2e815c5113f2138a2054db4e"
+    },
+    {
+      "file": "utils/recordCommands.js",
+      "sha256": "da010bc2130a6090464c633650ce33683482c0c8bb77728a48edfc2613dfc1ff"
+    },
+    {
+      "file": "utils/recordDraft.js",
+      "sha256": "610bcc706d2fda882b560968d3f24fc43259b5a771796e86edf865e28df49fdb"
+    },
+    {
+      "file": "utils/recordEditRoute.js",
+      "sha256": "2c6bcc40bc6e42cb18f54a050c932b8150aba5d638950c9e69a281a75bb68ac7"
+    },
+    {
+      "file": "utils/recordFieldErrors.js",
+      "sha256": "6f3f4d63bd158c84963d64d6b501e43da98bd07c6027ac737a96bde0b7d90298"
+    },
+    {
+      "file": "utils/recordPageSync.js",
+      "sha256": "bc3d528e2f4842a525760c66fa1d5578e5174ea61f19a958533e9cd9e9c670d8"
+    },
+    {
+      "file": "utils/room.js",
+      "sha256": "ce059e32cc90ee4e09e208ac8b5f38e1c60b338ec2acb32bc2737de1894d4425"
+    },
+    {
+      "file": "utils/roomAccessOutcome.js",
+      "sha256": "f4540e60216ba5b328b1e959ecbffd69cf58a28cbeb0ab84d4d4483003e0e9af"
+    },
+    {
+      "file": "utils/roomPresence.js",
+      "sha256": "92b2807644295f5cc1de4523c4c5b7c5d54bf409048c18d369a95d5c4c5de395"
+    },
+    {
+      "file": "utils/roomRecordsSnapshot.js",
+      "sha256": "1200bd6a775d550cf52245b250c6f2aaf58cf3a1e3fadde6ee950d49828fd811"
+    },
+    {
+      "file": "utils/roomResolver.js",
+      "sha256": "c2bbe8640cb39f9d53956ab714035012b909905745976159a77115ca2620d764"
+    },
+    {
+      "file": "utils/safeArea.js",
+      "sha256": "ce455d83d88c3ba63ac21c413497370dd8ac70683474f1992c68c5ef8a2f1dd9"
+    },
+    {
+      "file": "utils/settingsFlow.js",
+      "sha256": "9cc518df360a21da301843b63cc15455b4949bcdd43586eddce1f15f50e741a2"
+    },
+    {
+      "file": "utils/sheetDrag.wxs",
+      "sha256": "af49198abc5a2aae9cdc05991a8c794ca88458828162431d97cf7f8fab8677f3"
+    },
+    {
+      "file": "utils/sheetLifecycle.js",
+      "sha256": "fcb0bfefa8a0f369f7cea26c729ed94b05fd8718a0ff3a72010fc1b32b166dad"
+    },
+    {
+      "file": "utils/util.js",
+      "sha256": "782006881de5e882efec12820fcfb19b2dbfbf79c0477cda6504ba6fc8dcc019"
+    }
+  ],
+  "images": [
+    {
+      "file": "bind-first-reveal-390x844.png",
+      "sha256": "d355abdc106f2f3adfb42fb3297800d9bb863c764011d9555241db0d68d84a6d",
+      "size": {
+        "width": 225,
+        "height": 483
+      },
+      "curation": "copy",
+      "capture": "168-bind-first-reveal-390x844.png",
+      "route": "pages/bind/bind",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "scenario": {
+        "room": "none",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 0,
+          "memories": 0
+        }
+      },
+      "capturedAt": "2026-11-08T04:54:10.464Z"
+    },
+    {
+      "file": "bind-room-created-390x844.png",
+      "sha256": "ea9a5e51c193336f383d1a422ce14a77928e263ef726bb5f898f7208fbd5d427",
+      "size": {
+        "width": 225,
+        "height": 483
+      },
+      "curation": "copy",
+      "capture": "168-bind-room-created-390x844.png",
+      "route": "pages/bind/bind",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "scenario": {
+        "room": "none",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 0,
+          "memories": 0
+        }
+      },
+      "capturedAt": "2026-11-08T04:54:13.543Z"
+    },
+    {
+      "file": "home-period-today-compact-calendar-390x844.png",
+      "sha256": "cca6d05bfd1fa0bdf81bd5425042e9ad4964a337ac326301c10c1d172ffb08ee",
+      "size": {
+        "width": 209,
+        "height": 295
+      },
+      "curation": "recut-from-frame",
+      "capture": "168-home-period-today-compact-calendar-390x844.png",
+      "frame": "168-home-period-today-compact-390x844.png",
+      "recut": {
+        "fromNavBottomCssPx": 88,
+        "pxRect": {
+          "x": 8,
+          "y": 50,
+          "width": 209,
+          "height": 295
+        }
+      },
+      "route": "pages/index/index",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "crop": {
+        "cssRect": {
+          "x": 12,
+          "y": 227.33334350585938,
+          "width": 366,
+          "height": 371.29168701171875
+        },
+        "padding": 4,
+        "pxRect": {
+          "x": 4,
+          "y": 128,
+          "width": 216,
+          "height": 219
+        }
+      },
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "compact",
+        "records": {
+          "periods": 3,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:52:52.095Z"
+    },
+    {
+      "file": "home-period-today-full-calendar-390x844.png",
+      "sha256": "65103571f67d16713dae10509aa8161f4d6a00554f5aa4d941a9d1f7bba812da",
+      "size": {
+        "width": 209,
+        "height": 325
+      },
+      "curation": "recut-from-frame",
+      "capture": "168-home-period-today-full-calendar-390x844.png",
+      "frame": "168-home-period-today-full-390x844.png",
+      "recut": {
+        "fromNavBottomCssPx": 88,
+        "pxRect": {
+          "x": 8,
+          "y": 50,
+          "width": 209,
+          "height": 325
+        }
+      },
+      "route": "pages/index/index",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "crop": {
+        "cssRect": {
+          "x": 12,
+          "y": 227.33334350585938,
+          "width": 366,
+          "height": 423.32293701171875
+        },
+        "padding": 4,
+        "pxRect": {
+          "x": 4,
+          "y": 128,
+          "width": 216,
+          "height": 249
+        }
+      },
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 3,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:52:48.031Z"
+    },
+    {
+      "file": "home-plain-today-compact-calendar-390x844.png",
+      "sha256": "9fa1d75ad67cd1c90e1d26fa204f50a871b5af72fdb4a27dca7069525a5e0a73",
+      "size": {
+        "width": 209,
+        "height": 295
+      },
+      "curation": "recut-from-frame",
+      "capture": "168-home-plain-today-compact-calendar-390x844.png",
+      "frame": "168-home-plain-today-compact-390x844.png",
+      "recut": {
+        "fromNavBottomCssPx": 88,
+        "pxRect": {
+          "x": 8,
+          "y": 50,
+          "width": 209,
+          "height": 295
+        }
+      },
+      "route": "pages/index/index",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "crop": {
+        "cssRect": {
+          "x": 12,
+          "y": 227.33334350585938,
+          "width": 366,
+          "height": 371.29168701171875
+        },
+        "padding": 4,
+        "pxRect": {
+          "x": 4,
+          "y": 128,
+          "width": 216,
+          "height": 219
+        }
+      },
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "compact",
+        "records": {
+          "periods": 2,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:52:44.003Z"
+    },
+    {
+      "file": "home-plain-today-full-390x844.png",
+      "sha256": "2462e6e6d01ea9b5dbe6e9b5072b39da1e17f9f1a4ae4c8fe8f577163219ac12",
+      "size": {
+        "width": 225,
+        "height": 483
+      },
+      "curation": "copy",
+      "capture": "168-home-plain-today-full-390x844.png",
+      "route": "pages/index/index",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 2,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:52:39.934Z"
+    },
+    {
+      "file": "memory-edit-existing-390x844.png",
+      "sha256": "ae45c487be18b0cfed4c17408cc3fc60393daa47777489b973f57609c95f8b99",
+      "size": {
+        "width": 225,
+        "height": 483
+      },
+      "curation": "copy",
+      "capture": "168-memory-edit-existing-390x844.png",
+      "route": "pages/memory/edit/edit",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 3,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:54:01.124Z"
+    },
+    {
+      "file": "memory-saved-heart-settled-full-390x844.png",
+      "sha256": "edcf97861b03e06b7c3916e45ce83ff81d72855a15a878cbf9f0c662afe3a994",
+      "size": {
+        "width": 217,
+        "height": 247
+      },
+      "curation": "crop-trimmed",
+      "capture": "168-memory-saved-heart-settled-full-390x844.png",
+      "trimmedRows": 3,
+      "route": "pages/index/index",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "crop": {
+        "selector": ".calendar-grid",
+        "cssRect": {
+          "x": 8,
+          "y": 223.33334350585938,
+          "width": 374,
+          "height": 431.32293701171875
+        },
+        "scrollTop": 0,
+        "pxRect": {
+          "x": 4,
+          "y": 128,
+          "width": 217,
+          "height": 250
+        }
+      },
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 2,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:53:34.011Z"
+    },
+    {
+      "file": "month-flip-prev-settled-full-390x844.png",
+      "sha256": "063d64ac1766456dc8b9ced413a6bca3c210ed12ee23058d17aa800323946104",
+      "size": {
+        "width": 225,
+        "height": 483
+      },
+      "curation": "copy",
+      "capture": "168-month-flip-prev-settled-full-390x844.png",
+      "route": "pages/index/index",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 2,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:53:23.046Z"
+    },
+    {
+      "file": "period-edit-ongoing-390x844.png",
+      "sha256": "bd28a30d3d3fdc1a8baf81ccb2c529e9b1c3456a5f20e5d6f885c37db29646ec",
+      "size": {
+        "width": 225,
+        "height": 483
+      },
+      "curation": "copy",
+      "capture": "168-period-edit-ongoing-390x844.png",
+      "route": "pages/period/edit/edit",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 3,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:53:56.255Z"
+    },
+    {
+      "file": "period-ended-band-settled-full-390x844.png",
+      "sha256": "caac9fd441ae83577aa8e11b5fb0549daa9e6c4dc78167cde69866911f6cc5df",
+      "size": {
+        "width": 217,
+        "height": 247
+      },
+      "curation": "crop-trimmed",
+      "capture": "168-period-ended-band-settled-full-390x844.png",
+      "trimmedRows": 3,
+      "route": "pages/index/index",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "crop": {
+        "selector": ".calendar-grid",
+        "cssRect": {
+          "x": 8,
+          "y": 223.33334350585938,
+          "width": 374,
+          "height": 431.32293701171875
+        },
+        "scrollTop": 0,
+        "pxRect": {
+          "x": 4,
+          "y": 128,
+          "width": 217,
+          "height": 250
+        }
+      },
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 3,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:53:43.245Z"
+    },
+    {
+      "file": "records-memory-390x844.png",
+      "sha256": "9ab51598573d306fc840ff85a42a53febefe95775283c709f5317a92043743ab",
+      "size": {
+        "width": 225,
+        "height": 483
+      },
+      "curation": "copy",
+      "capture": "168-records-memory-390x844.png",
+      "route": "pages/period/period",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 3,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:53:48.577Z"
+    },
+    {
+      "file": "records-period-390x844.png",
+      "sha256": "ffd0943240626b90827277d93043a8a91bb9f63ddbaf9cd7f573711bbdcaea0f",
+      "size": {
+        "width": 225,
+        "height": 483
+      },
+      "curation": "copy",
+      "capture": "168-records-period-390x844.png",
+      "route": "pages/period/period",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 3,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:53:46.388Z"
+    },
+    {
+      "file": "settings-390x844.png",
+      "sha256": "cdf4bc2713a2810bd2c46fc71cecb08a222b01828e95fe5859a423644065d266",
+      "size": {
+        "width": 225,
+        "height": 483
+      },
+      "curation": "copy",
+      "capture": "168-settings-390x844.png",
+      "route": "pages/settings/settings",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 3,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:54:05.386Z"
+    },
+    {
+      "file": "settings-help-open-390x844.png",
+      "sha256": "f1b296429fb3da7cb7fd44c3599dccdae489911f9576b8c88ca6a8b72208d309",
+      "size": {
+        "width": 225,
+        "height": 159
+      },
+      "curation": "copy",
+      "capture": "168-settings-help-open-panel-390x844.png",
+      "route": "pages/settings/settings",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "crop": {
+        "selector": ".help-slide .help-sheet",
+        "cssRect": {
+          "x": -2,
+          "y": 561.9583740234375,
+          "width": 394,
+          "height": 284.04168701171875
+        },
+        "scrollTop": 0,
+        "pxRect": {
+          "x": 0,
+          "y": 324,
+          "width": 225,
+          "height": 159
+        }
+      },
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 3,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:54:07.668Z"
+    },
+    {
+      "file": "sheet-day-open-390x844.png",
+      "sha256": "bb82d0ca665b21a4f64c4cc06da3e3214a471b017ffdddfeb7cdc0af388a2c34",
+      "size": {
+        "width": 217,
+        "height": 137
+      },
+      "curation": "copy",
+      "capture": "168-day-open-panel-390x844.png",
+      "route": "pages/index/index",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "crop": {
+        "selector": ".sheet-slide-dayActions .day-action-sheet",
+        "cssRect": {
+          "x": 8,
+          "y": 601.3333740234375,
+          "width": 374,
+          "height": 234.6666717529297
+        },
+        "scrollTop": 0,
+        "pxRect": {
+          "x": 4,
+          "y": 346,
+          "width": 217,
+          "height": 137
+        }
+      },
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 2,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:53:00.616Z"
+    },
+    {
+      "file": "sheet-legend-open-390x844.png",
+      "sha256": "c0c13505e1a0fcabf9b50ae5563648fa3ea83974cf15cd588de7d2610967e8f3",
+      "size": {
+        "width": 217,
+        "height": 330
+      },
+      "curation": "copy",
+      "capture": "168-legend-open-panel-390x844.png",
+      "route": "pages/index/index",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "crop": {
+        "selector": ".sheet-slide-info .calendar-info-panel",
+        "cssRect": {
+          "x": 8,
+          "y": 266.8020935058594,
+          "width": 374,
+          "height": 569.1979370117188
+        },
+        "scrollTop": 0,
+        "pxRect": {
+          "x": 4,
+          "y": 153,
+          "width": 217,
+          "height": 330
+        }
+      },
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 2,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:53:08.458Z"
+    },
+    {
+      "file": "sheet-month-picker-open-390x844.png",
+      "sha256": "72609ac4d2618f82360c8b7aa105f0588d3d145014b8ac20c72fd3d77f9e94f1",
+      "size": {
+        "width": 217,
+        "height": 253
+      },
+      "curation": "copy",
+      "capture": "168-month-picker-open-panel-390x844.png",
+      "route": "pages/index/index",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "crop": {
+        "selector": ".sheet-slide-monthPicker .calendar-jump-sheet",
+        "cssRect": {
+          "x": 8,
+          "y": 399.9375,
+          "width": 374,
+          "height": 436.0625
+        },
+        "scrollTop": 0,
+        "pxRect": {
+          "x": 4,
+          "y": 230,
+          "width": 217,
+          "height": 253
+        }
+      },
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 2,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:52:57.653Z"
+    },
+    {
+      "file": "sheet-prediction-open-390x844.png",
+      "sha256": "689cce2786b81a670ec51ec7db50f66a60fc25ee4bacda3c61faaabf65151494",
+      "size": {
+        "width": 217,
+        "height": 178
+      },
+      "curation": "copy",
+      "capture": "168-prediction-open-panel-390x844.png",
+      "route": "pages/index/index",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "crop": {
+        "selector": ".sheet-slide-info .calendar-info-panel",
+        "cssRect": {
+          "x": 8,
+          "y": 529.15625,
+          "width": 374,
+          "height": 306.84375
+        },
+        "scrollTop": 0,
+        "pxRect": {
+          "x": 4,
+          "y": 305,
+          "width": 217,
+          "height": 178
+        }
+      },
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 2,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:53:11.987Z"
+    },
+    {
+      "file": "sheet-recap-open-390x844.png",
+      "sha256": "a146c2165c591354282bfffa305dd094692823539adef6ae156db155114f0c39",
+      "size": {
+        "width": 217,
+        "height": 172
+      },
+      "curation": "copy",
+      "capture": "168-recap-open-panel-390x844.png",
+      "route": "pages/index/index",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "crop": {
+        "selector": ".sheet-slide-info .calendar-info-panel",
+        "cssRect": {
+          "x": 8,
+          "y": 540.34375,
+          "width": 374,
+          "height": 295.65625
+        },
+        "scrollTop": 0,
+        "pxRect": {
+          "x": 4,
+          "y": 311,
+          "width": 217,
+          "height": 172
+        }
+      },
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 2,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:53:16.188Z"
+    },
+    {
+      "file": "sheet-tools-menu-open-390x844.png",
+      "sha256": "2c799b895205bb67a5a2a517555309356fc43988f30e3f9c611ab7f95a46b1ea",
+      "size": {
+        "width": 217,
+        "height": 185
+      },
+      "curation": "copy",
+      "capture": "168-tools-menu-open-panel-390x844.png",
+      "route": "pages/index/index",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "pxPerCssPx": 0.5769,
+      "crop": {
+        "selector": ".sheet-slide-toolsMenu .day-action-sheet",
+        "cssRect": {
+          "x": 8,
+          "y": 517.3646240234375,
+          "width": 374,
+          "height": 318.63543701171875
+        },
+        "scrollTop": 0,
+        "pxRect": {
+          "x": 4,
+          "y": 298,
+          "width": 217,
+          "height": 185
+        }
+      },
+      "scenario": {
+        "room": "paired",
+        "listFailure": null,
+        "failures": [],
+        "partnerWelcome": "seen",
+        "density": "full",
+        "records": {
+          "periods": 2,
+          "memories": 2
+        }
+      },
+      "capturedAt": "2026-11-08T04:53:04.122Z"
+    }
+  ]
+}

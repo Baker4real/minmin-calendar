@@ -3,7 +3,8 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
-const { auroraPeakHex, contrastRatio, meetsContrast } = require('./contrast')
+const { auroraPeakHex, contrastGrounds, contrastRatio, meetsContrast, surfaceFill } = require('./contrast')
+const { parseWxssRules } = require('./designTokens')
 
 test('white on black is the WCAG 21:1 reference pair and meets 4.5:1', () => {
   assert.equal(contrastRatio('#FFFFFF', '#000000'), 21)
@@ -23,6 +24,19 @@ test('the aurora peak lays every bloom at full strength over the brightest base 
   `
   // 最亮色标 #202020 叠满 bloom-a 的 50% 白 = #909090；bloom-b 只会让这里变暗，最亮处没有它
   assert.equal(auroraPeakHex(css), '#909090')
+  assert.deepEqual(contrastGrounds(`page { background: #0A0E27; }\n${css}`), [['canvas', '#0A0E27'], ['aurora peak', '#909090']])
+})
+
+test('a surface fill is the cascaded background, or the background-color a tint layer writes', () => {
+  const css = `
+    .row { background: rgba(255,255,255,0.05); }
+    .row::before { position: absolute; }
+    .row::before { background-color: rgba(255,255,255,0.08); }
+    .row.row-hover::before { background-color: rgba(255,255,255,0.12); }
+  `
+  assert.equal(surfaceFill(css, '.row'), 'rgba(255,255,255,0.05)')
+  assert.equal(surfaceFill(css, '.row::before'), 'rgba(255,255,255,0.08)')
+  assert.throws(() => surfaceFill('.row { color: #FFFFFF; }', '.row'), /background or background-color on \.row/)
 })
 
 // ===== issue #77：颜色角色护栏 =====
@@ -169,6 +183,59 @@ test('today capsule keeps the rose date at 4.5:1 and its lavender edge at 3:1 on
   }
 })
 
+// issue #165 的状态强调光晕整层叠在胶囊或「预」上（epic #161：新增光效要检查合成后的关键标记）。光晕的峰值是
+// 关键帧里透明度最高的一帧，那一刻今天的日期和「预」仍 ≥4.5:1。网格面在画布和极光最亮处都算；调休格的淡白底和
+// 经期色带按上一条的口径（画布）。光晕的描边落在框边上，不压在日期和「预」字上，不进这笔账
+test('the emphasis halos keep today\'s date and the 预 at 4.5:1 at their peak', () => {
+  const file = 'pages/index/index.wxss'
+  const css = readSource(file)
+  const haloAtPeak = (selector) => {
+    const rules = parseWxssRules(css).filter(rule => rule.selectors.includes(selector))
+    assert.ok(rules.length > 0, `expected ${selector}`)
+    const halo = Object.assign({}, ...rules.map(rule => rule.decls))
+    const name = String(halo.animation || '').split(/\s+/)[0]
+    const frames = new RegExp(`@keyframes\\s+${name}\\s*\\{([\\s\\S]*?)\\n\\}`).exec(css)
+    assert.ok(frames, `expected the @keyframes ${name} that ${selector} plays`)
+    const peak = Math.max(...[...frames[1].matchAll(/opacity:\s*([\d.]+)/g)].map(match => Number(match[1])))
+    const fill = cssLayer(halo.background || 'transparent')
+    return { color: fill.color, alpha: fill.alpha * peak }
+  }
+  const grids = stackSurfaces([[file, '.calendar-grid']])
+  const capsuleFill = cssColor(exactDeclaration(file, TODAY_CAPSULE, 'background'))
+  const date = resolvePaint(exactDeclaration(file, '.day-cell.today .day-num', 'color'))
+  const wash = cssColor(exactDeclaration(file, '.day-cell.workday', 'background'))
+  const band = cssColor(declarationOf(file, '.period-band', 'background'))
+  const bandSurface = composite(gridSurface(), band, band.a)
+  const dateOnBand = exactDeclaration(file, '.day-cell.today.period .day-num', 'color')
+
+  for (const token of ['today-a', 'today-b']) {
+    const halo = haloAtPeak(`.calendar-days.calendar-emphasis-${token} .day-cell.today .day-num::after`)
+    for (const [name, outside] of [
+      ...grids.map(grid => [`the grid ${toHex(grid)}`, grid]),
+      ['the workday wash', composite(gridSurface(), wash, wash.a)]
+    ]) {
+      const peak = composite(composite(outside, capsuleFill, capsuleFill.a), halo.color, halo.alpha)
+      const ratio = contrastRatio(date, toHex(peak))
+      assert.ok(ratio >= 4.5, `${token}: today's date at the halo peak over the capsule on ${name} is ${ratio.toFixed(2)}:1`)
+    }
+    // 经期今天没有胶囊，光晕直接叠在色带上
+    const onBand = composite(bandSurface, halo.color, halo.alpha)
+    const bandRatio = contrastRatio(paint(dateOnBand, onBand), toHex(onBand))
+    assert.ok(bandRatio >= 4.5, `${token}: today's date at the halo peak on the period band is ${bandRatio.toFixed(2)}:1`)
+  }
+
+  const chip = cssLayer(exactDeclaration(file, '.predict-mark', 'background'))
+  const predict = resolvePaint(exactDeclaration(file, '.predict-mark', 'color'))
+  for (const token of ['predict-a', 'predict-b']) {
+    const halo = haloAtPeak(`.calendar-days.calendar-emphasis-${token} .predict-mark::after`)
+    for (const grid of grids) {
+      const peak = composite(composite(grid, chip.color, chip.alpha), halo.color, halo.alpha)
+      const ratio = contrastRatio(predict, toHex(peak))
+      assert.ok(ratio >= 4.5, `${token}: 预 at the halo peak on the grid ${toHex(grid)} is ${ratio.toFixed(2)}:1`)
+    }
+  }
+})
+
 // 日历网格面：画布 → 玻璃回退海军 → 网格的 5% 白平涂层，层值都读 CSS
 function gridSurface() {
   return stackSurfaces([['pages/index/index.wxss', '.calendar-grid']])[0]
@@ -231,7 +298,8 @@ test('cycle overview labels clear 4.5:1 on canvas, glass fallback and both gradi
   const stops = gradientStops(layers[0])
   assert.equal(stops.length, 2, 'the cycle card gradient has a rose end and a lavender end')
   // 画布之外还有极光最亮处（issue #163）：卡面下面是哪一块背景都要过线
-  const surfaces = grounds().flatMap(([groundName, ground]) => {
+  const surfaces = contrastGrounds(readSource('app.wxss')).flatMap(([groundName, value]) => {
+    const ground = hex(value)
     const fallbackSurface = composite(ground, base, base.a)
     return [
       [groundName, ground],
@@ -355,35 +423,17 @@ test('text on the aurora and on translucent rows clears 4.5:1 at the aurora brig
   assert.deepEqual(failures, [])
 })
 
-// 背景两处：画布，和极光最亮处（基底最亮色标叠满三个色团，见 tests/contrast.js）
-function grounds() {
-  return [
-    ['canvas', hex(pageCanvas())],
-    ['aurora peak', hex(auroraPeakHex(readSource('app.wxss')))]
-  ]
-}
-
-// 表面栈自下而上叠在背景上；渐变层在每个色标处各算一次
+// 表面栈自下而上叠在两处背景（画布和极光最亮处，见 tests/contrast.js）上；渐变层在每个色标处各算一次
 function stackSurfaces(stack) {
-  let surfaces = grounds().map(([, ground]) => ground)
+  let surfaces = contrastGrounds(readSource('app.wxss')).map(([, value]) => hex(value))
   for (const [file, selector] of stack) {
-    const layers = backgroundLayers(surfaceFill(file, selector)).reverse()
+    const layers = backgroundLayers(surfaceFill(readSource(file), selector)).reverse()
     for (const layer of layers) {
       const paints = layer.startsWith('linear-gradient(') ? gradientStops(layer) : [layerPaint(layer)]
       surfaces = surfaces.flatMap(surface => paints.map(paintLayer => composite(surface, paintLayer, paintLayer.a)))
     }
   }
   return [...new Map(surfaces.map(surface => [toHex(surface), surface])).values()]
-}
-
-// 表面的填充：background 简写；按压着色要能过渡的平涂伪元素只写 background-color（issue #145）
-function surfaceFill(relativePath, selector) {
-  const body = exactRuleBody(relativePath, selector)
-  for (const property of ['background', 'background-color']) {
-    const decl = new RegExp(`(?:^|\\s)${property}\\s*:\\s*([^;]+);`).exec(body)
-    if (decl) return decl[1].trim()
-  }
-  assert.fail(`expected background or background-color on ${selector}`)
 }
 
 function contrastOn(text, surface) {
@@ -423,16 +473,6 @@ function layerPaint(value) {
   if (token) return layerPaint(tokenValue(token[1]))
   if (trimmed === 'transparent') return { r: 0, g: 0, b: 0, a: 0 }
   return cssColor(trimmed)
-}
-
-function pageCanvas() {
-  const css = readSource('app.wxss').replace(/\/\*[\s\S]*?\*\//g, '')
-  const rules = css.matchAll(/(?:^|[}\s])page\s*\{([^}]*)\}/g)
-  for (const rule of rules) {
-    const decl = /(?:^|\s)background\s*:\s*([^;]+);/.exec(rule[1])
-    if (decl && /^#[0-9a-f]{6}$/i.test(decl[1].trim())) return decl[1].trim()
-  }
-  assert.fail('expected a solid page canvas background')
 }
 
 function tokenValue(name) {

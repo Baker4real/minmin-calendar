@@ -297,27 +297,37 @@ page {
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-state) ease;
   position: relative;
 }
-/* 柔光层（issue #166）：玫瑰光画在 ::before 上，不画在按钮本身。按下时透明度沉到 0.5，
-   和缩放同一拍（box-shadow 不能过渡，透明度可以）；禁用和加载中没有柔光 */
-.btn-premium::before {
+/* 柔光层（issue #166）：玫瑰实色按钮的光画在 ::before 上，不画在按钮本身（按钮自己带 position: relative）。
+   柔光层铺满按钮、跟按钮同一个圆角、不拦点按；按下时透明度沉到 0.5，和缩放同一拍（box-shadow 不能过渡，
+   透明度可以）。主按钮、首页记录入口和本月小结的复制键共用这一层，各自只写光的大小（box-shadow）；
+   绑定页与设置页的复制键是另一份同款契约（DESIGN.md「按压的四路」），不在这组。主按钮禁用和加载中没有柔光 */
+.btn-premium::before,
+.quick-btn::before,
+.copy-recap::before {
   content: '';
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
   left: 0;
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
+  border-radius: inherit;
   transition: opacity var(--duration-press) ease;
   pointer-events: none;
+}
+.btn-premium:active::before,
+.btn-premium.btn-premium-hover::before,
+.quick-btn:active::before,
+.quick-btn.quick-btn-hover::before,
+.copy-recap:active::before,
+.copy-recap.copy-recap-hover::before {
+  opacity: 0.5;
+}
+.btn-premium::before {
+  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
 }
 .btn-premium:active,
 .btn-premium.btn-premium-hover {
   transform: scale(0.96);
-}
-.btn-premium:active::before,
-.btn-premium.btn-premium-hover::before {
-  opacity: 0.5;
 }
 .btn-premium.loading,
 .btn-premium.disabled {
@@ -394,6 +404,44 @@ page {
   background-color: var(--glass-bg);
 }
 
+/* ===== 平涂层（issue #163、#166）=====
+   压在极光上的行和按钮，底是海军回退 var(--glass-fallback)，淡白或淡红只是 ::before 上的平涂层
+   （宿主自己带 position: relative 与 z-index: 0）：铺满内边距盒、跟宿主同一个圆角、不拦点按，按压加深这一层，
+   background-color 和按压同一拍。平涂层盖不到描边带，宿主按下时描边同色提亮。首页刷新重试行与提醒行、
+   记录 tab 的刷新失败重试行、绑定页校验失败重试共用这一层，各页只写平涂色和按下的颜色 */
+.refresh-retry::before,
+.reminder-card::before,
+.list-retry::before,
+.error-retry::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: inherit;
+  transition: background-color var(--duration-press) ease;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ===== 弹层内容块（issue #166）=====
+   标题与内容错相：标题行（把手、标题、关闭）随面板升降，自己不另动；下面的内容块晚一拍跟上。
+   收起时透明、低 16rpx；打开时等 --delay-stagger，再用进场时长到位，和面板同时落定；离场不等，和面板一起走。
+   全是 transition，中途反向从当前帧接着走。不拦点按、不改显隐：内容里的操作从第一帧起就能点。
+   首页弹层（.sheet-slide）与设置「使用说明」（.help-slide）共用 */
+.sheet-body {
+  opacity: 0;
+  transform: translateY(16rpx);
+  transition: opacity var(--duration-exit) var(--ease-out), transform var(--duration-exit) var(--ease-out);
+}
+.sheet-slide.sheet-open .sheet-body,
+.help-slide.sheet-open .sheet-body {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--duration-enter) var(--ease-out) var(--delay-stagger), transform var(--duration-enter) var(--ease-out) var(--delay-stagger);
+}
+
 /* ===== Field Error（issue #156）— 经期、欢乐时光编辑页共用 =====
    警示红族「字段错误」形态：红字一句，紧贴所属 picker 下方常驻，改对即消失；
    不铺底、不描边、不做过渡（DESIGN.md「警示红语义」） */
@@ -446,16 +494,13 @@ page {
 /* ===== 常驻装饰暂停（issue #118 → #163）=====
    弹层开着时页面根带 page-obscured，页面不可见（onHide 到下一次 onShow）时带 page-hidden。
    两种标记下，注册表里的装饰性常驻动画都暂停在当前帧，去掉标记后从这一帧继续，动画名和周期不变。
-   只暂停、不写 animation: none（那会丢掉当前帧）；状态指示（spin、syncDotPulse、skeletonPulse）照常播放。 */
-.page.page-obscured .aurora-bloom-violet,
-.page.page-obscured .aurora-bloom-rose,
-.page.page-obscured .aurora-bloom-lavender,
+   只暂停、不写 animation: none（那会丢掉当前帧）；状态指示（spin、syncDotPulse、skeletonPulse）照常播放。
+   色团写它们共有的 .aurora-bloom（共享标记里每个色团都带这个类），增减色团不用改这里。 */
+.page.page-obscured .aurora-bloom,
 .page.page-obscured .header-gradient::before,
 .page.page-obscured .header-gradient::after,
 .page.page-obscured .no-room-icon,
-.page.page-hidden .aurora-bloom-violet,
-.page.page-hidden .aurora-bloom-rose,
-.page.page-hidden .aurora-bloom-lavender,
+.page.page-hidden .aurora-bloom,
 .page.page-hidden .header-gradient::before,
 .page.page-hidden .header-gradient::after,
 .page.page-hidden .no-room-icon {
@@ -523,9 +568,7 @@ page {
    加载中不静默：spinner 的旋转替换为 loadingPulse 透明度脉冲。 */
 @media (prefers-reduced-motion: reduce) {
   .page,
-  .aurora-bloom-violet,
-  .aurora-bloom-rose,
-  .aurora-bloom-lavender,
+  .aurora-bloom,
   .header-gradient::before,
   .header-gradient::after {
     animation: none;
@@ -533,6 +576,15 @@ page {
   .premium-card,
   .btn-premium,
   .btn-premium::before,
+  .quick-btn::before,
+  .copy-recap::before,
+  .refresh-retry::before,
+  .reminder-card::before,
+  .list-retry::before,
+  .error-retry::before,
+  .sheet-body,
+  .sheet-slide.sheet-open .sheet-body,
+  .help-slide.sheet-open .sheet-body,
   .btn-danger,
   .btn-danger::before,
   .nav-btn,

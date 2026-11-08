@@ -21,8 +21,11 @@ const PAGE_WXML = [
   'pages/settings/settings.wxml'
 ]
 
+// include 等于把目标文件原样拷到这个位置（共享的极光标记就是这样进每个页面的）：
+// 先展开再检查，护栏看到的是页面渲染出来的结构
 function readPage(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
+    .replace(/<include src="\/([^"]+)"\s*\/>/g, (_, target) => readPage(target))
 }
 
 const TAG_PATTERN = /<([a-zA-Z][\w-]*)((?:\s+[a-zA-Z][\w:.-]*(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*\/?>/g
@@ -193,7 +196,7 @@ test('disabled and loading states cannot be confused with operable controls', ()
 // issue #166：禁用与加载中的控件按下时不缩放、不换底色、不提亮描边、没有柔光。做法二选一：整块不接点按
 // （pointer-events: none），或者每一路按压都被 :active.<状态> 钉回静止值；带柔光层的控件在这两种状态下柔光为 0。
 test('disabled and loading variants show no press feedback and no glow', () => {
-  const { parseWxssRules } = require('./designTokens')
+  const { FILL_PROPERTIES, fillOf, parseWxssRules } = require('./designTokens')
   const failures = []
   let checked = 0
   for (const file of PAGE_WXML) {
@@ -206,7 +209,7 @@ test('disabled and loading variants show no press feedback and no glow', () => {
       .reduce((decls, rule) => ({ ...decls, ...rule.decls }), {})
     const restValue = (decls, prop) => {
       if (prop === 'border-color') return decls['border-color'] || (/rgba\([^)]*\)/.exec(decls.border || '') || [])[0]
-      if (prop === 'background' || prop === 'background-color') return decls.background || decls['background-color']
+      if (FILL_PROPERTIES.includes(prop)) return fillOf(decls)
       return decls[prop]
     }
     for (const element of collectElements(readPage(file))) {
