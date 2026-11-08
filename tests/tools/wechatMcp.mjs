@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -13,18 +14,42 @@ export function normalizeRequest(request, project) {
   return { name: request.name, arguments: args }
 }
 
-function readToken() {
-  if (process.env.WECHAT_MCP_TOKEN?.trim()) return Promise.resolve(process.env.WECHAT_MCP_TOKEN.trim())
-  if (!process.stdin.isTTY) throw new Error('Set WECHAT_MCP_TOKEN through your controlled environment, or run in a terminal for hidden token input')
+// The person enters the token once into this machine's local secret store (Windows DPAPI, this user only); after
+// that an agent's run needs neither a hand-off for hidden input nor an environment variable.
+export const TOKEN_SECRET = 'wechat-devtools-mcp-token'
+const SECRET_FILE = `D:\\Codex\\.codex\\credentials\\secrets\\${TOKEN_SECRET}.dpapi`
+const SECRET_LIBRARY = 'D:\\Codex\\.codex\\scripts\\LocalSecret.ps1'
+const STORE_HINT = `pwsh -NoProfile -File 'D:/Codex/.codex/scripts/Set-LocalSecret.ps1' -Name ${TOKEN_SECRET}`
+
+// The stored token, or undefined when none is stored; the value leaves pwsh only through its stdout pipe.
+export function readStoredToken({ file = SECRET_FILE, run = spawnSync } = {}) {
+  if (!existsSync(file)) return undefined
+  const read = run('pwsh', ['-NoProfile', '-NonInteractive', '-Command', `. '${SECRET_LIBRARY}'; Read-LocalSecret -Name ${TOKEN_SECRET} -AsPlainText`], { encoding: 'utf8', windowsHide: true, timeout: 30000 })
+  const token = read.status === 0 ? read.stdout.trim() : ''
+  if (!token) throw new Error(`Local secret ${TOKEN_SECRET} unreadable: ${read.error?.message || read.stderr?.trim().split(/\r?\n/)[0] || 'empty value'}`)
+  return token
+}
+
+// WECHAT_MCP_TOKEN first, then the local secret store, then hidden terminal input.
+export async function readToken({ env = process.env, readStored = readStoredToken, stdin = process.stdin } = {}) {
+  const fromEnv = env.WECHAT_MCP_TOKEN?.trim()
+  if (fromEnv) return fromEnv
+  const stored = readStored()
+  if (stored) return stored
+  if (!stdin.isTTY) throw new Error(`WeChat MCP token missing; store it once with ${STORE_HINT}, set WECHAT_MCP_TOKEN, or run in a terminal for hidden input`)
+  return promptToken(stdin)
+}
+
+function promptToken(stdin) {
   process.stderr.write('WeChat MCP token (hidden): ')
   return new Promise((resolve, reject) => {
     let token = ''
-    const oldRaw = process.stdin.isRaw
+    const oldRaw = stdin.isRaw
     const finish = (error) => {
       clearTimeout(timer)
-      process.stdin.off('data', receive)
-      process.stdin.setRawMode(oldRaw)
-      process.stdin.pause()
+      stdin.off('data', receive)
+      stdin.setRawMode(oldRaw)
+      stdin.pause()
       process.stderr.write('\n')
       if (error) reject(error)
       else if (!token.trim()) reject(new Error('Token is empty'))
@@ -39,9 +64,9 @@ function readToken() {
       }
     }
     const timer = setTimeout(() => finish(new Error('Token input timed out')), 60000)
-    process.stdin.setRawMode(true)
-    process.stdin.on('data', receive)
-    process.stdin.resume()
+    stdin.setRawMode(true)
+    stdin.on('data', receive)
+    stdin.resume()
   })
 }
 
@@ -93,7 +118,7 @@ export async function main(argv = process.argv.slice(2)) {
   try {
     const options = parseArgs(argv)
     if (options.help) {
-      console.log('node tests/tools/wechatMcp.mjs [--preflight | --requests file.json | --list | --schema exact_tool_name] [--ide directory] [--project directory] [--timeout ms]\nToken: hidden terminal input or WECHAT_MCP_TOKEN; never pass tokens as arguments. Full redacted log: .scratch/devtools/mcp.jsonl, overwritten by each run.')
+      console.log(`node tests/tools/wechatMcp.mjs [--preflight | --requests file.json | --list | --schema exact_tool_name] [--ide directory] [--project directory] [--timeout ms]\nToken: WECHAT_MCP_TOKEN, else the local secret ${TOKEN_SECRET} (store once: ${STORE_HINT}), else hidden terminal input; never pass tokens as arguments. Full redacted log: .scratch/devtools/mcp.jsonl, overwritten by each run.`)
       return 0
     }
     const executable = path.join(options.ide, '微信开发者工具.exe')

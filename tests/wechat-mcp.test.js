@@ -71,6 +71,27 @@ test('WeChat requests use native Windows project paths and reject invalid modes'
   assert.equal(findViewport({ success: true }), null)
 })
 
+test('WeChat token comes from WECHAT_MCP_TOKEN, then the local secret store, then a terminal only', async () => {
+  const { readToken, readStoredToken, TOKEN_SECRET } = await import('./tools/wechatMcp.mjs')
+  const unread = () => assert.fail('the store should not be read')
+  assert.equal(await readToken({ env: { WECHAT_MCP_TOKEN: ' from-env ' }, readStored: unread }), 'from-env')
+  assert.equal(await readToken({ env: {}, readStored: () => 'from-store', stdin: { isTTY: false } }), 'from-store')
+  await assert.rejects(readToken({ env: {}, readStored: () => undefined, stdin: { isTTY: false } }), new RegExp(`'D:/Codex/\\.codex/scripts/Set-LocalSecret\\.ps1' -Name ${TOKEN_SECRET}`))
+
+  // Nothing stored: nothing spawned. Stored: read through pwsh's stdout, the secret's name on its command line.
+  const calls = []
+  const run = (command, args) => {
+    calls.push([command, ...args].join(' '))
+    return { status: 0, stdout: 'stored-token\r\n', stderr: '' }
+  }
+  assert.equal(readStoredToken({ file: path.join(__dirname, 'missing.dpapi'), run }), undefined)
+  assert.equal(calls.length, 0)
+  assert.equal(readStoredToken({ file: __filename, run }), 'stored-token')
+  assert.match(calls[0], /^pwsh .*Read-LocalSecret -Name wechat-devtools-mcp-token -AsPlainText$/)
+  const refused = () => ({ status: 1, stdout: '', stderr: 'cannot decrypt\r\nat line 1' })
+  assert.throws(() => readStoredToken({ file: __filename, run: refused }), /unreadable: cannot decrypt$/)
+})
+
 test('MCP redacts secret fields within JSON text content', async () => {
   const { createRedactor } = await import('./tools/mcpTransport.mjs')
   const redacted = createRedactor()({ content: [{ type: 'text', text: '{"token":"credential","data":"safe"}' }] })
