@@ -10,7 +10,7 @@ const {
   probeReducedMotion,
   restoreTabBarOnShow
 } = require('../../utils/sheetLifecycle')
-const { markPageHidden, markPageShown } = require('../../utils/pageVisibility')
+const { withPageVisibility } = require('../../utils/pageVisibility')
 
 // 与 pages/index/index.js 共享同一存储键；首页 onShow 重读本偏好
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
@@ -38,26 +38,20 @@ function settingsInitialData() {
     helpMounted: false,
     helpPhase: 'closed',
     pageObscured: false,
-    pageHidden: false,
     sheetExitGuard: false
   }
 }
 
-Page({
+Page(withPageVisibility({
   get data() {
     return settingsInitialData()
   },
 
   async onShow() {
-    markPageShown(this)
     restoreTabBarOnShow(this)
     this.setData({ calendarDensity: getSavedCalendarDensity() })
     probeReducedMotion(this)
     await this.resolveRoom()
-  },
-
-  onHide() {
-    markPageHidden(this)
   },
 
   onReady() {
@@ -160,7 +154,7 @@ Page({
   },
 
   noop() {}
-})
+}))
 
 function syncActiveRoom(page, room) {
   // roomCodeLoaded：首次解析完成前不出重试/去绑定操作，避免未绑定文案闪出可点入口

@@ -10,7 +10,7 @@ const { computeCalendarRowHeight } = require('../../utils/calendarRowHeight')
 const safeArea = require('../../utils/safeArea')
 const roomSession = require('../../utils/room')
 const roomPresence = require('../../utils/roomPresence')
-const { markPageHidden, markPageShown } = require('../../utils/pageVisibility')
+const { withPageVisibility } = require('../../utils/pageVisibility')
 const {
   createSheetLifecycle,
   homepageSheets,
@@ -96,7 +96,7 @@ function emptyDayDetail() {
   }
 }
 
-Page({
+Page(withPageVisibility({
   _homeRecords: { periods: [], memories: [] },
   _dayDetailsByDate: INITIAL_HOME_STATE.dayDetailsByDate || {},
   // 正在播的那段翻月滑入 { direction, startedAt }（issue #165）；挂在格子层上的类名记号是 data.calendarFlip
@@ -131,7 +131,6 @@ Page({
     monthPickerMounted: false,
     monthPickerPhase: 'closed',
     pageObscured: false,
-    pageHidden: false,
     sheetExitGuard: false,
     sheetDragClear: {
       monthPicker: { token: 0, action: '' },
@@ -211,7 +210,6 @@ Page({
   },
 
   onShow() {
-    markPageShown(this)
     restoreTabBarOnShow(this)
     // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效，行高按新密度同一次重算。
     // 记录加载必须在这次调用里同步开始，不能等房间状态请求回来。
@@ -1051,11 +1049,10 @@ Page({
     this._ongoingReminderShownKey = ''
   },
 
+  // page-hidden 由 withPageVisibility 在这里跑完之后才挂。issue #167：记录成功反馈要在那之前收掉，
+  // 反馈在 page-hidden 下按住不播，先挂 page-hidden 会让 ♥ 和色带在离场途中消失
   onHide() {
-    // issue #167：先收掉记录成功反馈再标记隐藏。反馈在 page-hidden 下按住不播，
-    // 先挂 page-hidden 会让 ♥ 和色带在离场途中消失
     this.clearRecordFeedback()
-    markPageHidden(this)
     this.persistOngoingReminderSeen()
     this.dismissSeenPartnerWelcome()
   },
@@ -1141,7 +1138,7 @@ Page({
     clearTimeout(this._syncStatusTimer)
     this._syncStatusTimer = null
   }
-})
+}))
 
 function syncPill(page) {
   if (!page._syncPill) {

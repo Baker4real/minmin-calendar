@@ -7,14 +7,14 @@ const memoryMonthGroups = require('../../utils/memoryMonthGroups')
 const safeArea = require('../../utils/safeArea')
 const roomSession = require('../../utils/room')
 const { restoreTabBarOnShow } = require('../../utils/sheetLifecycle')
-const { markPageHidden, markPageShown } = require('../../utils/pageVisibility')
+const { withPageVisibility } = require('../../utils/pageVisibility')
 
 // 与 pages/period/edit/edit.js、pages/memory/edit/edit.js 共享的
 // 一次性「目标分段」意图键：switchTab 不能带 query，入口先写键，本页 onShow 消费并立即清除（issue #103）
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 
-Page({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), segment: 'period', periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memories: [], memoryGroups: [], memoryLoading: false, memoryLoadFailed: false, memoryHasLoaded: false, pageHidden: false },
+Page(withPageVisibility({
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), segment: 'period', periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memories: [], memoryGroups: [], memoryLoading: false, memoryLoadFailed: false, memoryHasLoaded: false },
 
   // 欢乐时光月份卡的展开选择（issue #109）：页面内存按月份键记「用户点过卡头」的月份，
   // 值为 memoryMonthGroups.EXPANDED / COLLAPSED；没点过的月份走默认规则（展开最近三个有记录的月份）。
@@ -22,15 +22,10 @@ Page({
   memoryMonthChoices: {},
 
   onShow() {
-    markPageShown(this)
     // 本页没有弹层：别的页面在弹层开着时被卸载留下的隐藏 tabBar，在这里交还
     restoreTabBarOnShow(this)
     this.consumeSegmentIntent()
     return this.data.segment === 'memory' ? this.loadMemoryData() : this.loadData()
-  },
-
-  onHide() {
-    markPageHidden(this)
   },
 
   onPullDownRefresh() {
@@ -183,7 +178,7 @@ Page({
       memoryGroups: memoryMonthGroups.applyMemoryMonthExpansion(groups, this.memoryMonthChoices)
     })
   }
-})
+}))
 
 // 欢乐时光月份分组内的记录查找：返回带 _id/date/note 的行数据，找不到返回 null（不撞出空表单）
 function findMemoryRecordById(groups, id) {

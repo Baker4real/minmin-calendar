@@ -2081,7 +2081,11 @@ test('pages pause their ambient decorations while hidden and resume as soon as t
     try {
       const { page } = harness
       if (typeof page.onLoad === 'function') page.onLoad({})
-      assert.equal(page.data.pageHidden, false, `${relativePath} starts visible`)
+      assert.ok(!page.data.pageHidden, `${relativePath} starts visible`)
+      const first = page.setDataCalls.length
+      page.onShow()
+      assert.equal(page.setDataCalls.slice(first).some((update) => 'pageHidden' in update), false,
+        `${relativePath} does not re-render the mark on its first show`)
 
       page.onHide()
       assert.equal(page.data.pageHidden, true, `${relativePath} marks itself hidden`)

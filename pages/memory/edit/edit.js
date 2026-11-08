@@ -6,7 +6,7 @@ const recordEditRoute = require('../../../utils/recordEditRoute')
 const recordFieldErrors = require('../../../utils/recordFieldErrors')
 const recordPageSync = require('../../../utils/recordPageSync')
 const safeArea = require('../../../utils/safeArea')
-const { markPageHidden, markPageShown } = require('../../../utils/pageVisibility')
+const { withPageVisibility } = require('../../../utils/pageVisibility')
 
 const DRAFT_FIELDS = ['date', 'note']
 // 可定位的校验字段（只有日期）
@@ -28,8 +28,8 @@ function collectMemoryFieldErrors({ date }, today) {
 // 「目标分段」意图键：从首页等入口进入本页保存/删除后写键，记录 tab onShow 消费并落到欢乐时光分段（issue #103）
 const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 
-Page({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false, submitted: false, draftRestored: false, fieldErrors: {}, pageHidden: false },
+Page(withPageVisibility({
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), id: '', date: '', note: '', isEdit: false, maxDate: '', saving: false, deleting: false, submitted: false, draftRestored: false, fieldErrors: {} },
 
   onLoad(options) {
     const routeState = recordEditRoute.parseMemoryEditOptions(options, {
@@ -55,12 +55,7 @@ Page({
     }
   },
 
-  onShow() {
-    markPageShown(this)
-  },
-
   onHide() {
-    markPageHidden(this)
     this.persistRecordDraft()
   },
 
@@ -183,4 +178,4 @@ Page({
       this._deleteConfirming = false
     }
   }
-})
+}))
