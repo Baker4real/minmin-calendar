@@ -347,6 +347,49 @@ test('DESIGN.md registers the same weight, line-height, and letter-spacing role 
   assert.match(design, /不保留\s*800/)
 })
 
+// issue #168：frontmatter 的 typography 不是第二套目标值。每个文字角色写成 375px 设计宽下的名义 px
+// （×2 即 app.wxss 的 rpx token，同 spacing），字重和阅读行高取角色 token 的值；盒高行高的角色不写行高。
+const FRONTMATTER_TYPOGRAPHY = {
+  'month-title': ['--font-size-month-title', '--font-weight-title', '--line-height-title'],
+  title: ['--font-size-title', '--font-weight-title', '--line-height-title'],
+  'body-lg': ['--font-size-body-lg', '--font-weight-body', '--line-height-body'],
+  body: ['--font-size-body', '--font-weight-body', '--line-height-body'],
+  caption: ['--font-size-caption', '--font-weight-assist', '--line-height-assist'],
+  button: ['--font-size-button', '--font-weight-control', null],
+  input: ['--font-size-input', '--font-weight-body', '--line-height-body'],
+  'calendar-date': ['--font-size-calendar-date', '--font-weight-control', null],
+  'calendar-date-compact': ['--font-size-calendar-date-compact', '--font-weight-control', null],
+  'calendar-micro': ['--font-size-calendar-micro', '--font-weight-assist', null]
+}
+
+// 只读 frontmatter 里 typography 这一块：两格缩进是角色名，四格缩进是属性
+function frontmatterTypography(design) {
+  const frontmatter = design.split('\n---')[0]
+  const block = /\ntypography:\n([\s\S]*?)\n(?=\S)/.exec(frontmatter)
+  assert.ok(block, 'DESIGN.md frontmatter has a typography block')
+  const roles = {}
+  let current = null
+  for (const line of block[1].split('\n')) {
+    const role = /^ {2}([a-z][a-z0-9-]*):\s*$/.exec(line)
+    const prop = /^ {4}([A-Za-z]+):\s*(.+?)\s*$/.exec(line)
+    if (role) roles[(current = role[1])] = {}
+    else if (prop && current) roles[current][prop[1]] = prop[2].replace(/^"(.*)"$/, '$1')
+  }
+  return roles
+}
+
+test('DESIGN.md frontmatter typography carries the role values, not a second ramp', () => {
+  const roles = frontmatterTypography(fs.readFileSync(DESIGN_MD, 'utf8'))
+  assert.deepEqual(Object.keys(roles).sort(), Object.keys(FRONTMATTER_TYPOGRAPHY).sort())
+  for (const [role, [size, weight, lineHeight]] of Object.entries(FRONTMATTER_TYPOGRAPHY)) {
+    const rpx = Number(/^(\d+)rpx$/.exec(FONT_ROLE_TOKENS[size])[1])
+    assert.equal(roles[role].fontSize, `${rpx / 2}px`, `${role} is ${size} (${FONT_ROLE_TOKENS[size]}) at the 375px design width`)
+    assert.equal(roles[role].fontWeight, FONT_WEIGHT_ROLE_TOKENS[weight], `${role} weight is ${weight}`)
+    assert.equal(roles[role].lineHeight, lineHeight ? LINE_HEIGHT_ROLE_TOKENS[lineHeight] : undefined, `${role} line-height`)
+    assert.equal(roles[role].letterSpacing, undefined, `${role} keeps natural tracking in the frontmatter`)
+  }
+})
+
 test('shared text uses the four weight roles and does not invent a fifth weight', () => {
   const cache = new Map()
   const violations = []

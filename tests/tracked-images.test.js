@@ -116,6 +116,29 @@ const ALLOWED_IMAGES = {
   'docs/evidence/issue-167/period-ended-band-settled-390x844.png': '记结束补上结束日、回到首页后的日历（落定）：这段经期三格色带连续到今天，没有残留的透明或位移；经期与 ♥ 来自替身记录',
   'docs/evidence/issue-167/bind-first-reveal-390x844.png': '未绑定首屏显现后（落定）：♥ 下的大标题、说明和创建/加入卡同一刻显现后的样子；替身未绑定状态，没有记录数据',
   'docs/evidence/issue-167/bind-room-created-390x844.png': '刚建好房间（落定）：已绑定卡、「把房间码发给 TA」、「发给 TA」主按钮与「进入应用」幽灵次按钮；房间码 ABC123 是替身码，没有记录数据',
+  // #168：epic #161 整体验收。worktree 项目窗口，视口 390×844（没切机型），替身房间与按当天推算的替身记录；
+  // 运行源码与提交一致，采集元数据记着 HEAD 和 app.*、pages/**、utils/** 的 SHA-256。图都是落定后的终态。
+  'docs/evidence/issue-168/home-plain-today-full-390x844.png': '首页整屏（完整密度）：今天戴胶囊、不在经期；♥ 与「预」来自替身记录',
+  'docs/evidence/issue-168/home-plain-today-compact-calendar-390x844.png': '清爽密度的首页日历（月份导航到日历格）：今天戴胶囊；♥ 与「预」来自替身记录',
+  'docs/evidence/issue-168/home-period-today-full-calendar-390x844.png': '完整密度、今天在进行中的经期里：今天落在玫瑰色带上，不再加胶囊；色带与 ♥ 来自替身记录',
+  'docs/evidence/issue-168/home-period-today-compact-calendar-390x844.png': '清爽密度、今天在进行中的经期里：今天落在色带上，不加胶囊；色带与 ♥ 来自替身记录',
+  'docs/evidence/issue-168/month-flip-prev-settled-full-390x844.png': '完整密度翻到上一月落定后的整屏：「回到今天」行出现，格子已到位；节日与调休是公开日历，经期与 ♥ 来自替身记录',
+  'docs/evidence/issue-168/sheet-legend-open-390x844.png': '日历图例弹层停在打开态：六项样本与说明；固定文案，没有记录数据',
+  'docs/evidence/issue-168/sheet-month-picker-open-390x844.png': '选择月份弹层停在打开态：当前月是选中的玫瑰格；没有记录数据',
+  'docs/evidence/issue-168/sheet-day-open-390x844.png': '点今天打开的当日弹层：今天的日期与农历，「记经期」「记欢乐时光」两项；没有记录数据',
+  'docs/evidence/issue-168/sheet-tools-menu-open-390x844.png': '工具菜单弹层停在打开态：图例、预测说明、本月小结三项；没有记录数据',
+  'docs/evidence/issue-168/sheet-prediction-open-390x844.png': '预测说明弹层停在打开态：预计开始日、窗口、平均周期与持续天数都由替身记录推算',
+  'docs/evidence/issue-168/sheet-recap-open-390x844.png': '本月小结弹层停在打开态：经期、欢乐时光条数、下次预测与欢乐时光摘要都来自替身记录',
+  'docs/evidence/issue-168/memory-saved-heart-settled-full-390x844.png': '新增欢乐时光保存成功、回到首页后的日历（完整密度，落定）：今天多了 ♥，另一个 ♥ 是更早的替身记录',
+  'docs/evidence/issue-168/period-ended-band-settled-full-390x844.png': '给进行中的经期记结束、回到首页后的日历（完整密度，落定）：三格色带连续到今天；经期与 ♥ 来自替身记录',
+  'docs/evidence/issue-168/bind-first-reveal-390x844.png': '未绑定首屏显现后（落定）：♥、大标题、说明和创建/加入卡；替身未绑定状态，没有记录数据',
+  'docs/evidence/issue-168/bind-room-created-390x844.png': '刚建好房间（落定）：已绑定卡、「发给 TA」主按钮与「进入应用」幽灵次按钮；房间码 ABC123 是替身码，没有记录数据',
+  'docs/evidence/issue-168/records-period-390x844.png': '记录 tab 经期段：周期概览卡与三条经期，日期、作者、标签和备注都来自替身记录',
+  'docs/evidence/issue-168/records-memory-390x844.png': '记录 tab 欢乐时光段：按月份分组的两条欢乐时光，备注来自替身记录',
+  'docs/evidence/issue-168/settings-390x844.png': '设置页整屏：房间码 ABC123 是替身码，「TA 已加入」是替身房间状态；没有记录数据',
+  'docs/evidence/issue-168/settings-help-open-390x844.png': '设置页使用说明弹层停在打开态：固定文案，没有记录数据',
+  'docs/evidence/issue-168/period-edit-ongoing-390x844.png': '经期编辑页打开进行中的替身经期：选中的状态、经量和症状芯片带静态玫瑰光；日期与备注来自替身记录',
+  'docs/evidence/issue-168/memory-edit-existing-390x844.png': '欢乐时光编辑页打开一条替身记录：日期与备注「替身：一起散步」来自替身记录',
 }
 
 // 读 index 而不是工作区：提交钩子里跑时，读到的正是这次要提交的文件。

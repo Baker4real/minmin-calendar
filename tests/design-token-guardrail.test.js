@@ -722,3 +722,79 @@ test('glow stays on primary buttons and the copy control', () => {
   assert.match(design, /不可点元素不再发光/)
   assert.match(design, /0 0 18rpx rgba\(240,196,192,0\.32\)/)
 })
+
+// issue #168：辉光（不是 inset 的有色阴影：box-shadow、text-shadow 或 filter 的 drop-shadow）只在 DESIGN.md
+// 「Shadow / overlay 登记」列出的几处。按压柔光层、选中态的静态玫瑰光、承载状态色的 rail 和三处情感装饰；
+// 新加一处辉光先在那里登记，再加进这张表。黑、海军和白的投影与高光是 elevation，不在此列。
+const REGISTERED_GLOWS = [
+  // 按压柔光层（issue #166）
+  'app.wxss .btn-premium::before',
+  'pages/index/index.wxss .quick-btn::before',
+  'pages/index/index.wxss .copy-recap::before',
+  'pages/settings/settings.wxss .copy-btn::before',
+  'pages/bind/bind.wxss .copy-btn::before',
+  // 选中态的静态玫瑰光
+  'pages/index/index.wxss .jump-option.active',
+  'pages/period/edit/edit.wxss .flow-chip.active',
+  'pages/period/edit/edit.wxss .symptom-chip.active',
+  // 承载状态色的 rail
+  'pages/index/index.wxss .reminder-rail',
+  'pages/index/index.wxss .reminder-card.due .reminder-rail',
+  'pages/index/index.wxss .detail-rail',
+  'pages/index/index.wxss .memory-detail .detail-rail',
+  // 情感装饰
+  'pages/bind/bind.wxss .hero-icon',
+  'pages/period/period.wxss .memory-heart',
+  'pages/memory/memory.wxss .memory-heart',
+  'pages/period/period.wxss .cycle-card'
+]
+const ELEVATION_RGB = new Set(['0,0,0', '10,14,39', '255,255,255'])
+
+// 一个阴影值的各层：box-shadow / text-shadow 按顶层逗号分，filter 只取其中的 drop-shadow(...)
+function shadowLayers(prop, value) {
+  if (prop === 'filter') return [...value.matchAll(/drop-shadow\(((?:[^()]|\([^()]*\))*)\)/g)].map((match) => match[1])
+  const layers = []
+  let current = ''
+  let depth = 0
+  for (const ch of value) {
+    if (ch === '(') depth += 1
+    else if (ch === ')') depth -= 1
+    if (ch === ',' && depth === 0) {
+      layers.push(current.trim())
+      current = ''
+    } else current += ch
+  }
+  layers.push(current.trim())
+  return layers
+}
+
+function isGlowLayer(layer) {
+  if (/\binset\b/.test(layer)) return false
+  const color = /rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,/.exec(layer)
+  return Boolean(color) && !ELEVATION_RGB.has(color.slice(1, 4).join(','))
+}
+
+test('glows sit only on the places DESIGN.md registers', () => {
+  const found = new Set()
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    for (const rule of parseWxssRules(fs.readFileSync(file, 'utf8'))) {
+      for (const prop of ['box-shadow', 'text-shadow', 'filter']) {
+        const value = rule.decls[prop]
+        if (!value || value === 'none' || !shadowLayers(prop, value).some(isGlowLayer)) continue
+        for (const selector of rule.selectors) found.add(`${relative} ${selector}`)
+      }
+    }
+  }
+  assert.deepEqual([...found].sort(), [...REGISTERED_GLOWS].sort())
+
+  const design = fs.readFileSync(path.join(repoRoot, 'DESIGN.md'), 'utf8')
+  for (const registered of [
+    'drop-shadow(0 0 10px rgba(240,196,192,0.3))',
+    '0 8px 32px rgba(232,144,158,0.15)',
+    '`.jump-option.active`',
+    '经期编辑页选中的状态、经量和症状芯片'
+  ]) {
+    assert.ok(design.includes(registered), `DESIGN.md Shadow / overlay registers ${registered}`)
+  }
+})

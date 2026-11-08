@@ -19,33 +19,53 @@ colors:
   bg-aurora-mid: "#2D1B69"
   warning-red: "#F97373"
 typography:
-  h1:
+  # 与「共享字号角色」表同值：px 是 750rpx 设计宽（375px）下的名义值，×2 即 app.wxss 的 rpx token（同 spacing）
+  month-title:
     fontFamily: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif
-    fontSize: 2rem
+    fontSize: 20px
     fontWeight: 700
-    lineHeight: 1.3
-    letterSpacing: "-0.02em"
-  h2:
+    lineHeight: 1.2
+  title:
     fontFamily: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif
-    fontSize: 1.5rem
-    fontWeight: 600
-    lineHeight: 1.35
+    fontSize: 17px
+    fontWeight: 700
+    lineHeight: 1.2
   body-lg:
     fontFamily: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif
-    fontSize: 1.0625rem
+    fontSize: 16px
     fontWeight: 400
     lineHeight: 1.6
-  body-md:
+  body:
     fontFamily: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif
-    fontSize: 0.9375rem
+    fontSize: 14px
     fontWeight: 400
-    lineHeight: 1.5
+    lineHeight: 1.6
   caption:
     fontFamily: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif
-    fontSize: 0.8125rem
+    fontSize: 13px
     fontWeight: 500
     lineHeight: 1.4
-    letterSpacing: "0.03em"
+  button:
+    fontFamily: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif
+    fontSize: 15px
+    fontWeight: 600
+  input:
+    fontFamily: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif
+    fontSize: 16px
+    fontWeight: 400
+    lineHeight: 1.6
+  calendar-date:
+    fontFamily: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif
+    fontSize: 14px
+    fontWeight: 600
+  calendar-date-compact:
+    fontFamily: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif
+    fontSize: 15px
+    fontWeight: 600
+  calendar-micro:
+    fontFamily: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "PingFang SC", sans-serif
+    fontSize: 12px
+    fontWeight: 500
 rounded:
   sm: 12rpx
   md: 20rpx
@@ -67,7 +87,7 @@ components:
     fallbackFill: "rgba(18,22,61,0.92)"
     rounded: 24rpx
     border: "1px solid rgba(255,255,255,0.12)"
-    padding: 24px
+    shadow: "0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15)"
   button-primary:
     backgroundColor: "#E8909E"
     textColor: "#0A0E27"
@@ -92,7 +112,7 @@ components:
     pressScale: 0.95
   calendar-cell:
     rounded: 20rpx
-    textColor: "rgba(255,255,255,0.85)"
+    textColor: "rgba(255,255,255,0.8)"
     todayCapsuleBg: "rgba(232,144,158,0.14)"
     todayCapsuleStroke: "2rpx solid rgba(196,160,210,0.55)"
     todayCapsuleSize: "60×41rpx full / 64×43rpx compact"
@@ -103,29 +123,23 @@ components:
     holidayTagBg: "transparent"
     holidayTagText: "#D4A574"
     workdayTagBg: "rgba(255,255,255,0.12)"
-  diary-card:
-    backgroundColor: "rgba(232,144,158,0.06)"
-    rounded: 24px
-    borderLeft: "3px solid #E8909E"
-    padding: 16px
   tab-bar:
     backgroundColor: "#0A0E27"
     borderStyle: "white"
     color: "#7A7C8C"
     selectedColor: "#E8909E"
   input-field:
-    backgroundColor: "rgba(255,255,255,0.06)"
-    rounded: 16px
-    padding: 14px 16px
+    backgroundColor: "rgba(255,255,255,0.06) + rgba(18,22,61,0.92)"
+    rounded: 12rpx
+    padding: 22rpx
+    minHeight: 88rpx
+    border: "1px solid rgba(255,255,255,0.12)"
     textColor: "rgba(255,255,255,0.85)"
     focusBorder: "1px solid #E8909E"
+    pickerPressedBorder: "1px solid rgba(232,144,158,0.4)"
   modal-overlay:
     backgroundColor: "rgba(10,14,39,0.88)"
     backdropFilter: "blur(8px)"
-  badge:
-    backgroundColor: "#F0C4C0"
-    textColor: "#0A0E27"
-    rounded: 999rpx
   reminder-card:
     backgroundColor: "rgba(255,255,255,0.075)"
     fallbackFill: "rgba(18,22,61,0.92)"
@@ -134,14 +148,17 @@ components:
     overdueRailColor: "#FFFFFF"
   choice-chip:
     minTouchHeight: 44px
+    rounded: 999rpx
     inactiveBg: "rgba(255,255,255,0.065)"
-    activeBg: "#E8909E"
+    activeBg: "rgba(232,144,158,0.92)"
     activeText: "#0A0E27"
+    activeGlow: "0 0 18rpx rgba(232,144,158,0.22)"
+    pressScale: 0.96
 ---
 
 ## 单一权威
 
-本文件是 Aurora Bloom 的唯一现行视觉说明。色板、圆角、按压、tab 顶线和日历格状态以本文为准。不要并列第二套「目标稿」或「实现基线」；已审查数值不要按旧稿回改。
+本文件是 Aurora Bloom 的唯一现行视觉说明。色板、材质与辉光、圆角、字号角色、按压、动效注册表、tab 顶线和日历格状态以本文为准。不要并列第二套「目标稿」或「实现基线」；已审查数值不要按旧稿回改。
 
 已在屏幕上成立、改 UI 时沿用：
 
@@ -155,7 +172,7 @@ components:
 - 交互语义（issue #57）：每个可点控件（bindtap/catchtap，sheet 的 `catchtap="noop"` 泄泡盾除外）都带 `aria-role` 与可读 `aria-label`；弹层遮罩本身是「关闭」操作，按用途命名（关闭月份选择/当日操作/工具菜单/日历图例/预测说明/本月小结/使用说明）。选中态用 `aria-checked` 表达并与 `active` 类同条件绑定（单选组如经期状态、密度、月份格、绑定 tab 用 `radio`，可多选或可再点取消的经量/症状 chip 用 `checkbox`）；禁用与加载态用 `aria-disabled` 表达并与 `disabled`/`loading` 类同条件。可看的月份是 2001 年 1 月到 2035 年 12 月，与选月的年份范围是同一对常量（issue #159）：到了一端，那一侧的月份箭头禁用，透明度 0.35，按下不缩放、不着色，`aria-disabled` 与 `disabled` 同条件；点按和滑动都不翻月，也不提示。picker 与输入框带 `aria-label`。首屏加载指示（`.loading-spinner`）带可读 `aria-label`；同步状态胶囊（`.sync-pill`）为 `status` 角色、朗读名与 `syncStatusText` 同源，同步状态变化即可朗读（issue #106）。日历格保持 `aria-label="{{item.ariaLabel}}"` 领域朗读（日期+经期/欢乐时光/预测/节日/调休）与 `aria-hidden="{{item.isEmpty}}"` 空白格隐藏，角色为 button；语义文案唯一来源仍是 `utils/homeCalendarState.js`。弹层读屏模态（issue #155）：首页六个底部弹层与设置「使用说明」用同一套表达。面板本体不写 `aria-role`，只有读屏名，是弹层用途（月份选择、当日操作、工具菜单、日历图例/预测说明/本月小结、使用说明；信息弹层随当前内容取 `infoSheetName`），遮罩读「关闭」加同一名称。模态上下文由遮罩名、面板名和被隐藏的背景三者给出，不靠角色。宿主里只有遮罩和面板，读屏顺序固定为遮罩 → 面板名 → 标题行（标题、副标题、「关闭」）→ 面板内控件。任一弹层处于 open 或 leaving（含交接）时，页面根下的背景块（顶栏、未绑定/加载失败、骨架、内容）`aria-hidden` 与 `page-obscured` 同一状态，最后一个弹层卸载的同一次更新里恢复；弹层宿主直接挂在页面根下，不在被隐藏的块里。平台边界以微信 aria-component 文档为准（https://developers.weixin.qq.com/miniprogram/dev/component/aria-component.html）：基础库 2.7.1 起只支持部分 ARIA 标签；可设的 `aria-role` 参照 MDN「Widget Roles」，部分 role 在移动端可能无效，dialog 不在其中，所以面板不写这个角色；文档列出 `aria-modal` 却没说行为，不写，背景隔离只靠 `aria-hidden`。微信没有把读屏焦点移到某个 view 的接口（`wx.checkIsOpenAccessibility` 只回答读屏是否开启），关闭后焦点落点由系统决定，不保证回到触发器；能保证的是背景按原文档顺序恢复，触发器名称和位置不变，从工具菜单交接出的图例/预测说明/本月小结，原触发器是顶栏最前的「工具」。属性写对不等于读屏可用，VoiceOver/TalkBack 实听结果以验证记录为准。护栏：`tests/interaction-semantics.test.js`、`tests/index-page.test.js`、`tests/settings-flow.test.js`。
 - 次级可点入口对比度（issue #57）：可点击箭头（`.menu-arrow`、`.form-picker-arrow`、列表/入口/弹层箭头）与次要操作（重试空态、绑定页房间码、危险按钮）的文字色不弱于 `--text-secondary`，在各自实际表面（卡片/表单/sheet 合成底）上 ≥4.5:1——基准即未选中 tab `#7A7C8C` 在画布 `#0A0E27` 上的 4.5:1；输入占位符用 `--text-placeholder`（`rgba(255,255,255,0.6)`，与 `--text-secondary` 同档，不弱于它；issue #144），`.input-placeholder` 的字号走 `--font-size-input`。`--text-tertiary`（0.35 白）不再用于占位符，也不再用于任何可点入口。护栏：`tests/secondary-affordance-contrast.test.js`、`tests/typography-hierarchy.test.js`。
 - 展开/收起文字入口（issue #109，「记录」tab 欢乐时光月份卡头）：切换入口用文字「展开」/「收起」，不用字形——「›」已用于列表行「点开编辑」（`.item-arrow`/`.memory-arrow`），「⌄」已用于首页选月 caret（`.month-title-caret`），不重复占用；文字自述点按后果。卡头按 button 朗读，`aria-expanded` 与展开状态同条件，读屏名「YYYY年M月，N 条欢乐时光，已展开/已收起」；收起且该月有备注时，在状态前加上该月第一条备注的单行摘要（从新到旧，跳过空白备注；整月没有备注则不追加）。摘要显示在卡头标题下方，单行，超出截断，展开时不重复渲染，可见文字 `aria-hidden`，读屏只走卡头名。点按即时切换、无过渡动画（不进动效注册表，开启减弱动效时无差别）。文字走 caption 角色（26rpx）+ `var(--text-secondary)`，在月份卡（`.premium-card`）表面 ≥4.5:1，护栏 `tests/secondary-affordance-contrast.test.js`（CASES 登记）；320px 单行账本由 `tests/narrow-screen-geometry.test.js` 钉住。这是应用里第一个展开/收起交互，本条即先例。
-- 动效与性能边界（issue #58）：缓动只有 `--ease-out`（`cubic-bezier(0.16,1,0.3,1)`）与标准关键字（ease/ease-in-out/linear 等）；bounce/elastic 式 overshoot 曲线（cubic-bezier 的 y 参数超出 0–1）与 `--ease-spring` / `--transition-spring` token 已退役，bind 页 `bounceIn` 回弹入场同步改为无回弹的 `heroIn`，禁止同类曲线以任何命名回归。一次性时长只有六档 app 级 token（issue #111；第六档由 issue #165 加入）：`--duration-press` 160ms（可点控件按压的四路：缩放、底色、描边与柔光层透明度，见「按压的四路」；阴影本身不进过渡）、`--duration-state` 200ms（选中、颜色、描边、焦点边框，以及后台刷新时日历变暗）、`--duration-enter` 240ms（整页淡入 `pageEnter`、弹层遮罩淡入、同步胶囊入场、翻月滑入）、`--duration-exit` 200ms（弹层与同步胶囊离场）、`--duration-sheet` 280ms（弹层面板升起）、`--duration-emphasis` 600ms（今天与「预」的一次性光晕，亮起再落回；记录成功的 ♥ 与色带、建好房间时绑定页 ♥ 的漾开，issue #167）。延迟只有一档 `--delay-stagger` 40ms，只给弹层内容块进场错相用（issue #166，见下文「弹层标题与内容错相」），别的 transition 不写延迟；时长、曲线和延迟都只写在 `transition` 简写里，不写长写。一次性关键帧动画的延迟也只有一档 `--delay-return` 300ms，只给记录成功反馈等返回转场走完（issue #167，见下文「记录成功反馈」），别的一次性动画不写延迟，延迟同样只写在 `animation` 简写里。按压只属于可点控件，容器和不可点的行不缩放、不变底色（issue #113，取代 issue #81 的逐页豁免）。微信里每个可点控件（`bindtap`/`catchtap`，`catchtap="noop"` 除外）都带 `hover-class`，并且和对应的 `:active` 写在同一条规则里，开发者工具才会画出按压（issue #122，issue #145）。类名重复控件自己的类，例如月份箭头 `nav-btn-hover`，危险行 `danger-hover`，危险按钮 `btn-danger-hover`，返回键 `nav-back-hover`。按压着色落在可以过渡的 `background-color` 上（海军实底之上的平涂层），时长仍是 `--duration-press`，不写进 `background-image`。方向仍是 issue #122 的海军实底上平涂着色。`:active` 规则保留。位移、缩放、入场、离场用 `var(--ease-out)`；只变颜色或底色用 `ease`；导航头光斑 `float` 的来回漂移用 `ease-in-out`（周期仍是 8s 与 6s）。除 `--ease-out` 定义外不写 cubic-bezier。组合变量 `--transition` 已退役。常驻动画周期、减弱动效替代和 `heroIn` 0.6s 仍用字面时长。持续动画（`infinite`）只在下文「常驻动画注册表」登记，逐项写挂在哪、用途、节奏、弹层遮挡与页面不可见时的行为和减弱动效替代；新增或删除持续动画时同步那张表与测试注册表。播一次的关键帧动画登记在「一次性动效注册表」，逐项写挂在哪、用途与触发、时长与曲线、中断与取消、弹层遮挡与页面不可见时的行为和减弱动效替代，同样与测试注册表同步（issue #165）。周期只写在 `animation` 简写里，不写 `animation-duration` 长写；错开起点用负延迟。玻璃 blur：哪些面模糊见上文「玻璃叠层」的登记；单面 ≤20px，全屏遮罩 ≤8px（两个弹层遮罩都是 frontmatter `modal-overlay` 登记的 8px，88% 海军底上更大的 blur 看不出差别）。按文件的玻璃面数量棘轮已退役（issue #163）。阴影：颜色与透明度由上文阴影注册表管；按文件的 `box-shadow` 声明数棘轮同样退役（issue #163）。`@media (prefers-reduced-motion: reduce)` 政策：移除位移/缩放/旋转与装饰动画，状态反馈走无位移通道——加载=透明度脉冲（不静默）、同步中=玫瑰点静态色、骨架=静态哑光占位块、按压=即时 scale + 既有底色变化、弹层=进出立即到位、88% 海军遮罩保留层级（issue #116）、日历切换=即时替换（翻月滑入为 none，月份标题文案变化承载状态）、今天与「预」的光晕照常（只动透明度，是温和的反馈）、记录成功的 ♥ 只淡入不缩放、色带照常淡入（issue #167）、建好房间时绑定页 ♥ 不漾开、已绑定卡直接出现（issue #167）。滑动翻月（issue #137）：日历区域用 WXS 判定，与弹层拖动同一种模式；水平位移超过 48px 且大于竖直位移才翻月，否则留给轻点和竖向滚动；不跟手，松手后一次页面更新完成，和箭头翻月同一段滑入（见下条「翻月滑入与日历状态强调」）；减弱动效下即时替换。日期格不做颜色过渡。两个编辑页的边框/背景过渡由页面级 reduced-motion 块即时切换，无渐进（issue #106）。护栏：`tests/motion-performance.test.js`。
+- 动效与性能边界（issue #58）：缓动只有 `--ease-out`（`cubic-bezier(0.16,1,0.3,1)`）与标准关键字（ease/ease-in-out/linear 等）；bounce/elastic 式 overshoot 曲线（cubic-bezier 的 y 参数超出 0–1）与 `--ease-spring` / `--transition-spring` token 已退役，bind 页 `bounceIn` 回弹入场同步改为无回弹的 `heroIn`，禁止同类曲线以任何命名回归。一次性时长只有六档 app 级 token（issue #111；第六档由 issue #165 加入）：`--duration-press` 160ms（可点控件按压的四路：缩放、底色、描边与柔光层透明度，见「按压的四路」；阴影本身不进过渡）、`--duration-state` 200ms（选中、颜色、描边、焦点边框，后台刷新时日历变暗，以及当日详情的淡入 `dayDetailFade`）、`--duration-enter` 240ms（整页淡入 `pageEnter`、弹层遮罩淡入、弹层内容块进场、同步胶囊入场、翻月滑入、绑定页显现 `bindReveal`）、`--duration-exit` 200ms（弹层面板、内容块与同步胶囊离场，遮罩淡出）、`--duration-sheet` 280ms（弹层面板升起）、`--duration-emphasis` 600ms（今天与「预」的一次性光晕，亮起再落回；记录成功的 ♥ 与色带、建好房间时绑定页 ♥ 的漾开，issue #167）。延迟只有一档 `--delay-stagger` 40ms，只给弹层内容块进场错相用（issue #166，见下文「弹层标题与内容错相」），别的 transition 不写延迟；时长、曲线和延迟都只写在 `transition` 简写里，不写长写。一次性关键帧动画的延迟也只有一档 `--delay-return` 300ms，只给记录成功反馈等返回转场走完（issue #167，见下文「记录成功反馈」），别的一次性动画不写延迟，延迟同样只写在 `animation` 简写里。按压只属于可点控件，容器和不可点的行不缩放、不变底色（issue #113，取代 issue #81 的逐页豁免）。微信里每个可点控件（`bindtap`/`catchtap`，`catchtap="noop"` 除外）都带 `hover-class`，并且和对应的 `:active` 写在同一条规则里，开发者工具才会画出按压（issue #122，issue #145）。类名重复控件自己的类，例如月份箭头 `nav-btn-hover`，危险行 `danger-hover`，危险按钮 `btn-danger-hover`，返回键 `nav-back-hover`。按压着色落在可以过渡的 `background-color` 上（海军实底之上的平涂层），时长仍是 `--duration-press`，不写进 `background-image`。方向仍是 issue #122 的海军实底上平涂着色。`:active` 规则保留。位移、缩放、入场、离场用 `var(--ease-out)`；只变颜色或底色用 `ease`；导航头光斑 `float` 的来回漂移用 `ease-in-out`（周期仍是 8s 与 6s）。除 `--ease-out` 定义外不写 cubic-bezier。组合变量 `--transition` 已退役。常驻动画周期、减弱动效替代和 `heroIn` 0.6s 仍用字面时长。持续动画（`infinite`）只在下文「常驻动画注册表」登记，逐项写挂在哪、用途、节奏、弹层遮挡与页面不可见时的行为和减弱动效替代；新增或删除持续动画时同步那张表与测试注册表。播一次的关键帧动画登记在「一次性动效注册表」，逐项写挂在哪、用途与触发、时长与曲线、中断与取消、弹层遮挡与页面不可见时的行为和减弱动效替代，同样与测试注册表同步（issue #165）。周期只写在 `animation` 简写里，不写 `animation-duration` 长写；错开起点用负延迟。玻璃 blur：哪些面模糊见上文「玻璃叠层」的登记；单面 ≤20px，全屏遮罩 ≤8px（两个弹层遮罩都是 frontmatter `modal-overlay` 登记的 8px，88% 海军底上更大的 blur 看不出差别）。按文件的玻璃面数量棘轮已退役（issue #163）。阴影：颜色与透明度由上文阴影注册表管；按文件的 `box-shadow` 声明数棘轮同样退役（issue #163）。`@media (prefers-reduced-motion: reduce)` 政策：去掉位移、缩放、旋转的过渡与动画以及装饰动画（位置和大小直接落到终态），状态反馈走无位移通道——加载=透明度脉冲（不静默）、同步中=玫瑰点静态色、骨架=静态哑光占位块、按压=即时 scale + 既有底色变化、弹层=进出立即到位、88% 海军遮罩保留层级（issue #116）、日历切换=即时替换（翻月滑入为 none，月份标题文案变化承载状态）、今天与「预」的光晕照常（只动透明度，是温和的反馈）、记录成功的 ♥ 只淡入不缩放、色带照常淡入（issue #167）、建好房间时绑定页 ♥ 不漾开、已绑定卡直接出现（issue #167）。滑动翻月（issue #137）：日历区域用 WXS 判定，与弹层拖动同一种模式；水平位移超过 48px 且大于竖直位移才翻月，否则留给轻点和竖向滚动；不跟手，松手后一次页面更新完成，和箭头翻月同一段滑入（见下条「翻月滑入与日历状态强调」）；减弱动效下即时替换。日期格不做颜色过渡。两个编辑页的边框/背景过渡由页面级 reduced-motion 块即时切换，无渐进（issue #106）。护栏：`tests/motion-performance.test.js`。
 - 翻月滑入与日历状态强调（issue #165）：这一条取代 issue #137 的翻月无动画规则。箭头、滑动、选月和回到今天都在同一次页面更新里换上月份标题和那个月的格子，不在渲染回调里补排格子（原来选月和回到今天先画出新标题，下一帧才换格子）。翻月时格子从翻月方向滑入：下一月从右、上一月从左，位移 10rpx（等于网格左右内边距，内容不出卡片、不用裁切），透明度 0.5 → 1，时长 `--duration-enter`，曲线 `--ease-out`。动的是格子外一层没有盒子的 `.calendar-days`（无内外边距、无描边、不定宽高），卡片、周头和月份标题不动，日期格仍只有自己的按压缩放；整日点按范围和几何账本不变，到了可看月份的两端照旧什么都不发。方向记号 `calendarFlip`（`next-a`、`next-b`、`prev-a`、`prev-b`）跟着那次日历提交走，不用计时器，数据和操作都不等动画：滑入进行中（240ms 内）同方向再翻，只换数据，进行中的滑入接着播，不续期；反向就换成另一方向从头播；播完后再翻，a、b 交替从头播（类名变了 CSS 才会重播）；选月、回到今天和未绑定或加载失败画面取消滑入，新月份即时替换。状态强调只有两处，各有明确的触发：回到今天（首页按钮或选月面板）时，今天的日期胶囊位置亮起一层更亮的胶囊再落回；关掉开着的预测说明时，当月的「预」在描边处亮一圈金再落回（当月没有「预」就不亮，图例、本月小结和离场途中的重复关闭不触发）。光晕是伪元素上的一层底色和描边，不是阴影，只动透明度：0 → 1 → 0，`--duration-emphasis` 600ms，播一次，不循环。记号 `calendarEmphasis`（`today-a`、`today-b`、`predict-a`、`predict-b`）只跟着触发它的那次提交，之后任何一次日历更新（翻月、选月、记录变化、刷新）或未绑定和加载失败画面都去掉它，换月和节点重建不会重播。光晕只在记号作用域下存在，静止的日历一点不变；经期今天没有胶囊，光晕同样围住日期、叠在色带上；重叠日（经期里不画「预」）和各个标记的含义不变。减弱动效下翻月即时替换，光晕照常。两种动画逐项登记在「一次性动效注册表」。护栏：`tests/index-page.test.js`、`tests/motion-performance.test.js`。
 - 记录成功反馈（issue #167）：只回应真正存下的新增或完成。触发点是首页的记录回流：编辑页只在云端确认写入后通知前一页（含写入超时后回读确认已存），带的是保存后的那条记录，所以反馈的日期和色带就是同步后日历上的样子。新增欢乐时光：那一天的 ♥ 从 0.6 倍淡入长到原大（`recordBloom`）。新增经期，或给没有结束日的经期（进行中、结束日期不详）填上结束日（ADR 0007：填写结束日期完成同一条记录）：这段经期在当月投影出的每一格色带一起淡入（`recordAppear`），跨行的各段同时到位，连续段不断开；别的经期不动。不亮的：改写已有记录（含改日期）、合并到已有进行中、进行中改成结束日期不详（色带缩回开始日，不是出现）、删除、校验失败、写入失败、回读确认没存上、取消、草稿恢复（都不通知）、后台刷新和下拉刷新、从「记录」tab 进编辑页（首页收不到通知，之后刷新出来的记录不亮），以及日历还没显示时收到的通知；记录落在别的月份时当月没有可亮的。时序：通知到达时首页正被编辑页盖着，反馈类在 `page-hidden` 下按住不开始（♥ 和色带透明）；编辑页按原来的 1000ms 返回，`onShow` 去掉 `page-hidden` 后先等 `--delay-return` 300ms 让返回转场走完，再用 `--duration-emphasis` 600ms、`--ease-out` 播一次，反馈不拖慢返回、不拦点按、不改读屏名。记号是页面数据 `recordFeedback`（日期 → memory / period），挂在 `.calendar-days` 的日期格上（`record-feedback-memory`、`record-feedback-period`），图例和记录入口的样本不受影响；它只跟着那次记录变化的日历提交：再保存一次换成新的那条，不叠加；之后任何一次日历更新（翻月、选月、回到今天、带来记录变化的刷新、别的记录变化）或未绑定、加载失败画面都去掉它，翻回来不重播；确认这次保存、没有变化的刷新不打断它。首页隐藏时先收掉反馈再挂 `page-hidden`，离场途中 ♥ 和色带不消失，下次回来不重播。不用计时器。减弱动效下 ♥ 只淡入不缩放，色带照常淡入（都只动透明度）。两段动画登记在「一次性动效注册表」。护栏：`tests/index-page.test.js`、`tests/record-flow.test.js`、`tests/interaction-semantics.test.js`、`tests/motion-performance.test.js`。
 - 首页底部弹层进出（issue #116）：选择月份、当日操作、工具菜单、图例/预测说明/本月小结共用同一生命周期，页面数据状态为 closed、open、leaving，再回到 closed。进场先以关闭姿态挂载，下一次渲染加上打开姿态，由 CSS transition 完成，不用入场关键帧，因此中途可以反向。离场计时 `--duration-exit`（200ms）到点卸载，不依赖 transitionend。离场途中再次打开会取消卸载并回到 open，过渡从当前位置返回。面板用 `translateY(100%)` 落到屏幕外（含自身高度与底部留白，不写死像素）：进场 `var(--duration-sheet)` 与 `var(--ease-out)`，离场 `var(--duration-exit)` 与 `var(--ease-out)`。遮罩透明度进场 `var(--duration-enter)`，离场 `var(--duration-exit)`。遮罩和面板是兄弟节点（issue #134）：遮罩单独作为关闭控件朗读，面板内控件各自可达。离场时遮罩和面板都是 `pointer-events: none`，不拦截点按。减弱动效下这些过渡为 none，画面立即到位，元素仍等到计时结束再卸载。原生 tabBar 在弹层处于 open 或 leaving 时隐藏，离场卸载后恢复；减弱动效下这次隐藏和恢复不播放动画。tabBar 的显隐是整个小程序共用的状态，弹层开着时页面被卸载（reLaunch、redirectTo、热启动换路径）不经过离场，所以首页、记录、设置三个 tab 页每次显示时，本页没有弹层盖着就立即交还 tabBar，不播动画（`restoreTabBarOnShow`）。系统返回由页面容器拦截，先走这条离场，不离开页面。把手和标题行可以拖动（issue #119）：竖直移动超过 10px 才开始，拖动开始后再落下的手指忽略；跟手在 WXS 里直接设置面板 transform，不逐帧 setData。向下 1:1，向上越过停放位置时位移 = 越界量 × 面板高度 × 0.55 /（面板高度 + 0.55 × |越界量|）。松手把位移、耗时和面板高度交给页面：向下位移超过面板高度的 25%，或向下速度（位移 / 耗时）超过 0.11 px/ms，走同一条离场，从当前拖动位置过渡到屏幕底边外；否则清掉内联位移，面板用 `var(--duration-exit)` 与 `var(--ease-out)` 回到原位。向上拖不关闭。可滚动的内容不是拖动区。减弱动效下跟手仍在，松手后的关闭或复位立即完成。遮罩 88% 海军与 z-index 层级保持不变。
@@ -169,8 +186,8 @@ components:
 - `tabBar.borderStyle` 为 `white`（浅色发丝）。不要改成 `black`。未选中 `tabBar.color` 为 `#7A7C8C`：弱于选中玫瑰 `#E8909E`，在画布 `#0A0E27` 上达到 4.5:1。「记录」tab 的两态图标是列表形（`images/list.png` / `images/list_active.png`，issue #159）：三行圆点加横线，81×81，线宽与日历图标描边同档，实色像素分别正好是 `#7A7C8C` 与 `#E8909E`。不用铅笔，也不用医疗十字。护栏 `tests/tab-icons.test.js`。
 - 极光（issue #163，取代 issue #146 的整页 `auroraPulse` 缩放）：画布底为 `#0A0E27`，`page` 没有 `auroraFlow`。`.page::before` 是一层静止基底，四边为 0、正好铺满视口，只画海军 → 深蓝 → 深梅的纵向过渡，不动也不缩放。动感来自每个页面根下第一层的 `.aurora`（`aria-hidden="true"`，固定在视口，`overflow: hidden`）里三个有边界的色团：蓝紫 `.aurora-bloom-violet` 压在下半屏（中心 `rgba(45,27,105,0.75)`），玫瑰 `.aurora-bloom-rose` 在左上（0.14），薰衣草 `.aurora-bloom-lavender` 在右侧中段（0.11）。色团用 `closest-side` 径向渐变在自己的盒内淡到 0，没有硬边。每个色团只有一层动画，只动位移、0.94–1.08 的轻微缩放和透明度，周期 12s、10s、8s 往返，负延迟错开起点，三团的相位一直错开，整页不再同步缩放。基底、色团容器和色团都是 `pointer-events: none`；固定层不随滚动走，滚动时不出现色带分层。色团只取蓝紫、玫瑰和薰衣草，柔金不进背景。首页原来的两个光球（`.glow-orb`、`orbFloat`）并入这三个色团后退役：它们挂在文档流里，一个被顶栏盖住，一个只在页底露出，边缘还是硬的。
 - 各页 0.62–0.94 信息文本透明度是逐元素调校，不要机械归并。承载操作后果、记录内容或关键说明的辅助文字不弱于 `--text-secondary` 档，并在实际合成表面上 ≥4.5:1（issue #158）：记录 tab 周期概览的标签（`.card-label`、`.cycle-label`；卡面是玫瑰 → 薰衣草渐变叠在玻璃回退上，画布、玻璃回退和渐变两端都要过线）、列表行的作者与备注（`.item-note`、`.memory-note`）、收起月份卡的备注摘要（`.month-excerpt`）、空态引导与加载失败标题（`.empty-state`），经期编辑页的状态后果、天数与时长确认（`.form-hint`），两个编辑页的字段名（`.form-label`，与字段说明同样直接引用 `--text-secondary`，issue #164），首页提醒说明（`.reminder-text`）与未绑定/加载失败说明（`.no-room-desc`）。只给芯片分组的症状分组标题（`.symptom-group-label`）不在此列，保留更安静的一档，仍 ≥4.5:1。护栏 `tests/contrast-guardrail.test.js`。实际合成表面从内容下面的背景算起（issue #163）：背景有两处，画布 `#0A0E27` 和极光最亮处（基底最亮的色标叠满三个色团，保守上界，`tests/contrast.js` 的 `auroraPeakHex`），两处都要过线。直接压在背景上的文字（配对欢迎条、本月小结行、未绑定标题与说明、设置分组标题、绑定页大标题与说明）在极光最亮处仍 ≥4.5:1。原来只铺 5%–10% 淡白或淡红的行会透出极光，玫瑰字、警示红字和次要说明在那里掉到 4.5:1 以下，所以首页提醒行（`.reminder-card`）、刷新重试行（`.refresh-retry`）、记录 tab 分段控件（`.segment-control`）与两段共用的刷新失败重试行（`.list-retry`，原来按下才铺 5% 淡白，说明文字在极光最亮处只剩约 4.25:1，issue #166 收口）、绑定页错误条（`.error-msg`）与重试（`.error-retry`）都叠在 `var(--glass-fallback)` 上，淡白或淡红只是上面的平涂层：可按压的行把平涂层放在 `::before` 的 `background-color` 上，按压加深这一层，按下时文字同样 ≥4.5:1；不可按的面写成 `linear-gradient(<淡色>, <淡色>), var(--glass-fallback)`。月份选择 caret（`.month-title-caret`）和月份标题同为玫瑰 `#E8909E`：按吸顶区 → 月份导航 → 触发钮的实际合成面算，原来的 85% 玫瑰只有约 4.2:1。护栏 `tests/contrast-guardrail.test.js`、`tests/secondary-affordance-contrast.test.js`。
-- 可点控件只描述 Default 与 Pressed。Pressed 用 `:active` `scale(0.94–0.98)`；主按钮 `.btn-premium` 为 `0.96`。
-- 按压的四路（issue #166）：按下时缩放、底色、描边、柔光一起变，都走 `--duration-press`（缩放用 `var(--ease-out)`，其余用 `ease`），松手按同一拍回来，没有哪一路先跳到位。描边：底色铺在控件自己的 `background` 上时，描边带画在这层底色之上，跟着一起亮；底色落在 `::before` 平涂层上的控件，平涂层只铺内边距盒，盖不到描边带，所以按下时描边同色提亮、和平涂层一起亮——月份箭头 0.2 → 0.3，首页刷新重试与记录 tab 重试行 0.1 → 0.14，提醒行 0.12 → 0.17，危险按钮与危险菜单行红 0.28 → 0.4，绑定页重试红 0.24 → 0.32（返回键原本就是玫瑰 0.28 → 0.42）。柔光只属于玫瑰主按钮与复制键（`.btn-premium`、`.quick-btn`、`.copy-recap`、设置与绑定页的 `.copy-btn`），画在 `::before` 柔光层上：柔光层铺满按钮、用按钮同一个圆角 token、`pointer-events: none`，按下时透明度沉到 0.5，和缩放同一拍；按钮本身不带阴影，按压也不换 `box-shadow`（阴影不能过渡，透明度可以）。返回键按下只换描边和底色，投影不换、随按钮一起缩；表单 picker 按下只换玫瑰描边，不加光晕。原生分享按钮（`button.share-invite`）放开组件自带的 `overflow: hidden`，柔光层才不被裁掉；它的按压类是 `share-invite-hover`，柔光一样沉。禁用与加载中的控件按下时四路都不动：不缩放、不换底色、不提亮描边、没有柔光；做法二选一，整块 `pointer-events: none`，或每一路都被 `:active.disabled` / `:active.loading` 钉回静止值。惰性变体一律用 `disabled` / `loading` 类表达，不写内联透明度：主按钮 0.55，危险按钮（删除中、不可删）0.5，月份箭头与选月年份步进 0.35，经期状态芯片与保存中的日期字段 0.5 且不接点按；日期 picker 被停用时，里面的字段同条件带 `disabled`，`aria-disabled` 写在 picker 本身。唯一例外：「记录」tab 欢乐时光卡头（issue #109）不写过渡，按压只有一层即时底色，没有第二路要对齐。减弱动效下四路都即时切换。护栏：`tests/motion-performance.test.js`；惰性变体由 `tests/interaction-semantics.test.js` 钉住。
+- 可点控件的交互态只描述 Default 与 Pressed，没有 hover 和 focus 态；禁用与加载中是惰性变体，按下什么都不变（见下条「按压的四路」）。Pressed 用 `:active` `scale(0.94–0.98)`；主按钮 `.btn-premium` 为 `0.96`。
+- 按压的四路（issue #166）：按下时缩放、底色、描边、柔光一起变，都走 `--duration-press`（缩放用 `var(--ease-out)`，其余用 `ease`），松手按同一拍回来，没有哪一路先跳到位。描边：底色铺在控件自己的 `background` 上时，描边带画在这层底色之上，跟着一起亮；底色落在 `::before` 平涂层上的控件，平涂层只铺内边距盒，盖不到描边带，所以按下时描边同色提亮、和平涂层一起亮——月份箭头 0.2 → 0.3，首页刷新重试与记录 tab 重试行 0.1 → 0.14，提醒行 0.12 → 0.17，危险按钮与危险菜单行红 0.28 → 0.4，绑定页重试红 0.24 → 0.32（返回键原本就是玫瑰 0.28 → 0.42）。按压柔光只属于玫瑰主按钮与复制键（`.btn-premium`、`.quick-btn`、`.copy-recap`、设置与绑定页的 `.copy-btn`），画在 `::before` 柔光层上：柔光层铺满按钮、用按钮同一个圆角 token、`pointer-events: none`，按下时透明度沉到 0.5，和缩放同一拍；按钮本身不带阴影，按压也不换 `box-shadow`（阴影不能过渡，透明度可以）。返回键按下只换描边和底色，投影不换、随按钮一起缩；表单 picker 按下只换玫瑰描边，不加光晕。原生分享按钮（`button.share-invite`）放开组件自带的 `overflow: hidden`，柔光层才不被裁掉；它的按压类是 `share-invite-hover`，柔光一样沉。选中态的静态玫瑰光（选月面板的当前月 `.jump-option.active`、经期编辑页选中的状态、经量和症状芯片）表示已选，不是按压柔光，按下不变（登记见「Shadow / overlay 登记」）。禁用与加载中的控件按下时四路都不动：不缩放、不换底色、不提亮描边、没有柔光；做法二选一，整块 `pointer-events: none`，或每一路都被 `:active.disabled` / `:active.loading` 钉回静止值。惰性变体一律用 `disabled` / `loading` 类表达，不写内联透明度：主按钮 0.55，危险按钮（删除中、不可删）0.5，月份箭头与选月年份步进 0.35，经期状态芯片与保存中的日期字段 0.5 且不接点按；日期 picker 被停用时，里面的字段同条件带 `disabled`，`aria-disabled` 写在 picker 本身。唯一例外：「记录」tab 欢乐时光卡头（issue #109）不写过渡，按压只有一层即时底色，没有第二路要对齐。减弱动效下四路都即时切换。护栏：`tests/motion-performance.test.js`；惰性变体由 `tests/interaction-semantics.test.js` 钉住。
 - `calendar-cell` 与下文日历状态表对齐 `pages/index`。经期是只包住日期数字的 22% 玫瑰连续色带，不是实色整格选中底。今天只在日期数字外加一枚胶囊（`todayCapsule*`），不铺整格底、不描整格边；经期中的今天不另加胶囊，只在色带外缘描边（issue #162）。
 - 日历微字 `.day-tag` / `.predict-mark` 字号为 `26rpx`（caption 量级）。节日是无底金字，调休「班」仍是低调小标签；`.day-tag` 与 `.day-tag-line` 盒高 `38rpx`（大于字号，覆盖 caption 行高），避免 CJK 被裁切。清爽密度的节日/调休标签走 `--font-size-calendar-micro`（24rpx，格内下限），盒高 34rpx，日期与标记仍都放得下，不再更小（几何账本 `CALENDAR_LEDGER.infoRowRpx.tagFont` 钉住）。
 
@@ -187,11 +204,11 @@ Aurora Bloom is a premium wellness dark theme for minmin-calendar — a period t
 ## Colors
 
 Primary: warm rose #E8909E. Secondary: soft lavender #C4A0D2. Accent: warm gold #D4A574.
-BG: deep navy #0A0E27 canvas with #1A0A2E and #12163D for surfaces. Canvas navy is also the primary-fill label color.
+BG: deep navy #0A0E27 canvas. #12163D is the surface hue: glass surfaces sit on it at 92% (`--glass-fallback`), the home sheet panels at 94–96%. #1A0A2E (deep plum) only closes the still aurora base below. Canvas navy is also the primary-fill label color.
 Warning red: #F97373 — 唯一警示色，语义与形态见下文「警示红语义」。
 成功/完成态（如绑定成功 `.bound-status`）用主色玫瑰 #E8909E 表达；色板不引入绿色。全部 WXSS 的 hex 颜色必须落在本文件登记的色板内，由 `tests/design-token-guardrail.test.js` 护栏。
-Aurora base (`.page::before`, still): `linear-gradient(168deg, #0A0E27 0%, #0A0E27 28%, #12163D 62%, #1A0A2E 100%)`. The violet bloom's centre colour #2D1B69 is registered as `--aurora-bg3`; the rose and lavender blooms reuse the primary and secondary hues.
-Shadow / overlay 登记：卡片与日历网格投影 `rgba(0,0,0,0.2)`；浮层小投影 `rgba(0,0,0,0.12–0.15)`；底部 sheet 上缘投影 `rgba(0,0,0,0.34)`；海军近景投影与字阴影 `rgba(10,14,39,0.16–0.35)`（自定义导航返回键与标题）；sheet 遮罩 `rgba(10,14,39,0.88)`（画布海军 88% 透明度）；玻璃回退实色 `rgba(18,22,61,0.92)`；底部 sheet 面板为 `linear-gradient(160deg, rgba(232,144,158,0.12–0.14), rgba(196,160,210,0.08) 42–45%, rgba(18,22,61,0.94–0.96))` 叠同透明度海军实底；inset 顶线高光 `rgba(255,255,255,0.09–0.22)`；辉光阴影随主色走——玫瑰 `rgba(232,144,158,0.1–0.45)`、浅粉 `rgba(240,196,192,0.28–0.32)`、金 `rgba(212,165,116,0.3–0.5)`（含 sheet-action 金 inset 0.3）、警示红 `rgba(249,115,115,0.38)`。不可点元素不再发光：月份导航没有玫瑰投影，加载圈和同步点没有光晕，绑定页爱心只留一层 `0 0 18rpx rgba(240,196,192,0.32)`。主按钮和复制键的玫瑰光保留，画在 `::before` 柔光层上（issue #166）。提醒与详情的彩色 rail 保留，因为它们承载状态色。
+Aurora base (`.page::before`, still): `linear-gradient(168deg, #0A0E27 0%, #0A0E27 28%, #12163D 62%, #1A0A2E 100%)`. The violet bloom's centre colour #2D1B69 is registered as `--aurora-bg3`; the rose and lavender blooms reuse the primary and secondary hues. 月份导航卡里另有一层静止的玫瑰径向淡光（`.month-nav::before`，中心 10%，被卡片的 `overflow: hidden` 裁在卡内），是玻璃面的微渐变，不动，也不是辉光。
+Shadow / overlay 登记：卡片与日历网格投影 `rgba(0,0,0,0.2)`；浮层小投影 `rgba(0,0,0,0.12–0.15)`；首页底部 sheet 上缘投影 `rgba(0,0,0,0.34)`；海军近景投影与字阴影 `rgba(10,14,39,0.16–0.35)`（自定义导航返回键的底和字形）；sheet 遮罩 `rgba(10,14,39,0.88)`（画布海军 88% 透明度）；玻璃回退实色 `rgba(18,22,61,0.92)`；首页底部 sheet 面板为 `linear-gradient(160deg, rgba(232,144,158,0.12–0.14), rgba(196,160,210,0.08) 42–45%, rgba(18,22,61,0.94–0.96))` 叠同透明度海军实底（设置「使用说明」面板是通用玻璃卡 `.premium-card`）；inset 顶线高光 `rgba(255,255,255,0.09–0.22)`；辉光阴影随主色走——玫瑰 `rgba(232,144,158,0.1–0.45)`、浅粉 `rgba(240,196,192,0.28–0.32)`、金 `rgba(212,165,116,0.3–0.5)`、警示红 `rgba(249,115,115,0.38)`（区间保留，现在没有控件用）。辉光只在这几处：可点主操作的按压柔光（主按钮和复制键，画在 `::before` 柔光层上，按下沉到 0.5，issue #166）；选中态的静态玫瑰光（选月面板当前月 `.jump-option.active` 0.18，经期编辑页选中的状态、经量和症状芯片 0.22）；承载状态色的 rail（提醒行的金或玫瑰 rail，当日详情的玫瑰或浅粉 rail）；三处柔和的情感装饰——绑定页 ♥ 一层字阴影 `0 0 18rpx rgba(240,196,192,0.32)`、欢乐时光列表 ♥ 的 `drop-shadow(0 0 10px rgba(240,196,192,0.3))`、「记录」tab 周期概览卡的玫瑰投影 `0 8px 32px rgba(232,144,158,0.15)`。除此之外不可点元素不再发光：月份导航没有玫瑰投影，加载圈和同步点没有光晕。
 
 Removed from original: neon green, hot pink, cyan, bright gold. Too aggressive for a wellness app.
 
@@ -211,7 +228,7 @@ issue #86–#89 的绑定页紫粉试点（深紫画布、紫玻璃 tint、粉�
 
 ## Typography
 
-System font stack for zero-bloat + excellent CJK rendering;全页面只继承 `app.wxss` 的 `-apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif`，不声明 `@font-face`、不引入外部字体（`tests/typography-hierarchy.test.js` 护栏）。H1 2rem/700 for month titles. Body-lg 1.0625rem/400/1.6 for diary reading. Caption 0.8125rem/500; week headers keep natural letter-spacing and do not add tracking. Calendar holiday tags and 「预」 stay at caption scale: `.day-tag` / `.predict-mark` are `26rpx`. The holiday/workday `.day-tag` box is `38rpx` tall so CJK glyphs are not clipped.
+System font stack for zero-bloat + excellent CJK rendering;全页面只继承 `app.wxss` 的 `-apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif`，不声明 `@font-face`、不引入外部字体（`tests/typography-hierarchy.test.js` 护栏）。Sizes, weights and line heights come only from the shared roles below; frontmatter `typography` carries the same values as nominal px at the 375px design width (×2 = the rpx token). Week headers keep natural letter-spacing and do not add tracking. Calendar holiday tags and 「预」 stay at caption scale: `.day-tag` / `.predict-mark` are `26rpx`, and the holiday/workday `.day-tag` box is `38rpx` tall so CJK glyphs are not clipped; in the compact density the `.day-tag` drops to the `24rpx` micro role in a `34rpx` box (see 日历微字 above).
 
 首页月份标题层级：`.month-title` 走 `--font-size-month-title`（40rpx）与 `--font-weight-title`（700），字距保持自然，不另加 letter-spacing；明显高于各页共享导航标题 `.nav-title`（`--font-size-title` 34rpx / 同一标题字重 700）。层级差来自字号（≥6rpx），不来自更重的 800。`line-height: var(--line-height-title)`（1.2）+ `white-space: nowrap` 保证单行完整显示，最坏文案「2026年12月」在 750rpx 视口的月份导航行内不溢出。年月数字走 `tabular-nums`；月份胶囊 `.month-title-trigger` 最小宽 320rpx，兜住最坏文案，1 位数和 2 位数月份同宽，翻月、换年时胶囊不变宽、不挪位，文字在胶囊内居中（issue #164）。层级差、单行、宽度账本与稳宽由 `tests/typography-hierarchy.test.js` 钉住。
 
@@ -221,7 +238,7 @@ caption 家族行高策略：流式说明文字（`.form-hint`、`.symptom-group
 
 ### 共享字号角色（issue #53，`app.wxss` token 为唯一来源）
 
-frontmatter 的 rem 值是设计参照；实现层全部走下表 rpx 角色 token。页面 WXSS 的 `font-size` 只允许 `var(--font-size-*)`；例外必须登记在 `tests/typography-roles.test.js` 的 `TYPOGRAPHY_EXCEPTIONS`（glyph = 箭头/emoji/标记字形，尺寸随容器几何；display = 展示型大数字/大字，单点登记）。
+frontmatter 的 `typography` 与下表同值，写成 375px 设计宽下的名义 px（×2 即 rpx，和 spacing 一样），不是另一套目标值；实现层全部走下表 rpx 角色 token。页面 WXSS 的 `font-size` 只允许 `var(--font-size-*)`；例外必须登记在 `tests/typography-roles.test.js` 的 `TYPOGRAPHY_EXCEPTIONS`（glyph = 箭头/emoji/标记字形，尺寸随容器几何；display = 展示型大数字/大字，单点登记）。
 
 | token | 值 | 角色 | 典型使用 |
 |---|---|---|---|
@@ -236,7 +253,7 @@ frontmatter 的 rem 值是设计参照；实现层全部走下表 rpx 角色 tok
 | `--font-size-button` | `30rpx` | 主按钮 | `.btn-premium`、`.btn-danger` |
 | `--font-size-input` | `32rpx` | 输入文字 | `.form-input`、`.form-picker` |
 
-主按钮角色（30rpx）只属于主按钮族；sheet 确认、复制等小操作文字按正文/caption 角色，不另立按钮字号。glyph/display 例外清单（`.nav-back` 46rpx、`.sheet-close` 46rpx、箭头 42/32rpx、emoji 图标、`.cycle-num` 44rpx、`.hero-title` 48rpx、`.code-input` 40rpx、`.room-code-value` 36rpx 等）是收敛过程中登记的历史单点，后续字号层级 ticket 可逐项消化，但新增例外必须先登记。
+主按钮角色（30rpx）只属于主按钮族；sheet 确认、复制等小操作文字按正文/caption 角色，不另立按钮字号。glyph/display 例外清单（`.nav-back` 46rpx、`.sheet-close` 46rpx、箭头 42/32rpx、emoji 图标、`.cycle-num` 44rpx、`.hero-title` 48rpx、`.code-input` 40rpx、`.room-code-value` 36rpx 等）是收敛过程中登记的单点，issue #164 逐项复核后保留：字形随容器几何，展示型大字不是阅读文字。新增例外必须先登记。
 
 ### 共享文字字重、行高与字距（issue #62）
 
@@ -269,9 +286,9 @@ frontmatter 的 rem 值是设计参照；实现层全部走下表 rpx 角色 tok
 
 ## Components
 
-Cards keep the glass tint as a flat `linear-gradient` over `var(--glass-fallback)`: a `rgba(255,255,255,0.08)` overlay (`.premium-card` uses `linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback)`), plus a top-edge highlight. Over the 0.92 fallback a blur would not show, so cards, the navbar, the calendar and danger buttons do not blur; the blurred surfaces are the two registered sheet masks (see 玻璃叠层). Rows that sit straight on the aurora put the same fallback under their wash. A color is legal only as the last `background` layer; a two-color shorthand paints nothing. Cards and text add no decorative shadows; soft glow belongs to tappable controls (the rose primary fills and copy keys) and may change with the press, without a transition.
+Cards keep the glass tint as a flat `linear-gradient` over `var(--glass-fallback)`: a `rgba(255,255,255,0.08)` overlay (`.premium-card` uses `linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback)`), plus a top-edge highlight. Over the 0.92 fallback a blur would not show, so cards, the navbar, the calendar and danger buttons do not blur; the blurred surfaces are the two registered sheet masks (see 玻璃叠层). Rows that sit straight on the aurora put the same fallback under their wash. A color is legal only as the last `background` layer; a two-color shorthand paints nothing. Cards and text add no decorative shadows beyond the card elevation and the few glows registered under Shadow / overlay. The press glow belongs to the rose primary fills and copy keys: it is painted on a `::before` glow layer whose opacity sinks to 0.5 on the same `--duration-press` beat as the scale; the shadow itself never transitions or swaps (see 按压的四路).
 
-Primary fill (`.btn-premium`, `.copy-btn`): rose `#E8909E` fill, label `#0A0E27`. Ghost / outline, if used: transparent on canvas navy `#0A0E27`, rose border and rose label — readable on navy, not white type on rose.
+Primary fill (`.btn-premium`, `.copy-btn`): rose `#E8909E` fill, label `#0A0E27`. Ghost / outline (`.btn-ghost`, the bind page's secondary 「进入应用」): transparent, rose border and rose label on the navy card — readable on navy, not white type on rose.
 
 Prediction metadata, reminder cards, and period tag chips stay compact and low-noise. Interactive chips need at least a 44px touch target; active chips use navy type on rose. Calendar cell states are listed under 借入规则; a visual mark still means only one thing.
 
@@ -336,7 +353,7 @@ Prediction metadata, reminder cards, and period tag chips stay compact and low-n
 - Do use warm gold for secondary certainty/range metadata
 - Do keep the reviewed tab top hairline (`tabBar.borderStyle: white`)
 - Do keep animations slow (6-12s cycles)（装饰性持续动画；加载/同步等功能性指示与 reduced-motion 替代按「常驻动画注册表」执行）
-- Do document Default and Pressed only; press uses `scale(0.94–0.98)`
+- Do document Default and Pressed only (plus the inert disabled/loading variants, which show no press); press uses `scale(0.94–0.98)`
 - Don't use bounce/elastic overshoot easing, and don't stack a second ambient animation layer on one element
 - Don't treat white-on-rose as the button spec
 - Don't fork the warning red into multiple reds; one red, distinguished by form
@@ -351,9 +368,9 @@ Prediction metadata, reminder cards, and period tag chips stay compact and low-n
 ### 交互（apple，映射到本仓）
 
 - 可点色只有玫瑰 `#E8909E`。金 `#D4A574` 只表示下次可能开始的日子、节日文字，以及已登记的预测与确定性元数据，不当成第二颗 CTA，也不表示调休。
-- 控件状态只写 Default 与 Pressed。Pressed 用 `transform: scale(0.94–0.98)`，主按钮 `.btn-premium` 为 `0.96`。
+- 控件的交互态只写 Default 与 Pressed（禁用与加载中是按下不变的惰性变体）。Pressed 用 `transform: scale(0.94–0.98)`，主按钮 `.btn-premium` 为 `0.96`。
 - 触控高度至少 44px。日历格在 compact 密度下仍须能读日期与标记。落地面换算（issue #107 评审澄清）：通用控件按 750rpx 设计宽执行为盒高 ≥88rpx（44px@375px），`.copy-btn`、重试入口、分段选项与「记录」tab 欢乐时光月份卡头（issue #109）同档；首页未绑定 / 加载失败画面的主按钮（`.no-room .btn-premium`）在居中列里按内容收缩，宽和高都至少 88rpx，标签左右留 `--space-lg`，与上方说明文字也隔 `--space-lg`；320px 换算口径（compact 104rpx ≈ 44.4px@320px）只登记给日历格（issue #56 窄屏几何），不外推到其他控件。
-- 卡片和正文不加装饰阴影，不叠第二套 elevation；现有玻璃 inset 保持。柔光只属于可点控件（主按钮与复制键的玫瑰光），画在柔光层上，按压时随缩放同一拍沉到 0.5（见「按压的四路」），阴影本身不进过渡。「不加装饰阴影」管的是不可点的面（issue #163 划清这条线）。
+- 卡片和正文不加装饰阴影，不叠第二套 elevation；现有玻璃 inset 保持。按压柔光只属于可点控件（主按钮与复制键的玫瑰光），画在柔光层上，按压时随缩放同一拍沉到 0.5（见「按压的四路」），阴影本身不进过渡。「不加装饰阴影」管的是不可点的面（issue #163 划清这条线）；仍在发光的几处（选中态、状态 rail、三处情感装饰）逐个登记在「Shadow / overlay 登记」，不另开新的。
 
 ### 日历格状态（cal 的状态表写法，语义用本产品）
 
