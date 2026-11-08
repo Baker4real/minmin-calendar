@@ -1,10 +1,5 @@
 <view class="page safe-top {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
-  <!-- 极光色团：纯装饰，固定在视口、不拦截点按（issue #163） -->
-  <view class="aurora" aria-hidden="true">
-    <view class="aurora-bloom aurora-bloom-violet"></view>
-    <view class="aurora-bloom aurora-bloom-rose"></view>
-    <view class="aurora-bloom aurora-bloom-lavender"></view>
-  </view>
+  <include src="/pages/shared/aurora.wxml" />
   <view class="nav-bar header-gradient">
     <view class="nav-placeholder"></view>
   </view>

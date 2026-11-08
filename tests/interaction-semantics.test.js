@@ -21,8 +21,11 @@ const PAGE_WXML = [
   'pages/settings/settings.wxml'
 ]
 
+// include 等于把目标文件原样拷到这个位置（共享的极光标记就是这样进每个页面的）：
+// 先展开再检查，护栏看到的是页面渲染出来的结构
 function readPage(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
+    .replace(/<include src="\/([^"]+)"\s*\/>/g, (_, target) => readPage(target))
 }
 
 const TAG_PATTERN = /<([a-zA-Z][\w-]*)((?:\s+[a-zA-Z][\w:.-]*(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*\/?>/g

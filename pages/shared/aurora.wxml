@@ -1,0 +1,7 @@
+<!-- 极光色团：纯装饰，固定在视口、不拦截点按（issue #163）。
+     每个页面在根节点下第一层、顶栏之前 include 这一份，不再各自复制 -->
+<view class="aurora" aria-hidden="true">
+  <view class="aurora-bloom aurora-bloom-violet"></view>
+  <view class="aurora-bloom aurora-bloom-rose"></view>
+  <view class="aurora-bloom aurora-bloom-lavender"></view>
+</view>

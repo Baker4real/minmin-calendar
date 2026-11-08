@@ -270,13 +270,15 @@ const CONTINUOUS_ANIMATIONS = {
 }
 const RETIRED_ANIMATIONS = ['orbRotate', 'bounceIn', 'auroraPulse', 'orbFloat']
 
-// 每个页面根下的极光色团（issue #163）
+// 每个页面根下的极光色团（issue #163）。标记只写在共享文件一处，各页面在根节点下第一层 include 它
 const AURORA_BLOOMS = ['violet', 'rose', 'lavender']
+const AURORA_SHARED_MARKUP = 'pages/shared/aurora.wxml'
 const AURORA_MARKUP = new RegExp(
   '<view class="aurora" aria-hidden="true">\\s*' +
   AURORA_BLOOMS.map((name) => `<view class="aurora-bloom aurora-bloom-${name}"></view>\\s*`).join('') +
   '</view>'
 )
+const AURORA_INCLUDE = /^ {2}<include src="\/pages\/shared\/aurora\.wxml" \/>$/gm
 
 function appPages() {
   return JSON.parse(readRepo('app.json')).pages
@@ -1720,13 +1722,14 @@ test('the aurora is a still base under three bounded blooms that breathe out of 
     assert.ok(Number(match[1]) <= 1.1, `ambient scale ${match[1]} grows past 1.1`)
   }
 
-  // 每个页面根下第一层都有同一份极光，放在顶栏之前
+  // 极光标记只有共享的一份；每个页面在根节点下第一层引入一次，放在顶栏之前
+  assert.match(readRepo(AURORA_SHARED_MARKUP), AURORA_MARKUP)
   for (const page of appPages()) {
     const wxml = readRepo(`${page}.wxml`)
-    const found = wxml.match(new RegExp(AURORA_MARKUP.source, 'g')) || []
-    assert.equal(found.length, 1, `${page}.wxml renders the aurora once`)
-    const at = wxml.search(AURORA_MARKUP)
-    assert.ok(at < wxml.indexOf('class="nav-bar'), `${page}.wxml paints the aurora before the nav bar`)
+    assert.doesNotMatch(wxml, /class="aurora/, `${page}.wxml includes the shared aurora instead of a copy`)
+    const found = wxml.match(AURORA_INCLUDE) || []
+    assert.equal(found.length, 1, `${page}.wxml includes the aurora once at the page root`)
+    assert.ok(wxml.indexOf(found[0]) < wxml.indexOf('class="nav-bar'), `${page}.wxml paints the aurora before the nav bar`)
   }
 
   const design = readRepo('DESIGN.md')
@@ -1738,7 +1741,8 @@ test('the aurora is a still base under three bounded blooms that breathe out of 
 // 页面根下每个可见块都要定位并且 z-index ≥ 1（issue #163 发现首页骨架屏缺这一条）。
 test('every visible block at a page root paints above the aurora', () => {
   const app = analyzeFile(readRepo('app.wxss'))
-  const decorative = new Set(['aurora', 'reduced-motion-probe'])
+  // 极光本身走 include，不是根下的 view
+  const decorative = new Set(['reduced-motion-probe'])
   const violations = []
   for (const page of appPages()) {
     const own = analyzeFile(readRepo(`${page}.wxss`))
