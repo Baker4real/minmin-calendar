@@ -830,6 +830,38 @@ test('controls tinted on a ::before layer brighten their border with the tint', 
   assert.match(readRepo('DESIGN.md'), /平涂层只铺内边距盒/)
 })
 
+// issue #163、#166：压在极光上的行和按钮把淡白、淡红画在 ::before 平涂层上，底是海军回退。平涂层铺满宿主的
+// 内边距盒、跟宿主同一个圆角、垫在内容下面（z-index -1，宿主自成叠放层）、不拦点按，底色和按压同一拍，
+// 减弱动效下即时切换。结构写在 app.wxss「平涂层」一处，各页只写平涂色
+const TINT_CONTROLS = [
+  ['pages/index/index.wxss', '.refresh-retry'],
+  ['pages/index/index.wxss', '.reminder-card'],
+  ['pages/period/period.wxss', '.list-retry'],
+  ['pages/bind/bind.wxss', '.error-retry']
+]
+
+test('tint layers under the aurora rows cover their host, stay behind the content and never take the tap', () => {
+  const app = analyzeFile(readRepo('app.wxss'))
+  for (const [relative, selector] of TINT_CONTROLS) {
+    const files = [app, analyzeFile(readRepo(relative))]
+    const host = declsOf(files, selector)
+    assert.equal(host.position, 'relative', `${relative} ${selector} anchors its tint layer`)
+    assert.equal(host['z-index'], '0', `${relative} ${selector} keeps the tint layer behind its own content`)
+    assert.equal(host.background, 'var(--glass-fallback)', `${relative} ${selector} sits on the navy fallback`)
+
+    const layer = declsOf(files, `${selector}::before`)
+    assert.equal(layer.content, "''")
+    assert.equal(layer.position, 'absolute')
+    for (const side of ['top', 'right', 'bottom', 'left']) assert.equal(layer[side], '0', `${selector}::before covers the host (${side})`)
+    assert.ok(['inherit', host['border-radius']].includes(layer['border-radius']), `${relative} ${selector} tint follows the host corner`)
+    assert.equal(layer['z-index'], '-1')
+    assert.equal(layer['pointer-events'], 'none', `${relative} ${selector}::before never takes the tap`)
+    assert.ok(rgbaParts(layer['background-color']), `${relative} ${selector}::before paints its tint`)
+    assert.equal(layer.transition, `background-color ${PRESS_DURATION} ease`)
+    assert.equal(declsOf(files, `${selector}::before`, { reduced: true }).transition, 'none')
+  }
+})
+
 // issue #166：柔光只在玫瑰主按钮和复制键上，画在 ::before 柔光层，不画在按钮本身。柔光层铺满按钮、
 // 跟按钮同一个圆角 token、不拦点按；按下时透明度沉到 0.5，和缩放同一拍（--duration-press），松手同一拍回来。
 // 减弱动效下柔光层即时切换。
@@ -843,32 +875,30 @@ const GLOW_CONTROLS = [
 const PRESSED_GLOW_OPACITY = '0.5'
 
 test('rose glow sits on a glow layer that sinks with the press on the same beat', () => {
+  const app = analyzeFile(readRepo('app.wxss'))
   for (const [relative, selector, glow] of GLOW_CONTROLS) {
-    const file = analyzeFile(readRepo(relative))
-    const merged = (wanted) => file.rules
-      .filter((rule) => !rule.inReducedMotion && rule.selectors.includes(wanted))
-      .reduce((decls, rule) => ({ ...decls, ...rule.decls }), {})
-    const host = merged(selector)
+    // 页面 WXSS 在 app.wxss 之后加载：共享的柔光层（结构、按下、减弱动效）写在 app.wxss，各页写自己的光
+    const files = relative === 'app.wxss' ? [app] : [app, analyzeFile(readRepo(relative))]
+    const host = declsOf(files, selector)
     assert.equal(host['box-shadow'], undefined, `${relative} ${selector} carries no shadow of its own`)
     assert.equal(host.position, 'relative', `${relative} ${selector} anchors its glow layer`)
 
-    const layer = merged(`${selector}::before`)
+    const layer = declsOf(files, `${selector}::before`)
     assert.equal(layer.content, "''")
     assert.equal(layer.position, 'absolute')
     for (const side of ['top', 'right', 'bottom', 'left']) assert.equal(layer[side], '0', `${selector}::before covers the button (${side})`)
     assert.ok(host['border-radius'], `${relative} ${selector} names its radius token`)
-    assert.equal(layer['border-radius'], host['border-radius'], `${relative} ${selector} glow follows the button corner`)
+    assert.ok(['inherit', host['border-radius']].includes(layer['border-radius']), `${relative} ${selector} glow follows the button corner`)
     assert.equal(layer['box-shadow'], glow, `${relative} ${selector} keeps its registered glow`)
     assert.equal(layer['pointer-events'], 'none')
     assert.equal(layer.transition, `opacity ${PRESS_DURATION} ease`)
 
-    const pressed = merged(`${selector}:active::before`)
+    const pressed = declsOf(files, `${selector}:active::before`)
     assert.equal(pressed.opacity, PRESSED_GLOW_OPACITY, `${relative} ${selector} glow sinks while pressed`)
-    assert.equal(merged(`${selector}.${selector.slice(1)}-hover::before`).opacity, PRESSED_GLOW_OPACITY)
+    assert.equal(declsOf(files, `${selector}.${selector.slice(1)}-hover::before`).opacity, PRESSED_GLOW_OPACITY)
 
-    const reduced = file.reducedMotionRules.find((rule) => rule.selectors.includes(`${selector}::before`))
-    assert.ok(reduced, `reduced motion must cover ${relative} ${selector}::before`)
-    assert.equal(reduced.decls.transition, 'none')
+    const reduced = declsOf(files, `${selector}::before`, { reduced: true })
+    assert.equal(reduced.transition, 'none', `reduced motion must stop ${relative} ${selector}::before`)
   }
 
   // 原生分享按钮也是 .btn-premium：组件自带的 overflow: hidden 会裁掉柔光层，按压类是 share-invite-hover
@@ -1402,11 +1432,13 @@ test('sheet content trails the title row by one short reversible beat and never 
   assert.ok(stagger + millis('--duration-enter') <= millis('--duration-sheet'),
     'the content lands no later than the panel it rides in')
 
+  // 两处弹层共用 app.wxss 的内容块规则；页面在它之后加载，两边一起看
+  const appRules = analyzeFile(readRepo('app.wxss'))
   for (const [relative, openPose] of [
     ['pages/index/index.wxss', '.sheet-slide.sheet-open .sheet-body'],
     ['pages/settings/settings.wxss', '.help-slide.sheet-open .sheet-body']
   ]) {
-    const file = analyzeFile(readRepo(relative))
+    const file = [appRules, analyzeFile(readRepo(relative))]
     const closed = declsOf(file, '.sheet-body')
     assert.equal(closed.opacity, '0')
     assert.equal(closed.transform, 'translateY(16rpx)')
@@ -1421,18 +1453,14 @@ test('sheet content trails the title row by one short reversible beat and never 
     )
 
     for (const selector of ['.sheet-body', openPose]) {
-      const decls = file.rules.filter((rule) => !rule.inReducedMotion && rule.selectors.some((item) => item.includes('sheet-body')))
-        .filter((rule) => rule.selectors.includes(selector)).map((rule) => rule.decls)
-      for (const item of decls) {
-        assert.equal(item.animation, undefined, `${relative} ${selector} must not run a keyframe`)
-        assert.equal(item['pointer-events'], undefined, `${relative} ${selector} must stay tappable mid-stagger`)
-        assert.equal(item.visibility, undefined)
-        assert.equal(item.display, undefined)
-      }
-      const rmRule = file.reducedMotionRules.find((rule) => rule.selectors.includes(selector))
-      assert.ok(rmRule, `reduced motion must cover ${relative} ${selector}`)
-      assert.equal(rmRule.decls.transition, 'none', `${selector} lands immediately under reduced motion`)
-      assert.equal(rmRule.decls.animation, 'none')
+      const item = declsOf(file, selector)
+      assert.equal(item.animation, undefined, `${relative} ${selector} must not run a keyframe`)
+      assert.equal(item['pointer-events'], undefined, `${relative} ${selector} must stay tappable mid-stagger`)
+      assert.equal(item.visibility, undefined)
+      assert.equal(item.display, undefined)
+      const reduced = declsOf(file, selector, { reduced: true })
+      assert.equal(reduced.transition, 'none', `${selector} lands immediately under reduced motion`)
+      assert.equal(reduced.animation, 'none')
     }
   }
 

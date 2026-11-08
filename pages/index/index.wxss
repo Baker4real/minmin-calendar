@@ -100,18 +100,9 @@
   border: 1px solid rgba(255,255,255,0.1);
   transition: border-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
+/* 平涂层的结构在 app.wxss「平涂层」，这里只写颜色 */
 .refresh-retry::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: var(--radius-md);
   background-color: rgba(255,255,255,0.05);
-  transition: background-color var(--duration-press) ease;
-  pointer-events: none;
-  z-index: -1;
 }
 /* 平涂层盖不到描边带：按下时描边和平涂层一起提亮（issue #166） */
 .refresh-retry:active,
@@ -823,18 +814,9 @@
   box-sizing: border-box;
   transition: border-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
+/* 平涂层的结构在 app.wxss「平涂层」，这里只写颜色 */
 .reminder-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: var(--radius-md);
   background-color: rgba(255,255,255,0.075);
-  transition: background-color var(--duration-press) ease;
-  pointer-events: none;
-  z-index: -1;
 }
 /* 平涂层盖不到描边带：按下时描边和平涂层一起提亮（issue #166） */
 .reminder-card:active,
@@ -920,26 +902,13 @@
   position: relative;
   transition: transform var(--duration-press) var(--ease-out);
 }
-/* 柔光层同 .btn-premium（issue #166）：按下沉到 0.5，和缩放同一拍 */
+/* 柔光层同 .btn-premium（issue #166，结构和按下沉到 0.5 在 app.wxss「柔光层」）：这里只写光的大小 */
 .quick-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: var(--radius-md);
   box-shadow: 0 10rpx 26rpx rgba(232,144,158,0.22);
-  transition: opacity var(--duration-press) ease;
-  pointer-events: none;
 }
 .quick-btn:active,
 .quick-btn.quick-btn-hover {
   transform: scale(0.96);
-}
-.quick-btn:active::before,
-.quick-btn.quick-btn-hover::before {
-  opacity: 0.5;
 }
 /* 记录入口图标 = 日历图例标记：海军圆盘上承载图例的单日经期色带 / 欢乐时光浅色心（.action-sample / .memory-tone） */
 .quick-icon {
@@ -1249,19 +1218,7 @@
 .sheet-slide.sheet-open.sheet-reset {
   transition: transform var(--duration-exit) var(--ease-out);
 }
-/* 标题与内容错相（issue #166）：标题行（把手、标题、关闭）随面板升降，自己不另动；下面的内容块晚一拍跟上。
-   收起时透明、低 16rpx；打开时等 --delay-stagger，再用进场时长到位，和面板同时落定；离场不等，和面板一起走。
-   全是 transition，中途反向从当前帧接着走。不拦点按、不改显隐：内容里的操作从第一帧起就能点 */
-.sheet-body {
-  opacity: 0;
-  transform: translateY(16rpx);
-  transition: opacity var(--duration-exit) var(--ease-out), transform var(--duration-exit) var(--ease-out);
-}
-.sheet-slide.sheet-open .sheet-body {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity var(--duration-enter) var(--ease-out) var(--delay-stagger), transform var(--duration-enter) var(--ease-out) var(--delay-stagger);
-}
+/* 标题与内容错相（issue #166）：内容块 .sheet-body 晚标题一拍跟上，规则在 app.wxss「弹层内容块」 */
 .day-action-sheet {
   width: 100%;
   max-height: 82vh;
@@ -1741,26 +1698,13 @@
   position: relative;
   transition: transform var(--duration-press) var(--ease-out);
 }
-/* 柔光层同 .btn-premium（issue #166）：按下沉到 0.5，和缩放同一拍 */
+/* 柔光层同 .btn-premium（issue #166，结构和按下沉到 0.5 在 app.wxss「柔光层」）：这里只写光的大小 */
 .copy-recap::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: var(--radius-md);
   box-shadow: 0 14rpx 34rpx rgba(232,144,158,0.18);
-  transition: opacity var(--duration-press) ease;
-  pointer-events: none;
 }
 .copy-recap:active,
 .copy-recap.copy-recap-hover {
   transform: scale(0.98);
-}
-.copy-recap:active::before,
-.copy-recap.copy-recap-hover::before {
-  opacity: 0.5;
 }
 /* 骨架和 .content、.no-room 一样画在极光固定层之上（issue #163） */
 .calendar-skeleton {
@@ -1816,13 +1760,10 @@
   .sheet-slide.sheet-open,
   .sheet-slide.sheet-open.sheet-reset,
   .sheet-slide,
-  .sheet-body,
-  .sheet-slide.sheet-open .sheet-body,
   .sync-pill,
   .sync-pill.sync-open,
   .sync-pill.syncing .sync-dot,
   .refresh-retry,
-  .refresh-retry::before,
   .day-sheet-mask,
   .day-sheet-mask::after,
   .day-action-sheet,
@@ -1849,11 +1790,8 @@
   .skeleton-week-cell,
   .skeleton-cell,
   .reminder-card,
-  .reminder-card::before,
   .quick-btn,
-  .quick-btn::before,
   .copy-recap,
-  .copy-recap::before,
   .no-room-icon {
     animation: none;
     transition: none;

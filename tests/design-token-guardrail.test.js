@@ -89,7 +89,9 @@ test('radius guardrail accepts tokens and zero resets', () => {
   const css = [
     '.a { border-radius: var(--radius-md); }',
     '.b { border-radius: var(--radius-card) var(--radius-card) 0 0; }',
-    '.c { border-radius: 0; }'
+    '.c { border-radius: 0; }',
+    // 平涂层、柔光层跟宿主同一个圆角：inherit 取的是宿主的 token，宿主那条照样受检
+    '.a::before { border-radius: inherit; }'
   ].join('\n')
   assert.deepEqual(findOffTokenRadii(css, defined), [])
 })
@@ -685,11 +687,12 @@ test('every box-shadow/text-shadow color stays inside the DESIGN.md shadow regis
   assert.deepEqual(violations, [])
 })
 
+// 选择器在一份 WXSS 里的声明，同一选择器的各条规则按出现顺序层叠（共享层的结构写在一组，光写在自己那条）
 function declsFor(relative, selector) {
   const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
-  const rule = rules.find((item) => item.selectors.includes(selector))
-  assert.ok(rule, `expected ${relative} ${selector}`)
-  return rule.decls
+    .filter((item) => item.selectors.includes(selector))
+  assert.ok(rules.length > 0, `expected ${relative} ${selector}`)
+  return Object.assign({}, ...rules.map((rule) => rule.decls))
 }
 
 // issue #146：辉光只留在主按钮和复制键上。月份导航、加载圈、同步点不发光；
