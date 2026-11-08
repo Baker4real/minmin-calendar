@@ -3076,19 +3076,17 @@ test('edits, merges, deletions, other months and an unshown calendar play no rec
 // 带来记录变化的刷新、未绑定或加载失败画面都把它去掉；确认保存、没有变化的刷新不打断它
 test('record feedback is replaced by the next save and dropped by the next calendar change, never replayed', async () => {
   mock.timers.enable({ apis: ['Date'], now: new Date(2026, 5, 26, 9, 30) })
-  let page = null
+  // 云端镜像：编辑页只在云端确认写入后才通知首页，所以每次保存也记进云端；后台刷新拿回云端的记录，再加上 TA 新记的
+  const cloud = { periods: [], memories: [] }
   const partner = { periods: [], memories: [] }
-  // 云端镜像：后台刷新拿回的就是本地已经并进去的记录，再加上 TA 新记的
   const client = {
     async list(collection) {
-      const local = page ? page._homeRecords[collection] : []
-      const remote = partner[collection].filter(item => !local.some(saved => saved._id === item._id))
-      return { kind: 'success', data: [...local, ...remote].map(item => ({ ...item })) }
+      return { kind: 'success', data: [...cloud[collection], ...partner[collection]].map(item => ({ ...item })) }
     }
   }
   const harness = loadPageHarness({ client, calendarState: cleanHomeCalendarState() })
-  page = harness.page
   const saveAndReturn = async (collection, record) => {
+    cloud[collection].push({ ...record })
     harness.page.onHide()
     harness.page.applyRecordChange({ collection, mode: 'add', record })
     await harness.page.onShow()
