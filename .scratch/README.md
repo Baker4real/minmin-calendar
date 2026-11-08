@@ -1,6 +1,6 @@
 # Local Scratch Notes
 
-Use this directory for temporary local markdown notes or draft issues before they are ready for the private GitHub tracker.
+Use this directory for temporary local markdown notes or draft issues before they are ready for the public GitHub Issues tracker.
 
 Create one folder per feature or topic:
 

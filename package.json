@@ -8,6 +8,8 @@
     "verify": "node tests/tools/verify.cjs",
     "browser:install": "node tests/tools/installBrowser.cjs",
     "test:hit": "node tests/tools/navHitTest.cjs",
+    "impeccable:audit": "node tests/impeccableAudit.mjs",
+    "impeccable:detect": "node tests/impeccableDetect.mjs",
     "devtools:preflight": "node tests/tools/devtoolsPreflight.mjs",
     "devtools:resources": "node tests/tools/devtoolsResources.mjs",
     "devtools:timeline": "node tests/tools/devtoolsTimeline.mjs",

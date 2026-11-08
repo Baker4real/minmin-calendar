@@ -30,6 +30,7 @@ import path from 'node:path'
 import process from 'node:process'
 import automator from 'miniprogram-automator'
 import { probeEndpoint } from './tools/devtoolsPreflight.mjs'
+import { buildCaptureEvidence } from './tools/captureEvidence.mjs'
 
 const args = {}
 for (let i = 2; i < process.argv.length; i += 2) {
@@ -68,12 +69,13 @@ async function currentPath() {
   return page ? page.path : ''
 }
 
-async function screenshot(file) {
+async function screenshot(file, state) {
   const deadline = Date.now() + 10000
   let ready = false
+  let activePage = null
   while (Date.now() < deadline) {
-    const page = await withTimeout(miniProgram.currentPage(), 3000, 'screenshot currentPage')
-    const element = page && await withTimeout(page.$('.page'), 3000, 'page root')
+    activePage = await withTimeout(miniProgram.currentPage(), 3000, 'screenshot currentPage')
+    const element = activePage && await withTimeout(activePage.$('.page'), 3000, 'page root')
     if (element) {
       const size = await withTimeout(element.size(), 3000, 'page size')
       if (size.width > 0 && size.height > 0) { ready = true; break }
@@ -84,7 +86,15 @@ async function screenshot(file) {
   const info = await withTimeout(miniProgram.systemInfo(), 10000, 'systemInfo')
   if (!(info.windowWidth > 0 && info.windowHeight > 0)) throw new Error('Missing actual viewport dimensions')
   await withTimeout(miniProgram.screenshot({ path: file }), 20000, 'screenshot')
-  const evidence = { file, route: await currentPath(), viewport: { width: info.windowWidth, height: info.windowHeight }, capturedAt: new Date().toISOString() }
+  const pageData = await withTimeout(activePage.data(), 3000, 'page data')
+  const evidence = buildCaptureEvidence({
+    projectPath,
+    file,
+    route: await currentPath(),
+    viewport: { width: info.windowWidth, height: info.windowHeight },
+    state,
+    density: pageData && pageData.calendarDensity ? pageData.calendarDensity : null
+  })
   appendFileSync(path.join(outDir, 'captures.jsonl'), JSON.stringify(evidence) + '\n')
   console.log(`captured ${info.windowWidth}x${info.windowHeight}: ${file}`)
 }
@@ -214,7 +224,7 @@ async function captureStates(list) {
     try {
       await run()
       const file = path.join(outDir, fileNameFor(name))
-      await screenshot(file)
+      await screenshot(file, name)
     } catch (error) {
       failures.push(`${name}: ${error.message}`)
       console.log(`failed ${name}: ${error.message}`)
@@ -240,7 +250,7 @@ async function capturePages() {
     const page = await goto('/' + route, 1200)
     if (args.taptext) await tapText(page, args.tapscope || '.segment-option', args.taptext, 3000)
     const file = path.join(outDir, route.replace(/\//g, '_') + (args.taptext ? '_tapped.png' : '.png'))
-    await screenshot(file)
+    await screenshot(file, `${route}${args.taptext ? `:tap:${args.taptext}` : ''}`)
   }
   return []
 }

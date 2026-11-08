@@ -94,7 +94,9 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 
 `npm run test:hit` 从当前 WXML 提取导航栏，从 WXSS 提取相应规则，在 Chromium 的 320、375、430 宽度按坐标点击按钮中心。每种宽度随后恢复装饰层拦截，必须观察到点击失效，证明检查能捕获原故障。截图和实际 viewport 保存到 `.scratch/coordinate-hit/`，每次运行覆盖上一次；截图偶发失败时打印 WARN 并重试一次，第二次仍失败则本次检查失败。这验证 CSS 命中，不模拟微信布局引擎或完整页面流程。
 
-`devtoolsCapture.mjs` 在已渲染的 `.page` 出现后截图，将微信 `systemInfo` 的实际 `windowWidth/windowHeight`、页面路径和时间追加到截图目录的 `captures.jsonl`。MCP `--preflight` 同样报告实际视口。要验收小屏，先在 IDE 选择小屏机型，再回读视口；不能根据图片尺寸或机型名称推断已验证 320px。
+`devtoolsCapture.mjs` 在已渲染的 `.page` 出现后截图，将微信 `systemInfo` 的实际 `windowWidth/windowHeight`、页面路径、具名状态、日历密度、采集时间和 `captureToolVersion` 追加到截图目录的 `captures.jsonl`。每条另带 `source`：`app.*`、`pages/**`、`utils/**` 运行源码的 SHA-256 指纹与范围。评审先比对该指纹：一致才是 `current`，不一致是 `stale`，旧图缺少指纹则是 `historical-unbound`；后两类不得冒充当前版本验收。MCP `--preflight` 同样报告实际视口。要验收小屏，先在 IDE 选择小屏机型，再回读视口；不能根据图片尺寸或机型名称推断已验证 320px。
+
+开始组件级视觉审计时先运行 `node tests/impeccableAudit.mjs --component <id>`（ID 用 `--list-components` 查看）。它把相关 DESIGN.md 片段、静态选择器、动效、测试和截图账本压成一份 JSON；截图分类复用上述指纹规则。先读这些定位信息，再按疑点打开源码和 current 证据，避免先读完整规范或遍历所有历史截图。摘要失败或没有 current 证据时按缺口记录，不把静态索引或旧图当作运行态验收。
 
 选择器 `tap()` 可能绕过命中遮挡。验证“按钮点不到”时，CSS 坐标回归之外还需在微信中实际坐标点击或人工点击；菜单打开、图例交接、关闭等状态流可用选择器自动化验证。截图若出现空白或未完成状态，先确认目标页面已就绪再重截，不能将文件写入成功当作界面验收。
 

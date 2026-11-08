@@ -1,4 +1,4 @@
-// 为 impeccable 检测器生成静态 HTML shim。检测器原生只扫描 pages/ 下的 .js，不识别 WXML/WXSS。
+// 为 impeccable 检测器生成静态 HTML shim。检测器原生不识别 WXML/WXSS。
 // 用法（项目根）：
 //   node tests/impeccableShims.mjs                     # 输出到 .scratch/impeccable-shims/
 //   node tests/impeccableShims.mjs --out <dir> --viewport 390
@@ -21,17 +21,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
-
-const args = {}
-for (let i = 2; i < process.argv.length; i += 2) {
-  args[process.argv[i].replace(/^--/, '')] = process.argv[i + 1]
-}
+import { fileURLToPath } from 'node:url'
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
-const outDir = path.resolve(repoRoot, args.out || '.scratch/impeccable-shims')
-const viewport = Number(args.viewport || 390)
-const rpxRatio = viewport / 750
-
 const CONTAINER_TAGS = new Set([
   'view', 'scroll-view', 'swiper', 'swiper-item', 'picker', 'picker-view', 'picker-view-column',
   'label', 'form', 'navigator', 'movable-area', 'movable-view', 'cover-view', 'page-container',
@@ -46,7 +38,7 @@ function read(rel) {
   return readFileSync(path.join(repoRoot, rel), 'utf8')
 }
 
-function convertWxss(css) {
+function convertWxss(css, rpxRatio) {
   return css
     .replace(/@import[^;]*;/g, '')
     .replace(/(-?\d*\.?\d+)rpx/g, (_, n) => `${Math.round(Number(n) * rpxRatio * 100) / 100}px`)
@@ -142,35 +134,56 @@ function convertWxml(source, wxmlRel) {
   return html.join('')
 }
 
-const app = JSON.parse(read('app.json'))
-const appCss = convertWxss(read('app.wxss'))
-mkdirSync(outDir, { recursive: true })
+export function generateImpeccableShims({ outDir, viewport = 390 } = {}) {
+  if (!outDir) throw new Error('outDir is required')
+  const resolvedOut = path.resolve(repoRoot, outDir)
+  const numericViewport = Number(viewport)
+  if (!(numericViewport > 0)) throw new Error('viewport must be positive')
+  const rpxRatio = numericViewport / 750
+  const app = JSON.parse(read('app.json'))
+  const appCss = convertWxss(read('app.wxss'), rpxRatio)
+  mkdirSync(resolvedOut, { recursive: true })
 
-const written = []
-for (const route of app.pages) {
-  const wxmlRel = `${route}.wxml`
-  const wxssRel = `${route}.wxss`
-  const body = convertWxml(read(wxmlRel), wxmlRel)
-  let pageCss = ''
-  try {
-    pageCss = convertWxss(read(wxssRel))
-  } catch {}
-  const doc = [
-    '<!doctype html>',
-    '<html lang="zh-CN">',
-    '<head>',
-    '<meta charset="utf-8">',
-    `<meta name="viewport" content="width=${viewport}">`,
-    `<title>${route}</title>`,
-    `<style>\n/* app.wxss */\n${appCss}\n/* ${wxssRel} */\n${pageCss}\n</style>`,
-    '</head>',
-    `<body>${body}</body>`,
-    '</html>',
-    ''
-  ].join('\n')
-  const file = path.join(outDir, route.replace(/^pages\//, '').replace(/\//g, '-') + '.html')
-  writeFileSync(file, doc, 'utf8')
-  written.push(path.relative(repoRoot, file))
+  const written = []
+  for (const route of app.pages) {
+    const wxmlRel = `${route}.wxml`
+    const wxssRel = `${route}.wxss`
+    const body = convertWxml(read(wxmlRel), wxmlRel)
+    let pageCss = ''
+    try {
+      pageCss = convertWxss(read(wxssRel), rpxRatio)
+    } catch {}
+    const doc = [
+      '<!doctype html>',
+      '<html lang="zh-CN">',
+      '<head>',
+      '<meta charset="utf-8">',
+      `<meta name="viewport" content="width=${numericViewport}">`,
+      `<title>${route}</title>`,
+      `<style>\n/* app.wxss */\n${appCss}\n/* ${wxssRel} */\n${pageCss}\n</style>`,
+      '</head>',
+      `<body>${body}</body>`,
+      '</html>',
+      ''
+    ].join('\n')
+    const file = path.join(resolvedOut, route.replace(/^pages\//, '').replace(/\//g, '-') + '.html')
+    writeFileSync(file, doc, 'utf8')
+    written.push(path.relative(repoRoot, file))
+  }
+  return { outDir: resolvedOut, viewport: numericViewport, files: written }
 }
-console.log(`wrote ${written.length} shims to ${path.relative(repoRoot, outDir)}:`)
-for (const file of written) console.log(`  ${file}`)
+
+function runCli() {
+  const args = {}
+  for (let i = 2; i < process.argv.length; i += 2) {
+    args[process.argv[i].replace(/^--/, '')] = process.argv[i + 1]
+  }
+  const result = generateImpeccableShims({
+    outDir: args.out || '.scratch/impeccable-shims',
+    viewport: args.viewport || 390
+  })
+  console.log(`wrote ${result.files.length} shims to ${path.relative(repoRoot, result.outDir)}:`)
+  for (const file of result.files) console.log(`  ${file}`)
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) runCli()
