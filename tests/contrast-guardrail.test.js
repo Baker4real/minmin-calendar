@@ -4,6 +4,7 @@ const path = require('node:path')
 const test = require('node:test')
 
 const { auroraPeakHex, contrastRatio, meetsContrast } = require('./contrast')
+const { parseWxssRules } = require('./designTokens')
 
 test('white on black is the WCAG 21:1 reference pair and meets 4.5:1', () => {
   assert.equal(contrastRatio('#FFFFFF', '#000000'), 21)
@@ -166,6 +167,59 @@ test('today capsule keeps the rose date at 4.5:1 and its lavender edge at 3:1 on
     assert.ok(dateRatio >= 4.5, `today's date on the capsule over the ${name} ${toHex(capsule)} is ${dateRatio.toFixed(2)}:1`)
     const edgeRatio = contrastRatio(toHex(edge), toHex(outside))
     assert.ok(edgeRatio >= 3, `the capsule edge ${toHex(edge)} on the ${name} ${toHex(outside)} is ${edgeRatio.toFixed(2)}:1`)
+  }
+})
+
+// issue #165 的状态强调光晕整层叠在胶囊或「预」上（epic #161：新增光效要检查合成后的关键标记）。光晕的峰值是
+// 关键帧里透明度最高的一帧，那一刻今天的日期和「预」仍 ≥4.5:1。网格面在画布和极光最亮处都算；调休格的淡白底和
+// 经期色带按上一条的口径（画布）。光晕的描边落在框边上，不压在日期和「预」字上，不进这笔账
+test('the emphasis halos keep today\'s date and the 预 at 4.5:1 at their peak', () => {
+  const file = 'pages/index/index.wxss'
+  const css = readSource(file)
+  const haloAtPeak = (selector) => {
+    const rules = parseWxssRules(css).filter(rule => rule.selectors.includes(selector))
+    assert.ok(rules.length > 0, `expected ${selector}`)
+    const halo = Object.assign({}, ...rules.map(rule => rule.decls))
+    const name = String(halo.animation || '').split(/\s+/)[0]
+    const frames = new RegExp(`@keyframes\\s+${name}\\s*\\{([\\s\\S]*?)\\n\\}`).exec(css)
+    assert.ok(frames, `expected the @keyframes ${name} that ${selector} plays`)
+    const peak = Math.max(...[...frames[1].matchAll(/opacity:\s*([\d.]+)/g)].map(match => Number(match[1])))
+    const fill = cssLayer(halo.background || 'transparent')
+    return { color: fill.color, alpha: fill.alpha * peak }
+  }
+  const grids = stackSurfaces([[file, '.calendar-grid']])
+  const capsuleFill = cssColor(exactDeclaration(file, TODAY_CAPSULE, 'background'))
+  const date = resolvePaint(exactDeclaration(file, '.day-cell.today .day-num', 'color'))
+  const wash = cssColor(exactDeclaration(file, '.day-cell.workday', 'background'))
+  const band = cssColor(declarationOf(file, '.period-band', 'background'))
+  const bandSurface = composite(gridSurface(), band, band.a)
+  const dateOnBand = exactDeclaration(file, '.day-cell.today.period .day-num', 'color')
+
+  for (const token of ['today-a', 'today-b']) {
+    const halo = haloAtPeak(`.calendar-days.calendar-emphasis-${token} .day-cell.today .day-num::after`)
+    for (const [name, outside] of [
+      ...grids.map(grid => [`the grid ${toHex(grid)}`, grid]),
+      ['the workday wash', composite(gridSurface(), wash, wash.a)]
+    ]) {
+      const peak = composite(composite(outside, capsuleFill, capsuleFill.a), halo.color, halo.alpha)
+      const ratio = contrastRatio(date, toHex(peak))
+      assert.ok(ratio >= 4.5, `${token}: today's date at the halo peak over the capsule on ${name} is ${ratio.toFixed(2)}:1`)
+    }
+    // 经期今天没有胶囊，光晕直接叠在色带上
+    const onBand = composite(bandSurface, halo.color, halo.alpha)
+    const bandRatio = contrastRatio(paint(dateOnBand, onBand), toHex(onBand))
+    assert.ok(bandRatio >= 4.5, `${token}: today's date at the halo peak on the period band is ${bandRatio.toFixed(2)}:1`)
+  }
+
+  const chip = cssLayer(exactDeclaration(file, '.predict-mark', 'background'))
+  const predict = resolvePaint(exactDeclaration(file, '.predict-mark', 'color'))
+  for (const token of ['predict-a', 'predict-b']) {
+    const halo = haloAtPeak(`.calendar-days.calendar-emphasis-${token} .predict-mark::after`)
+    for (const grid of grids) {
+      const peak = composite(composite(grid, chip.color, chip.alpha), halo.color, halo.alpha)
+      const ratio = contrastRatio(predict, toHex(peak))
+      assert.ok(ratio >= 4.5, `${token}: 预 at the halo peak on the grid ${toHex(grid)} is ${ratio.toFixed(2)}:1`)
+    }
   }
 })
 

@@ -743,6 +743,12 @@ test('today is a compact capsule around the date number and never paints the who
   const dateLayer = parseWxssRules(wxss).find(rule => rule.selectors.includes('.day-num') && rule.decls.position === 'relative')
   assert.ok(dateLayer && Number(dateLayer.decls['z-index']) >= 1, 'the date must be its own stacking layer above the band')
 
+  // 回到今天的光晕（issue #165）和胶囊同一个框，只有更粗的描边，border-box 向内画：描边内沿也不能压到日期字形
+  const haloRing = signedRpx(
+    mergedDecls(wxss, '.calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after').border.split(/\s+/)[0],
+    'halo ring width'
+  )
+
   const column = dayColumnRpx(wxss, NARROW_VIEWPORT_PX)
   const lunar = ruleBody(wxss, '.day-lunar')
   const lunarLeading = (declarationRpx(lunar, 'line-height') - declarationRpx(lunar, 'font-size')) / 2
@@ -781,6 +787,10 @@ test('today is a compact capsule around the date number and never paints the who
       assert.ok(
         top <= dateTop + dateLeading && bottom >= dateTop + dateLine - dateLeading,
         `${where} does not wrap the date glyphs ${dateTop + dateLeading}–${dateTop + dateLine - dateLeading}rpx`
+      )
+      assert.ok(
+        top + haloRing <= dateTop + dateLeading && bottom - haloRing >= dateTop + dateLine - dateLeading,
+        `${where}: the ${haloRing}rpx halo ring reaches into the date glyphs ${dateTop + dateLeading}–${dateTop + dateLine - dateLeading}rpx`
       )
       assert.ok(
         bottom <= nextInkTop - TODAY_CAPSULE_ROUNDING_RPX,

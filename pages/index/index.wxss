@@ -527,13 +527,13 @@
   border: 2rpx solid rgba(196,160,210,0.55);
   background: rgba(232,144,158,0.14);
 }
-/* 今天的状态强调（issue #165）：回到今天时，日期胶囊的位置亮起一层更亮的胶囊再落回 0，只动透明度、播一次。
+/* 今天的状态强调（issue #165）：回到今天时，日期胶囊的位置亮起一圈更亮、更粗的薰衣草描边再落回 0，只动透明度、播一次。
    形状、位置和胶囊重合（框见上）；经期今天没有胶囊，光晕同样围住日期、叠在色带上，播完不留痕。
+   不铺底：日期就在框里，再叠一层玫瑰底，峰值时玫瑰日期掉到约 3:1；描边 4rpx 落在框边，不压数字。
    只在 .calendar-days 带强调记号时存在，静止的日历不多一层；a、b 交替才会从头重播 */
 .calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after,
 .calendar-days.calendar-emphasis-today-b .day-cell.today .day-num::after {
-  border: 2rpx solid rgba(196,160,210,0.95);
-  background: rgba(232,144,158,0.3);
+  border: 4rpx solid rgba(196,160,210,0.95);
   opacity: 0;
 }
 .calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after {
