@@ -7,6 +7,7 @@ const path = require('node:path')
 const test = require('node:test')
 
 const { FILL_PROPERTIES, fillOf, listWxssFiles } = require('./designTokens')
+const { renderWxmlClasses } = require('./wxmlTemplate')
 
 const repoRoot = path.join(__dirname, '..')
 
@@ -997,15 +998,6 @@ function keyframeFrames(css, name) {
   return topLevelBlocks(block.body).map((frame) => ({ at: frame.header, decls: parseDecls(frame.body) }))
 }
 
-// 模板里一段 class 属性按页面数据求值后的类名
-function renderedClasses(template, data) {
-  const text = template.replace(/\{\{([\s\S]*?)\}\}/g, (_, expr) => {
-    const value = new Function(...Object.keys(data), `return (${expr})`)(...Object.values(data))
-    return value === undefined || value === null ? '' : String(value)
-  })
-  return text.split(/\s+/).filter(Boolean)
-}
-
 // issue #165：翻月记号（index.js 的 calendarFlip）与它对应的关键帧。a、b 两份内容相同，记号交替才会从头重播
 const CALENDAR_FLIPS = {
   'next-a': 'calendarFlipNextA',
@@ -1027,9 +1019,9 @@ test('month flips slide the new days in from the flip direction inside the card,
   const layer = /^[^>]*>\s*<view class="(calendar-days[^"]*)">\s*<view\s+class="day-cell/.exec(grid)
   assert.ok(layer, 'the day cells sit in one .calendar-days layer, the only child of .calendar-grid')
   const resting = { calendarFlip: '', calendarEmphasis: '' }
-  assert.deepEqual(renderedClasses(layer[1], resting), ['calendar-days'], 'no flip, no slide')
+  assert.deepEqual(renderWxmlClasses(layer[1], resting), ['calendar-days'], 'no flip, no slide')
   for (const token of Object.keys(CALENDAR_FLIPS)) {
-    assert.deepEqual(renderedClasses(layer[1], { ...resting, calendarFlip: token }), ['calendar-days', `calendar-flip-${token}`])
+    assert.deepEqual(renderWxmlClasses(layer[1], { ...resting, calendarFlip: token }), ['calendar-days', `calendar-flip-${token}`])
   }
 
   const days = declsOf(index, '.calendar-days')
@@ -1089,9 +1081,9 @@ test('state emphasis is a one-shot opacity halo that exists only under its token
   const wxml = readRepo('pages/index/index.wxml')
   const layer = /<view class="(calendar-days[^"]*)">/.exec(wxml)
   assert.ok(layer, 'expected the .calendar-days layer')
-  assert.deepEqual(renderedClasses(layer[1], { calendarFlip: '', calendarEmphasis: '' }), ['calendar-days'])
+  assert.deepEqual(renderWxmlClasses(layer[1], { calendarFlip: '', calendarEmphasis: '' }), ['calendar-days'])
   assert.deepEqual(
-    renderedClasses(layer[1], { calendarFlip: 'next-a', calendarEmphasis: 'today-b' }),
+    renderWxmlClasses(layer[1], { calendarFlip: 'next-a', calendarEmphasis: 'today-b' }),
     ['calendar-days', 'calendar-flip-next-a', 'calendar-emphasis-today-b']
   )
 
@@ -1155,7 +1147,7 @@ test('record success feedback blooms the heart and fades the band in once, held 
   const wxml = readRepo('pages/index/index.wxml')
   const cell = /<view\s+class="(day-cell [^"]*)"\s+wx:for="\{\{days\}\}"/.exec(wxml)
   assert.ok(cell, 'expected the calendar day cell')
-  const feedbackClasses = (recordFeedback) => renderedClasses(cell[1], { item: { date: '2026-06-10' }, recordFeedback })
+  const feedbackClasses = (recordFeedback) => renderWxmlClasses(cell[1], { item: { date: '2026-06-10' }, recordFeedback })
     .filter((name) => name.startsWith('record-feedback'))
   assert.deepEqual(feedbackClasses({}), [], 'a resting cell carries no feedback class')
   assert.deepEqual(feedbackClasses({ '2026-06-10': 'memory' }), ['record-feedback-memory'])

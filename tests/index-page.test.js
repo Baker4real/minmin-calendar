@@ -30,31 +30,8 @@ function ruleBody(wxss, selector) {
   return match[1]
 }
 
-// WXML {{ }} 内是 JS 表达式；用真实数据形状直接算出读屏最终整句
-function evaluateWxmlExpression(expr, scope) {
-  const keys = Object.keys(scope)
-  return new Function(...keys, `return (${expr})`)(...keys.map(key => scope[key]))
-}
-
-// 属性模板里的每段 {{ }} 按页面数据求值后拼回整句，即读屏实际拿到的属性值
-function renderWxmlAttribute(template, data) {
-  return template.replace(/\{\{([\s\S]*?)\}\}/g, (_, expr) => {
-    const value = evaluateWxmlExpression(expr, data)
-    return value === undefined || value === null ? '' : String(value)
-  })
-}
-
-// 模板片段里的开始标签与其双引号属性原文
-function wxmlOpeningTags(fragment) {
-  const source = fragment.replace(/<!--[\s\S]*?-->/g, '')
-  const tags = []
-  for (const match of source.matchAll(/<([a-zA-Z][\w-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*\/?>/g)) {
-    const attrs = {}
-    for (const attr of match[2].matchAll(/([^\s=]+)\s*=\s*"([^"]*)"/g)) attrs[attr[1]] = attr[2]
-    tags.push({ tag: match[1], attrs, classes: (attrs.class || '').split(/\s+/).filter(Boolean) })
-  }
-  return tags
-}
+// WXML {{ }} 内是 JS 表达式；用真实数据形状直接算出读屏最终整句（共享求值见 tests/wxmlTemplate.js）
+const { evaluateWxmlExpression, renderWxmlAttribute, renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
 
 test('initial load publishes home records and clears loading state', async () => {
   const client = createQueuedClient([
@@ -2897,8 +2874,8 @@ function recordFeedbackCells(data) {
   const cell = wxmlOpeningTags(grid).find(tag => tag.classes[0] === 'day-cell')
   assert.ok(cell, 'expected the calendar day cell')
   return (data.days || []).flatMap(day => {
-    const classes = renderWxmlAttribute(cell.attrs.class, { ...data, item: day }).split(/\s+/)
-    return classes.filter(name => name.startsWith('record-feedback')).map(name => [day.date, name])
+    return renderWxmlClasses(cell.attrs.class, { ...data, item: day })
+      .filter(name => name.startsWith('record-feedback')).map(name => [day.date, name])
   })
 }
 
