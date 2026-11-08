@@ -116,8 +116,12 @@ const ALLOWED_IMAGES = {
   'docs/evidence/issue-167/period-ended-band-settled-390x844.png': '记结束补上结束日、回到首页后的日历（落定）：这段经期三格色带连续到今天，没有残留的透明或位移；经期与 ♥ 来自替身记录',
   'docs/evidence/issue-167/bind-first-reveal-390x844.png': '未绑定首屏显现后（落定）：♥ 下的大标题、说明和创建/加入卡同一刻显现后的样子；替身未绑定状态，没有记录数据',
   'docs/evidence/issue-167/bind-room-created-390x844.png': '刚建好房间（落定）：已绑定卡、「把房间码发给 TA」、「发给 TA」主按钮与「进入应用」幽灵次按钮；房间码 ABC123 是替身码，没有记录数据',
+  // #167 失败路径（epic #161 评审 P6）：同样的窗口与视口；替身云端对 dataOp:add 注入网络失败，回查确认没写入。
+  'docs/evidence/issue-167/memory-add-failed-modal-390x844.png': '新增欢乐时光被网络失败挡下、回查确认没写入后，编辑页上的系统弹窗「保存失败／没有保存成功，请重试／知道了」，裁到弹窗那一条；没有记录数据',
+  'docs/evidence/issue-167/memory-add-failed-home-390x844.png': '同一次失败点「知道了」、返回首页后的日历（清爽密度，落定）：今天没有新 ♥，没有格子点亮；更早的 ♥ 与「预」来自替身记录',
+  'docs/evidence/issue-167/period-add-failed-home-390x844.png': '记经期新增被网络失败挡下、返回首页后的日历（清爽密度，落定）：今天没有色带，没有格子点亮；♥ 与「预」来自替身记录',
   // #168：epic #161 整体验收。worktree 项目窗口，视口 390×844（没切机型），替身房间与按当天推算的替身记录；
-  // 运行源码与提交一致，采集元数据记着 HEAD 和 app.*、pages/**、utils/** 的 SHA-256。图都是落定后的终态。
+  // 运行源码与提交一致，同目录 capture-metadata.json 记着采集的 HEAD、app.*、pages/**、utils/** 的 SHA-256 与每张图的来历。图都是落定后的终态。
   'docs/evidence/issue-168/home-plain-today-full-390x844.png': '首页整屏（完整密度）：今天戴胶囊、不在经期；♥ 与「预」来自替身记录',
   'docs/evidence/issue-168/home-plain-today-compact-calendar-390x844.png': '清爽密度的首页日历（月份导航到日历格）：今天戴胶囊；♥ 与「预」来自替身记录',
   'docs/evidence/issue-168/home-period-today-full-calendar-390x844.png': '完整密度、今天在进行中的经期里：今天落在玫瑰色带上，不再加胶囊；色带与 ♥ 来自替身记录',
