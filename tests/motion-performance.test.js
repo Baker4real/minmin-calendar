@@ -6,7 +6,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
-const { listWxssFiles } = require('./designTokens')
+const { FILL_PROPERTIES, fillOf, listWxssFiles } = require('./designTokens')
 
 const repoRoot = path.join(__dirname, '..')
 
@@ -757,14 +757,9 @@ test('loading keeps an opacity-only pulse under reduced motion instead of going 
 const PRESS_BEAT_EXCEPTIONS = {
   'pages/period/period.wxss .month-header': 'issue #109: the collapsible month header writes no transition'
 }
-const PRESS_CHANNELS = {
-  transform: 'transform',
-  background: 'background-color',
-  'background-color': 'background-color',
-  'border-color': 'border-color',
-  opacity: 'opacity',
-  color: 'color'
-}
+// 按压会改的各路；两种底色写法在 transition 里都走 background-color 这一路
+const PRESS_CHANNELS = ['transform', ...FILL_PROPERTIES, 'border-color', 'opacity', 'color']
+const transitionChannel = (prop) => (FILL_PROPERTIES.includes(prop) ? 'background-color' : prop)
 const INERT_CLASSES = ['disabled', 'loading']
 const PURE_CLASS_COMPOUND = /^(?:\.[A-Za-z_][\w-]*)+(?:::(?:before|after))?$/
 
@@ -801,9 +796,10 @@ test('a press moves every channel it changes on the press beat, and never swaps 
         if (PRESS_BEAT_EXCEPTIONS[`${file.relative} ${target}`]) continue
         const transition = effectiveTransition(file.relative, target)
         const segments = splitTopLevelComma(transition || '')
-        for (const [prop, channel] of Object.entries(PRESS_CHANNELS)) {
+        for (const prop of PRESS_CHANNELS) {
           if (!rule.decls[prop]) continue
           checked += 1
+          const channel = transitionChannel(prop)
           const segment = segments.find((part) => part.startsWith(`${channel} `))
           if (!segment || !segment.includes(PRESS_DURATION)) {
             violations.push(`${where} changes ${prop} but ${target} does not move ${channel} on ${PRESS_DURATION} (transition: ${transition || 'none'})`)
@@ -831,7 +827,7 @@ test('controls tinted on a ::before layer brighten their border with the tint', 
   let checked = 0
   for (const file of analyzedWxssFiles()) {
     for (const rule of file.rules) {
-      if (rule.inReducedMotion || !(rule.decls['background-color'] || rule.decls.background)) continue
+      if (rule.inReducedMotion || !fillOf(rule.decls)) continue
       for (const selector of rule.selectors.filter((item) => item.includes(':active') && item.endsWith('::before'))) {
         const pressedHost = selector.slice(0, -'::before'.length)
         const host = lastCompound(pressedHost)

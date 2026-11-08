@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
-const { auroraPeakHex, contrastRatio } = require('./contrast')
+const { contrastGrounds, contrastRatio, surfaceFill } = require('./contrast')
 const { parseWxssRules } = require('./designTokens')
 
 // issue #57：可点击箭头与其他次要入口的对比度对齐「正文次级」基准 ——
@@ -124,16 +124,8 @@ function declarationsFor(file, selector) {
   return found
 }
 
-function canvasColor() {
-  const pageDecls = declarationsFor('app.wxss', 'page')
-  assert.ok(pageDecls.background, 'expected a page canvas background')
-  return parseColor(pageDecls.background)
-}
-
-// 表面下面的背景：画布，和极光最亮处（issue #163，见 tests/contrast.js）
-function grounds() {
-  return [canvasColor(), parseColor(auroraPeakHex(APP_WXSS))]
-}
+// 表面下面的两处背景：画布和极光最亮处（issue #163，见 tests/contrast.js）
+const GROUNDS = contrastGrounds(APP_WXSS).map(([, value]) => parseColor(value))
 
 function applySurface(bg, decl) {
   const layers = backgroundLayers(decl)
@@ -144,18 +136,10 @@ function applySurface(bg, decl) {
   return next
 }
 
-// 表面的填充：background 简写；按压着色要能过渡的平涂伪元素只写 background-color（issue #145）
-function surfaceFill(file, selector) {
-  const decls = declarationsFor(file, selector)
-  const decl = decls.background || decls['background-color']
-  assert.ok(decl, `expected background on ${selector} (${file})`)
-  return decl
-}
-
 function effectivePair(caseItem, ground) {
   let bg = ground
   for (const [file, selector] of caseItem.surfaces) {
-    bg = applySurface(bg, surfaceFill(file, selector))
+    bg = applySurface(bg, surfaceFill(readFile(file), selector))
   }
   const own = declarationsFor(caseItem.file, caseItem.selector)
   if (own.background) bg = applySurface(bg, own.background)
@@ -209,7 +193,7 @@ test('the 4.5:1 benchmark: unselected tab grey on canvas navy', () => {
 test('every clickable arrow and secondary entry meets the secondary-text contrast floor on its real surface', () => {
   const failures = []
   for (const caseItem of CASES) {
-    for (const ground of grounds()) {
+    for (const ground of GROUNDS) {
       const { fg, bg } = effectivePair(caseItem, ground)
       const ratio = contrastRatio(fg, bg)
       if (ratio < MIN_SECONDARY_RATIO) {
@@ -256,9 +240,10 @@ test('the late reminder rail uses registered neutral white and stays readable', 
   assert.equal(/F97373|249\s*,\s*115\s*,\s*115/.test(JSON.stringify(rail)), false)
 
   // 提醒行是通栏行：背景 → 海军回退 → ::before 上的淡白平涂层（issue #163）
-  for (const ground of grounds()) {
-    let surface = applySurface(ground, surfaceFill('pages/index/index.wxss', '.reminder-card'))
-    surface = applySurface(surface, surfaceFill('pages/index/index.wxss', '.reminder-card::before'))
+  const index = readFile('pages/index/index.wxss')
+  for (const ground of GROUNDS) {
+    let surface = applySurface(ground, surfaceFill(index, '.reminder-card'))
+    surface = applySurface(surface, surfaceFill(index, '.reminder-card::before'))
     const ratio = contrastRatio('#FFFFFF', toHex(surface))
     assert.ok(ratio >= MIN_SECONDARY_RATIO, `neutral rail on the reminder card is ${ratio.toFixed(2)}:1`)
   }

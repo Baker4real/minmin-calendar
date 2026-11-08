@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
-const { auroraPeakHex, contrastRatio, meetsContrast } = require('./contrast')
+const { auroraPeakHex, contrastGrounds, contrastRatio, meetsContrast, surfaceFill } = require('./contrast')
 const { parseWxssRules } = require('./designTokens')
 
 test('white on black is the WCAG 21:1 reference pair and meets 4.5:1', () => {
@@ -24,6 +24,19 @@ test('the aurora peak lays every bloom at full strength over the brightest base 
   `
   // 最亮色标 #202020 叠满 bloom-a 的 50% 白 = #909090；bloom-b 只会让这里变暗，最亮处没有它
   assert.equal(auroraPeakHex(css), '#909090')
+  assert.deepEqual(contrastGrounds(`page { background: #0A0E27; }\n${css}`), [['canvas', '#0A0E27'], ['aurora peak', '#909090']])
+})
+
+test('a surface fill is the cascaded background, or the background-color a tint layer writes', () => {
+  const css = `
+    .row { background: rgba(255,255,255,0.05); }
+    .row::before { position: absolute; }
+    .row::before { background-color: rgba(255,255,255,0.08); }
+    .row.row-hover::before { background-color: rgba(255,255,255,0.12); }
+  `
+  assert.equal(surfaceFill(css, '.row'), 'rgba(255,255,255,0.05)')
+  assert.equal(surfaceFill(css, '.row::before'), 'rgba(255,255,255,0.08)')
+  assert.throws(() => surfaceFill('.row { color: #FFFFFF; }', '.row'), /background or background-color on \.row/)
 })
 
 // ===== issue #77：颜色角色护栏 =====
@@ -285,7 +298,8 @@ test('cycle overview labels clear 4.5:1 on canvas, glass fallback and both gradi
   const stops = gradientStops(layers[0])
   assert.equal(stops.length, 2, 'the cycle card gradient has a rose end and a lavender end')
   // 画布之外还有极光最亮处（issue #163）：卡面下面是哪一块背景都要过线
-  const surfaces = grounds().flatMap(([groundName, ground]) => {
+  const surfaces = contrastGrounds(readSource('app.wxss')).flatMap(([groundName, value]) => {
+    const ground = hex(value)
     const fallbackSurface = composite(ground, base, base.a)
     return [
       [groundName, ground],
@@ -409,35 +423,17 @@ test('text on the aurora and on translucent rows clears 4.5:1 at the aurora brig
   assert.deepEqual(failures, [])
 })
 
-// 背景两处：画布，和极光最亮处（基底最亮色标叠满三个色团，见 tests/contrast.js）
-function grounds() {
-  return [
-    ['canvas', hex(pageCanvas())],
-    ['aurora peak', hex(auroraPeakHex(readSource('app.wxss')))]
-  ]
-}
-
-// 表面栈自下而上叠在背景上；渐变层在每个色标处各算一次
+// 表面栈自下而上叠在两处背景（画布和极光最亮处，见 tests/contrast.js）上；渐变层在每个色标处各算一次
 function stackSurfaces(stack) {
-  let surfaces = grounds().map(([, ground]) => ground)
+  let surfaces = contrastGrounds(readSource('app.wxss')).map(([, value]) => hex(value))
   for (const [file, selector] of stack) {
-    const layers = backgroundLayers(surfaceFill(file, selector)).reverse()
+    const layers = backgroundLayers(surfaceFill(readSource(file), selector)).reverse()
     for (const layer of layers) {
       const paints = layer.startsWith('linear-gradient(') ? gradientStops(layer) : [layerPaint(layer)]
       surfaces = surfaces.flatMap(surface => paints.map(paintLayer => composite(surface, paintLayer, paintLayer.a)))
     }
   }
   return [...new Map(surfaces.map(surface => [toHex(surface), surface])).values()]
-}
-
-// 表面的填充：background 简写；按压着色要能过渡的平涂伪元素只写 background-color（issue #145）
-function surfaceFill(relativePath, selector) {
-  const body = exactRuleBody(relativePath, selector)
-  for (const property of ['background', 'background-color']) {
-    const decl = new RegExp(`(?:^|\\s)${property}\\s*:\\s*([^;]+);`).exec(body)
-    if (decl) return decl[1].trim()
-  }
-  assert.fail(`expected background or background-color on ${selector}`)
 }
 
 function contrastOn(text, surface) {
@@ -477,16 +473,6 @@ function layerPaint(value) {
   if (token) return layerPaint(tokenValue(token[1]))
   if (trimmed === 'transparent') return { r: 0, g: 0, b: 0, a: 0 }
   return cssColor(trimmed)
-}
-
-function pageCanvas() {
-  const css = readSource('app.wxss').replace(/\/\*[\s\S]*?\*\//g, '')
-  const rules = css.matchAll(/(?:^|[}\s])page\s*\{([^}]*)\}/g)
-  for (const rule of rules) {
-    const decl = /(?:^|\s)background\s*:\s*([^;]+);/.exec(rule[1])
-    if (decl && /^#[0-9a-f]{6}$/i.test(decl[1].trim())) return decl[1].trim()
-  }
-  assert.fail('expected a solid page canvas background')
 }
 
 function tokenValue(name) {

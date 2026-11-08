@@ -196,7 +196,7 @@ test('disabled and loading states cannot be confused with operable controls', ()
 // issue #166：禁用与加载中的控件按下时不缩放、不换底色、不提亮描边、没有柔光。做法二选一：整块不接点按
 // （pointer-events: none），或者每一路按压都被 :active.<状态> 钉回静止值；带柔光层的控件在这两种状态下柔光为 0。
 test('disabled and loading variants show no press feedback and no glow', () => {
-  const { parseWxssRules } = require('./designTokens')
+  const { FILL_PROPERTIES, fillOf, parseWxssRules } = require('./designTokens')
   const failures = []
   let checked = 0
   for (const file of PAGE_WXML) {
@@ -209,7 +209,7 @@ test('disabled and loading variants show no press feedback and no glow', () => {
       .reduce((decls, rule) => ({ ...decls, ...rule.decls }), {})
     const restValue = (decls, prop) => {
       if (prop === 'border-color') return decls['border-color'] || (/rgba\([^)]*\)/.exec(decls.border || '') || [])[0]
-      if (prop === 'background' || prop === 'background-color') return decls.background || decls['background-color']
+      if (FILL_PROPERTIES.includes(prop)) return fillOf(decls)
       return decls[prop]
     }
     for (const element of collectElements(readPage(file))) {

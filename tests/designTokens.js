@@ -141,6 +141,15 @@ function parseWxssRules(css) {
   return rules
 }
 
+// 底色有两种写法：background 简写，或平涂层只写的 background-color（按压着色要能过渡，issue #145）。
+// 两种是同一路底色，取值先看简写
+const FILL_PROPERTIES = ['background', 'background-color']
+
+function fillOf(decls) {
+  const property = FILL_PROPERTIES.find((name) => decls[name])
+  return property ? decls[property] : undefined
+}
+
 function listFilesByExtension(root, extension) {
   const skipDirs = new Set(['node_modules', 'cloudfunctions', '_external'])
   const files = []
@@ -170,8 +179,10 @@ function listWxmlFiles(root) {
 }
 
 module.exports = {
+  FILL_PROPERTIES,
   PALETTE_HEXES,
   definedRadiusTokens,
+  fillOf,
   findOffPaletteHexes,
   findOffPaletteHexesInInlineStyles,
   findOffTokenRadii,

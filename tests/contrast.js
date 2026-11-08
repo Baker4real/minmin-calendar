@@ -1,3 +1,5 @@
+const { fillOf, parseWxssRules } = require('./designTokens')
+
 const SRGB_LINEAR_CUTOFF = 0.04045
 const RELATIVE_LUMINANCE_RED = 0.2126
 const RELATIVE_LUMINANCE_GREEN = 0.7152
@@ -65,7 +67,6 @@ function toHexColor({ r, g, b }) {
 }
 
 function auroraPeakHex(appCss) {
-  const { parseWxssRules } = require('./designTokens')
   const rules = parseWxssRules(appCss)
   const backgroundOf = (selector) => {
     const rule = rules.find((item) => item.selectors.includes(selector) && item.decls.background)
@@ -92,8 +93,29 @@ function auroraPeakHex(appCss) {
   return toHexColor(peak)
 }
 
+// 文字下面的两处背景：画布（app.wxss 的 page 底色）和极光最亮处，两处都要过线。
+// 给出 [名字, 十六进制色]，各测试换算成自己的颜色表示
+function contrastGrounds(appCss) {
+  const canvas = parseWxssRules(appCss)
+    .find((rule) => rule.selectors.includes('page') && /^#[0-9a-f]{6}$/i.test(rule.decls.background || ''))
+  if (!canvas) throw new Error('expected a solid page canvas background in app.wxss')
+  return [['canvas', canvas.decls.background], ['aurora peak', auroraPeakHex(appCss)]]
+}
+
+// 叠在背景上的一层表面的底色：这个选择器的各条规则按出现顺序层叠，取 background 简写或平涂层的 background-color
+function surfaceFill(css, selector) {
+  const decls = Object.assign({}, ...parseWxssRules(css)
+    .filter((rule) => rule.selectors.includes(selector))
+    .map((rule) => rule.decls))
+  const fill = fillOf(decls)
+  if (!fill) throw new Error(`expected background or background-color on ${selector}`)
+  return fill
+}
+
 module.exports = {
   auroraPeakHex,
+  contrastGrounds,
   contrastRatio,
-  meetsContrast
+  meetsContrast,
+  surfaceFill
 }
