@@ -11,7 +11,7 @@ intent: "连接与资源诊断、官方 CLI/MCP 入口及 GUI 验收边界"
 
 ## 连接路径
 
-先运行 `npm run devtools:preflight`。它分别检查官方 CLI 的服务/登录响应，以及本机 automator 端口；TCP 监听只表示可开始握手，不代表页面可用。它还比对开发者工具已加载的 `packOptions`、`watchOptions` 与磁盘上的 `project.config.json`，并打印最近一次代码质量结果（见下文「代码质量扫描口径」）。在 Windows 上它还回读本项目窗口（标题为 `project.config.json` 的 `projectname`）是否最小化。它还读模拟器的基础库生命周期日志，看最近一次逻辑层启动有没有加载页面。可传 `-- --ide <安装目录> --ws ws://127.0.0.1:9420`。
+先运行 `npm run devtools:preflight`。它分别检查官方 CLI 的服务/登录响应，以及本机 automator 端口；TCP 监听只表示可开始握手，不代表页面可用。它还比对开发者工具已加载的 `packOptions`、`watchOptions` 与磁盘上的 `project.config.json`，并打印最近一次代码质量结果（见下文「代码质量扫描口径」）。在 Windows 上它还回读本项目窗口（标题为 `project.config.json` 的 `projectname`）是否最小化。它还读模拟器的基础库生命周期日志，看最近一次逻辑层启动有没有加载页面。可传 `-- --ide <安装目录> --ws ws://127.0.0.1:<端口>`。默认探 9420；并行 worktree 的项目窗口开在别的端口时必须传同一个端口，否则只会报 `connect ECONNREFUSED 127.0.0.1:9420`。
 
 | 结果 | 下一步 |
 |---|---|
@@ -21,6 +21,7 @@ intent: "连接与资源诊断、官方 CLI/MCP 入口及 GUI 验收边界"
 | 9420 已监听 | 运行 `devtoolsCapture.mjs --ws`；握手超过 15 秒即失败，转 MCP。 |
 | `DevTools project window` 为 FAIL，或 CLI 与 9420 都正常、截图却报 `fail to capture screenshot` 或等 `.page` 渲染超时 | 项目窗口最小化时截图会失败（2026-11-04 实测）：请维护者还原窗口，重跑预检后再截。窗口正常仍失败时，看是否有别的程序窗口挡住模拟器区域，同样请维护者处理；还失败就停下，报失败行和截图目录。SKIP 表示没找到这个窗口，先在开发者工具里打开项目。本机排查记录见知识库「微信开发者工具 CLI 自动化验收环境坑」。 |
 | `Latest app launch loaded a page` 为 FAIL，或 console 报 `routeDone with a webviewId N is not found` | 最近一次逻辑层启动只跑了 `App onLaunch`，没加载任何页面；CLI 和 9420 照常应答，页面逻辑却要到下一次编译才恢复。常见于开发者工具刚启动的一分钟内（2026-11-07 实测）。等调试面板加载完，在开发者工具里点一次「编译」后重跑预检。SKIP 表示日志里还没有启动记录，或启动不到 5 秒还没写页面记录（日志每 3 秒落盘），稍后重跑。排查记录见知识库「微信开发者工具重载竞态与基础库本地补丁」。 |
+| console 报 `module '<路径>.js' is not defined, require args is '<相对路径>'`（常跟着 `Component is not found in path "wx://not-found"`），而这个文件在磁盘上、已入 git | 开发者工具的增量编译漏掉了这个模块，常见于开着项目时 git 一次写进新模块和引用它的页面（2026-11-08 那次是 rebase，开发者工具 2.02.2609250）。请维护者关闭并重新打开项目；只改修改时间或改名再改回都会触发重编译，但恢复不了。`Latest app launch loaded a page` 照样 PASS，因为页面没注册也会记 onLoad；恢复与否看同一份生命周期日志（`tests/tools/devtoolsState.mjs` 的 `readLifecycleLog`）：正常时入口页 `pages/bind/bind` 的 onLoad 之前有 `wx.getWindowInfo`（页面数据里的 safeArea），已绑定时随后 `switchTab` 进首页；漏掉时 onLoad 之前没有任何 API 调用。 |
 | 只需外观确认，automator / MCP 均不可用 | 在任务已授权只读截图与窗口激活时，Kimi Code 可用 `kimi-cu-win` 直接按「微信开发者工具」定位窗口，最小化时先激活再截图；只证明当时可见画面，不证明实际视口、交互或小屏验收。 |
 | MCP 预检失败 | 先看 FAIL 行附带的错误摘要；不够再定向查看本次脱敏日志，核对 IDE 中现有 MCP token、项目路径和已打开的项目窗口。 |
 | MCP 返回 `Client authorization pending` | 在 IDE 中批准 `minmin-devtools` 客户端后重跑；token 有效不等于新客户端已获准。 |

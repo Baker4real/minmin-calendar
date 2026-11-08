@@ -146,6 +146,14 @@ test('real repository exposes component choices and a machine-readable calendar 
   assert.equal(summary.component, 'calendar')
   assert.ok(summary.designSections.some(section => section.heading.includes('日历格状态')))
   assert.ok(summary.componentStatus.some(item => item.selector === 'today' && item.evidence.length))
-  assert.ok(summary.tests.some(item => item.file === 'tests/home-calendar-state.test.js'))
+  // 只核对相关测试的结构，不点名文件：测试迁移、合并或新增都会改变谁排进前几名
+  assert.ok(summary.tests.length > 0)
+  for (const item of summary.tests) {
+    assert.match(item.file, /^tests\/[^/]+\.test\.js$/)
+    assert.ok(fs.existsSync(path.join(repo, item.file)), item.file)
+    assert.ok(item.matchedTerms.length > 0, item.file)
+  }
+  const termCounts = summary.tests.map(item => item.matchedTerms.length)
+  assert.deepEqual(termCounts, [...termCounts].sort((a, b) => b - a))
   assert.ok(summary.evidence.currentFingerprint)
 })

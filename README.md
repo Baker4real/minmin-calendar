@@ -125,7 +125,7 @@ Do not commit:
 - `scripts/`
 - `hermes-*.csv` / `hermes-*.md`
 
-`.githooks/pre-commit` 与 CI 跑同一组检查，默认不启用。要在某个克隆里启用，由那台机器自己执行 `git config core.hooksPath .githooks`。
+`.githooks/pre-commit` 与 `.githooks/pre-push` 跑与 CI 相同的检查，默认不启用。要在某个克隆里启用，由那台机器自己执行 `git config core.hooksPath .githooks`。rebase、merge、amend 产生的提交不经过 pre-commit，所以推送到 `main` 时 pre-push 再把一次关：推送的必须是当前 HEAD，已跟踪文件不能有未提交改动，然后跑 `npm run verify -- --tracked` 和推送范围的 `git diff --check`，任何一项不过就拒绝推送。
 
 ## Project Notes
 

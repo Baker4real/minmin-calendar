@@ -1,0 +1,39 @@
+#!/bin/sh
+# Pre-push guardrail: a push to main runs the checks CI runs, before main moves.
+# Rebases, merges and amends never pass through pre-commit, so a commit can reach main unchecked otherwise.
+# Enabled with pre-commit: git config core.hooksPath .githooks
+set -e
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+head_sha=$(git rev-parse HEAD)
+gate=
+diff_base=
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" != "refs/heads/main" ]; then continue; fi
+  # An all-zero local sha deletes the remote branch: nothing to check.
+  if [ -z "$(printf '%s' "$local_sha" | tr -d 0)" ]; then continue; fi
+  if [ "$local_sha" != "$head_sha" ]; then
+    echo "pre-push: main only takes the checked-out HEAD; check out $local_sha first so the checks run on what is pushed." >&2
+    exit 1
+  fi
+  gate=1
+  if [ -n "$(printf '%s' "$remote_sha" | tr -d 0)" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+    diff_base=$remote_sha
+  fi
+done
+
+if [ -z "$gate" ]; then exit 0; fi
+
+if ! git diff --quiet HEAD --; then
+  echo "pre-push: tracked files have uncommitted changes, so the checks would not test the pushed commit; commit or set them aside first." >&2
+  exit 1
+fi
+
+npm run verify -- --tracked
+
+if [ -n "$diff_base" ]; then
+  echo "pre-push: git diff --check $diff_base HEAD"
+  git diff --check "$diff_base" HEAD
+fi
