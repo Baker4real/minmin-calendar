@@ -144,14 +144,17 @@ function selectorSignature(selector) {
   return { classes, pseudo: pseudo ? pseudo[0] : null }
 }
 
-function reducedMotionSelectorCovers(animatedSelector, rmSelector) {
+// sameElement：标记里和某个类总在同一个元素上的类（类名 → 类名数组）
+function reducedMotionSelectorCovers(animatedSelector, rmSelector, sameElement = {}) {
   const animated = selectorSignature(animatedSelector)
   const rm = selectorSignature(rmSelector)
   if (rm.classes.length === 0) return false
-  // 覆盖必须落在同一元素同一层级：类集合完全相同（低特异的 RM 规则压不住高特异动画声明），
+  // 覆盖必须落在同一元素同一层级：类的个数相同（低特异的 RM 规则压不住高特异动画声明），
+  // 每个类都写在动画选择器里，或在标记里和它同在一个元素上；
   // 伪元素 scope 相同（.page::before 的动画不能被只写 .page 的 RM 规则覆盖）
   if (rm.classes.length !== animated.classes.length) return false
-  if (!rm.classes.every((cls) => animated.classes.includes(cls))) return false
+  const onElement = new Set(animated.classes.flatMap((cls) => [cls, ...(sameElement[cls] || [])]))
+  if (!rm.classes.every((cls) => onElement.has(cls))) return false
   if (animated.pseudo !== rm.pseudo) return false
   return true
 }
@@ -163,6 +166,10 @@ test('reduced-motion coverage requires matching pseudo-element scope', () => {
   assert.equal(reducedMotionSelectorCovers('.glow-orb', '.glow-orb'), true)
   assert.equal(reducedMotionSelectorCovers('.sync-pill.syncing .sync-dot', '.sync-pill'), false)
   assert.equal(reducedMotionSelectorCovers('.sync-pill.syncing .sync-dot', '.sync-pill.syncing .sync-dot'), true)
+  // 共有类只在标记证明它和动画类同在一个元素上时才算覆盖
+  assert.equal(reducedMotionSelectorCovers('.bloom-a', '.bloom'), false)
+  assert.equal(reducedMotionSelectorCovers('.bloom-a', '.bloom', { 'bloom-a': ['bloom'] }), true)
+  assert.equal(reducedMotionSelectorCovers('.bloom-a::before', '.bloom', { 'bloom-a': ['bloom'] }), false)
 })
 
 function analyzedWxssFiles() {
@@ -279,6 +286,21 @@ const AURORA_MARKUP = new RegExp(
   '</view>'
 )
 const AURORA_INCLUDE = /^ {2}<include src="\/pages\/shared\/aurora\.wxml" \/>$/gm
+
+// 共享极光标记里和每个类同在一个元素上的类。色团元素都带 aurora-bloom 和自己的色名类，
+// 所以暂停规则和减弱动效名单写一个 .aurora-bloom 就落在每个色团上，增减色团不用改这两处
+function auroraSameElementClasses() {
+  const sameElement = {}
+  for (const match of readRepo(AURORA_SHARED_MARKUP).matchAll(/<view class="([^"]+)"/g)) {
+    const classes = match[1].split(/\s+/)
+    for (const cls of classes) {
+      const others = classes.filter((other) => other !== cls)
+      sameElement[cls] = sameElement[cls] ? sameElement[cls].filter((other) => others.includes(other)) : others
+    }
+  }
+  return sameElement
+}
+const AURORA_SAME_ELEMENT = auroraSameElementClasses()
 
 function appPages() {
   return JSON.parse(readRepo('app.json')).pages
@@ -688,7 +710,7 @@ test('every transform-based animation is neutralized or replaced under reduced m
 
         const covering = rmRules.find((rmRule) =>
           rmRule.selectors.some((rmSelector) =>
-            rule.selectors.some((selector) => reducedMotionSelectorCovers(selector, rmSelector)
+            rule.selectors.some((selector) => reducedMotionSelectorCovers(selector, rmSelector, AURORA_SAME_ELEMENT)
             )
           )
         )
@@ -1230,7 +1252,7 @@ test('reduced-motion blocks keep covering the named sheet, sync, and ambient lay
   const appCovered = new Set(app.reducedMotionRules.flatMap((rule) => rule.selectors))
   for (const selector of [
     '.page',
-    ...AURORA_BLOOMS.map((name) => `.aurora-bloom-${name}`),
+    '.aurora-bloom',
     '.header-gradient::before',
     '.header-gradient::after',
     '.hero-icon',
@@ -1644,7 +1666,12 @@ test('obscured or hidden pages pause every decorative continuous animation on th
     }
   }
   assert.ok(decorative.size > 0)
-  const expected = [...decorative].flatMap((selector) => [
+  // 色团的暂停写在它们同一元素上共有的 .aurora-bloom，其余装饰写自己的选择器
+  const pauseTarget = (selector) => {
+    const [shared, ...more] = AURORA_SAME_ELEMENT[selector.slice(1)] || []
+    return shared && more.length === 0 ? `.${shared}` : selector
+  }
+  const expected = [...new Set([...decorative].map(pauseTarget))].flatMap((selector) => [
     `.page.page-obscured ${selector}`,
     `.page.page-hidden ${selector}`
   ])

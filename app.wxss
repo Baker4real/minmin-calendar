@@ -494,16 +494,13 @@ page {
 /* ===== 常驻装饰暂停（issue #118 → #163）=====
    弹层开着时页面根带 page-obscured，页面不可见（onHide 到下一次 onShow）时带 page-hidden。
    两种标记下，注册表里的装饰性常驻动画都暂停在当前帧，去掉标记后从这一帧继续，动画名和周期不变。
-   只暂停、不写 animation: none（那会丢掉当前帧）；状态指示（spin、syncDotPulse、skeletonPulse）照常播放。 */
-.page.page-obscured .aurora-bloom-violet,
-.page.page-obscured .aurora-bloom-rose,
-.page.page-obscured .aurora-bloom-lavender,
+   只暂停、不写 animation: none（那会丢掉当前帧）；状态指示（spin、syncDotPulse、skeletonPulse）照常播放。
+   色团写它们共有的 .aurora-bloom（共享标记里每个色团都带这个类），增减色团不用改这里。 */
+.page.page-obscured .aurora-bloom,
 .page.page-obscured .header-gradient::before,
 .page.page-obscured .header-gradient::after,
 .page.page-obscured .no-room-icon,
-.page.page-hidden .aurora-bloom-violet,
-.page.page-hidden .aurora-bloom-rose,
-.page.page-hidden .aurora-bloom-lavender,
+.page.page-hidden .aurora-bloom,
 .page.page-hidden .header-gradient::before,
 .page.page-hidden .header-gradient::after,
 .page.page-hidden .no-room-icon {
@@ -571,9 +568,7 @@ page {
    加载中不静默：spinner 的旋转替换为 loadingPulse 透明度脉冲。 */
 @media (prefers-reduced-motion: reduce) {
   .page,
-  .aurora-bloom-violet,
-  .aurora-bloom-rose,
-  .aurora-bloom-lavender,
+  .aurora-bloom,
   .header-gradient::before,
   .header-gradient::after {
     animation: none;
