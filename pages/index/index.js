@@ -99,7 +99,8 @@ function emptyDayDetail() {
 Page({
   _homeRecords: { periods: [], memories: [] },
   _dayDetailsByDate: INITIAL_HOME_STATE.dayDetailsByDate || {},
-  _calendarFlip: null,
+  // 正在播的那段翻月滑入 { direction, startedAt }（issue #165）；挂在格子层上的类名记号是 data.calendarFlip
+  _flipRun: null,
 
   data: {
     safeTop: safeArea.getSafeTop(),
@@ -494,8 +495,9 @@ Page({
   },
 
   // overrides 决定投影：年月、记录、今天，以及这次的记录变化（recordChange：投影据此给出记录成功反馈，
-  // 随渲染数据一起提交，issue #167）；extra 是跟日历同一次提交的其他字段（选月面板、翻月方向）
-  applyHomeCalendarState(overrides = {}, extra = {}) {
+  // 随渲染数据一起提交，issue #167）。第二个参数是跟日历同一次提交的其他东西：flip / emphasis 是这次带的
+  // 一次性记号（见 _calendarMarks），fields 是其他字段（选月面板），不覆盖投影和记号
+  applyHomeCalendarState(overrides = {}, { flip, emphasis, fields = {} } = {}) {
     const hasOwn = (key) => Object.prototype.hasOwnProperty.call(overrides, key)
     const periods = hasOwn('periods') ? overrides.periods : this._recordList('periods')
     const memories = hasOwn('memories') ? overrides.memories : this._recordList('memories')
@@ -521,6 +523,7 @@ Page({
     const quickAction = cycle.buildPeriodQuickAction(periods, { today })
 
     const update = {
+      ...fields,
       ...calendarRenderState(state),
       // 有集合没同步上时不知道房间里有没有记录：留着小结行（说未同步），不换成首条记录引导
       hasRecords: this._homeRecords.periods.length > 0 || this._homeRecords.memories.length > 0 ||
@@ -531,9 +534,7 @@ Page({
       ...monthNavState(year, month),
       year,
       month,
-      // 状态强调只跟着触发它的那次提交：之后的每次日历更新都去掉，换月或节点重建不会重播（issue #165）
-      calendarEmphasis: '',
-      ...extra
+      ...this._calendarMarks({ flip, emphasis })
     }
     if (this.data.selectedDate && this.data.dayActionMounted) {
       update.selectedDayDetail = this._dayDetail(this.data.selectedDate)
@@ -643,30 +644,42 @@ Page({
     let { year, month } = this.data
     if (monthNavState(year, month).prevMonthDisabled) return
     month--; if (month < 0) { month = 11; year-- }
-    this.applyHomeCalendarState({ year, month }, { monthPickerVisible: false, ...this._calendarFlipPatch('prev') })
+    this.applyHomeCalendarState({ year, month }, { flip: 'prev', fields: { monthPickerVisible: false } })
   },
 
   nextMonth() {
     let { year, month } = this.data
     if (monthNavState(year, month).nextMonthDisabled) return
     month++; if (month > 11) { month = 0; year++ }
-    this.applyHomeCalendarState({ year, month }, { monthPickerVisible: false, ...this._calendarFlipPatch('next') })
+    this.applyHomeCalendarState({ year, month }, { flip: 'next', fields: { monthPickerVisible: false } })
   },
 
-  // issue #165：翻月滑入。进行中（CALENDAR_FLIP_MS 内）同方向再翻只换数据、动画接着播，接续不续期；
+  // 日历提交带的三个一次性记号（issue #165、#167）：翻月方向 calendarFlip、状态强调 calendarEmphasis、
+  // 记录成功反馈 recordFeedback（投影按 recordChange 算出，随渲染数据一起提交）。
+  // 强调和反馈只跟着触发它们的那次提交，之后每次日历提交都去掉，换月或节点重建不会重播。
+  // 翻月记号只由翻月（flip: 'next' / 'prev'）和即时替换（flip: 'none'：选月、回到今天）改写，别的提交不带它，
+  // 类名不变就不重播。进行中（CALENDAR_FLIP_MS 内）同方向再翻只换数据、动画接着播，接续不续期；
   // 反向或已播完就换记号从头播。数据总在这一次提交里更新，动画不推迟任何操作
-  _calendarFlipPatch(direction) {
-    const now = Date.now()
-    const running = this._calendarFlip
-    if (running && running.direction === direction && now - running.startedAt < CALENDAR_FLIP_MS) return {}
-    this._calendarFlip = { direction, startedAt: now }
-    return { calendarFlip: nextCalendarToken(this.data.calendarFlip, direction) }
+  _calendarMarks({ flip, emphasis } = {}) {
+    const marks = { calendarEmphasis: emphasis ? nextCalendarToken(this.data.calendarEmphasis, emphasis) : '' }
+    if (flip === 'none') {
+      this._flipRun = null
+      marks.calendarFlip = ''
+    } else if (flip) {
+      const now = Date.now()
+      const run = this._flipRun
+      if (!run || run.direction !== flip || now - run.startedAt >= CALENDAR_FLIP_MS) {
+        this._flipRun = { direction: flip, startedAt: now }
+        marks.calendarFlip = nextCalendarToken(this.data.calendarFlip, flip)
+      }
+    }
+    return marks
   },
 
-  // 选月、回到今天：取消翻月滑入，新月份即时替换
-  _cancelCalendarFlip() {
-    this._calendarFlip = null
-    return { calendarFlip: '' }
+  // 日历被换下（未绑定、加载失败画面）：回来时是新挂载的节点，带着旧记号会重播滑入、强调或记录成功反馈
+  _clearedCalendarMarks() {
+    this._flipRun = null
+    return { calendarFlip: '', calendarEmphasis: '', recordFeedback: {} }
   },
 
   // 日历滑动松手：判定在纯函数里，页面只做一次既有翻月更新（和箭头同一段滑入，issue #165），不跟手。
@@ -763,24 +776,21 @@ Page({
     const month = Number(e.currentTarget.dataset.month)
     if (!Number.isInteger(month) || month < 0 || month > 11) return
     this.applyHomeCalendarState({ year: this.data.jumpYear, month }, {
-      jumpMonth: month,
-      monthPickerVisible: false,
-      ...this._cancelCalendarFlip()
+      flip: 'none',
+      fields: { jumpMonth: month, monthPickerVisible: false }
     })
     homepageSheets(this).monthPicker.leave(this)
   },
 
+  // 回到今天就点亮今天一次（issue #165）；已在当月再点也换记号重播
   jumpToToday() {
     const today = new Date()
     const year = today.getFullYear()
     const month = today.getMonth()
     this.applyHomeCalendarState({ year, month }, {
-      jumpMonth: month,
-      ...buildJumpYearState(year),
-      monthPickerVisible: false,
-      ...this._cancelCalendarFlip(),
-      // 回到今天就点亮今天一次（issue #165）；已在当月再点也换记号重播
-      calendarEmphasis: nextCalendarToken(this.data.calendarEmphasis, 'today')
+      flip: 'none',
+      emphasis: 'today',
+      fields: { jumpMonth: month, ...buildJumpYearState(year), monthPickerVisible: false }
     })
     homepageSheets(this).monthPicker.leave(this)
   },
@@ -1087,10 +1097,7 @@ Page({
       hasLoadedHomeData: false,
       refreshing: false,
       refreshRetryVisible: false,
-      // 日历被换下：回来时是新挂载的节点，带着旧记号会重播滑入、强调或记录成功反馈（issue #165、#167）
-      ...this._cancelCalendarFlip(),
-      calendarEmphasis: '',
-      recordFeedback: {},
+      ...this._clearedCalendarMarks(),
       noRoom: true,
       roomStatusTitle: title,
       roomStatusDesc: desc,
