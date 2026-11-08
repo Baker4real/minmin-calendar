@@ -31,7 +31,8 @@ const JUMP_YEAR_MIN = 2001
 const JUMP_YEAR_MAX = 2035
 // issue #155：信息弹层按显示的内容命名。遮罩读「关闭」加这个名称，面板以它作对话框名。
 const INFO_SHEET_NAMES = { legend: '日历图例', prediction: '预测说明', recap: '本月小结' }
-// issue #165：翻月滑入的时长，与 --duration-enter 同值；这段时间内同方向再翻算接续
+// issue #165：翻月滑入的时长，与 app.wxss 的 --duration-enter 同值；这段时间内同方向再翻算接续。
+// tests/index-page.test.js 从 app.wxss 读出这个 token 卡住接续的边界，两边只改一处会失配
 const CALENDAR_FLIP_MS = 240
 const INITIAL_VIEW_DATE = new Date()
 const INITIAL_HOME_STATE = buildHomeCalendarState({

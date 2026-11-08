@@ -2628,21 +2628,36 @@ test('month arrows publish the new month and its calendar grid in one update', (
   }
 })
 
+// 从这一刻起按序记下页面的每次 setData（更新照常生效），供逐次检查日历提交
+function recordSetDataCalls(page) {
+  const updates = []
+  const setData = page.setData.bind(page)
+  page.setData = (update, callback) => {
+    updates.push(update)
+    setData(update, callback)
+  }
+  return updates
+}
+
+// 滑入动画的时长：.calendar-days 的翻月关键帧跑在 --duration-enter 上（motion-performance 护栏）
+function durationEnterMs() {
+  const token = /--duration-enter:\s*(\d+)ms/.exec(fs.readFileSync(path.join(repoRoot, 'app.wxss'), 'utf8'))
+  assert.ok(token, 'expected --duration-enter in app.wxss')
+  return Number(token[1])
+}
+
 // issue #165：翻月方向跟着那一次日历提交走（下一月 next、上一月 prev），不另起计时器、不推迟数据。
-// 动画进行中（--duration-enter 240ms 内）同方向再翻：只换数据，进行中的动画接着播，接续不续期；
+// 动画进行中（--duration-enter 内）同方向再翻：只换数据，进行中的动画接着播，接续不续期；
 // 反向或动画播完后再翻：换一个记号从头播（a、b 交替，类名变了 CSS 才重播）。选月和回到今天取消翻月动画、即时替换。
+// 页面判定「进行中」的时长与 app.wxss 的 --duration-enter 必须同长：两边各改一处都会让这里的边界失配
 test('month flips carry their direction with the grid, continue on quick repeats and restart on reversal', () => {
   mock.timers.enable({ apis: ['Date'], now: new Date(2026, 10, 8, 9, 30) })
   const harness = loadPageHarness({ client: createQueuedClient([]), calendarState: 'real' })
+  const enterMs = durationEnterMs()
   try {
     harness.page.onLoad()
     assert.equal(harness.page.data.calendarFlip, '', 'the first paint does not slide')
-    const updates = []
-    const setData = harness.page.setData.bind(harness.page)
-    harness.page.setData = (update, callback) => {
-      updates.push(update)
-      setData(update, callback)
-    }
+    const updates = recordSetDataCalls(harness.page)
     const flip = (invoke) => {
       updates.length = 0
       invoke()
@@ -2655,16 +2670,16 @@ test('month flips carry their direction with the grid, continue on quick repeats
     assert.equal(firstDate(update), '2026-12-01')
     assert.equal(update.calendarFlip, 'next-a')
 
-    mock.timers.tick(100)
+    mock.timers.tick(enterMs - 1)
     update = flip(() => harness.page.onCalendarSwipe({ dx: -80, dy: 0 }))
     assert.equal(firstDate(update), '2027-01-01', 'a quick repeat still changes the month at once')
-    assert.equal('calendarFlip' in update, false, 'a quick repeat keeps the running slide')
+    assert.equal('calendarFlip' in update, false, 'a repeat on the last millisecond of the slide keeps the running slide')
     assert.equal(harness.page.data.calendarFlip, 'next-a')
 
-    mock.timers.tick(140)
+    mock.timers.tick(1)
     update = flip(() => harness.page.nextMonth())
     assert.equal(firstDate(update), '2027-02-01')
-    assert.equal(update.calendarFlip, 'next-b', '240ms after the slide began it has ended, so the next flip restarts')
+    assert.equal(update.calendarFlip, 'next-b', 'once --duration-enter has passed since the slide began it has ended, so the next flip restarts')
 
     mock.timers.tick(60)
     update = flip(() => harness.page.prevMonth())
@@ -2711,12 +2726,7 @@ test('back-to-today lights today once with the jump, and the next calendar updat
   try {
     harness.page.onLoad()
     assert.equal(harness.page.data.calendarEmphasis, '', 'nothing is emphasized on the first paint')
-    const updates = []
-    const setData = harness.page.setData.bind(harness.page)
-    harness.page.setData = (update, callback) => {
-      updates.push(update)
-      setData(update, callback)
-    }
+    const updates = recordSetDataCalls(harness.page)
     const calendarCommit = () => {
       const commits = updates.filter(update => 'days' in update)
       assert.equal(commits.length, 1, 'one calendar update')
@@ -2846,12 +2856,7 @@ test('month selection and back-to-today publish the month title with its grid in
   const harness = loadPageHarness({ client: createQueuedClient([]), calendarState: 'real', deferRenderCommits: true })
   try {
     harness.page.onLoad()
-    const updates = []
-    const setData = harness.page.setData.bind(harness.page)
-    harness.page.setData = (update, callback) => {
-      updates.push(update)
-      setData(update, callback)
-    }
+    const updates = recordSetDataCalls(harness.page)
     const firstDate = (days) => (days || []).find(day => day.date)?.date
     const monthCommits = () => updates.filter(update => 'year' in update || 'month' in update)
 
@@ -2895,16 +2900,6 @@ function recordFeedbackCells(data) {
     const classes = renderWxmlAttribute(cell.attrs.class, { ...data, item: day }).split(/\s+/)
     return classes.filter(name => name.startsWith('record-feedback')).map(name => [day.date, name])
   })
-}
-
-function recordSetDataCalls(page) {
-  const updates = []
-  const setData = page.setData.bind(page)
-  page.setData = (update, callback) => {
-    updates.push(update)
-    setData(update, callback)
-  }
-  return updates
 }
 
 // issue #167：欢乐时光新增保存成功时，首页正被编辑页盖着，收到的就是云端确认写入的那条记录。
