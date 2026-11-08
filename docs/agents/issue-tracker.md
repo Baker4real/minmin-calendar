@@ -40,6 +40,8 @@ What should be true when this is done?
 Links to screenshots, ADRs, code paths, or prior commits.
 ```
 
+This shape is for standalone bugs and requests. A spec (epic parent) follows the to-spec template. Its sub-tickets follow the to-tickets template: `## Parent`, `## What to build`, `## Acceptance criteria`, a two-digit order prefix in the title (`01 …`), and blockers as native `blockedBy` links instead of a body section.
+
 ## Spec 发现约定
 
 implement-spec 等技能无参数调用时，spec 默认取当前开放的 epic 父票：有子票以 `## Parent` 指向它、整组标记 `ready-for-agent`。只开放一个 epic 时直接采用；多个 epic 同时开放时先与用户确认目标再开工。
