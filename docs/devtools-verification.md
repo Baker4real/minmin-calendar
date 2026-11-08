@@ -65,7 +65,7 @@ npm run devtools:mcp -- --schema automation_evaluate
 npm run devtools:mcp -- --requests .scratch/devtools/requests.json
 ```
 
-命令会隐藏输入 token；也可从既有受控环境注入 `WECHAT_MCP_TOKEN`。调用入口不接受 token 参数，凭据不写入请求文件或日志；启动官方 bridge 时仍按其接口通过子进程参数传递 token。调用器使用安装目录中的官方 MCP 入口，`--ide` 可覆盖安装位置；不会修改 IDE 文件。默认仅列工具名称，只有 `--schema <精确工具名>` 输出该工具 schema。
+token 依次取 `WECHAT_MCP_TOKEN`、本机密钥库里的 `wechat-devtools-mcp-token`、终端隐藏输入。密钥库只需你在自己的终端录入一次：`pwsh -NoProfile -File 'D:/Codex/.codex/scripts/Set-LocalSecret.ps1' -Name wechat-devtools-mcp-token`（输入不回显，只有本机同一用户能解密；IDE 里换了 token 时加 `-Replace` 重录）。录入后 Agent 跑 `devtools:mcp` 不用再把命令交给你；只有元数据可查：`python -B -I 'D:/Codex/.codex/scripts/local_secret.py' --info wechat-devtools-mcp-token`。调用入口不接受 token 参数，凭据不写入请求文件或日志；启动官方 bridge 时仍按其接口通过子进程参数传递 token。调用器使用安装目录中的官方 MCP 入口，`--ide` 可覆盖安装位置；不会修改 IDE 文件。默认仅列工具名称，只有 `--schema <精确工具名>` 输出该工具 schema。
 
 请求文件是 `{ "name": "工具名", "arguments": { ... } }` 或其数组，按顺序执行。未填写 `arguments.project` 时使用当前仓库；所有 project 路径解析为 Windows 绝对路径并去掉多余的末尾分隔符，避免 `cant find runtimeid by projectpath` 或截图工具的 `project window not found`。先读取相关 schema，再构造最小请求。只读预检示例：
 
@@ -88,7 +88,7 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 - 计入的文件：项目文件扣除 `packOptions.ignore` 和云函数目录后，再按上传白名单过滤（含 `.png`、`.json`、`.js`、`.wxml`，不含 `.md`、`.mjs`、`.yml`）。「无依赖文件过滤」只处理代码文件，截图照样进包。
 - 扫描时机：只有点面板的「重新扫描」或上传时才扫，CLI 和内置工具都触发不了。面板不显示各包字节数和文件明细，`npm run devtools:preflight` 会打印最近一次结果。
 - 配置生效：`project.config.json` 改动后，开发者工具不一定重新读取 `packOptions`。2026-10-10 单独改这个文件时它当场读入；与其他文件一批改动时，直到重开项目都没读入。`watchOptions` 只在打开项目时读取。改完先跑预检，报配置过期就关闭并重新打开项目，再重新扫描。
-- 回查规则：在安装目录的 `resources/app.asar` 里用 `rg -a` 搜规则名 `PACKAGE_SIZE_LIMIT`、`IMAGE_AND_AUDIO_LIMIT`。
+- 回查规则：`python -B -I 'D:/Codex/tools/asar-extract/asar_extract.py' grep '<安装目录>/resources/app.asar' 'PACKAGE_SIZE_LIMIT|IMAGE_AND_AUDIO_LIMIT'`，每条命中带包内文件名（2026-11-08：13 秒 10 条，配置在 `js/9223b7e8fdc904a1d4c72f9829351a93.json`，检查逻辑在 `js/3b6b93029b234f57c8b150f8796c7aef.js`；文件名随版本变）。
 
 ## 点击与截图验收
 
