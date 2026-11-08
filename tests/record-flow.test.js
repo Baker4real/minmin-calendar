@@ -4062,6 +4062,89 @@ test('only a memory save the cloud confirms reaches the previous page, as one ad
   }
 })
 
+// 经期同一条规矩：恢复草稿、校验失败、重新拉取确认没写进去的网络失败、业务失败、房间同步后取消重试或重试仍失败
+// 都不通知上一页；这次确实写进去了只是回复丢了（新记录的开始日检查重叠时云端还没有它），重新拉取找到同一条，按新增通知一次
+test('only a period save the cloud confirms reaches the previous page, as one addition', async () => {
+  const periods = []
+  const networkDown = { kind: 'retryable-failure', message: 'network down' }
+  const roomSynced = { kind: 'room-repair', roomCode: 'R1', repair: { kind: 'success', bound: true, roomCode: 'R1' } }
+  const landsButReplyIsLost = payload => {
+    periods.push({ _id: 'p-landed', ...payload })
+    return networkDown
+  }
+  const env = createEditFormEnv('pages/period/edit/edit.js', {
+    periods,
+    addReplies: [
+      networkDown,
+      { kind: 'business-failure', message: '保存失败，请稍后重试' },
+      roomSynced,
+      roomSynced,
+      networkDown,
+      landsButReplyIsLost
+    ]
+  })
+  const settle = () => new Promise(resolve => setImmediate(resolve))
+  const answerLastModal = confirm => env.modals[env.modals.length - 1].success({ confirm, cancel: !confirm })
+
+  try {
+    env.storage.set('recordDraft:periods:new', JSON.stringify({
+      startDate: '2026-09-15', endDate: '2026-09-19', status: 'known-end', note: '', flow: '', symptoms: []
+    }))
+    await env.harness.page.onLoad({})
+    assert.equal(env.harness.page.data.draftRestored, true)
+
+    env.harness.page.onEndChange({ detail: { value: '2026-09-21' } })
+    assert.equal((await env.harness.page.save()).kind, 'validation')
+    env.harness.page.onEndChange({ detail: { value: '2026-09-19' } })
+
+    // 网络失败，重新拉取确认没写进去
+    let saving = env.harness.page.save()
+    await settle()
+    assert.equal(env.modals[env.modals.length - 1].content, '没有保存成功，请重试')
+    answerLastModal(true)
+    assert.equal((await saving).kind, 'retryable-failure')
+
+    assert.equal((await env.harness.page.save()).kind, 'business-failure')
+
+    // 房间状态同步后：先取消重试，再重试一次仍没写进去
+    saving = env.harness.page.save()
+    await settle()
+    assert.equal(env.modals[env.modals.length - 1].confirmText, '重试')
+    answerLastModal(false)
+    assert.equal((await saving).kind, 'room-repair')
+    saving = env.harness.page.save()
+    await settle()
+    answerLastModal(true)
+    await settle()
+    assert.equal(env.modals[env.modals.length - 1].content, '没有保存成功，请重试')
+    answerLastModal(true)
+    assert.equal((await saving).kind, 'retryable-failure')
+
+    env.harness.page.onHide()
+    assert.equal(env.writes.length, 5)
+    assert.deepEqual(env.changes, [], 'nothing that failed to land reaches the previous page')
+
+    const outcome = await env.harness.page.save()
+    assert.equal(outcome.kind, 'success')
+    assert.deepEqual(env.changes, [{
+      collection: 'periods',
+      mode: 'add',
+      record: {
+        _id: 'p-landed',
+        startDate: '2026-09-15',
+        endDate: '2026-09-19',
+        status: 'known-end',
+        note: '',
+        duration: 5,
+        flow: '',
+        symptoms: []
+      }
+    }])
+  } finally {
+    env.harness.teardown()
+  }
+})
+
 // 给进行中的经期补上结束日（ADR 0007：同一条记录完成）：按更新通知上一页，带云端确认的已结束记录，
 // 首页靠前后两版的状态判定「完成」
 test('completing an ongoing period reaches the previous page as an update carrying the ended record', async () => {
@@ -4388,7 +4471,8 @@ function createPeriodEditMergeEnv(persistedRecord) {
 // 字段级校验环境（issue #156）：真实 recordCommands 驱动校验与保存生命周期，只桩系统边界——
 // 云端（list/add/update/remove 写入可观察）与 wx（toast、确认框、页面滚动、本地草稿存储）。
 // util 只固定「今天」= 2026-09-20，其余日期能力委托真实模块。
-// addReplies 依次替换云端 add 的回复，用完回到成功；changes 是页面通知上一页的记录变化（issue #167）
+// addReplies 依次替换云端 add 的回复，用完回到成功；一项也可以是收到 payload 再给回复的函数（模拟写进去了、
+// 回复却丢了）。changes 是页面通知上一页的记录变化（issue #167）
 function createEditFormEnv(relativePath, { periods = [], memories = [], addReplies = [] } = {}) {
   const writes = []
   const changes = []
@@ -4409,7 +4493,10 @@ function createEditFormEnv(relativePath, { periods = [], memories = [], addRepli
             },
             async add(collection, payload) {
               writes.push({ op: 'add', collection, payload })
-              if (addReplies.length > 0) return addReplies.shift()
+              if (addReplies.length > 0) {
+                const reply = addReplies.shift()
+                return typeof reply === 'function' ? reply(payload) : reply
+              }
               return { kind: 'success', result: { record: { _id: 'new-1', ...payload } } }
             },
             async update(collection, id, payload) {
