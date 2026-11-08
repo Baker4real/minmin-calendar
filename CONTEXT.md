@@ -58,7 +58,7 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - `utils/recordPageSync.js` owns optional edit-page-to-homepage record change notifications for optimistic homepage refresh after saves and deletes.
 - `pages/index/index.js` owns homepage record collection synchronization, request ordering, partial-success handling, and optimistic change reconciliation.
 - `utils/settingsFlow.js` owns room-code copy, data export, retry/rebind, and local-cache helper flows.
-- `utils/homeCalendarState.js` owns the pure Calendar projection for cell markers, marker meanings, prediction, reminders, day details, monthly recap, day-cell screen-reader aria copy, and legend item definitions.
+- `utils/homeCalendarState.js` owns the pure Calendar projection for cell markers, marker meanings, prediction, reminders, day details, monthly recap, day-cell screen-reader aria copy, legend item definitions, and the record-success feedback marks (which saved record counts as newly added or completed, and which cells of the shown month it lights; the homepage only passes the confirmed change in).
 - `utils/recordEditRoute.js` owns Period record and Memory record edit URL construction plus edit-page route option hydration, including the Memory date ceiling at today.
 - `utils/recordDraft.js` owns edit-form draft save/restore/clear as pure functions keyed per record identity; `createWxDraftStorage` is the only wx local-storage seam.
 - `utils/room.js` owns room-code cache, recovery, create/join, local clear, and server-side leave calls.

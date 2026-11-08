@@ -492,8 +492,8 @@ Page({
     return details[date] || emptyDayDetail()
   },
 
-  // overrides 决定投影（年月、记录、今天）和这次要亮的那条记录（recordFeedback，issue #167）；
-  // extra 是跟日历同一次提交的其他字段（选月面板、翻月方向）
+  // overrides 决定投影：年月、记录、今天，以及这次的记录变化（recordChange：投影据此给出记录成功反馈，
+  // 随渲染数据一起提交，issue #167）；extra 是跟日历同一次提交的其他字段（选月面板、翻月方向）
   applyHomeCalendarState(overrides = {}, extra = {}) {
     const hasOwn = (key) => Object.prototype.hasOwnProperty.call(overrides, key)
     const periods = hasOwn('periods') ? overrides.periods : this._recordList('periods')
@@ -512,7 +512,8 @@ Page({
       today,
       roomPaired: this._roomPaired === true,
       periodsSynced,
-      memoriesSynced
+      memoriesSynced,
+      recordChange: hasOwn('recordChange') ? overrides.recordChange : null
     })
     this._rememberRecords(periods, memories)
     this._dayDetailsByDate = state.dayDetailsByDate || {}
@@ -531,8 +532,6 @@ Page({
       month,
       // 状态强调只跟着触发它的那次提交：之后的每次日历更新都去掉，换月或节点重建不会重播（issue #165）
       calendarEmphasis: '',
-      // 记录成功反馈同样只跟着那次记录变化的提交（issue #167）
-      recordFeedback: recordFeedbackByDate(state.days, hasOwn('recordFeedback') ? overrides.recordFeedback : null, today),
       ...extra
     }
     if (this.data.selectedDate && this.data.dayActionMounted) {
@@ -558,14 +557,10 @@ Page({
     if (this.data.hasLoadedHomeData) state.pendingRevisions[collection] = revision
 
     // issue #167：编辑页只在云端确认写入后才通知（utils/recordPageSync.js），通知里的就是保存后的记录。
-    // 反馈只给已经显示的日历
-    const recordId = record._id || record.id || ''
-    const previous = recordId ? currentRecords.find(item => (item._id || item.id || '') === recordId) : null
-    const saved = recordId ? nextRecords.find(item => (item._id || item.id || '') === recordId) : null
-    const kind = this.data.hasLoadedHomeData ? recordFeedbackKind(collection, previous, saved, mode) : ''
+    // 反馈只给已经显示的日历；哪条记录算新增或完成、亮哪几格由日历投影判定
     this.applyHomeCalendarState({
       [collection]: nextRecords,
-      recordFeedback: kind ? { kind, record: saved } : null
+      recordChange: this.data.hasLoadedHomeData ? { collection, mode, record, before: currentRecords } : null
     })
     this.syncOngoingCompletionReminder()
     if (this.data.hasLoadedHomeData) {
@@ -1212,29 +1207,6 @@ function decideSheetDragRelease(displacement, elapsed, panelHeight) {
   const pastDistance = panelHeight > 0 && displacement > panelHeight * 0.25
   const pastSpeed = elapsed > 0 && displacement / elapsed > 0.11
   return pastDistance || pastSpeed ? 'close' : 'reset'
-}
-
-// issue #167：记录成功反馈只认真正新增或完成的记录：新增的欢乐时光；新增的经期，或给没有结束日的经期
-// （进行中、结束日期不详）填上结束日（ADR 0007：填写结束日期完成同一条记录）
-function recordFeedbackKind(collection, previous, saved, mode) {
-  if (collection === 'memories') return mode === 'add' && !previous ? 'memory' : ''
-  if (collection !== 'periods' || !saved) return ''
-  if (mode === 'add') return previous ? '' : 'period'
-  if (mode !== 'update' || !previous) return ''
-  return cycle.getPeriodStatus(previous) !== 'known-end' && cycle.getPeriodStatus(saved) === 'known-end' ? 'period' : ''
-}
-
-// issue #167：反馈落在当月显示这条记录的格子上：欢乐时光是那一天的 ♥，经期是它投影出的每一格色带
-function recordFeedbackByDate(days, feedback, today) {
-  const marked = {}
-  if (!feedback || !feedback.record) return marked
-  const band = feedback.kind === 'period' ? cycle.projectPeriodRange(feedback.record, today) : null
-  for (const day of days || []) {
-    if (!day || day.isEmpty || !day.date) continue
-    if (feedback.kind === 'memory' && day.isMemory && day.date === feedback.record.date) marked[day.date] = 'memory'
-    if (band && day.isPeriod && day.date >= band.startDate && day.date <= band.endDate) marked[day.date] = 'period'
-  }
-  return marked
 }
 
 // 日历动画记号在 a、b 间交替：同一段动画要从头再播，类名必须变（issue #165）
