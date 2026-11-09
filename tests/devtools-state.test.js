@@ -56,7 +56,7 @@ test('the lifecycle log pairs each app launch with its first page, read from the
   const files = [
     [path.join(logDir('older-user'), 'log1'), '2026-11-7 9:0:0 [log] App onLaunch have been invoked\n2026-11-7 9:0:1 [log] page pages/stale/stale onLoad have been invoked\n', 1000],
     [path.join(logDir('live-user'), 'log2'), '2026-11-7 20:27:24 [log] App onLaunch have been invoked\n2026-11-7 20:27:24 [log] App onShow have been invoked\n', 3000],
-    [path.join(logDir('live-user'), 'log1'), '2026-11-7 20:27:20 [log] App onLaunch have been invoked\n2026-11-7 20:27:21 [log] page pages/bind/bind onLoad have been invoked\n2026-11-7 20:27:21 [log] page pages/index/index onLoad have been invoked\n', 2000],
+    [path.join(logDir('live-user'), 'log1'), '2026-11-7 20:27:20 [log] App onLaunch have been invoked\n2026-11-7 20:27:21 [log] wx.getWindowInfo api invoke\n2026-11-7 20:27:21 [log] page pages/bind/bind onLoad have been invoked\n2026-11-7 20:27:21 [log] page pages/index/index onLoad have been invoked\n', 2000],
   ]
   // Remove exactly the files this test writes, then each directory it leaves empty up to localAppData; no recursive delete.
   t.after(() => {
@@ -72,10 +72,33 @@ test('the lifecycle log pairs each app launch with its first page, read from the
   }
 
   assert.deepEqual(appLaunches(readLifecycleLog(userDataDirs(ide, localAppData), 'wxdemo')), [
-    { at: new Date(2026, 10, 7, 20, 27, 20), page: 'pages/bind/bind' },
-    { at: new Date(2026, 10, 7, 20, 27, 24), page: null },
+    { at: new Date(2026, 10, 7, 20, 27, 20), page: 'pages/bind/bind', pages: ['pages/bind/bind', 'pages/index/index'], pageCodeRan: true },
+    { at: new Date(2026, 10, 7, 20, 27, 24), page: null, pages: [], pageCodeRan: false },
   ])
   assert.equal(readLifecycleLog(userDataDirs(ide, localAppData), 'wxmissing'), '')
+})
+
+test('a first page that logged onLoad with no wx API call before it never ran its page code', async () => {
+  const { appLaunches } = await import('./tools/devtoolsState.mjs')
+  // Real 2026-11-08 lines: bind.js threw on a require, the page never registered, and the framework still logged
+  // onLoad; after reopening the project, the safe-area values in the page data called wx.getWindowInfo first.
+  const log = [
+    '2026-11-8 23:30:31 [log] App onLaunch have been invoked',
+    '2026-11-8 23:30:31 [log] App onShow have been invoked',
+    '2026-11-8 23:30:31 [log] page pages/bind/bind onLoad have been invoked',
+    '2026-11-8 23:30:31 [log] page pages/bind/bind onReady have been invoked',
+    '2026-11-8 23:30:33 [log] wx.onAppShow api invoke',
+    '2026-11-8 23:47:6 [log] App onLaunch have been invoked',
+    '2026-11-8 23:47:6 [log] App onShow have been invoked',
+    '2026-11-8 23:47:6 [log] wx.getWindowInfo api invoke',
+    '2026-11-8 23:47:6 [log] page pages/bind/bind onLoad have been invoked',
+    '2026-11-8 23:47:8 [log] wx.switchTab api invoke',
+    '2026-11-8 23:47:9 [log] page pages/index/index onLoad have been invoked',
+  ].join('\n')
+  assert.deepEqual(appLaunches(log).map(({ page, pages, pageCodeRan }) => ({ page, pages, pageCodeRan })), [
+    { page: 'pages/bind/bind', pages: ['pages/bind/bind'], pageCodeRan: false },
+    { page: 'pages/bind/bind', pages: ['pages/bind/bind', 'pages/index/index'], pageCodeRan: true },
+  ])
 })
 
 test('code quality summary lists failed items and the main package size', async () => {

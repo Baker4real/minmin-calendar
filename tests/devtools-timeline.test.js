@@ -29,6 +29,26 @@ test('the timeline keeps reloads, page webviews and unexpected errors in order, 
   assert.equal(events[0].at.getTime(), new Date('2026-11-07T20:27:12.955+08:00').getTime())
 })
 
+test('the timeline keeps code files added or removed, not edits or assets', async () => {
+  const { timelineEvents } = await import('./tools/devtoolsTimeline.mjs')
+  // 2026-11-08 lines: the rebase batch at 22:08:36, then renaming a module away at 23:42:43.
+  const change = (time, kind, file) => record(time, 'INFO', `[hybirdLog] compile onFileChange ${kind} ${file}`)
+  const log = [
+    change('22:08:36.210', 'change', 'pages/bind/bind.js'),
+    change('22:08:36.211', 'change', 'pages/index'),
+    change('22:08:36.212', 'add', 'pages/shared/aurora.wxml'),
+    change('22:08:36.214', 'add', 'utils/pageVisibility.js'),
+    change('22:08:36.215', 'add', 'images/aurora.png'),
+    change('23:42:43.721', 'unlink', 'utils/pageVisibility.js'),
+    change('23:42:43.722', 'add', 'utils/pageVisibility.js.renaming'),
+  ].join('\n')
+  assert.deepEqual(timelineEvents(log).map(event => event.message), [
+    '[hybirdLog] compile onFileChange add pages/shared/aurora.wxml',
+    '[hybirdLog] compile onFileChange add utils/pageVisibility.js',
+    '[hybirdLog] compile onFileChange unlink utils/pageVisibility.js',
+  ])
+})
+
 test('a --to given in minutes covers that whole minute and a bare time means today', async () => {
   const { parseTime } = await import('./tools/devtoolsTimeline.mjs')
   const now = new Date(2026, 10, 7, 9, 0, 0)

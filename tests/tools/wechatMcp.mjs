@@ -110,6 +110,28 @@ export function findViewport(value) {
   return null
 }
 
+// Step 1 reads one line of the console cache, which does not go through the simulator's automator, so a PASS there
+// clears the bridge, token, client approval and project path. Step 2 asks the automator for systemInfo. On 2026-11-08
+// the console read passed while systemInfo got `timeout waiting for automator response`. miniprogram-automator returned
+// the same error on 2026-10-10 with an automation port open (docs/verification-log.md), and on 2026-11-07 single
+// captures that got it passed on a retry.
+export async function preflight(client, project, log = console.log) {
+  try {
+    await client.call(normalizeRequest({ name: 'get_simulator_console', arguments: { command: 'grep -n -m 1 .' } }, project))
+  } catch (error) { throw new Error(`MCP bridge: ${error.message}`) }
+  log(`PASS MCP bridge: console cache readable; project ${project}`)
+  let result
+  try {
+    result = await client.call(normalizeRequest({ name: 'automation_runtime_info', arguments: { action: 'systemInfo' } }, project))
+  } catch (error) {
+    if (!/timeout waiting for automator response/.test(error.message)) throw new Error(`MCP runtime: ${error.message}`)
+    throw new Error(`MCP runtime: simulator automator did not answer while the bridge and project did; rerun once in a few seconds, and meanwhile read the console with get_simulator_console, which does not need it (${error.message})`)
+  }
+  const viewport = findViewport(resultData(result))
+  if (!viewport) throw new Error('Runtime reachable but systemInfo did not report an actual viewport; inspect the log')
+  log(`PASS MCP runtime: viewport ${viewport.width} x ${viewport.height}; project ${project}`)
+}
+
 export async function main(argv = process.argv.slice(2)) {
   let client
   let redact = createRedactor([process.env.WECHAT_MCP_TOKEN])
@@ -143,12 +165,8 @@ export async function main(argv = process.argv.slice(2)) {
     process.once('SIGINT', interrupted)
     process.once('SIGTERM', interrupted)
     await client.initialize()
-    if (options.preflight) {
-      const result = await client.call(normalizeRequest({ name: 'automation_runtime_info', arguments: { action: 'systemInfo' } }, options.project))
-      const viewport = findViewport(resultData(result))
-      if (!viewport) throw new Error('Runtime reachable but systemInfo did not report an actual viewport; inspect the log')
-      console.log(`PASS MCP runtime: viewport ${viewport.width} x ${viewport.height}; project ${options.project}`)
-    } else if (calls) {
+    if (options.preflight) await preflight(client, options.project)
+    else if (calls) {
       for (const call of calls) {
         await client.call(call)
         console.log(redact(`PASS ${call.name}`))

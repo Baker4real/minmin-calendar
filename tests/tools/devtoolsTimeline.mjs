@@ -1,5 +1,5 @@
 // 把开发者工具的 IDE 日志收成一条时间线：编译、逻辑层（appservice）重载与启动、页面 webview 的创建和销毁、
-// 调试面板加载，以及除已知噪音外的 WARN/ERROR。排查「重载后页面没了」这类问题时先看这些事件的先后。只读，输出脱敏。
+// 调试面板加载、代码文件的增删，以及除已知噪音外的 WARN/ERROR。排查「重载后页面没了」这类问题时先看这些事件的先后。只读，输出脱敏。
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -20,6 +20,8 @@ const EVENTS = [
   '[devtools] webview loaded',
   '[devtools] webview page ready',
 ]
+// 代码文件的新增和删除也收，修改不收（每次保存一行）：开着项目时 git 一次写进新模块和引用它的页面，增量编译会漏掉新模块（2026-11-08）。
+const FILE_EVENT = /\[hybirdLog\] compile onFileChange (?:add|unlink) \S+\.(?:js|ts|wxml|wxss|wxs|json)$/
 // 每次启动、编译或关窗都会出现、与排查无关的 WARN/ERROR；关窗只留 close-requested 一行。
 const NOISE = /markDevLaunchEnv timingData not found|\[Fileutils\]|\[ideplugin\]|\[IdePluginManager\]|already registered|updateSimulatorCompileOptions: simulator not found|\[BackendInitEnv\] HELLO|\[backendManager\] received BACKEND_|SimulatorNativeAppMainService created|\[installSettingsBridges\] skipped|emitter is not found onVendorConfigChange|\[win-close-trace\] (?!close-requested)/
 const RECORD = /^\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2})\]\[(\w+)\]/
@@ -32,7 +34,7 @@ export function timelineEvents(logText, { from = -Infinity, to = Infinity } = {}
     if (!record) continue // 多行记录的续行
     const at = new Date(`${record[1]}T${record[2]}`)
     const level = record[3]
-    if (at < from || at > to || (level === 'INFO' ? !EVENTS.some(event => line.includes(event)) : NOISE.test(line))) continue
+    if (at < from || at > to || (level === 'INFO' ? !EVENTS.some(event => line.includes(event)) && !FILE_EVENT.test(line) : NOISE.test(line))) continue
     // 正文在 [rt:N,win:sN] 之后；没有这个前缀的行，正文在 [时间][级别][版本][进程][调用方] 之后。
     const message = /\[rt:\d+,win:[^\]]*\]\s*(.*)$/.exec(line)?.[1] ?? line.replace(/^(\[[^\]]*\]){5}\s*/, '')
     events.push({ at, level, message: redact(message).replace(/\bo[\w-]{27}\b/g, '[openid]') })

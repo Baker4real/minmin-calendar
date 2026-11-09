@@ -71,6 +71,41 @@ test('WeChat requests use native Windows project paths and reject invalid modes'
   assert.equal(findViewport({ success: true }), null)
 })
 
+test('MCP preflight reads the console cache before asking the automator, and names a silent automator', async () => {
+  const { preflight } = await import('./tools/wechatMcp.mjs')
+  const client = runtime => {
+    const calls = []
+    return { calls, call: async request => {
+      calls.push([request.name, request.arguments])
+      if (request.name === 'get_simulator_console') return { content: [{ type: 'text', text: '1:["[info]","[system]","WeChatLib: 3.18.0"]' }] }
+      return runtime()
+    } }
+  }
+  const logs = []
+  const healthy = client(async () => ({ structuredContent: { success: true, data: { windowWidth: 430, windowHeight: 932 } } }))
+  await preflight(healthy, 'D:/repo', line => logs.push(line))
+  assert.deepEqual(healthy.calls, [
+    ['get_simulator_console', { command: 'grep -n -m 1 .', project: 'D:\\repo' }],
+    ['automation_runtime_info', { action: 'systemInfo', project: 'D:\\repo' }],
+  ])
+  assert.deepEqual(logs, ['PASS MCP bridge: console cache readable; project D:/repo', 'PASS MCP runtime: viewport 430 x 932; project D:/repo'])
+
+  const timeout = 'automation_runtime_info: tool returned success:false {"error":"timeout waiting for automator response"}; see the redacted log'
+  const silent = client(async () => { throw new Error(timeout) })
+  logs.length = 0
+  await assert.rejects(preflight(silent, 'D:/repo', line => logs.push(line)), error => {
+    assert.match(error.message, /^MCP runtime: simulator automator did not answer while the bridge and project did; rerun once/)
+    assert.ok(error.message.includes(timeout))
+    return true
+  })
+  assert.deepEqual(logs, ['PASS MCP bridge: console cache readable; project D:/repo'])
+  await assert.rejects(preflight(client(async () => { throw new Error('automation_runtime_info: timed out') }), 'D:/repo', () => {}), /^Error: MCP runtime: automation_runtime_info: timed out$/)
+
+  const refused = { calls: 0, call: async () => { refused.calls++; throw new Error('get_simulator_console: tool returned isError "bridge refused"; see the redacted log') } }
+  await assert.rejects(preflight(refused, 'D:/repo', () => assert.fail('nothing passed')), /^Error: MCP bridge: get_simulator_console: tool returned isError/)
+  assert.equal(refused.calls, 1)
+})
+
 test('WeChat token comes from WECHAT_MCP_TOKEN, then the local secret store, then a terminal only', async () => {
   const { readToken, readStoredToken, TOKEN_SECRET } = await import('./tools/wechatMcp.mjs')
   const unread = () => assert.fail('the store should not be read')

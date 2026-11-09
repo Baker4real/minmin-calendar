@@ -11,7 +11,7 @@ intent: "连接与资源诊断、官方 CLI/MCP 入口及 GUI 验收边界"
 
 ## 连接路径
 
-先运行 `npm run devtools:preflight`。它分别检查官方 CLI 的服务/登录响应，以及本机 automator 端口；TCP 监听只表示可开始握手，不代表页面可用。它还比对开发者工具已加载的 `packOptions`、`watchOptions` 与磁盘上的 `project.config.json`，并打印最近一次代码质量结果（见下文「代码质量扫描口径」）。在 Windows 上它还回读本项目窗口（标题为 `project.config.json` 的 `projectname`）是否最小化。它还读模拟器的基础库生命周期日志，看最近一次逻辑层启动有没有加载页面。可传 `-- --ide <安装目录> --ws ws://127.0.0.1:<端口>`。默认探 9420；并行 worktree 的项目窗口开在别的端口时必须传同一个端口，否则只会报 `connect ECONNREFUSED 127.0.0.1:9420`。
+先运行 `npm run devtools:preflight`。它分别检查官方 CLI 的服务/登录响应，以及本机 automator 端口；TCP 监听只表示可开始握手，不代表页面可用。它还比对开发者工具已加载的 `packOptions`、`watchOptions` 与磁盘上的 `project.config.json`，并打印最近一次代码质量结果（见下文「代码质量扫描口径」）。在 Windows 上它还回读本项目窗口（标题为 `project.config.json` 的 `projectname`）是否最小化。它还读模拟器的基础库生命周期日志，看最近一次逻辑层启动有没有加载页面、页面代码有没有跑；这项失败时列出最近 5 次启动各进了哪些页面。可传 `-- --ide <安装目录> --ws ws://127.0.0.1:<端口>`。默认探 9420；并行 worktree 的项目窗口开在别的端口时必须传同一个端口，否则只会报 `connect ECONNREFUSED 127.0.0.1:9420`。
 
 | 结果 | 下一步 |
 |---|---|
@@ -20,11 +20,13 @@ intent: "连接与资源诊断、官方 CLI/MCP 入口及 GUI 验收边界"
 | CLI 正常，9420 未监听 | 运行下面的 `auto` 命令一次；若仍停在 preparing，使用 MCP 备用路径。 |
 | 9420 已监听 | 运行 `devtoolsCapture.mjs --ws`；握手超过 15 秒即失败，转 MCP。 |
 | `DevTools project window` 为 FAIL，或 CLI 与 9420 都正常、截图却报 `fail to capture screenshot` 或等 `.page` 渲染超时 | 项目窗口最小化时截图会失败（2026-11-04 实测）：请维护者还原窗口，重跑预检后再截。窗口正常仍失败时，看是否有别的程序窗口挡住模拟器区域，同样请维护者处理；还失败就停下，报失败行和截图目录。SKIP 表示没找到这个窗口，先在开发者工具里打开项目。本机排查记录见知识库「微信开发者工具 CLI 自动化验收环境坑」。 |
-| `Latest app launch loaded a page` 为 FAIL，或 console 报 `routeDone with a webviewId N is not found` | 最近一次逻辑层启动只跑了 `App onLaunch`，没加载任何页面；CLI 和 9420 照常应答，页面逻辑却要到下一次编译才恢复。常见于开发者工具刚启动的一分钟内（2026-11-07 实测）。等调试面板加载完，在开发者工具里点一次「编译」后重跑预检。SKIP 表示日志里还没有启动记录，或启动不到 5 秒还没写页面记录（日志每 3 秒落盘），稍后重跑。排查记录见知识库「微信开发者工具重载竞态与基础库本地补丁」。 |
-| console 报 `module '<路径>.js' is not defined, require args is '<相对路径>'`（常跟着 `Component is not found in path "wx://not-found"`），而这个文件在磁盘上、已入 git | 开发者工具的增量编译漏掉了这个模块，常见于开着项目时 git 一次写进新模块和引用它的页面（2026-11-08 那次是 rebase，开发者工具 2.02.2609250）。请维护者关闭并重新打开项目；只改修改时间或改名再改回都会触发重编译，但恢复不了。`Latest app launch loaded a page` 照样 PASS，因为页面没注册也会记 onLoad；恢复与否看同一份生命周期日志（`tests/tools/devtoolsState.mjs` 的 `readLifecycleLog`）：正常时入口页 `pages/bind/bind` 的 onLoad 之前有 `wx.getWindowInfo`（页面数据里的 safeArea），已绑定时随后 `switchTab` 进首页；漏掉时 onLoad 之前没有任何 API 调用。 |
+| `Latest app launch loaded a page` 报 `without loading a page`，或 console 报 `routeDone with a webviewId N is not found` | 最近一次逻辑层启动只跑了 `App onLaunch`，没加载任何页面；CLI 和 9420 照常应答，页面逻辑却要到下一次编译才恢复。常见于开发者工具刚启动的一分钟内（2026-11-07 实测）。等调试面板加载完，在开发者工具里点一次「编译」后重跑预检。SKIP 表示日志里还没有启动记录，或启动不到 5 秒还没写页面记录（日志每 3 秒落盘），稍后重跑。排查记录见知识库「微信开发者工具重载竞态与基础库本地补丁」。 |
+| `Latest app launch loaded a page` 报 `page code never ran`，或 console 报 `module '<路径>.js' is not defined, require args is '<相对路径>'`（常跟着 `Component is not found in path "wx://not-found"`），而这个文件在磁盘上、已入 git | 开发者工具的增量编译漏掉了这个模块，常见于开着项目时 git 一次写进新模块和引用它的页面（2026-11-08 那次是 rebase，开发者工具 2.02.2609250）；`npm run devtools:timeline` 能看到编译前的那批 `onFileChange add`。请维护者关闭并重新打开项目后重跑预检；只改修改时间或改名再改回都会触发重编译，但恢复不了。判据：页面没注册时框架照样记 onLoad，但每个页面的 data 都用 safeArea 调 `wx.getWindowInfo`，所以正常启动在第一个页面的 onLoad 之前有这条调用，漏掉时一条 API 调用都没有。 |
 | 只需外观确认，automator / MCP 均不可用 | 在任务已授权只读截图与窗口激活时，Kimi Code 可用 `kimi-cu-win` 直接按「微信开发者工具」定位窗口，最小化时先激活再截图；只证明当时可见画面，不证明实际视口、交互或小屏验收。 |
-| MCP 预检失败 | 先看 FAIL 行附带的错误摘要；不够再定向查看本次脱敏日志，核对 IDE 中现有 MCP token、项目路径和已打开的项目窗口。 |
+| MCP 预检先 `PASS MCP bridge`，再报 `FAIL MCP runtime: simulator automator did not answer` | bridge、token、客户端授权和项目路径都通，是模拟器里的 automator 没应答（`timeout waiting for automator response`），不取决于 9420 开没开：2026-11-08 出现时 9420 没在监听，2026-11-09 9420 同样没监听、项目窗口还最小化着，这一步却 PASS；2026-10-10 自动化端口开在 15080 时，`miniprogram-automator` 也报同一句（见 `docs/verification-log.md`）；2026-11-07 有两次单张截图首次报这句，重试后截到。隔几秒重跑一次；仍失败就在汇报里把 `automation_*` 工具记为不可用。console 照常用 `get_simulator_console` 读，它不经过 automator（2026-11-08 实测）。 |
+| 其他 MCP 预检失败 | 先看 FAIL 行附带的错误摘要；不够再定向查看本次脱敏日志，核对 IDE 中现有 MCP token、项目路径和已打开的项目窗口。 |
 | MCP 返回 `Client authorization pending` | 在 IDE 中批准 `minmin-devtools` 客户端后重跑；token 有效不等于新客户端已获准。 |
+| IDE 里的表现和磁盘对不上（报错指向磁盘上好好的文件，或改动迟迟不生效），上面又没有对应行 | 先请维护者关闭并重新打开项目，再重跑预检；重开后还能复现，再按下文「代码质量扫描口径」的回查规则，用 `asar_extract.py grep` 查开发者工具源码。2026-11-08 先读源码、改修改时间、改名再改回，都没修好，重开项目就好了。 |
 
 ```powershell
 npm run devtools:cli -- auto --project 'D:\agents\projects\敏敏子日历' --port 9420 --timeout 15000
@@ -35,7 +37,7 @@ node tests/devtoolsCapture.mjs --ws ws://127.0.0.1:9420 --states 'home,home:tool
 
 `devtools:cli` 使用安装包中的官方 CLI 入口，自动把项目路径规范为 Windows 原生绝对路径，并为 `auto` 添加 `--trust-project`。支持 `islogin`、`open`、`close`、`auto`，默认 10 秒、最多 60 秒；输出只含命令、状态和退出码，不输出登录原文。超时返回 124，并终止本次启动的 CLI 进程树；不会终止已运行的 IDE。`ok` 只代表 CLI 退出成功，页面是否就绪仍需运行态检查。预检的登录检查共用此入口。
 
-要看编译、重载和页面 webview 的先后（比如上表的启动后没加载页面），运行 `npm run devtools:timeline -- --from 20:26 --to 20:28`。它从本项目所在 profile 的 IDE 日志里挑出编译、appservice 重载与启动、`WEBVIEW_PAGEFRAME` 创建与销毁、调试面板加载，以及除已知噪音外的 WARN/ERROR，按时间排好。只写时分秒时按今天算，默认看最近 10 分钟；输出里的 openid 和 token 已替换。
+要看编译、重载、页面 webview 和文件增删的先后（比如上表的启动后没加载页面、编译漏掉新模块），运行 `npm run devtools:timeline -- --from 20:26 --to 20:28`。它从本项目所在 profile 的 IDE 日志里挑出编译、appservice 重载与启动、`WEBVIEW_PAGEFRAME` 创建与销毁、调试面板加载、代码文件（js、ts、wxml、wxss、wxs、json）的新增与删除，以及除已知噪音外的 WARN/ERROR，按时间排好。只写时分秒时按今天算，默认看最近 10 分钟；输出里的 openid 和 token 已替换。
 
 ## 基础库资源诊断
 
@@ -65,6 +67,8 @@ npm run devtools:mcp -- --list
 npm run devtools:mcp -- --schema automation_evaluate
 npm run devtools:mcp -- --requests .scratch/devtools/requests.json
 ```
+
+`--preflight` 分两步：先用 `get_simulator_console` 读一行 console 缓存，它不经过模拟器里的 automator，PASS 说明 bridge、token、客户端授权和项目路径都通；再用 `automation_runtime_info` 取 systemInfo，PASS 行带实际视口。
 
 token 依次取 `WECHAT_MCP_TOKEN`、本机密钥库里的 `wechat-devtools-mcp-token`、终端隐藏输入。密钥库只需你在自己的终端录入一次：`pwsh -NoProfile -File 'D:/Codex/.codex/scripts/Set-LocalSecret.ps1' -Name wechat-devtools-mcp-token`（输入不回显，只有本机同一用户能解密；IDE 里换了 token 时加 `-Replace` 重录）。录入后 Agent 跑 `devtools:mcp` 不用再把命令交给你；只有元数据可查：`python -B -I 'D:/Codex/.codex/scripts/local_secret.py' --info wechat-devtools-mcp-token`。调用入口不接受 token 参数，凭据不写入请求文件或日志；启动官方 bridge 时仍按其接口通过子进程参数传递 token。调用器使用安装目录中的官方 MCP 入口，`--ide` 可覆盖安装位置；不会修改 IDE 文件。默认仅列工具名称，只有 `--schema <精确工具名>` 输出该工具 schema。
 

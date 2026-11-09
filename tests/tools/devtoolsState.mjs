@@ -92,16 +92,27 @@ export function readLifecycleLog(dataDirs, appid) {
 }
 
 // 行形如 `2026-11-7 21:0:32 [log] page pages/bind/bind onLoad have been invoked`，月日时分秒都不补零。
-// 每次 App onLaunch 配上它之后、下一次 onLaunch 之前的第一条页面 onLoad；page 为 null 表示这次启动没加载页面。
+// 每次 App onLaunch 收下它之后、下一次 onLaunch 之前依次 onLoad 的页面：page 是第一个，为 null 表示这次启动没加载页面。
+// pageCodeRan 记第一个页面 onLoad 之前有没有 `wx.* api invoke`：每个页面的 data 都用 utils/safeArea 算安全区，页面模块
+// 注册时就调 wx.getWindowInfo，app.js 在这之前不调 wx 接口。页面注册失败（如 require 报 module '…' is not defined）时
+// 框架照样记 onLoad，但之前一条接口调用都没有（2026-11-08 实测）。
 export function appLaunches(logText) {
   const launches = []
   for (const line of logText.split(/\r?\n/)) {
     const match = /^(\d{4})-(\d{1,2})-(\d{1,2}) (\d{1,2}):(\d{1,2}):(\d{1,2}) \[\w+\] (.*)$/.exec(line.trim())
     if (!match) continue
     const [year, month, day, hour, minute, second] = match.slice(1, 7).map(Number)
-    if (match[7] === 'App onLaunch have been invoked') launches.push({ at: new Date(year, month - 1, day, hour, minute, second), page: null })
+    if (match[7] === 'App onLaunch have been invoked') {
+      launches.push({ at: new Date(year, month - 1, day, hour, minute, second), page: null, pages: [], pageCodeRan: false })
+      continue
+    }
+    const launch = launches.at(-1)
+    if (!launch) continue
     const page = /^page (\S+) onLoad have been invoked$/.exec(match[7])
-    if (page && launches.length && !launches.at(-1).page) launches.at(-1).page = page[1]
+    if (page) {
+      launch.pages.push(page[1])
+      launch.page ??= page[1]
+    } else if (!launch.page && /^wx\.\w+ api invoke$/.test(match[7])) launch.pageCodeRan = true
   }
   return launches
 }

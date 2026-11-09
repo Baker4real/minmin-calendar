@@ -28,12 +28,36 @@ test('preflight fails when the latest app launch loaded no page, because page lo
   const { launchResult } = await import('./tools/devtoolsPreflight.mjs')
   const launchedAt = new Date(2026, 10, 7, 20, 27, 24)
   const minuteLater = launchedAt.getTime() + 60000
-  assert.deepEqual(launchResult([{ at: new Date(2026, 10, 7, 20, 27, 20), page: null }, { at: launchedAt, page: 'pages/bind/bind' }], minuteLater), {
+  const none = { page: null, pages: [], pageCodeRan: false }
+  assert.deepEqual(launchResult([{ at: new Date(2026, 10, 7, 20, 27, 20), ...none }, { at: launchedAt, page: 'pages/bind/bind', pages: ['pages/bind/bind'], pageCodeRan: true }], minuteLater), {
     name: 'Latest app launch loaded a page', ok: true, note: 'pages/bind/bind, launched 2026-11-07 20:27:24',
   })
-  const noPage = launchResult([{ at: launchedAt, page: null }], minuteLater)
+  const noPage = launchResult([{ at: launchedAt, ...none }], minuteLater)
   assert.equal(noPage.ok, false)
   assert.match(noPage.error, /launched 2026-11-07 20:27:24 without loading a page; click 编译/)
-  assert.equal(launchResult([{ at: launchedAt, page: null }], launchedAt.getTime() + 2000).skipped, true)
+  assert.equal(launchResult([{ at: launchedAt, ...none }], launchedAt.getTime() + 2000).skipped, true)
   assert.equal(launchResult([]).skipped, true)
+})
+
+test('preflight fails when the first page logged onLoad but its code never ran, because a page that failed to register still logs onLoad', async () => {
+  const { launchResult } = await import('./tools/devtoolsPreflight.mjs')
+  const at = new Date(2026, 10, 8, 23, 30, 31)
+  const dead = launchResult([{ at, page: 'pages/bind/bind', pages: ['pages/bind/bind'], pageCodeRan: false }], at.getTime() + 60000)
+  assert.equal(dead.ok, false)
+  assert.match(dead.error, /launched 2026-11-08 23:30:31: pages\/bind\/bind logged onLoad but its page code never ran/)
+  assert.match(dead.error, /close and reopen the project in DevTools/)
+})
+
+test('a failing launch check lists the recent launches with the pages each one reached', async () => {
+  const { launchLines } = await import('./tools/devtoolsPreflight.mjs')
+  assert.deepEqual(launchLines([
+    { at: new Date(2026, 10, 8, 18, 29, 0), page: 'pages/bind/bind', pages: ['pages/bind/bind'], pageCodeRan: true },
+    { at: new Date(2026, 10, 8, 18, 29, 46), page: 'pages/bind/bind', pages: ['pages/bind/bind', 'pages/bind/bind', 'pages/index/index'], pageCodeRan: true },
+    { at: new Date(2026, 10, 8, 22, 8, 43), page: 'pages/bind/bind', pages: ['pages/bind/bind'], pageCodeRan: false },
+    { at: new Date(2026, 10, 8, 22, 9, 0), page: null, pages: [], pageCodeRan: false },
+  ], 3), [
+    '2026-11-08 18:29:46 pages/bind/bind > pages/index/index',
+    '2026-11-08 22:08:43 pages/bind/bind (page code never ran)',
+    '2026-11-08 22:09:00 no page loaded',
+  ])
 })
