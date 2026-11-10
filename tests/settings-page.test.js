@@ -327,6 +327,65 @@ test('both unbind entries preserve confirmation, cancellation, failures and succ
   }
 })
 
+test('settings leave still returns to verified bind when writing its optional notice fails', async (t) => {
+  const app = settingsApp(t, { storage: { roomCode: 'ROOM01' } })
+  const page = app.launch('/pages/settings/settings')
+  await app.settle()
+  const setStorageSync = app.wx.setStorageSync
+  let noticeWrites = 0
+  app.wx.setStorageSync = (key, value) => {
+    if (key === 'bindUnbindNotice') {
+      noticeWrites += 1
+      throw new Error('notice storage write failed')
+    }
+    return setStorageSync(key, value)
+  }
+  app.cloud.when('leaveRoom').reply({ code: 0 })
+  app.cloud.when('getMyRoom').reply({ code: 0, room: null })
+  app.respondNext('showModal', { confirm: true })
+  await app.dispatch(page, 'unbind')
+  await app.settle()
+  assert.equal(noticeWrites, 1)
+  assert.deepEqual(app.cloud.calls.map(call => call.name), ['getMyRoom', 'leaveRoom', 'getMyRoom'])
+  assert.equal(app.storage.roomCode, undefined)
+  assert.equal(app.storage.bindUnbindNotice, undefined)
+  assert.equal(app.navigation.at(-1).method, 'reLaunch')
+  assert.equal(app.currentPage.route, 'pages/bind/bind')
+  assert.equal(app.currentPage.data.verifying, false)
+  assert.equal(app.currentPage.data.bound, false)
+  assert.equal(app.currentPage.data.errorMsg, '')
+  assert.deepEqual(app.wx.toasts, [])
+})
+
+test('bind still verifies its Room when reading or removing the optional leave notice fails', async (t) => {
+  for (const method of ['getStorageSync', 'removeStorageSync']) {
+    await t.test(method, async (t) => {
+      const app = settingsApp(t, { storage: { bindUnbindNotice: '1' } })
+      app.cloud.when('getMyRoom').reply({ code: 0, room: null })
+      const storageOperation = app.wx[method]
+      let noticeAttempts = 0
+      app.wx[method] = key => {
+        if (key === 'bindUnbindNotice') {
+          noticeAttempts += 1
+          throw new Error(`notice ${method} failed`)
+        }
+        return storageOperation(key)
+      }
+      const page = app.launch('/pages/bind/bind')
+      await app.settle()
+      assert.equal(noticeAttempts, 1)
+      assert.deepEqual(app.cloud.calls.map(call => call.name), ['getMyRoom'])
+      assert.equal(app.currentPage, page)
+      assert.equal(page.data.verifying, false)
+      assert.equal(page.data.bound, false)
+      assert.equal(page.data.errorMsg, '')
+      assert.equal(page.data.checkFailed, false)
+      assert.equal(app.storage.bindUnbindNotice, '1')
+      assert.deepEqual(app.wx.toasts, method === 'getStorageSync' ? [] : [{ title: '已解除绑定', icon: 'none' }])
+    })
+  }
+})
+
 test('settings shows membership and announces only a waiting-to-paired transition', async (t) => {
   for (const initialStatus of ['waiting', 'paired']) {
     await t.test(initialStatus, async (t) => {

@@ -23,7 +23,12 @@ function leaveRoom({ onResult, notifyOnBind = false }) {
         onResult({ kind: 'failure', message: result.msg || '解除绑定失败，请稍后重试' })
         return
       }
-      if (notifyOnBind) wxApi.setStorageSync(ROOM_LEAVE_NOTICE_KEY, '1')
+      if (notifyOnBind) {
+        // Optional feedback must not block navigation after the server has left the Room.
+        try {
+          wxApi.setStorageSync(ROOM_LEAVE_NOTICE_KEY, '1')
+        } catch (e) {}
+      }
       onResult({ kind: 'success' })
     },
     fail: error => onResult({
@@ -35,8 +40,15 @@ function leaveRoom({ onResult, notifyOnBind = false }) {
 
 function consumeRoomLeaveNotice() {
   const wxApi = getWx()
-  if (!wxApi.getStorageSync(ROOM_LEAVE_NOTICE_KEY)) return
-  wxApi.removeStorageSync(ROOM_LEAVE_NOTICE_KEY)
+  // Notice storage is best-effort; Room verification must still run on Bind.
+  let notice = ''
+  try {
+    notice = wxApi.getStorageSync(ROOM_LEAVE_NOTICE_KEY)
+  } catch (e) {}
+  if (!notice) return
+  try {
+    wxApi.removeStorageSync(ROOM_LEAVE_NOTICE_KEY)
+  } catch (e) {}
   wxApi.showToast({ title: '已解除绑定', icon: 'none' })
 }
 
