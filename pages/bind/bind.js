@@ -4,9 +4,6 @@ const cloud = require('../../utils/cloud')
 const safeArea = require('../../utils/safeArea')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 
-// 云端 create/join 拒绝「已在其他房间」时返回的固定短语（roomMembershipLifecycle），
-// 命中时当前屏直接提供解除绑定，而不是只留一句错误
-const LEAVE_ROOM_REQUIRED_HINT = '请先解除绑定'
 const ROOM_CODE_LENGTH = 6
 
 function inviteCodeFromLaunchQuery(options) {
@@ -28,10 +25,6 @@ async function restoredRoomNotice() {
   } catch (error) {
     return ''
   }
-}
-
-function isLeaveRoomRequired(msg) {
-  return typeof msg === 'string' && msg.indexOf(LEAVE_ROOM_REQUIRED_HINT) !== -1
 }
 
 Page(withPageVisibility({
@@ -61,21 +54,8 @@ Page(withPageVisibility({
   },
 
   onShow() {
-    this.consumeUnbindNotice()
+    settingsFlow.consumeRoomLeaveNotice()
     return this.checkRoom()
-  },
-
-  // issue #139：设置页解绑成功后，绑定页提示一次「已解除绑定」
-  consumeUnbindNotice() {
-    let notice = ''
-    try {
-      notice = wx.getStorageSync('bindUnbindNotice')
-    } catch (e) {}
-    if (!notice) return
-    try {
-      wx.removeStorageSync('bindUnbindNotice')
-    } catch (e) {}
-    wx.showToast({ title: '已解除绑定', icon: 'none' })
   },
 
   async checkRoom() {
@@ -132,7 +112,7 @@ Page(withPageVisibility({
       const restoredNotice = await restoredRoomNotice()
       if (restoredNotice) this.setData({ restoredNotice })
     } else {
-      this.setData({ errorMsg: res.msg, needUnbind: isLeaveRoomRequired(res.msg) })
+      this.setData({ errorMsg: res.msg, needUnbind: res.reason === 'already-in-other-room' })
     }
     this.setData({ loading: false })
   },
@@ -149,7 +129,7 @@ Page(withPageVisibility({
       wx.showToast({ title: '已和 TA 连上' })
       this.goHome()
     } else {
-      this.setData({ errorMsg: res.msg, needUnbind: isLeaveRoomRequired(res.msg) })
+      this.setData({ errorMsg: res.msg, needUnbind: res.reason === 'already-in-other-room' })
     }
     this.setData({ loading: false })
   },
@@ -179,20 +159,12 @@ Page(withPageVisibility({
   },
 
   unbind() {
-    wx.showModal({
-      title: '解除绑定',
-      content: '解除绑定后你会退出这个房间。TA 还在的话会留在房间里；房间里只剩你时，房间会归档。之后在绑定页点「创建」即可恢复。',
-      confirmText: '解除绑定',
-      confirmColor: '#F97373',
-      success: async (res) => {
-        if (res.confirm) {
-          const result = await roomSession.leaveRoom()
-          if (result.code === 0) {
-            this.setData({ bound: false, roomCode: '', joinCode: '', errorMsg: '', needUnbind: false })
-            return
-          }
-
-          this.setData({ errorMsg: result.msg || '解除绑定失败，请稍后重试' })
+    settingsFlow.leaveRoom({
+      onResult: result => {
+        if (result.kind === 'success') {
+          this.setData({ bound: false, roomCode: '', joinCode: '', errorMsg: '', needUnbind: false })
+        } else if (result.kind === 'failure') {
+          this.setData({ errorMsg: result.message })
         }
       }
     })

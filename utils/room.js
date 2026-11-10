@@ -2,6 +2,15 @@ const ROOM_CODE_KEY = 'roomCode'
 const roomAccessOutcome = require('./roomAccessOutcome')
 const roomPresence = require('./roomPresence')
 
+// Only create/join code -5 means membership in another Room; copy is independently filtered.
+function roomEntryFailure(result, logger) {
+  return {
+    code: -1,
+    reason: result?.code === -5 ? 'already-in-other-room' : 'other-failure',
+    msg: roomAccessOutcome.presentUserFailure(result?.msg, logger)
+  }
+}
+
 function createRoomSession(options = {}) {
   const storage = options.storage || createWxStorage()
   const cloud = options.cloud || createWxCloud()
@@ -105,26 +114,26 @@ function createRoomSession(options = {}) {
       try {
         const res = await cloud.callFunction({ name: 'createRoom' })
         if (res.result?.code !== 0) {
-          return { code: -1, msg: roomAccessOutcome.presentUserFailure(res.result?.msg, logger) }
+          return roomEntryFailure(res.result, logger)
         }
 
         const room = res.result.room || {}
         const roomCode = normalizeRoomCode(room.roomCode)
         if (!roomCode) {
-          return { code: -1, msg: roomAccessOutcome.presentUserFailure('创建失败：房间码为空', logger) }
+          return roomEntryFailure({ msg: '创建失败：房间码为空' }, logger)
         }
 
         storage.set(ROOM_CODE_KEY, roomCode)
         return { code: 0, roomCode, room: { ...room, roomCode } }
       } catch (error) {
-        return { code: -1, msg: roomAccessOutcome.presentUserFailure(getErrorMessage(error), logger) }
+        return roomEntryFailure({ msg: getErrorMessage(error) }, logger)
       }
     },
 
     async joinRoom(rawRoomCode) {
       const roomCode = normalizeRoomCode(rawRoomCode)
       if (roomCode.length !== 6) {
-        return { code: -1, msg: '请输入6位房间码' }
+        return roomEntryFailure({ msg: '请输入6位房间码' }, logger)
       }
 
       try {
@@ -133,7 +142,7 @@ function createRoomSession(options = {}) {
           data: { roomCode }
         })
         if (res.result?.code !== 0) {
-          return { code: -1, msg: roomAccessOutcome.presentUserFailure(res.result?.msg, logger) }
+          return roomEntryFailure(res.result, logger)
         }
 
         const joinedRoomCode = normalizeRoomCode(res.result.roomCode) || roomCode
@@ -141,7 +150,7 @@ function createRoomSession(options = {}) {
         roomPresence.markPartnerWelcomePending(storage)
         return { code: 0, roomCode: joinedRoomCode }
       } catch (error) {
-        return { code: -1, msg: roomAccessOutcome.presentUserFailure(getErrorMessage(error), logger) }
+        return roomEntryFailure({ msg: getErrorMessage(error) }, logger)
       }
     },
 

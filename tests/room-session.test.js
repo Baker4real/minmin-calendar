@@ -257,7 +257,7 @@ test('RoomSession createRoom tells the user to retry and keeps a raw cloud timeo
 
   const result = await session.createRoom()
 
-  assert.deepEqual(result, { code: -1, msg: '网络不太稳定，请重试' })
+  assert.deepEqual(result, { code: -1, reason: 'other-failure', msg: '网络不太稳定，请重试' })
   assert.equal(JSON.stringify(result).includes('15000'), false)
   assert.match(logs.join('\n'), /15000ms/)
 })
@@ -280,7 +280,7 @@ test('RoomSession createRoom rewrites a raw timeout returned by the cloud functi
 
   const result = await session.createRoom()
 
-  assert.deepEqual(result, { code: -1, msg: '网络不太稳定，请重试' })
+  assert.deepEqual(result, { code: -1, reason: 'other-failure', msg: '网络不太稳定，请重试' })
   assert.equal(JSON.stringify(result).includes('15000'), false)
   assert.match(logs.join('\n'), /15000ms/)
 })
@@ -301,7 +301,7 @@ test('RoomSession createRoom hides an empty room code and asks the user to retry
 
   const result = await session.createRoom()
 
-  assert.deepEqual(result, { code: -1, msg: '这次没有完成，请重试' })
+  assert.deepEqual(result, { code: -1, reason: 'other-failure', msg: '这次没有完成，请重试' })
   assert.equal(JSON.stringify(result).includes('房间码为空'), false)
   assert.match(logs.join('\n'), /房间码为空/)
 })
@@ -338,7 +338,7 @@ test('RoomSession joinRoom tells the user to retry and keeps a raw cloud timeout
 
   const result = await session.joinRoom('ROOM04')
 
-  assert.deepEqual(result, { code: -1, msg: '网络不太稳定，请重试' })
+  assert.deepEqual(result, { code: -1, reason: 'other-failure', msg: '网络不太稳定，请重试' })
   assert.equal(JSON.stringify(result).includes('15000'), false)
   assert.match(logs.join('\n'), /15000ms/)
 })
@@ -361,7 +361,7 @@ test('RoomSession joinRoom rewrites a raw error returned by the cloud function',
 
   const result = await session.joinRoom('ROOM04')
 
-  assert.deepEqual(result, { code: -1, msg: '这次没有完成，请重试' })
+  assert.deepEqual(result, { code: -1, reason: 'other-failure', msg: '这次没有完成，请重试' })
   assert.equal(JSON.stringify(result).includes('TypeError'), false)
   assert.match(logs.join('\n'), /TypeError/)
 })
@@ -382,7 +382,7 @@ test('RoomSession joinRoom keeps a room-code refusal the user can act on', async
 
   const result = await session.joinRoom('ROOM04')
 
-  assert.deepEqual(result, { code: -1, msg: '房间不存在，请检查房间码' })
+  assert.deepEqual(result, { code: -1, reason: 'other-failure', msg: '房间不存在，请检查房间码' })
   assert.deepEqual(logs, [])
 })
 
@@ -402,7 +402,7 @@ test('RoomSession createRoom keeps the still-in-a-room refusal the bind page use
 
   const result = await session.createRoom()
 
-  assert.deepEqual(result, { code: -1, msg: '你已加入其他房间，请先解除绑定后再创建新房间' })
+  assert.deepEqual(result, { code: -1, reason: 'already-in-other-room', msg: '你已加入其他房间，请先解除绑定后再创建新房间' })
   assert.deepEqual(logs, [])
 })
 
@@ -441,7 +441,7 @@ test('RoomSession joinRoom rejects invalid room codes before cloud calls', async
 
   const result = await session.joinRoom('ABC')
 
-  assert.deepEqual(result, { code: -1, msg: '请输入6位房间码' })
+  assert.deepEqual(result, { code: -1, reason: 'other-failure', msg: '请输入6位房间码' })
   assert.deepEqual(cloud.calls, [])
 })
 

@@ -218,49 +218,112 @@ test('settings and the refused-bind entry show the same unbind confirmation', as
   assert.deepEqual(confirmations[1], confirmations[0])
 })
 
-test('confirmed settings unbind waits for the server then relaunches bind with a one-time notice', async (t) => {
-  const app = settingsApp(t, { storage: { roomCode: 'ROOM01' } })
-  const leaving = app.cloud.when('leaveRoom').defer()
-  const page = app.launch('/pages/settings/settings')
-  await app.settle()
-  app.respondNext('showModal', { confirm: true })
-  await app.dispatch(page, 'unbind')
-  await app.settle()
-  assert.equal(app.storage.roomCode, 'ROOM01')
-  assert.equal(app.currentPage, page)
-  app.cloud.when('getMyRoom').reply({ code: 0, room: null })
-  leaving.resolve({ code: 0 })
-  await app.settle()
-  assert.equal(app.cloud.calls.filter(call => call.name === 'leaveRoom').length, 1)
-  assert.equal(app.storage.roomCode, undefined)
-  assert.equal(app.navigation.at(-1).method, 'reLaunch')
-  assert.equal(app.currentPage.route, 'pages/bind/bind')
-  assert.equal(app.wx.toasts.filter(toast => toast.title === '已解除绑定').length, 1)
-  assert.equal(app.storage.bindUnbindNotice, undefined)
-  app.hide()
-  app.show()
-  await app.settle()
-  assert.equal(app.wx.toasts.filter(toast => toast.title === '已解除绑定').length, 1)
-})
-
-test('cancelled and failed settings unbind preserve the room and stay on settings', async (t) => {
-  for (const confirm of [false, true]) {
-    await t.test(confirm ? 'server failure' : 'cancel', async (t) => {
-      const app = settingsApp(t, { storage: { roomCode: 'ROOM01' } })
-      app.cloud.when('leaveRoom').reply({ code: -1, msg: '解除绑定失败，请稍后重试' })
-      const page = app.launch('/pages/settings/settings')
+test('both unbind entries report a failed confirmation without leaving the room', async (t) => {
+  for (const route of ['settings', 'bind']) {
+    await t.test(route, async (t) => {
+      const app = settingsApp(t, { storage: route === 'settings' ? { roomCode: 'ROOM01' } : {} })
+      if (route === 'bind') {
+        app.cloud.when('getMyRoom').reply({ code: 0, room: null })
+        app.cloud.when('createRoom').reply({ code: -5, msg: '你目前属于另一个房间' })
+      }
+      const page = app.launch(`/pages/${route}/${route}`)
       await app.settle()
-      app.respondNext('showModal', { confirm, cancel: !confirm })
+      if (route === 'bind') await app.dispatch(page, 'createRoom')
+      app.respondNext('showModal', new Error('showModal:fail'))
       await app.dispatch(page, 'unbind')
       await app.settle()
-      assert.equal(app.cloud.calls.filter(call => call.name === 'leaveRoom').length, confirm ? 1 : 0)
+      assert.equal(app.cloud.calls.some(call => call.name === 'leaveRoom'), false)
       assert.equal(app.currentPage, page)
-      assert.equal(app.navigation.length, 1)
-      assert.equal(page.data.roomCode, 'ROOM01')
-      assert.equal(app.storage.roomCode, 'ROOM01')
+      const message = route === 'bind' ? page.data.errorMsg : app.wx.toasts.at(-1)?.title
+      assert.equal(message, '这次没有完成，请重试')
       assert.equal(app.storage.bindUnbindNotice, undefined)
-      assert.deepEqual(app.wx.toasts.map(toast => toast.title), confirm ? ['解除绑定失败，请稍后重试'] : [])
     })
+  }
+})
+
+test('both unbind entries preserve confirmation, cancellation, failures and successful leave behavior', async (t) => {
+  const scenarios = [
+    { name: 'cancel', confirm: false },
+    { name: 'business refusal', result: { code: -1, msg: '解除绑定失败，请稍后重试' }, message: '解除绑定失败，请稍后重试' },
+    { name: 'filtered server failure', result: { code: -1, msg: 'TypeError: unavailable' }, message: '这次没有完成，请重试' },
+    { name: 'network rejection', error: new Error('network down'), message: '网络不太稳定，请重试' },
+    { name: 'success', result: { code: 0 } }
+  ]
+  for (const route of ['settings', 'bind']) {
+    for (const scenario of scenarios) {
+      await t.test(`${route}: ${scenario.name}`, async (t) => {
+        const app = settingsApp(t, { storage: route === 'settings' ? { roomCode: 'ROOM01' } : {} })
+        if (route === 'bind') {
+          app.cloud.when('getMyRoom').reply({ code: 0, room: null })
+          app.cloud.when('joinRoom').reply({ code: -5, msg: '你目前属于另一个房间' })
+        }
+        const page = app.launch(`/pages/${route}/${route}${route === 'bind' ? '?roomCode=ROOM02' : ''}`)
+        await app.settle()
+        if (route === 'bind') {
+          await app.dispatch(page, 'joinRoom')
+          assert.equal(page.data.needUnbind, true)
+        }
+        const originalRoomCode = page.data.roomCode
+        const cachedRoomCode = app.storage.roomCode
+        const leaving = app.cloud.when('leaveRoom').defer()
+        await app.dispatch(page, 'unbind')
+        await app.settle()
+        assert.equal(app.wx.modals.length, 1)
+        assert.equal(app.cloud.calls.some(call => call.name === 'leaveRoom'), false, 'confirmation must precede the server call')
+        const confirm = scenario.confirm !== false
+        app.respond('showModal', 0, { confirm, cancel: !confirm })
+        await app.settle()
+        assert.equal(app.cloud.calls.filter(call => call.name === 'leaveRoom').length, confirm ? 1 : 0)
+        assert.equal(app.currentPage, page)
+        assert.equal(page.data.roomCode, originalRoomCode)
+        assert.equal(app.storage.roomCode, cachedRoomCode, 'do not clear the Room while leave is pending')
+        assert.equal(app.storage.bindUnbindNotice, undefined)
+        assert.deepEqual(app.wx.toasts, [])
+        if (!confirm) {
+          assert.equal(app.navigation.length, 1)
+          if (route === 'bind') assert.equal(page.data.needUnbind, true)
+          return
+        }
+        if (scenario.name === 'success') app.cloud.when('getMyRoom').reply({ code: 0, room: null })
+        if (scenario.error) leaving.reject(scenario.error)
+        else leaving.resolve(scenario.result)
+        await app.settle()
+        if (scenario.message) {
+          assert.equal(app.currentPage, page)
+          assert.equal(app.navigation.length, 1)
+          assert.equal(page.data.roomCode, originalRoomCode)
+          assert.equal(app.storage.roomCode, cachedRoomCode)
+          assert.equal(app.storage.bindUnbindNotice, undefined)
+          if (route === 'bind') {
+            assert.equal(page.data.errorMsg, scenario.message)
+            assert.equal(page.data.needUnbind, true)
+            assert.equal(page.data.joinCode, 'ROOM02')
+          } else {
+            assert.deepEqual(app.wx.toasts, [{ title: scenario.message, icon: 'none' }])
+          }
+          return
+        }
+        assert.equal(app.storage.roomCode, undefined)
+        assert.equal(app.currentPage.route, 'pages/bind/bind')
+        assert.equal(app.currentPage.data.bound, false)
+        assert.equal(app.currentPage.data.roomCode, '')
+        assert.equal(app.currentPage.data.joinCode, '')
+        assert.equal(app.currentPage.data.needUnbind, false)
+        assert.equal(app.currentPage.data.errorMsg, '')
+        assert.equal(app.navigation.length, route === 'settings' ? 2 : 1)
+        if (route === 'settings') assert.equal(app.navigation.at(-1).method, 'reLaunch')
+        else assert.equal(app.currentPage, page)
+        const notices = route === 'settings' ? [{ title: '已解除绑定', icon: 'none' }] : []
+        assert.deepEqual(app.wx.toasts, notices)
+        assert.equal(app.storage.bindUnbindNotice, undefined)
+        for (let visit = 0; visit < 2; visit += 1) {
+          app.hide()
+          app.show()
+          await app.settle()
+          assert.deepEqual(app.wx.toasts, notices, 'the leave notice must never repeat')
+        }
+      })
+    }
   }
 })
 
