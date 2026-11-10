@@ -312,6 +312,45 @@ test('period: merged save replaces the form, updates home once and moves drafts 
   assert.equal(cell(home, '2026-09-06').isPeriod, false, 'completion updates the original band instead of adding another period')
 })
 
+test('period: merge replaces visible labels and draft baseline before the same editor saves an update', async (t) => {
+  const app = setup(t)
+  const { page } = await openEditor(app, period)
+  const existing = { _id: 'ongoing', ...period.payload, startDate: '2026-09-01', note: '已有备注', flow: 'light', symptoms: ['tired'] }
+  await app.dispatch(page, 'onNoteInput', value('本次新增输入'))
+  app.hide()
+  app.show()
+  cloudRoute(app, period, 'add').reply({ code: 0, reopened: true, record: existing })
+  app.respondNext('showModal', { confirm: true })
+  await app.dispatch(page, 'save')
+  assert.equal(page.data.id, 'ongoing')
+  assert.equal(page.data.startDateLabel, '9月1日')
+  assert.equal(page.data.endDateLabel, '')
+  assert.equal(page.data.note, '已有备注')
+  app.hide()
+  app.show()
+  assert.equal(app.storage[draftKey(period)], undefined)
+  assert.equal(app.storage[draftKey(period, 'ongoing')], undefined, 'unchanged merged fields are the new baseline')
+  await app.dispatch(page, 'onNoteInput', value('修改这条记录'))
+  app.hide()
+  app.show()
+  assert.deepEqual(JSON.parse(app.storage[draftKey(period, 'ongoing')]), {
+    startDate: '2026-09-01', endDate: '', status: 'ongoing', note: '修改这条记录', flow: 'light', symptoms: ['tired']
+  })
+  await app.dispatch(page, 'onNoteInput', value('已有备注'))
+  app.hide()
+  app.show()
+  assert.equal(app.storage[draftKey(period, 'ongoing')], undefined)
+  await app.dispatch(page, 'onNoteInput', value('再次保存'))
+  cloudRoute(app, period, 'update').reply({ code: 0, record: { ...existing, note: '再次保存' } })
+  await app.dispatch(page, 'save')
+  assert.deepEqual(writes(app).map(call => [call.action, call.id]), [['add', ''], ['update', 'ongoing']])
+  assert.deepEqual(writes(app)[1].data, {
+    startDate: '2026-09-01', endDate: '', status: 'ongoing', note: '再次保存', duration: 0, flow: 'light', symptoms: ['tired']
+  })
+  assert.equal(app.storage[draftKey(period)], undefined)
+  assert.equal(app.storage[draftKey(period, 'ongoing')], undefined)
+})
+
 for (const spec of records) {
   test(`${spec.kind}: malformed route text stays editable and legacy success does not invent a home record`, async (t) => {
     const app = setup(t)

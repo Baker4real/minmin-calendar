@@ -12,19 +12,19 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 ## Project Shape
 
 - `pages/index/` - renders Calendar projection and forwards calendar/sheet/record events; keeps local reminder-seen storage, geometry and animation wiring, and the current page-local record synchronization and sync-pill timer pending the #182 migration.
-- `pages/period/` - 记录 tab hosting the segmented 经期/欢乐时光 lists, plus the period create/edit flow with optional flow and symptom tags.
-- `pages/memory/` - memory list plus create/edit flow.
+- `pages/period/` - 记录 tab hosting the segmented 经期/欢乐时光 lists; the Period editor renders its record-edit session and forwards form/lifecycle events.
+- `pages/memory/` - compatibility entry to the record tab, plus a Memory editor that renders its record-edit session and forwards form/lifecycle events.
 - `pages/bind/` - shared-room create, join, and recover flow.
 - `pages/settings/` - room code, room unbind, export, and local cache controls.
 - `utils/room.js` - room-code cache, recovery, create/join, leave, and local clear wrapper.
 - `utils/roomPresence.js` - one-time local flags for the partner welcome and the seen room status.
 - `utils/cloud.js` - frontend cloud-function access wrapper and room-scoped `RoomDataClient`.
 - `utils/roomResolver.js` - active-room resolution seam used by `RoomDataClient`, with an in-memory test adapter.
-- `utils/recordCommands.js` - Memory edit sessions own form state, drafts, validation and save/delete coordination; Period editing retains its legacy command adapters pending migration. Record-tab list feedback remains here; Room failures use `roomAccessOutcome` and `wxPrompts`.
+- `utils/recordCommands.js` - Period/Memory edit sessions own form state, identity-scoped drafts, validation and save/delete coordination. Period configuration adds status transitions, history-backed duration hints, overlap choices and reopened-record identity migration. Record-tab list feedback remains here; Room failures use `roomAccessOutcome` and `wxPrompts`.
 - `utils/recordPageSync.js` - saved/deleted record changes, previous-page notification, and the record-tab one-time segment intent.
 - `utils/recordDraft.js` - edit-form draft stash with an injected storage adapter; `createWxDraftStorage` is the only wx local-storage seam.
 - `utils/recordEditRoute.js` - Period/Memory edit URL construction and edit-page route option hydration, including the Memory date ceiling at today.
-- `utils/recordFieldErrors.js` - shared edit-page field errors: each error stays under its field, the first one scrolls below the fixed nav bar, and later edits re-check only the errors already shown.
+- `utils/recordFieldErrors.js` - shared session field-error retention and scrolling to the first invalid field below the fixed nav bar; sessions render each error under its field.
 - `utils/roomRecordsSnapshot.js` - room-scoped Period/Memory snapshot loader for homepage partial sync and Settings all-or-nothing export.
 - `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
 - `utils/roomAccessOutcome.js` - client-side classification of room access failures plus outcome presentation mapping.

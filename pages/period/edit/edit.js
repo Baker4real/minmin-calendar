@@ -1,354 +1,64 @@
-const util = require('../../../utils/util')
-const cloud = require('../../../utils/cloud')
-const cycle = require('../../../utils/cycle')
-const periodCoverage = require('../../../utils/periodCoverage')
 const recordCommands = require('../../../utils/recordCommands')
-const wxPrompts = require('../../../utils/wxPrompts')
-const recordDraft = require('../../../utils/recordDraft')
-const recordEditRoute = require('../../../utils/recordEditRoute')
-const recordFieldErrors = require('../../../utils/recordFieldErrors')
-const recordPageSync = require('../../../utils/recordPageSync')
 const safeArea = require('../../../utils/safeArea')
 const { withPageVisibility } = require('../../../utils/pageVisibility')
-
-const DRAFT_FIELDS = ['startDate', 'endDate', 'status', 'note', 'flow', 'symptoms']
-// 可定位的校验字段，按表单自上而下的顺序；滚动定位到第一个出错的字段
-const FIELD_ORDER = ['startDate', 'endDate']
-
-function displayDateLabel(dateStr) {
-  return util.formatDisplayDate(dateStr, { today: util.formatDate(new Date()) })
-}
-
-// 每个出错字段一句人话；都对时返回 null。只有已结束状态才校验结束日期。
-function collectPeriodFieldErrors({ startDate, endDate, status }, today) {
-  const errors = {}
-  if (!startDate) errors.startDate = '请选择开始日期'
-  else if (!util.isValidDateString(startDate)) errors.startDate = '请选择有效的开始日期'
-  else if (startDate > today) errors.startDate = '开始日期不能晚于今天'
-  if (status === 'known-end') {
-    if (!endDate) errors.endDate = '请选择结束日期；还没结束可以选「进行中」'
-    else if (!util.isValidDateString(endDate)) errors.endDate = '请选择有效的结束日期'
-    else if (!errors.startDate && startDate > endDate) errors.endDate = '结束日期不能早于开始'
-    else if (endDate > today) errors.endDate = '结束日期不能晚于今天'
-  }
-  return Object.keys(errors).length > 0 ? errors : null
-}
 
 Page(withPageVisibility({
   data: {
     safeTop: safeArea.getSafeTop(),
     safeBottom: safeArea.getSafeBottom(),
     navBarHeight: safeArea.getNavBarHeight(),
-    capsuleRight: safeArea.getCapsuleRightInset(),
-    id: '',
-    startDate: '',
-    endDate: '',
-    status: 'ongoing',
-    note: '',
-    flow: '',
-    symptoms: [],
-    flowOptions: cycle.FLOW_OPTIONS,
-    statusOptions: cycle.PERIOD_STATUS_OPTIONS,
-    symptomGroups: cycle.buildSymptomOptions(),
-    statusHint: cycle.periodStatusHint('ongoing'),
-    maxDate: '',
-    periodDayCountText: '',
-    periodLengthHint: '',
-    isEdit: false,
-    saving: false,
-    deleting: false,
-    submitted: false,
-    draftRestored: false,
-    fieldErrors: {}
+    capsuleRight: safeArea.getCapsuleRightInset()
   },
 
   onLoad(options) {
-    const today = util.formatDate(new Date())
-    const routeState = recordEditRoute.parsePeriodEditOptions(options, { today })
-    const draftStorage = recordDraft.createWxDraftStorage(wx)
-    const draftKey = recordDraft.buildDraftKey({ collection: 'periods', id: routeState.id })
-    const storedDraft = recordDraft.readDraft(draftStorage, draftKey)
-    const merged = storedDraft
-      ? { ...routeState, ...recordDraft.pickDraftFields(storedDraft, DRAFT_FIELDS) }
-      : routeState
-    // 状态是权威：旧草稿缺 status 时按已知日期重新推导，不隐含进行中
-    const status = periodCoverage.getPeriodStatus(merged)
-    const formState = {
-      ...merged,
-      status,
-      endDate: status === 'known-end' ? merged.endDate : ''
-    }
-    this._draftStorage = draftStorage
-    this._draftKey = draftKey
-    this._draftBaseline = recordDraft.pickDraftFields(routeState, DRAFT_FIELDS)
-    this._draftDiscarded = false
-    this._periodHistory = []
-    this.setData({
-      ...formState,
-      startDateLabel: displayDateLabel(formState.startDate),
-      endDateLabel: displayDateLabel(formState.endDate),
-      draftRestored: !!storedDraft,
-      symptomGroups: cycle.buildSymptomOptions(formState.symptoms),
-      statusHint: cycle.periodStatusHint(formState.status)
+    this._editSession = recordCommands.openRecordEditSession({
+      kind: 'period',
+      route: options,
+      render: state => this.setData(state)
     })
-    this.syncPeriodLengthHint()
-    if (storedDraft) {
-      wx.showToast({ title: '已恢复上次未完成的输入', icon: 'none' })
-    }
-    return this.loadPeriodHistory()
   },
 
   onHide() {
-    this.persistRecordDraft()
+    this._editSession.onHide()
   },
 
   onUnload() {
-    this.persistRecordDraft()
-  },
-
-  persistRecordDraft() {
-    if (this._draftDiscarded || !this._draftStorage) return
-    recordDraft.syncDraft(
-      this._draftStorage,
-      this._draftKey,
-      recordDraft.pickDraftFields(this.data, DRAFT_FIELDS),
-      this._draftBaseline
-    )
-  },
-
-  discardRecordDraft() {
-    this._draftDiscarded = true
-    if (this._draftStorage) recordDraft.clearDraft(this._draftStorage, this._draftKey)
+    this._editSession.onUnload()
   },
 
   onStartChange(e) {
-    this.setData({
-      startDate: e.detail.value,
-      startDateLabel: displayDateLabel(e.detail.value)
-    })
-    if (this.data.status === 'known-end' && this.data.endDate && this.data.startDate > this.data.endDate) {
-      this.setData({
-        endDate: this.data.startDate,
-        endDateLabel: displayDateLabel(this.data.startDate)
-      })
-    }
-    this.syncPeriodLengthHint()
-    this.refreshFieldErrors()
+    this._editSession.changeField('startDate', e.detail.value)
   },
+
   onEndChange(e) {
-    this.setData({
-      endDate: e.detail.value,
-      endDateLabel: displayDateLabel(e.detail.value)
-    })
-    this.syncPeriodLengthHint()
-    this.refreshFieldErrors()
+    this._editSession.changeField('endDate', e.detail.value)
   },
+
   selectStatus(e) {
-    if (this.data.saving) return
-    const status = e.currentTarget.dataset.value
-    if (!cycle.isPeriodStatus(status) || status === this.data.status) return
-    const update = { status, statusHint: cycle.periodStatusHint(status) }
-    // 只有完成进行中记录才把空结束日兜底为今天；其他切换保持为空
-    if (status === 'known-end' && !this.data.endDate && this.data.status === 'ongoing') {
-      const today = this.data.maxDate || util.formatDate(new Date())
-      if (!this.data.startDate || today >= this.data.startDate) {
-        update.endDate = today
-        update.endDateLabel = displayDateLabel(today)
-      }
-    }
-    this.setData(update)
-    this.syncPeriodLengthHint()
-    this.refreshFieldErrors()
+    this._editSession.changeField('status', e.currentTarget.dataset.value)
   },
-  onNoteInput(e) { this.setData({ note: e.detail.value }) },
+
+  onNoteInput(e) {
+    this._editSession.changeField('note', e.detail.value)
+  },
+
   selectFlow(e) {
-    if (this.data.saving) return
-    const flow = e.currentTarget.dataset.value
-    this.setData({ flow: this.data.flow === flow ? '' : flow })
+    this._editSession.changeField('flow', e.currentTarget.dataset.value)
   },
+
   toggleSymptom(e) {
-    if (this.data.saving) return
-    const value = e.currentTarget.dataset.value
-    const selected = new Set(this.data.symptoms)
-    if (selected.has(value)) selected.delete(value)
-    else selected.add(value)
-    const symptoms = Array.from(selected)
-    this.setData({
-      symptoms,
-      symptomGroups: cycle.buildSymptomOptions(symptoms)
-    })
+    this._editSession.changeField('symptoms', e.currentTarget.dataset.value)
   },
 
   goBack() {
     wx.navigateBack()
   },
 
-  async save() {
-    if (this.data.saving || this.data.deleting || this.data.submitted) return
-    if (this._overlapConfirming) return
-    const overlap = await this.resolveNewPeriodOverlap()
-    if (overlap !== 'save') return overlap
-    const { id, startDate, endDate, status, note, flow, symptoms, isEdit } = this.data
-    const today = util.formatDate(new Date())
-    const client = cloud.createRoomDataClient()
-    let submitted = null
-    const outcome = await recordCommands.runRecordSave({
-      page: this,
-      action: () => {
-        submitted = cycle.buildPeriodPayload({ startDate, endDate, status, note, flow, symptoms })
-        return isEdit ? client.update('periods', id, submitted) : client.add('periods', submitted)
-      },
-      refetch: () => client.list('periods'),
-      reconcile: {
-        id: isEdit ? id : '',
-        get fields() {
-          return submitted || {}
-        }
-      },
-      validate: () => collectPeriodFieldErrors({ startDate, endDate, status }, today),
-      successTitle: '保存成功',
-      mergedTitle: '已打开进行中的经期',
-      mergedContent: '房间里已有一条进行中的经期，已为你打开它'
-    })
-    if (outcome && outcome.kind === 'validation') {
-      this.showFieldErrors(outcome.fieldErrors)
-      return outcome
-    }
-    if (outcome && (outcome.kind === 'success' || outcome.kind === 'merged')) {
-      this.discardRecordDraft()
-    }
-    const savedRecord = recordPageSync.getSavedRecord(outcome)
-    if (outcome && outcome.kind === 'merged' && savedRecord) {
-      this.applyReopenedRecord(savedRecord)
-    }
-    recordPageSync.notifyRecordSaved({ collection: 'periods', isEdit, outcome })
-    return outcome
+  save() {
+    return this._editSession.save()
   },
 
-  // 字段错误的显示与清除规则和欢乐时光编辑页共用一份（utils/recordFieldErrors.js）
-  showFieldErrors(fieldErrors) {
-    recordFieldErrors.showFieldErrors(this, fieldErrors, FIELD_ORDER)
-  },
-
-  refreshFieldErrors() {
-    recordFieldErrors.refreshFieldErrors(this, data => collectPeriodFieldErrors(data, util.formatDate(new Date())))
-  },
-
-  // 新记录的开始日如果落在已有投影里，先问是去编辑那条还是仍然新建。编辑已有记录不拦。
-  // 云端不因为重叠拒绝；选「仍然新建」后照常保存。
-  async resolveNewPeriodOverlap() {
-    if (this.data.isEdit) return 'save'
-    this._overlapConfirming = true
-    try {
-      await this.loadPeriodHistory()
-      const today = util.formatDate(new Date())
-      const owner = periodCoverage.getPeriodOnDate(this._periodHistory, this.data.startDate, today)
-      if (!owner) return 'save'
-      const editExisting = await new Promise(resolve => {
-        wxPrompts.modal({
-          title: '这一天已有经期',
-          content: '开始日已经落在一条已有经期里。',
-          confirmText: '去编辑那条',
-          cancelText: '仍然新建',
-          success: res => resolve(!!(res && res.confirm)),
-          fail: () => {
-            wxPrompts.present({ mode: 'toast', content: '这次没有完成，请重试' })
-            resolve(null)
-          }
-        })
-      })
-      if (editExisting === null) return { kind: 'cancelled' }
-      if (!editExisting) return 'save'
-      this.discardRecordDraft()
-      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(owner.record) })
-      return { kind: 'edit-existing' }
-    } finally {
-      this._overlapConfirming = false
-    }
-  },
-
-  applyReopenedRecord(record) {
-    const symptoms = Array.isArray(record.symptoms) ? record.symptoms : []
-    // 与 onLoad 同一原则：状态是权威，结束日期只在已知结束时保留
-    const status = periodCoverage.getPeriodStatus(record)
-    const formState = {
-      id: record._id,
-      startDate: record.startDate || '',
-      endDate: status === 'known-end' ? (record.endDate || '') : '',
-      status,
-      note: record.note || '',
-      flow: record.flow || '',
-      symptoms,
-      isEdit: true
-    }
-    // 草稿身份切换到被重开的记录：键与基线按新身份重建，避免被丢弃表单的草稿串键
-    this._draftKey = recordDraft.buildDraftKey({ collection: 'periods', id: formState.id })
-    this._draftBaseline = recordDraft.pickDraftFields(formState, DRAFT_FIELDS)
-    this._draftDiscarded = false
-    this.setData({
-      ...formState,
-      draftRestored: false,
-      symptomGroups: cycle.buildSymptomOptions(symptoms),
-      statusHint: cycle.periodStatusHint(status)
-    })
-    this.syncPeriodLengthHint()
-  },
-
-  loadPeriodHistory() {
-    this._periodHistory = this._periodHistory || []
-    let client
-    try {
-      client = cloud.createRoomDataClient()
-    } catch (error) {
-      return Promise.resolve()
-    }
-    if (!client || typeof client.list !== 'function') return Promise.resolve()
-    return Promise.resolve()
-      .then(() => client.list('periods'))
-      .then(outcome => {
-        if (outcome && outcome.kind === 'success' && Array.isArray(outcome.data)) {
-          this._periodHistory = outcome.data
-        }
-        this.syncPeriodLengthHint()
-      })
-      .catch(() => {
-        this.syncPeriodLengthHint()
-      })
-  },
-
-  syncPeriodLengthHint() {
-    if (typeof cycle.describeKnownPeriodLength !== 'function') return
-    const summary = cycle.describeKnownPeriodLength({
-      startDate: this.data.startDate,
-      endDate: this.data.status === 'known-end' ? this.data.endDate : '',
-      periods: this._periodHistory || []
-    })
-    if (this.data.periodDayCountText === summary.text && this.data.periodLengthHint === summary.hint) return
-    this.setData({
-      periodDayCountText: summary.text,
-      periodLengthHint: summary.hint
-    })
-  },
-
-  async delete() {
-    if (this.data.saving || this.data.deleting || this.data.submitted || this._deleteConfirming) return
-    this._deleteConfirming = true
-    try {
-      const client = cloud.createRoomDataClient()
-      const outcome = await recordCommands.runRecordDelete({
-        page: this,
-        action: () => client.remove('periods', this.data.id),
-        confirmTitle: '确认删除',
-        confirmContent: '删除后你们两人的日历都会移除这条经期记录，且不可恢复',
-        successTitle: '已删除'
-      })
-      if (outcome.kind === 'success') {
-        this.discardRecordDraft()
-        recordPageSync.notifyRecordDeleted({ collection: 'periods', id: this.data.id })
-      }
-      return outcome
-    } finally {
-      this._deleteConfirming = false
-    }
+  delete() {
+    return this._editSession.delete()
   }
 }))
