@@ -12,13 +12,10 @@ const roomPresence = require('../../utils/roomPresence')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 const {
   createSheetLifecycle,
-  homepageSheets,
-  handoffSheet,
-  homepageSheetMounted,
-  dismissSheetOnSystemBack,
   probeReducedMotion,
   restoreTabBarOnShow
 } = require('../../utils/sheetLifecycle')
+const { homepageSheetData, homepageSheets } = require('./homepageSheets')
 
 // 与 pages/settings/settings.js 共享同一存储键；写入方在设置页
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
@@ -127,20 +124,7 @@ Page(withPageVisibility({
     jumpMonth: 0,
     ...buildJumpYearState(INITIAL_VIEW_DATE.getFullYear()),
     ...monthNavState(INITIAL_VIEW_DATE.getFullYear(), INITIAL_VIEW_DATE.getMonth()),
-    monthPickerVisible: false,
-    monthPickerMounted: false,
-    monthPickerPhase: 'closed',
-    pageObscured: false,
-    sheetExitGuard: false,
-    sheetDragClear: {
-      monthPicker: { token: 0, action: '' },
-      dayActions: { token: 0, action: '' },
-      toolsMenu: { token: 0, action: '' },
-      info: { token: 0, action: '' }
-    },
-    monthMenuVisible: false,
-    monthMenuMounted: false,
-    monthMenuPhase: 'closed',
+    ...homepageSheetData(),
     calendarDensity: 'compact',
     // 翻月方向记号（next-a/next-b/prev-a/prev-b）挂在 .calendar-days 上，空串即不滑动（issue #165）
     calendarFlip: '',
@@ -156,15 +140,8 @@ Page(withPageVisibility({
       showBackToToday: INITIAL_HOME_STATE.showBackToToday
     }),
     skeletonCells: Array.from({ length: 35 }, (_, index) => index),
-    infoSheetVisible: false,
-    infoSheetMounted: false,
-    infoSheetPhase: 'closed',
-    infoSheetHandoff: false,
     infoSheetMode: '',
     infoSheetName: '',
-    dayActionSheetVisible: false,
-    dayActionMounted: false,
-    dayActionPhase: 'closed',
     daySheetMode: 'actions',
     dayDetailFade: false,
     selectedDate: '',
@@ -351,7 +328,7 @@ Page(withPageVisibility({
       month,
       ...this._calendarMarks({ flip, emphasis })
     }
-    if (this.data.selectedDate && this.data.dayActionMounted) {
+    if (this.data.selectedDate && this.data.dayActionsMounted) {
       Object.assign(update, this.selectedDayState(this.data.selectedDate))
     }
     this.setData(this.withCalendarGeometry(update), () => this.markOngoingReminderShown(reminder))
@@ -365,14 +342,14 @@ Page(withPageVisibility({
     let { year, month } = this.data
     if (monthNavState(year, month).prevMonthDisabled) return
     month--; if (month < 0) { month = 11; year-- }
-    this.applyHomeCalendarState({ year, month }, { flip: 'prev', fields: { monthPickerVisible: false } })
+    this.applyHomeCalendarState({ year, month }, { flip: 'prev' })
   },
 
   nextMonth() {
     let { year, month } = this.data
     if (monthNavState(year, month).nextMonthDisabled) return
     month++; if (month > 11) { month = 0; year++ }
-    this.applyHomeCalendarState({ year, month }, { flip: 'next', fields: { monthPickerVisible: false } })
+    this.applyHomeCalendarState({ year, month }, { flip: 'next' })
   },
 
   // 日历提交带的三个一次性记号（issue #165、#167）：翻月方向 calendarFlip、状态强调 calendarEmphasis、
@@ -412,65 +389,38 @@ Page(withPageVisibility({
 
   openMonthPicker() {
     const { year, month } = this.data
-    homepageSheets(this).monthPicker.open(this, {
+    homepageSheets(this).open('monthPicker', {
       jumpMonth: month,
       ...buildJumpYearState(year)
     })
   },
 
   closeMonthPicker() {
-    this.setData({ monthPickerVisible: false })
-    homepageSheets(this).monthPicker.leave(this, undefined, this._takeSheetDragPatch())
+    homepageSheets(this).close('monthPicker')
   },
 
   onSheetDragRelease(detail) {
-    const target = detail && SHEET_DRAG_TARGETS[detail.sheet]
-    if (!target || this.data[target.phaseKey] !== 'open') return
-    const decision = decideSheetDragRelease(detail.displacement, detail.elapsed, detail.panelHeight)
-    this._queueSheetDrag(detail.sheet, decision)
-    if (decision === 'close') {
-      target.close(this)
-      return
-    }
-    this.setData(this._takeSheetDragPatch())
+    homepageSheets(this).dragRelease(detail)
   },
 
-  _queueSheetDrag(sheet, action) {
-    const current = this.data.sheetDragClear
-    const previous = current[sheet]
-    this._pendingSheetDrag = {
-      sheetDragClear: {
-        ...current,
-        [sheet]: { token: previous.token + 1, action }
-      }
-    }
-  },
-
-  _takeSheetDragPatch() {
-    const patch = this._pendingSheetDrag
-    this._pendingSheetDrag = null
-    return patch || {}
-  },
-
-  // issue #105：月份工具菜单——图例 / 预测说明 / 本月小结的低频入口收进月份标题旁的「…」
+  // 工具菜单承接图例 / 预测说明 / 本月小结，入口在顶栏「工具」。
   openMonthMenu() {
-    homepageSheets(this).toolsMenu.open(this)
+    homepageSheets(this).open('toolsMenu')
   },
 
   closeMonthMenu() {
-    this.setData({ monthMenuVisible: false })
-    homepageSheets(this).toolsMenu.leave(this, undefined, this._takeSheetDragPatch())
+    homepageSheets(this).close('toolsMenu')
   },
 
   onMonthMenuTap(e) {
     const action = e.currentTarget.dataset.action
     const sheets = homepageSheets(this)
     if (action === 'legend') {
-      handoffSheet(this, sheets.toolsMenu, sheets.info, infoSheetContent('legend'))
+      sheets.handoff('toolsMenu', 'infoSheet', infoSheetContent('legend'))
     } else if (action === 'prediction') {
-      handoffSheet(this, sheets.toolsMenu, sheets.info, infoSheetContent('prediction'))
+      sheets.handoff('toolsMenu', 'infoSheet', infoSheetContent('prediction'))
     } else if (action === 'recap') {
-      handoffSheet(this, sheets.toolsMenu, sheets.info, infoSheetContent('recap', {
+      sheets.handoff('toolsMenu', 'infoSheet', infoSheetContent('recap', {
         monthlyRecap: this.data.monthlyRecap
       }))
     }
@@ -498,9 +448,9 @@ Page(withPageVisibility({
     if (!Number.isInteger(month) || month < 0 || month > 11) return
     this.applyHomeCalendarState({ year: this.data.jumpYear, month }, {
       flip: 'none',
-      fields: { jumpMonth: month, monthPickerVisible: false }
+      fields: { jumpMonth: month }
     })
-    homepageSheets(this).monthPicker.leave(this)
+    homepageSheets(this).close('monthPicker')
   },
 
   // 回到今天就点亮今天一次（issue #165）；已在当月再点也换记号重播
@@ -511,9 +461,9 @@ Page(withPageVisibility({
     this.applyHomeCalendarState({ year, month, today: util.formatDate(today) }, {
       flip: 'none',
       emphasis: 'today',
-      fields: { jumpMonth: month, ...buildJumpYearState(year), monthPickerVisible: false }
+      fields: { jumpMonth: month, ...buildJumpYearState(year) }
     })
-    homepageSheets(this).monthPicker.leave(this)
+    homepageSheets(this).close('monthPicker')
   },
 
   handleRoomStatusAction() {
@@ -540,24 +490,21 @@ Page(withPageVisibility({
   goBind() { wx.redirectTo({ url: '/pages/bind/bind' }) },
 
   openLegendSheet() {
-    homepageSheets(this).info.open(this, infoSheetContent('legend'))
+    homepageSheets(this).open('infoSheet', infoSheetContent('legend'))
   },
 
   openPredictionSheet() {
-    homepageSheets(this).info.open(this, infoSheetContent('prediction'))
+    homepageSheets(this).open('infoSheet', infoSheetContent('prediction'))
   },
 
   openMonthlyRecap() {
-    homepageSheets(this).info.open(this, infoSheetContent('recap', {
+    homepageSheets(this).open('infoSheet', infoSheetContent('recap', {
       monthlyRecap: this.data.monthlyRecap
     }))
   },
 
   closeInfoSheet() {
-    this.setData({ infoSheetVisible: false, ...this._predictionEmphasisPatch() })
-    homepageSheets(this).info.leave(this, () => {
-      this.setData({ infoSheetMode: '', infoSheetName: '' })
-    }, this._takeSheetDragPatch())
+    homepageSheets(this).close('infoSheet')
   },
 
   // issue #165：关掉预测说明时把当月的「预」点亮一次，说明讲的就是这几天。只认开着的预测说明被关掉，
@@ -586,7 +533,7 @@ Page(withPageVisibility({
       this.showDayDetail(date)
       return
     }
-    homepageSheets(this).dayActions.open(this, {
+    homepageSheets(this).open('dayActions', {
       daySheetMode: 'actions',
       dayDetailFade: false,
       ...this.selectedDayState(date)
@@ -627,50 +574,22 @@ Page(withPageVisibility({
   },
 
   closeDayActions() {
-    this.setData({ dayActionSheetVisible: false })
-    homepageSheets(this).dayActions.leave(this, () => {
-      this.setData({
-        daySheetMode: 'actions',
-        dayDetailFade: false,
-        selectedDate: '',
-        selectedDateLabel: '',
-        selectedDateSubtitle: '',
-        selectedDateIsFuture: false,
-        selectedDayDetail: null
-      })
-    }, this._takeSheetDragPatch())
+    homepageSheets(this).close('dayActions')
   },
 
   noop() {},
 
   // issue #134：系统返回先关掉最上层弹层，走现有离场，不离开页面。
   onSheetSystemBack() {
-    dismissSheetOnSystemBack(this, {
-      dismissTop: () => this._dismissTopHomepageSheet(),
-      isMounted: () => homepageSheetMounted(this.data)
-    })
-  },
-
-  _dismissTopHomepageSheet() {
-    const order = [
-      ['infoSheetMounted', 'infoSheetPhase', 'closeInfoSheet'],
-      ['monthPickerMounted', 'monthPickerPhase', 'closeMonthPicker'],
-      ['monthMenuMounted', 'monthMenuPhase', 'closeMonthMenu'],
-      ['dayActionMounted', 'dayActionPhase', 'closeDayActions']
-    ]
-    for (const [mountedKey, phaseKey, closeName] of order) {
-      if (!this.data[mountedKey] || this.data[phaseKey] === 'leaving') continue
-      this[closeName]()
-      return
-    }
+    homepageSheets(this).systemBack()
   },
 
   showDayDetail(date) {
-    const fadingIn = this.data.dayActionMounted
+    const fadingIn = this.data.dayActionsMounted
       && this.data.daySheetMode === 'actions'
-      && this.data.dayActionPhase !== 'leaving'
+      && this.data.dayActionsPhase !== 'leaving'
 
-    homepageSheets(this).dayActions.open(this, {
+    homepageSheets(this).open('dayActions', {
       daySheetMode: 'detail',
       dayDetailFade: fadingIn,
       ...this.selectedDayState(date)
@@ -822,32 +741,6 @@ function syncPill(page) {
     })
   }
   return page._syncPill
-}
-
-const SHEET_DRAG_TARGETS = {
-  monthPicker: {
-    phaseKey: 'monthPickerPhase',
-    close(page) { page.closeMonthPicker() }
-  },
-  dayActions: {
-    phaseKey: 'dayActionPhase',
-    close(page) { page.closeDayActions() }
-  },
-  toolsMenu: {
-    phaseKey: 'monthMenuPhase',
-    close(page) { page.closeMonthMenu() }
-  },
-  info: {
-    phaseKey: 'infoSheetPhase',
-    close(page) { page.closeInfoSheet() }
-  }
-}
-
-function decideSheetDragRelease(displacement, elapsed, panelHeight) {
-  if (!(displacement > 0)) return 'reset'
-  const pastDistance = panelHeight > 0 && displacement > panelHeight * 0.25
-  const pastSpeed = elapsed > 0 && displacement / elapsed > 0.11
-  return pastDistance || pastSpeed ? 'close' : 'reset'
 }
 
 // 日历动画记号在 a、b 间交替：同一段动画要从头再播，类名必须变（issue #165）

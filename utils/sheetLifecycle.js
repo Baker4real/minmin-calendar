@@ -102,24 +102,6 @@ function handoffSheet(page, from, to, extra = {}) {
   to.open(page, extra, { handoff: true, dismiss: () => from.dismissPatch() })
 }
 
-const HOMEPAGE_SHEET_PHASES = [
-  'monthPickerPhase',
-  'dayActionPhase',
-  'monthMenuPhase',
-  'infoSheetPhase'
-]
-
-const HOMEPAGE_SHEET_MOUNTED_KEYS = [
-  'monthPickerMounted',
-  'dayActionMounted',
-  'monthMenuMounted',
-  'infoSheetMounted'
-]
-
-function homepageSheetMounted(data) {
-  return HOMEPAGE_SHEET_MOUNTED_KEYS.some((key) => Boolean(data && data[key]))
-}
-
 function readReducedMotionProbe(width) {
   return parseFloat(width) > 0
 }
@@ -181,12 +163,6 @@ function sheetPageDecorator({ phaseKeys, mountedKeys, handoffKeys = [] }) {
   }
 }
 
-const homepageSheetPatch = sheetPageDecorator({
-  phaseKeys: HOMEPAGE_SHEET_PHASES,
-  mountedKeys: HOMEPAGE_SHEET_MOUNTED_KEYS,
-  handoffKeys: ['infoSheetHandoff']
-})
-
 // issue #134：page-container 吃掉系统返回后会自己离场。弹层还在时下一帧重新挂上，避免第二次返回离开页面。
 // 把 show 设为 false 时组件会再次触发 beforeleave，用锁挡住这次重入。
 function dismissSheetOnSystemBack(page, { dismissTop, isMounted }) {
@@ -203,39 +179,6 @@ function dismissSheetOnSystemBack(page, { dismissTop, isMounted }) {
     page._sheetBackLock = false
     if (isMounted()) page.setData({ sheetExitGuard: true })
   })
-}
-
-function homepageSheets(page) {
-  if (!page._homepageSheets) {
-    page._homepageSheets = {
-      monthPicker: createSheetLifecycle({
-        visibleKey: 'monthPickerVisible',
-        mountedKey: 'monthPickerMounted',
-        phaseKey: 'monthPickerPhase',
-        decorate: homepageSheetPatch
-      }),
-      dayActions: createSheetLifecycle({
-        visibleKey: 'dayActionSheetVisible',
-        mountedKey: 'dayActionMounted',
-        phaseKey: 'dayActionPhase',
-        decorate: homepageSheetPatch
-      }),
-      toolsMenu: createSheetLifecycle({
-        visibleKey: 'monthMenuVisible',
-        mountedKey: 'monthMenuMounted',
-        phaseKey: 'monthMenuPhase',
-        decorate: homepageSheetPatch
-      }),
-      info: createSheetLifecycle({
-        visibleKey: 'infoSheetVisible',
-        mountedKey: 'infoSheetMounted',
-        phaseKey: 'infoSheetPhase',
-        handoffKey: 'infoSheetHandoff',
-        decorate: homepageSheetPatch
-      })
-    }
-  }
-  return page._homepageSheets
 }
 
 const settingsHelpPatch = sheetPageDecorator({
@@ -258,10 +201,9 @@ function settingsHelpSheet(page) {
 
 module.exports = {
   createSheetLifecycle,
-  homepageSheets,
+  sheetPageDecorator,
   settingsHelpSheet,
   handoffSheet,
-  homepageSheetMounted,
   dismissSheetOnSystemBack,
   probeReducedMotion,
   readReducedMotionProbe,

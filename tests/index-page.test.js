@@ -200,7 +200,7 @@ test('navbar tools entry is distinct from the month arrows', () => {
 
 test('month tools menu reuses the existing legend, prediction, and recap sheets', () => {
   const wxml = readIndexWxml()
-  const menuStart = wxml.indexOf('wx:if="{{monthMenuMounted}}"')
+  const menuStart = wxml.indexOf('wx:if="{{toolsMenuMounted}}"')
   const menuEnd = wxml.indexOf('wx:if="{{infoSheetMounted}}"')
   assert.ok(menuStart !== -1 && menuEnd > menuStart)
   const menuBlock = wxml.slice(menuStart, menuEnd)
@@ -263,8 +263,8 @@ test('homepage sheets keep mounted phases, inert leave, layer order and system b
   const wxss = readIndexWxss()
   assert.match(wxml, /wx:if="\{\{monthPickerMounted\}\}"/)
   assert.match(wxml, /sheet-\{\{monthPickerPhase\}\}/)
-  assert.match(wxml, /wx:if="\{\{dayActionMounted\}\}"[\s\S]*?sheet-\{\{dayActionPhase\}\}/)
-  assert.match(wxml, /wx:if="\{\{monthMenuMounted\}\}"[\s\S]*?sheet-\{\{monthMenuPhase\}\}/)
+  assert.match(wxml, /wx:if="\{\{dayActionsMounted\}\}"[\s\S]*?sheet-\{\{dayActionsPhase\}\}/)
+  assert.match(wxml, /wx:if="\{\{toolsMenuMounted\}\}"[\s\S]*?sheet-\{\{toolsMenuPhase\}\}/)
   assert.match(wxml, /wx:if="\{\{infoSheetMounted\}\}"[\s\S]*?sheet-\{\{infoSheetPhase\}\}/)
   assert.match(ruleBody(wxss, '.day-sheet-mask.sheet-leaving'), /pointer-events:\s*none/)
   assert.match(ruleBody(wxss, '.sheet-slide.sheet-leaving'), /pointer-events:\s*none/)

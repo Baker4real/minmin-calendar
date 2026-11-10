@@ -96,13 +96,13 @@ test('real WXS bindings drive month swipes and sheet drags through the page inte
   assert.equal(page.data.month, 6)
   await app.dispatch(page, 'openMonthMenu')
   await app.settle()
-  assert.equal(page.data.monthMenuVisible, true)
+  assert.equal(page.data.toolsMenuVisible, true)
   const currentTarget = { dataset: { sheet: 'toolsMenu' } }
   app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch(100, 100)] })
   await app.advance(100)
   app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [touch(100, 300)] })
   await app.flush()
-  assert.equal(page.data.monthMenuVisible, false)
+  assert.equal(page.data.toolsMenuVisible, false)
   assert.equal(app.tabBar.visible, true)
 })
 
