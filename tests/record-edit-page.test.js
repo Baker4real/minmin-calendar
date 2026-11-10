@@ -181,7 +181,7 @@ for (const editExisting of [true, false]) {
     const saving = app.dispatch(page, 'save')
     await app.settle()
     assert.equal(app.wx.modals[0].title, '这一天已有经期')
-    assert.equal(app.wx.modals[0].confirmText, '去编辑那条')
+    assert.equal(app.wx.modals[0].confirmText, '编辑那条')
     assert.equal(app.wx.modals[0].cancelText, '仍然新建')
     await app.dispatch(page, 'save')
     assert.equal(app.wx.modals.length, 1)
@@ -240,7 +240,7 @@ for (const scenario of overlapOwners) {
       app.respondNext('showModal', { confirm: editExisting, cancel: !editExisting })
       await app.dispatch(page, 'save')
       await app.settle()
-      assert.equal(app.wx.modals[0].confirmText, '去编辑那条')
+      assert.equal(app.wx.modals[0].confirmText, '编辑那条')
       assert.equal(app.wx.modals[0].cancelText, '仍然新建')
       if (editExisting) {
         assert.equal(app.currentPage.data.id, scenario.owner)

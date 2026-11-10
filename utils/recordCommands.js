@@ -160,7 +160,7 @@ function openRecordEditSession({ kind, route, render }) {
       wxPrompts.modal({
         title: '这一天已有经期',
         content: '开始日已经落在一条已有经期里。',
-        confirmText: '去编辑那条',
+        confirmText: '编辑那条',
         cancelText: '仍然新建',
         success: response => resolve(!!(response && response.confirm)),
         fail: () => {

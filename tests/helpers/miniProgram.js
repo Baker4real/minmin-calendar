@@ -266,10 +266,15 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
   const platformCalls = {}
   const responses = new Map()
   const answered = new WeakSet()
+  const rejectedModals = new WeakSet()
   function respond(method, index, result) {
     const options = (platformCalls[method] || [])[index]
     assert.ok(options, `No ${method} call at ${index}`)
-    assert.ok(!answered.has(options), `${method} call ${index} already answered`)
+    assert.ok(!rejectedModals.has(options), `${method} call ${index} rejected before display`)
+    deliverResponse(method, options, result)
+  }
+  function deliverResponse(method, options, result) {
+    assert.ok(!answered.has(options), `${method} call already answered`)
     answered.add(options)
     const failed = result instanceof Error
     if (!failed && method === 'setClipboardData') clipboard.push(options.data)
@@ -281,11 +286,16 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
   function platform(method, options = {}, defaultResult) {
     const history = platformCalls[method] || (platformCalls[method] = [])
     history.push(options)
+    // 原生 showModal 拒绝超长按钮文案；#181 的真实 UI 失败暴露了此前替身的遗漏。
+    const invalidText = method === 'showModal' && ['confirmText', 'cancelText']
+      .find(field => Array.from(options[field] || '').length > 4)
+    if (invalidText) rejectedModals.add(options)
     const queue = responses.get(method) || []
-    const result = queue.length ? queue.shift() : defaultResult
+    const result = invalidText
+      ? new Error(`showModal:fail ${invalidText} length should not larger than 4 Chinese characters`)
+      : queue.length ? queue.shift() : defaultResult
     if (result !== undefined) {
-      const index = history.length - 1
-      track(Promise.resolve().then(() => { if (active) respond(method, index, result) }))
+      track(Promise.resolve().then(() => { if (active) deliverResponse(method, options, result) }))
     }
   }
   function selectorQuery() {
@@ -346,7 +356,7 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
     removeStorageSync(key) { delete storage[key] },
     nextTick(fn) { schedule(fn) },
     get toasts() { return platformCalls.showToast || [] },
-    get modals() { return platformCalls.showModal || [] },
+    get modals() { return (platformCalls.showModal || []).filter(options => !rejectedModals.has(options)) },
     get actionSheets() { return platformCalls.showActionSheet || [] },
     showToast: options => platform('showToast', options, {}),
     showModal: options => platform('showModal', options),
