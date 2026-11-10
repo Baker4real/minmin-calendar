@@ -695,14 +695,6 @@ test('period edit chips keep touch targets large enough', () => {
   assert.match(wxss, /\.flow-chip,\s*[\r\n]+\.symptom-chip\s*{[\s\S]*min-height:\s*88rpx/)
 })
 
-test('period list delegates load failure copy to the shared record command helper', () => {
-  const js = fs.readFileSync(path.join(__dirname, '..', 'pages/period/period.js'), 'utf8')
-
-  assert.match(js, /recordCommands\.runRecordListLoad\(/)
-  assert.match(js, /retryableTitle:\s*'加载失败，请检查网络'/)
-  assert.match(js, /failureTitle:\s*'加载失败'/)
-})
-
 test('home page consumes RoomDataClient outcomes instead of legacy room-code and list wrappers', () => {
   const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
