@@ -1,10 +1,11 @@
 /**
  * Record-edit sessions own form state, drafts and mutation coordination.
- * Period editing still uses the legacy command adapters until its migration.
  * Failure presentation belongs to roomAccessOutcome and is executed by wxPrompts.
  */
 const cloud = require('./cloud')
 const util = require('./util')
+const cycle = require('./cycle')
+const periodCoverage = require('./periodCoverage')
 const recordDraft = require('./recordDraft')
 const recordEditRoute = require('./recordEditRoute')
 const recordFieldErrors = require('./recordFieldErrors')
@@ -13,6 +14,70 @@ const roomAccessOutcome = require('./roomAccessOutcome')
 const wxPrompts = require('./wxPrompts')
 
 const EDIT_KINDS = {
+  period: {
+    collection: 'periods',
+    draftFields: ['startDate', 'endDate', 'status', 'note', 'flow', 'symptoms'],
+    fieldOrder: ['startDate', 'endDate'],
+    parseRoute: recordEditRoute.parsePeriodEditOptions,
+    normalizeForm(form) {
+      const status = periodCoverage.getPeriodStatus(form)
+      return { ...form, status, endDate: status === 'known-end' ? form.endDate : '' }
+    },
+    changeField(state, field, value, today) {
+      const update = { [field]: value }
+      if (field === 'status') {
+        if (!cycle.isPeriodStatus(value) || value === state.status) return null
+        // 只有完成进行中记录才把空结束日默认为今天；其他切换保持为空。
+        if (value === 'known-end' && !state.endDate && state.status === 'ongoing'
+          && (!state.startDate || today >= state.startDate)) update.endDate = today
+      } else if (field === 'startDate' && state.status === 'known-end' && state.endDate && value > state.endDate) {
+        update.endDate = value
+      } else if (field === 'flow') {
+        update.flow = state.flow === value ? '' : value
+      } else if (field === 'symptoms') {
+        update.symptoms = state.symptoms.includes(value)
+          ? state.symptoms.filter(symptom => symptom !== value)
+          : [...state.symptoms, value]
+      }
+      return update
+    },
+    validate({ startDate, endDate, status }, today) {
+      const errors = {}
+      if (!startDate) errors.startDate = '请选择开始日期'
+      else if (!util.isValidDateString(startDate)) errors.startDate = '请选择有效的开始日期'
+      else if (startDate > today) errors.startDate = '开始日期不能晚于今天'
+      if (status === 'known-end') {
+        if (!endDate) errors.endDate = '请选择结束日期；还没结束可以选「进行中」'
+        else if (!util.isValidDateString(endDate)) errors.endDate = '请选择有效的结束日期'
+        else if (!errors.startDate && startDate > endDate) errors.endDate = '结束日期不能早于开始'
+        else if (endDate > today) errors.endDate = '结束日期不能晚于今天'
+      }
+      return Object.keys(errors).length ? errors : null
+    },
+    buildPayload: cycle.buildPeriodPayload,
+    describeForm(state, today, periods) {
+      const summary = cycle.describeKnownPeriodLength({
+        startDate: state.startDate,
+        endDate: state.status === 'known-end' ? state.endDate : '',
+        periods
+      })
+      return {
+        startDateLabel: util.formatDisplayDate(state.startDate, { today }),
+        endDateLabel: util.formatDisplayDate(state.endDate, { today }),
+        flowOptions: cycle.FLOW_OPTIONS,
+        statusOptions: cycle.PERIOD_STATUS_OPTIONS,
+        symptomGroups: cycle.buildSymptomOptions(state.symptoms),
+        statusHint: cycle.periodStatusHint(state.status),
+        periodDayCountText: summary.text,
+        periodLengthHint: summary.hint
+      }
+    },
+    overlapOwner: periodCoverage.getPeriodOnDate,
+    successTitle: '保存成功',
+    mergedTitle: '已打开进行中的经期',
+    mergedContent: '房间里已有一条进行中的经期，已为你打开它',
+    confirmContent: '删除后你们两人的日历都会移除这条经期记录，且不可恢复'
+  },
   memory: {
     collection: 'memories',
     draftFields: ['date', 'note'],
@@ -39,11 +104,13 @@ function openRecordEditSession({ kind, route, render }) {
   const today = () => util.formatDate(new Date())
   const routeState = config.parseRoute(route, { today: today() })
   const storage = recordDraft.createWxDraftStorage(wx)
-  const draftKey = recordDraft.buildDraftKey({ collection: config.collection, id: routeState.id })
-  const baseline = recordDraft.pickDraftFields(routeState, config.draftFields)
+  let draftKey = recordDraft.buildDraftKey({ collection: config.collection, id: routeState.id })
+  let baseline = recordDraft.pickDraftFields(routeState, config.draftFields)
   const storedDraft = recordDraft.readDraft(storage, draftKey)
   let draftDiscarded = false
   let deleteConfirming = false
+  let savePreparing = false
+  let periodHistory = []
   let state = {
     ...routeState,
     ...(storedDraft ? recordDraft.pickDraftFields(storedDraft, config.draftFields) : {}),
@@ -53,14 +120,15 @@ function openRecordEditSession({ kind, route, render }) {
     draftRestored: !!storedDraft,
     fieldErrors: {}
   }
+  if (config.normalizeForm) state = config.normalizeForm(state)
 
   function publish(update = {}) {
     state = { ...state, ...update }
-    render({ ...state, ...config.describeForm(state, today()) })
+    render({ ...state, ...config.describeForm(state, today(), periodHistory) })
   }
 
   function busy() {
-    return state.saving || state.deleting || state.submitted
+    return savePreparing || state.saving || state.deleting || state.submitted
   }
 
   function persistDraft() {
@@ -73,53 +141,125 @@ function openRecordEditSession({ kind, route, render }) {
     recordDraft.clearDraft(storage, draftKey)
   }
 
+  async function loadPeriodHistory() {
+    try {
+      const outcome = await cloud.createRoomDataClient().list(config.collection)
+      if (outcome.kind === 'success') periodHistory = outcome.data
+    } catch (error) {
+      // 读取失败保留已有历史；时长仍可使用领域默认值。
+    }
+    publish()
+  }
+
+  async function resolveNewPeriodOverlap() {
+    if (state.isEdit || !config.overlapOwner) return 'save'
+    await loadPeriodHistory()
+    const owner = config.overlapOwner(periodHistory, state.startDate, today())
+    if (!owner) return 'save'
+    const editExisting = await new Promise(resolve => {
+      wxPrompts.modal({
+        title: '这一天已有经期',
+        content: '开始日已经落在一条已有经期里。',
+        confirmText: '去编辑那条',
+        cancelText: '仍然新建',
+        success: response => resolve(!!(response && response.confirm)),
+        fail: () => {
+          wxPrompts.present({ mode: 'toast', content: '这次没有完成，请重试' })
+          resolve(null)
+        }
+      })
+    })
+    if (editExisting === null) return { kind: 'cancelled' }
+    if (!editExisting) return 'save'
+    discardDraft()
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(owner.record) })
+    return { kind: 'edit-existing' }
+  }
+
+  function applyReopenedRecord(record) {
+    const form = config.normalizeForm({
+      id: record._id,
+      startDate: record.startDate || '',
+      endDate: record.endDate || '',
+      status: record.status,
+      note: record.note || '',
+      flow: record.flow || '',
+      symptoms: Array.isArray(record.symptoms) ? record.symptoms : [],
+      isEdit: true
+    })
+    // 清掉被丢弃的新建草稿，再以真实记录的字段重建身份与基线。
+    discardDraft()
+    draftKey = recordDraft.buildDraftKey({ collection: config.collection, id: form.id })
+    baseline = recordDraft.pickDraftFields(form, config.draftFields)
+    recordDraft.clearDraft(storage, draftKey)
+    draftDiscarded = false
+    publish({ ...form, draftRestored: false, fieldErrors: {} })
+  }
+
   publish()
   if (storedDraft) {
     wxPrompts.present({ mode: 'toast', content: '已恢复上次未完成的输入' })
   }
+  if (config.overlapOwner) loadPeriodHistory()
 
   return {
     changeField(field, value) {
       if (state.saving || !config.draftFields.includes(field)) return
-      const next = { ...state, [field]: value }
+      const update = config.changeField ? config.changeField(state, field, value, today()) : { [field]: value }
+      if (!update) return
+      const next = { ...state, ...update }
       publish({
-        [field]: value,
+        ...update,
         fieldErrors: recordFieldErrors.retainShownFieldErrors(state.fieldErrors, config.validate(next, today()))
       })
     },
 
     async save() {
-      if (busy()) return
-      const { id, isEdit } = state
-      const payload = config.buildPayload(state)
-      const client = cloud.createRoomDataClient()
-      const outcome = await runCommand({
-        wxApi: wx,
-        render: publish,
-        action: () => isEdit ? client.update(config.collection, id, payload) : client.add(config.collection, payload),
-        validate: () => config.validate(state, today()),
-        refetch: () => client.list(config.collection),
-        reconcile: { id: isEdit ? id : '', fields: payload },
-        operation: 'save',
-        successTitle: config.successTitle,
-        successIcon: config.successIcon,
-        successDelay: 1000
-      })
-      if (outcome.kind === 'validation') {
-        publish({ fieldErrors: outcome.fieldErrors })
-        recordFieldErrors.scrollToFirstFieldError(outcome.fieldErrors, config.fieldOrder)
-      } else if (outcome.kind === 'success') {
-        discardDraft()
+      if (busy() || deleteConfirming) return
+      savePreparing = true
+      try {
+        const overlap = await resolveNewPeriodOverlap()
+        if (overlap !== 'save') return overlap
+        const fieldErrors = config.validate(state, today())
+        if (fieldErrors) {
+          publish({ fieldErrors })
+          recordFieldErrors.scrollToFirstFieldError(fieldErrors, config.fieldOrder)
+          return { kind: 'validation', fieldErrors }
+        }
+        const { id, isEdit } = state
+        const payload = config.buildPayload(state)
+        const client = cloud.createRoomDataClient()
+        const outcome = await runCommand({
+          wxApi: wx,
+          render: publish,
+          action: () => isEdit ? client.update(config.collection, id, payload) : client.add(config.collection, payload),
+          refetch: () => client.list(config.collection),
+          reconcile: { id: isEdit ? id : '', fields: payload },
+          operation: 'save',
+          successTitle: config.successTitle,
+          successIcon: config.successIcon,
+          mergedTitle: config.mergedTitle,
+          mergedContent: config.mergedContent,
+          successDelay: 1000
+        })
+        if (outcome.kind === 'merged') {
+          const record = recordPageSync.getSavedRecord(outcome)
+          if (record) applyReopenedRecord(record)
+        } else if (outcome.kind === 'success') {
+          discardDraft()
+        }
         recordPageSync.notifyRecordSaved({ collection: config.collection, isEdit, outcome })
+        return outcome
+      } finally {
+        savePreparing = false
       }
-      return outcome
     },
 
     async delete() {
       if (busy() || deleteConfirming) return
       deleteConfirming = true
       try {
-        const confirmed = await confirmRecordDelete({ wxApi: wx, confirmContent: config.confirmContent })
+        const confirmed = await confirmRecordDelete(config.confirmContent)
         if (!confirmed) return { kind: 'cancelled' }
         const client = cloud.createRoomDataClient()
         const outcome = await runCommand({
@@ -145,72 +285,16 @@ function openRecordEditSession({ kind, route, render }) {
   }
 }
 
-function runRecordSave(options) {
-  const opts = options || {}
-  const wxApi = resolveWxApi(opts)
-  const {
-    page,
-    timer = createDefaultTimer(),
-    action,
-    validate,
-    loadingKey = 'saving',
-    successTitle = '保存成功',
-    successIcon,
-    successDelay = 1000
-  } = opts
-  const navigateBack = typeof opts.navigateBack === 'function'
-    ? opts.navigateBack
-    : createNavigateBack(wxApi)
-  const navigateToBind = typeof opts.navigateToBind === 'function'
-    ? opts.navigateToBind
-    : createNavigateToBind(wxApi)
-
-  return runCommand({
-    render: update => updatePage(page, update),
-    wxApi,
-    timer,
-    action,
-    validate,
-    loadingKey,
-    successTitle,
-    successIcon,
-    mergedTitle: opts.mergedTitle,
-    mergedContent: opts.mergedContent,
-    navigateBack,
-    navigateToBind,
-    successDelay,
-    operation: 'save',
-    refetch: opts.refetch,
-    reconcile: opts.reconcile
-  })
-}
-
-function runRecordDelete(options) {
-  const opts = options || {}
-  const wxApi = resolveWxApi(opts)
-  return confirmRecordDelete({ ...opts, wxApi }).then(confirmed => {
-    if (!confirmed) return { kind: 'cancelled' }
-    return runCommand({
-      ...opts,
-      wxApi,
-      render: update => updatePage(opts.page, update),
-      loadingKey: opts.loadingKey || 'deleting',
-      validate: null,
-      operation: 'delete'
-    })
-  })
-}
-
-function confirmRecordDelete({ wxApi, confirmTitle = '确认删除', confirmContent, confirmText = '删除', confirmColor = '#F97373' }) {
+function confirmRecordDelete(content) {
   // 确认之前不进入删除忙碌态；缺少 API 或失败由 adapter 回落为取消。
   return new Promise(resolve => {
     wxPrompts.modal({
-      title: confirmTitle,
-      confirmText,
-      confirmColor,
-      ...(confirmContent ? { content: confirmContent } : {}),
+      title: '确认删除',
+      confirmText: '删除',
+      confirmColor: '#F97373',
+      content,
       success: result => resolve(!!(result && result.confirm))
-    }, wxApi)
+    })
   })
 }
 
@@ -271,30 +355,17 @@ async function runCommand(options) {
   const {
     render,
     wxApi,
-    timer = createDefaultTimer(),
     action,
-    validate,
     loadingKey = 'saving',
     successTitle,
     successIcon,
-    mergedTitle = '已合并到已有记录',
-    mergedContent = '房间里已有一条进行中的记录，已为你打开它',
-    navigateBack = createNavigateBack(wxApi),
-    navigateToBind = createNavigateToBind(wxApi),
+    mergedTitle,
+    mergedContent,
     successDelay,
     operation,
     refetch,
     reconcile
   } = options
-
-  const validation = readValidation(validate)
-  if (validation) {
-    // 能定位到字段的错误交回页面显示在字段旁；只有无法定位的整体错误才用瞬时 toast
-    if (!validation.fieldErrors) {
-      wxPrompts.present({ mode: 'toast', content: validation.message }, { wx: wxApi })
-    }
-    return validation
-  }
 
   render({ [loadingKey]: true })
 
@@ -310,7 +381,7 @@ async function runCommand(options) {
 
   if (outcome.kind === 'success') {
     // 云端重开了已有进行中记录并丢弃本次表单：归为「合并到已有进行中记录」，
-    // 不显示保存成功、不排返回，用说明 modal 告知后再把结果交给页面
+    // 不显示保存成功、不排返回，用说明 modal 告知后由会话切换记录身份
     if (outcome.result && outcome.result.reopened === true) {
       render({ [loadingKey]: false })
       return wxPrompts.present({ mode: 'acknowledge', title: mergedTitle, content: mergedContent }, {
@@ -322,9 +393,7 @@ async function runCommand(options) {
       title: successTitle,
       ...(successIcon ? { icon: successIcon } : {})
     })
-    timer.setTimeout(() => {
-      navigateBack()
-    }, successDelay)
+    setTimeout(() => wxApi.navigateBack(), successDelay)
     // 已提交、等待返回：清掉「保存中/删除中」，但保持不可点，直到 navigateBack
     render({ [loadingKey]: false, submitted: true })
     return outcome
@@ -342,9 +411,7 @@ async function runCommand(options) {
     }
     if (reconciled.confirmed && reconciled.record) {
       safeShowToast(wxApi, { title: '已保存' })
-      timer.setTimeout(() => {
-        navigateBack()
-      }, successDelay)
+      setTimeout(() => wxApi.navigateBack(), successDelay)
       render({ [loadingKey]: false, submitted: true })
       return { kind: 'success', result: { record: reconciled.record } }
     }
@@ -358,8 +425,7 @@ async function runCommand(options) {
     outcome,
     wxApi,
     operation,
-    retryAction: () => runCommand(options),
-    navigateToBind
+    navigateToBind: createNavigateToBind(wxApi)
   })
 }
 
@@ -369,21 +435,6 @@ function handleFailureOutcome({ outcome, operation, wxApi, retryAction, navigate
     retry: retryAction,
     navigateToBind
   })
-}
-
-// validate 返回空值表示通过；字符串是无法定位到字段的整体错误；
-// 对象是「字段 → 一句人话」，空句的字段不算出错，全部为空等于通过。
-function readValidation(validate) {
-  const result = typeof validate === 'function' ? validate() : ''
-  if (!result) return null
-  if (typeof result === 'string') return { kind: 'validation', message: result }
-  const fields = Object.keys(result).filter(field => result[field])
-  if (fields.length === 0) return null
-  const fieldErrors = {}
-  fields.forEach(field => {
-    fieldErrors[field] = result[field]
-  })
-  return { kind: 'validation', message: fieldErrors[fields[0]], fieldErrors }
 }
 
 async function confirmUnconfirmedSave({ refetch, reconcile }) {
@@ -436,21 +487,6 @@ function updatePage(page, update) {
   }
 }
 
-function createDefaultTimer() {
-  return {
-    setTimeout(handler, delay) {
-      return setTimeout(handler, delay)
-    }
-  }
-}
-
-function createNavigateBack(wxApi) {
-  if (wxApi && typeof wxApi.navigateBack === 'function') {
-    return () => wxApi.navigateBack()
-  }
-  return () => {}
-}
-
 function createNavigateToBind(wxApi) {
   if (wxApi && typeof wxApi.navigateTo === 'function') {
     return () => wxApi.navigateTo({ url: '/pages/bind/bind' })
@@ -484,7 +520,5 @@ function getErrorMessage(error) {
 
 module.exports = {
   openRecordEditSession,
-  runRecordSave,
-  runRecordDelete,
   runRecordListLoad
 }
