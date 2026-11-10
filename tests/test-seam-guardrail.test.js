@@ -8,7 +8,7 @@ const { trackedFiles } = require('./tools/verify.cjs')
 // 下面三种写法把测试绑在实现上，重构一动测试就得跟着改。这里逐个数 tests/ 下入库的 JS 文件（测试和 helper，
 // 共享 harness 也在内，旧写法挪进 helper 照样计数），和 BUDGET 对账：
 // 多了就红，别把旧写法带进新测试；少了也红，迁移有进展，把预算调到新数锁住。
-// 计数是逐行的启发式，前后一致就能当棘轮用。#185 收口时 BUDGET 应为空；确属合理的例外移进 EXEMPT 并写明原因。
+// 计数按调用形状做启发式匹配，前后一致就能当棘轮用。#185 收口时 BUDGET 应为空；确属合理的例外移进 EXEMPT 并写明原因。
 
 const repoRoot = path.join(__dirname, '..')
 const SELF = 'tests/test-seam-guardrail.test.js'
@@ -18,8 +18,9 @@ const PATTERNS = {
   moduleLoad: /\bModule\._load\s*=(?!=)/g,
   // 读写页面实例的下划线私有字段或方法
   privateField: /\b(?:[A-Za-z]*[Pp]age|instance)\._[A-Za-z]\w*/g,
-  // 读取 JS 源码文本，随后对它做正则或字符串断言；读 WXML / WXSS、列目录不算
-  jsSourceRead: /\bread(?!dir)\w*\([^;\n]*?['"`][^'"`\n]*\.js['"`]/g
+  // 支持直接路径与换行的 path.join/resolve；在调用右括号或分号处停止，不跨到下一条语句。
+  // 读取 WXML / WXSS / JSON 与列目录不算 JS 源码读取。
+  jsSourceRead: /\bread(?!dir)\w*\(\s*(?:path\.(?:join|resolve)\(\s*)?[^();]*?['"`][^'"`\r\n]*\.js['"`]/g
 }
 
 // 2026-11-08 入库时的计数。#170–#175 迁移页面测试时把对应的数调低，调到 0 就删掉这一项。
@@ -92,4 +93,31 @@ test('the counters see each legacy pattern and leave page loads, WXML reads, JSO
     "require('../pages/index/index.js')"
   ].join('\n')
   assert.deepEqual(countPatterns(sample), { moduleLoad: 2, privateField: 3, jsSourceRead: 2 })
+})
+
+test('JS source reads include multiline path arguments without crossing a closed non-JS read', () => {
+  const jsRead = [
+    'const source = fs.readFileSync(',
+    "  path.join(__dirname, '..', 'pages/memory/edit/edit.js'),",
+    "  'utf8'",
+    ')'
+  ].join('\n')
+  assert.equal(countPatterns(jsRead).jsSourceRead, 1)
+
+  const nonJsReads = [
+    'const wxml = fs.readFileSync(',
+    "  path.join(__dirname, '..', 'pages/memory/edit/edit.wxml'),",
+    "  'utf8'",
+    ')',
+    "const scriptPath = 'pages/memory/edit/edit.js'",
+    "require('../pages/memory/edit/edit.js')",
+    'const pkg = fs.readFileSync(',
+    "  path.join(__dirname, '..', 'package.json'),",
+    "  'utf8'",
+    ')',
+    'const names = fs.readdirSync(',
+    '  __dirname',
+    ").filter(name => name.endsWith('.test.js'))"
+  ].join('\n')
+  assert.equal(countPatterns(nonJsReads).jsSourceRead, 0)
 })

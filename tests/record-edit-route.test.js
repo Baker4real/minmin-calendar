@@ -244,13 +244,7 @@ test('memory edit page clamps the date picker to today', () => {
     path.join(__dirname, '..', 'pages/memory/edit/edit.wxml'),
     'utf8'
   )
-  const memoryEditJs = fs.readFileSync(
-    path.join(__dirname, '..', 'pages/memory/edit/edit.js'),
-    'utf8'
-  )
-
   assert.match(memoryEditWxml, /<picker mode="date" value="\{\{date\}\}" end="\{\{maxDate\}\}"[^>]*bindchange="onDateChange"[^>]*>/)
-  assert.match(memoryEditJs, /maxDate:\s*''/)
 })
 
 test('parseMemoryEditOptions tolerates truncated UTF-8 in note', () => {

@@ -7,8 +7,7 @@ Page(withPageVisibility({
     safeTop: safeArea.getSafeTop(),
     safeBottom: safeArea.getSafeBottom(),
     navBarHeight: safeArea.getNavBarHeight(),
-    capsuleRight: safeArea.getCapsuleRightInset(),
-    maxDate: ''
+    capsuleRight: safeArea.getCapsuleRightInset()
   },
 
   onLoad(options) {
