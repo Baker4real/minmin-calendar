@@ -12,6 +12,8 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 ## Project Shape
 
 - `pages/index/` - renders Calendar projection and forwards calendar/sheet/record events to their owners; keeps local reminder-seen storage, geometry and animation wiring, and the sync-pill display lifecycle and auto-hide timer.
+- `pages/index/homepageSheets.js` - Home's sole registry for the four sheets; derives lifecycle keys and drag targets from each name, initializes their render state, and owns close actions, system-back priority and handoff wiring.
+- `utils/sheetLifecycle.js` - shared enter/leave, handoff, page-obscuring, tabBar and system-back mechanisms plus the reduced-motion probe; Home supplies its own registrations, while Settings keeps its help-sheet adapter.
 - `pages/period/` - 记录 tab hosting the segmented 经期/欢乐时光 lists; the Period editor renders its record-edit session and forwards form/lifecycle events.
 - `pages/memory/` - compatibility entry to the record tab, plus a Memory editor that renders its record-edit session and forwards form/lifecycle events.
 - `pages/bind/` - shared-room create, join, and recover flow.

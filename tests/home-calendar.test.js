@@ -99,7 +99,9 @@ function sheetTags(id) {
 }
 function expression(value, data) { return evaluateWxmlExpression(value.replace(/^\{\{|\}\}$/g, ''), data) }
 function sheet(app, home, id) {
-  const data = app.rendered(home)
+  return renderedSheet(app.rendered(home), id)
+}
+function renderedSheet(data, id) {
   const { host, mask, slide, panel } = sheetTags(id)
   const mounted = Boolean(expression(host.attrs['wx:if'], data))
   const renderedClasses = renderWxmlClasses(slide.attrs.class, data)
@@ -111,8 +113,8 @@ function sheet(app, home, id) {
     handoff: renderWxmlClasses(mask.attrs.class, data).includes('sheet-handoff')
   }
 }
-const openers = { monthPicker: 'openMonthPicker', dayActions: 'onDayTap', toolsMenu: 'openMonthMenu', info: 'openPredictionSheet' }
-const closers = { monthPicker: 'closeMonthPicker', dayActions: 'closeDayActions', toolsMenu: 'closeMonthMenu', info: 'closeInfoSheet' }
+const openers = { monthPicker: 'openMonthPicker', dayActions: 'onDayTap', toolsMenu: 'openMonthMenu', infoSheet: 'openPredictionSheet' }
+const closers = { monthPicker: 'closeMonthPicker', dayActions: 'closeDayActions', toolsMenu: 'closeMonthMenu', infoSheet: 'closeInfoSheet' }
 async function openSheet(app, home, id) { await tap(app, home, openers[id], id === 'dayActions' ? { date: '2026-06-10' } : {}) }
 async function closeSheet(app, home, id) { await tap(app, home, closers[id]); await app.advance(200); app.commit(home) }
 async function selectMonth(app, home, year, month) {
@@ -198,7 +200,7 @@ for (const scenario of ownershipScreens) {
     assert.equal(data.monthSummaryLine, scenario.recap)
     await tap(app, home, 'openMonthlyRecap')
     assert.equal(app.rendered(home).monthlyRecap.summaryLine, scenario.recap)
-    await closeSheet(app, home, 'info')
+    await closeSheet(app, home, 'infoSheet')
     await day(app, home, scenario.date)
     assert.equal(app.rendered(home).selectedDayDetail.periods.length, scenario.name.includes('damaged') ? 1 : scenario.records.length)
     assert.equal(app.cloud.calls.some(call => call.name === 'dataOp' && call.data.action !== 'list'), false)
@@ -219,13 +221,13 @@ test('empty rooms show the first-record guide and records supply status, recap a
   assert.equal(attr('home-status', 'aria-label', app.rendered(home)), '经期第 3 天')
   assert.equal(attr('month-summary', 'aria-label', app.rendered(home)), '查看本月小结，本月 经期 8 天 · 欢乐时光 1 条')
   await tap(app, home, 'openMonthlyRecap')
-  assert.equal(sheet(app, home, 'info').name, '本月小结')
+  assert.equal(sheet(app, home, 'infoSheet').name, '本月小结')
   assert.match(app.rendered(home).monthlyRecap.periodSummary, /8 天/)
   await tap(app, home, 'copyMonthlyRecap')
   assert.match(app.clipboard[0], /经期/)
   assert.match(app.clipboard[0], /欢乐时光/)
   assert.equal(app.wx.toasts.at(-1).title, '已复制小结')
-  await closeSheet(app, home, 'info')
+  await closeSheet(app, home, 'infoSheet')
   await tap(app, home, 'prevMonth')
   assert.equal(visible('back-today', app.rendered(home)), true)
   await tap(app, home, 'jumpToToday')
@@ -580,6 +582,31 @@ for (const id of Object.keys(openers)) {
   })
 }
 
+test('close controls start leaving in their first rendered frame and retain content until unmount', async t => {
+  const app = homeApp(t, { autoCommit: false })
+  const home = await launch(app)
+  for (const id of Object.keys(openers)) {
+    await openSheet(app, home, id)
+    const before = app.rendered(home)
+    const start = home.setDataCalls.length
+    app.dispatch(home, closers[id])
+    const frame = { ...before }
+    const patches = home.setDataCalls.slice(start)
+    assert.ok(patches.length, `${id} submits its close`)
+    for (const patch of patches) {
+      Object.assign(frame, patch)
+      assert.equal(renderedSheet(frame, id).pose, 'sheet-leaving', `${id} closes in the same frame as its leave pose`)
+    }
+    app.commit(home)
+    assert.equal(sheet(app, home, id).name, renderedSheet(before, id).name)
+    if (id === 'dayActions') assert.deepEqual(app.rendered(home).selectedDayDetail, before.selectedDayDetail)
+    await app.advance(200)
+    app.commit(home)
+    assert.equal(sheet(app, home, id).pose, 'unmounted')
+    if (id === 'dayActions') assert.equal(app.rendered(home).selectedDayDetail, null)
+  }
+})
+
 for (const reducedMotion of [false, true]) {
   test(`sheets restore native tabs only after the last leave, reduced motion ${reducedMotion}`, async t => {
     const app = homeApp(t, { reducedMotion })
@@ -595,7 +622,7 @@ for (const reducedMotion of [false, true]) {
     assert.equal(classes('page', app.rendered(home)).includes('page-obscured'), true)
     await closeSheet(app, home, 'dayActions')
     assert.deepEqual(app.tabBar.calls.at(-1), { visible: true, animation: !reducedMotion })
-    await openSheet(app, home, 'info')
+    await openSheet(app, home, 'infoSheet')
     app.wx.reLaunch({ url: '/pages/index/index' })
     await app.settle()
     assert.equal(app.tabBar.visible, true, 'a new home gives back the shared tab bar')
@@ -605,10 +632,10 @@ for (const reducedMotion of [false, true]) {
 test('system back closes sheets in priority order and remains intercepted through leave', async t => {
   const app = homeApp(t)
   const home = await launch(app)
-  for (const id of ['dayActions', 'toolsMenu', 'monthPicker', 'info']) await openSheet(app, home, id)
+  for (const id of ['dayActions', 'toolsMenu', 'monthPicker', 'infoSheet']) await openSheet(app, home, id)
   const guard = tags.find(tag => tag.attrs.bindbeforeleave === 'onSheetSystemBack')
   const guardMounted = () => Boolean(expression(guard.attrs['wx:if'], app.rendered(home)))
-  const order = ['info', 'monthPicker', 'toolsMenu', 'dayActions']
+  const order = ['infoSheet', 'monthPicker', 'toolsMenu', 'dayActions']
   for (let index = 0; index < order.length; index += 1) {
     assert.equal(guardMounted(), true)
     app.dispatch(home, 'onSheetSystemBack')
@@ -625,39 +652,83 @@ test('system back closes sheets in priority order and remains intercepted throug
   assert.deepEqual(app.navigation.map(call => call.method), ['reLaunch'])
 })
 
+test('overlapping handoff and repeated system back keep lower sheets covered until their own leave', async t => {
+  const app = homeApp(t, { autoCommit: false, periods: [period('p1', '2026-04-28', '2026-05-02'), period('p2', '2026-05-26', '2026-05-30')] })
+  const home = await launch(app)
+  const tabCalls = app.tabBar.calls.length
+  for (const id of ['dayActions', 'monthPicker', 'toolsMenu']) await openSheet(app, home, id)
+  app.dispatch(home, 'onMonthMenuTap', event({ action: 'prediction' }))
+  app.commit(home)
+  assert.equal(sheet(app, home, 'toolsMenu').pose, 'unmounted')
+  assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-closed')
+  assert.equal(sheet(app, home, 'infoSheet').handoff, true)
+  for (const id of ['monthPicker', 'dayActions']) assert.equal(sheet(app, home, id).pose, 'sheet-open')
+  assert.equal(classes('page', app.rendered(home)).includes('page-obscured'), true)
+  await app.settle(); app.commit(home)
+
+  app.dispatch(home, 'onSheetSystemBack')
+  app.dispatch(home, 'onSheetSystemBack')
+  await app.settle(); app.commit(home)
+  assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-leaving')
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-open')
+  assert.equal(calendarAnimation(app, home, 'emphasis'), 'calendar-emphasis-predict-a')
+  app.dispatch(home, 'onSheetSystemBack')
+  await app.settle(); app.commit(home)
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-leaving')
+  assert.equal(sheet(app, home, 'dayActions').pose, 'sheet-open')
+  await app.advance(200); app.commit(home)
+  for (const id of ['infoSheet', 'monthPicker', 'toolsMenu']) assert.equal(sheet(app, home, id).pose, 'unmounted')
+  assert.equal(classes('page', app.rendered(home)).includes('page-obscured'), true)
+  assert.equal(app.tabBar.visible, false)
+
+  app.dispatch(home, 'onSheetSystemBack')
+  await app.settle(); app.commit(home)
+  assert.equal(sheet(app, home, 'dayActions').pose, 'sheet-leaving')
+  await app.advance(199); app.commit(home)
+  assert.equal(app.rendered(home).sheetExitGuard, true)
+  assert.equal(app.tabBar.visible, false)
+  await app.advance(1); app.commit(home)
+  assert.equal(sheet(app, home, 'dayActions').pose, 'unmounted')
+  assert.equal(app.rendered(home).sheetExitGuard, false)
+  assert.equal(classes('page', app.rendered(home)).includes('page-obscured'), false)
+  assert.deepEqual(app.tabBar.calls.slice(tabCalls), [{ visible: false, animation: true }, { visible: true, animation: true }])
+  assert.equal(app.currentPage, home)
+  assert.deepEqual(app.navigation.map(call => call.method), ['reLaunch'])
+})
+
 test('tool menu hands off to named content without an uncovered frame and recap can reopen during leave', async t => {
   const app = homeApp(t, { autoCommit: false })
   const home = await launch(app)
   const monthBefore = [app.rendered(home).year, app.rendered(home).month]
   await tap(app, home, 'openPredictionSheet')
-  assert.equal(sheet(app, home, 'info').handoff, false)
-  assert.equal(sheet(app, home, 'info').name, '预测说明')
+  assert.equal(sheet(app, home, 'infoSheet').handoff, false)
+  assert.equal(sheet(app, home, 'infoSheet').name, '预测说明')
   await tap(app, home, 'closeInfoSheet')
   await tap(app, home, 'openMonthlyRecap')
-  assert.equal(sheet(app, home, 'info').pose, 'sheet-open')
-  assert.equal(sheet(app, home, 'info').name, '本月小结')
-  await closeSheet(app, home, 'info')
+  assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-open')
+  assert.equal(sheet(app, home, 'infoSheet').name, '本月小结')
+  await closeSheet(app, home, 'infoSheet')
   for (const [action, name] of [['legend', '日历图例'], ['prediction', '预测说明'], ['recap', '本月小结']]) {
     await openSheet(app, home, 'toolsMenu')
     app.dispatch(home, 'onMonthMenuTap', event({ action }))
     app.commit(home)
     assert.equal(sheet(app, home, 'toolsMenu').mounted, false)
-    assert.equal(sheet(app, home, 'info').pose, 'sheet-closed')
-    assert.equal(sheet(app, home, 'info').handoff, true)
-    assert.equal(sheet(app, home, 'info').name, name)
-    assert.equal(sheet(app, home, 'info').maskName, `关闭${name}`)
+    assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-closed')
+    assert.equal(sheet(app, home, 'infoSheet').handoff, true)
+    assert.equal(sheet(app, home, 'infoSheet').name, name)
+    assert.equal(sheet(app, home, 'infoSheet').maskName, `关闭${name}`)
     assert.equal(classes('page', app.rendered(home)).includes('page-obscured'), true)
     assert.equal(app.tabBar.visible, false)
     await app.settle(); app.commit(home)
-    assert.equal(sheet(app, home, 'info').pose, 'sheet-open')
+    assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-open')
     if (action === 'legend') assert.ok(app.rendered(home).legendItems.some(item => item.title === '欢乐时光'))
     if (action === 'prediction') assert.ok(app.rendered(home).predictionExplanation.summary)
     await tap(app, home, 'closeInfoSheet')
-    assert.equal(sheet(app, home, 'info').pose, 'sheet-leaving')
-    assert.equal(sheet(app, home, 'info').handoff, false)
-    assert.equal(sheet(app, home, 'info').name, name)
+    assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-leaving')
+    assert.equal(sheet(app, home, 'infoSheet').handoff, false)
+    assert.equal(sheet(app, home, 'infoSheet').name, name)
     await app.advance(200); app.commit(home)
-    assert.equal(sheet(app, home, 'info').mounted, false)
+    assert.equal(sheet(app, home, 'infoSheet').mounted, false)
   }
   assert.deepEqual([app.rendered(home).year, app.rendered(home).month], monthBefore)
   assert.deepEqual(navigation(app), [])
@@ -868,13 +939,13 @@ test('closing real prediction content emphasizes only predicted days and does no
     await tap(app, home, 'nextMonth'); await tap(app, home, 'prevMonth')
     await openSheet(app, home, 'toolsMenu')
     await tap(app, home, 'onMonthMenuTap', { action })
-    await closeSheet(app, home, 'info')
+    await closeSheet(app, home, 'infoSheet')
     assert.equal(calendarAnimation(app, home, 'emphasis'), '')
   }
   await tap(app, home, 'nextMonth')
   assert.deepEqual(marked(app, home, 'predict'), [])
   await tap(app, home, 'openPredictionSheet')
-  await closeSheet(app, home, 'info')
+  await closeSheet(app, home, 'infoSheet')
   assert.equal(calendarAnimation(app, home, 'emphasis'), '')
 })
 
