@@ -177,6 +177,34 @@ for (const paired of [true, false]) {
   })
 }
 
+const ownershipScreens = [
+  { name: 'F1 ongoing plus a later completed record', records: [period('live', '2026-06-20', '', 'ongoing'), period('later', '2026-06-24', '2026-06-26')], status: '经期第 7 天', quick: '经期第 7 天 · 记结束', aria: '经期第7天 经期进行中', recap: '本月 经期 7 天 · 欢乐时光 0 条', date: '2026-06-26' },
+  { name: 'F1 overlapping completed records', now: '2026-06-05T12:00:00+08:00', records: [period('first', '2026-06-01', '2026-06-05'), period('later', '2026-06-03', '2026-06-07')], status: '经期第 3 天', quick: '记经期', aria: '经期第3天', recap: '本月 经期 7 天 · 欢乐时光 0 条', date: '2026-06-05' },
+  { name: 'multiple ongoing records plus an unknown end', records: [period('old', '2026-06-20', '', 'ongoing'), period('latest', '2026-06-24', '', 'ongoing'), period('unknown', '2026-06-26', '', 'unknown-end')], status: '经期第 3 天', quick: '经期第 3 天 · 记结束', aria: '经期第3天 经期进行中', recap: '本月 经期 7 天 · 欢乐时光 0 条', date: '2026-06-26' },
+  { name: 'damaged ongoing range supplies no quick-action day', records: [period('done', '2026-06-24', '2026-06-26'), period('bad-live', '2026-06-25', '2026-06-32', 'ongoing')], status: '经期第 3 天', quick: '记结束', aria: '经期第3天', recap: '本月 经期 3 天 · 欢乐时光 0 条', date: '2026-06-26' }
+]
+for (const scenario of ownershipScreens) {
+  test(`same-screen ownership: ${scenario.name}`, async t => {
+    const app = homeApp(t, { periods: scenario.records, ...(scenario.now ? { now: scenario.now } : {}) })
+    const home = await launch(app)
+    const data = app.rendered(home)
+    assert.equal(attr('home-status', 'aria-label', data), scenario.status)
+    assert.equal(data.homeStatus.text, scenario.status)
+    assert.equal(data.periodQuickLabel, scenario.quick)
+    assert.equal(attr('quick-btn', 'aria-label', data), scenario.quick)
+    const item = data.days.find(day => day.date === scenario.date)
+    assert.ok(attr('day-cell', 'aria-label', { ...data, item }).endsWith(scenario.aria))
+    assert.equal(item.isUnknownEndPeriod, false)
+    assert.equal(data.monthSummaryLine, scenario.recap)
+    await tap(app, home, 'openMonthlyRecap')
+    assert.equal(app.rendered(home).monthlyRecap.summaryLine, scenario.recap)
+    await closeSheet(app, home, 'info')
+    await day(app, home, scenario.date)
+    assert.equal(app.rendered(home).selectedDayDetail.periods.length, scenario.name.includes('damaged') ? 1 : scenario.records.length)
+    assert.equal(app.cloud.calls.some(call => call.name === 'dataOp' && call.data.action !== 'list'), false)
+  })
+}
+
 test('empty rooms show the first-record guide and records supply status, recap and back-to-today', async t => {
   const app = homeApp(t)
   const home = await launch(app)
@@ -227,6 +255,44 @@ for (const ongoing of [false, true]) {
     assert.equal(app.cloud.calls.some(call => call.name === 'dataOp' && call.data.action !== 'list'), false)
   })
 }
+
+test('all home period entries and the completion reminder choose the latest ongoing record', async t => {
+  const app = homeApp(t, { periods: [
+    period('old-live', '2026-06-10', '', 'ongoing'),
+    period('latest-live', '2026-06-20', '', 'ongoing'),
+    period('later-done', '2026-06-24', '2026-06-26')
+  ] })
+  const home = await launch(app)
+  assert.equal(app.rendered(home).homeStatus.text, '经期第 7 天')
+  assert.equal(app.rendered(home).ongoingCompletionReminder.text, '已进行 7 天，超过预期的 3 天，可以补填结束日期')
+  assert.equal(app.rendered(home).ongoingCompletionReminder.record._id, 'latest-live')
+  await tap(app, home, 'onOngoingReminderTap')
+  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&status=ongoing')
+  await back(app)
+  await tap(app, home, 'quickPeriod')
+  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&endDate=2026-06-26&status=known-end')
+  await back(app)
+  await day(app, home, '2026-06-03')
+  await tap(app, home, 'onDayActionTap', { action: 'period' })
+  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&status=ongoing')
+  assert.deepEqual(app.wx.toasts.map(item => item.title), [
+    '已有进行中的经期，继续编辑它', '已有进行中的经期，继续编辑它'
+  ])
+  assert.equal(app.cloud.calls.some(call => call.name === 'dataOp' && call.data.action !== 'list'), false)
+})
+
+test('a cycle reminder reopens the ongoing record even when its start is before the reminder date', async t => {
+  const app = homeApp(t, { periods: [
+    period('april', '2026-04-10', '2026-04-14'),
+    period('live', '2026-05-15', '', 'ongoing')
+  ] })
+  const home = await launch(app)
+  assert.equal(app.rendered(home).cycleReminders[0].action, 'quickPeriod')
+  await tap(app, home, 'onReminderTap', { index: 0 })
+  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=live&startDate=2026-05-15&status=ongoing')
+  assert.equal(app.wx.toasts.at(-1).title, '已有进行中的经期，继续编辑它')
+  assert.equal(app.cloud.calls.some(call => call.name === 'dataOp' && call.data.action !== 'list'), false)
+})
 
 test('real day rows open their own editor and blank days offer dated actions', async t => {
   const app = homeApp(t, { periods: [period('p1', '2026-06-01', '2026-06-05')], memories: [memory('m1', '2026-06-20', '散步')] })

@@ -1,6 +1,7 @@
 const util = require('../../utils/util')
 const cloud = require('../../utils/cloud')
 const cycle = require('../../utils/cycle')
+const periodCoverage = require('../../utils/periodCoverage')
 const recordCommands = require('../../utils/recordCommands')
 const recordEditRoute = require('../../utils/recordEditRoute')
 const memoryMonthGroups = require('../../utils/memoryMonthGroups')
@@ -131,14 +132,14 @@ Page(withPageVisibility({
   },
 
   addPeriod() {
-    // 已有进行中的记录时，重复新增重开原记录（进入原记录编辑页），不建第二条
-    const ongoing = cycle.findOngoingPeriod(this.data.periods)
-    if (ongoing) {
-      wx.showToast({ title: '已有进行中的经期，继续编辑它', icon: 'none' })
-      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(ongoing) })
+    const today = util.formatDate(new Date())
+    const entry = periodCoverage.decidePeriodRecordForDate(this.data.periods, today, { today })
+    // 记录 tab 只重开进行中；其余结果仍以今天新建，保存前再让用户选择重叠处理。
+    if (entry.reason === 'ongoing') {
+      wx.showToast({ title: entry.notice, icon: 'none' })
+      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(entry.record) })
       return
     }
-    const today = util.formatDate(new Date())
     wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: today }) })
   },
 

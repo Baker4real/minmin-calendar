@@ -386,6 +386,30 @@ test('record tab period entry reopens an ongoing record, otherwise starts today,
   assert.equal(app.wx.toasts.length, 1)
 })
 
+test('record tab chooses the latest ongoing record, then creates today even when completed coverage exists', async (t) => {
+  const app = setup(t)
+  const closedToday = { _id: 'closed-today', startDate: '2026-10-18', endDate: '2026-10-20', status: 'known-end' }
+  list(app, 'periods').reply({ code: 0, data: [
+    { _id: 'older-live', startDate: '2026-10-01', status: 'ongoing' },
+    { _id: 'latest-live', startDate: '2026-10-15', status: 'ongoing' }, closedToday
+  ] })
+  const page = app.launch(route)
+  await app.flush()
+  assert.equal(page.data.periods.length, 3)
+  await app.dispatch(page, 'addPeriod')
+  assert.equal(app.currentPage.data.id, 'latest-live')
+  assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?id=latest-live&startDate=2026-10-15&status=ongoing')
+  assert.equal(app.wx.toasts.at(-1).title, '已有进行中的经期，继续编辑它')
+  list(app, 'periods').reply({ code: 0, data: [closedToday] })
+  await app.dispatch(app.currentPage, 'goBack')
+  await app.flush()
+  await app.dispatch(page, 'addPeriod')
+  assert.equal(app.currentPage.data.isEdit, false)
+  assert.equal(app.currentPage.data.startDate, '2026-10-20')
+  assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?startDate=2026-10-20')
+  assert.equal(app.wx.toasts.length, 1)
+})
+
 test('memory rows open the chosen same-day or older record by id, while missing ids do nothing', async (t) => {
   const app = setup(t, { segment: 'memory' })
   list(app, 'memories').reply({ code: 0, data: [

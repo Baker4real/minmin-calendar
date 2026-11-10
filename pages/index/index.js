@@ -1,6 +1,7 @@
 const util = require('../../utils/util')
 const cloud = require('../../utils/cloud')
 const cycle = require('../../utils/cycle')
+const periodCoverage = require('../../utils/periodCoverage')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const wxPrompts = require('../../utils/wxPrompts')
 const recordEditRoute = require('../../utils/recordEditRoute')
@@ -988,12 +989,12 @@ Page(withPageVisibility({
   // 记录不进渲染数据，从页面保存的列表读取。
   openPeriodForDate(date, options = {}) {
     const today = util.formatDate(new Date())
-    const decision = cycle.decidePeriodRecordForDate(this._recordList('periods'), date, { today })
+    const decision = periodCoverage.decidePeriodRecordForDate(this._recordList('periods'), date, { today })
     if (decision.notice) {
       wx.showToast({ title: decision.notice, icon: 'none' })
     }
     if (decision.action === 'open') {
-      const completing = options.completeOngoing && cycle.getPeriodStatus(decision.record) === 'ongoing'
+      const completing = options.completeOngoing && decision.reason === 'ongoing'
       wx.navigateTo({
         url: recordEditRoute.buildPeriodEditUrl(
           decision.record,

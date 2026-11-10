@@ -1,4 +1,5 @@
 const cycle = require('./cycle')
+const periodCoverage = require('./periodCoverage')
 const util = require('./util')
 
 const CONFIDENCE_COPY = {
@@ -72,7 +73,7 @@ function buildMonthlyRecap({
   const monthEnd = `${year}-${pad2(month + 1)}-${pad2(new Date(year, month + 1, 0).getDate())}`
   const monthPeriods = periods.filter(period => overlapsMonth(period, monthStart, monthEnd, today))
   const monthMemories = memories.filter(memory => isDateString(memory.date) && memory.date >= monthStart && memory.date <= monthEnd)
-  const periodDays = monthPeriods.reduce((sum, period) => sum + getPeriodDaysInMonth(period, monthStart, monthEnd, today), 0)
+  const periodDays = periodCoverage.getMonthCoverage(periods, year, month, today).count
   const highlights = []
 
   monthPeriods.forEach(period => {
@@ -240,7 +241,7 @@ function buildTextItems(lines, prefix) {
 }
 
 function normalizePeriodRange(period, today) {
-  return cycle.projectPeriodRange(period, today)
+  return periodCoverage.projectPeriodRange(period, today)
 }
 
 function isDateString(value) {
