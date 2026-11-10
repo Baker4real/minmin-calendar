@@ -7,12 +7,13 @@ const { createRoomResolver } = require('./roomResolver')
 const QUERY_TIMEOUT = 15000 // 15 秒超时
 
 function withTimeout(promise, ms = QUERY_TIMEOUT) {
+  let timer
   return Promise.race([
     promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`云数据库查询超时 (${ms}ms)`)), ms)
-    )
-  ])
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`云数据库查询超时 (${ms}ms)`)), ms)
+    })
+  ]).finally(() => clearTimeout(timer))
 }
 
 function getRoomCode() {

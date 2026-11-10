@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
-const Module = require('node:module')
+const { createMiniProgram } = require('./helpers/miniProgram')
 const path = require('node:path')
 const test = require('node:test')
 const { listWxmlFiles, parseWxssRules } = require('./designTokens')
@@ -13,7 +13,7 @@ const { renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
 // issue #104：绑定页收敛回 Aurora Bloom——紫粉试点 token/深紫画布/粉胶囊/粉幽灵整体移除，
 // #78 的绑定页/设置页复制键像素同款契约按 DESIGN.md 重建条件恢复（fill/label/radius/padding/shadow 全等）。
 // 观察用户能看见或能做到的事：哪个控件在场、哪句话显示、点按后落到哪个状态；
-// 不断言私有结构。接缝与 tests/page-registration.test.js 的 loadPageHarness 同构（本文件自有最小副本）。
+// 所有页面行为经共享微信平台替身驱动，真实 Room、云访问和页面 module 保持原样。
 
 const repoRoot = path.join(__dirname, '..')
 
@@ -257,828 +257,350 @@ test('copy buttons press instantly under reduced motion on both bind and setting
   }
 })
 
-test('bind page exposes an unbind action on the same screen when create is rejected for still being in a room', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
-    createRoom: {
-      code: -1,
-      msg: '你已加入其他房间，请先解除绑定后再创建新房间'
-    }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    await harness.page.onShow()
-
-    await harness.page.createRoom()
-
-    assert.equal(harness.page.data.errorMsg, '你已加入其他房间，请先解除绑定后再创建新房间')
-    assert.equal(harness.page.data.needUnbind, true, 'the rejection must unlock an unbind action on this screen')
-
-    const wxml = readPageFile('pages/bind/bind.wxml')
-    const unboundCard = wxml.slice(wxml.indexOf('wx:else') + 'wx:else'.length)
-    assert.match(
-      unboundCard,
-      /wx:if="\{\{needUnbind\}\}"[^>]*bindtap="unbind"/,
-      'the unbound card renders the unbind entry when the room requires leaving first'
-    )
-  } finally {
-    harness.teardown()
+test('bind page exposes same-screen unbind for create and join refused by another room', async (t) => {
+  for (const action of ['createRoom', 'joinRoom']) {
+    await t.test(action, async (t) => {
+      const msg = action === 'createRoom'
+        ? '你已加入其他房间，请先解除绑定后再创建新房间'
+        : '你已加入其他房间，请先解除绑定后再加入新房间'
+      const app = bindPlatform(t, { [action]: { code: -5, msg } })
+      const page = app.launch(action === 'joinRoom' ? '/pages/bind/bind?roomCode=ROOM01' : '/pages/bind/bind')
+      await app.settle()
+      await app.dispatch(page, action)
+      assert.equal(page.data.errorMsg, msg)
+      assert.equal(page.data.needUnbind, true)
+      assert.match(readPageFile('pages/bind/bind.wxml'), /wx:if="\{\{needUnbind\}\}"[^>]*bindtap="unbind"/)
+    })
   }
 })
 
-test('bind page exposes the same-screen unbind when join is rejected for still being in a room', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
-    joinRoom: {
-      code: -1,
-      msg: '你已加入其他房间，请先解除绑定后再加入新房间'
-    }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    await harness.page.onShow()
-    harness.page.setData({ joinCode: 'ROOM01' })
-
-    await harness.page.joinRoom()
-
-    assert.equal(harness.page.data.needUnbind, true)
-  } finally {
-    harness.teardown()
-  }
-})
-
-test('bind page does not offer unbind for ordinary create/join failures', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
+test('bind page does not offer unbind for ordinary create/join failures', async (t) => {
+  const app = bindPlatform(t, {
     createRoom: { code: -1, msg: '创建失败：网络超时' },
     joinRoom: { code: -1, msg: '房间不存在，请检查房间码' }
   })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    await harness.page.onShow()
-
-    await harness.page.createRoom()
-    assert.equal(harness.page.data.needUnbind, false)
-
-    harness.page.setData({ joinCode: 'ROOM01' })
-    await harness.page.joinRoom()
-    assert.equal(harness.page.data.needUnbind, false)
-  } finally {
-    harness.teardown()
-  }
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  await app.dispatch(page, 'createRoom')
+  assert.equal(page.data.needUnbind, false)
+  await app.dispatch(page, 'switchTab', { currentTarget: { dataset: { tab: 'join' } } })
+  await app.dispatch(page, 'onCodeInput', { detail: { value: 'room01' } })
+  await app.dispatch(page, 'joinRoom')
+  assert.equal(page.data.joinCode, 'ROOM01')
+  assert.equal(page.data.errorMsg, '房间不存在，请检查房间码')
+  assert.equal(page.data.needUnbind, false)
 })
 
-test('confirming the same-screen unbind leaves the room and returns the bind page to a clean unbound state', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
-    createRoom: {
-      code: -1,
-      msg: '你已加入其他房间，请先解除绑定后再创建新房间'
-    },
-    leaveRoom: { code: 0 }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    await harness.page.onShow()
-    await harness.page.createRoom()
-    assert.equal(harness.page.data.needUnbind, true)
-
-    const unbindPromise = harness.page.unbind()
-    await Promise.resolve()
-    assert.equal(harness.wx.modals.length, 1)
-
-    await harness.wx.modals[0].success({ confirm: true, cancel: false })
-    await unbindPromise
-
-    assert.equal(room.calls.leaveRoom, 1)
-    assert.equal(harness.page.data.bound, false)
-    assert.equal(harness.page.data.needUnbind, false)
-    assert.equal(harness.page.data.errorMsg, '')
-  } finally {
-    harness.teardown()
-  }
+test('confirming same-screen unbind leaves the room and returns to a clean unbound state', async (t) => {
+  const app = bindPlatform(t, { createRoom: { code: -5, msg: '你已加入其他房间，请先解除绑定后再创建新房间' } })
+  app.cloud.when('leaveRoom').reply({ code: 0 })
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  await app.dispatch(page, 'createRoom')
+  assert.equal(page.data.needUnbind, true)
+  app.respondNext('showModal', { confirm: true, cancel: false })
+  await app.dispatch(page, 'unbind')
+  await app.settle()
+  assert.equal(app.wx.modals.length, 1)
+  assert.equal(app.wx.modals[0].title, '解除绑定')
+  assert.equal(app.cloud.calls.filter(call => call.name === 'leaveRoom').length, 1)
+  assert.equal(page.data.bound, false)
+  assert.equal(page.data.needUnbind, false)
+  assert.equal(page.data.errorMsg, '')
 })
 
-test('bind page lands on the bound screen after creating a room, with the room code ready to copy', async () => {
-  const clipboard = []
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
-    createRoom: { code: 0, roomCode: 'ROOM05' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room, clipboard })
-
-  try {
-    await harness.page.onShow()
-
-    await harness.page.createRoom()
-
-    assert.equal(harness.page.data.bound, true)
-    assert.equal(harness.page.data.roomCode, 'ROOM05')
-    assert.equal(harness.page.data.needUnbind, false)
-
-    await harness.page.copyRoomCode()
-
-    assert.deepEqual(clipboard, ['ROOM05'])
-    assert.deepEqual(harness.wx.toasts, [{ title: '房间码已复制' }])
-  } finally {
-    harness.teardown()
-  }
+test('creating a room leaves its code ready to copy and share, with sharing the only main action', async (t) => {
+  const app = bindPlatform(t, { createRoom: { code: 0, room: { roomCode: 'ROOM05' } }, failHome: true })
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  await app.dispatch(page, 'createRoom')
+  assert.equal(page.data.bound, true)
+  assert.equal(page.data.roomCode, 'ROOM05')
+  assert.equal(page.data.needUnbind, false)
+  assert.equal(page.data.justCreated, true)
+  assert.equal(page.data.homeJumpFailed, false)
+  assert.equal(homeJumps(app).length, 0)
+  const actions = [{ tier: 'primary', label: '发给 TA', action: 'share' }, { tier: 'secondary', label: '进入应用', action: 'goHome' }]
+  assert.deepEqual(boundCardActions(page.data), actions)
+  await app.dispatch(page, 'copyRoomCode')
+  assert.deepEqual(app.clipboard, ['ROOM05'])
+  assert.deepEqual(app.wx.toasts, [{ title: '房间码已复制' }])
+  await app.dispatch(page, 'goHome')
+  assert.equal(page.data.homeJumpFailed, true)
+  assert.deepEqual(boundCardActions(page.data), actions, 'a failed home jump does not demote sharing')
+  const card = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
+  assert.match(card, /wx:if="\{\{justCreated\}\}"[^>]*>\s*把房间码发给 TA\s*<\//)
+  assert.equal((card.match(/bindtap="copyRoomCode"/g) || []).length, 1)
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.equal(page.data.justCreated, false)
 })
 
-// issue #102：创建成功后的引导——房间码区域提示「把房间码发给 TA」，复制键仍是唯一复制入口
-test('bind page hints to send the room code to the partner after creating a room', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
-    createRoom: { code: 0, roomCode: 'ROOM05' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    await harness.page.onShow()
-
-    await harness.page.createRoom()
-
-    assert.equal(harness.page.data.bound, true)
-    assert.equal(harness.page.data.justCreated, true)
-    assert.equal(
-      harness.page.data.homeJumpFailed,
-      false,
-      'the enter-app button shows through justCreated, not a jump failure'
-    )
-    assert.equal(harness.wx.switchTabCalls.length, 0, 'the creator stays to copy and send the room code')
-
-    const boundCard = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
-    assert.match(
-      boundCard,
-      /wx:if="\{\{justCreated\}\}"[^>]*>\s*把房间码发给 TA\s*<\//,
-      'the room-code area tells the creator to send the code to the partner'
-    )
-    assert.equal(
-      (boundCard.match(/bindtap="copyRoomCode"/g) || []).length,
-      1,
-      'the copy button stays the only copy entry'
-    )
-
-    // onShow 重校验后提示清除，不常驻
-    await harness.page.onShow()
-    assert.equal(harness.page.data.justCreated, false)
-  } finally {
-    harness.teardown()
-  }
+test('bind page shares a fixed invite card carrying only the room code to the launch screen', async (t) => {
+  const app = bindPlatform(t, { createRoom: { code: 0, room: { roomCode: 'ROOM05' } } })
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  await app.dispatch(page, 'createRoom')
+  const card = app.share(page)
+  assert.equal(JSON.parse(readPageFile('app.json')).pages[0], 'pages/bind/bind')
+  assert.equal(card.title, '邀请你加入我的日历')
+  assert.equal(card.path, '/pages/bind/bind?roomCode=ROOM05')
+  assert.doesNotMatch(card.title, /经期|欢乐时光|记录|ROOM05/)
+  assert.equal(JSON.stringify(card).replace(card.path, '').includes('ROOM05'), false)
+  const boundCard = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
+  const button = /<button\b[^>]*>\s*发给 TA\s*<\/button>/.exec(boundCard)
+  assert.ok(button)
+  assert.match(button[0], /open-type="share"/)
+  assert.match(button[0], /wx:if="\{\{justCreated\}\}"/)
 })
 
-// issue #140：创建成功后，在「把房间码发给 TA」处用小程序原生分享发一张邀请卡。
-// 标题是固定文案，不含经期或记录；房间码只出现在启动首屏的路径参数里。
-test('bind page shares a fixed invite card whose path carries only the room code to the launch screen', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
-    createRoom: { code: 0, roomCode: 'ROOM05' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    await harness.page.onShow()
-    await harness.page.createRoom()
-
-    const card = harness.page.onShareAppMessage()
-    const app = JSON.parse(readPageFile('app.json'))
-    assert.equal(app.pages[0], 'pages/bind/bind', 'the launch screen stays the bind page')
-    assert.equal(card.title, '邀请你加入我的日历')
-    assert.equal(card.path, '/pages/bind/bind?roomCode=ROOM05')
-    assert.doesNotMatch(card.title, /经期|欢乐时光|记录|ROOM05/)
-    const besidesPath = JSON.stringify(card).replace(card.path, '')
-    assert.equal(besidesPath.includes('ROOM05'), false, 'the room code must not leave the path query')
-
-    const boundCard = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
-    const shareButton = /<button\b[^>]*>\s*发给 TA\s*<\/button>/.exec(boundCard)
-    assert.ok(shareButton, 'the created-room card offers a native share button labeled 发给 TA')
-    assert.match(shareButton[0], /open-type="share"/)
-    assert.match(shareButton[0], /wx:if="\{\{justCreated\}\}"/)
-  } finally {
-    harness.teardown()
-  }
-})
-
-// issue #140：未绑定的人从邀请卡进入启动首屏时，切到「加入房间」并预填房间码，仍要自己点「加入」。
-test('bind page prefills the join form from a launch invite and waits for the join tap', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    harness.page.onLoad({ roomCode: 'ROOM05' })
-    await harness.page.onShow()
-
-    assert.equal(harness.page.data.bound, false)
-    assert.equal(harness.page.data.tab, 'join')
-    assert.equal(harness.page.data.joinCode, 'ROOM05')
-    assert.equal(harness.page.data.errorMsg, '')
-    assert.equal(room.calls.joinRoom, undefined, 'prefill must not join the room by itself')
-    assert.equal(harness.wx.switchTabCalls.length, 0)
-  } finally {
-    harness.teardown()
-  }
-})
-
-// issue #140：已经绑定的人打开邀请卡时忽略参数，仍按现有路径进首页。
-test('bind page ignores a launch invite when the user is already bound and continues home', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    harness.page.onLoad({ roomCode: 'ROOM05' })
-    await harness.page.onShow()
-
-    assert.equal(harness.page.data.bound, true)
-    assert.equal(harness.page.data.roomCode, 'ROOM01')
-    assert.equal(harness.page.data.tab, 'create')
-    assert.equal(harness.page.data.joinCode, '')
-    assert.equal(harness.page.data.errorMsg, '')
-    assert.equal(room.calls.joinRoom, undefined)
-    assert.equal(harness.wx.switchTabCalls.length, 1)
-    assert.equal(harness.wx.switchTabCalls[0].url, '/pages/index/index')
-  } finally {
-    harness.teardown()
-  }
-})
-
-// issue #140：路径参数长度不对时直接忽略，不报错，也不改加入表单。
-test('bind page ignores a launch invite of the wrong length without an error', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    harness.page.onLoad({ roomCode: 'ABC' })
-    await harness.page.onShow()
-
-    assert.equal(harness.page.data.bound, false)
-    assert.equal(harness.page.data.tab, 'create')
-    assert.equal(harness.page.data.joinCode, '')
-    assert.equal(harness.page.data.errorMsg, '')
-    assert.equal(room.calls.joinRoom, undefined)
-    assert.equal(harness.wx.switchTabCalls.length, 0)
-  } finally {
-    harness.teardown()
-  }
-})
-
-// issue #102：加入成功后给一次明确的「已和 TA 连上」反馈，再进入首页
-test('bind page confirms a successful join once and enters the homepage', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
-    joinRoom: { code: 0, roomCode: 'ROOM09' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    await harness.page.onShow()
-    harness.page.setData({ joinCode: 'ROOM09' })
-
-    await harness.page.joinRoom()
-
-    assert.deepEqual(harness.wx.toasts, [{ title: '已和 TA 连上' }])
-    assert.equal(harness.wx.switchTabCalls.length, 1)
-    assert.equal(harness.wx.switchTabCalls[0].url, '/pages/index/index')
-    assert.equal(harness.page.data.bound, true)
-    assert.equal(harness.page.data.roomCode, 'ROOM09')
-  } finally {
-    harness.teardown()
-  }
-})
-
-// ===== issue #102：已绑定冷启动直达首页；跳转失败保留「进入应用」兜底 =====
-
-test('bind page cold-starts straight into the homepage tab when the room still verifies as bound', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    await harness.page.onShow()
-
-    assert.equal(harness.page.data.bound, true)
-    assert.equal(harness.page.data.roomCode, 'ROOM01')
-    assert.equal(harness.wx.switchTabCalls.length, 1, 'bound verification must jump home immediately')
-    assert.equal(harness.wx.switchTabCalls[0].url, '/pages/index/index')
-    assert.deepEqual(harness.wx.toasts, [], 'cold-start jump stays silent; the connected toast is only for joins')
-
-    // review #99 / issue #102：自动跳转成功时「进入应用」不出现——只在跳转失败或刚创建房间时兜底
-    assert.equal(harness.page.data.justCreated, false)
-    assert.equal(harness.page.data.homeJumpFailed, false)
-    assert.deepEqual(
-      boundCardActions(harness.page.data),
-      [],
-      'the enter-app button renders only when the home jump failed or the room was just created'
-    )
-  } finally {
-    harness.teardown()
-  }
-})
-
-test('bind page keeps the bound card with the enter-app fallback when the home jump fails', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room, switchTabFail: true })
-
-  try {
-    await harness.page.onShow()
-
-    assert.equal(harness.wx.switchTabCalls.length, 1)
-    assert.equal(harness.page.data.bound, true, 'the bound card stays as the fallback surface')
-    assert.equal(harness.page.data.roomCode, 'ROOM01')
-    assert.equal(harness.page.data.errorMsg, '')
-    assert.equal(harness.page.data.homeJumpFailed, true, 'the failed jump unhides the enter-app fallback')
-
-    // 兜底按钮可点：再点一次「进入应用」重试跳转；再次失败时旗标保持，按钮不退场
-    harness.page.goHome()
-    assert.equal(harness.wx.switchTabCalls.length, 2)
-    assert.equal(harness.page.data.homeJumpFailed, true)
-
-    assert.deepEqual(
-      boundCardActions(harness.page.data),
-      [{ tier: 'primary', label: '进入应用', action: 'goHome' }],
-      'the enter-app main button remains as the minimal fallback'
-    )
-  } finally {
-    harness.teardown()
-  }
-})
-
-// review #99 / issue #102：重新校验后旗标清除——「进入应用」兜底只在需要时在场
-test('bind page hides the enter-app fallback once re-verification clears the jump-failure flag', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' }
-  })
-  let failNextJump = true
-  const harness = loadPageHarness('pages/bind/bind.js', { room, switchTabFail: () => failNextJump })
-
-  try {
-    await harness.page.onShow()
-    assert.equal(harness.page.data.homeJumpFailed, true)
-
-    // 重校验仍已绑定且跳转恢复：旗标清除、自动进首页，兜底退场
-    failNextJump = false
-    await harness.page.retryCheck()
-    assert.equal(harness.page.data.justCreated, false)
-    assert.equal(harness.page.data.homeJumpFailed, false)
-    assert.equal(harness.wx.switchTabCalls.length, 2)
-  } finally {
-    harness.teardown()
-  }
-})
-
-// ===== issue #149：刚创建房间时「发给 TA」是唯一主操作；只有已有房间跳转首页失败时「进入应用」才是主按钮 =====
-
-test('bind page makes sharing the invite the only main action after creating a room', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
-    createRoom: { code: 0, roomCode: 'ROOM05' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room, switchTabFail: true })
-  const created = [
-    { tier: 'primary', label: '发给 TA', action: 'share' },
-    { tier: 'secondary', label: '进入应用', action: 'goHome' }
-  ]
-
-  try {
-    await harness.page.onShow()
-    await harness.page.createRoom()
-    assert.deepEqual(boundCardActions(harness.page.data), created)
-
-    // 刚创建后点「进入应用」却跳转失败：分享仍是主操作，「进入应用」不升为主按钮
-    harness.page.goHome()
-    assert.equal(harness.page.data.homeJumpFailed, true)
-    assert.equal(harness.page.data.justCreated, true)
-    assert.deepEqual(boundCardActions(harness.page.data), created)
-  } finally {
-    harness.teardown()
-  }
-})
-
-test('bind page makes entering the app the main recovery when the home jump fails for an existing room', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room, switchTabFail: true })
-
-  try {
-    await harness.page.onShow()
-    assert.equal(harness.page.data.justCreated, false)
-    assert.equal(harness.page.data.homeJumpFailed, true)
-    assert.deepEqual(boundCardActions(harness.page.data), [
-      { tier: 'primary', label: '进入应用', action: 'goHome' }
-    ])
-  } finally {
-    harness.teardown()
-  }
-})
-
-test('bind page stays with the error and a tappable retry when room verification fails', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: {
-      kind: 'retryable-failure',
-      bound: false,
-      roomCode: '',
-      errorMsg: '同步房间状态失败：network down'
-    }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    await harness.page.onShow()
-
-    assert.equal(harness.page.data.bound, false, 'a verification failure must not enter the app')
-    assert.equal(harness.page.data.needUnbind, false, 'a network failure must not mislead into rebinding')
-    assert.equal(harness.page.data.errorMsg, '同步房间状态失败：network down')
-    assert.equal(harness.page.data.checkFailed, true, 'the error strip gains a retry affordance')
-    assert.equal(harness.wx.switchTabCalls.length, 0)
-
-    // 重试 = 重跑 onShow 的房间校验，而不是导向重新绑定
-    await harness.page.retryCheck()
-    assert.equal(room.calls.getVerifiedActiveRoom, 2)
-    assert.equal(harness.page.data.errorMsg, '同步房间状态失败：network down')
-    assert.equal(harness.page.data.needUnbind, false)
-
-    const wxml = readPageFile('pages/bind/bind.wxml')
-    assert.match(
-      wxml,
-      /wx:if="\{\{checkFailed\}\}"[^>]*bindtap="retryCheck"/,
-      'the retry button only appears after a verification failure'
-    )
-    assert.match(
-      wxml,
-      /bindtap="retryCheck"[^>]*aria-role="button"[^>]*aria-label="重试"/,
-      'the retry button is a named tappable control'
-    )
-  } finally {
-    harness.teardown()
-  }
-})
-
-// issue #115：第一次房间校验出结果前，启动首屏只渲染品牌心
-test('bind page shows only the brand heart from first paint until the first room check returns', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    assert.equal(harness.page.data.verifying, true, 'first paint is the verifying state')
-    assert.equal(harness.page.data.revealed, false, 'room content stays unrevealed until a result says so')
-    assert.equal(room.calls.getVerifiedActiveRoom, undefined, 'the check has not returned before onShow')
-
-    const wxml = readPageFile('pages/bind/bind.wxml')
-    const heartAt = wxml.indexOf('class="hero-icon">♥')
-    const gateAt = wxml.indexOf('wx:if="{{revealed}}"')
-    assert.ok(heartAt !== -1, 'the brand heart is on the page')
-    assert.ok(gateAt !== -1, 'room content waits behind the revealed gate')
-    assert.ok(heartAt < gateAt, 'the brand heart stays outside the revealed gate')
-
-    const gated = wxml.slice(gateAt)
-    for (const marker of [
-      'class="hero-title"',
-      'class="hero-desc"',
-      'wx:if="{{bound}}"',
-      'class="error-msg"',
-      'class="error-retry"',
-      '创建房间',
-      '加入房间'
-    ]) {
-      assert.ok(gated.includes(marker), `verifying hides ${marker}`)
-    }
-    assert.doesNotMatch(
-      wxml.slice(0, gateAt),
-      /hero-title|创建房间|已绑定房间|error-msg|error-retry/
-    )
-
-    const icon = findRule(readPageFile('pages/bind/bind.wxss'), '.hero-icon')
-    assert.equal(icon.animation, 'heroIn 0.6s var(--ease-out) both', 'the registered heart entrance stays')
-
-    let release
-    room.getVerifiedActiveRoom = () => new Promise((resolve) => {
-      release = resolve
+test('bind page prefills an invite without joining and ignores malformed invite lengths', async (t) => {
+  for (const [code, tab, joinCode] of [['ROOM05', 'join', 'ROOM05'], ['ABC', 'create', '']]) {
+    await t.test(code, async (t) => {
+      const app = bindPlatform(t)
+      const page = app.launch(`/pages/bind/bind?roomCode=${code}`)
+      await app.settle()
+      assert.equal(page.data.bound, false)
+      assert.equal(page.data.tab, tab)
+      assert.equal(page.data.joinCode, joinCode)
+      assert.equal(page.data.errorMsg, '')
+      assert.equal(app.cloud.calls.some(call => call.name === 'joinRoom'), false)
+      assert.equal(homeJumps(app).length, 0)
     })
-    const pending = harness.page.onShow()
-    await Promise.resolve()
-    assert.equal(harness.page.data.verifying, true, 'the heart stays alone while the first check is in flight')
-    assert.equal(harness.page.data.revealed, false)
-
-    release({ kind: 'no-room', bound: false, roomCode: '' })
-    await pending
-    assert.equal(harness.page.data.verifying, false, 'the first result ends verifying')
-    assert.equal(harness.page.data.revealed, true, 'an unbound result reveals the room card')
-    assert.equal(harness.page.data.bound, false)
-    assert.equal(harness.page.data.checkFailed, false)
-  } finally {
-    harness.teardown()
   }
 })
 
-test('bind page keeps the heart and reveals the bound card only when the home jump fails', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' }
-  })
-  const jumped = loadPageHarness('pages/bind/bind.js', { room })
+test('already-bound launch ignores the invite, enters home silently and never shows the enter fallback', async (t) => {
+  const app = bindPlatform(t, { room: { roomCode: 'ROOM01', status: 'waiting' } })
+  const page = app.launch('/pages/bind/bind?roomCode=ROOM05')
+  await app.settle()
+  assert.equal(page.data.bound, true)
+  assert.equal(page.data.roomCode, 'ROOM01')
+  assert.equal(page.data.tab, 'create')
+  assert.equal(page.data.joinCode, '')
+  assert.equal(page.data.errorMsg, '')
+  assert.equal(page.data.justCreated, false)
+  assert.equal(page.data.homeJumpFailed, false)
+  assert.equal(page.data.revealed, false)
+  assert.equal(page.data.verifying, false)
+  assert.deepEqual(boundCardActions(page.data), [])
+  assert.equal(app.cloud.calls.some(call => call.name === 'joinRoom'), false)
+  assert.equal(homeJumps(app).length, 1)
+  assert.equal(app.currentPage.route, 'pages/index/index')
+  assert.deepEqual(app.wx.toasts, [])
+})
 
-  try {
-    await jumped.page.onShow()
+test('bind page confirms a successful join once and enters the real homepage', async (t) => {
+  const app = bindPlatform(t, { joinRoom: { code: 0, roomCode: 'ROOM09' } })
+  const page = app.launch('/pages/bind/bind?roomCode=ROOM09')
+  await app.settle()
+  app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM09', status: 'paired' } })
+  await app.dispatch(page, 'joinRoom')
+  await app.settle()
+  assert.deepEqual(app.wx.toasts, [{ title: '已和 TA 连上' }])
+  assert.equal(homeJumps(app).length, 1)
+  assert.equal(page.data.bound, true)
+  assert.equal(page.data.roomCode, 'ROOM09')
+  assert.equal(app.currentPage.route, 'pages/index/index')
+  assert.equal(app.currentPage.data.partnerWelcome, true)
+})
 
-    assert.equal(jumped.page.data.verifying, false)
-    assert.equal(jumped.page.data.revealed, false, 'a bound result stays on the heart while the homepage opens')
-    assert.equal(jumped.page.data.homeJumpFailed, false)
-    assert.equal(jumped.wx.switchTabCalls.length, 1)
-    assert.equal(jumped.wx.switchTabCalls[0].url, '/pages/index/index')
-  } finally {
-    jumped.teardown()
-  }
+test('failed home navigation reveals the bound card and keeps enter-app as its main recovery', async (t) => {
+  const app = bindPlatform(t, { room: { roomCode: 'ROOM01' }, failHome: true })
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  assert.equal(page.data.bound, true)
+  assert.equal(page.data.roomCode, 'ROOM01')
+  assert.equal(page.data.errorMsg, '')
+  assert.equal(page.data.revealed, true)
+  assert.equal(page.data.verifying, false)
+  assert.equal(page.data.justCreated, false)
+  assert.equal(page.data.homeJumpFailed, true)
+  assert.deepEqual(boundCardActions(page.data), [{ tier: 'primary', label: '进入应用', action: 'goHome' }])
+  await app.dispatch(page, 'goHome')
+  assert.equal(homeJumps(app).length, 2)
+  assert.equal(page.data.homeJumpFailed, true)
+  app.failNavigation('switchTab', false)
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.equal(page.data.homeJumpFailed, false)
+  assert.equal(page.data.justCreated, false)
+  assert.equal(homeJumps(app).length, 3)
+  assert.equal(app.currentPage.route, 'pages/index/index')
+})
 
-  const failed = loadPageHarness('pages/bind/bind.js', { room, switchTabFail: true })
-  try {
-    await failed.page.onShow()
+test('verification failure stays on the bind page with filtered copy and a working retry', async (t) => {
+  const app = bindPlatform(t)
+  app.cloud.when('getMyRoom').reject(new Error('network down'))
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  assert.equal(page.data.bound, false)
+  assert.equal(page.data.needUnbind, false)
+  assert.equal(page.data.errorMsg, '网络不太稳定，请重试')
+  assert.equal(page.data.checkFailed, true)
+  assert.equal(page.data.revealed, true)
+  assert.equal(page.data.verifying, false)
+  await app.dispatch(page, 'retryCheck')
+  assert.equal(app.cloud.calls.filter(call => call.name === 'getMyRoom').length, 2)
+  assert.equal(page.data.errorMsg, '网络不太稳定，请重试')
+  assert.equal(page.data.needUnbind, false)
+  assert.equal(homeJumps(app).length, 0)
+  const wxml = readPageFile('pages/bind/bind.wxml')
+  assert.match(wxml, /wx:if="\{\{checkFailed\}\}"[^>]*bindtap="retryCheck"/)
+  assert.match(wxml, /bindtap="retryCheck"[^>]*aria-role="button"[^>]*aria-label="重试"/)
+})
 
-    assert.equal(failed.wx.switchTabCalls.length, 1)
-    assert.equal(failed.page.data.verifying, false)
-    assert.equal(failed.page.data.revealed, true, 'a failed jump is what reveals the bound card')
-    assert.equal(failed.page.data.bound, true)
-    assert.equal(failed.page.data.roomCode, 'ROOM01')
-    assert.equal(failed.page.data.homeJumpFailed, true)
-    assert.deepEqual(boundCardActions(failed.page.data), [{ tier: 'primary', label: '进入应用', action: 'goHome' }])
-  } finally {
-    failed.teardown()
+test('first room check keeps only the brand heart until its delayed response', async (t) => {
+  const app = bindPlatform(t)
+  const check = app.cloud.when('getMyRoom').defer()
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  assert.equal(page.data.verifying, true)
+  assert.equal(page.data.revealed, false)
+  const wxml = readPageFile('pages/bind/bind.wxml')
+  const heartAt = wxml.indexOf('class="hero-icon">♥')
+  const gateAt = wxml.indexOf('wx:if="{{revealed}}"')
+  assert.ok(heartAt !== -1 && gateAt > heartAt)
+  const gated = wxml.slice(gateAt)
+  for (const marker of ['class="hero-title"', 'class="hero-desc"', 'wx:if="{{bound}}"', 'class="error-msg"', 'class="error-retry"', '创建房间', '加入房间']) assert.ok(gated.includes(marker))
+  assert.doesNotMatch(wxml.slice(0, gateAt), /hero-title|创建房间|已绑定房间|error-msg|error-retry/)
+  assert.equal(findRule(readPageFile('pages/bind/bind.wxss'), '.hero-icon').animation, 'heroIn 0.6s var(--ease-out) both')
+  check.resolve({ code: 0, room: null })
+  await app.settle()
+  assert.equal(page.data.verifying, false)
+  assert.equal(page.data.revealed, true)
+  assert.equal(page.data.bound, false)
+  assert.equal(page.data.checkFailed, false)
+})
+
+test('later checks and retries keep revealed content while cloud responses are delayed', async (t) => {
+  for (const retry of [false, true]) {
+    await t.test(retry ? 'retry' : 'show', async (t) => {
+      const app = bindPlatform(t)
+      if (retry) app.cloud.when('getMyRoom').reject(new Error('network down'))
+      const page = app.launch('/pages/bind/bind')
+      await app.settle()
+      const check = app.cloud.when('getMyRoom').defer()
+      if (retry) app.dispatch(page, 'retryCheck')
+      else { app.hide(); app.show() }
+      await app.settle()
+      assert.equal(page.data.verifying, false)
+      assert.equal(page.data.revealed, true)
+      assert.equal(page.data.bound, false)
+      if (retry) {
+        assert.equal(page.data.errorMsg, '网络不太稳定，请重试')
+        assert.equal(page.data.checkFailed, true)
+      }
+      check.resolve({ code: 0, room: retry ? null : { roomCode: 'ROOM01' } })
+      // Further homepage lookups after the delayed bound result use this response.
+      if (!retry) app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01' } })
+      await app.settle()
+      assert.equal(page.data.verifying, false)
+      assert.equal(page.data.revealed, true)
+      assert.equal(page.data.checkFailed, false)
+      assert.equal(page.data.errorMsg, '')
+      assert.equal(page.data.bound, !retry)
+      assert.equal(homeJumps(app).length, retry ? 0 : 1)
+    })
   }
 })
 
-test('bind page reveals an unbound or failed check with the shared enter motion', async () => {
+test('bind page reveals the card and its title with the shared enter motion', () => {
   const css = readPageFile('pages/bind/bind.wxss')
   const frames = /@keyframes bindReveal\s*\{([\s\S]*?)\n\}/.exec(css)
-  assert.ok(frames, 'the room card reveal has its own keyframes')
+  assert.ok(frames)
   assert.match(frames[1], /from\s*\{[^}]*opacity:\s*0/)
   assert.match(frames[1], /from\s*\{[^}]*transform:\s*translateY\(16rpx\)/)
   assert.match(frames[1], /to\s*\{[^}]*opacity:\s*1/)
   assert.match(frames[1], /to\s*\{[^}]*transform:\s*translateY\(0\)/)
-
   const reveal = findRule(css, '.bind-reveal')
   assert.equal(reveal.animation, 'bindReveal var(--duration-enter) var(--ease-out) both')
-  assert.equal(reveal.opacity, undefined, 'the card rests visible so reduced motion does not fade it in')
-  assert.equal(reveal.transform, undefined, 'the card rests in place so reduced motion does not shift it')
-  assert.doesNotMatch(css, /--duration-enter\s*:/, 'duration tokens stay defined once at app level')
-
+  assert.equal(reveal.opacity, undefined)
+  assert.equal(reveal.transform, undefined)
+  assert.doesNotMatch(css, /--duration-enter\s*:/)
   const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
-  assert.match(
-    reduced,
-    /\.bind-reveal[^{]*\{[^}]*animation:\s*none/,
-    'reduced motion shows the card immediately, with no fade and no shift'
-  )
-
+  assert.match(reduced, /\.bind-reveal[^{]*\{[^}]*animation:\s*none/)
   const wxml = readPageFile('pages/bind/bind.wxml')
-  assert.match(
-    wxml,
-    /wx:if="\{\{revealed\}\}" class="bind-reveal"[\s\S]*wx:if="\{\{bound\}\}"[\s\S]*class="error-msg"[\s\S]*class="error-retry"/,
-    'the card, the error strip, and retry share one reveal'
-  )
-  // issue #167：心下面的大标题和说明跟卡片同一刻、同一个显现进来，不先硬切出来
-  assert.match(
-    wxml,
-    /<view wx:if="\{\{revealed\}\}" class="bind-reveal">\s*<text class="hero-title">[^<]*<\/text>\s*<text class="hero-desc">[^<]*<\/text>\s*<\/view>/,
-    'the title and the subtitle under the heart reveal with the card'
-  )
-
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: {
-      kind: 'retryable-failure',
-      bound: false,
-      roomCode: '',
-      errorMsg: '同步房间状态失败：network down'
-    }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    await harness.page.onShow()
-
-    assert.equal(harness.page.data.verifying, false)
-    assert.equal(harness.page.data.revealed, true)
-    assert.equal(harness.page.data.bound, false)
-    assert.equal(harness.page.data.checkFailed, true)
-    assert.equal(harness.page.data.errorMsg, '同步房间状态失败：network down')
-    assert.equal(harness.wx.switchTabCalls.length, 0)
-  } finally {
-    harness.teardown()
-  }
+  assert.match(wxml, /wx:if="\{\{revealed\}\}" class="bind-reveal"[\s\S]*wx:if="\{\{bound\}\}"[\s\S]*class="error-msg"[\s\S]*class="error-retry"/)
+  assert.match(wxml, /<view wx:if="\{\{revealed\}\}" class="bind-reveal">\s*<text class="hero-title">[^<]*<\/text>\s*<text class="hero-desc">[^<]*<\/text>\s*<\/view>/)
 })
 
-test('bind page keeps the current room content when a later check or retry runs', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    await harness.page.onShow()
-    assert.equal(harness.page.data.verifying, false)
-    assert.equal(harness.page.data.revealed, true)
-
-    let release
-    room.getVerifiedActiveRoom = () => new Promise((resolve) => {
-      release = resolve
-    })
-    const pending = harness.page.onShow()
-    await Promise.resolve()
-    assert.equal(harness.page.data.verifying, false, 'a later onShow does not return to verifying')
-    assert.equal(harness.page.data.revealed, true, 'the revealed card stays put while the later check runs')
-    assert.equal(harness.page.data.bound, false)
-
-    release({ kind: 'success', bound: true, roomCode: 'ROOM01' })
-    await pending
-    assert.equal(harness.page.data.verifying, false)
-    assert.equal(harness.page.data.revealed, true, 'a later bound result does not collapse back to the heart')
-    assert.equal(harness.page.data.bound, true)
-    assert.equal(harness.page.data.roomCode, 'ROOM01')
-    assert.equal(harness.wx.switchTabCalls.length, 1)
-    assert.equal(harness.wx.switchTabCalls[0].url, '/pages/index/index')
-  } finally {
-    harness.teardown()
-  }
-
-  const failedRoom = createRoomSessionStub({
-    getVerifiedActiveRoom: {
-      kind: 'retryable-failure',
-      bound: false,
-      roomCode: '',
-      errorMsg: '同步房间状态失败：network down'
-    }
-  })
-  const retryHarness = loadPageHarness('pages/bind/bind.js', { room: failedRoom })
-
-  try {
-    await retryHarness.page.onShow()
-    assert.equal(retryHarness.page.data.revealed, true)
-    assert.equal(retryHarness.page.data.checkFailed, true)
-
-    let releaseRetry
-    failedRoom.getVerifiedActiveRoom = () => new Promise((resolve) => {
-      releaseRetry = resolve
-    })
-    const retrying = retryHarness.page.retryCheck()
-    await Promise.resolve()
-    assert.equal(retryHarness.page.data.verifying, false, 'retry does not return to verifying')
-    assert.equal(retryHarness.page.data.revealed, true)
-    assert.equal(retryHarness.page.data.errorMsg, '同步房间状态失败：network down')
-    assert.equal(retryHarness.page.data.checkFailed, true)
-
-    releaseRetry({ kind: 'no-room', bound: false, roomCode: '' })
-    await retrying
-    assert.equal(retryHarness.page.data.verifying, false)
-    assert.equal(retryHarness.page.data.revealed, true)
-    assert.equal(retryHarness.page.data.bound, false)
-    assert.equal(retryHarness.page.data.checkFailed, false)
-    assert.equal(retryHarness.page.data.errorMsg, '')
-  } finally {
-    retryHarness.teardown()
-  }
-})
-
-// issue #167：创建房间是真正存下的绑定。成功那一刻 ♥ 向外漾开一次（同一字形的半透明回声，不加阴影，播完即透明），
-// 已绑定卡用同一个 bindReveal 显现，卡里的主次和分享不变；创建失败不漾开，之后再次校验去掉记号，不重播
-test('bind page answers a created room with one heart bloom and the bound card reveal', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
-    createRoom: { code: -1, msg: '创建失败' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room, switchTabFail: true })
+test('created room blooms once, failed creation does not bloom, and rechecking clears the mark', async (t) => {
+  const app = bindPlatform(t, { failHome: true, createRoom: { code: -1, msg: '创建失败' } })
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
   const boundCard = attrs => attrs['wx:if'] === '{{bound}}'
-
-  try {
-    await harness.page.onShow()
-    assert.deepEqual(renderedClasses('hero', harness.page.data), ['hero'])
-
-    await harness.page.createRoom()
-    assert.equal(harness.page.data.errorMsg, '创建失败')
-    assert.deepEqual(renderedClasses('hero', harness.page.data), ['hero'], 'a failed create does not bloom')
-
-    room.createRoom = async () => ({ code: 0, roomCode: 'ROOM05' })
-    await harness.page.createRoom()
-    assert.deepEqual(renderedClasses('hero', harness.page.data), ['hero', 'hero-bloom'])
-    assert.deepEqual(renderedClasses('premium-card', harness.page.data, boundCard), ['premium-card', 'bound-reveal'])
-    assert.deepEqual(boundCardActions(harness.page.data), [
-      { tier: 'primary', label: '发给 TA', action: 'share' },
-      { tier: 'secondary', label: '进入应用', action: 'goHome' }
-    ])
-
-    room.getVerifiedActiveRoom = async () => ({ kind: 'success', bound: true, roomCode: 'ROOM05' })
-    await harness.page.onShow()
-    assert.equal(harness.page.data.bound, true)
-    assert.deepEqual(renderedClasses('hero', harness.page.data), ['hero'], 'the next check does not replay the bloom')
-    assert.deepEqual(renderedClasses('premium-card', harness.page.data, boundCard), ['premium-card'])
-  } finally {
-    harness.teardown()
-  }
-
+  assert.deepEqual(renderedClasses('hero', page.data), ['hero'])
+  await app.dispatch(page, 'createRoom')
+  assert.equal(page.data.errorMsg, '创建失败')
+  assert.deepEqual(renderedClasses('hero', page.data), ['hero'])
+  app.cloud.when('createRoom').reply({ code: 0, room: { roomCode: 'ROOM05' } })
+  await app.dispatch(page, 'createRoom')
+  assert.deepEqual(renderedClasses('hero', page.data), ['hero', 'hero-bloom'])
+  assert.deepEqual(renderedClasses('premium-card', page.data, boundCard), ['premium-card', 'bound-reveal'])
+  assert.deepEqual(boundCardActions(page.data), [{ tier: 'primary', label: '发给 TA', action: 'share' }, { tier: 'secondary', label: '进入应用', action: 'goHome' }])
+  app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM05' } })
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.equal(page.data.bound, true)
+  assert.deepEqual(renderedClasses('hero', page.data), ['hero'])
+  assert.deepEqual(renderedClasses('premium-card', page.data, boundCard), ['premium-card'])
   const css = readPageFile('pages/bind/bind.wxss')
   const frames = /@keyframes heroBloom\s*\{([\s\S]*?)\n\}/.exec(css)
-  assert.ok(frames, 'the heart bloom has its own keyframes')
+  assert.ok(frames)
   assert.match(frames[1], /from\s*\{\s*opacity:\s*0\.\d+;\s*transform:\s*scale\(1\);\s*\}/)
   assert.match(frames[1], /to\s*\{\s*opacity:\s*0;\s*transform:\s*scale\(1\.\d+\);\s*\}/)
   const echo = findRule(css, '.hero.hero-bloom .hero-icon::after')
   assert.equal(echo.content, "'♥'")
   assert.equal(echo.animation, 'heroBloom var(--duration-emphasis) var(--ease-out) both')
-  assert.equal(echo.opacity, '0', 'the echo rests invisible')
-  assert.equal(echo['text-shadow'], 'none', 'the echo adds no glow; the heart keeps its one text shadow')
+  assert.equal(echo.opacity, '0')
+  assert.equal(echo['text-shadow'], 'none')
   assert.equal(echo['pointer-events'], 'none')
   const card = findRule(css, '.premium-card.bound-reveal')
   assert.equal(card.animation, 'bindReveal var(--duration-enter) var(--ease-out) both')
-  assert.equal(card.opacity, undefined, 'the card rests visible')
-  assert.equal(card.transform, undefined, 'the card rests in place')
-
-  // 减弱动效下：♥ 不漾开（回声静止透明），已绑定卡直接出现
+  assert.equal(card.opacity, undefined)
+  assert.equal(card.transform, undefined)
   const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
   assert.equal(findRule(reduced, '.hero.hero-bloom .hero-icon::after').animation, 'none')
   assert.equal(findRule(reduced, '.premium-card.bound-reveal').animation, 'none')
 })
 
-test('bind page shows the unbind notice once and then clears it', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', { room })
-  const storage = { bindUnbindNotice: '1' }
-  harness.wx.getStorageSync = (key) => storage[key] || ''
-  harness.wx.removeStorageSync = (key) => { delete storage[key] }
-
-  try {
-    await harness.page.onShow()
-    assert.deepEqual(harness.wx.toasts, [{ title: '已解除绑定', icon: 'none' }])
-    assert.equal(storage.bindUnbindNotice, undefined)
-
-    harness.wx.toasts.length = 0
-    await harness.page.onShow()
-    assert.deepEqual(harness.wx.toasts, [])
-  } finally {
-    harness.teardown()
-  }
+test('bind page consumes the unbind notice exactly once', async (t) => {
+  const app = bindPlatform(t, { storage: { bindUnbindNotice: '1' } })
+  app.launch('/pages/bind/bind')
+  await app.settle()
+  assert.deepEqual(app.wx.toasts, [{ title: '已解除绑定', icon: 'none' }])
+  assert.equal(app.storage.bindUnbindNotice, undefined)
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.equal(app.wx.toasts.length, 1)
 })
 
-test('settings clear-local-data keeps showing the room code when the room is still active after clearing', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' },
-    getActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' }
-  })
-  const harness = loadPageHarness('pages/settings/settings.js', { room })
-
-  try {
-    await harness.page.onShow()
-
-    harness.page.clearData()
-    assert.equal(harness.wx.modals.length, 1)
-    const modal = harness.wx.modals[0]
-    assert.equal(modal.title, '重新同步房间')
-    assert.match(modal.content, /不会删除记录/)
-    assert.match(modal.content, /不会退出房间/)
-
-    await modal.success({ confirm: true, cancel: false })
-
-    assert.equal(room.calls.clearLocalRoom, 1)
-    assert.equal(room.calls.getActiveRoom, 1)
-    assert.equal(room.calls.leaveRoom, undefined, 'clearing the local code must not exit the room')
-    assert.equal(harness.page.data.roomCode, 'ROOM01')
-    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
-    assert.deepEqual(harness.wx.toasts, [{ title: '已清除本机房间码' }])
-  } finally {
-    harness.teardown()
-  }
-})
-
-test('settings clear-local-data falls back to the unbound display only when re-resolution finds no room', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'success', bound: true, roomCode: 'ROOM01' },
-    getActiveRoom: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-  const harness = loadPageHarness('pages/settings/settings.js', { room })
-
-  try {
-    await harness.page.onShow()
-    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
-
-    harness.page.clearData()
-    assert.equal(harness.wx.modals.length, 1)
-    await harness.wx.modals[0].success({ confirm: true, cancel: false })
-
-    assert.equal(harness.page.data.roomCode, '')
-    assert.equal(harness.page.data.roomCodeDisplay, '未绑定')
-    assert.deepEqual(harness.wx.toasts, [{ title: '已清除本机房间码' }])
-  } finally {
-    harness.teardown()
+test('settings local reset preserves an active room and only shows unbound after fresh resolution finds no room', async (t) => {
+  for (const stillBound of [true, false]) {
+    await t.test(String(stillBound), async (t) => {
+      const app = bindPlatform(t, { room: { roomCode: 'ROOM01' } })
+      const page = app.launch('/pages/settings/settings')
+      await app.settle()
+      assert.equal(page.data.roomCodeDisplay, 'ROOM01')
+      app.cloud.when('getMyRoom').reply({ code: 0, room: stillBound ? { roomCode: 'ROOM01' } : null })
+      app.respondNext('showModal', { confirm: true, cancel: false })
+      await app.dispatch(page, 'clearData')
+      await app.settle()
+      const modal = app.wx.modals[0]
+      assert.equal(modal.title, '重新同步房间')
+      assert.match(modal.content, /不会删除记录/)
+      assert.match(modal.content, /不会退出房间/)
+      assert.equal(app.cloud.calls.filter(call => call.name === 'getMyRoom').length, 2)
+      assert.equal(app.cloud.calls.some(call => call.name === 'leaveRoom'), false)
+      assert.equal(page.data.roomCode, stillBound ? 'ROOM01' : '')
+      assert.equal(page.data.roomCodeDisplay, stillBound ? 'ROOM01' : '未绑定')
+      assert.deepEqual(app.wx.toasts, [{ title: '已清除本机房间码' }])
+    })
   }
 })
 
@@ -1148,200 +670,41 @@ function findRule(css, selector) {
   return rule.decls
 }
 
-function createRoomSessionStub(results = {}) {
-  const session = {
-    calls: {},
-    getRoomCode() {
-      return ''
-    },
-    async getVerifiedActiveRoom() {
-      session.calls.getVerifiedActiveRoom = (session.calls.getVerifiedActiveRoom || 0) + 1
-      return results.getVerifiedActiveRoom || { kind: 'no-room', bound: false, roomCode: '' }
-    },
-    async getActiveRoom() {
-      session.calls.getActiveRoom = (session.calls.getActiveRoom || 0) + 1
-      return results.getActiveRoom || results.getVerifiedActiveRoom || { kind: 'no-room', bound: false, roomCode: '' }
-    },
-    async createRoom() {
-      session.calls.createRoom = (session.calls.createRoom || 0) + 1
-      return results.createRoom || { code: -1, msg: '创建失败' }
-    },
-    async joinRoom() {
-      session.calls.joinRoom = (session.calls.joinRoom || 0) + 1
-      return results.joinRoom || { code: -1, msg: '加入失败' }
-    },
-    clearLocalRoom() {
-      session.calls.clearLocalRoom = (session.calls.clearLocalRoom || 0) + 1
-    },
-    async leaveRoom() {
-      session.calls.leaveRoom = (session.calls.leaveRoom || 0) + 1
-      return results.leaveRoom || { code: 0 }
-    }
+test('bind page reports restored records only after both collections load successfully', async (t) => {
+  for (const [label, periods, memories, notice] of [
+    ['restored', { code: 0, data: [{ _id: 'p1' }, { _id: 'p2' }] }, { code: 0, data: [{ _id: 'm1' }] }, '已恢复原来的房间和 3 条记录'],
+    ['empty', { code: 0, data: [] }, { code: 0, data: [] }, ''],
+    ['incomplete', new Error('network down'), { code: 0, data: [{ _id: 'm1' }] }, '']
+  ]) {
+    await t.test(label, async (t) => {
+      const app = bindPlatform(t, { createRoom: { code: 0, room: { roomCode: 'ROOM05' } }, periods, memories })
+      const page = app.launch('/pages/bind/bind')
+      await app.settle()
+      await app.dispatch(page, 'createRoom')
+      assert.equal(page.data.restoredNotice, notice)
+      assert.equal(page.data.justCreated, true)
+      assert.match(readPageFile('pages/bind/bind.wxml'), /\{\{restoredNotice\}\}/)
+    })
   }
-  return session
+})
+
+// Scenario data programs only cloud responses and platform state; all pages and modules are real.
+function bindPlatform(t, options = {}) {
+  const app = createMiniProgram({ storage: options.storage || {} })
+  t.after(() => app.teardown())
+  app.cloud.when('getMyRoom').reply({ code: 0, room: options.room || null })
+  app.cloud.when('createRoom').reply(options.createRoom || { code: -1, msg: '创建失败' })
+  app.cloud.when('joinRoom').reply(options.joinRoom || { code: -1, msg: '加入失败' })
+  for (const collection of ['periods', 'memories']) {
+    const response = options[collection] || { code: 0, data: [] }
+    const route = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection } })
+    if (response instanceof Error) route.reject(response)
+    else route.reply(response)
+  }
+  if (options.failHome) app.failNavigation('switchTab')
+  return app
 }
 
-test('bind page says the archived room was restored when the first record fetch is not empty', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
-    createRoom: { code: 0, roomCode: 'ROOM05' }
-  })
-  const harness = loadPageHarness('pages/bind/bind.js', {
-    room,
-    records: {
-      periods: [{ _id: 'p1' }, { _id: 'p2' }],
-      memories: [{ _id: 'm1' }]
-    }
-  })
-
-  try {
-    await harness.page.onShow()
-    await harness.page.createRoom()
-
-    assert.equal(harness.page.data.restoredNotice, '已恢复原来的房间和 3 条记录')
-    assert.equal(harness.page.data.justCreated, true)
-    const boundCard = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
-    assert.match(boundCard, /\{\{restoredNotice\}\}/)
-  } finally {
-    harness.teardown()
-  }
-})
-
-test('bind page does not claim a restored room when the first record fetch is empty or incomplete', async () => {
-  const room = createRoomSessionStub({
-    getVerifiedActiveRoom: { kind: 'no-room', bound: false, roomCode: '' },
-    createRoom: { code: 0, roomCode: 'ROOM05' }
-  })
-  const empty = loadPageHarness('pages/bind/bind.js', { room })
-
-  try {
-    await empty.page.onShow()
-    await empty.page.createRoom()
-    assert.equal(empty.page.data.restoredNotice, '')
-    assert.equal(empty.page.data.justCreated, true)
-  } finally {
-    empty.teardown()
-  }
-
-  const failed = loadPageHarness('pages/bind/bind.js', {
-    room,
-    records: {
-      periods: { kind: 'retryable-failure' },
-      memories: { kind: 'success', data: [{ _id: 'm1' }] }
-    }
-  })
-  try {
-    await failed.page.onShow()
-    await failed.page.createRoom()
-    assert.equal(failed.page.data.restoredNotice, '')
-  } finally {
-    failed.teardown()
-  }
-})
-
-function loadPageHarness(relativePath, { room, clipboard = [], switchTabFail = false, records = null } = {}) {
-  const absolutePagePath = path.join(repoRoot, relativePath)
-  const mocks = {
-    [path.join(repoRoot, 'utils/room.js')]: room,
-    [path.join(repoRoot, 'utils/cloud.js')]: {
-      createRoomDataClient() {
-        return {
-          async list(collection) {
-            const value = records && Object.prototype.hasOwnProperty.call(records, collection)
-              ? records[collection]
-              : []
-            if (value instanceof Error) throw value
-            if (value && value.kind) return value
-            return { kind: 'success', data: value || [] }
-          }
-        }
-      }
-    }
-  }
-
-  const originalPage = global.Page
-  const originalWx = global.wx
-  const originalLoad = Module._load
-  let registered = null
-
-  const harnessWx = {
-    modals: [],
-    toasts: [],
-    switchTabCalls: [],
-    // issue #102：启动分流需要观察 switchTab 目标并能模拟跳转失败（扩展既有 fake，不是新 seam）；
-    // review #99：switchTabFail 也接受谓词函数，便于模拟「失败后恢复」
-    switchTab(options) {
-      harnessWx.switchTabCalls.push(options)
-      const shouldFail = typeof switchTabFail === 'function' ? switchTabFail() : switchTabFail
-      if (shouldFail && options && typeof options.fail === 'function') {
-        options.fail({ errMsg: 'switchTab:fail harness stub' })
-      }
-    },
-    navigateTo() {},
-    showToast(options) {
-      harnessWx.toasts.push(options)
-    },
-    showModal(options) {
-      harnessWx.modals.push(options)
-    },
-    setClipboardData({ data, success }) {
-      clipboard.push(data)
-      if (success) success()
-    },
-    getStorageSync() {
-      return ''
-    },
-    setStorageSync() {},
-    removeStorageSync() {},
-    env: { USER_DATA_PATH: '/tmp' }
-  }
-
-  delete require.cache[require.resolve(absolutePagePath)]
-  global.wx = harnessWx
-  global.Page = config => {
-    registered = config
-  }
-  Module._load = function patchedLoad(request, parent, isMain) {
-    const resolved = Module._resolveFilename(request, parent, isMain)
-    if (Object.prototype.hasOwnProperty.call(mocks, resolved)) {
-      return mocks[resolved]
-    }
-    return originalLoad.apply(this, arguments)
-  }
-
-  try {
-    require(absolutePagePath)
-  } finally {
-    Module._load = originalLoad
-  }
-
-  if (!registered) {
-    global.Page = originalPage
-    global.wx = originalWx
-    throw new Error(`${relativePath} did not register a Page(...) definition`)
-  }
-
-  const page = {
-    data: { ...(registered.data || {}) },
-    setDataCalls: [],
-    setData(update, callback) {
-      this.setDataCalls.push(update)
-      this.data = { ...this.data, ...update }
-      if (typeof callback === 'function') callback()
-    }
-  }
-  Object.entries(registered).forEach(([key, value]) => {
-    if (key === 'data') return
-    page[key] = typeof value === 'function' ? value.bind(page) : value
-  })
-
-  return {
-    page,
-    wx: harnessWx,
-    teardown() {
-      global.Page = originalPage
-      global.wx = originalWx
-      delete require.cache[require.resolve(absolutePagePath)]
-    }
-  }
+function homeJumps(app) {
+  return app.navigation.filter(call => call.method === 'switchTab' && call.url === '/pages/index/index')
 }

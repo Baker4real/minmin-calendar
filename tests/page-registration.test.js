@@ -6,6 +6,7 @@ const test = require('node:test')
 
 const repoRoot = path.join(__dirname, '..')
 const recordPageSync = require('../utils/recordPageSync')
+const { createMiniProgram } = require('./helpers/miniProgram')
 
 test('period record tab has no back button and the standalone memory page stays registered as a compat route', () => {
   const appConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, 'app.json'), 'utf8'))
@@ -1627,37 +1628,24 @@ test('settings page onShow uses verified room lookup, keeps retryable sync failu
   }
 })
 
-test('bind page onShow uses verified room lookup and clears stale bound state when verification says unbound', async () => {
-  const harness = loadPageHarness('pages/bind/bind.js', {
-    mocks: {
-      'utils/room.js': {
-        async getActiveRoom() {
-          throw new Error('bind onShow should use getVerifiedActiveRoom')
-        },
-        async getVerifiedActiveRoom() {
-          return {
-            kind: 'no-room',
-            bound: false,
-            roomCode: ''
-          }
-        }
-      }
-    }
-  })
-
-  try {
-    harness.page.data.bound = true
-    harness.page.data.roomCode = 'ROOM01'
-    harness.page.data.errorMsg = '旧错误'
-
-    await awaitPageOnShow(harness.page)
-
-    assert.equal(harness.page.data.bound, false)
-    assert.equal(harness.page.data.roomCode, '')
-    assert.equal(harness.page.data.errorMsg, '')
-  } finally {
-    harness.teardown()
-  }
+test('bind page rechecks a cached room and clears stale bound state when verification says unbound', async (t) => {
+  const app = createMiniProgram({ storage: { roomCode: 'ROOM01' } })
+  t.after(() => app.teardown())
+  app.failNavigation('switchTab')
+  app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01' } })
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  assert.equal(page.data.bound, true)
+  assert.equal(page.data.roomCode, 'ROOM01')
+  app.cloud.when('getMyRoom').reply({ code: 0, room: null })
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.equal(page.data.bound, false)
+  assert.equal(page.data.roomCode, '')
+  assert.equal(page.data.errorMsg, '')
+  assert.equal(app.storage.roomCode, undefined)
+  assert.equal(app.cloud.calls.filter(call => call.name === 'getMyRoom').length, 2)
 })
 
 test('settings page exportData keeps repair retryable failures visible instead of relabeling as unbound', async () => {
@@ -2068,8 +2056,7 @@ const PAGE_HIDDEN_PAGES = [
   'pages/period/period.js',
   'pages/settings/settings.js',
   'pages/period/edit/edit.js',
-  'pages/memory/edit/edit.js',
-  'pages/bind/bind.js'
+  'pages/memory/edit/edit.js'
 ]
 
 test('pages pause their ambient decorations while hidden and resume as soon as they show again', () => {
@@ -2104,6 +2091,29 @@ test('pages pause their ambient decorations while hidden and resume as soon as t
       harness.teardown()
     }
   }
+})
+
+test('bind page pauses decorations while hidden and resumes before delayed verification settles', async (t) => {
+  const app = createMiniProgram()
+  t.after(() => app.teardown())
+  app.cloud.when('getMyRoom').defer()
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  assert.ok(!page.data.pageHidden)
+  assert.equal(page.setDataCalls.some(update => 'pageHidden' in update), false)
+  app.hide()
+  assert.equal(page.data.pageHidden, true)
+  const hiddenWrites = page.setDataCalls.length
+  app.hide()
+  assert.equal(page.setDataCalls.slice(hiddenWrites).some(update => 'pageHidden' in update), false)
+  app.cloud.when('getMyRoom').defer()
+  app.show()
+  assert.equal(page.data.pageHidden, false)
+  const shownWrites = page.setDataCalls.length
+  app.cloud.when('getMyRoom').defer()
+  app.show()
+  assert.equal(page.setDataCalls.slice(shownWrites).some(update => 'pageHidden' in update), false)
+  assert.equal(page.data.verifying, true)
 })
 
 test('every backdrop-filter in wxss is immediately followed by -webkit-backdrop-filter', () => {

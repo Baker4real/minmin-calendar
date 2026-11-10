@@ -24,7 +24,6 @@ const PATTERNS = {
 
 // 2026-11-08 入库时的计数。#170–#175 迁移页面测试时把对应的数调低，调到 0 就删掉这一项。
 const BUDGET = {
-  'tests/bind-room-flow.test.js': { moduleLoad: 2 },
   'tests/calendar-display.test.js': { moduleLoad: 3, jsSourceRead: 9 },
   'tests/index-page.test.js': { moduleLoad: 3, privateField: 58, jsSourceRead: 2 },
   'tests/interaction-semantics.test.js': { jsSourceRead: 1 },
