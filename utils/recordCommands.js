@@ -217,6 +217,7 @@ function openRecordEditSession({ kind, route, render }) {
     async save() {
       if (busy() || deleteConfirming) return
       savePreparing = true
+      publish({ saving: true })
       try {
         const overlap = await resolveNewPeriodOverlap()
         if (overlap !== 'save') return overlap
@@ -252,6 +253,7 @@ function openRecordEditSession({ kind, route, render }) {
         return outcome
       } finally {
         savePreparing = false
+        if (state.saving) publish({ saving: false })
       }
     },
 

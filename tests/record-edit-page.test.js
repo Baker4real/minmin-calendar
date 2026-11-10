@@ -351,7 +351,132 @@ test('period: merge replaces visible labels and draft baseline before the same e
   assert.equal(app.storage[draftKey(period, 'ongoing')], undefined)
 })
 
+for (const exit of ['invalid', 'edit existing', 'still create', 'confirmation failure']) {
+  test(`period: delayed preflight ${exit} releases saving and preserves the correct outcome guard`, async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, exit === 'invalid' ? { startDate: '2026-09-18' } : {})
+    await app.dispatch(page, 'onNoteInput', value('保存前的备注'))
+    const history = cloudRoute(app, period, 'list').defer()
+    const saved = { _id: 'saved', ...period.payload, note: '保存前的备注' }
+    cloudRoute(app, period, 'add').reply({ code: 0, record: saved })
+    const saving = app.dispatch(page, 'save')
+    await app.settle()
+    assert.equal(app.rendered(page).saving, true)
+    const existing = { _id: 'covered', startDate: '2026-09-18', status: 'ongoing' }
+    if (exit === 'confirmation failure') app.respondNext('showModal', new Error('showModal:fail unavailable'))
+    history.resolve({ code: 0, data: exit === 'invalid' ? [] : [existing] })
+    await app.settle()
+    if (exit === 'edit existing' || exit === 'still create') {
+      assert.equal(app.rendered(page).saving, true, 'the overlap question is part of this save')
+      await app.dispatch(page, 'onNoteInput', value('询问时不能修改'))
+      await app.dispatch(page, 'save')
+      await app.dispatch(page, 'delete')
+      assert.equal(page.data.note, '保存前的备注')
+      assert.equal(app.wx.modals.length, 1)
+      assert.deepEqual(writes(app), [])
+      app.respond('showModal', 0, { confirm: exit === 'edit existing', cancel: exit === 'still create' })
+    }
+    await saving
+    await app.settle()
+    assert.equal(app.rendered(page).saving, false)
+    assert.equal(page.data.submitted, exit === 'still create')
+    assert.equal(writes(app).length, exit === 'still create' ? 1 : 0)
+    if (exit === 'edit existing') {
+      assert.equal(app.currentPage.data.id, 'covered')
+      assert.equal(app.rendered(app.currentPage).saving, false)
+      app.wx.navigateBack({})
+      await app.settle()
+    }
+    assert.equal(app.currentPage, page)
+    if (exit === 'invalid') assert.deepEqual(page.data.fieldErrors, { endDate: '请选择结束日期；还没结束可以选「进行中」' })
+    if (exit === 'confirmation failure') assert.equal(app.wx.toasts.at(-1).title, '这次没有完成，请重试')
+    if (exit === 'still create') {
+      await app.dispatch(page, 'save')
+      assert.equal(writes(app).length, 1, 'confirmed success remains submitted until return')
+    } else {
+      await app.dispatch(page, 'onNoteInput', value('结束后可继续编辑'))
+      assert.equal(page.data.note, '结束后可继续编辑', 'an early exit must not leave the form locked')
+    }
+  })
+}
+
 for (const spec of records) {
+  test(`${spec.kind}: saving is visible from the tap through preflight and keeps the tapped form stable`, async (t) => {
+    const app = setup(t)
+    const { home, page } = await openEditor(app, spec)
+    await app.dispatch(page, 'onNoteInput', value('点击时的备注'))
+    const history = spec.kind === 'period' ? cloudRoute(app, spec, 'list').defer() : null
+    const pending = cloudRoute(app, spec, 'add').defer()
+    const saving = app.dispatch(page, 'save')
+    assert.equal(page.data.saving, true, 'the tap publishes busy state before yielding')
+    await app.settle()
+    assert.equal(app.rendered(page).saving, true)
+    await app.dispatch(page, 'onNoteInput', value('等待时不能混入的备注'))
+    await app.dispatch(page, spec.changeDate, value('2026-09-19'))
+    if (spec.kind === 'period') {
+      await app.dispatch(page, 'onEndChange', value('2026-09-20'))
+      await app.dispatch(page, 'selectStatus', dataset({ value: 'known-end' }))
+      await app.dispatch(page, 'selectFlow', dataset({ value: 'heavy' }))
+      await app.dispatch(page, 'toggleSymptom', dataset({ value: 'cramps' }))
+    }
+    assert.deepEqual(form(page, spec), { ...spec.fields, note: '点击时的备注' })
+    await app.dispatch(page, 'save')
+    await app.dispatch(page, 'delete')
+    assert.equal(writes(app).length, history ? 0 : 1)
+    assert.deepEqual(app.wx.modals, [])
+    if (history) history.resolve({ code: 0, data: [] })
+    await app.settle()
+    assert.equal(app.rendered(page).saving, true)
+    assert.deepEqual(writes(app), [{ action: 'add', collection: spec.collection,
+      data: { ...spec.payload, note: '点击时的备注' }, id: '', roomCode: 'ROOM01' }])
+    pending.resolve({ code: 0, record: { _id: 'saved', ...spec.payload, note: '点击时的备注' } })
+    await saving
+    await app.settle()
+    assert.equal(app.rendered(page).saving, false)
+    assert.equal(app.rendered(page).submitted, true)
+    await app.dispatch(page, 'save')
+    await app.dispatch(page, 'delete')
+    assert.equal(writes(app).length, 1)
+    await app.advance(999)
+    assert.equal(app.currentPage, page)
+    await app.advance(1)
+    assert.equal(app.currentPage, home)
+  })
+
+  test(`${spec.kind}: cancelling a binding prompt and returning from binding both leave the form retryable`, async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, spec)
+    app.wx.removeStorageSync('roomCode')
+    app.cloud.when('getMyRoom').reply({ code: 1, msg: '未加入任何房间' })
+    for (const confirm of [false, true]) {
+      const saving = app.dispatch(page, 'save')
+      await app.settle()
+      assert.equal(app.wx.modals.at(-1).confirmText, '去绑定')
+      app.respond('showModal', app.wx.modals.length - 1, { confirm, cancel: !confirm })
+      await saving
+      await app.settle()
+      assert.equal(app.rendered(page).saving, false)
+      assert.equal(page.data.submitted, false)
+      assert.deepEqual(writes(app), [])
+      if (confirm) {
+        assert.equal(app.currentPage.route, 'pages/bind/bind')
+        app.wx.navigateBack({})
+        await app.settle()
+      }
+      assert.equal(app.currentPage, page)
+      await app.dispatch(page, 'onNoteInput', value(confirm ? '绑定返回后可编辑' : '取消后可编辑'))
+      assert.equal(page.data.note, confirm ? '绑定返回后可编辑' : '取消后可编辑')
+    }
+    app.wx.setStorageSync('roomCode', 'ROOM01')
+    app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } })
+    const saved = { _id: 'saved', ...spec.payload, note: '绑定返回后可编辑' }
+    cloudRoute(app, spec, 'add').reply({ code: 0, record: saved })
+    await app.dispatch(page, 'save')
+    assert.equal(writes(app).length, 1)
+    assert.equal(writes(app)[0].data.note, '绑定返回后可编辑')
+    assert.equal(page.data.submitted, true)
+  })
+
   test(`${spec.kind}: malformed route text stays editable and legacy success does not invent a home record`, async (t) => {
     const app = setup(t)
     const { home, page } = await openEditor(app, spec, { [spec.dateField]: '2026-09-18', note: '%E0%A4%A', ...(spec.kind === 'period' ? { endDate: '2026-09-19', symptoms: '%E0%A4%A' } : {}) })
