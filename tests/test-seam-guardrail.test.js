@@ -27,9 +27,7 @@ const BUDGET = {
   'tests/calendar-display.test.js': { jsSourceRead: 7 },
   'tests/index-page.test.js': { moduleLoad: 3, privateField: 58, jsSourceRead: 2 },
   'tests/narrow-screen-geometry.test.js': { jsSourceRead: 6 },
-  'tests/page-registration.test.js': { moduleLoad: 3, privateField: 14 },
-  'tests/record-draft.test.js': { moduleLoad: 3 },
-  'tests/record-flow.test.js': { moduleLoad: 3, privateField: 2, jsSourceRead: 9 }
+  'tests/page-registration.test.js': { moduleLoad: 3, privateField: 14 }
 }
 
 // 不计入的合理例外：文件 → 写法 → 原因。
