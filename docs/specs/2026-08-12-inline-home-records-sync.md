@@ -2,15 +2,17 @@
 type: spec
 title: "Inline Home Records Sync State Machine"
 tags: [project-docs, spec, architecture]
-status: implemented
-intent: "Eliminate premature abstraction by inlining state machine into sole caller"
+status: superseded
+intent: "Historical inlining decision; superseded by ADR-0008 Room record synchronization ownership"
 ---
 
 # Inline Home Records Sync State Machine
 
 **Date:** 2026-08-12  
-**Status:** Implemented
-**Implementation:** merged into `main` in `159ed78` on 2026-08-12
+**Status:** Superseded by [ADR-0008](../adr/0008-home-record-sync-and-record-edit-ownership.md)
+**Historical implementation:** merged into `main` in `159ed78` on 2026-08-12
+
+以下保留旧决定与当时理由；后续首页记录同步的归属以 ADR-0008 为准。新目标已接受，代码迁移未完成；本状态变更不表示同步协调已移出首页 Page。
 
 ## Problem Statement
 
