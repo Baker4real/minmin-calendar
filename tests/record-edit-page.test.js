@@ -39,6 +39,20 @@ async function openEditor(app, spec, options = {}) {
   return { home, page: app.currentPage }
 }
 
+test('period: a legacy malformed end is unknown in both the calendar and the real editor', async (t) => {
+  const app = setup(t)
+  cloudRoute(app, period, 'list').reply({ code: 0, data: [
+    { _id: 'legacy-bad-end', startDate: '2026-09-18', endDate: '2026-09-32' }
+  ] })
+  const { home, page } = await openEditor(app, period, { id: 'legacy-bad-end', startDate: '2026-09-18', endDate: '2026-09-32' })
+  assert.equal(cell(home, '2026-09-18').isPeriod, false, 'a damaged range has no calendar projection')
+  assert.equal(page.data.status, 'unknown-end')
+  assert.equal(page.data.endDate, '')
+  assert.equal(page.data.statusHint, '结束日不清楚，日历只标开始那天')
+  assert.equal(page.data.periodDayCountText, '')
+  assert.deepEqual(writes(app), [])
+})
+
 const statusCases = [
   { name: 'complete ongoing', route: { id: 'p1', startDate: '2026-09-10', status: 'ongoing' }, target: 'known-end', defaultEnd: '2026-09-20', end: '2026-09-14', duration: 5 },
   { name: 'complete unknown end', route: { id: 'p1', startDate: '2026-09-10', status: 'unknown-end' }, target: 'known-end', defaultEnd: '', end: '2026-09-13', duration: 4 },
@@ -187,6 +201,57 @@ for (const editExisting of [true, false]) {
     }
     assert.equal(app.storage[draftKey(period)], undefined)
   })
+}
+
+const overlapOwners = [
+  { name: 'ongoing beats later completed', records: [
+    { _id: 'live', startDate: '2026-09-10', status: 'ongoing' },
+    { _id: 'done', startDate: '2026-09-18', endDate: '2026-09-20', status: 'known-end' }
+  ], owner: 'live', day: 9, status: 'ongoing' },
+  { name: 'latest ongoing wins', records: [
+    { _id: 'old-live', startDate: '2026-09-01', status: 'ongoing' },
+    { _id: 'new-live', startDate: '2026-09-15', status: 'ongoing' },
+    { _id: 'done', startDate: '2026-09-18', endDate: '2026-09-20', status: 'known-end' }
+  ], owner: 'new-live', day: 4, status: 'ongoing' },
+  { name: 'later unknown end wins over completed', records: [
+    { _id: 'done', startDate: '2026-09-10', endDate: '2026-09-20', status: 'known-end' },
+    { _id: 'unknown', startDate: '2026-09-18', status: 'unknown-end' }
+  ], owner: 'unknown', day: 1, status: 'unknown-end' },
+  { name: 'an ongoing record outside the selected day does not override that day owner', records: [
+    { _id: 'done', startDate: '2026-09-10', endDate: '2026-09-20', status: 'known-end' },
+    { _id: 'live-after', startDate: '2026-09-19', status: 'ongoing' }
+  ], owner: 'done', day: 9, status: 'known-end' },
+  { name: 'latest completed wins', records: [
+    { _id: 'first', startDate: '2026-09-10', endDate: '2026-09-20', status: 'known-end' },
+    { _id: 'later', startDate: '2026-09-16', endDate: '2026-09-19', status: 'known-end' }
+  ], owner: 'later', day: 3, status: 'known-end' }
+]
+for (const scenario of overlapOwners) {
+  for (const editExisting of [true, false]) {
+    test(`period overlap owner: ${scenario.name}, ${editExisting ? 'edit owner' : 'still create'}`, async (t) => {
+      const app = setup(t)
+      cloudRoute(app, period, 'list').reply({ code: 0, data: scenario.records })
+      const { home, page } = await openEditor(app, period, { startDate: '2026-09-18', status: 'unknown-end' })
+      assert.equal(cell(home, '2026-09-18').periodDayCount, scenario.day)
+      assert.equal(cell(home, '2026-09-18').isOngoingPeriod, scenario.status === 'ongoing')
+      assert.equal(cell(home, '2026-09-18').isUnknownEndPeriod, scenario.status === 'unknown-end')
+      const saved = { _id: 'new-overlap', ...period.payload, startDate: '2026-09-18', status: 'unknown-end' }
+      cloudRoute(app, period, 'add').reply({ code: 0, record: saved })
+      app.respondNext('showModal', { confirm: editExisting, cancel: !editExisting })
+      await app.dispatch(page, 'save')
+      await app.settle()
+      assert.equal(app.wx.modals[0].confirmText, '去编辑那条')
+      assert.equal(app.wx.modals[0].cancelText, '仍然新建')
+      if (editExisting) {
+        assert.equal(app.currentPage.data.id, scenario.owner)
+        assert.equal(app.currentPage.data.status, scenario.status)
+        assert.deepEqual(writes(app), [])
+      } else {
+        assert.deepEqual(writes(app).map(call => call.action), ['add'])
+        assert.equal(writes(app)[0].data.status, 'unknown-end')
+      }
+    })
+  }
 }
 
 test('period: merged save replaces the form, updates home once and moves drafts to the reopened identity', async (t) => {

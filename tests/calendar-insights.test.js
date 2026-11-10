@@ -228,7 +228,8 @@ test('buildMonthlyRecap counts two periods continued from the previous month', (
     ]
   })
 
-  assert.equal(recap.periodSummary, '本月 4 天')
+  // #177：9月1日同时被两条覆盖，总数只算一次；各条本月天数仍为 1 与 3。
+  assert.equal(recap.periodSummary, '本月 3 天')
   assert.equal(recap.shareText.includes('从上月延续'), false)
   assert.deepEqual(recap.highlights, [
     '经期：8月28日–9月1日，整段 5 天，本月 1 天',

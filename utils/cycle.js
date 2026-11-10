@@ -1,4 +1,6 @@
 const util = require('./util')
+const periodCoverage = require('./periodCoverage')
+const { getPeriodStatus, projectPeriodRange, decidePeriodRecordForDate } = periodCoverage
 
 // 经期记录三态：进行中 / 已结束但结束日期不详 / 已结束且有结束日期。
 // 状态是权威：空结束日期不被隐含解释为单日经期或进行中经期。
@@ -169,8 +171,9 @@ function buildOngoingCompletionReminder(periods, options = {}) {
   if (!ongoing) return null
 
   const today = options.today || util.formatDate(new Date())
-  const runningDays = inclusiveDayCount(ongoing.startDate, today)
-  if (!runningDays) return null
+  const owner = periodCoverage.getPeriodOnDate([ongoing], today, today)
+  if (!owner) return null
+  const runningDays = owner.day
 
   const expected = expectedPeriodLength(periods, options)
   if (runningDays <= expected.days) return null
@@ -252,7 +255,7 @@ function memoryEditAriaLabel({ dateText, note, authorLabel }) {
 
 function decoratePeriod(period, { today } = {}) {
   const status = getPeriodStatus(period)
-  const range = status === 'known-end' ? util.normalizeDateRange(period) : null
+  const range = status === 'known-end' ? projectPeriodRange(period, today) : null
   const symptoms = normalizeSymptoms(period.symptoms)
   const symptomLabels = symptoms.map(value => SYMPTOM_LABELS[value])
   const flowLabel = FLOW_LABELS[period.flow] || ''
@@ -362,20 +365,14 @@ function emptyPrediction() {
   }
 }
 
-function getPeriodStatus(period = {}) {
-  if (isPeriodStatus(period.status)) return period.status
-  // 旧数据兼容：带合法结束日期视为已结束；缺结束日期保守解释为结束日期不详。
-  if (isDateString(period.endDate)) return 'known-end'
-  return 'unknown-end'
-}
-
 function isPeriodStatus(value) {
-  return value === 'ongoing' || value === 'unknown-end' || value === 'known-end'
+  return PERIOD_STATUS_OPTIONS.some(option => option.value === value)
 }
 
+// 保留既有 cycle interface；经期规则由 periodCoverage 回答。
 function findOngoingPeriod(periods = []) {
-  const list = Array.isArray(periods) ? periods : []
-  return list.find(item => getPeriodStatus(item) === 'ongoing') || null
+  const entry = decidePeriodRecordForDate(periods, '')
+  return entry.reason === 'ongoing' ? entry.record : null
 }
 
 // 经期集合一次都没同步上时（首页首次加载只有经期失败），状态行与预测说明共用这一句
@@ -394,11 +391,11 @@ function buildHomeStatusLine(periods, options = {}) {
   }
   const today = isDateString(options.today) ? options.today : util.formatDate(new Date())
   const prediction = options.prediction || predictNextPeriod(periods, { ...options, today })
-  const active = findPeriodCoveringDate(periods, today, today)
+  const active = periodCoverage.getPeriodOnDate(periods, today, today)
   if (active) {
     return {
       status: 'in-period',
-      text: `经期第 ${inclusiveDayCount(active.startDate, today)} 天`,
+      text: `经期第 ${active.day} 天`,
       tone: 'default'
     }
   }
@@ -437,85 +434,20 @@ function buildPeriodQuickAction(periods, options = {}) {
   const today = options.today || util.formatDate(new Date())
   const ongoing = findOngoingPeriod(periods)
   if (!ongoing) return { label: '记经期', ariaLabel: '记经期', mode: 'add' }
-  const day = inclusiveDayCount(ongoing.startDate, today)
-  if (!day) return { label: '记结束', ariaLabel: '记结束', mode: 'complete' }
-  const label = `经期第 ${day} 天 · 记结束`
+  const owner = periodCoverage.getPeriodOnDate([ongoing], today, today)
+  if (!owner) return { label: '记结束', ariaLabel: '记结束', mode: 'complete' }
+  const label = `经期第 ${owner.day} 天 · 记结束`
   return { label, ariaLabel: label, mode: 'complete' }
 }
 
-// 日历与小结共用的投影区间：进行中投影开始日至今天（不发明未来日期），
-// 结束日期不详只投已知开始日，已知结束保持含首尾区间。
-function projectPeriodRange(period, today) {
-  if (hasCorruptEndDate(period)) return null
-  const status = getPeriodStatus(period)
-  if (status === 'ongoing') {
-    if (!isDateString(period.startDate) || !isDateString(today)) return null
-    if (period.startDate > today) return null
-    return { startDate: period.startDate, endDate: today, status }
-  }
-  if (status === 'unknown-end') {
-    if (!isDateString(period.startDate)) return null
-    return { startDate: period.startDate, endDate: period.startDate, status }
-  }
-  const range = util.normalizeDateRange(period)
-  return range ? { startDate: range.startDate, endDate: range.endDate, status } : null
-}
-
-const ONGOING_PERIOD_NOTICE = '已有进行中的经期，继续编辑它'
-
-// 某一天落在哪条记录的投影里。进行中投到今天，结束日期不详只投开始日，已知结束含首尾。
-// 同一天被多条盖住时取开始日最晚的那条。
 function findPeriodCoveringDate(periods, date, today) {
-  if (!isDateString(date)) return null
-  const list = Array.isArray(periods) ? periods : []
-  let match = null
-  list.forEach(period => {
-    if (!period) return
-    const range = projectPeriodRange(period, today)
-    if (!range || date < range.startDate || date > range.endDate) return
-    if (!match || (period.startDate || '') > (match.startDate || '')) match = period
-  })
-  return match
-}
-
-// 为某一天记经期：先让进行中记录接手，再打开投影盖住这一天的记录，否则以这一天为开始日新建。
-function decidePeriodRecordForDate(periods, date, options = {}) {
-  const today = options.today || ''
-  const ongoing = findOngoingPeriod(periods)
-  if (ongoing) {
-    return {
-      action: 'open',
-      record: ongoing,
-      startDate: ongoing.startDate || '',
-      notice: ONGOING_PERIOD_NOTICE
-    }
-  }
-  const covering = findPeriodCoveringDate(periods, date, today)
-  if (covering) {
-    return {
-      action: 'open',
-      record: covering,
-      startDate: covering.startDate || '',
-      notice: ''
-    }
-  }
-  return {
-    action: 'create',
-    record: null,
-    startDate: date,
-    notice: ''
-  }
-}
-
-// 结束日期存在但不是合法日期（如 2026-01-32）是损坏数据，不当作结束日期不详
-function hasCorruptEndDate(period = {}) {
-  const endDate = period.endDate
-  return endDate !== undefined && endDate !== null && endDate !== '' && !isDateString(endDate)
+  const owner = periodCoverage.getPeriodOnDate(periods, date, today)
+  return owner ? owner.record : null
 }
 
 function getPeriodDuration(period) {
   if (getPeriodStatus(period) !== 'known-end') return 0
-  const range = util.normalizeDateRange(period)
+  const range = projectPeriodRange(period)
   if (!range) return 0
   return util.daysBetween(util.parseDate(range.startDate), util.parseDate(range.endDate)) + 1
 }
@@ -523,11 +455,10 @@ function getPeriodDuration(period) {
 function normalizePeriods(periods = []) {
   return periods
     .map(item => {
-      if (hasCorruptEndDate(item)) return null
-      const status = getPeriodStatus(item)
+      const range = projectPeriodRange(item, item && item.startDate)
+      if (!range) return null
+      const status = range.status
       if (status === 'known-end') {
-        const range = util.normalizeDateRange(item)
-        if (!range) return null
         return {
           ...item,
           status,

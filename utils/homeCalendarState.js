@@ -1,5 +1,6 @@
 const util = require('./util')
 const cycle = require('./cycle')
+const periodCoverage = require('./periodCoverage')
 const calendarInsights = require('./calendarInsights')
 
 // 单日经期色带样本：图例「经期记录」和首页「记经期」、当日弹层的经期动作画的是同一段色带（issue #159）
@@ -128,7 +129,7 @@ function buildRecordFeedback(days, change, { periods, memories, today }) {
   const previous = (change.before || []).find(record => recordIdentity(record) === id) || null
   const saved = after.find(record => recordIdentity(record) === id) || null
   const kind = recordFeedbackKind(change.collection, previous, saved, change.mode)
-  const band = kind === 'period' ? cycle.projectPeriodRange(saved, today) : null
+  const band = kind === 'period' ? periodCoverage.projectPeriodRange(saved, today) : null
   days.forEach(day => {
     if (!day || day.isEmpty || !day.date) return
     if (kind === 'memory' && day.isMemory && day.date === saved.date) marked[day.date] = 'memory'
@@ -142,13 +143,11 @@ function recordFeedbackKind(collection, previous, saved, mode) {
   if (collection === 'memories') return mode === 'add' && !previous ? 'memory' : ''
   if (mode === 'add') return previous ? '' : 'period'
   if (mode !== 'update' || !previous) return ''
-  return cycle.getPeriodStatus(previous) !== 'known-end' && cycle.getPeriodStatus(saved) === 'known-end' ? 'period' : ''
+  return periodCoverage.getPeriodStatus(previous) !== 'known-end' && periodCoverage.getPeriodStatus(saved) === 'known-end' ? 'period' : ''
 }
 
 function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextPredict = null, predictionWindow = null, today = util.formatDate(new Date()) }) {
-  const periodDates = collectPeriodDates(periods, today)
-  const ongoingPeriodDates = collectOngoingPeriodDates(periods, today)
-  const unknownEndPeriodDates = collectUnknownEndPeriodDates(periods, today)
+  const periodDates = periodCoverage.getMonthCoverage(periods, year, month, today).dates
   const memoryDates = new Set(memories
     .map(memory => memory.date)
     .filter(isDateString))
@@ -157,16 +156,17 @@ function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextP
   const days = util.buildCalendarDays({ year, month }).map(day => {
     if (!day || day.isEmpty) return { ...day, ariaLabel: '' }
     const isPeriod = periodDates.has(day.date)
+    const owner = isPeriod ? periodCoverage.getPeriodOnDate(periods, day.date, today) : null
     const marked = {
       ...day,
       isToday: day.date === today,
       isPeriod,
-      isOngoingPeriod: ongoingPeriodDates.has(day.date),
-      isUnknownEndPeriod: unknownEndPeriodDates.has(day.date),
+      isOngoingPeriod: !!owner && owner.status === 'ongoing',
+      isUnknownEndPeriod: !!owner && owner.status === 'unknown-end',
       isMemory: memoryDates.has(day.date),
       isPredict: predictDates.has(day.date) && !isPeriod,
       lunarCellText: lunarCellLabel(day.lunarText),
-      periodDayCount: isPeriod ? countPeriodDay(day.date, periods, today) : 0
+      periodDayCount: owner ? owner.day : 0
     }
     return { ...marked, ariaLabel: buildDayAriaLabel(marked, today) }
   })
@@ -197,49 +197,6 @@ function applyPeriodSegments(days, today) {
       periodOpenEnd: Boolean(day.isOngoingPeriod && day.date === today)
     }
   })
-}
-
-function collectPeriodDates(periods, today) {
-  const periodDates = new Set()
-  periods.forEach(period => {
-    const range = cycle.projectPeriodRange(period, today)
-    if (!range) return
-    let date = util.parseDate(range.startDate)
-    const end = util.parseDate(range.endDate)
-    while (date <= end) {
-      periodDates.add(util.formatDate(date))
-      date.setDate(date.getDate() + 1)
-    }
-  })
-  return periodDates
-}
-
-function collectOngoingPeriodDates(periods, today) {
-  const ongoingDates = new Set()
-  periods.forEach(period => {
-    if (cycle.getPeriodStatus(period) !== 'ongoing') return
-    const range = cycle.projectPeriodRange(period, today)
-    if (!range) return
-    let date = util.parseDate(range.startDate)
-    const end = util.parseDate(range.endDate)
-    while (date <= end) {
-      ongoingDates.add(util.formatDate(date))
-      date.setDate(date.getDate() + 1)
-    }
-  })
-  return ongoingDates
-}
-
-// 结束日期不详只在已知开始日上区分状态，不延伸到其他日子
-function collectUnknownEndPeriodDates(periods, today) {
-  const unknownEndDates = new Set()
-  periods.forEach(period => {
-    if (cycle.getPeriodStatus(period) !== 'unknown-end') return
-    const range = cycle.projectPeriodRange(period, today)
-    if (!range) return
-    unknownEndDates.add(range.startDate)
-  })
-  return unknownEndDates
 }
 
 function collectPredictDates(nextPredict, year, month, predictionWindow) {
@@ -284,7 +241,7 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
     if (!day || day.isEmpty || !day.date) return
 
     const periodDetails = periods
-      .map((period, index) => ({ period, range: cycle.projectPeriodRange(period, today), index }))
+      .map((period, index) => ({ period, range: periodCoverage.projectPeriodRange(period, today), index }))
       .filter(item => isPeriodActiveOnDate(item.range, day.date))
       .map(({ period, range, index }) => {
         const detail = cycle.decoratePeriod({
@@ -494,22 +451,6 @@ const DAY_ARIA_MEANING_TEXT = {
   memory: '欢乐时光',
   predict: '下次可能开始的日子',
   workday: '调休上班'
-}
-
-function countPeriodDay(date, periods, today) {
-  let chosenStart = ''
-  let chosenRank = 3
-  periods.forEach(period => {
-    const range = cycle.projectPeriodRange(period, today)
-    if (!range || date < range.startDate || date > range.endDate) return
-    const rank = range.status === 'ongoing' ? 0 : range.status === 'known-end' ? 1 : 2
-    if (rank < chosenRank || (rank === chosenRank && range.startDate > chosenStart)) {
-      chosenRank = rank
-      chosenStart = range.startDate
-    }
-  })
-  if (!chosenStart) return 0
-  return util.daysBetween(util.parseDate(chosenStart), util.parseDate(date)) + 1
 }
 
 function buildDayAriaLabel(day, today) {

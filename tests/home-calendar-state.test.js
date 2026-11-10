@@ -5,6 +5,137 @@ const cycle = require('../utils/cycle')
 const insights = require('../utils/calendarInsights')
 const { buildHomeCalendarState } = require('../utils/homeCalendarState')
 
+test('F1: an ongoing period owns today even when a later completed record covers it', () => {
+  const state = buildHomeCalendarState({
+    year: 2026, month: 5, today: '2026-06-26',
+    periods: [
+      { _id: 'ongoing', startDate: '2026-06-20', status: 'ongoing' },
+      { _id: 'later', startDate: '2026-06-24', endDate: '2026-06-26', status: 'known-end' }
+    ]
+  })
+  assert.equal(state.homeStatus.text, '经期第 7 天')
+  const today = state.days.find(day => day.date === '2026-06-26')
+  assert.equal(today.periodDayCount, 7)
+  assert.ok(today.ariaLabel.endsWith('经期第7天 经期进行中'))
+  assert.equal(today.isUnknownEndPeriod, false)
+  assert.equal(today.periodOpenEnd, true)
+  assert.deepEqual(state.days.filter(day => day.isPeriod).map(day => day.date), [
+    '2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26'
+  ])
+})
+
+test('F1: completed records share a seven-day band and recap without changing either record duration', () => {
+  const state = buildHomeCalendarState({
+    year: 2026, month: 5, today: '2026-06-05',
+    periods: [
+      { _id: 'first', startDate: '2026-06-01', endDate: '2026-06-05' },
+      { _id: 'later', startDate: '2026-06-03', endDate: '2026-06-07' }
+    ]
+  })
+  assert.equal(state.homeStatus.text, '经期第 3 天')
+  assert.deepEqual(state.days.filter(day => day.isPeriod).map(day => [day.date, day.periodDayCount]), [
+    ['2026-06-01', 1], ['2026-06-02', 2], ['2026-06-03', 1], ['2026-06-04', 2],
+    ['2026-06-05', 3], ['2026-06-06', 4], ['2026-06-07', 5]
+  ])
+  assert.equal(state.monthlyRecap.periodDays, 7)
+  assert.equal(state.monthSummaryLine, '本月 经期 7 天 · 欢乐时光 0 条')
+  assert.equal(state.monthlyRecap.periodSummary, '本月记录了 2 次经期，共 7 天')
+  assert.deepEqual(state.monthlyRecap.highlights, ['经期：6月1日–6月5日，5天', '经期：6月3日–6月7日，5天'])
+  assert.equal(state.dayDetailsByDate['2026-06-05'].periods.length, 2)
+})
+
+const coverageCases = [
+  { name: 'ongoing beats a later unknown-end start', records: [
+    { _id: 'live', startDate: '2026-06-20', status: 'ongoing' },
+    { _id: 'unknown', startDate: '2026-06-26', status: 'unknown-end' }
+  ], dates: ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26'], day: 7, status: 'ongoing', count: 7, detailIds: ['live', 'unknown'] },
+  { name: 'a later unknown end beats a completed record', records: [
+    { _id: 'done', startDate: '2026-06-20', endDate: '2026-06-26' },
+    { _id: 'unknown', startDate: '2026-06-26', status: 'unknown-end' }
+  ], dates: ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26'], day: 1, status: 'unknown-end', count: 7, detailIds: ['done', 'unknown'] },
+  { name: 'an unknown end stops at its start while a completed range continues', records: [
+    { _id: 'unknown', startDate: '2026-06-24', status: 'unknown-end' },
+    { _id: 'done', startDate: '2026-06-24', endDate: '2026-06-26' }
+  ], dates: ['2026-06-24', '2026-06-25', '2026-06-26'], day: 3, status: 'known-end', count: 3, detailIds: ['done'] },
+  { name: 'multiple ongoing records choose the latest start regardless of input order', records: [
+    { _id: 'old-live', startDate: '2026-06-20', status: 'ongoing' },
+    { _id: 'new-live', startDate: '2026-06-24', status: 'ongoing' },
+    { _id: 'unknown', startDate: '2026-06-26', status: 'unknown-end' }
+  ], dates: ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26'], day: 3, status: 'ongoing', count: 7, detailIds: ['old-live', 'new-live', 'unknown'] },
+  { name: 'malformed legacy end does not steal ongoing ownership', records: [
+    { _id: 'live', startDate: '2026-06-20', status: 'ongoing' },
+    { _id: 'bad-end', startDate: '2026-06-26', endDate: '2026-06-32' }
+  ], dates: ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26'], day: 7, status: 'ongoing', count: 7, detailIds: ['live'] },
+  { name: 'ongoing, unknown end and malformed completed dates share one attribution', records: [
+    { _id: 'live', startDate: '2026-06-20', endDate: '2026-06-21', status: 'ongoing' },
+    { _id: 'unknown', startDate: '2026-06-26', status: 'unknown-end' },
+    { _id: 'bad-ended', startDate: '2026-06-25', endDate: '2026-06-31', status: 'known-end' }
+  ], dates: ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26'], day: 7, status: 'ongoing', count: 7, detailIds: ['live', 'unknown'] },
+  { name: 'a damaged ongoing range cannot supply a day or a status word', records: [
+    { _id: 'done', startDate: '2026-06-24', endDate: '2026-06-26' },
+    { _id: 'bad-live', startDate: '2026-06-25', endDate: '2026-06-32', status: 'ongoing' }
+  ], dates: ['2026-06-24', '2026-06-25', '2026-06-26'], day: 3, status: 'known-end', count: 3, detailIds: ['done'] },
+  { name: 'future ongoing start has no projection', records: [
+    { _id: 'future', startDate: '2026-06-27', status: 'ongoing' }
+  ], dates: [], day: 0, status: '', count: 0, detailIds: [] },
+  { name: 'invalid start, invalid end, missing known end and reversed range do not roll into valid days', records: [
+    { _id: 'bad-start', startDate: '2026-06-32', status: 'ongoing' },
+    { _id: 'bad-end', startDate: '2026-06-26', endDate: '2026-06-32' },
+    { _id: 'missing-end', startDate: '2026-06-26', status: 'known-end' },
+    { _id: 'reversed', startDate: '2026-06-26', endDate: '2026-06-25', status: 'known-end' }
+  ], dates: [], day: 0, status: '', count: 0, detailIds: [] },
+  { name: 'explicit unknown end ignores a valid stale end and projects only its start', records: [
+    { _id: 'unknown', startDate: '2026-06-24', endDate: '2026-06-26', status: 'unknown-end' }
+  ], dates: ['2026-06-24'], day: 0, status: '', count: 1, detailIds: [] }
+]
+for (const scenario of coverageCases) {
+  test(`period coverage: ${scenario.name}`, () => {
+    for (const records of [scenario.records, [...scenario.records].reverse()]) {
+      const state = buildHomeCalendarState({ year: 2026, month: 5, today: '2026-06-26', periods: records })
+      assert.deepEqual(state.days.filter(day => day.isPeriod).map(day => day.date), scenario.dates)
+      const today = state.days.find(day => day.date === '2026-06-26')
+      assert.equal(today.periodDayCount, scenario.day)
+      assert.equal(today.isOngoingPeriod, scenario.status === 'ongoing')
+      assert.equal(today.isUnknownEndPeriod, scenario.status === 'unknown-end')
+      assert.equal(today.periodOpenEnd, scenario.status === 'ongoing')
+      assert.equal(state.homeStatus.text, scenario.day ? `经期第 ${scenario.day} 天` : '多记几次后就能预测')
+      if (scenario.day) assert.ok(today.ariaLabel.includes(`经期第${scenario.day}天`))
+      else assert.equal(today.ariaLabel.includes('经期第'), false)
+      assert.equal(today.ariaLabel.includes('经期进行中'), scenario.status === 'ongoing')
+      assert.equal(today.ariaLabel.includes('结束日期不详'), scenario.status === 'unknown-end')
+      assert.equal(state.monthlyRecap.periodDays, scenario.count)
+      assert.equal(state.monthSummaryLine, `本月 经期 ${scenario.count} 天 · 欢乐时光 0 条`)
+      assert.deepEqual(state.dayDetailsByDate['2026-06-26'].periods.map(row => row.recordId).sort(), [...scenario.detailIds].sort())
+    }
+  })
+}
+
+test('cross-month coverage counts leap day once and keeps each record duration and month intersection', () => {
+  const periods = [
+    { _id: 'cross', startDate: '2024-02-28', endDate: '2024-03-02' },
+    { _id: 'later', startDate: '2024-02-29', endDate: '2024-03-01' }
+  ]
+  const february = buildHomeCalendarState({ year: 2024, month: 1, today: '2024-03-02', periods })
+  assert.deepEqual(february.days.filter(day => day.isPeriod).map(day => [day.date, day.periodDayCount]), [
+    ['2024-02-28', 1], ['2024-02-29', 1]
+  ])
+  assert.equal(february.monthSummaryLine, '本月 经期 2 天 · 欢乐时光 0 条')
+  assert.deepEqual(february.monthlyRecap.highlights, [
+    '经期：2月28日–3月2日，整段 4 天，本月 2 天',
+    '经期：2月29日–3月1日，整段 2 天，本月 1 天'
+  ])
+  const march = buildHomeCalendarState({ year: 2024, month: 2, today: '2024-03-02', periods })
+  assert.deepEqual(march.days.filter(day => day.isPeriod).map(day => [day.date, day.periodDayCount]), [
+    ['2024-03-01', 2], ['2024-03-02', 4]
+  ])
+  assert.equal(march.homeStatus.text, '经期第 4 天')
+  assert.equal(march.monthSummaryLine, '本月 经期 2 天 · 欢乐时光 0 条')
+  assert.deepEqual(march.monthlyRecap.highlights, [
+    '经期：2月28日–3月2日，整段 4 天，本月 2 天',
+    '经期：2月29日–3月1日，整段 2 天，本月 1 天'
+  ])
+})
+
 test('buildHomeCalendarState returns fallback prediction state and explicit day details when records are insufficient', () => {
   const periods = [
     period('2026-08-01', '2026-08-05')

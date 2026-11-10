@@ -1,6 +1,7 @@
 const util = require('../../../utils/util')
 const cloud = require('../../../utils/cloud')
 const cycle = require('../../../utils/cycle')
+const periodCoverage = require('../../../utils/periodCoverage')
 const recordCommands = require('../../../utils/recordCommands')
 const wxPrompts = require('../../../utils/wxPrompts')
 const recordDraft = require('../../../utils/recordDraft')
@@ -71,7 +72,7 @@ Page(withPageVisibility({
       ? { ...routeState, ...recordDraft.pickDraftFields(storedDraft, DRAFT_FIELDS) }
       : routeState
     // 状态是权威：旧草稿缺 status 时按已知日期重新推导，不隐含进行中
-    const status = cycle.getPeriodStatus(merged)
+    const status = periodCoverage.getPeriodStatus(merged)
     const formState = {
       ...merged,
       status,
@@ -237,13 +238,12 @@ Page(withPageVisibility({
   // 云端不因为重叠拒绝；选「仍然新建」后照常保存。
   async resolveNewPeriodOverlap() {
     if (this.data.isEdit) return 'save'
-    if (typeof cycle.findPeriodCoveringDate !== 'function') return 'save'
     this._overlapConfirming = true
     try {
       await this.loadPeriodHistory()
       const today = util.formatDate(new Date())
-      const covering = cycle.findPeriodCoveringDate(this._periodHistory, this.data.startDate, today)
-      if (!covering) return 'save'
+      const owner = periodCoverage.getPeriodOnDate(this._periodHistory, this.data.startDate, today)
+      if (!owner) return 'save'
       const editExisting = await new Promise(resolve => {
         wxPrompts.modal({
           title: '这一天已有经期',
@@ -260,7 +260,7 @@ Page(withPageVisibility({
       if (editExisting === null) return { kind: 'cancelled' }
       if (!editExisting) return 'save'
       this.discardRecordDraft()
-      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(covering) })
+      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(owner.record) })
       return { kind: 'edit-existing' }
     } finally {
       this._overlapConfirming = false
@@ -270,7 +270,7 @@ Page(withPageVisibility({
   applyReopenedRecord(record) {
     const symptoms = Array.isArray(record.symptoms) ? record.symptoms : []
     // 与 onLoad 同一原则：状态是权威，结束日期只在已知结束时保留
-    const status = cycle.getPeriodStatus(record)
+    const status = periodCoverage.getPeriodStatus(record)
     const formState = {
       id: record._id,
       startDate: record.startDate || '',

@@ -1,18 +1,13 @@
+const { getPeriodStatus } = require('./periodCoverage')
+
 const PERIOD_EDIT_PATH = '/pages/period/edit/edit'
 const MEMORY_EDIT_PATH = '/pages/memory/edit/edit'
-// 与 utils/cycle.js、云端副本一致的三态值；本模块保持零依赖，不引入运行时共享模块
-const PERIOD_STATUS_VALUES = ['ongoing', 'unknown-end', 'known-end']
-
-function isPeriodStatus(value) {
-  return PERIOD_STATUS_VALUES.includes(value)
-}
 
 function buildPeriodEditUrl(record = {}, context = {}) {
   const completing = context.intent === 'complete'
-  const explicitStatus = isPeriodStatus(record.status) ? record.status : ''
-  const status = completing
-    ? 'known-end'
-    : (explicitStatus || (record.endDate ? 'known-end' : 'unknown-end'))
+  const recordStatus = getPeriodStatus(record)
+  const explicitStatus = record.status === recordStatus ? recordStatus : ''
+  const status = completing ? 'known-end' : recordStatus
   return buildUrl(PERIOD_EDIT_PATH, {
     id: record.id || record._id || '',
     startDate: record.startDate || '',
@@ -32,12 +27,12 @@ function parsePeriodEditOptions(options = {}, context = {}) {
   const symptoms = parseSymptoms(options.symptoms)
   const isEdit = !!options.id
   const startDate = options.startDate || today
-  const hasExplicitStatus = isPeriodStatus(options.status)
+  const recordStatus = getPeriodStatus(options)
   // 新增按生效开始日期推导默认状态：记今天默认进行中，补记过去默认已结束。
-  // 补记的结束日留空，不用开始日填上；编辑旧记录按已有日期保守推导状态。
-  const status = hasExplicitStatus
-    ? options.status
-    : (isEdit ? (options.endDate ? 'known-end' : 'unknown-end') : (startDate < today ? 'known-end' : 'ongoing'))
+  // 补记的结束日留空，不用开始日填上；编辑记录的状态统一问经期归属 module。
+  const status = isEdit || options.status === recordStatus
+    ? recordStatus
+    : (startDate < today ? 'known-end' : 'ongoing')
   return {
     id: options.id || '',
     startDate,
