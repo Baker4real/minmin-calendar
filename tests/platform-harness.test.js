@@ -82,6 +82,44 @@ test('settings uses programmable prompts, clipboard, reduced-motion query and ti
   assert.equal(app.cloud.calls.some(call => call.name === 'leaveRoom'), false)
 })
 
+for (const field of ['confirmText', 'cancelText']) {
+  test(`showModal rejects ${field} longer than four Chinese characters before display or a programmed answer`, async (t) => {
+    const app = createMiniProgram()
+    t.after(() => app.teardown())
+    const successes = []
+    const failures = []
+    const completions = []
+    const options = {
+      title: '按钮长度边界', confirmText: '编辑那条', cancelText: '仍然新建',
+      success: result => successes.push(result),
+      fail: result => failures.push(result),
+      complete: result => completions.push(result)
+    }
+    const confirmed = { confirm: true, cancel: false }
+    app.wx.showModal(options)
+    assert.equal(app.wx.modals.length, 1, 'four Chinese characters remain answerable')
+    app.respond('showModal', 0, confirmed)
+    assert.deepEqual(successes, [confirmed])
+    assert.deepEqual(failures, [])
+
+    app.respondNext('showModal', confirmed)
+    app.wx.showModal({ ...options, [field]: field === 'confirmText' ? '去编辑那条' : '仍然新建它' })
+    assert.equal(app.wx.modals.length, 1, 'an invalid native modal is never displayed')
+    assert.throws(() => app.respond('showModal', 1, confirmed), /rejected before display/)
+    await app.settle()
+    const failed = { errMsg: `showModal:fail ${field} length should not larger than 4 Chinese characters` }
+    assert.deepEqual(failures, [failed])
+    assert.deepEqual(successes, [confirmed], 'a programmed confirmation cannot authorize invalid parameters')
+    assert.deepEqual(completions, [confirmed, failed])
+
+    app.wx.showModal({ ...options })
+    await app.settle()
+    assert.equal(app.wx.modals.length, 2)
+    assert.deepEqual(successes, [confirmed, confirmed], 'validation does not consume the next valid native response')
+    assert.deepEqual(completions, [confirmed, failed, confirmed])
+  })
+}
+
 test('real WXS bindings drive month swipes and sheet drags through the page interface', async (t) => {
   const app = createMiniProgram({ storage: { roomCode: 'ROOM01' }, selectors: { '.sheet-slide-toolsMenu': { height: 400 } } })
   t.after(() => app.teardown())
