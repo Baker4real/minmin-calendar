@@ -1,6 +1,5 @@
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
-const Module = require('node:module')
 const path = require('node:path')
 const test = require('node:test')
 
@@ -720,41 +719,14 @@ test('clearLocalCache keeps the unbound state when re-resolution finds no room',
   assert.deepEqual(env.wx.toasts, [{ title: '已清除本机房间码' }])
 })
 
-test('settings page delegates copy/export/clear flows to settingsFlow and keeps local clear local-only', () => {
-  const source = readPageFile('pages/settings/settings.js')
+// Settings page behavior is covered through the shared platform in settings-page.test.js.
 
-  assert.match(source, /require\('\.\.\/\.\.\/utils\/settingsFlow'\)/)
-  assert.match(source, /settingsFlow\.copyRoomCode\(/)
-  assert.match(source, /settingsFlow\.exportRecordsAsJson\(/)
-  assert.match(source, /settingsFlow\.clearLocalCache\(/)
-  assert.match(source, /syncActiveRoom\(this,\s*result\.room\)/)
-  assert.match(source, /syncActiveRoom\(this,\s*room\)/)
-  // issue #102：解除绑定迁入设置页——leaveRoom 合法出现，但只在 unbind 流程里；
-  // 清除本地数据保持 local-only（leaveCalls === 0 由 clearLocalCache 行为用例钉住）
-  assert.match(source, /unbind\(\)\s*\{[\s\S]*?roomSession\.leaveRoom\(/)
-  assert.doesNotMatch(source, /deletePeriod\(/)
-  assert.doesNotMatch(source, /deleteMemory\(/)
-})
-
-test('settings page resync confirm explains it will not delete records or leave the room', () => {
-  const source = readPageFile('pages/settings/settings.js')
+test('settings labels local resync as an ordinary action', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
-
   assert.match(wxml, /aria-label="重新同步房间"/)
   assert.match(wxml, />重新同步房间<\//)
   assert.doesNotMatch(wxml, /清除本地数据/)
   assert.doesNotMatch(wxml, /bindtap="clearData"[^>]*danger/)
-
-  // 确认标题不带警示表情；行为仍是清本机房间码再重新获取
-  assert.match(source, /wx\.showModal\(\{[\s\S]*?title:\s*'重新同步房间'/)
-  assert.match(source, /settingsFlow\.clearLocalCache\(/)
-  assert.doesNotMatch(source, /⚠/)
-  const content = /title:\s*'重新同步房间'[\s\S]*?content:\s*'([^']+)'/.exec(source)
-  assert.ok(content, 'expected the resync confirm modal content')
-  const copy = content[1]
-  assert.match(copy, /不会删除记录/)
-  assert.match(copy, /不会退出房间/)
-  assert.doesNotMatch(copy, /所有本地缓存/)
 })
 
 test('confirmExport explains the export is complete, should be saved to 文件传输助手, and cannot be imported', async () => {
@@ -800,11 +772,9 @@ test('confirmExport proceeds when the modal api is unavailable', async () => {
 })
 
 test('settings about group shows the version once and opens a short help sheet', async () => {
-  const pageSource = readPageFile('pages/settings/settings.js')
   const wxml = readPageFile('pages/settings/settings.wxml')
   const about = wxml.slice(wxml.indexOf('>关于<'), wxml.indexOf('settings-danger-zone'))
 
-  assert.equal((pageSource.match(/1\.0\.0/g) || []).length, 0)
   assert.equal((wxml.match(/1\.0\.0/g) || []).length, 1)
   assert.match(about, /v1\.0\.0/)
   assert.match(about, /bindtap="openHelp"/)
@@ -819,245 +789,22 @@ test('settings about group shows the version once and opens a short help sheet',
   assert.match(wxml, /aria-label="关闭使用说明"/)
 })
 
-// issue #154：使用说明走首页弹层同一生命周期——先以关闭姿态挂载，下一次渲染打开；
-// 离场 200ms 到点才卸载；离场途中再打开取消卸载，从当前位置回到 open。
-test('the settings help sheet opens, leaves and unmounts on the homepage sheet lifecycle', (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] })
+test('settings help binds lifecycle, accessibility and system-back state in WXML', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
   assert.match(wxml, /wx:if="\{\{helpMounted\}\}"/)
   assert.match(wxml, /class="help-mask sheet-\{\{helpPhase\}\}"/)
   assert.match(wxml, /class="help-slide sheet-\{\{helpPhase\}\}"/)
-
-  const harness = loadSettingsPageHarness({
-    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-  try {
-    assert.equal(harness.page.data.helpOpen, false)
-    assert.equal(harness.page.data.helpMounted, false)
-    assert.equal(harness.page.data.helpPhase, 'closed')
-
-    harness.page.openHelp()
-    assert.equal(harness.page.data.helpOpen, true)
-    assert.equal(harness.page.data.helpMounted, true)
-    assert.equal(harness.page.data.helpPhase, 'closed')
-    t.mock.timers.tick(0)
-    assert.equal(harness.page.data.helpPhase, 'open')
-
-    harness.page.closeHelp()
-    assert.equal(harness.page.data.helpOpen, false)
-    assert.equal(harness.page.data.helpPhase, 'leaving')
-    assert.equal(harness.page.data.helpMounted, true)
-    t.mock.timers.tick(199)
-    assert.equal(harness.page.data.helpPhase, 'leaving')
-    assert.equal(harness.page.data.helpMounted, true)
-    t.mock.timers.tick(1)
-    assert.equal(harness.page.data.helpPhase, 'closed')
-    assert.equal(harness.page.data.helpMounted, false)
-
-    harness.page.openHelp()
-    t.mock.timers.tick(0)
-    harness.page.closeHelp()
-    t.mock.timers.tick(100)
-    harness.page.openHelp()
-    assert.equal(harness.page.data.helpPhase, 'open')
-    assert.equal(harness.page.data.helpOpen, true)
-    t.mock.timers.tick(200)
-    assert.equal(harness.page.data.helpPhase, 'open')
-    assert.equal(harness.page.data.helpMounted, true)
-  } finally {
-    harness.teardown()
-  }
-})
-
-// issue #154：同首页（issue #134）——帮助处于 open 或 leaving 时原生 tabBar 藏起来，离场卸载后才恢复；
-// 离场途中再打开就一直藏着。
-test('the settings help hides the native tab bar until its leave finishes, including a reopen', (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] })
-  const harness = loadSettingsPageHarness({
-    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-  const tabBar = []
-  harness.wx.hideTabBar = (options) => tabBar.push(['hide', options && options.animation])
-  harness.wx.showTabBar = (options) => tabBar.push(['show', options && options.animation])
-  try {
-    harness.page.openHelp()
-    assert.deepEqual(tabBar, [])
-    t.mock.timers.tick(0)
-    assert.equal(harness.page.data.helpPhase, 'open')
-    assert.deepEqual(tabBar, [['hide', true]])
-
-    harness.page.closeHelp()
-    assert.equal(harness.page.data.helpPhase, 'leaving')
-    assert.deepEqual(tabBar, [['hide', true]])
-
-    harness.page.openHelp()
-    t.mock.timers.tick(200)
-    assert.equal(harness.page.data.helpMounted, true)
-    assert.deepEqual(tabBar, [['hide', true]])
-
-    harness.page.closeHelp()
-    t.mock.timers.tick(199)
-    assert.deepEqual(tabBar, [['hide', true]])
-    t.mock.timers.tick(1)
-    assert.equal(harness.page.data.helpMounted, false)
-    assert.deepEqual(tabBar, [['hide', true], ['show', true]])
-  } finally {
-    harness.teardown()
-  }
-})
-
-// issue #154：减弱动效探针与首页同一套；设置页显示时读探针，帮助的 tabBar 隐藏和恢复不播动画。
-test('under reduced motion the settings help hides and restores the tab bar instantly', async (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] })
-  const harness = loadSettingsPageHarness({
-    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-  const tabBar = []
-  harness.wx.hideTabBar = (options) => tabBar.push(['hide', options && options.animation])
-  harness.wx.showTabBar = (options) => tabBar.push(['show', options && options.animation])
-  harness.wx.createSelectorQuery = () => {
-    const query = {
-      select() { return query },
-      fields() { return query },
-      exec(callback) { callback([{ width: '1px' }]) }
-    }
-    return query
-  }
-  try {
-    await harness.page.onShow()
-    // 显示时先交还可能被别的页面留在隐藏的 tabBar（见下一条测试）
-    assert.deepEqual(tabBar, [['show', false]])
-    harness.page.openHelp()
-    t.mock.timers.tick(0)
-    assert.deepEqual(tabBar, [['show', false], ['hide', false]])
-
-    harness.page.closeHelp()
-    t.mock.timers.tick(200)
-    assert.equal(harness.page.data.helpMounted, false)
-    assert.deepEqual(tabBar, [['show', false], ['hide', false], ['show', false]])
-  } finally {
-    harness.teardown()
-  }
-})
-
-// 原生 tabBar 的显隐是整个小程序共用的状态：别的页面在弹层开着时被卸载，会把它留在隐藏。
-// 设置页每次显示时，帮助没盖着就立即交还；帮助盖着时仍由离场恢复。
-test('showing the settings page gives the native tab bar back unless the help covers the page', async (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] })
-  const harness = loadSettingsPageHarness({
-    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-  const tabBar = []
-  harness.wx.hideTabBar = (options) => tabBar.push(['hide', options && options.animation])
-  harness.wx.showTabBar = (options) => tabBar.push(['show', options && options.animation])
-  try {
-    await harness.page.onShow()
-    assert.deepEqual(tabBar, [['show', false]])
-
-    harness.page.openHelp()
-    t.mock.timers.tick(0)
-    assert.equal(harness.page.data.helpPhase, 'open')
-    assert.deepEqual(tabBar, [['show', false], ['hide', true]])
-
-    await harness.page.onShow()
-    assert.deepEqual(tabBar, [['show', false], ['hide', true]])
-  } finally {
-    harness.teardown()
-  }
-})
-
-// issue #154：同首页（issue #134）——系统返回由页面容器拦截，先走帮助的离场，不离开设置页；
-// 离场结束前拦截还在，第二次返回也不离开。
-test('system back closes the settings help instead of leaving the page', (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] })
-  const container = /<page-container\b[^>]*>/.exec(readPageFile('pages/settings/settings.wxml'))
-  assert.ok(container, 'expected a page-container to intercept system back')
-  // 不弹层时组件不留在树上：show 为 false 时它仍是原生层，会吃掉页面点击。
+  const container = /<page-container\b[^>]*>/.exec(wxml)
+  assert.ok(container)
   assert.match(container[0], /wx:if="\{\{sheetExitGuard\}\}"/)
   assert.match(container[0], /show="\{\{true\}\}"/)
   assert.match(container[0], /bindbeforeleave="onSheetSystemBack"/)
   assert.match(container[0], /overlay="\{\{false\}\}"/)
   assert.match(container[0], /\bduration="0"/)
-
-  const harness = loadSettingsPageHarness({
-    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-  harness.wx.navigateBack = (options) => harness.navigation.push({ type: 'navigateBack', options })
-  try {
-    assert.equal(harness.page.data.sheetExitGuard, false)
-    harness.page.openHelp()
-    assert.equal(harness.page.data.sheetExitGuard, true)
-    t.mock.timers.tick(0)
-    assert.equal(harness.page.data.helpPhase, 'open')
-
-    harness.page.onSheetSystemBack()
-    assert.equal(harness.page.data.helpPhase, 'leaving')
-    assert.equal(harness.page.data.helpMounted, true)
-    assert.deepEqual(harness.navigation, [])
-    t.mock.timers.tick(0)
-    assert.equal(harness.page.data.sheetExitGuard, true)
-
-    harness.page.onSheetSystemBack()
-    assert.equal(harness.page.data.helpPhase, 'leaving')
-    assert.equal(harness.page.data.helpMounted, true)
-    assert.deepEqual(harness.navigation, [])
-
-    t.mock.timers.tick(200)
-    assert.equal(harness.page.data.helpMounted, false)
-    assert.equal(harness.page.data.helpPhase, 'closed')
-    assert.equal(harness.page.data.sheetExitGuard, false)
-    assert.deepEqual(harness.navigation, [])
-  } finally {
-    harness.teardown()
-  }
-})
-
-// issue #155：使用说明盖住设置页时读屏只听得到帮助。顶栏和内容的 aria-hidden 按模板绑定求值：
-// 打开后静音，离场途中不放出来，帮助卸载的同一次更新里恢复；离场途中再打开则一直静音。
-test('the settings help silences the page behind it until the help unmounts', (t) => {
-  t.mock.timers.enable({ apis: ['setTimeout'] })
-  const wxml = readPageFile('pages/settings/settings.wxml')
-  const bindings = ['nav-bar', 'content'].map((cls) => {
+  for (const cls of ['nav-bar', 'content']) {
     const tag = new RegExp(`<view\\b[^>]*\\bclass="${cls}[\\s"][^>]*>`).exec(wxml)
     assert.ok(tag, `expected the ${cls} region`)
-    const binding = /\saria-hidden="\{\{([^}]*)\}\}"/.exec(tag[0])
-    assert.ok(binding, `the ${cls} region binds aria-hidden to page state`)
-    return binding[1]
-  })
-  const harness = loadSettingsPageHarness({
-    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-  const silenced = () => bindings.map((expr) => {
-    const data = harness.page.data
-    const keys = Object.keys(data)
-    return new Function(...keys, `return (${expr})`)(...keys.map((key) => data[key]))
-  })
-  try {
-    assert.deepEqual(silenced(), [false, false])
-    harness.page.openHelp()
-    t.mock.timers.tick(0)
-    assert.equal(harness.page.data.helpPhase, 'open')
-    assert.deepEqual(silenced(), [true, true])
-
-    harness.page.closeHelp()
-    assert.equal(harness.page.data.helpPhase, 'leaving')
-    assert.deepEqual(silenced(), [true, true])
-    t.mock.timers.tick(199)
-    assert.deepEqual(silenced(), [true, true])
-    t.mock.timers.tick(1)
-    assert.equal(harness.page.data.helpMounted, false)
-    assert.deepEqual(silenced(), [false, false])
-
-    harness.page.openHelp()
-    t.mock.timers.tick(0)
-    harness.page.closeHelp()
-    t.mock.timers.tick(100)
-    harness.page.openHelp()
-    t.mock.timers.tick(200)
-    assert.equal(harness.page.data.helpMounted, true)
-    assert.deepEqual(silenced(), [true, true])
-  } finally {
-    harness.teardown()
+    assert.match(tag[0], /aria-hidden="\{\{pageObscured\}\}"/)
   }
 })
 
@@ -1119,161 +866,7 @@ test('exportRecordsAsJson stops without touching data when the export explanatio
   assert.deepEqual(env.wx.clipboardCalls, [])
 })
 
-test('settings page asks for the export explanation before exporting', () => {
-  const source = readPageFile('pages/settings/settings.js')
-
-  assert.match(source, /exportRecordsAsJson\(\{[\s\S]*?confirmBeforeExport:\s*true/)
-})
-
-// ===== issue #79：设置页拿不到房间码时的下一步（重试 / 去绑定）=====
-
-test('settings page offers retry and go-bind when the room code cannot be fetched', async () => {
-  const harness = loadSettingsPageHarness({
-    roomOutcome: { kind: 'retryable-failure', bound: false, roomCode: '', errorMsg: '同步房间状态失败：network down' }
-  })
-
-  try {
-    // 首次解析完成前不闪出可点操作
-    assert.equal(harness.page.data.roomCodeLoaded, false)
-
-    await harness.page.onShow()
-    assert.equal(harness.page.data.roomCodeLoaded, true)
-    assert.equal(harness.page.data.roomCode, '')
-    assert.equal(harness.page.data.roomCodeDisplay, '同步失败，请重试')
-
-    // 重试真的重新解析活动房间
-    await harness.page.retryRoomResolve()
-    assert.equal(harness.resolveCalls(), 2)
-
-    // 去绑定进入现有绑定页
-    harness.page.goBind()
-    assert.deepEqual(harness.navigation, [{ type: 'navigateTo', url: '/pages/bind/bind' }])
-  } finally {
-    harness.teardown()
-  }
-})
-
-test('settings page shows the retry and go-bind actions for the unbound state too', async () => {
-  const harness = loadSettingsPageHarness({
-    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-
-  try {
-    await harness.page.onShow()
-    assert.equal(harness.page.data.roomCodeLoaded, true)
-    assert.equal(harness.page.data.roomCode, '')
-    assert.equal(harness.page.data.roomCodeDisplay, '未绑定')
-  } finally {
-    harness.teardown()
-  }
-})
-
-test('settings page drops the actions once a room code loads and keeps the copy control', async () => {
-  const harness = loadSettingsPageHarness({
-    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01' }
-  })
-
-  try {
-    await harness.page.onShow()
-    assert.equal(harness.page.data.roomCodeLoaded, true)
-    assert.equal(harness.page.data.roomCode, 'ROOM01')
-    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
-  } finally {
-    harness.teardown()
-  }
-})
-
-// issue #114：首帧用本机缓存房间码，不等云端校验；校验结果仍覆盖首帧
-test('settings page shows the cached room code before verification, with copy and unbind available', async () => {
-  const harness = loadSettingsPageHarness({
-    cachedRoomCode: 'ROOM01',
-    roomOutcome: { kind: 'retryable-failure', bound: false, roomCode: '', errorMsg: '同步房间状态失败：network down' }
-  })
-
-  try {
-    assert.equal(harness.resolveCalls(), 0)
-    assert.equal(harness.page.data.roomCode, 'ROOM01')
-    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
-    assert.equal(harness.page.data.roomCodeLoaded, false)
-
-    const wxml = readPageFile('pages/settings/settings.wxml')
-    const cardStart = wxml.indexOf('class="menu-item room-code-item')
-    const cardEnd = wxml.indexOf('日历显示')
-    const card = wxml.slice(cardStart, cardEnd)
-    assert.match(card, /wx:if="\{\{roomCode\}\}" class="copy-btn"/)
-    assert.doesNotMatch(card, /bindtap="unbind"/)
-
-    await harness.page.onShow()
-    assert.equal(harness.resolveCalls(), 1)
-    assert.equal(harness.page.data.roomCode, '')
-    assert.equal(harness.page.data.roomCodeDisplay, '同步失败，请重试')
-    assert.equal(harness.page.data.roomCodeLoaded, true)
-  } finally {
-    harness.teardown()
-  }
-})
-
-// issue #114：没有缓存时首帧是中性「读取中…」，校验完成前不出复制/解绑，也不先写「未绑定」
-test('settings page shows a neutral reading state before verification when no room code is cached', async () => {
-  const harness = loadSettingsPageHarness({
-    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-
-  try {
-    assert.equal(harness.resolveCalls(), 0)
-    assert.equal(harness.page.data.roomCode, '')
-    assert.equal(harness.page.data.roomCodeDisplay, '读取中…')
-    assert.equal(harness.page.data.roomCodeLoaded, false)
-
-    const wxml = readPageFile('pages/settings/settings.wxml')
-    const cardStart = wxml.indexOf('class="menu-item room-code-item')
-    const cardEnd = wxml.indexOf('日历显示')
-    const card = wxml.slice(cardStart, cardEnd)
-    assert.match(card, /class="room-code-value \{\{roomCode \? '' : 'muted'\}\}"/)
-    assert.match(card, /wx:if="\{\{roomCode\}\}" class="copy-btn"/)
-    assert.match(card, /wx:if="\{\{roomCodeLoaded && !roomCode\}\}" class="room-code-actions"/)
-
-    const wxss = readPageFile('pages/settings/settings.wxss')
-    assert.match(wxssRuleBody(wxss, '.room-code-value.muted'), /color:\s*var\(--text-secondary\)/)
-
-    await harness.page.onShow()
-    assert.equal(harness.resolveCalls(), 1)
-    assert.equal(harness.page.data.roomCode, '')
-    assert.equal(harness.page.data.roomCodeDisplay, '未绑定')
-    assert.equal(harness.page.data.roomCodeLoaded, true)
-  } finally {
-    harness.teardown()
-  }
-})
-
-// issue #114：同一轮模块加载里，后一次进入要读到当时的缓存，不能沿用第一次求值的快照
-test('two settings instances created after one module load see the cache from their own creation, before verification', () => {
-  let cachedRoomCode = 'ROOM01'
-  const harness = loadSettingsPageHarness({
-    cachedRoomCode: () => cachedRoomCode,
-    roomOutcome: { kind: 'no-room', bound: false, roomCode: '' }
-  })
-
-  try {
-    assert.equal(harness.resolveCalls(), 0)
-    assert.equal(harness.page.data.roomCode, 'ROOM01')
-    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
-    assert.equal(harness.page.data.roomCodeLoaded, false)
-
-    cachedRoomCode = ''
-    const later = harness.createInstance()
-    assert.equal(harness.resolveCalls(), 0)
-    assert.equal(later.data.roomCode, '')
-    assert.equal(later.data.roomCodeDisplay, '读取中…')
-    assert.equal(later.data.roomCodeLoaded, false)
-    assert.notEqual(later.data.roomCodeDisplay, '未绑定')
-
-    assert.equal(harness.page.data.roomCode, 'ROOM01')
-    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
-  } finally {
-    harness.teardown()
-  }
-})
+// Room loading, cached first frames and retry/navigation are exercised in settings-page.test.js.
 
 test('settings room-code card swaps the dead sentence for tappable retry and go-bind rows when no code is available', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
@@ -1281,6 +874,10 @@ test('settings room-code card swaps the dead sentence for tappable retry and go-
   const cardEnd = wxml.indexOf('日历显示')
   assert.ok(cardStart !== -1 && cardEnd > cardStart, 'expected the room-code card')
   const card = wxml.slice(cardStart, cardEnd)
+
+  // 首帧无缓存时只显示中性状态；云端完成后才出现操作。
+  assert.match(card, /class="room-code-value \{\{roomCode \? '' : 'muted'\}\}"/)
+  assert.match(wxssRuleBody(readPageFile('pages/settings/settings.wxss'), '.room-code-value.muted'), /color:\s*var\(--text-secondary\)/)
 
   // 没有房间码（未绑定 / 同步失败）时：重试 + 去绑定两个可点操作
   assert.match(card, /wx:if="\{\{roomCodeLoaded && !roomCode\}\}" class="room-code-actions"/)
@@ -1324,100 +921,6 @@ test('settings room group keeps copy and retry, and does not host unbind', () =>
   assert.doesNotMatch(card, /bindtap="unbind"|解除绑定/)
 })
 
-test('settings unbind confirm explains leaving, the partner, archive, and recovery on the bind page', () => {
-  const settingsSource = readPageFile('pages/settings/settings.js')
-  const bindSource = readPageFile('pages/bind/bind.js')
-
-  const settingsUnbind = /unbind\(\)\s*\{[\s\S]*?wx\.showModal\(\{\s*title:\s*'([^']+)',\s*content:\s*'([^']+)',\s*confirmText:\s*'([^']+)',\s*confirmColor:\s*'([^']+)'/.exec(settingsSource)
-  assert.ok(settingsUnbind, 'settings.js must hold the unbind confirm')
-  const bindUnbind = /unbind\(\)\s*\{[\s\S]*?wx\.showModal\(\{\s*title:\s*'([^']+)',\s*content:\s*'([^']+)',\s*confirmText:\s*'([^']+)',\s*confirmColor:\s*'([^']+)'/.exec(bindSource)
-  assert.ok(bindUnbind, 'bind.js keeps the same-screen unbind flow for the needUnbind state')
-
-  assert.equal(settingsUnbind[1], '解除绑定')
-  assert.match(settingsUnbind[2], /你会退出/)
-  assert.match(settingsUnbind[2], /留在房间里/)
-  assert.match(settingsUnbind[2], /房间会归档/)
-  assert.match(settingsUnbind[2], /绑定页/)
-  assert.match(settingsUnbind[2], /创建/)
-  assert.doesNotMatch(settingsUnbind[2], /本页/)
-  assert.equal(settingsUnbind[3], '解除绑定')
-  assert.equal(settingsUnbind[4], '#F97373')
-  assert.equal(bindUnbind[1], settingsUnbind[1])
-  assert.equal(bindUnbind[2], settingsUnbind[2])
-  assert.doesNotMatch(bindUnbind[2], /本页/)
-  assert.equal(bindUnbind[3], '解除绑定')
-  assert.equal(bindUnbind[4], '#F97373')
-})
-
-test('confirming settings unbind leaves the room and reLaunches to the bind page', async () => {
-  const harness = loadSettingsPageHarness({
-    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01' },
-    leaveRoom: { code: 0 }
-  })
-
-  try {
-    await harness.page.onShow()
-    assert.equal(harness.page.data.roomCode, 'ROOM01')
-
-    harness.page.unbind()
-    assert.equal(harness.wx.modals.length, 1)
-    const modal = harness.wx.modals[0]
-    assert.equal(modal.title, '解除绑定')
-
-    await modal.success({ confirm: true, cancel: false })
-
-    assert.equal(harness.leaveRoomCalls(), 1)
-    // bind 非 tab 页，解绑后回绑定页只能 reLaunch，不能 switchTab
-    assert.deepEqual(harness.storageWrites, [{ key: 'bindUnbindNotice', value: '1' }])
-    assert.deepEqual(harness.navigation, [{ type: 'reLaunch', url: '/pages/bind/bind' }])
-  } finally {
-    harness.teardown()
-  }
-})
-
-test('dismissing the settings unbind confirmation leaves the room and the page untouched', async () => {
-  const harness = loadSettingsPageHarness({
-    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01' },
-    leaveRoom: { code: 0 }
-  })
-
-  try {
-    await harness.page.onShow()
-
-    harness.page.unbind()
-    assert.equal(harness.wx.modals.length, 1)
-    await harness.wx.modals[0].success({ confirm: false, cancel: true })
-
-    assert.equal(harness.leaveRoomCalls(), 0)
-    assert.deepEqual(harness.navigation, [])
-    assert.equal(harness.page.data.roomCode, 'ROOM01')
-  } finally {
-    harness.teardown()
-  }
-})
-
-test('settings unbind stays on the page with failure feedback when leaving the room fails', async () => {
-  const harness = loadSettingsPageHarness({
-    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01' },
-    leaveRoom: { code: -1, msg: '解除绑定失败：network down' }
-  })
-
-  try {
-    await harness.page.onShow()
-
-    harness.page.unbind()
-    assert.equal(harness.wx.modals.length, 1)
-    await harness.wx.modals[0].success({ confirm: true, cancel: false })
-
-    assert.equal(harness.leaveRoomCalls(), 1)
-    assert.deepEqual(harness.navigation, [], 'a failed leave must not reLaunch')
-    assert.equal(harness.wx.toasts.length, 1, 'the failure surfaces as feedback on this page')
-    assert.match(harness.wx.toasts[0].title, /解除绑定失败/)
-  } finally {
-    harness.teardown()
-  }
-})
-
 // issue #139：设置页按房间、日历显示、数据、关于分组，解除绑定单独在页底危险区
 test('settings page leads with room info in named groups and keeps unbind in the bottom danger zone', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
@@ -1459,64 +962,12 @@ test('settings page leads with room info in named groups and keeps unbind in the
 })
 
 // issue #141：成员状态留在 #139 的房间组里，解除绑定仍在页底危险区
-test('settings room group shows whether the partner is still waiting or has joined', async () => {
+test('settings room group keeps member status separate from the danger zone', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
   const room = wxml.slice(wxml.indexOf('>房间<'), wxml.indexOf('>日历显示<'))
   assert.match(room, /roomMemberLabel/)
   assert.doesNotMatch(room, /bindtap="unbind"/)
   assert.doesNotMatch(wxml.slice(0, wxml.indexOf('settings-danger-zone')), /bindtap="unbind"/)
-
-  const waiting = loadSettingsPageHarness({
-    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01', status: 'waiting' }
-  })
-  const paired = loadSettingsPageHarness({
-    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01', status: 'paired' }
-  })
-
-  try {
-    await waiting.page.onShow()
-    await paired.page.onShow()
-
-    assert.equal(waiting.page.data.roomMemberLabel, '等待 TA 加入')
-    assert.equal(paired.page.data.roomMemberLabel, 'TA 已加入')
-    assert.equal(waiting.page.data.roomCode, 'ROOM01')
-  } finally {
-    waiting.teardown()
-    paired.teardown()
-  }
-})
-
-test('settings shows TA 已加入 once after the room changes from waiting to paired', async () => {
-  let status = 'waiting'
-  const harness = loadSettingsPageHarness({
-    roomOutcome() {
-      return { kind: 'success', bound: true, roomCode: 'ROOM01', status }
-    }
-  })
-
-  try {
-    await harness.page.onShow()
-    assert.deepEqual(harness.wx.toasts, [])
-
-    status = 'paired'
-    await harness.page.onShow()
-    assert.deepEqual(harness.wx.toasts, [{ title: 'TA 已加入', icon: 'none' }])
-
-    await harness.page.onShow()
-    assert.equal(harness.wx.toasts.length, 1)
-  } finally {
-    harness.teardown()
-  }
-
-  const alreadyPaired = loadSettingsPageHarness({
-    roomOutcome: { kind: 'success', bound: true, roomCode: 'ROOM01', status: 'paired' }
-  })
-  try {
-    await alreadyPaired.page.onShow()
-    assert.deepEqual(alreadyPaired.wx.toasts, [])
-  } finally {
-    alreadyPaired.teardown()
-  }
 })
 
 test('settings calendar display says compact keeps holidays and adjusted workdays, and full adds the lunar day', () => {
@@ -1532,11 +983,8 @@ test('settings calendar display says compact keeps holidays and adjusted workday
 // ===== issue #103：「查看欢乐时光」→ 记录 tab 的欢乐时光分段 =====
 
 test('settings page no longer offers a second happy-time entry', () => {
-  const source = readPageFile('pages/settings/settings.js')
   const wxml = readPageFile('pages/settings/settings.wxml')
 
-  assert.doesNotMatch(source, /goMemory\s*\(/)
-  assert.doesNotMatch(source, /recordTabSegment/)
   assert.doesNotMatch(wxml, /goMemory|查看欢乐时光/)
   assert.doesNotMatch(wxml, /class="menu-text">欢乐时光</)
 })
@@ -1546,99 +994,6 @@ function wxssRuleBody(wxss, selector) {
   const match = wxss.match(new RegExp(`(?:^|[\\n},])\\s*${escaped}\\s*(?:,[^{]*)?\\{([^}]+)\\}`))
   assert.ok(match, `expected rule for ${selector}`)
   return match[1]
-}
-
-function loadSettingsPageHarness({ roomOutcome, leaveRoom, cachedRoomCode } = {}) {
-  const absolutePagePath = path.join(__dirname, '..', 'pages/settings/settings.js')
-  let resolveCalls = 0
-  let leaveRoomCalls = 0
-  const absoluteMocks = new Map([
-    [path.join(__dirname, '..', 'utils/cloud.js'), {
-      createRoomDataClient: () => ({ list: async () => ({ kind: 'success', data: [] }) })
-    }],
-    [path.join(__dirname, '..', 'utils/room.js'), {
-      getRoomCode() {
-        const value = typeof cachedRoomCode === 'function' ? cachedRoomCode() : cachedRoomCode
-        return value || ''
-      },
-      async getVerifiedActiveRoom() {
-        resolveCalls += 1
-        if (typeof roomOutcome === 'function') return roomOutcome()
-        return roomOutcome
-      },
-      // issue #102：解除绑定迁入设置页，harness 需要能观察 leaveRoom 调用与结果
-      async leaveRoom() {
-        leaveRoomCalls += 1
-        if (typeof leaveRoom === 'function') return leaveRoom()
-        return leaveRoom || { code: 0 }
-      }
-    }],
-    [path.join(__dirname, '..', 'utils/safeArea.js'), { getSafeTop: () => 44, getSafeBottom: () => 0, getNavBarHeight: () => 84, getCapsuleRightInset: () => 94 }]
-  ])
-  const originalPage = global.Page
-  const originalWx = global.wx
-  const originalLoad = Module._load
-  let registered
-
-  delete require.cache[require.resolve(absolutePagePath)]
-  const navigation = []
-  const storageWrites = []
-  const stored = Object.create(null)
-  const wx = {
-    modals: [],
-    toasts: [],
-    getStorageSync(key) { return stored[key] || '' },
-    setStorageSync(key, value) {
-      stored[key] = value
-      storageWrites.push({ key, value })
-    },
-    removeStorageSync(key) { delete stored[key] },
-    navigateTo(options) { navigation.push({ type: 'navigateTo', url: options.url }) },
-    switchTab(options) { navigation.push({ type: 'switchTab', url: options.url }) },
-    // issue #102：解绑成功后 reLaunch 回绑定页（全仓首个 reLaunch，扩展现有 navigation 记录）
-    reLaunch(options) { navigation.push({ type: 'reLaunch', url: options.url }) },
-    showModal(options) { wx.modals.push(options) },
-    showToast(options) { wx.toasts.push(options) }
-  }
-  global.wx = wx
-  global.Page = config => { registered = config }
-  Module._load = function patchedLoad(request, parent, isMain) {
-    const resolved = Module._resolveFilename(request, parent, isMain)
-    if (absoluteMocks.has(resolved)) return absoluteMocks.get(resolved)
-    return originalLoad.apply(this, arguments)
-  }
-  require(absolutePagePath)
-  Module._load = originalLoad
-
-  function createInstance() {
-    const page = {
-      data: { ...(registered.data || {}) },
-      setData(update, callback) {
-        this.data = { ...this.data, ...update }
-        if (typeof callback === 'function') callback()
-      }
-    }
-    for (const [key, value] of Object.entries(registered)) {
-      if (key !== 'data') page[key] = typeof value === 'function' ? value.bind(page) : value
-    }
-    return page
-  }
-
-  return {
-    page: createInstance(),
-    createInstance,
-    navigation,
-    storageWrites,
-    wx,
-    resolveCalls: () => resolveCalls,
-    leaveRoomCalls: () => leaveRoomCalls,
-    teardown() {
-      Module._load = originalLoad
-      global.Page = originalPage
-      global.wx = originalWx
-      delete require.cache[require.resolve(absolutePagePath)]
-    }
-  }
 }
 
 function createFakeSettingsEnv(options = {}) {
