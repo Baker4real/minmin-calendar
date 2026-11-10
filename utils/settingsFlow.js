@@ -3,6 +3,55 @@ const roomSessionApi = require('./room')
 const roomAccessOutcome = require('./roomAccessOutcome')
 const roomRecordsSnapshot = require('./roomRecordsSnapshot')
 
+const ROOM_LEAVE_NOTICE_KEY = 'bindUnbindNotice'
+
+// Pages render the outcome; confirmation, server leave and the pending notice belong here.
+function leaveRoom({ onResult, notifyOnBind = false }) {
+  const wxApi = getWx()
+  wxApi.showModal({
+    title: '解除绑定',
+    content: '解除绑定后你会退出这个房间。TA 还在的话会留在房间里；房间里只剩你时，房间会归档。之后在绑定页点「创建」即可恢复。',
+    confirmText: '解除绑定',
+    confirmColor: '#F97373',
+    success: async response => {
+      if (!response.confirm) {
+        onResult({ kind: 'cancelled' })
+        return
+      }
+      const result = await roomSessionApi.leaveRoom()
+      if (result.code !== 0) {
+        onResult({ kind: 'failure', message: result.msg || '解除绑定失败，请稍后重试' })
+        return
+      }
+      if (notifyOnBind) {
+        // Optional feedback must not block navigation after the server has left the Room.
+        try {
+          wxApi.setStorageSync(ROOM_LEAVE_NOTICE_KEY, '1')
+        } catch (e) {}
+      }
+      onResult({ kind: 'success' })
+    },
+    fail: error => onResult({
+      kind: 'failure',
+      message: roomAccessOutcome.presentUserFailure(error.errMsg || getErrorMessage(error))
+    })
+  })
+}
+
+function consumeRoomLeaveNotice() {
+  const wxApi = getWx()
+  // Notice storage is best-effort; Room verification must still run on Bind.
+  let notice = ''
+  try {
+    notice = wxApi.getStorageSync(ROOM_LEAVE_NOTICE_KEY)
+  } catch (e) {}
+  if (!notice) return
+  try {
+    wxApi.removeStorageSync(ROOM_LEAVE_NOTICE_KEY)
+  } catch (e) {}
+  wxApi.showToast({ title: '已解除绑定', icon: 'none' })
+}
+
 // issue #150：分享失败后的选择；「取消」是系统操作菜单自带的取消键
 const SHARE_FAILURE_ACTIONS = [
   { label: '重试分享', choice: 'retry' },
@@ -357,6 +406,8 @@ function getErrorMessage(error) {
 }
 
 module.exports = {
+  leaveRoom,
+  consumeRoomLeaveNotice,
   copyRoomCode,
   exportRecordsAsJson,
   clearLocalCache,

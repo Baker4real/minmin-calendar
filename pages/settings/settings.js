@@ -90,23 +90,14 @@ Page(withPageVisibility({
 
   // issue #102 / #139：解除绑定在页底危险区；二次确认仍走 leaveRoom，成功后 reLaunch 回绑定页
   unbind() {
-    wx.showModal({
-      title: '解除绑定',
-      content: '解除绑定后你会退出这个房间。TA 还在的话会留在房间里；房间里只剩你时，房间会归档。之后在绑定页点「创建」即可恢复。',
-      confirmText: '解除绑定',
-      confirmColor: '#F97373',
-      success: async (res) => {
-        if (res.confirm) {
-          const result = await roomSession.leaveRoom()
-          if (result.code === 0) {
-            try {
-              wx.setStorageSync('bindUnbindNotice', '1')
-            } catch (e) {}
-            // bind 非 tab 页，解绑成功后回绑定页只能 reLaunch
-            wx.reLaunch({ url: '/pages/bind/bind' })
-            return
-          }
-          wx.showToast({ title: result.msg || '解除绑定失败，请稍后重试', icon: 'none' })
+    settingsFlow.leaveRoom({
+      notifyOnBind: true,
+      onResult: result => {
+        if (result.kind === 'success') {
+          // bind 非 tab 页，解绑成功后回绑定页只能 reLaunch
+          wx.reLaunch({ url: '/pages/bind/bind' })
+        } else if (result.kind === 'failure') {
+          wx.showToast({ title: result.message, icon: 'none' })
         }
       }
     })

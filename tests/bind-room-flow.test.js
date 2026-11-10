@@ -260,16 +260,21 @@ test('copy buttons press instantly under reduced motion on both bind and setting
 test('bind page exposes same-screen unbind for create and join refused by another room', async (t) => {
   for (const action of ['createRoom', 'joinRoom']) {
     await t.test(action, async (t) => {
-      const msg = action === 'createRoom'
-        ? '你已加入其他房间，请先解除绑定后再创建新房间'
-        : '你已加入其他房间，请先解除绑定后再加入新房间'
-      const app = bindPlatform(t, { [action]: { code: -5, msg } })
-      const page = app.launch(action === 'joinRoom' ? '/pages/bind/bind?roomCode=ROOM01' : '/pages/bind/bind')
-      await app.settle()
-      await app.dispatch(page, action)
-      assert.equal(page.data.errorMsg, msg)
-      assert.equal(page.data.needUnbind, true)
-      assert.match(readPageFile('pages/bind/bind.wxml'), /wx:if="\{\{needUnbind\}\}"[^>]*bindtap="unbind"/)
+      for (const [msg, displayed] of [
+        ['你目前属于另一个房间，需要退出后才能继续', '你目前属于另一个房间，需要退出后才能继续'],
+        ['membership conflict', '这次没有完成，请重试'],
+        ['云数据库查询超时 (15000ms)', '网络不太稳定，请重试']
+      ]) {
+        await t.test(msg, async (t) => {
+          const app = bindPlatform(t, { [action]: { code: -5, msg } })
+          const page = app.launch(action === 'joinRoom' ? '/pages/bind/bind?roomCode=ROOM01' : '/pages/bind/bind')
+          await app.settle()
+          await app.dispatch(page, action)
+          assert.equal(page.data.errorMsg, displayed)
+          assert.equal(page.data.needUnbind, true)
+          assert.match(readPageFile('pages/bind/bind.wxml'), /wx:if="\{\{needUnbind\}\}"[^>]*bindtap="unbind"/)
+        })
+      }
     })
   }
 })
@@ -289,6 +294,27 @@ test('bind page does not offer unbind for ordinary create/join failures', async 
   assert.equal(page.data.joinCode, 'ROOM01')
   assert.equal(page.data.errorMsg, '房间不存在，请检查房间码')
   assert.equal(page.data.needUnbind, false)
+})
+
+test('create and join clear the unbind entry for other failures even when the copy contains the old hint', async (t) => {
+  for (const action of ['createRoom', 'joinRoom']) {
+    await t.test(action, async (t) => {
+      const app = bindPlatform(t, { [action]: { code: -5, msg: '你目前属于另一个房间' } })
+      const page = app.launch(action === 'joinRoom' ? '/pages/bind/bind?roomCode=ROOM01' : '/pages/bind/bind')
+      await app.settle()
+      await app.dispatch(page, action)
+      assert.equal(page.data.needUnbind, true)
+      app.cloud.when(action).reply({ code: -1, msg: '请先解除绑定，再重试' })
+      await app.dispatch(page, action)
+      assert.equal(page.data.errorMsg, '请先解除绑定，再重试')
+      assert.equal(page.data.needUnbind, false)
+      app.cloud.when(action).reject(new Error('network down'))
+      await app.dispatch(page, action)
+      assert.equal(page.data.errorMsg, '网络不太稳定，请重试')
+      assert.equal(page.data.needUnbind, false)
+      assert.equal(page.data.loading, false)
+    })
+  }
 })
 
 test('confirming same-screen unbind leaves the room and returns to a clean unbound state', async (t) => {
