@@ -116,8 +116,8 @@ async function exportRecordsAsJson(options = {}) {
 
     const payload = {
       exportTime: normalizeExportTime(now()),
-      periods: snapshot.periods,
-      memories: snapshot.memories
+      periods: snapshot.collections.periods.data,
+      memories: snapshot.collections.memories.data
     }
     const json = JSON.stringify(payload, null, 2)
     const filePath = `${userDataPath}/minmin-calendar-backup.json`

@@ -11,7 +11,7 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 
 ## Project Shape
 
-- `pages/index/` - renders Calendar projection and forwards calendar/sheet/record events; keeps local reminder-seen storage, geometry and animation wiring, and the current page-local record synchronization and sync-pill timer pending the #182 migration.
+- `pages/index/` - renders Calendar projection and forwards calendar/sheet/record events to their owners; keeps local reminder-seen storage, geometry and animation wiring, and the sync-pill display lifecycle and auto-hide timer.
 - `pages/period/` - 记录 tab hosting the segmented 经期/欢乐时光 lists; the Period editor renders its record-edit session and forwards form/lifecycle events.
 - `pages/memory/` - compatibility entry to the record tab, plus a Memory editor that renders its record-edit session and forwards form/lifecycle events.
 - `pages/bind/` - shared-room create, join, and recover flow.
@@ -25,7 +25,8 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 - `utils/recordDraft.js` - edit-form draft stash with an injected storage adapter; `createWxDraftStorage` is the only wx local-storage seam.
 - `utils/recordEditRoute.js` - Period/Memory edit URL construction and edit-page route option hydration, including the Memory date ceiling at today.
 - `utils/recordFieldErrors.js` - shared session field-error retention and scrolling to the first invalid field below the fixed nav bar; sessions render each error under its field.
-- `utils/roomRecordsSnapshot.js` - room-scoped Period/Memory snapshot loader for homepage partial sync and Settings all-or-nothing export.
+- `utils/roomRecordsSnapshot.js` - loads room-scoped Period/Memory outcomes keyed by collection; Home allows partial success, while Settings export requires both lists to succeed.
+- `utils/roomRecordsSync.js` - owns homepage records, per-collection revision/confirmation state, one in-flight load shared by all callers, local-change snapshot invalidation, partial-failure retry copy and sync-pill state. It reads through RoomDataClient and publishes each accepted snapshot as one calendar update; blocked Room outcomes go to the Home failure presentation.
 - `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
 - `utils/roomAccessOutcome.js` - client-side classification of room access failures plus outcome presentation mapping.
 - `utils/homeCalendarState.js` - the pure, complete homepage Calendar projection: markers and ARIA, status, quick-entry labels and destinations, reminder candidates, dated details/actions, prediction explanation, recap versus first-record guide, back-to-today visibility and record feedback; the sole owner of unsynced-collection display rules.

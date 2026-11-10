@@ -1,70 +1,30 @@
+// Collection outcomes are addressed directly, without synthesizing *Outcome keys.
+// Home accepts retryable partial success; export stops at the first failed list.
 async function loadHomeRecordsSnapshot(options = {}) {
   const client = requireRoomDataClient(options.client)
-  const [periodsOutcome, memoriesOutcome] = await Promise.all([
+  const [periods, memories] = await Promise.all([
     listRecordCollection({ client, collection: 'periods' }),
     listRecordCollection({ client, collection: 'memories' })
   ])
-  return buildHomeRecordsSnapshot({ periodsOutcome, memoriesOutcome })
+  const collections = { periods, memories }
+  const outcomes = Object.values(collections)
+  const blockingOutcome = outcomes.find(outcome => outcome.kind !== 'success' && outcome.kind !== 'retryable-failure')
+  if (blockingOutcome) return { kind: 'blocked', outcome: blockingOutcome, collections }
+  const successes = outcomes.filter(outcome => outcome.kind === 'success').length
+  if (successes) return { kind: successes === 2 ? 'success' : 'partial-success', collections }
+  return { kind: 'retryable-failure', outcome: periods, collections }
 }
 
 async function loadExportRecordsSnapshot(options = {}) {
   const client = requireRoomDataClient(options.client)
-  const periodsOutcome = await listRecordCollection({ client, collection: 'periods' })
-  if (!isSuccessfulCollectionOutcome(periodsOutcome)) {
-    return buildExportFailureSnapshot({ periodsOutcome, outcome: periodsOutcome })
+  const periods = await listRecordCollection({ client, collection: 'periods' })
+  if (periods.kind !== 'success') {
+    return { kind: 'failure', outcome: periods, collections: { periods } }
   }
-
-  const memoriesOutcome = await listRecordCollection({ client, collection: 'memories' })
-  if (!isSuccessfulCollectionOutcome(memoriesOutcome)) {
-    return buildExportFailureSnapshot({ periodsOutcome, memoriesOutcome, outcome: memoriesOutcome })
-  }
-
-  return {
-    kind: 'success',
-    periodsOutcome,
-    memoriesOutcome,
-    periods: normalizeRecords(periodsOutcome.data),
-    memories: normalizeRecords(memoriesOutcome.data)
-  }
-}
-
-function buildHomeRecordsSnapshot({ periodsOutcome, memoriesOutcome }) {
-  const blockingOutcome = [periodsOutcome, memoriesOutcome]
-    .find(outcome => isBlockingCollectionOutcome(outcome))
-  if (blockingOutcome) {
-    return {
-      kind: 'blocked',
-      outcome: blockingOutcome,
-      periodsOutcome,
-      memoriesOutcome
-    }
-  }
-
-  const periodsSucceeded = isSuccessfulCollectionOutcome(periodsOutcome)
-  const memoriesSucceeded = isSuccessfulCollectionOutcome(memoriesOutcome)
-
-  if (periodsSucceeded || memoriesSucceeded) {
-    return {
-      kind: periodsSucceeded && memoriesSucceeded ? 'success' : 'partial-success',
-      periodsOutcome,
-      memoriesOutcome,
-      periods: periodsSucceeded ? normalizeRecords(periodsOutcome.data) : [],
-      memories: memoriesSucceeded ? normalizeRecords(memoriesOutcome.data) : []
-    }
-  }
-
-  const retryableOutcome = [periodsOutcome, memoriesOutcome]
-    .find(outcome => isRetryableCollectionFailure(outcome))
-
-  return {
-    kind: 'retryable-failure',
-    outcome: retryableOutcome || {
-      kind: 'retryable-failure',
-      message: '日历加载失败'
-    },
-    periodsOutcome,
-    memoriesOutcome
-  }
+  const memories = await listRecordCollection({ client, collection: 'memories' })
+  const collections = { periods, memories }
+  if (memories.kind !== 'success') return { kind: 'failure', outcome: memories, collections }
+  return { kind: 'success', collections }
 }
 
 function requireRoomDataClient(client) {
@@ -75,43 +35,13 @@ function requireRoomDataClient(client) {
 }
 
 async function listRecordCollection({ client, collection }) {
-  return normalizeCollectionOutcome(await client.list(collection))
-}
-
-function normalizeCollectionOutcome(outcome) {
-  if (outcome && typeof outcome.kind === 'string') return outcome
-  return {
-    kind: 'malformed-failure',
-    message: '导出失败'
+  const outcome = await client.list(collection)
+  if (outcome && typeof outcome.kind === 'string') {
+    return outcome.kind === 'success'
+      ? { ...outcome, data: Array.isArray(outcome.data) ? outcome.data : [] }
+      : outcome
   }
+  return { kind: 'malformed-failure', message: '导出失败' }
 }
 
-function buildExportFailureSnapshot({ periodsOutcome = null, memoriesOutcome = null, outcome }) {
-  return {
-    kind: 'failure',
-    outcome,
-    periodsOutcome,
-    memoriesOutcome
-  }
-}
-
-function isSuccessfulCollectionOutcome(outcome) {
-  return outcome && outcome.kind === 'success'
-}
-
-function isRetryableCollectionFailure(outcome) {
-  return outcome && outcome.kind === 'retryable-failure'
-}
-
-function isBlockingCollectionOutcome(outcome) {
-  return outcome && outcome.kind !== 'success' && outcome.kind !== 'retryable-failure'
-}
-
-function normalizeRecords(records) {
-  return Array.isArray(records) ? records : []
-}
-
-module.exports = {
-  loadExportRecordsSnapshot,
-  loadHomeRecordsSnapshot
-}
+module.exports = { loadExportRecordsSnapshot, loadHomeRecordsSnapshot }

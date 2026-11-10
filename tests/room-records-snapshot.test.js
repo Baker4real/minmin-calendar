@@ -15,8 +15,8 @@ test('loadHomeRecordsSnapshot returns both room-scoped record collections on suc
   const snapshot = await loadHomeRecordsSnapshot({ client })
 
   assert.equal(snapshot.kind, 'success')
-  assert.deepEqual(snapshot.periods, [{ _id: 'p1', startDate: '2026-07-01' }])
-  assert.deepEqual(snapshot.memories, [{ _id: 'm1', date: '2026-07-02' }])
+  assert.deepEqual(snapshot.collections.periods.data, [{ _id: 'p1', startDate: '2026-07-01' }])
+  assert.deepEqual(snapshot.collections.memories.data, [{ _id: 'm1', date: '2026-07-02' }])
   assert.deepEqual(client.calls, [
     { action: 'list', collection: 'periods' },
     { action: 'list', collection: 'memories' }
@@ -48,10 +48,10 @@ test('loadHomeRecordsSnapshot keeps partial-success semantics for retryable coll
   })
 
   assert.equal(snapshot.kind, 'partial-success')
-  assert.deepEqual(snapshot.periods, [])
-  assert.deepEqual(snapshot.memories, [{ _id: 'm1', date: '2026-07-02' }])
-  assert.equal(snapshot.periodsOutcome.kind, 'retryable-failure')
-  assert.equal(snapshot.memoriesOutcome.kind, 'success')
+  assert.deepEqual(snapshot.collections.periods, { kind: 'retryable-failure', message: 'network down' })
+  assert.deepEqual(snapshot.collections.memories.data, [{ _id: 'm1', date: '2026-07-02' }])
+  assert.equal(snapshot.collections.periods.kind, 'retryable-failure')
+  assert.equal(snapshot.collections.memories.kind, 'success')
 })
 
 test('loadHomeRecordsSnapshot returns blocking room outcomes without hiding the cause', async () => {
@@ -91,8 +91,8 @@ test('loadExportRecordsSnapshot returns an all-or-nothing backup payload source'
   const snapshot = await loadExportRecordsSnapshot({ client })
 
   assert.equal(snapshot.kind, 'success')
-  assert.deepEqual(snapshot.periods, [{ _id: 'p1' }])
-  assert.deepEqual(snapshot.memories, [{ _id: 'm1' }])
+  assert.deepEqual(snapshot.collections.periods.data, [{ _id: 'p1' }])
+  assert.deepEqual(snapshot.collections.memories.data, [{ _id: 'm1' }])
   assert.deepEqual(client.calls, [
     { action: 'list', collection: 'periods' },
     { action: 'list', collection: 'memories' }

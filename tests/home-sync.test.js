@@ -67,6 +67,33 @@ test('initial load starts both collections together and renders only after both 
   assert.equal(app.rendered(home).syncStatusVisible, false)
 })
 
+test('one completed load commits both collection changes in a single calendar frame', async t => {
+  const app = homeApp(t)
+  const p = listRoute(app, 'periods').reply(success([period('old-p', '2026-06-01')]))
+  const m = listRoute(app, 'memories').reply(success([memory('old-m', '2026-06-02')]))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  const periods = p.defer()
+  const memories = m.defer()
+  await showAgain(app)
+  const start = home.setDataCalls.length
+  memories.resolve(success([memory('new-m', '2026-06-12')]))
+  await app.settle()
+  assert.equal(home.setDataCalls.slice(start).some(patch => patch.days), false)
+  periods.resolve(success([period('new-p', '2026-06-20')]))
+  await app.settle()
+  const frames = home.setDataCalls.slice(start).filter(patch => patch.days)
+  assert.deepEqual(frames.map(frame => ({
+    periods: frame.days.filter(day => day.isPeriod).map(day => day.date),
+    memories: frame.days.filter(day => day.isMemory).map(day => day.date),
+    summary: frame.monthSummaryLine
+  })), [{
+    periods: ['2026-06-20'],
+    memories: ['2026-06-12'],
+    summary: '本月 经期 1 天 · 欢乐时光 1 条'
+  }])
+})
+
 test('unchanged and reordered background responses keep the calendar quiet', async t => {
   const app = homeApp(t)
   const periods = [period('p1', '2026-06-01'), period('p2', '2026-06-20')]
@@ -307,6 +334,44 @@ test('an older background response cannot roll back a memory saved through the e
   await showAgain(app)
   assert.equal(app.rendered(home).syncStatusText, '已同步')
   assertCalendar(app, home, ['2026-06-20'], ['2026-06-02', '2026-06-26'])
+})
+
+test('a late snapshot cannot resurrect a memory deleted through its day detail; the next load confirms removal', async t => {
+  const app = homeApp(t)
+  const old = memory('deleted', '2026-06-02', '测试删除记录')
+  const p = listRoute(app, 'periods').reply(success([period('p1', '2026-06-01')]))
+  const m = listRoute(app, 'memories').reply(success([old]))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  const periods = p.defer()
+  const memories = m.defer()
+  await showAgain(app)
+  await app.dispatch(home, 'onDayTap', { currentTarget: { dataset: { date: old.date } } })
+  await app.settle()
+  await app.dispatch(home, 'onDayRecordTap', { currentTarget: { dataset: { kind: 'memory', id: old._id } } })
+  await app.settle()
+  app.cloud.when({ name: 'dataOp', data: { action: 'remove', collection: 'memories', id: old._id } }).reply({ code: 0 })
+  app.respondNext('showModal', { confirm: true })
+  await app.dispatch(app.currentPage, 'delete')
+  await app.advance(1000)
+  assert.equal(app.currentPage, home)
+  assertCalendar(app, home, ['2026-06-01'], [])
+  assert.equal(app.rendered(home).syncStatusText, '已更新，正在同步')
+
+  memories.resolve(success([old]))
+  periods.resolve(success([period('p2', '2026-06-20')]))
+  await app.settle()
+  assertCalendar(app, home, ['2026-06-20'], [])
+  assert.equal(app.rendered(home).monthSummaryLine, '本月 经期 1 天 · 欢乐时光 0 条')
+  await app.advance(60000)
+  assert.equal(app.rendered(home).syncStatusVisible, true)
+  assert.equal(app.rendered(home).syncStatusText, '已更新，正在同步')
+
+  m.reply(success([]))
+  p.reply(success([period('p2', '2026-06-20')]))
+  await showAgain(app)
+  assertCalendar(app, home, ['2026-06-20'], [])
+  assert.equal(app.rendered(home).syncStatusText, '已同步')
 })
 
 async function savePeriod(app, home, record) {

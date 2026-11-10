@@ -1,10 +1,9 @@
 const util = require('../../utils/util')
-const cloud = require('../../utils/cloud')
+const { createRoomRecordsSync } = require('../../utils/roomRecordsSync')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const wxPrompts = require('../../utils/wxPrompts')
 const recordEditRoute = require('../../utils/recordEditRoute')
 const recordDraft = require('../../utils/recordDraft')
-const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 const { computeCalendarRowHeight } = require('../../utils/calendarRowHeight')
 const safeArea = require('../../utils/safeArea')
@@ -26,7 +25,6 @@ const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
 // issue #98：超期进行中记录的一次性完成提示标记；经 utils/recordDraft.js 的 createWxDraftStorage 本地存储接缝读写
 const ONGOING_REMINDER_STORAGE_KEY = 'ongoingPeriodReminderShown'
 const SYNC_STATUS_CLEAR_DELAY = 1600
-const COLLECTIONS = ['periods', 'memories']
 const JUMP_YEAR_MIN = 2001
 const JUMP_YEAR_MAX = 2035
 // issue #155：信息弹层按显示的内容命名。遮罩读「关闭」加这个名称，面板以它作对话框名。
@@ -98,7 +96,6 @@ function emptyDayDetail() {
 }
 
 Page(withPageVisibility({
-  _homeRecords: { periods: [], memories: [] },
   _dayDetailsByDate: INITIAL_HOME_STATE.dayDetailsByDate,
   _periodQuickAction: INITIAL_HOME_STATE.periodQuickAction,
   _memoryQuickAction: INITIAL_HOME_STATE.memoryQuickAction,
@@ -196,8 +193,9 @@ Page(withPageVisibility({
   onLoad() {
     this.refreshReducedMotion()
     const now = new Date()
-    this._syncState = null
-    this._ensureSyncState()
+    this._recordsSync = createRoomRecordsSync({
+      onChange: (state, change) => this.renderRecordsSync(state, change)
+    })
     this.applyHomeCalendarState({
       year: now.getFullYear(),
       month: now.getMonth(),
@@ -215,7 +213,7 @@ Page(withPageVisibility({
       ongoingCompletionReminder: reminder
     }), () => this.markOngoingReminderShown(reminder))
     this.refreshReducedMotion()
-    const load = this.loadData({ background: this.canRefreshInBackground() })
+    const load = this._recordsSync.load({ background: this.data.hasLoadedHomeData && !this.data.noRoom })
     const presence = this.observeRoomPresence()
     return load.then(async (outcome) => {
       await presence
@@ -288,202 +286,29 @@ Page(withPageVisibility({
     probeReducedMotion(this)
   },
 
-  loadData(options = {}) {
-    if (this._loadingPromise) return this._loadingPromise
-
-    const background = Boolean(options.background)
-    const requestId = this._startLoad(background)
-    const promise = this._loadData(requestId, background)
-    this._loadingPromise = promise
-    const clearLoadingPromise = () => {
-      if (this._loadingPromise === promise) this._loadingPromise = null
+  renderRecordsSync(state, { calendarChanged, recordChange }) {
+    const fields = {
+      loading: state.loading,
+      refreshing: state.refreshing,
+      hasLoadedHomeData: state.hasLoadedHomeData,
+      ...state.retry
     }
-    promise.then(clearLoadingPromise, clearLoadingPromise)
-    return promise
-  },
-
-  async _loadData(requestId, background) {
-    try {
-      const client = cloud.createRoomDataClient()
-      const snapshot = await roomRecordsSnapshot.loadHomeRecordsSnapshot({ client })
-      this._resolveLoad(requestId, snapshot, background)
-      return snapshot.kind === 'blocked' ? snapshot.outcome : snapshot
-    } catch (e) {
-      console.error('load error', e)
-      const outcome = {
-        kind: 'retryable-failure',
-        message: getErrorMessage(e)
-      }
-      this._failLoad(requestId, outcome, background)
-      return outcome
-    }
-  },
-
-  canRefreshInBackground() {
-    return this.data.hasLoadedHomeData && !this.data.noRoom
-  },
-
-  _ensureSyncState() {
-    if (this._syncState) return this._syncState
-    this._syncState = {
-      revisions: { periods: 0, memories: 0 },
-      pendingRevisions: { periods: null, memories: null },
-      // 这个房间里该集合是否成功同步过一次。没同步过的集合手里是空的或只有本地刚记的，
-      // 状态行、小结行和说明只说它未同步，不拿空列表当事实
-      synced: { periods: false, memories: false },
-      nextRequestId: 1,
-      activeRequest: null
-    }
-    return this._syncState
-  },
-
-  _collectionSynced(collection) {
-    return this._ensureSyncState().synced[collection] === true
-  },
-
-  _startLoad(background) {
-    const state = this._ensureSyncState()
-    const requestId = state.nextRequestId
-    state.nextRequestId += 1
-    state.activeRequest = {
-      id: requestId,
-      mode: background ? 'background' : 'initial',
-      startRevisions: { ...state.revisions }
-    }
-
-    if (background) {
-      this.setData({ loading: false, refreshing: true })
-      if (this._hasPendingRevisions()) {
-        this.showSyncStatus('已更新，正在同步', { autoHide: false })
-      } else {
-        this.hideSyncStatus()
-      }
-    } else {
-      // 胶囊在顶栏里，离场途中文案保持可见，卸载后再清（hideSyncStatus，issue #120）
-      this.hideSyncStatus()
-      this.setData({
-        loading: true,
-        refreshing: false,
-        refreshRetryVisible: false,
-        noRoom: false,
-        roomStatusTitle: '',
-        roomStatusDesc: '',
-        roomStatusActionText: '',
-        roomStatusAction: ''
-      })
-    }
-
-    return requestId
-  },
-
-  _resolveLoad(requestId, snapshot, background) {
-    const state = this._ensureSyncState()
-    const request = state.activeRequest
-    if (!request || request.id !== requestId) return
-
-    if (snapshot && snapshot.kind === 'blocked') {
-      state.activeRequest = null
-      this.setData({ loading: false, refreshing: false })
-      this.applyRoomStatusOutcome(snapshot.outcome)
+    if (state.blockedOutcome) {
+      this.applyRoomStatusOutcome(state.blockedOutcome, fields)
       return
     }
-
-    if (snapshot && snapshot.kind === 'retryable-failure') {
-      this._failLoad(requestId, snapshot.outcome, background)
-      return
-    }
-
-    const wasLoaded = this.data.hasLoadedHomeData
-    let recordsChanged = false
-    let confirmedPending = false
-    let syncedChanged = false
-    const pendingRevisions = { ...state.pendingRevisions }
-
-    for (const collection of COLLECTIONS) {
-      const outcome = snapshot && snapshot[collection + 'Outcome']
-      if (!outcome || outcome.kind !== 'success') continue
-      if (state.revisions[collection] > request.startRevisions[collection]) continue
-      // 只有采用了这份快照，手里的列表才是服务端的完整记录；被本地新改动顶掉的快照不算同步上
-      if (!state.synced[collection]) {
-        state.synced[collection] = true
-        syncedChanged = true
-      }
-
-      if (this._applySnapshotCollection(collection, snapshot[collection])) {
-        recordsChanged = true
-      }
-      if (pendingRevisions[collection] !== null) confirmedPending = true
-      pendingRevisions[collection] = null
-    }
-
-    state.pendingRevisions = pendingRevisions
-    state.activeRequest = null
-    // 只剩一个集合失败时，行内重试改指那个集合；两个集合都成功才清除（issue #151）
-    const failedCollection = failedSyncCollection(snapshot)
-    this.setData(this.withCalendarGeometry({
-      hasLoadedHomeData: true,
-      loading: false,
-      refreshing: false,
-      ...refreshRetryState(failedCollection),
+    Object.assign(fields, {
       noRoom: false,
       roomStatusTitle: '',
       roomStatusDesc: '',
       roomStatusActionText: '',
       roomStatusAction: ''
-    }))
-    // 集合第一次同步上时记录可能没变（比如本来就是空的），状态行和小结行仍要从「未同步」改回按记录说
-    if (!wasLoaded || syncedChanged) this.applyHomeCalendarState()
-    this.revealPendingPartnerWelcome()
-
-    const syncStatus = this._buildResolvedSyncStatus({
-      failedCollection,
-      mode: request.mode,
-      pendingRevisions,
-      recordsChanged,
-      confirmedPending
     })
-    if (syncStatus) {
-      this.showSyncStatus(syncStatus.text, { autoHide: syncStatus.autoHide })
-    } else if (background) {
-      this.hideSyncStatus()
-    }
-  },
-
-  _failLoad(requestId, outcome, background) {
-    const state = this._ensureSyncState()
-    const request = state.activeRequest
-    if (!request || request.id !== requestId) return
-
-    state.activeRequest = null
-    this.setData({ loading: false, refreshing: false })
-    if (!background) {
-      this.applyRoomStatusOutcome(outcome)
-      return
-    }
-    // 日历已显示过：刷新失败留驻可点的重试句，不自动消失，
-    // 直到重试成功或被后一次成功刷新替换（_resolveLoad 成功路径清除）
-    this.setData(this.withCalendarGeometry(refreshRetryState('all')))
-    if (this._hasPendingRevisions()) {
-      this.showSyncStatus('同步失败，稍后重试', { autoHide: true })
-    } else {
-      this.hideSyncStatus()
-    }
-  },
-
-  calcStats(periods) {
-    this.applyHomeCalendarState({ periods })
-  },
-
-  _recordList(collection) {
-    const stored = this._homeRecords && this._homeRecords[collection]
-    return Array.isArray(stored) ? stored : []
-  },
-
-  _rememberRecords(periods, memories) {
-    this._homeRecords = {
-      periods: this._normalizeRecords(periods),
-      memories: this._normalizeRecords(memories)
-    }
+    if (calendarChanged) this.applyHomeCalendarState({ recordChange }, { fields })
+    else this.setData(this.withCalendarGeometry(fields))
+    if (state.pill) this.showSyncStatus(state.pill.text, state.pill)
+    else this.hideSyncStatus()
+    this.revealPendingPartnerWelcome()
   },
 
   _dayDetail(date) {
@@ -491,31 +316,27 @@ Page(withPageVisibility({
     return details[date] || emptyDayDetail()
   },
 
-  // overrides 决定投影：年月、记录、今天，以及这次的记录变化（recordChange：投影据此给出记录成功反馈，
+  // overrides 决定投影：年月、今天，以及这次的记录变化（recordChange：投影据此给出记录成功反馈，
   // 随渲染数据一起提交，issue #167）。第二个参数是跟日历同一次提交的其他东西：flip / emphasis 是这次带的
   // 一次性记号（见 _calendarMarks），fields 是其他字段（选月面板），不覆盖投影和记号
   applyHomeCalendarState(overrides = {}, { flip, emphasis, fields = {} } = {}) {
     const hasOwn = (key) => Object.prototype.hasOwnProperty.call(overrides, key)
-    const periods = hasOwn('periods') ? overrides.periods : this._recordList('periods')
-    const memories = hasOwn('memories') ? overrides.memories : this._recordList('memories')
+    const { collections } = this._recordsSync.getState()
     const year = hasOwn('year') ? overrides.year : this.data.year
     const month = hasOwn('month') ? overrides.month : this.data.month
     const today = hasOwn('today') ? overrides.today : util.formatDate(new Date())
-    const periodsSynced = this._collectionSynced('periods')
-    const memoriesSynced = this._collectionSynced('memories')
 
     const state = buildHomeCalendarState({
       year,
       month,
-      periods,
-      memories,
+      periods: collections.periods.records,
+      memories: collections.memories.records,
       today,
       roomPaired: this._roomPaired === true,
-      periodsSynced,
-      memoriesSynced,
+      periodsSynced: collections.periods.synced,
+      memoriesSynced: collections.memories.synced,
       recordChange: hasOwn('recordChange') ? overrides.recordChange : null
     })
-    this._rememberRecords(periods, memories)
     this._dayDetailsByDate = state.dayDetailsByDate
     this._periodQuickAction = state.periodQuickAction
     this._memoryQuickAction = state.memoryQuickAction
@@ -536,101 +357,8 @@ Page(withPageVisibility({
     this.setData(this.withCalendarGeometry(update), () => this.markOngoingReminderShown(reminder))
   },
 
-  applyRecordChange(change = {}) {
-    this._applyRecordChange(change.collection, change.record, change.mode)
-  },
-
-  _applyRecordChange(collection, record, mode) {
-    const state = this._ensureSyncState()
-    if (!COLLECTIONS.includes(collection) || !record || typeof record !== 'object') return
-
-    const currentRecords = this._normalizeRecords(this._recordList(collection))
-    const nextRecords = this._mergeRecordChange(currentRecords, record, mode)
-    if (this._stableRecordListKey(nextRecords) === this._stableRecordListKey(currentRecords)) return
-
-    const revision = state.revisions[collection] + 1
-    state.revisions[collection] = revision
-    if (this.data.hasLoadedHomeData) state.pendingRevisions[collection] = revision
-
-    // issue #167：编辑页只在云端确认写入后才通知（utils/recordPageSync.js），通知里的就是保存后的记录。
-    // 反馈只给已经显示的日历；哪条记录算新增或完成、亮哪几格由日历投影判定
-    this.applyHomeCalendarState({
-      [collection]: nextRecords,
-      recordChange: this.data.hasLoadedHomeData ? { collection, mode, record, before: currentRecords } : null
-    })
-    if (this.data.hasLoadedHomeData) {
-      this.showSyncStatus('已更新，正在同步', { autoHide: false })
-    }
-  },
-
-  _hasPendingRevisions() {
-    return COLLECTIONS.some(collection => this._syncState.pendingRevisions[collection] !== null)
-  },
-
-  _applySnapshotCollection(collection, records) {
-    const nextRecords = this._normalizeRecords(records)
-    const currentRecords = this._normalizeRecords(this._recordList(collection))
-    if (this._stableRecordListKey(currentRecords) === this._stableRecordListKey(nextRecords)) return false
-    this.applyHomeCalendarState({ [collection]: nextRecords })
-    return true
-  },
-
-  _mergeRecordChange(records, record, mode = 'upsert') {
-    const current = [...this._normalizeRecords(records)]
-    const recordId = record._id || record.id || ''
-    const normalized = recordId && !record._id ? { ...record, _id: recordId } : { ...record }
-    const index = recordId
-      ? current.findIndex(item => (item._id || item.id || '') === recordId)
-      : -1
-
-    if (mode === 'remove') {
-      return index >= 0 ? current.filter((_, itemIndex) => itemIndex !== index) : current
-    }
-    if (index >= 0) {
-      current[index] = { ...current[index], ...normalized }
-      return current
-    }
-    return [normalized, ...current]
-  },
-
-  _stableRecordListKey(records) {
-    return JSON.stringify(this._normalizeRecords(records).map(stableValue).sort(compareStableRecordValues))
-  },
-
-  _normalizeRecords(records) {
-    return Array.isArray(records) ? records : []
-  },
-
-  _buildResolvedSyncStatus({
-    failedCollection,
-    mode,
-    pendingRevisions,
-    recordsChanged,
-    confirmedPending
-  }) {
-    const backgroundLoad = mode === 'background'
-    if (failedCollection) {
-      const shouldShowBackgroundPartial = this._hasPendingRevisionsFor(pendingRevisions) ||
-        confirmedPending ||
-        recordsChanged
-      if (backgroundLoad && !shouldShowBackgroundPartial) return null
-      const copy = SYNC_FAILURE_COPY[failedCollection]
-      return {
-        text: backgroundLoad ? copy.backgroundStatusText : copy.initialStatusText,
-        autoHide: false
-      }
-    }
-    if (this._hasPendingRevisionsFor(pendingRevisions)) {
-      return { text: '已更新，正在同步', autoHide: false }
-    }
-    if (backgroundLoad && (confirmedPending || recordsChanged)) {
-      return { text: '已同步', autoHide: true }
-    }
-    return null
-  },
-
-  _hasPendingRevisionsFor(pendingRevisions) {
-    return COLLECTIONS.some(collection => pendingRevisions[collection] !== null)
+  applyRecordChange(change) {
+    this._recordsSync.applyRecordChange(change)
   },
 
   prevMonth() {
@@ -791,18 +519,18 @@ Page(withPageVisibility({
   handleRoomStatusAction() {
     return wxPrompts.runAction(this.data.roomStatusAction, {
       navigateToBind: () => this.goBind(),
-      retry: () => this.loadData({ background: false })
+      retry: () => this._recordsSync.load({ background: false })
     })
   },
 
   // 首页已加载后的刷新失败重试：保持后台刷新语义，失败时日历与重试句都留驻，
   // 不把已显示的日历换回整页失败画面
   retryRefresh() {
-    return this.loadData({ background: true })
+    return this._recordsSync.load({ background: true })
   },
 
   onPullDownRefresh() {
-    const task = this.loadData({ background: true })
+    const task = this._recordsSync.load({ background: true })
     const stop = () => {
       if (typeof wx.stopPullDownRefresh === 'function') wx.stopPullDownRefresh()
     }
@@ -888,7 +616,7 @@ Page(withPageVisibility({
     const recordId = e.currentTarget.dataset.id
     if (!recordId) return
     const collection = kind === 'memory' ? 'memories' : 'periods'
-    const record = this._recordList(collection).find(item => (item._id || item.id) === recordId)
+    const record = this._recordsSync.getState().collections[collection].records.find(item => (item._id || item.id) === recordId)
     if (!record) return
     this.closeDayActions()
     wx.navigateTo({
@@ -1029,20 +757,16 @@ Page(withPageVisibility({
     this.openProjectedEntry(this._memoryQuickAction)
   },
 
-  applyRoomStatusOutcome(outcome) {
+  applyRoomStatusOutcome(outcome, fields) {
     return wxPrompts.present(roomAccessOutcome.presentRoomAccessFailure(outcome, 'home'), {
-      showInline: presentation => this.showRoomStatus(presentation)
+      showInline: presentation => this.showRoomStatus(presentation, fields)
     })
   },
 
-  showRoomStatus({ title, content: desc, actionText, action }) {
+  showRoomStatus({ title, content: desc, actionText, action }, fields) {
     this.hideSyncStatus()
-    // 下一次能显示日历时按那次同步的结果重新判定哪些集合同步上了
-    this._ensureSyncState().synced = { periods: false, memories: false }
     this.setData({
-      hasLoadedHomeData: false,
-      refreshing: false,
-      refreshRetryVisible: false,
+      ...fields,
       ...this._clearedCalendarMarks(),
       noRoom: true,
       roomStatusTitle: title,
@@ -1100,43 +824,6 @@ function syncPill(page) {
   return page._syncPill
 }
 
-// 同步失败的范围（issue #79、#151）：整页刷新失败是 all；首页快照只有一个集合失败时是那个集合，
-// 由 failedSyncCollection 一处判定。行内重试行和同步胶囊都按范围从这张表取文案：
-// 重试行（可点）说失败范围，胶囊（只表达状态、不可点）只说日历现在显示什么，放得进顶栏标题槽
-const SYNC_FAILURE_COPY = {
-  all: { refreshRetryText: '刷新失败，点按重试', refreshRetryLabel: '日历刷新失败，点按重试' },
-  periods: {
-    refreshRetryText: '经期同步失败，点按重试',
-    refreshRetryLabel: '经期同步失败，点按重试',
-    initialStatusText: '已显示欢乐时光',
-    backgroundStatusText: '已保留旧经期数据'
-  },
-  memories: {
-    refreshRetryText: '欢乐时光同步失败，点按重试',
-    refreshRetryLabel: '欢乐时光同步失败，点按重试',
-    initialStatusText: '已显示经期数据',
-    backgroundStatusText: '已保留上次的欢乐时光'
-  }
-}
-
-function failedSyncCollection(snapshot) {
-  if (!snapshot || snapshot.kind !== 'partial-success') return null
-  return COLLECTIONS.find(collection => {
-    const outcome = snapshot[collection + 'Outcome']
-    return outcome && outcome.kind === 'retryable-failure'
-  }) || null
-}
-
-function refreshRetryState(scope) {
-  const copy = SYNC_FAILURE_COPY[scope]
-  if (!copy) return { refreshRetryVisible: false }
-  return {
-    refreshRetryVisible: true,
-    refreshRetryText: copy.refreshRetryText,
-    refreshRetryLabel: copy.refreshRetryLabel
-  }
-}
-
 const SHEET_DRAG_TARGETS = {
   monthPicker: {
     phaseKey: 'monthPickerPhase',
@@ -1184,34 +871,4 @@ function monthNavState(year, month) {
     prevMonthDisabled: year < JUMP_YEAR_MIN || (year === JUMP_YEAR_MIN && month <= 0),
     nextMonthDisabled: year > JUMP_YEAR_MAX || (year === JUMP_YEAR_MAX && month >= 11)
   }
-}
-
-function stableValue(value) {
-  if (Array.isArray(value)) return value.map(stableValue)
-  if (!value || typeof value !== 'object') return value
-  return Object.keys(value).sort().reduce((result, key) => {
-    result[key] = stableValue(value[key])
-    return result
-  }, {})
-}
-
-function compareStableRecordValues(left, right) {
-  const leftIdentity = getStableRecordIdentity(left)
-  const rightIdentity = getStableRecordIdentity(right)
-  if (leftIdentity < rightIdentity) return -1
-  if (leftIdentity > rightIdentity) return 1
-  const leftJson = JSON.stringify(left)
-  const rightJson = JSON.stringify(right)
-  if (leftJson < rightJson) return -1
-  if (leftJson > rightJson) return 1
-  return 0
-}
-
-function getStableRecordIdentity(record) {
-  if (!record || typeof record !== 'object') return ''
-  return record._id || record.id || record.date || record.startDate || ''
-}
-
-function getErrorMessage(error) {
-  return error && error.message ? error.message : String(error || '未知错误')
 }
