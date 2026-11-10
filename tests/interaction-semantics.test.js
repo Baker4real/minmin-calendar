@@ -819,9 +819,6 @@ test('brand, about and settings menu no longer use the red-heart emoji', () => {
   assert.doesNotMatch(bindWxml, /❤/)
   assert.doesNotMatch(settingsWxml, /❤/)
 
-  // 关于：弹窗文案里不再有红色心形表情（内容唯一来源在 settings.js）
-  assert.doesNotMatch(readPage('pages/settings/settings.js'), /❤/)
-
   // 设置页不再放重复的欢乐时光入口，菜单也不再挂装饰心
   for (const emoji of ['🔑', '🗓️', '📤', '🗑️', 'ℹ️']) {
     assert.equal(settingsWxml.includes(emoji), false, `settings menu keeps only markers, found ${emoji}`)

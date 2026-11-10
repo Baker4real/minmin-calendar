@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
-const Module = require('node:module')
+const { createMiniProgram } = require('./helpers/miniProgram')
 const path = require('node:path')
 const test = require('node:test')
 
@@ -509,16 +509,8 @@ test('index calendar applies the persisted density without hosting the control',
 })
 
 test('settings page hosts the calendar density control with a quiet rose selected state', () => {
-  const js = fs.readFileSync(path.join(__dirname, '..', 'pages/settings/settings.js'), 'utf8')
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/settings/settings.wxml'), 'utf8')
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/settings/settings.wxss'), 'utf8')
-
-  assert.match(js, /CALENDAR_DENSITY_STORAGE_KEY\s*=\s*'calendarDensity'/)
-  assert.match(js, /calendarDensity:\s*'compact'/)
-  assert.match(js, /onShow\(\)\s*{[\s\S]*getSavedCalendarDensity/)
-  assert.match(js, /setCalendarDensity\(e\)\s*{[\s\S]*dataset\.density[\s\S]*calendarDensity/)
-  assert.match(js, /setStorageSync\(CALENDAR_DENSITY_STORAGE_KEY,\s*density\)/)
-  assert.match(js, /density !== 'compact' && density !== 'full'/)
 
   assert.match(wxml, /density-control/)
   assert.match(wxml, /data-density="compact"[\s\S]*清爽/)
@@ -534,29 +526,34 @@ test('settings page hosts the calendar density control with a quiet rose selecte
   assert.match(selected[1], /border-color:\s*rgba\(232,\s*144,\s*158,/)
 })
 
-test('settings density control validates and persists the preference', async () => {
-  const storage = new Map()
-  const harness = loadSettingsHarness()
-
-  try {
-    global.wx.getStorageSync = key => (storage.has(key) ? storage.get(key) : '')
-    global.wx.setStorageSync = (key, value) => storage.set(key, value)
-
-    harness.page.setCalendarDensity({ currentTarget: { dataset: { density: 'full' } } })
-    assert.equal(harness.page.data.calendarDensity, 'full')
-    assert.equal(storage.get('calendarDensity'), 'full')
-
-    // 非法值不落地、不改状态
-    harness.page.setCalendarDensity({ currentTarget: { dataset: { density: 'huge' } } })
-    assert.equal(harness.page.data.calendarDensity, 'full')
-    assert.equal(storage.size, 1)
-
-    // 重新进入设置页时读出已持久化的偏好
-    await harness.page.onShow()
-    assert.equal(harness.page.data.calendarDensity, 'full')
-  } finally {
-    harness.teardown()
+test('settings density defaults to compact, validates taps and persists both choices across entry', async (t) => {
+  const app = createMiniProgram()
+  t.after(() => app.teardown())
+  app.cloud.when('getMyRoom').reply({ code: 0, room: null })
+  const page = app.launch('/pages/settings/settings')
+  await app.settle()
+  assert.equal(page.data.calendarDensity, 'compact')
+  for (const density of ['full', 'compact']) {
+    await app.dispatch(page, 'setCalendarDensity', { currentTarget: { dataset: { density } } })
+    assert.equal(page.data.calendarDensity, density)
+    assert.equal(app.storage.calendarDensity, density)
+    await app.dispatch(page, 'setCalendarDensity', { currentTarget: { dataset: { density: 'huge' } } })
+    assert.equal(page.data.calendarDensity, density)
+    assert.equal(app.storage.calendarDensity, density)
+    app.hide()
+    app.show()
+    await app.settle()
+    assert.equal(page.data.calendarDensity, density)
   }
+  app.wx.setStorageSync('calendarDensity', 'full')
+  const later = app.launch('/pages/settings/settings')
+  await app.settle()
+  assert.equal(later.data.calendarDensity, 'full')
+  app.wx.setStorageSync('calendarDensity', 'huge')
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.equal(later.data.calendarDensity, 'compact')
 })
 
 test('index exposes calendar meaning and monthly recap sheets', () => {
@@ -715,65 +712,5 @@ function pickMeta(meta) {
     holidayName: meta.holidayName,
     isHoliday: meta.isHoliday,
     isWorkday: meta.isWorkday
-  }
-}
-
-function loadSettingsHarness() {
-  const repoRoot = path.join(__dirname, '..')
-  const absolutePagePath = path.join(repoRoot, 'pages/settings/settings.js')
-  const absoluteMocks = new Map([
-    [path.join(repoRoot, 'utils/cloud.js'), {}],
-    [path.join(repoRoot, 'utils/room.js'), {
-      getRoomCode() {
-        return ''
-      },
-      getVerifiedActiveRoom: async () => null
-    }],
-    [
-      path.join(repoRoot, 'utils/roomAccessOutcome.js'),
-      { buildRoomDisplayState: () => ({ roomCode: '', roomCodeDisplay: '未绑定' }) }
-    ],
-    [path.join(repoRoot, 'utils/settingsFlow.js'), {}],
-    [path.join(repoRoot, 'utils/safeArea.js'), { getSafeTop: () => 0, getSafeBottom: () => 0, getNavBarHeight: () => 44, getCapsuleRightInset: () => 94 }]
-  ])
-  const originalPage = global.Page
-  const originalWx = global.wx
-  const originalLoad = Module._load
-  let registered
-
-  delete require.cache[require.resolve(absolutePagePath)]
-  global.wx = {
-    getStorageSync: () => '',
-    setStorageSync() {},
-    navigateTo() {},
-    showModal() {}
-  }
-  global.Page = config => { registered = config }
-  Module._load = function patchedLoad(request, parent, isMain) {
-    const resolved = Module._resolveFilename(request, parent, isMain)
-    if (absoluteMocks.has(resolved)) return absoluteMocks.get(resolved)
-    return originalLoad.apply(this, arguments)
-  }
-  require(absolutePagePath)
-  Module._load = originalLoad
-
-  const page = {
-    data: { ...(registered.data || {}) },
-    setData(update, callback) {
-      this.data = { ...this.data, ...update }
-      if (typeof callback === 'function') callback()
-    }
-  }
-  for (const [key, value] of Object.entries(registered)) {
-    if (key !== 'data') page[key] = typeof value === 'function' ? value.bind(page) : value
-  }
-  return {
-    page,
-    teardown() {
-      Module._load = originalLoad
-      global.Page = originalPage
-      global.wx = originalWx
-      delete require.cache[require.resolve(absolutePagePath)]
-    }
   }
 }

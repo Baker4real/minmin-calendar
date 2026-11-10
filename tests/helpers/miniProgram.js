@@ -20,8 +20,11 @@ function clearApplicationCache() {
 // defer() returns resolve/reject controls; replyOnce() queues responses before the fallback.
 // settle() drains promises and work due now; advance(ms) also moves the shared clock.
 // flush() drains all timers and rejects if a cloud response is still outstanding.
-// With autoCommit:false, data changes immediately but render callbacks wait for commit(page).
+// autoCommit:false delays render callbacks until commit(page).
+// Page registrations and application modules persist within an app, but never across test environments.
 function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:00:00+08:00', autoCommit = true, reducedMotion = false, selectors = {}, windowInfo = {} } = {}) {
+  clearApplicationCache()
+  const registrations = new Map()
   const keys = ['Page', 'wx', 'getCurrentPages', 'Date', 'setTimeout', 'clearTimeout']
   const originals = new Map(keys.map(key => [key, Object.getOwnPropertyDescriptor(global, key)]))
   const NativeDate = global.Date
@@ -108,11 +111,14 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
   function load(url) {
     const [route, query = ''] = url.replace(/^\//, '').replace(/\.js$/, '').split('?')
     assert.ok(config.pages.includes(route), `Unregistered page: ${route}`)
-    clearApplicationCache()
-    registered = null
-    require(path.join(root, `${route}.js`))
-    assert.ok(registered, `${route} must register a Page`)
-    const page = { ...registered, route, options: Object.fromEntries(new URLSearchParams(query)), data: copy(registered.data || {}), setDataCalls: [] }
+    if (!registrations.has(route)) {
+      registered = null
+      require(path.join(root, `${route}.js`))
+      assert.ok(registered, `${route} must register a Page`)
+      registrations.set(route, registered)
+    }
+    const definition = registrations.get(route)
+    const page = { ...definition, route, options: Object.fromEntries(new URLSearchParams(query)), data: copy(definition.data || {}), setDataCalls: [] }
     livePages.add(page)
     rendered.set(page, copy(page.data))
     page.setData = (patch, callback) => {
@@ -217,6 +223,10 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
     if (options.success) track(options.success({ errMsg: `${method}:ok` }))
     if (options.complete) track(options.complete({ errMsg: `${method}:ok` }))
   }
+  const files = []
+  const fileSystem = {
+    writeFileSync(path, data, encoding) { files.push(copy({ path, data, encoding })) }
+  }
   const clipboard = []
   const tabBar = { visible: true, calls: [] }
   const platformCalls = {}
@@ -307,6 +317,9 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
     showToast: options => platform('showToast', options, {}),
     showModal: options => platform('showModal', options),
     showActionSheet: options => platform('showActionSheet', options),
+    env: { USER_DATA_PATH: '/wx-user-data' },
+    getFileSystemManager: () => fileSystem,
+    shareFileMessage: options => platform('shareFileMessage', options, {}),
     setClipboardData: options => platform('setClipboardData', options, {}),
     getClipboardData: options => platform('getClipboardData', options, { data: clipboard.at(-1) || '' }),
     showLoading: options => platform('showLoading', options, {}),
@@ -328,7 +341,7 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
   Object.assign(global, { wx, Page: definition => { registered = definition }, getCurrentPages: () => [...stack], Date: FakeDate, setTimeout: schedule, clearTimeout: id => timers.delete(id) })
 
   const app = {
-    wx, cloud, storage, lifecycle, navigation, commit, clipboard, tabBar, platformCalls, respond,
+    wx, cloud, storage, lifecycle, navigation, commit, clipboard, files, tabBar, platformCalls, respond,
     respondNext(method, result) {
       if (!responses.has(method)) responses.set(method, [])
       responses.get(method).push(result)

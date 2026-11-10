@@ -890,62 +890,31 @@ test('period page keeps a visible retry action when room repair sync fails durin
 
 })
 
-test('settings page onShow uses verified room lookup, keeps retryable sync failures visible, and syncs repaired room codes on export', async () => {
-  let exportCalls = 0
-  const harness = loadPageHarness('pages/settings/settings.js', {
-    mocks: {
-      'utils/cloud.js': {},
-      'utils/room.js': {
-        getRoomCode() {
-          return ''
-        },
-        async getActiveRoom() {
-          throw new Error('settings onShow should use getVerifiedActiveRoom')
-        },
-        async getVerifiedActiveRoom() {
-          return {
-            kind: 'retryable-failure',
-            bound: false,
-            roomCode: '',
-            errorMsg: '同步房间状态失败：network down'
-          }
-        }
-      },
-      'utils/settingsFlow.js': {
-        async copyRoomCode() {
-          return { kind: 'success' }
-        },
-        async exportRecordsAsJson() {
-          exportCalls += 1
-          return {
-            kind: 'room-repair',
-            repair: {
-              kind: 'success',
-              bound: true,
-              roomCode: 'ROOM02'
-            }
-          }
-        },
-        async clearLocalCache() {
-          return { kind: 'success', roomCode: '未绑定' }
-        }
-      }
-    }
-  })
-
-  try {
-    await awaitPageOnShow(harness.page)
-    assert.equal(harness.page.data.roomCodeDisplay, '同步失败，请重试')
-    assert.equal(harness.page.data.roomCode, '')
-
-    await harness.page.exportData()
-
-    assert.equal(exportCalls, 1)
-    assert.equal(harness.page.data.roomCode, 'ROOM02')
-    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM02')
-  } finally {
-    harness.teardown()
-  }
+test('settings verifies cached room codes, exposes sync failure, and displays the repaired room after export', async (t) => {
+  const app = createMiniProgram({ storage: { roomCode: 'ROOM01' } })
+  t.after(() => app.teardown())
+  app.cloud.when('getMyRoom').reject(new Error('网络不太稳定，请重试'))
+  const page = app.launch('/pages/settings/settings')
+  await app.settle()
+  assert.equal(page.data.roomCodeDisplay, '同步失败，请重试')
+  assert.equal(page.data.roomCode, '')
+  assert.equal(app.cloud.calls.filter(call => call.name === 'getMyRoom').length, 1)
+  app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM02' } })
+  app.cloud.when({ name: 'dataOp', data: { collection: 'periods', roomCode: 'ROOM01' } })
+    .reply({ code: -1, errorCode: 'ROOM_ACCESS_DENIED', msg: '无权访问该房间' })
+  app.cloud.when({ name: 'dataOp', data: { collection: 'memories', roomCode: 'ROOM01' } }).reply({ code: 0, data: [] })
+  app.respondNext('showModal', { confirm: true })
+  const exporting = app.dispatch(page, 'exportData')
+  await app.settle()
+  assert.equal(app.wx.modals.at(-1).confirmText, '重试')
+  assert.equal(app.wx.modals.at(-1).content, '房间状态已更新，请重试导出')
+  app.respond('showModal', 1, { confirm: false })
+  await app.settle()
+  await exporting
+  assert.equal(page.data.roomCode, 'ROOM02')
+  assert.equal(page.data.roomCodeDisplay, 'ROOM02')
+  assert.equal(app.storage.roomCode, 'ROOM02')
+  assert.deepEqual(app.files, [])
 })
 
 test('bind page rechecks a cached room and clears stale bound state when verification says unbound', async (t) => {
@@ -968,56 +937,29 @@ test('bind page rechecks a cached room and clears stale bound state when verific
   assert.equal(app.cloud.calls.filter(call => call.name === 'getMyRoom').length, 2)
 })
 
-test('settings page exportData keeps repair retryable failures visible instead of relabeling as unbound', async () => {
-  let exportCalls = 0
-  const harness = loadPageHarness('pages/settings/settings.js', {
-    mocks: {
-      'utils/cloud.js': {},
-      'utils/room.js': {
-        getRoomCode() {
-          return ''
-        },
-        async getVerifiedActiveRoom() {
-          return {
-            bound: true,
-            roomCode: 'ROOM01'
-          }
-        }
-      },
-      'utils/settingsFlow.js': {
-        async copyRoomCode() {
-          return { kind: 'success' }
-        },
-        async exportRecordsAsJson() {
-          exportCalls += 1
-          return {
-            kind: 'room-repair',
-            repair: {
-              kind: 'retryable-failure',
-              message: '同步房间状态失败：network down'
-            }
-          }
-        },
-        async clearLocalCache() {
-          return { kind: 'success', roomCode: '未绑定' }
-        }
-      }
-    }
-  })
-
-  try {
-    await awaitPageOnShow(harness.page)
-    assert.equal(harness.page.data.roomCode, 'ROOM01')
-    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
-
-    await harness.page.exportData()
-
-    assert.equal(exportCalls, 1)
-    assert.equal(harness.page.data.roomCode, 'ROOM01')
-    assert.equal(harness.page.data.roomCodeDisplay, 'ROOM01')
-  } finally {
-    harness.teardown()
-  }
+test('settings export keeps the visible room when repair has a retryable failure', async (t) => {
+  const app = createMiniProgram({ storage: { roomCode: 'ROOM01' } })
+  t.after(() => app.teardown())
+  app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01' } })
+  const page = app.launch('/pages/settings/settings')
+  await app.settle()
+  assert.equal(page.data.roomCodeDisplay, 'ROOM01')
+  app.cloud.when('getMyRoom').reject(new Error('网络不太稳定，请重试'))
+  app.cloud.when({ name: 'dataOp', data: { collection: 'periods' } })
+    .reply({ code: -1, errorCode: 'ROOM_ACCESS_DENIED', msg: '无权访问该房间' })
+  app.cloud.when({ name: 'dataOp', data: { collection: 'memories' } }).reply({ code: 0, data: [] })
+  app.respondNext('showModal', { confirm: true })
+  const exporting = app.dispatch(page, 'exportData')
+  await app.settle()
+  assert.equal(app.wx.modals.at(-1).confirmText, '重试')
+  assert.equal(app.wx.modals.at(-1).content, '网络不太稳定，请重试')
+  app.respond('showModal', 1, { confirm: false })
+  await app.settle()
+  await exporting
+  assert.equal(page.data.roomCode, 'ROOM01')
+  assert.equal(page.data.roomCodeDisplay, 'ROOM01')
+  assert.equal(app.storage.roomCode, 'ROOM01')
+  assert.deepEqual(app.files, [])
 })
 
 async function runPeriodEditSaveValidationCase(overrides = {}) {
@@ -1355,7 +1297,6 @@ function stubGetPeriodDuration(period) {
 const PAGE_HIDDEN_PAGES = [
   'pages/index/index.js',
   'pages/period/period.js',
-  'pages/settings/settings.js',
   'pages/period/edit/edit.js',
   'pages/memory/edit/edit.js'
 ]
@@ -1392,6 +1333,28 @@ test('pages pause their ambient decorations while hidden and resume as soon as t
       harness.teardown()
     }
   }
+})
+
+test('settings pauses decorations while hidden and resumes before room verification settles', async (t) => {
+  const app = createMiniProgram()
+  t.after(() => app.teardown())
+  const verification = app.cloud.when('getMyRoom').defer()
+  const page = app.launch('/pages/settings/settings')
+  await app.settle()
+  assert.ok(!page.data.pageHidden)
+  assert.equal(page.data.roomCodeLoaded, false)
+  app.hide()
+  app.hide()
+  assert.equal(page.data.pageHidden, true)
+  app.cloud.when('getMyRoom').reply({ code: 0, room: null })
+  app.show()
+  assert.equal(page.data.pageHidden, false)
+  assert.equal(page.data.roomCodeLoaded, false)
+  app.show()
+  assert.equal(page.data.pageHidden, false)
+  verification.resolve({ code: 0, room: null })
+  await app.settle()
+  assert.equal(page.data.roomCodeDisplay, '未绑定')
 })
 
 test('bind page pauses decorations while hidden and resumes before delayed verification settles', async (t) => {
