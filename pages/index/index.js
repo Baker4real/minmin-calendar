@@ -184,11 +184,18 @@ Page(withPageVisibility({
     restoreTabBarOnShow(this)
     // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效，行高按新密度同一次重算。
     // 记录加载必须在这次调用里同步开始，不能等房间状态请求回来。
-    const reminder = this.unseenOngoingCompletionReminder(this.data.ongoingCompletionReminder)
-    this.setData(this.withCalendarGeometry({
-      calendarDensity: this.getSavedCalendarDensity(),
-      ongoingCompletionReminder: reminder
-    }), () => this.markOngoingReminderShown(reminder))
+    const today = util.formatDate(new Date())
+    const calendarDensity = this.getSavedCalendarDensity()
+    // 隔日回来时所有日期内容一起更新；同日静默刷新保留当前投影的反馈与动画。
+    if (today !== this._calendarToday) {
+      this.applyHomeCalendarState({ today }, { fields: { calendarDensity } })
+    } else {
+      const reminder = this.unseenOngoingCompletionReminder(this.data.ongoingCompletionReminder)
+      this.setData(this.withCalendarGeometry({
+        calendarDensity,
+        ongoingCompletionReminder: reminder
+      }), () => this.markOngoingReminderShown(reminder))
+    }
     this.refreshReducedMotion()
     const load = this._recordsSync.load({ background: this.data.hasLoadedHomeData && !this.data.noRoom })
     const presence = this.observeRoomPresence()
@@ -314,6 +321,7 @@ Page(withPageVisibility({
       memoriesSynced: collections.memories.synced,
       recordChange: hasOwn('recordChange') ? overrides.recordChange : null
     })
+    this._calendarToday = today
     this._dayDetailsByDate = state.dayDetailsByDate
     this._periodQuickAction = state.periodQuickAction
     this._memoryQuickAction = state.memoryQuickAction

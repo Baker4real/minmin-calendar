@@ -360,6 +360,37 @@ test('future dates keep holiday and workday meanings with a persistent no-record
   assert.equal(app.rendered(home).selectedDateSubtitle, '闰四月初一')
 })
 
+test('returning on a later day updates status, reminders and editor dates even when cloud records are unchanged', async t => {
+  const app = homeApp(t, { now: '2026-06-24T12:00:00+08:00', periods: [period('live', '2026-06-20', '', 'ongoing')] })
+  const home = await launch(app)
+  assert.equal(app.rendered(home).homeStatus.text, '经期第 5 天')
+  assert.equal(app.rendered(home).ongoingCompletionReminder, null)
+  const listCalls = () => app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action === 'list')
+  const before = listCalls().length
+  app.hide()
+  await app.advance(24 * 60 * 60 * 1000)
+  app.show()
+  await app.settle()
+  assert.deepEqual(listCalls().slice(before).map(call => call.data.collection), ['periods', 'memories'])
+  const data = app.rendered(home)
+  assert.equal(data.homeStatus.text, '经期第 6 天')
+  assert.equal(data.periodQuickLabel, '经期第 6 天 · 记结束')
+  assert.equal(data.ongoingCompletionReminder.text, '已进行 6 天，超过预期的 5 天，可以补填结束日期')
+  assert.deepEqual(data.days.filter(item => item.isToday).map(item => item.date), ['2026-06-25'])
+  assert.equal(data.syncStatusVisible, false)
+
+  await tap(app, home, 'quickMemory')
+  assert.equal(navigation(app).at(-1), '/pages/memory/edit/edit?date=2026-06-25')
+  assert.equal(app.rendered(app.currentPage).date, '2026-06-25')
+  assert.equal(app.rendered(app.currentPage).maxDate, '2026-06-25')
+  await back(app)
+  await tap(app, home, 'quickPeriod')
+  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=live&startDate=2026-06-20&endDate=2026-06-25&status=known-end')
+  assert.equal(app.rendered(app.currentPage).status, 'known-end')
+  assert.equal(app.rendered(app.currentPage).endDate, '2026-06-25')
+  assert.equal(app.rendered(app.currentPage).maxDate, '2026-06-25')
+})
+
 test('day titles and quick entries keep the rendered today across midnight until the next calendar projection', async t => {
   const app = homeApp(t, { now: '2026-12-31T23:59:59+08:00', periods: [period('live', '2026-12-25', '', 'ongoing')] })
   const home = await launch(app)
