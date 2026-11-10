@@ -151,28 +151,6 @@ test('runRecordSave enters submitted-waiting state, shows success toast, and sch
   assert.equal(page.data.submitted, true)
 })
 
-test('runRecordSave supports warm success feedback without the system checkmark icon', async () => {
-  assert.equal(typeof recordCommands.runRecordSave, 'function')
-
-  const page = createFakePage({ saving: false })
-  const env = createFakeCommandEnv()
-
-  const result = await recordCommands.runRecordSave({
-    page,
-    wx: env.wx,
-    timer: env.timer,
-    action: async () => ({ kind: 'success', result: { code: 0 } }),
-    validate: null,
-    successTitle: '已存进你们的欢乐时光',
-    successIcon: 'none',
-    failureTitle: '保存失败'
-  })
-
-  assert.equal(result.kind, 'success')
-  assert.deepEqual(env.wx.toasts, [{ title: '已存进你们的欢乐时光', icon: 'none' }])
-  assert.equal(env.timer.calls.length, 1)
-})
-
 test('runRecordSave classifies a reopened save as merged and explains it with a modal instead of the success toast', async () => {
   assert.equal(typeof recordCommands.runRecordSave, 'function')
 
@@ -435,42 +413,6 @@ test('runRecordSave says the save did not land when the refetched record does no
   assert.deepEqual(env.wx.toasts, [])
   assert.equal(env.timer.calls.length, 0)
   assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
-})
-
-test('runRecordSave says 已保存 when an unconfirmed add matches date and content', async () => {
-  const page = createFakePage({ saving: false })
-  const env = createFakeCommandEnv()
-  let refetchCalls = 0
-
-  const result = await recordCommands.runRecordSave({
-    page,
-    wx: env.wx,
-    timer: env.timer,
-    action: async () => ({ kind: 'retryable-failure', message: 'network down' }),
-    refetch: async () => {
-      refetchCalls += 1
-      return {
-        kind: 'success',
-        data: [
-          { _id: 'm-old', date: '2026-06-03', note: '别的' },
-          { _id: 'm1', date: '2026-06-03', note: '电影' }
-        ]
-      }
-    },
-    reconcile: {
-      fields: { date: '2026-06-03', note: '电影' }
-    },
-    validate: null,
-    successTitle: '保存成功',
-    failureTitle: '保存失败',
-    successDelay: 1000
-  })
-
-  assert.equal(refetchCalls, 1)
-  assert.equal(result.kind, 'success')
-  assert.equal(result.result.record._id, 'm1')
-  assert.deepEqual(env.wx.toasts, [{ title: '已保存' }])
-  assert.deepEqual(env.wx.modals, [])
 })
 
 test('runRecordSave keeps the unconfirmed explanation when the refetch also fails', async () => {

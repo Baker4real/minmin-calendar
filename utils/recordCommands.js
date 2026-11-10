@@ -1,10 +1,149 @@
 /**
- * Adapter between record operations and the WeChat page lifecycle.
+ * Record-edit sessions own form state, drafts and mutation coordination.
+ * Period editing still uses the legacy command adapters until its migration.
  * Failure presentation belongs to roomAccessOutcome and is executed by wxPrompts.
- * Editing coordination remains here and in the edit pages until the session migration.
  */
+const cloud = require('./cloud')
+const util = require('./util')
+const recordDraft = require('./recordDraft')
+const recordEditRoute = require('./recordEditRoute')
+const recordFieldErrors = require('./recordFieldErrors')
+const recordPageSync = require('./recordPageSync')
 const roomAccessOutcome = require('./roomAccessOutcome')
 const wxPrompts = require('./wxPrompts')
+
+const EDIT_KINDS = {
+  memory: {
+    collection: 'memories',
+    draftFields: ['date', 'note'],
+    fieldOrder: ['date'],
+    parseRoute: recordEditRoute.parseMemoryEditOptions,
+    validate({ date }, today) {
+      if (!date) return { date: '请选择日期' }
+      if (!util.isValidDateString(date)) return { date: '请选择有效日期' }
+      if (date > today) return { date: '日期不能晚于今天' }
+      return null
+    },
+    buildPayload: ({ date, note }) => ({ date, note }),
+    describeForm: ({ date }, today) => ({ dateLabel: util.formatDisplayDate(date, { today }) }),
+    successTitle: '已存进你们的欢乐时光',
+    successIcon: 'none',
+    confirmContent: '删除后你们两人的日历都会移除这条欢乐时光，且不可恢复'
+  }
+}
+
+// The render callback is the only form output. No Page or page.data enters a session.
+function openRecordEditSession({ kind, route, render }) {
+  const config = EDIT_KINDS[kind]
+  if (!config) throw new Error(`Unsupported record kind: ${kind}`)
+  const today = () => util.formatDate(new Date())
+  const routeState = config.parseRoute(route, { today: today() })
+  const storage = recordDraft.createWxDraftStorage(wx)
+  const draftKey = recordDraft.buildDraftKey({ collection: config.collection, id: routeState.id })
+  const baseline = recordDraft.pickDraftFields(routeState, config.draftFields)
+  const storedDraft = recordDraft.readDraft(storage, draftKey)
+  let draftDiscarded = false
+  let deleteConfirming = false
+  let state = {
+    ...routeState,
+    ...(storedDraft ? recordDraft.pickDraftFields(storedDraft, config.draftFields) : {}),
+    saving: false,
+    deleting: false,
+    submitted: false,
+    draftRestored: !!storedDraft,
+    fieldErrors: {}
+  }
+
+  function publish(update = {}) {
+    state = { ...state, ...update }
+    render({ ...state, ...config.describeForm(state, today()) })
+  }
+
+  function busy() {
+    return state.saving || state.deleting || state.submitted
+  }
+
+  function persistDraft() {
+    if (draftDiscarded) return
+    recordDraft.syncDraft(storage, draftKey, recordDraft.pickDraftFields(state, config.draftFields), baseline)
+  }
+
+  function discardDraft() {
+    draftDiscarded = true
+    recordDraft.clearDraft(storage, draftKey)
+  }
+
+  publish()
+  if (storedDraft) {
+    wxPrompts.present({ mode: 'toast', content: '已恢复上次未完成的输入' })
+  }
+
+  return {
+    changeField(field, value) {
+      if (state.saving || !config.draftFields.includes(field)) return
+      const next = { ...state, [field]: value }
+      publish({
+        [field]: value,
+        fieldErrors: recordFieldErrors.retainShownFieldErrors(state.fieldErrors, config.validate(next, today()))
+      })
+    },
+
+    async save() {
+      if (busy()) return
+      const { id, isEdit } = state
+      const payload = config.buildPayload(state)
+      const client = cloud.createRoomDataClient()
+      const outcome = await runCommand({
+        wxApi: wx,
+        render: publish,
+        action: () => isEdit ? client.update(config.collection, id, payload) : client.add(config.collection, payload),
+        validate: () => config.validate(state, today()),
+        refetch: () => client.list(config.collection),
+        reconcile: { id: isEdit ? id : '', fields: payload },
+        operation: 'save',
+        successTitle: config.successTitle,
+        successIcon: config.successIcon,
+        successDelay: 1000
+      })
+      if (outcome.kind === 'validation') {
+        publish({ fieldErrors: outcome.fieldErrors })
+        recordFieldErrors.scrollToFirstFieldError(outcome.fieldErrors, config.fieldOrder)
+      } else if (outcome.kind === 'success') {
+        discardDraft()
+        recordPageSync.notifyRecordSaved({ collection: config.collection, isEdit, outcome })
+      }
+      return outcome
+    },
+
+    async delete() {
+      if (busy() || deleteConfirming) return
+      deleteConfirming = true
+      try {
+        const confirmed = await confirmRecordDelete({ wxApi: wx, confirmContent: config.confirmContent })
+        if (!confirmed) return { kind: 'cancelled' }
+        const client = cloud.createRoomDataClient()
+        const outcome = await runCommand({
+          wxApi: wx,
+          render: publish,
+          action: () => client.remove(config.collection, state.id),
+          loadingKey: 'deleting',
+          successTitle: '已删除',
+          operation: 'delete'
+        })
+        if (outcome.kind === 'success') {
+          discardDraft()
+          recordPageSync.notifyRecordDeleted({ collection: config.collection, id: state.id })
+        }
+        return outcome
+      } finally {
+        deleteConfirming = false
+      }
+    },
+
+    onHide: persistDraft,
+    onUnload: persistDraft
+  }
+}
 
 function runRecordSave(options) {
   const opts = options || {}
@@ -27,7 +166,7 @@ function runRecordSave(options) {
     : createNavigateToBind(wxApi)
 
   return runCommand({
-    page,
+    render: update => updatePage(page, update),
     wxApi,
     timer,
     action,
@@ -49,40 +188,28 @@ function runRecordSave(options) {
 function runRecordDelete(options) {
   const opts = options || {}
   const wxApi = resolveWxApi(opts)
-  const {
-    page,
-    confirmTitle = '确认删除',
-    confirmContent,
-    confirmText = '删除',
-    confirmColor = '#F97373',
-    loadingKey = 'deleting'
-  } = opts
-  const navigateBack = typeof opts.navigateBack === 'function'
-    ? opts.navigateBack
-    : createNavigateBack(wxApi)
+  return confirmRecordDelete({ ...opts, wxApi }).then(confirmed => {
+    if (!confirmed) return { kind: 'cancelled' }
+    return runCommand({
+      ...opts,
+      wxApi,
+      render: update => updatePage(opts.page, update),
+      loadingKey: opts.loadingKey || 'deleting',
+      validate: null,
+      operation: 'delete'
+    })
+  })
+}
 
-  // 确认之前不进入删除忙碌态：按钮仍读「删除此记录」，取消后无需复位。
+function confirmRecordDelete({ wxApi, confirmTitle = '确认删除', confirmContent, confirmText = '删除', confirmColor = '#F97373' }) {
+  // 确认之前不进入删除忙碌态；缺少 API 或失败由 adapter 回落为取消。
   return new Promise(resolve => {
     wxPrompts.modal({
       title: confirmTitle,
       confirmText,
       confirmColor,
       ...(confirmContent ? { content: confirmContent } : {}),
-      success: async (result) => {
-        if (!result.confirm) {
-          resolve({ kind: 'cancelled' })
-          return
-        }
-
-        resolve(runCommand({
-          ...options,
-          wxApi,
-          loadingKey,
-          validate: null,
-          navigateBack,
-          operation: 'delete'
-        }))
-      }
+      success: result => resolve(!!(result && result.confirm))
     }, wxApi)
   })
 }
@@ -142,7 +269,7 @@ async function runRecordListLoad(options) {
 
 async function runCommand(options) {
   const {
-    page,
+    render,
     wxApi,
     timer = createDefaultTimer(),
     action,
@@ -152,8 +279,8 @@ async function runCommand(options) {
     successIcon,
     mergedTitle = '已合并到已有记录',
     mergedContent = '房间里已有一条进行中的记录，已为你打开它',
-    navigateBack,
-    navigateToBind,
+    navigateBack = createNavigateBack(wxApi),
+    navigateToBind = createNavigateToBind(wxApi),
     successDelay,
     operation,
     refetch,
@@ -164,12 +291,12 @@ async function runCommand(options) {
   if (validation) {
     // 能定位到字段的错误交回页面显示在字段旁；只有无法定位的整体错误才用瞬时 toast
     if (!validation.fieldErrors) {
-      safeShowToast(wxApi, { title: validation.message, icon: 'none' })
+      wxPrompts.present({ mode: 'toast', content: validation.message }, { wx: wxApi })
     }
     return validation
   }
 
-  updatePage(page, { [loadingKey]: true })
+  render({ [loadingKey]: true })
 
   let outcome
   try {
@@ -185,7 +312,7 @@ async function runCommand(options) {
     // 云端重开了已有进行中记录并丢弃本次表单：归为「合并到已有进行中记录」，
     // 不显示保存成功、不排返回，用说明 modal 告知后再把结果交给页面
     if (outcome.result && outcome.result.reopened === true) {
-      updatePage(page, { [loadingKey]: false })
+      render({ [loadingKey]: false })
       return wxPrompts.present({ mode: 'acknowledge', title: mergedTitle, content: mergedContent }, {
         wx: wxApi,
         fallback: { kind: 'merged', result: outcome.result }
@@ -199,7 +326,7 @@ async function runCommand(options) {
       navigateBack()
     }, successDelay)
     // 已提交、等待返回：清掉「保存中/删除中」，但保持不可点，直到 navigateBack
-    updatePage(page, { [loadingKey]: false, submitted: true })
+    render({ [loadingKey]: false, submitted: true })
     return outcome
   }
 
@@ -218,7 +345,7 @@ async function runCommand(options) {
       timer.setTimeout(() => {
         navigateBack()
       }, successDelay)
-      updatePage(page, { [loadingKey]: false, submitted: true })
+      render({ [loadingKey]: false, submitted: true })
       return { kind: 'success', result: { record: reconciled.record } }
     }
     if (reconciled.confirmed) {
@@ -226,7 +353,7 @@ async function runCommand(options) {
     }
   }
 
-  updatePage(page, { [loadingKey]: false })
+  render({ [loadingKey]: false })
   return handleFailureOutcome({
     outcome,
     wxApi,
@@ -356,6 +483,7 @@ function getErrorMessage(error) {
 }
 
 module.exports = {
+  openRecordEditSession,
   runRecordSave,
   runRecordDelete,
   runRecordListLoad

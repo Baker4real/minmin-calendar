@@ -2,16 +2,13 @@ const util = require('../../utils/util')
 const cloud = require('../../utils/cloud')
 const cycle = require('../../utils/cycle')
 const recordCommands = require('../../utils/recordCommands')
+const recordPageSync = require('../../utils/recordPageSync')
 const recordEditRoute = require('../../utils/recordEditRoute')
 const memoryMonthGroups = require('../../utils/memoryMonthGroups')
 const safeArea = require('../../utils/safeArea')
 const roomSession = require('../../utils/room')
 const { restoreTabBarOnShow } = require('../../utils/sheetLifecycle')
 const { withPageVisibility } = require('../../utils/pageVisibility')
-
-// 与 pages/period/edit/edit.js、pages/memory/edit/edit.js 共享的
-// 一次性「目标分段」意图键：switchTab 不能带 query，入口先写键，本页 onShow 消费并立即清除（issue #103）
-const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
 
 Page(withPageVisibility({
   data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), segment: 'period', periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memories: [], memoryGroups: [], memoryLoading: false, memoryLoadFailed: false, memoryHasLoaded: false },
@@ -37,15 +34,8 @@ Page(withPageVisibility({
   },
 
   consumeSegmentIntent() {
-    let segment = ''
-    try {
-      segment = wx.getStorageSync(RECORD_TAB_SEGMENT_STORAGE_KEY)
-    } catch (e) {}
-    if (segment !== 'period' && segment !== 'memory') return
-    try {
-      wx.removeStorageSync(RECORD_TAB_SEGMENT_STORAGE_KEY)
-    } catch (e) {}
-    this.setData({ segment })
+    const segment = recordPageSync.consumeRecordTabSegmentIntent()
+    if (segment) this.setData({ segment })
   },
 
   selectSegment(e) {

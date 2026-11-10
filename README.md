@@ -20,8 +20,8 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 - `utils/roomPresence.js` - one-time local flags for the partner welcome and the seen room status.
 - `utils/cloud.js` - frontend cloud-function access wrapper and room-scoped `RoomDataClient`.
 - `utils/roomResolver.js` - active-room resolution seam used by `RoomDataClient`, with an in-memory test adapter.
-- `utils/recordCommands.js` - intentionally shallow WeChat page adapter for shared period/memory save, delete, list feedback, retry, and rebind flows.
-- `utils/recordPageSync.js` - edit-page-to-homepage record sync helper for optimistic homepage refresh.
+- `utils/recordCommands.js` - Memory edit sessions own form state, drafts, validation and save/delete coordination; Period editing retains its legacy command adapters pending migration. Record-tab list feedback remains here; Room failures use `roomAccessOutcome` and `wxPrompts`.
+- `utils/recordPageSync.js` - saved/deleted record changes, previous-page notification, and the record-tab one-time segment intent.
 - `utils/recordDraft.js` - edit-form draft stash with an injected storage adapter; `createWxDraftStorage` is the only wx local-storage seam.
 - `utils/recordEditRoute.js` - Period/Memory edit URL construction and edit-page route option hydration, including the Memory date ceiling at today.
 - `utils/recordFieldErrors.js` - shared edit-page field errors: each error stays under its field, the first one scrolls below the fixed nav bar, and later edits re-check only the errors already shown.

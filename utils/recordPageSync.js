@@ -1,3 +1,44 @@
+// switchTab cannot carry query parameters. All record entry points share this one-time intent.
+const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
+const RECORD_SEGMENTS = { periods: 'period', memories: 'memory' }
+
+function setRecordTabSegmentIntent(segment) {
+  if (!Object.values(RECORD_SEGMENTS).includes(segment)) return
+  try {
+    wx.setStorageSync(RECORD_TAB_SEGMENT_STORAGE_KEY, segment)
+  } catch (error) {}
+}
+
+function consumeRecordTabSegmentIntent() {
+  let segment
+  try {
+    segment = wx.getStorageSync(RECORD_TAB_SEGMENT_STORAGE_KEY)
+  } catch (error) {}
+  if (!Object.values(RECORD_SEGMENTS).includes(segment)) return ''
+  try {
+    wx.removeStorageSync(RECORD_TAB_SEGMENT_STORAGE_KEY)
+  } catch (error) {}
+  return segment
+}
+
+function notifyRecordSaved({ collection, isEdit, outcome }) {
+  if (!outcome || (outcome.kind !== 'success' && outcome.kind !== 'merged')) return
+  setRecordTabSegmentIntent(RECORD_SEGMENTS[collection])
+  const record = getSavedRecord(outcome)
+  if (record) {
+    notifyPreviousPageRecordChange({
+      collection,
+      mode: outcome.kind === 'merged' || isEdit ? 'update' : 'add',
+      record
+    })
+  }
+}
+
+function notifyRecordDeleted({ collection, id }) {
+  setRecordTabSegmentIntent(RECORD_SEGMENTS[collection])
+  notifyPreviousPageRecordChange({ collection, mode: 'remove', record: { _id: id } })
+}
+
 function notifyPreviousPageRecordChange(change, options = {}) {
   const getPages = options.getCurrentPages || getCurrentPagesProvider()
   if (typeof getPages !== 'function') return false
@@ -32,5 +73,9 @@ function getCurrentPagesProvider() {
 
 module.exports = {
   notifyPreviousPageRecordChange,
-  getSavedRecord
+  getSavedRecord,
+  notifyRecordSaved,
+  notifyRecordDeleted,
+  setRecordTabSegmentIntent,
+  consumeRecordTabSegmentIntent
 }

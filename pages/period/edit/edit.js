@@ -33,10 +33,6 @@ function collectPeriodFieldErrors({ startDate, endDate, status }, today) {
   return Object.keys(errors).length > 0 ? errors : null
 }
 
-// 与 pages/memory/edit/edit.js、pages/period/period.js 共享的一次性
-// 「目标分段」意图键：从首页等入口进入本页保存/删除后写键，记录 tab onShow 消费并落到经期分段（issue #103）
-const RECORD_TAB_SEGMENT_STORAGE_KEY = 'recordTabSegment'
-
 Page(withPageVisibility({
   data: {
     safeTop: safeArea.getSafeTop(),
@@ -122,14 +118,6 @@ Page(withPageVisibility({
   discardRecordDraft() {
     this._draftDiscarded = true
     if (this._draftStorage) recordDraft.clearDraft(this._draftStorage, this._draftKey)
-  },
-
-  // 保存/删除成功后写下一次性分段意图：notify 只达前一页，从首页进入时到不了记录 tab；
-  // 记录 tab 下一次 onShow 消费该键落到本分段，从记录 tab 进入时已被 applyRecordChange 落段，多消费一次无害
-  markRecordTabSegmentIntent() {
-    try {
-      wx.setStorageSync(RECORD_TAB_SEGMENT_STORAGE_KEY, 'period')
-    } catch (e) {}
   },
 
   onStartChange(e) {
@@ -227,19 +215,12 @@ Page(withPageVisibility({
     }
     if (outcome && (outcome.kind === 'success' || outcome.kind === 'merged')) {
       this.discardRecordDraft()
-      this.markRecordTabSegmentIntent()
     }
     const savedRecord = recordPageSync.getSavedRecord(outcome)
     if (outcome && outcome.kind === 'merged' && savedRecord) {
       this.applyReopenedRecord(savedRecord)
     }
-    if (savedRecord) {
-      recordPageSync.notifyPreviousPageRecordChange({
-        collection: 'periods',
-        mode: outcome.kind === 'merged' ? 'update' : (isEdit ? 'update' : 'add'),
-        record: savedRecord
-      })
-    }
+    recordPageSync.notifyRecordSaved({ collection: 'periods', isEdit, outcome })
     return outcome
   },
 
@@ -363,12 +344,7 @@ Page(withPageVisibility({
       })
       if (outcome.kind === 'success') {
         this.discardRecordDraft()
-        this.markRecordTabSegmentIntent()
-        recordPageSync.notifyPreviousPageRecordChange({
-          collection: 'periods',
-          mode: 'remove',
-          record: { _id: this.data.id }
-        })
+        recordPageSync.notifyRecordDeleted({ collection: 'periods', id: this.data.id })
       }
       return outcome
     } finally {
