@@ -24,13 +24,13 @@ const PATTERNS = {
 
 // 2026-11-08 入库时的计数。#170–#175 迁移页面测试时把对应的数调低，调到 0 就删掉这一项。
 const BUDGET = {
-  'tests/calendar-display.test.js': { moduleLoad: 3, jsSourceRead: 9 },
+  'tests/calendar-display.test.js': { moduleLoad: 3, jsSourceRead: 8 },
   'tests/index-page.test.js': { moduleLoad: 3, privateField: 58, jsSourceRead: 2 },
   'tests/interaction-semantics.test.js': { jsSourceRead: 1 },
   'tests/narrow-screen-geometry.test.js': { jsSourceRead: 6 },
   'tests/page-registration.test.js': { moduleLoad: 3, privateField: 14 },
   'tests/record-draft.test.js': { moduleLoad: 3 },
-  'tests/record-flow.test.js': { moduleLoad: 3, privateField: 2, jsSourceRead: 14 },
+  'tests/record-flow.test.js': { moduleLoad: 3, privateField: 2, jsSourceRead: 9 },
   'tests/settings-flow.test.js': { moduleLoad: 3, jsSourceRead: 7 }
 }
 
