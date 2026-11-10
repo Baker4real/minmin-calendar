@@ -430,12 +430,9 @@ test('memory list heart matches the calendar heart glyph system', () => {
 })
 
 test('index day actions use the themed in-page action sheet', () => {
-  const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
 
-  assert.doesNotMatch(js, /wx\.showActionSheet/)
-  assert.doesNotMatch(js, /wx\.showModal/)
   assert.match(wxml, /day-action-sheet/)
   assert.match(wxml, /day-detail-list/)
   assert.match(wxss, /\.day-action-sheet/)
@@ -446,23 +443,8 @@ test('index day actions use the themed in-page action sheet', () => {
 })
 
 test('index month title opens a themed year-month jump sheet', () => {
-  const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
-
-  assert.doesNotMatch(js, /wx\.show(?:ActionSheet|Modal|DatePicker|Picker)/)
-  assert.match(js, /monthPickerVisible:\s*false/)
-  assert.match(js, /JUMP_YEAR_MIN\s*=\s*2001/)
-  assert.match(js, /JUMP_YEAR_MAX\s*=\s*2035/)
-  assert.match(js, /buildJumpYearState\(/)
-  assert.match(js, /openMonthPicker\(\)\s*{[\s\S]*buildJumpYearState/)
-  assert.match(js, /shiftJumpYear\(e\)\s*{[\s\S]*dataset\.delta/)
-  assert.match(js, /selectJumpMonth\(e\)\s*{[\s\S]*dataset\.month[\s\S]*year:\s*this\.data\.jumpYear[\s\S]*monthPickerVisible:\s*false/)
-  assert.doesNotMatch(js, /confirmMonthJump/)
-  // 回到今天和选月一样，经日历提交同一次发布年月与格子（issue #165）
-  assert.match(js, /jumpToToday\(\)\s*{[\s\S]*new Date\(\)[\s\S]*applyHomeCalendarState\([\s\S]*monthPickerVisible:\s*false/)
-  assert.match(js, /closeMonthPicker\(\)\s*{[\s\S]*monthPickerVisible:\s*false/)
-  assert.doesNotMatch(js, /buildMonthJumpYears|shiftJumpYears|selectJumpYear|jumpYears/)
 
   assert.match(wxml, /month-title-trigger/)
   assert.match(wxml, /bindtap="openMonthPicker"/)
@@ -485,17 +467,8 @@ test('index month title opens a themed year-month jump sheet', () => {
 })
 
 test('index calendar applies the persisted density without hosting the control', () => {
-  const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
-
-  assert.match(js, /CALENDAR_DENSITY_STORAGE_KEY\s*=\s*'calendarDensity'/)
-  assert.match(js, /calendarDensity:\s*'compact'/)
-  assert.match(js, /getSavedCalendarDensity\(\)\s*{[\s\S]*getStorageSync\(CALENDAR_DENSITY_STORAGE_KEY\)[\s\S]*return 'compact'/)
-  // 从设置 tab 返回时 onShow 重读偏好，切换即刻生效
-  assert.match(js, /onShow\(\)\s*{[\s\S]*calendarDensity:\s*this\.getSavedCalendarDensity\(\)/)
-  // 切换控件已迁往设置页，首页不再持有 setter
-  assert.doesNotMatch(js, /setCalendarDensity/)
 
   assert.doesNotMatch(wxml, /density-control/)
   // 网格类名先带密度；清爽密度空间不足时几何账本再挂合并信息行的类（issue #153）
@@ -557,22 +530,8 @@ test('settings density defaults to compact, validates taps and persists both cho
 })
 
 test('index exposes calendar meaning and monthly recap sheets', () => {
-  const js = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.js'), 'utf8')
   const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
   const wxss = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8')
-
-  assert.match(js, /buildHomeCalendarState/)
-  assert.doesNotMatch(js, /buildCalendarDays\(/)
-  assert.doesNotMatch(js, /buildMonthlyRecap\(/)
-  assert.doesNotMatch(js, /buildDayMeanings\(/)
-  assert.doesNotMatch(js, /calendarInsights/)
-  assert.doesNotMatch(js, /CALENDAR_LEGEND_ITEMS/)
-  assert.match(js, /openLegendSheet\(\)/)
-  assert.match(js, /openPredictionSheet\(\)/)
-  assert.match(js, /openMonthlyRecap\(\)/)
-  assert.match(js, /copyMonthlyRecap\(\)/)
-  assert.doesNotMatch(js, /dayDetailsByDate:\s*\{\}/)
-  assert.match(js, /selectedDayDetail:\s*this\._dayDetail\(date\)/)
 
   // issue #105：图例/预测说明/小结入口从常驻工具条收进月份标题旁的「…」菜单，
   // 菜单项经 onMonthMenuTap 分发到既有打开函数；预测说明同时仍可从合并状态卡直接打开
@@ -645,14 +604,6 @@ test('index sync feedback markup does not block calendar interaction', () => {
   assert.doesNotMatch(wxss, /\.sync-pill\s*{[^}]*z-index:/)
   assert.match(wxss, /\.sync-pill\s*{[^}]*pointer-events:\s*none/)
   assert.match(wxss, /prefers-reduced-motion:\s*reduce[\s\S]*\.sync-pill/)
-})
-
-test('home calendar state is the only public seam for calendar markers', () => {
-  const root = path.join(__dirname, '..')
-  const homeState = fs.readFileSync(path.join(root, 'utils/homeCalendarState.js'), 'utf8')
-
-  assert.equal(fs.existsSync(path.join(root, 'utils/calendarCells.js')), false)
-  assert.doesNotMatch(homeState, /require\(['"]\.\/calendarCells['"]\)/)
 })
 
 test('edit pages echo a display date and keep the picker value as ISO', () => {

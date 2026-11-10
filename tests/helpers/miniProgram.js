@@ -2,6 +2,8 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const { setImmediate: checkpoint } = require('node:timers')
+const { isDeepStrictEqual } = require('node:util')
+const { evaluateWxmlExpression, wxmlOpeningTags } = require('../wxmlTemplate')
 
 const root = path.resolve(__dirname, '../..')
 const config = require('../../app.json')
@@ -46,6 +48,7 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
       if (index === -1 || !livePages.has(item.page)) continue
       commits.splice(index, 1)
       applyPatch(rendered.get(item.page), item.patch)
+      viewContext(item.page).deliverChanges(rendered.get(item.page))
       if (item.callback) track(item.callback.call(item.page))
     }
     return batch.length
@@ -144,25 +147,56 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
       new Function('module', 'getDate', code)(module, (...args) => new FakeDate(...args))
       modules[name] = module.exports
     }
+    const nodes = wxmlOpeningTags(template)
+    const changes = nodes.flatMap((node, index) => Object.entries(node.attrs)
+      .filter(([name]) => name.startsWith('change:'))
+      .map(([name, handler]) => ({ index, attribute: node.attrs[name.slice(7)], handler, previous: undefined })))
     const elements = new Map()
+    const styles = new Map()
+    function nodeKey(selector) {
+      const index = nodes.findIndex(node => selector.startsWith('.') ? node.classes.includes(selector.slice(1))
+        : selector.startsWith('#') && node.attrs.id === selector.slice(1))
+      return index < 0 ? selector : `node:${index}`
+    }
     function element(selector, dataset = {}) {
-      if (!elements.has(selector)) {
+      const key = nodeKey(selector)
+      if (!elements.has(key)) {
         const state = {}
         const style = {}
+        styles.set(key, style)
         const classes = new Set()
-        elements.set(selector, {
+        elements.set(key, {
           getState: () => state,
           getDataset: () => dataset,
-          getBoundingClientRect: () => copy(selectors[selector] || {}),
+          getBoundingClientRect: () => copy(Object.entries(selectors).find(([query]) => nodeKey(query) === key)?.[1] || {}),
           setStyle: patch => Object.assign(style, patch),
           addClass: name => classes.add(name),
           removeClass: name => classes.delete(name),
           requestAnimationFrame: callback => schedule(callback, 16)
         })
       }
-      return elements.get(selector)
+      return elements.get(key)
     }
-    const context = { template, modules, element, owner: { callMethod: (name, data) => invoke(page, name, data), selectComponent: selector => element(selector) } }
+    const context = {
+      template, modules, element,
+      viewStyle: selector => copy(styles.get(nodeKey(selector)) || {}),
+      owner: { callMethod: (name, data) => invoke(page, name, data), selectComponent: selector => element(selector) },
+      deliverChanges(data) {
+        for (const binding of changes) {
+          const valueExpression = /^\{\{([\s\S]*)\}\}$/.exec(binding.attribute)
+          assert.ok(valueExpression, 'WXS change attributes must be bound expressions')
+          const value = evaluateWxmlExpression(valueExpression[1], data)
+          if (isDeepStrictEqual(value, binding.previous)) continue
+          const handlerExpression = /^\{\{([\s\S]*)\}\}$/.exec(binding.handler)
+          assert.ok(handlerExpression, 'WXS change handlers must be bound expressions')
+          const handler = evaluateWxmlExpression(handlerExpression[1], modules)
+          assert.equal(typeof handler, 'function')
+          const previous = binding.previous
+          binding.previous = copy(value)
+          track(handler(copy(value), copy(previous), context.owner, element(`node:${binding.index}`)))
+        }
+      }
+    }
     viewContexts.set(page, context)
     return context
   }
@@ -347,6 +381,7 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
       responses.get(method).push(result)
     },
     rendered(page) { return copy(rendered.get(page)) },
+    viewStyle(page, selector) { return viewContext(page).viewStyle(selector) },
     get pages() { return [...stack] },
     get currentPage() { return stack.at(-1) },
     get pendingTimers() { return timers.size },

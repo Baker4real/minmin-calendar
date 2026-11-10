@@ -3,6 +3,9 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { listWxssFiles, parseWxssRules } = require('./designTokens')
+const { homeFeedbackCopy } = require('./helpers/homeFeedbackCopy')
+const { createMiniProgram } = require('./helpers/miniProgram')
+const { renderWxmlAttribute, wxmlOpeningTags } = require('./wxmlTemplate')
 
 // issue #56：窄屏几何、容器溢出与安全区。
 // 口径：rpx 始终按 750rpx = 视口宽等比换算，px = rpx × viewportPx / 750。
@@ -460,7 +463,7 @@ function verticalMarginRpx(decls) {
 }
 
 // issue #153：首屏账本就是记录入口以上的 CSS 文档流；每一项都从样式里读回来核对
-test('the first-screen ledger is the CSS flow above the record actions', () => {
+test('the first-screen ledger is the CSS flow above the record actions', async () => {
   const { CALENDAR_LEDGER } = require('../utils/calendarRowHeight')
   const ledger = CALENDAR_LEDGER.firstScreenRpx
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
@@ -483,8 +486,8 @@ test('the first-screen ledger is the CSS flow above the record actions', () => {
   const retry = findDecls(rules, '.refresh-retry')
   assert.equal(retry['box-sizing'], 'border-box')
   assert.equal(ledger.refreshRetry, rpxNumber(retry, 'min-height') + splitCssTokens(retry.margin).map(parseFloat)[2])
-  const copies = [...readRepo('pages/index/index.js').matchAll(/refreshRetryText: '([^']+)'/g)].map(match => match[1])
-  assert.ok(copies.length >= 3, 'expected the retry copy table')
+  const { retryCopies: copies } = await homeFeedbackCopy()
+  assert.equal(copies.length, 3, 'observed both collection failures and the all-collection retry')
   const appTokens = readAppTokens()
   const captionRpx = parseFloat(appTokens['--font-size-caption'])
   const contentPadRpx = parseFloat(horizontalPaddingTokens(findDecls(rules, '.content'))[0])
@@ -574,8 +577,9 @@ test('the reminder action keeps its label width beside long reminder copy and th
   const columnRpx = 750 - 2 * parseFloat(horizontalPaddingTokens(findDecls(rules, '.content'))[0]) -
     2 * parseFloat(horizontalPaddingTokens(card)[0]) - 2 * pxToRpx(borderPx(card)) -
     rpxNumber(findDecls(rules, '.reminder-rail'), 'width') - 2 * rpxNumber(card, 'gap') - actionRpx
-  const titles = [...readRepo('utils/cycle.js').matchAll(/\btitle: '([^']+)'/g)].map(match => match[1])
-  assert.ok(titles.length >= 4, `expected every reminder title, found ${titles.join(' / ')}`)
+  // User-visible copy fixtures: prediction/reminder behavior is covered at the
+  // projection and platform seams; this guard measures their geometry only.
+  const titles = ['这几天可能开始', '经期临近', '可能开始的日子已过', '经期还未结束']
   for (const title of titles) {
     const titleRpx = Array.from(title).length * captionRpx
     assert.ok(titleRpx <= columnRpx, `「${title}」 needs ${titleRpx}rpx, more than the ${columnRpx.toFixed(1)}rpx copy column at 320px`)
@@ -601,9 +605,7 @@ test('the homepage room-status button keeps the 88rpx touch size in both axes fo
   assert.ok(tokenRpx(button['margin-top'], appTokens) >= 32, 'the button sits at least --space-md below the description')
 
   // 每个动作标签（按钮字号，每字 1em）加左右内边距都不低于 88rpx，标签两侧留出空隙
-  const labels = [...new Set([...readRepo('utils/roomAccessOutcome.js')
-    .matchAll(/actionText: options\.\w+ \|\| '([^']+)'/g)].map(match => match[1]))]
-  assert.deepEqual([...labels].sort(), ['去绑定', '重新加载', '重试'].sort())
+  const labels = ['去绑定', '重新加载', '重试'] // visible recovery-action copy fixtures
   const fontRpx = parseFloat(appTokens['--font-size-button'])
   for (const label of labels) {
     const widthRpx = Array.from(label).length * fontRpx + 2 * tokenRpx(sidePad, appTokens)
@@ -1071,12 +1073,9 @@ test('shared navbar is fixed, reserves the capsule, and content starts at the ba
 
   for (const pagePath of ALL_PAGES) {
     const wxml = readRepo(`${pagePath}.wxml`)
-    const js = readRepo(`${pagePath}.js`)
     assert.match(wxml, /class="[^"]*\bnav-bar\b/, `${pagePath} must use the shared navbar`)
     assert.match(wxml, /--nav-bar-height:\s*\{\{navBarHeight\}\}px/, `${pagePath} must inject navbar height`)
     assert.match(wxml, /--capsule-right:\s*\{\{capsuleRight\}\}px/, `${pagePath} must inject the capsule slot`)
-    assert.match(js, /navBarHeight:\s*safeArea\.getNavBarHeight\(\)/, `${pagePath} must read navbar height from safeArea`)
-    assert.match(js, /capsuleRight:\s*safeArea\.getCapsuleRightInset\(\)/, `${pagePath} must read the capsule slot from safeArea`)
     if (wxml.includes('class="nav-back"')) {
       assert.match(
         wxml,
@@ -1107,7 +1106,7 @@ test('shared navbar is fixed, reserves the capsule, and content starts at the ba
 
 // 同步胶囊（issue #120 进出、#151 单集合失败）住在首页顶栏的标题槽里，挂载期间替换应用标题。
 // 顶栏整条在吸顶区之上，胶囊因此盖不住月份标题和状态行；每条胶囊文案在 320px 宽（胶囊右侧占位 94px）的标题槽里单行完整显示
-test('the sync pill takes the navbar title slot, clear of the sticky month title, and every status fits it at 320px', () => {
+test('the sync pill takes the navbar title slot, clear of the sticky month title, and every status fits it at 320px', async () => {
   const wxml = readRepo('pages/index/index.wxml')
   const navStart = wxml.indexOf('class="nav-bar header-gradient"')
   const navEnd = wxml.indexOf('<view wx:if="{{noRoom}}"', navStart)
@@ -1140,9 +1139,8 @@ test('the sync pill takes the navbar title slot, clear of the sticky month title
     rpxNumber(findDecls(rules, '.sync-dot'), 'width') + rpxNumber(pill, 'gap')
   assert.equal(findDecls(rules, '.sync-text')['font-size'], 'var(--font-size-caption)')
   const captionRpx = parseFloat(readAppTokens()['--font-size-caption'])
-  const statuses = new Set([...readRepo('pages/index/index.js')
-    .matchAll(/(?:showSyncStatus\(|\btext: |StatusText: )'([^']+)'/g)].map(match => match[1]))
-  assert.ok(statuses.size >= 7, `expected every sync status copy, found ${[...statuses].join(' / ')}`)
+  const { statuses } = await homeFeedbackCopy()
+  assert.equal(statuses.size, 7, `expected every rendered sync status, found ${[...statuses].join(' / ')}`)
   for (const status of statuses) {
     const widthRpx = chromeRpx + Array.from(status).length * captionRpx
     assert.ok(widthRpx <= slotRpx, `「${status}」 needs ${widthRpx.toFixed(1)}rpx, more than the ${slotRpx.toFixed(1)}rpx title slot at 320px`)
@@ -1152,9 +1150,26 @@ test('the sync pill takes the navbar title slot, clear of the sticky month title
 test('every page root injects --safe-bottom alongside --safe-top from runtime data', () => {
   for (const pagePath of ALL_PAGES) {
     const wxml = readRepo(`${pagePath}.wxml`)
-    const js = readRepo(`${pagePath}.js`)
     assert.match(wxml, /--safe-top:\s*\{\{safeTop\}\}px; --safe-bottom:\s*\{\{safeBottom\}\}px/, `${pagePath}.wxml root style must inject both safe-area vars`)
-    assert.match(js, /safeBottom:\s*safeArea\.getSafeBottom\(\)/, `${pagePath}.js data must feed safeBottom from utils/safeArea`)
+  }
+})
+
+test('registered pages render platform safe areas, navbar height and capsule clearance', async () => {
+  for (const pagePath of ALL_PAGES) {
+    const app = createMiniProgram({ storage: { roomCode: 'ROOM01' }, windowInfo: { screenHeight: 812, statusBarHeight: 44, safeArea: { top: 44, bottom: 778 } } })
+    try {
+      app.failNavigation('switchTab') // keep bind and the compatibility route visible
+      app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } })
+      app.cloud.when({ name: 'dataOp', data: { action: 'list' } }).reply({ code: 0, data: [] })
+      const page = app.launch('/' + pagePath)
+      await app.settle()
+      const root = wxmlOpeningTags(readRepo(`${pagePath}.wxml`))[0]
+      const style = renderWxmlAttribute(root.attrs.style, app.rendered(page))
+      assert.match(style, /--safe-top: 44px/, pagePath)
+      assert.match(style, /--safe-bottom: 34px/, pagePath)
+      assert.match(style, /--nav-bar-height: 84px/, pagePath)
+      assert.match(style, /--capsule-right: 97px/, pagePath)
+    } finally { app.teardown() }
   }
 })
 
