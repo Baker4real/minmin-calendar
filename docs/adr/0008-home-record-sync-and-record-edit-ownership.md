@@ -8,8 +8,9 @@ intent: "明确首页同步与记录编辑的目标归属、推翻旧决定的�
 
 # ADR-0008: 首页记录同步与记录编辑的 module 归属
 
-**Status:** Accepted（目标已接受，迁移未完成）
+**Status:** Accepted（代码迁移已完成）
 **Date:** 2026-11-10
+**Implementation:** 2026-11-11；整体验收记录见 [Verification Log](../verification-log.md)。
 **Decision source:** [epic #169](https://github.com/Baker4real/minmin-calendar/issues/169)（2026-11-08 规格）；本记录由 [#176](https://github.com/Baker4real/minmin-calendar/issues/176) 落地。
 
 ## Context
@@ -53,10 +54,10 @@ intent: "明确首页同步与记录编辑的目标归属、推翻旧决定的�
 
 ## Consequences and migration
 
-**截至本记录落地，目标已接受，代码迁移尚未完成。** 本票只改文档；起始基线的记录编辑协调仍在现有 recordCommands adapter 与两个编辑页之间，首页同步协调仍在 `pages/index/index.js`。接受此 ADR 不表示新会话或同步 module 已存在，也不表示共享测试 harness 已迁完。CONTEXT 的两处职责句在过渡期同时标明目标与现状；后续各实现票完成对应迁移并验证后再更新现状。
+**2026-11-11：代码迁移已完成。** `recordCommands` 的 Period/Memory 会话已持有表单、草稿和保存/删除协调；`roomRecordsSync` 已持有首页记录、revision、在途加载和同步状态，两种编辑页与首页仅转发事件并渲染 owner 的输出。当前职责见 [CONTEXT Technical Shape](../../CONTEXT.md#technical-shape)。#176 落地时仅接受目标、尚未迁移的状态是历史基线，不再是当前实现。
 
-实现需要把现有协调真正移交给 module，代价是迁移状态所有权和页面接线；收益是同一保存或同步规则只改其 owner，页面的 UI 改动不再同时承担这些规则。不能同时保留页面与 module 两套协调，也不增加通用状态管理框架或运行时依赖；云函数、schema 与远程协议不变。
+迁移将现有协调移交给对应 module，代价是迁移状态所有权和页面接线；收益是同一保存或同步规则只改其 owner，页面的 UI 改动不再同时承担这些规则。页面与 module 不保留两套协调，也未增加通用状态管理框架或运行时依赖；云函数、schema 与远程协议不变。
 
-#170 建立共享微信平台测试 harness 并先迁移绑定页，#171–#175 完成其他页面的测试迁移；运行代码票按工单原生阻塞关系开工。通过真实页面的生命周期和用户事件、可控的 `wx.cloud.callFunction` 应答顺序，观察渲染数据、提示、导航、存储与云调用；保留 Calendar projection seam。新 module 不另增内部测试 seam，页面测试不再依赖私有状态、替换应用 module 或匹配 JS 源码；WXML/WXSS 静态设计守卫保留。纯文档票不为此新增无行为价值的测试。
+#170 建立共享微信平台测试 harness 并先迁移绑定页，#171–#175 已完成其他页面的测试迁移。测试通过真实页面的生命周期和用户事件、可控的 `wx.cloud.callFunction` 应答顺序，观察渲染数据、提示、导航、存储与云调用；Calendar projection seam 保留。新 module 未另增内部测试 seam，页面测试不再依赖私有状态、替换应用 module 或匹配 JS 源码；WXML/WXSS 静态设计守卫保留。
 
 迁移完成须同时满足：协调已从页面移交给对应 owner；保存与草稿、未确认核对、删除、同步顺序与部分失败的行为由既定 seam 验证；#169 要求的完整检查通过。仅建文件、返回决定或更新文档，均不构成代码迁移完成。

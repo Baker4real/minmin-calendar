@@ -11,7 +11,7 @@ intent: "按改动面查找必须遵守的 ADR"
 
 | 改动范围 | ADR |
 |---|---|
-| 首页记录同步、记录编辑页的保存与草稿 | [0008 首页记录同步与记录编辑的 module 归属](0008-home-record-sync-and-record-edit-ownership.md) |
+| 首页记录与同步协调、记录编辑会话的保存、草稿、未确认核对、合并与删除 | [0008 首页记录同步与记录编辑的 module 归属](0008-home-record-sync-and-record-edit-ownership.md) |
 | 经期状态（进行中 / 结束日期不详 / 已结束）、结束日期默认值、补记、时长统计、预测用到的样本 | [0007 经期记录允许在结束日期未知时保存](0007-open-ended-period-records.md) |
 | 退出房间、解除绑定、所有权转移 | [0001 Room Leave Transfers Ownership](0001-room-leave-ownership-transfer.md) |
 | 房间码生成、唯一性、`rooms.roomCode` 索引 | [0002 房间码必须使用唯一索引保护](0002-room-code-unique-index.md) |

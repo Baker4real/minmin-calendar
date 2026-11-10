@@ -12,7 +12,7 @@ intent: "Historical inlining decision; superseded by ADR-0008 Room record synchr
 **Status:** Superseded by [ADR-0008](../adr/0008-home-record-sync-and-record-edit-ownership.md)
 **Historical implementation:** merged into `main` in `159ed78` on 2026-08-12
 
-以下保留旧决定与当时理由；后续首页记录同步的归属以 ADR-0008 为准。新目标已接受，代码迁移未完成；本状态变更不表示同步协调已移出首页 Page。
+以下保留旧决定与当时理由；后续首页记录同步的归属以 ADR-0008 为准。#176 将本 spec 标为 superseded 时，同步协调尚未移出首页 Page；2026-11-11 已完成迁移，当前实施状态见 ADR-0008。
 
 ## Problem Statement
 

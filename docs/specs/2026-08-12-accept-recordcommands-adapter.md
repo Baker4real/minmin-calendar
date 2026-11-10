@@ -12,7 +12,7 @@ intent: "Historical shallow-adapter decision; superseded by ADR-0008 record-edit
 **Status:** Superseded by [ADR-0008](../adr/0008-home-record-sync-and-record-edit-ownership.md)
 **Historical decision (2026-08-12):** keep `recordCommands` as a shallow adapter; no production refactor is required
 
-以下保留旧决定与当时理由；后续记录编辑的保存与草稿归属以 ADR-0008 为准。新目标已接受，代码迁移未完成；本状态变更不表示现有 adapter 与编辑页的协调已迁移。
+以下保留旧决定与当时理由；后续记录编辑的保存与草稿归属以 ADR-0008 为准。#176 将本 spec 标为 superseded 时，代码迁移尚未完成；2026-11-11 已完成迁移，当前实施状态见 ADR-0008。
 
 ## Problem Statement
 

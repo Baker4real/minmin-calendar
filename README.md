@@ -11,7 +11,7 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 
 ## Project Shape
 
-- `pages/index/` - renders Calendar projection and forwards calendar/sheet/record events to their owners; keeps local reminder-seen storage, geometry and animation wiring, and the sync-pill display lifecycle and auto-hide timer.
+- `pages/index/` - renders Calendar projection and forwards calendar/sheet/record events to their owners; keeps local reminder-seen storage, geometry and animation wiring, and the sync-pill display lifecycle and auto-hide timer. Records, revisions and in-flight loads belong to `roomRecordsSync`, not the Page; each projection shares one Today sample, and showing the page on a new date refreshes that projection.
 - `pages/index/homepageSheets.js` - Home's sole registry for the four sheets; derives lifecycle keys and drag targets from each name, initializes their render state, and owns close actions, system-back priority and handoff wiring.
 - `utils/sheetLifecycle.js` - shared enter/leave, handoff, page-obscuring, tabBar and system-back mechanisms plus the reduced-motion probe; Home supplies its own registrations, while Settings keeps its help-sheet adapter.
 - `pages/period/` - 记录 tab hosting the segmented 经期/欢乐时光 lists; the Period editor renders its record-edit session and forwards form/lifecycle events.
@@ -29,8 +29,9 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 - `utils/recordFieldErrors.js` - shared session field-error retention and scrolling to the first invalid field below the fixed nav bar; sessions render each error under its field.
 - `utils/roomRecordsSnapshot.js` - loads room-scoped Period/Memory outcomes keyed by collection; Home allows partial success, while Settings export requires both lists to succeed.
 - `utils/roomRecordsSync.js` - owns homepage records, per-collection revision/confirmation state, one in-flight load shared by all callers, local-change snapshot invalidation, partial-failure retry copy and sync-pill state. It reads through RoomDataClient and publishes each accepted snapshot as one calendar update; blocked Room outcomes go to the Home failure presentation.
-- `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
-- `utils/roomAccessOutcome.js` - client-side classification of room access failures plus outcome presentation mapping.
+- `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind and local-cache helpers, plus the Bind/Settings Room-leave confirmation, server outcome and one-time unbound notice.
+- `utils/roomAccessOutcome.js` - client-side classification of room access failures plus the sole operation-aware failure presentation mapping.
+- `utils/wxPrompts.js` - executes prompt specifications through wx modal/toast/navigation APIs, with the existing toast fallback when a native modal is unavailable.
 - `utils/homeCalendarState.js` - the pure, complete homepage Calendar projection: markers and ARIA, status, quick-entry labels and destinations, reminder candidates, dated details/actions, prediction explanation, recap versus first-record guide, back-to-today visibility and record feedback; the sole owner of unsynced-collection display rules.
 - `utils/calendarRowHeight.js` - homepage calendar geometry ledger: row height between the 44px floor and the density cap, per-density cell content minimums, the compact merged info row, and whether the record entry fits the first screen; rows never shrink below their content, so a short screen scrolls instead of clipping.
 - `utils/safeArea.js` - runtime safe-area top/bottom computation; every page root injects `--safe-top`, `--safe-bottom`, `--nav-bar-height`, and `--capsule-right`.
@@ -98,6 +99,8 @@ npm run verify
 ```
 
 `npm run verify` 是本地、提交钩子与 CI 的共同入口：检查 app、pages、utils、cloudfunctions、tests 中的 JavaScript 语法，自动发现全部 `tests/*.test.js`，核对 Room artifact，再运行 320/375/430 宽度的坐标命中回归。依赖和临时目录不进入语法清单；新增源文件无需维护 README 清单。提交钩子传 `--tracked`：语法和测试清单改从 git 索引取（已跟踪加已暂存的文件），共享工作树里别的会话还没跟踪的文件不进本次提交的检查。
+
+#169 的页面行为测试经 `tests/helpers/miniProgram.js` 这一份微信平台 harness，或 `buildHomeCalendarState` 的纯 projection 表格验证。`tests/test-seam-guardrail.test.js` 随完整测试运行：迁移预算 `BUDGET` 已清空，仅保留 Room lifecycle 云函数部署打包的 JS 源码读取例外；WXML/WXSS 设计守卫与既有公开 interface 测试继续保留。harness 同样约束原生确认按钮文案最多四个汉字。
 
 首次安装及 Playwright 版本升级后运行 `browser:install`，浏览器保存在项目 `.scratch/browsers/`。日常输出只显示每项结果、测试条数和日志路径；完整日志在 `.scratch/verify/`，坐标与截图证据在 `.scratch/coordinate-hit/`，两处都只保留最近一次运行。任何检查失败均退出非零；CI 失败时保留这些诊断产物。`npm test`、`npm run check`、`npm run test:hit` 可用于单独定位，不能代替完整验收。
 
