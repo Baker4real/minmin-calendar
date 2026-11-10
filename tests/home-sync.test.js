@@ -1,0 +1,672 @@
+const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
+const test = require('node:test')
+const { createMiniProgram } = require('./helpers/miniProgram')
+
+// #171: real pages, platform responses and rendered data only. Calendar/sheet
+// interaction cases remain in index-page.test.js for #172.
+const ROOM = { code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } }
+const success = data => ({ code: 0, data })
+const period = (id, date) => ({ _id: id, startDate: date, endDate: date, status: 'known-end' })
+const memory = (id, date, note = '') => ({ _id: id, date, note })
+
+function homeApp(t, options = {}) {
+  const app = createMiniProgram({ storage: { roomCode: 'ROOM01' }, ...options })
+  t.after(() => app.teardown())
+  app.cloud.when('getMyRoom').reply(ROOM)
+  listRoute(app, 'periods').reply(success([]))
+  listRoute(app, 'memories').reply(success([]))
+  return app
+}
+
+function listRoute(app, collection) {
+  return app.cloud.when({ name: 'dataOp', data: { action: 'list', collection } })
+}
+
+function recordCalls(app) {
+  return app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action === 'list')
+}
+
+function markedDates(app, page, marker) {
+  return app.rendered(page).days.filter(day => day[marker]).map(day => day.date)
+}
+
+function assertCalendar(app, page, periods, memories) {
+  assert.deepEqual(markedDates(app, page, 'isPeriod'), periods)
+  assert.deepEqual(markedDates(app, page, 'isMemory'), memories)
+}
+
+async function showAgain(app) {
+  app.hide()
+  app.show()
+  await app.settle()
+}
+
+test('initial load starts both collections together and renders only after both responses', async t => {
+  const app = homeApp(t)
+  const periods = listRoute(app, 'periods').defer()
+  const memories = listRoute(app, 'memories').defer()
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  assert.equal(app.rendered(home).loading, true)
+  assert.deepEqual(recordCalls(app).map(call => call.data), [
+    { action: 'list', collection: 'periods', data: {}, id: '', roomCode: 'ROOM01' },
+    { action: 'list', collection: 'memories', data: {}, id: '', roomCode: 'ROOM01' }
+  ])
+
+  memories.resolve(success([memory('m1', '2026-06-02')]))
+  await app.settle()
+  assert.equal(app.rendered(home).loading, true)
+  periods.resolve(success([period('p1', '2026-06-01')]))
+  await app.settle()
+  assertCalendar(app, home, ['2026-06-01'], ['2026-06-02'])
+  assert.equal(app.rendered(home).loading, false)
+  assert.equal(app.rendered(home).refreshing, false)
+  assert.equal(app.rendered(home).noRoom, false)
+  assert.equal(app.rendered(home).syncStatusVisible, false)
+})
+
+test('unchanged and reordered background responses keep the calendar quiet', async t => {
+  const app = homeApp(t)
+  const periods = [period('p1', '2026-06-01'), period('p2', '2026-06-20')]
+  const memories = [memory('m1', '2026-06-02'), memory('m2', '2026-06-12')]
+  const p = listRoute(app, 'periods').reply(success(periods))
+  const m = listRoute(app, 'memories').reply(success(memories))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  await showAgain(app)
+  assertCalendar(app, home, ['2026-06-01', '2026-06-20'], ['2026-06-02', '2026-06-12'])
+  assert.equal(app.rendered(home).syncStatusVisible, false)
+
+  const pending = p.defer()
+  m.reply(success([...memories].reverse()))
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.equal(app.rendered(home).loading, false)
+  assert.equal(app.rendered(home).refreshing, true)
+  assert.equal(app.rendered(home).syncStatusVisible, false)
+  assertCalendar(app, home, ['2026-06-01', '2026-06-20'], ['2026-06-02', '2026-06-12'])
+  pending.resolve(success([...periods].reverse()))
+  await app.settle()
+  assert.equal(app.rendered(home).refreshing, false)
+  assert.equal(app.rendered(home).syncStatusVisible, false)
+  assert.equal(app.rendered(home).syncStatusText, '')
+  assertCalendar(app, home, ['2026-06-01', '2026-06-20'], ['2026-06-02', '2026-06-12'])
+
+  p.reject(new Error('network down'))
+  await showAgain(app)
+  assertRetry(app, home, 'periods')
+  assert.equal(app.rendered(home).syncStatusVisible, false)
+  assertCalendar(app, home, ['2026-06-01', '2026-06-20'], ['2026-06-02', '2026-06-12'])
+})
+
+test('first-load network failure offers a retry that clears the failure screen and loads records', async t => {
+  const app = homeApp(t)
+  listRoute(app, 'periods').reject(new Error('network down'))
+  listRoute(app, 'memories').reject(new Error('network down'))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  assert.equal(app.rendered(home).noRoom, true)
+  assert.equal(app.rendered(home).roomStatusTitle, '日历加载失败')
+  assert.equal(app.rendered(home).roomStatusDesc, '网络不太稳定，请重试')
+  assert.equal(app.rendered(home).roomStatusActionText, '重试')
+  assert.equal(app.rendered(home).roomStatusAction, 'retry')
+  assert.equal(app.rendered(home).refreshRetryVisible, false)
+
+  const pending = listRoute(app, 'periods').defer()
+  listRoute(app, 'memories').reply(success([memory('m1', '2026-06-02')]))
+  app.dispatch(home, 'handleRoomStatusAction')
+  await app.settle()
+  assert.equal(app.rendered(home).loading, true)
+  assert.equal(app.rendered(home).noRoom, false)
+  assert.equal(app.rendered(home).roomStatusTitle, '')
+  assert.equal(app.rendered(home).roomStatusDesc, '')
+  assert.equal(app.rendered(home).roomStatusActionText, '')
+  assert.equal(app.rendered(home).syncStatusVisible, false)
+  pending.resolve(success([period('p1', '2026-06-01')]))
+  await app.settle()
+  assert.equal(app.rendered(home).loading, false)
+  assertCalendar(app, home, ['2026-06-01'], ['2026-06-02'])
+  assert.equal(recordCalls(app).length, 4)
+})
+
+const RETRY = {
+  periods: '经期同步失败，点按重试',
+  memories: '欢乐时光同步失败，点按重试',
+  all: '刷新失败，点按重试'
+}
+
+function assertRetry(app, home, scope) {
+  const view = app.rendered(home)
+  assert.equal(view.refreshRetryVisible, Boolean(scope))
+  if (!scope) return
+  assert.equal(view.refreshRetryText, RETRY[scope])
+  assert.equal(view.refreshRetryLabel, scope === 'all' ? '日历刷新失败，点按重试' : RETRY[scope])
+}
+
+for (const failed of ['periods', 'memories']) {
+  test(`first-load ${failed} failure renders the other collection and retries without hiding the explanation`, async t => {
+    const app = homeApp(t)
+    listRoute(app, 'periods').reply(success([period('p1', '2026-06-01')]))
+    listRoute(app, 'memories').reply(success([memory('m1', '2026-06-02')]))
+    const route = listRoute(app, failed).reject(new Error('network down'))
+    const home = app.launch('/pages/index/index')
+    await app.settle()
+    assert.equal(app.rendered(home).loading, false)
+    assert.equal(app.rendered(home).noRoom, false)
+    assertCalendar(app, home, failed === 'periods' ? [] : ['2026-06-01'], failed === 'memories' ? [] : ['2026-06-02'])
+    assertRetry(app, home, failed)
+    assert.equal(app.rendered(home).syncStatusText, failed === 'periods' ? '已显示欢乐时光' : '已显示经期数据')
+    assert.equal(app.rendered(home).monthSummaryLine, failed === 'periods'
+      ? '本月 经期未同步 · 欢乐时光 1 条' : '本月 经期 1 天 · 欢乐时光未同步')
+    if (failed === 'periods') {
+      assert.equal(app.rendered(home).homeStatus.text, '经期未同步，暂不预测')
+      await app.dispatch(home, 'openPredictionSheet')
+      await app.settle()
+      assert.equal(app.rendered(home).predictionExplanation.summary, '经期未同步，暂不预测')
+      await app.dispatch(home, 'closeInfoSheet')
+      await app.advance(200)
+    }
+
+    const pending = route.defer()
+    const retry = app.dispatch(home, 'retryRefresh')
+    await app.settle()
+    assert.equal(app.rendered(home).refreshing, true)
+    assertRetry(app, home, failed)
+    pending.reject(new Error('network down'))
+    await retry
+    await app.advance(60000)
+    assertRetry(app, home, failed)
+    assert.equal(app.rendered(home).noRoom, false)
+
+    route.reply(success(failed === 'periods' ? [period('p1', '2026-06-01')] : [memory('m1', '2026-06-02')]))
+    await app.dispatch(home, 'retryRefresh')
+    await app.settle()
+    assertRetry(app, home, null)
+    assertCalendar(app, home, ['2026-06-01'], ['2026-06-02'])
+    assert.equal(app.rendered(home).monthSummaryLine, '本月 经期 1 天 · 欢乐时光 1 条')
+    assert.equal(app.rendered(home).syncStatusText, '已同步')
+  })
+}
+
+test('background partial and full failures preserve old records and the latest retry names the failed collection', async t => {
+  const app = homeApp(t)
+  const p = listRoute(app, 'periods').reply(success([period('p1', '2026-06-01')]))
+  const m = listRoute(app, 'memories').reply(success([memory('m1', '2026-06-02')]))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  p.reject(new Error('network down'))
+  m.reply(success([memory('m1', '2026-06-02'), memory('m2', '2026-06-12')]))
+  await showAgain(app)
+  assertRetry(app, home, 'periods')
+  assertCalendar(app, home, ['2026-06-01'], ['2026-06-02', '2026-06-12'])
+  assert.equal(app.rendered(home).syncStatusText, '已保留旧经期数据')
+
+  m.reject(new Error('network down'))
+  await home.onPullDownRefresh()
+  await app.settle()
+  assertRetry(app, home, 'all')
+  assertCalendar(app, home, ['2026-06-01'], ['2026-06-02', '2026-06-12'])
+  assert.equal(app.rendered(home).syncStatusVisible, false)
+  assert.equal(app.rendered(home).noRoom, false)
+  assert.equal(app.platformCalls.stopPullDownRefresh.length, 1)
+
+  p.reply(success([period('p2', '2026-06-20'), period('p1', '2026-06-01')]))
+  await app.dispatch(home, 'retryRefresh')
+  await app.settle()
+  assertRetry(app, home, 'memories')
+  assertCalendar(app, home, ['2026-06-01', '2026-06-20'], ['2026-06-02', '2026-06-12'])
+  assert.equal(app.rendered(home).syncStatusText, '已保留上次的欢乐时光')
+
+  m.reply(success([memory('m3', '2026-06-26')]))
+  await app.dispatch(home, 'retryRefresh')
+  await app.settle()
+  assertRetry(app, home, null)
+  assertCalendar(app, home, ['2026-06-01', '2026-06-20'], ['2026-06-26'])
+  assert.equal(app.rendered(home).syncStatusText, '已同步')
+})
+
+test('show, pull-down and retry reuse one in-flight load; pull-down stops only after it completes', async t => {
+  const app = homeApp(t)
+  const p = listRoute(app, 'periods').reply(success([period('p1', '2026-06-01')]))
+  const m = listRoute(app, 'memories').reply(success([]))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  const json = JSON.parse(fs.readFileSync(path.join(__dirname, '../pages/index/index.json'), 'utf8'))
+  assert.equal(json.enablePullDownRefresh, true)
+  p.reject(new Error('network down'))
+  m.reject(new Error('network down'))
+  await showAgain(app)
+  assertRetry(app, home, 'all')
+
+  const periods = p.defer()
+  const memories = m.defer()
+  const count = recordCalls(app).length
+  const pull = home.onPullDownRefresh()
+  await app.settle()
+  const retry = app.dispatch(home, 'retryRefresh')
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.equal(recordCalls(app).length, count + 2)
+  assert.equal(app.rendered(home).refreshing, true)
+  assert.equal(app.rendered(home).loading, false)
+  assertCalendar(app, home, ['2026-06-01'], [])
+  assert.equal(app.platformCalls.stopPullDownRefresh, undefined)
+  memories.resolve(success([memory('m1', '2026-06-02')]))
+  await app.settle()
+  assert.equal(app.platformCalls.stopPullDownRefresh, undefined)
+  periods.resolve(success([period('p2', '2026-06-20')]))
+  await Promise.all([pull, retry])
+  await app.settle()
+  assertCalendar(app, home, ['2026-06-20'], ['2026-06-02'])
+  assert.equal(app.rendered(home).refreshing, false)
+  assert.equal(app.platformCalls.stopPullDownRefresh.length, 1)
+  assertRetry(app, home, null)
+})
+
+async function saveMemory(app, home, record) {
+  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'memories' } }).reply({ code: 0, id: record._id, record })
+  await app.dispatch(home, 'quickMemory')
+  const edit = app.currentPage
+  await app.dispatch(edit, 'onNoteInput', { detail: { value: record.note } })
+  await app.dispatch(edit, 'save')
+  await app.settle()
+  return edit
+}
+
+test('an older background response cannot roll back a memory saved through the editor; a later load confirms it', async t => {
+  const app = homeApp(t)
+  const p = listRoute(app, 'periods').reply(success([period('p1', '2026-06-01')]))
+  const m = listRoute(app, 'memories').reply(success([memory('m1', '2026-06-02')]))
+  const saved = memory('saved', '2026-06-26', '测试新记录')
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  const periods = p.defer()
+  const memories = m.defer()
+  await showAgain(app)
+  await saveMemory(app, home, saved)
+  await app.advance(1000)
+  assert.equal(app.currentPage, home)
+  assertCalendar(app, home, ['2026-06-01'], ['2026-06-02', '2026-06-26'])
+  assert.equal(app.rendered(home).syncStatusText, '已更新，正在同步')
+  assert.equal(app.rendered(home).syncStatusVisible, true)
+
+  memories.resolve(success([memory('m1', '2026-06-02')]))
+  periods.resolve(success([period('p2', '2026-06-20')]))
+  await app.settle()
+  assertCalendar(app, home, ['2026-06-20'], ['2026-06-02', '2026-06-26'])
+  assert.equal(app.rendered(home).syncStatusText, '已更新，正在同步')
+  await app.advance(60000)
+  assert.equal(app.rendered(home).syncStatusVisible, true)
+
+  m.reply(success([saved, memory('m1', '2026-06-02')]))
+  p.reply(success([period('p2', '2026-06-20')]))
+  await showAgain(app)
+  assert.equal(app.rendered(home).syncStatusText, '已同步')
+  assertCalendar(app, home, ['2026-06-20'], ['2026-06-02', '2026-06-26'])
+})
+
+async function savePeriod(app, home, record) {
+  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'periods' } }).reply({ code: 0, id: record._id, record })
+  await app.dispatch(home, 'quickPeriod')
+  const edit = app.currentPage
+  await app.dispatch(edit, 'onStartChange', { detail: { value: record.startDate } })
+  await app.dispatch(edit, 'selectStatus', { currentTarget: { dataset: { value: 'known-end' } } })
+  await app.dispatch(edit, 'onEndChange', { detail: { value: record.endDate } })
+  await app.dispatch(edit, 'save')
+  await app.settle()
+}
+
+test('discarding a stale first period snapshot keeps the locally saved period unconfirmed and the summary unsynced', async t => {
+  const app = homeApp(t)
+  listRoute(app, 'periods').reject(new Error('network down'))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  assert.equal(app.rendered(home).hasRecords, true)
+  assert.equal(app.rendered(home).monthSummaryLine, '本月 经期未同步 · 欢乐时光 0 条')
+  const p = listRoute(app, 'periods').reply(success([]))
+  const pending = p.defer()
+  app.dispatch(home, 'retryRefresh')
+  await app.settle()
+  const saved = period('saved', '2026-06-20')
+  await savePeriod(app, home, saved)
+  await app.advance(1000)
+  assert.equal(app.currentPage, home)
+  assertCalendar(app, home, ['2026-06-20'], [])
+  pending.resolve(success([period('old', '2026-06-01')]))
+  await app.settle()
+  assertCalendar(app, home, ['2026-06-20'], [])
+  assert.equal(app.rendered(home).homeStatus.text, '经期未同步，暂不预测')
+  assert.equal(app.rendered(home).monthSummaryLine, '本月 经期未同步 · 欢乐时光 0 条')
+  assert.equal(app.rendered(home).syncStatusText, '已更新，正在同步')
+
+  p.reply(success([saved, period('old', '2026-06-01')]))
+  await showAgain(app)
+  assertCalendar(app, home, ['2026-06-01', '2026-06-20'], [])
+  assert.equal(app.rendered(home).monthSummaryLine, '本月 经期 2 天 · 欢乐时光 0 条')
+  assert.equal(app.rendered(home).syncStatusText, '已同步')
+})
+
+test('a partial failure preserves a saved period until retry confirms it; a total failure keeps a retry after the pill hides', async t => {
+  const app = homeApp(t)
+  const old = period('p1', '2026-06-01')
+  const saved = period('p2', '2026-06-20')
+  const p = listRoute(app, 'periods').reply(success([old]))
+  const m = listRoute(app, 'memories').reply(success([]))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  await savePeriod(app, home, saved)
+  p.reject(new Error('network down'))
+  await app.advance(1000)
+  assertCalendar(app, home, ['2026-06-01', '2026-06-20'], [])
+  assertRetry(app, home, 'periods')
+  assert.equal(app.rendered(home).syncStatusText, '已保留旧经期数据')
+  await app.advance(60000)
+  assert.equal(app.rendered(home).syncStatusVisible, true)
+
+  m.reject(new Error('network down'))
+  await app.dispatch(home, 'retryRefresh')
+  await app.settle()
+  assert.equal(app.rendered(home).syncStatusText, '同步失败，稍后重试')
+  assertRetry(app, home, 'all')
+  await app.advance(1800)
+  assert.equal(app.rendered(home).syncStatusMounted, false)
+  assertRetry(app, home, 'all')
+  assertCalendar(app, home, ['2026-06-01', '2026-06-20'], [])
+
+  p.reply(success([saved, old]))
+  m.reply(success([]))
+  await app.dispatch(home, 'retryRefresh')
+  await app.settle()
+  assert.equal(app.rendered(home).syncStatusText, '已同步')
+  assertRetry(app, home, null)
+  assertCalendar(app, home, ['2026-06-01', '2026-06-20'], [])
+})
+
+test('a merged save updates the existing ongoing period without duplicating the calendar recap', async t => {
+  const app = homeApp(t)
+  const ongoing = { _id: 'ongoing', startDate: '2026-06-18', endDate: '', status: 'ongoing', note: '已经记录过的经期' }
+  listRoute(app, 'periods').reply(success([ongoing, period('old', '2026-05-01')]))
+  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'periods' } })
+    .reply({ code: 0, id: ongoing._id, reopened: true, record: ongoing })
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  // A new form can be opened before another member's ongoing record is known.
+  app.wx.navigateTo({ url: '/pages/period/edit/edit?startDate=2026-06-01&status=ongoing' })
+  await app.settle()
+  app.respondNext('showModal', { confirm: true })
+  await app.dispatch(app.currentPage, 'save')
+  await app.settle()
+  assert.equal(app.rendered(app.currentPage).note, '已经记录过的经期')
+  const confirming = listRoute(app, 'periods').defer()
+  await app.dispatch(app.currentPage, 'goBack')
+  await app.settle()
+  await app.dispatch(home, 'openMonthlyRecap')
+  await app.settle()
+  assert.equal(app.rendered(home).monthlyRecap.periodSummary, '本月记录了 1 次经期，共 9 天')
+  assert.equal(app.rendered(home).periodQuickLabel, '经期第 9 天 · 记结束')
+  confirming.resolve(success([ongoing, period('old', '2026-05-01')]))
+  await app.settle()
+})
+
+test('an unbound homepage offers binding without requesting record collections', async t => {
+  const app = homeApp(t, { storage: {} })
+  app.cloud.when('getMyRoom').reply({ code: 0, room: null })
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  assert.equal(app.rendered(home).noRoom, true)
+  assert.equal(app.rendered(home).roomStatusTitle, '还没绑定房间')
+  assert.equal(app.rendered(home).roomStatusActionText, '去绑定')
+  assert.equal(app.rendered(home).roomStatusAction, 'bind')
+  assert.equal(recordCalls(app).length, 0)
+  await app.dispatch(home, 'handleRoomStatusAction')
+  await app.settle()
+  assert.equal(app.currentPage.route, 'pages/bind/bind')
+})
+
+for (const [repair, title, actionText] of [
+  [ROOM, '房间状态已更新', '重新加载'],
+  [{ code: 0, room: null }, '房间状态已变化', '去绑定'],
+  [{ code: -1, msg: 'network down' }, '房间同步失败', '重试']
+]) {
+  test(`background Room repair shows ${title} until its visible action is taken`, async t => {
+    const app = homeApp(t)
+    const p = listRoute(app, 'periods').reply(success([period('p1', '2026-06-01')]))
+    const m = listRoute(app, 'memories').reply(success([]))
+    const home = app.launch('/pages/index/index')
+    await app.settle()
+    app.cloud.when('getMyRoom').reply(repair)
+    p.reply({ code: -1, errorCode: 'ROOM_ACCESS_DENIED' })
+    m.reply({ code: -1, errorCode: 'ROOM_ACCESS_DENIED' })
+    await showAgain(app)
+    assert.equal(app.rendered(home).noRoom, true)
+    assert.equal(app.rendered(home).loading, false)
+    assert.equal(app.rendered(home).roomStatusTitle, title)
+    assert.equal(app.rendered(home).roomStatusActionText, actionText)
+    assert.equal(app.rendered(home).refreshRetryVisible, false)
+    assert.equal(app.rendered(home).syncStatusVisible, false)
+    if (actionText === '去绑定') {
+      await app.dispatch(home, 'handleRoomStatusAction')
+      await app.settle()
+      assert.equal(app.currentPage.route, 'pages/bind/bind')
+    } else {
+      app.cloud.when('getMyRoom').reply(ROOM)
+      p.reply(success([]))
+      m.reply(success([]))
+      app.dispatch(home, 'handleRoomStatusAction')
+      await app.settle()
+      assert.equal(app.rendered(home).noRoom, false)
+      assert.equal(app.rendered(home).hasRecords, false)
+    }
+  })
+}
+
+test('waiting-to-paired Room transition announces TA once through real presence responses', async t => {
+  const app = homeApp(t)
+  const room = app.cloud.when('getMyRoom').reply(ROOM)
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  assert.deepEqual(app.wx.toasts, [])
+  room.reply({ code: 0, room: { roomCode: 'ROOM01', status: 'paired' } })
+  await showAgain(app)
+  assert.deepEqual(app.wx.toasts.map(({ title, icon }) => ({ title, icon })), [{ title: 'TA 已加入', icon: 'none' }])
+  await showAgain(app)
+  assert.equal(app.wx.toasts.length, 1)
+  assert.equal(app.rendered(home).noRoom, false)
+})
+
+test('partner welcome waits for successful loading and a render commit, lasts this visit and is not repeated', async t => {
+  const app = homeApp(t, { autoCommit: false, storage: { roomCode: 'ROOM01', partnerWelcome: 'pending' } })
+  const p = listRoute(app, 'periods').reply(success([]))
+  const m = listRoute(app, 'memories').reply(success([]))
+  const pending = p.defer()
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  app.commit(home)
+  assert.equal(app.rendered(home).loading, true)
+  assert.equal(app.rendered(home).partnerWelcome, false)
+  assert.equal(app.storage.partnerWelcome, 'pending')
+  pending.reject(new Error('network down'))
+  m.reject(new Error('network down'))
+  await app.settle()
+  // The other collection succeeded: partial success still renders a calendar.
+  assert.equal(app.storage.partnerWelcome, 'pending')
+  app.commit(home)
+  assert.equal(app.rendered(home).partnerWelcome, true)
+  assert.equal(app.storage.partnerWelcome, 'seen')
+  await app.dispatch(home, 'nextMonth')
+  app.commit(home)
+  assert.equal(app.rendered(home).partnerWelcome, true)
+  p.reply(success([]))
+  m.reply(success([]))
+  await showAgain(app)
+  app.commit(home)
+  assert.equal(app.rendered(home).partnerWelcome, false)
+  app.wx.reLaunch({ url: '/pages/index/index' })
+  await app.settle()
+  app.commit(app.currentPage)
+  assert.equal(app.rendered(app.currentPage).partnerWelcome, false)
+  assert.equal(app.storage.partnerWelcome, 'seen')
+})
+
+test('a failure screen leaves partner welcome pending until a retry renders the calendar', async t => {
+  const app = homeApp(t, { autoCommit: false, storage: { roomCode: 'ROOM01', partnerWelcome: 'pending' } })
+  const p = listRoute(app, 'periods').reject(new Error('network down'))
+  const m = listRoute(app, 'memories').reject(new Error('network down'))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  app.commit(home)
+  assert.equal(app.rendered(home).noRoom, true)
+  assert.equal(app.rendered(home).partnerWelcome, false)
+  assert.equal(app.storage.partnerWelcome, 'pending')
+  p.reply(success([]))
+  m.reply(success([]))
+  app.dispatch(home, 'handleRoomStatusAction')
+  await app.settle()
+  assert.equal(app.storage.partnerWelcome, 'pending')
+  app.commit(home)
+  assert.equal(app.rendered(home).partnerWelcome, true)
+  assert.equal(app.storage.partnerWelcome, 'seen')
+})
+
+test('remote changes mount the pill closed, enter after render, and retain copy until the timed exit completes', async t => {
+  const app = homeApp(t, { autoCommit: false })
+  const p = listRoute(app, 'periods').reply(success([]))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  app.commit(home)
+  await app.settle()
+  app.commit(home)
+  p.reject(new Error('network down'))
+  const m = listRoute(app, 'memories').reject(new Error('network down'))
+  await showAgain(app)
+  app.commit(home)
+  p.reply(success([period('p1', '2026-06-01')]))
+  m.reply(success([]))
+  await app.dispatch(home, 'retryRefresh')
+  app.commit(home)
+  assert.equal(app.rendered(home).syncStatusMounted, true)
+  assert.equal(app.rendered(home).syncStatusPhase, 'closed')
+  assert.equal(app.rendered(home).syncStatusText, '已同步')
+  await app.settle()
+  app.commit(home)
+  assert.equal(app.rendered(home).syncStatusPhase, 'open')
+  await app.advance(1599)
+  app.commit(home)
+  assert.equal(app.rendered(home).syncStatusPhase, 'open')
+  await app.advance(1)
+  app.commit(home)
+  assert.equal(app.rendered(home).syncStatusPhase, 'leaving')
+  assert.equal(app.rendered(home).syncStatusMounted, true)
+  assert.equal(app.rendered(home).syncStatusText, '已同步')
+  await app.advance(199)
+  app.commit(home)
+  assert.equal(app.rendered(home).syncStatusMounted, true)
+  await app.advance(1)
+  app.commit(home)
+  assert.equal(app.rendered(home).syncStatusMounted, false)
+  assert.equal(app.rendered(home).syncStatusPhase, 'closed')
+  assert.equal(app.rendered(home).syncStatusText, '')
+})
+
+test('a saved record reopens a leaving sync pill and confirmation updates its copy without remounting', async t => {
+  const app = homeApp(t)
+  const p = listRoute(app, 'periods').reply(success([]))
+  const m = listRoute(app, 'memories').reply(success([]))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  p.reply(success([period('p1', '2026-06-01')]))
+  await showAgain(app)
+  await app.advance(1700)
+  assert.equal(app.rendered(home).syncStatusPhase, 'leaving')
+  const saved = memory('saved', '2026-06-26', '测试重开胶囊')
+  await saveMemory(app, home, saved)
+  assert.equal(app.rendered(home).syncStatusPhase, 'open')
+  assert.equal(app.rendered(home).syncStatusMounted, true)
+  assert.equal(app.rendered(home).syncStatusText, '已更新，正在同步')
+  await app.advance(200)
+  assert.equal(app.rendered(home).syncStatusMounted, true)
+  m.reply(success([saved]))
+  await app.advance(800)
+  assert.equal(app.currentPage, home)
+  assert.equal(app.rendered(home).syncStatusPhase, 'open')
+  assert.equal(app.rendered(home).syncStatusText, '已同步')
+  assert.equal(app.rendered(home).syncStatusMounted, true)
+})
+
+test('another quiet show can reverse sync-pill entry before the render callback opens it', async t => {
+  const app = homeApp(t, { autoCommit: false })
+  const p = listRoute(app, 'periods').reply(success([]))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  app.commit(home)
+  await app.settle()
+  app.commit(home)
+  p.reject(new Error('network down'))
+  const m = listRoute(app, 'memories').reject(new Error('network down'))
+  await showAgain(app)
+  app.commit(home)
+  p.reply(success([period('p1', '2026-06-01')]))
+  m.reply(success([]))
+  await app.dispatch(home, 'retryRefresh')
+  app.commit(home)
+  assert.equal(app.rendered(home).syncStatusPhase, 'closed')
+  // A new lifecycle starts before the scheduled nextTick opens the pill.
+  app.hide()
+  app.show()
+  await app.settle()
+  app.commit(home)
+  assert.equal(app.rendered(home).syncStatusPhase, 'leaving')
+  assert.equal(app.rendered(home).syncStatusVisible, false)
+  assert.equal(app.rendered(home).syncStatusText, '已同步')
+  await app.settle()
+  app.commit(home)
+  assert.equal(app.rendered(home).syncStatusPhase, 'leaving')
+  await app.advance(200)
+  app.commit(home)
+  assert.equal(app.rendered(home).syncStatusMounted, false)
+  assert.equal(app.rendered(home).syncStatusText, '')
+})
+
+// August 2026 has six actual calendar rows. At 375 x 619 the existing
+// geometry contract is 55.33px without an extra row, 50px with welcome/retry.
+for (const banner of ['welcome', 'retry']) {
+  test(`${banner} reserves calendar space and gives it back when cleared`, async t => {
+    const app = homeApp(t, {
+      now: '2026-08-26T12:00:00+08:00',
+      windowInfo: { windowWidth: 375, windowHeight: 619 },
+      storage: { roomCode: 'ROOM01', ...(banner === 'welcome' ? { partnerWelcome: 'pending' } : {}) }
+    })
+    const m = listRoute(app, 'memories').reply(success([]))
+    if (banner === 'retry') m.reject(new Error('network down'))
+    const home = app.launch('/pages/index/index')
+    await app.settle()
+    assert.equal(app.rendered(home).calendarRowHeightPx, 50)
+    assert.equal(app.rendered(home).calendarInfoMerged, true)
+    if (banner === 'welcome') {
+      await app.dispatch(home, 'nextMonth')
+      await app.dispatch(home, 'prevMonth')
+      await app.settle()
+      assert.equal(app.rendered(home).calendarRowHeightPx, 50)
+      await showAgain(app)
+      assert.equal(app.rendered(home).partnerWelcome, false)
+    } else {
+      assertRetry(app, home, 'memories')
+      m.reply(success([]))
+      await app.dispatch(home, 'retryRefresh')
+      await app.settle()
+      assertRetry(app, home, null)
+    }
+    assert.equal(app.rendered(home).calendarRowHeightPx, 55.33)
+    if (banner === 'retry') {
+      listRoute(app, 'periods').reject(new Error('network down'))
+      m.reject(new Error('network down'))
+      await showAgain(app)
+      assertRetry(app, home, 'all')
+      assert.equal(app.rendered(home).calendarRowHeightPx, 50)
+    }
+  })
+}
