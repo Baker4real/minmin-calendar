@@ -11,7 +11,7 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 
 ## Project Shape
 
-- `pages/index/` - homepage calendar, prediction display, reminders, day details, and page-local record synchronization.
+- `pages/index/` - renders Calendar projection and forwards calendar/sheet/record events; keeps local reminder-seen storage, geometry and animation wiring, and the current page-local record synchronization and sync-pill timer pending the #182 migration.
 - `pages/period/` - 记录 tab hosting the segmented 经期/欢乐时光 lists, plus the period create/edit flow with optional flow and symptom tags.
 - `pages/memory/` - memory list plus create/edit flow.
 - `pages/bind/` - shared-room create, join, and recover flow.
@@ -28,7 +28,7 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 - `utils/roomRecordsSnapshot.js` - room-scoped Period/Memory snapshot loader for homepage partial sync and Settings all-or-nothing export.
 - `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind, and local-cache helper.
 - `utils/roomAccessOutcome.js` - client-side classification of room access failures plus outcome presentation mapping.
-- `utils/homeCalendarState.js` - pure homepage calendar state, marker meanings, and marker composition.
+- `utils/homeCalendarState.js` - the pure, complete homepage Calendar projection: markers and ARIA, status, quick-entry labels and destinations, reminder candidates, dated details/actions, prediction explanation, recap versus first-record guide, back-to-today visibility and record feedback; the sole owner of unsynced-collection display rules.
 - `utils/calendarRowHeight.js` - homepage calendar geometry ledger: row height between the 44px floor and the density cap, per-density cell content minimums, the compact merged info row, and whether the record entry fits the first screen; rows never shrink below their content, so a short screen scrolls instead of clipping.
 - `utils/safeArea.js` - runtime safe-area top/bottom computation; every page root injects `--safe-top`, `--safe-bottom`, `--nav-bar-height`, and `--capsule-right`.
 - `utils/util.js` - date, lunar, holiday, base calendar-grid helpers, and the month-swipe decision.

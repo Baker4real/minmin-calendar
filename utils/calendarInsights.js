@@ -8,19 +8,7 @@ const CONFIDENCE_COPY = {
   low: '记录还不多，仅供参考'
 }
 
-// 经期或欢乐时光集合一次都没同步上时（首页首次加载只有一个集合失败），手里的空列表不是事实：
-// 预测说明与本月小结不说「记录不够」「本月暂无」，只说哪一类未同步；另一类照常
-function buildPredictionExplanation(prediction, { periodsSynced = true } = {}) {
-  if (!periodsSynced) {
-    const lines = ['经期同步后再按记录估算']
-    return {
-      available: false,
-      title: '预测说明',
-      summary: cycle.UNSYNCED_PERIODS_TEXT,
-      lines,
-      lineItems: buildTextItems(lines, 'prediction')
-    }
-  }
+function buildPredictionExplanation(prediction) {
   if (!prediction || !prediction.canPredict) {
     const lines = ['至少需要连续的经期记录，预测才会更稳定']
     return {
@@ -65,9 +53,7 @@ function buildMonthlyRecap({
   periods = [],
   memories = [],
   prediction = null,
-  today = util.formatDate(new Date()),
-  periodsSynced = true,
-  memoriesSynced = true
+  today = util.formatDate(new Date())
 }) {
   const monthStart = `${year}-${pad2(month + 1)}-01`
   const monthEnd = `${year}-${pad2(month + 1)}-${pad2(new Date(year, month + 1, 0).getDate())}`
@@ -85,21 +71,11 @@ function buildMonthlyRecap({
   if (memoryHighlight) highlights.push(memoryHighlight)
 
   const title = `${year}年${month + 1}月小结`
-  const periodSummary = periodsSynced
-    ? formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd, today)
-    : '本月经期未同步'
-  const memorySummary = !memoriesSynced
-    ? '本月欢乐时光未同步'
-    : monthMemories.length ? `留下 ${monthMemories.length} 条欢乐时光` : '本月还没有欢乐时光'
-  const predictionSummary = periodsSynced ? formatPredictionSummary(prediction) : cycle.UNSYNCED_PERIODS_TEXT
+  const periodSummary = formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd, today)
+  const memorySummary = monthMemories.length ? `留下 ${monthMemories.length} 条欢乐时光` : '本月还没有欢乐时光'
+  const predictionSummary = formatPredictionSummary(prediction)
   const shareLines = [title, periodSummary, memorySummary, predictionSummary, ...highlights]
-  // 首页本月小结入口的一行：两部分各自按是否同步上说
-  const summaryLine = [
-    '本月',
-    periodsSynced ? `经期 ${periodDays} 天` : '经期未同步',
-    '·',
-    memoriesSynced ? `欢乐时光 ${monthMemories.length} 条` : '欢乐时光未同步'
-  ].join(' ')
+  const summaryLine = `本月 经期 ${periodDays} 天 · 欢乐时光 ${monthMemories.length} 条`
 
   return {
     title,

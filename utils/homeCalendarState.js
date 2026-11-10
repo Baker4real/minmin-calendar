@@ -2,6 +2,7 @@ const util = require('./util')
 const cycle = require('./cycle')
 const periodCoverage = require('./periodCoverage')
 const calendarInsights = require('./calendarInsights')
+const recordEditRoute = require('./recordEditRoute')
 
 // 单日经期色带样本：图例「经期记录」和首页「记经期」、当日弹层的经期动作画的是同一段色带（issue #159）
 const PERIOD_BAND_SAMPLE = {
@@ -53,8 +54,10 @@ const CALENDAR_LEGEND_ITEMS = [
   }
 ]
 
-// periodsSynced / memoriesSynced：该集合在这个房间里是否成功同步过一次。没同步过时手里的列表不是事实，
-// 状态行、本月小结与预测说明只说它未同步；经期没同步时也不预测（不画「预」、不给推迟提醒）。
+const UNSYNCED_PERIODS_TEXT = '经期未同步，暂不预测'
+
+// periodsSynced / memoriesSynced：该集合在这个房间里是否成功同步过一次。投影在这里统一解释未同步：
+// 本地标记、记录详情与小结保留；经期不报第几天、不预测、不出完成提醒；任一集合未同步都保留小结入口。
 // recordChange：这次投影带来的那条记录变化 { collection, mode, record, before }（before 是变化前的那个集合），
 // 投影据此给出记录成功反馈 recordFeedback（日期 → memory / period，issue #167）；没有变化就是空表
 function buildHomeCalendarState({
@@ -80,9 +83,9 @@ function buildHomeCalendarState({
     month,
     periods,
     memories,
-    nextPredict: prediction.canPredict ? prediction.nextStart : null,
     predictionWindow,
-    today
+    today,
+    periodsSynced
   })
   const monthlyRecap = calendarInsights.buildMonthlyRecap({
     year,
@@ -90,27 +93,51 @@ function buildHomeCalendarState({
     periods,
     memories,
     prediction,
-    today,
-    periodsSynced,
-    memoriesSynced
+    today
   })
+  let homeStatus = cycle.buildHomeStatusLine(periods, { today, prediction })
+  let predictionExplanation = calendarInsights.buildPredictionExplanation(prediction)
+  if (!periodsSynced) {
+    homeStatus = { status: 'unsynced', text: UNSYNCED_PERIODS_TEXT, tone: 'neutral' }
+    const lines = ['经期同步后再按记录估算']
+    predictionExplanation = {
+      available: false,
+      title: predictionExplanation.title,
+      summary: UNSYNCED_PERIODS_TEXT,
+      lines,
+      lineItems: [{ key: 'prediction:0', text: lines[0] }]
+    }
+    monthlyRecap.periodSummary = '本月经期未同步'
+    monthlyRecap.predictionSummary = UNSYNCED_PERIODS_TEXT
+  }
+  if (!memoriesSynced) monthlyRecap.memorySummary = '本月欢乐时光未同步'
+  if (!periodsSynced || !memoriesSynced) {
+    monthlyRecap.summaryLine = `本月 ${periodsSynced ? `经期 ${monthlyRecap.periodDays} 天` : '经期未同步'} · ${memoriesSynced ? `欢乐时光 ${monthlyRecap.memoryCount} 条` : '欢乐时光未同步'}`
+    monthlyRecap.shareText = [monthlyRecap.title, monthlyRecap.periodSummary, monthlyRecap.memorySummary,
+      monthlyRecap.predictionSummary, ...monthlyRecap.highlights].filter(Boolean).join('\n')
+  }
 
+  const quickAction = cycle.buildPeriodQuickAction(periods, { today })
+  const quickLabel = periodsSynced ? quickAction.label : quickAction.mode === 'complete' ? '记结束' : '记经期'
+
+  const todayDate = util.parseDate(today)
   return {
-    avgCycle: prediction.canPredict ? prediction.avgCycle : null,
-    avgDuration: prediction.canPredict ? prediction.avgDuration : null,
-    nextPredict: prediction.canPredict ? prediction.nextStart : null,
-    nextPredictDisplay: prediction.canPredict ? prediction.nextDisplay : '--',
-    nextPredictWeekday: prediction.canPredict ? prediction.nextWeekday : '',
-    predictionRangeDisplay: prediction.canPredict ? prediction.rangeDisplay : '',
-    predictionWindow,
-    predictConfidence: prediction.canPredict ? prediction.confidenceText : null,
-    predictionDetail: prediction,
+    hasRecords: periods.length > 0 || memories.length > 0 || !periodsSynced || !memoriesSynced,
+    showBackToToday: year !== todayDate.getFullYear() || month !== todayDate.getMonth(),
+    periodQuickLabel: quickLabel,
+    periodQuickAriaLabel: quickLabel,
+    periodQuickAction: buildPeriodEntry(periods, today, today, { completeOngoing: true }),
+    memoryQuickAction: { url: recordEditRoute.buildMemoryEditUrl({ date: today }) },
+    ongoingCompletionReminder: periodsSynced ? cycle.buildOngoingCompletionReminder(periods, { today }) : null,
     legendItems: CALENDAR_LEGEND_ITEMS,
     periodBandSample: PERIOD_BAND_SAMPLE,
-    predictionExplanation: calendarInsights.buildPredictionExplanation(prediction, { periodsSynced }),
-    homeStatus: cycle.buildHomeStatusLine(periods, { today, prediction, periodsSynced }),
+    predictionExplanation,
+    homeStatus,
     monthSummaryLine: monthlyRecap.summaryLine,
-    cycleReminders: prediction.canPredict ? cycle.buildCycleReminders(prediction, periods, { today }) : [],
+    cycleReminders: cycle.buildCycleReminders(prediction, periods, { today }).map(reminder => ({
+      ...reminder,
+      periodAction: buildPeriodEntry(periods, reminder.date, today)
+    })),
     monthlyRecap,
     days,
     recordFeedback: buildRecordFeedback(days, recordChange, { periods, memories, today }),
@@ -146,12 +173,12 @@ function recordFeedbackKind(collection, previous, saved, mode) {
   return periodCoverage.getPeriodStatus(previous) !== 'known-end' && periodCoverage.getPeriodStatus(saved) === 'known-end' ? 'period' : ''
 }
 
-function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextPredict = null, predictionWindow = null, today = util.formatDate(new Date()) }) {
+function buildHomeCalendarDays({ year, month, periods, memories, predictionWindow, today, periodsSynced }) {
   const periodDates = periodCoverage.getMonthCoverage(periods, year, month, today).dates
   const memoryDates = new Set(memories
     .map(memory => memory.date)
     .filter(isDateString))
-  const predictDates = collectPredictDates(nextPredict, year, month, predictionWindow)
+  const predictDates = collectPredictDates(year, month, predictionWindow)
 
   const days = util.buildCalendarDays({ year, month }).map(day => {
     if (!day || day.isEmpty) return { ...day, ariaLabel: '' }
@@ -166,7 +193,7 @@ function buildHomeCalendarDays({ year, month, periods = [], memories = [], nextP
       isMemory: memoryDates.has(day.date),
       isPredict: predictDates.has(day.date) && !isPeriod,
       lunarCellText: lunarCellLabel(day.lunarText),
-      periodDayCount: owner ? owner.day : 0
+      periodDayCount: periodsSynced && owner ? owner.day : 0
     }
     return { ...marked, ariaLabel: buildDayAriaLabel(marked, today) }
   })
@@ -199,32 +226,15 @@ function applyPeriodSegments(days, today) {
   })
 }
 
-function collectPredictDates(nextPredict, year, month, predictionWindow) {
+function collectPredictDates(year, month, predictionWindow) {
   const predictDates = new Set()
-  const startDate = predictionWindow && (predictionWindow.rangeStart || predictionWindow.startDate)
-  const endDate = predictionWindow && (predictionWindow.rangeEnd || predictionWindow.endDate)
-
-  if (isDateString(startDate) && isDateString(endDate) && startDate <= endDate) {
-    let date = util.parseDate(startDate)
-    const end = util.parseDate(endDate)
-    while (date <= end) {
-      if (date.getMonth() === month && date.getFullYear() === year) predictDates.add(util.formatDate(date))
-      date.setDate(date.getDate() + 1)
-    }
-    return predictDates
+  if (!predictionWindow) return predictDates
+  const date = util.parseDate(predictionWindow.rangeStart)
+  const end = util.parseDate(predictionWindow.rangeEnd)
+  while (date <= end) {
+    if (date.getMonth() === month && date.getFullYear() === year) predictDates.add(util.formatDate(date))
+    date.setDate(date.getDate() + 1)
   }
-
-  if (!isDateString(nextPredict)) return predictDates
-
-  const predictStart = util.parseDate(nextPredict)
-  for (let i = 0; i < 5; i++) {
-    const date = new Date(predictStart)
-    date.setDate(date.getDate() + i)
-    if (date.getMonth() === month && date.getFullYear() === year) {
-      predictDates.add(util.formatDate(date))
-    }
-  }
-
   return predictDates
 }
 
@@ -234,7 +244,7 @@ function isDateString(value) {
 
 function buildDayDetailsByDate(days, periods, memories, today, roomPaired = false) {
   const details = {}
-  const periodKeys = buildStableDetailKeys(periods, 'period', buildPeriodDetailFingerprint)
+  const periodKeys = buildStableDetailKeys(periods, 'period', period => buildPeriodDetailFingerprint(period, today))
   const memoryKeys = buildStableDetailKeys(memories, 'memory', buildMemoryDetailFingerprint)
 
   days.forEach(day => {
@@ -279,7 +289,13 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
       })
     const meanings = buildDayMeanings(day).filter(isDayDetailSentence)
 
+    const isFuture = day.date > today
     details[day.date] = {
+      title: util.formatDisplayDate(day.date, { today, withWeekday: true }),
+      subtitle: [day.lunarText, day.holidayName].filter(Boolean).join(' · '),
+      isFuture,
+      periodAction: isFuture ? null : buildPeriodEntry(periods, day.date, today),
+      memoryAction: isFuture ? null : { url: recordEditRoute.buildMemoryEditUrl({ date: day.date }) },
       meanings,
       periods: periodDetails,
       memories: memoryDetails,
@@ -290,6 +306,17 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
   })
 
   return details
+}
+
+// 所有新经期入口只转译归属 module 的完整落点，路由默认值由 recordEditRoute 持有。
+function buildPeriodEntry(periods, date, today, { completeOngoing = false } = {}) {
+  const decision = periodCoverage.decidePeriodRecordForDate(periods, date, { today })
+  const record = decision.action === 'open' ? decision.record : { startDate: decision.startDate }
+  return {
+    url: recordEditRoute.buildPeriodEditUrl(record,
+      completeOngoing && decision.reason === 'ongoing' ? { intent: 'complete', today } : undefined),
+    notice: decision.notice
+  }
 }
 
 function withAuthorLabel(row, authorLabel) {
@@ -373,9 +400,9 @@ function buildStableDetailKeys(records, type, buildFingerprint) {
   })
 }
 
-function buildPeriodDetailFingerprint(period) {
-  const range = util.normalizeDateRange(period) || {}
-  const detail = cycle.decoratePeriod(period)
+function buildPeriodDetailFingerprint(period, today) {
+  const range = periodCoverage.projectPeriodRange(period, today) || {}
+  const detail = cycle.decoratePeriod(period, { today })
   return [
     range.startDate || '',
     range.endDate || '',
@@ -463,7 +490,7 @@ function buildDayAriaLabel(day, today) {
       return
     }
     if (meaning.key === 'period') {
-      parts.push(`经期第${day.periodDayCount}天`)
+      parts.push(day.periodDayCount ? `经期第${day.periodDayCount}天` : '经期记录')
       if (day.isOngoingPeriod) parts.push(DAY_ARIA_MEANING_TEXT['period-ongoing'])
       else if (day.isUnknownEndPeriod) parts.push(DAY_ARIA_MEANING_TEXT['period-unknown-end'])
       return

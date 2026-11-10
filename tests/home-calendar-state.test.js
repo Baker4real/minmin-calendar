@@ -5,6 +5,133 @@ const cycle = require('../utils/cycle')
 const insights = require('../utils/calendarInsights')
 const { buildHomeCalendarState } = require('../utils/homeCalendarState')
 
+test('F2: unsynced local ongoing records keep their band and details without day counts or reminders', () => {
+  const state = buildHomeCalendarState({
+    year: 2026, month: 5, today: '2026-06-26', periodsSynced: false,
+    periods: [{ _id: 'local', startDate: '2026-06-20', status: 'ongoing' }],
+    memories: [{ _id: 'memory', date: '2026-06-26', note: '散步' }]
+  })
+  const today = state.days.find(day => day.date === '2026-06-26')
+  assert.equal(today.ariaLabel, '6月26日 周五 五月十二 今天 经期记录 经期进行中 欢乐时光')
+  assert.equal(today.periodDayCount, 0)
+  assert.equal(today.isPeriod, true)
+  assert.equal(today.periodOpenEnd, true)
+  assert.equal(state.homeStatus.text, '经期未同步，暂不预测')
+  assert.equal(state.periodQuickLabel, '记结束')
+  assert.equal(state.periodQuickAriaLabel, '记结束')
+  assert.equal(state.ongoingCompletionReminder, null)
+  assert.deepEqual(state.cycleReminders, [])
+  assert.equal(state.predictionExplanation.summary, '经期未同步，暂不预测')
+  assert.equal(state.days.some(day => day.isPredict), false)
+  assert.equal(state.monthSummaryLine, '本月 经期未同步 · 欢乐时光 1 条')
+  assert.equal(state.dayDetailsByDate['2026-06-26'].periods[0].range, '6月20日–6月26日（进行中）')
+  assert.doesNotMatch(JSON.stringify(state), /经期第\s*\d+\s*天/)
+})
+
+const firstScreenCases = [
+  { name: 'no periods', periods: [], count: 0, status: '多记几次后就能预测', quick: '记经期', aria: '', range: '', highlight: '' },
+  { name: 'ongoing', periods: [{ _id: 'live', startDate: '2026-06-20', status: 'ongoing' }], count: 7, status: '经期第 7 天', quick: '经期第 7 天 · 记结束', aria: ' 经期第7天 经期进行中', range: '6月20日–6月26日（进行中）', highlight: '经期：6月20日–6月26日，进行中，本月 7 天' },
+  { name: 'completed', periods: [{ _id: 'done', startDate: '2026-06-24', endDate: '2026-06-26', status: 'known-end' }], count: 3, status: '经期第 3 天', quick: '记经期', aria: ' 经期第3天', range: '6月24日–6月26日', highlight: '经期：6月24日–6月26日，3天' },
+  { name: 'unknown end', periods: [{ _id: 'unknown', startDate: '2026-06-26', status: 'unknown-end' }], count: 1, status: '经期第 1 天', quick: '记经期', aria: ' 经期第1天 结束日期不详', range: '6月26日（结束日期不详）', highlight: '经期：6月26日，结束日期不详' }
+]
+for (const scenario of firstScreenCases) {
+  for (const periodsSynced of [false, true]) {
+    for (const memoriesSynced of [false, true]) {
+      for (const hasMemory of [false, true]) {
+        test(`F2 first screen: ${scenario.name}, periods synced ${periodsSynced}, memories synced ${memoriesSynced}, memory ${hasMemory}`, () => {
+          const state = buildHomeCalendarState({
+            year: 2026, month: 5, today: '2026-06-26', periods: scenario.periods,
+            memories: hasMemory ? [{ _id: 'memory', date: '2026-06-26', note: '散步' }] : [],
+            periodsSynced, memoriesSynced
+          })
+          assert.equal(state.hasRecords, Boolean(scenario.periods.length || hasMemory || !periodsSynced || !memoriesSynced))
+          assert.equal(state.showBackToToday, false)
+          assert.equal(state.homeStatus.text, periodsSynced ? scenario.status : '经期未同步，暂不预测')
+          const quick = !periodsSynced && scenario.name === 'ongoing' ? '记结束' : scenario.quick
+          assert.equal(state.periodQuickLabel, quick)
+          assert.equal(state.periodQuickAriaLabel, quick)
+          assert.equal(state.periodQuickAction.url, scenario.name === 'ongoing'
+            ? '/pages/period/edit/edit?id=live&startDate=2026-06-20&endDate=2026-06-26&status=known-end'
+            : scenario.name === 'completed' ? '/pages/period/edit/edit?id=done&startDate=2026-06-24&endDate=2026-06-26&status=known-end'
+              : scenario.name === 'unknown end' ? '/pages/period/edit/edit?id=unknown&startDate=2026-06-26&status=unknown-end'
+                : '/pages/period/edit/edit?startDate=2026-06-26')
+          assert.equal(state.periodQuickAction.notice, scenario.name === 'ongoing' ? '已有进行中的经期，继续编辑它' : '')
+          assert.equal(state.memoryQuickAction.url, '/pages/memory/edit/edit?date=2026-06-26')
+          const aria = periodsSynced ? scenario.aria : scenario.aria.replace(/经期第\d+天/, '经期记录')
+          const day = state.days.find(item => item.date === '2026-06-26')
+          assert.equal(day.ariaLabel, `6月26日 周五 五月十二 今天${aria}${hasMemory ? ' 欢乐时光' : ''}`)
+          assert.equal(day.periodDayCount, periodsSynced && scenario.count ? (scenario.name === 'unknown end' ? 1 : scenario.count) : 0)
+          assert.equal(day.isPeriod, scenario.count > 0)
+          assert.equal(state.days.filter(item => item.isPeriod).length, scenario.count)
+          assert.equal(day.isMemory, hasMemory)
+          assert.equal(state.days.some(item => item.isPredict), false)
+          assert.deepEqual(state.cycleReminders, [])
+          assert.equal(Boolean(state.ongoingCompletionReminder), periodsSynced && scenario.name === 'ongoing')
+          if (state.ongoingCompletionReminder) {
+            assert.equal(state.ongoingCompletionReminder.title, '经期还未结束')
+            assert.equal(state.ongoingCompletionReminder.text, '已进行 7 天，超过预期的 5 天，可以补填结束日期')
+          }
+          assert.equal(state.predictionExplanation.available, false)
+          assert.equal(state.predictionExplanation.summary, periodsSynced ? '记录足够后会显示下次预测' : '经期未同步，暂不预测')
+          const explanationLine = periodsSynced ? '至少需要连续的经期记录，预测才会更稳定' : '经期同步后再按记录估算'
+          assert.deepEqual(state.predictionExplanation.lines, [explanationLine])
+          assert.deepEqual(state.predictionExplanation.lineItems, [{ key: 'prediction:0', text: explanationLine }])
+          assert.equal(state.monthSummaryLine, `本月 ${periodsSynced ? `经期 ${scenario.count} 天` : '经期未同步'} · ${memoriesSynced ? `欢乐时光 ${hasMemory ? 1 : 0} 条` : '欢乐时光未同步'}`)
+          assert.equal(state.monthlyRecap.periodSummary, !periodsSynced ? '本月经期未同步' : scenario.count ? `本月记录了 1 次经期，共 ${scenario.count} 天` : '本月暂无经期记录')
+          assert.equal(state.monthlyRecap.memorySummary, !memoriesSynced ? '本月欢乐时光未同步' : hasMemory ? '留下 1 条欢乐时光' : '本月还没有欢乐时光')
+          assert.deepEqual(state.monthlyRecap.highlights, [scenario.highlight, hasMemory ? '欢乐时光：散步' : ''].filter(Boolean))
+          assert.ok(state.monthlyRecap.shareText.includes(state.monthlyRecap.periodSummary))
+          assert.ok(state.monthlyRecap.shareText.includes(state.monthlyRecap.memorySummary))
+          const detail = state.dayDetailsByDate['2026-06-26']
+          assert.equal(detail.title, '6月26日 周五')
+          assert.equal(detail.subtitle, '五月十二')
+          assert.equal(detail.isFuture, false)
+          assert.deepEqual(detail.meanings, [])
+          assert.deepEqual(detail.periods.map(item => item.range), scenario.range ? [scenario.range] : [])
+          assert.deepEqual(detail.memories.map(item => item.note), hasMemory ? ['散步'] : [])
+          assert.deepEqual(detail.actions.map(item => item.label), [scenario.count ? '编辑这次经期' : '记经期', '记欢乐时光'])
+          assert.equal(detail.futureNotice, null)
+          assert.equal(detail.empty, !scenario.count && !hasMemory)
+          const future = state.dayDetailsByDate['2026-06-27']
+          assert.equal(future.isFuture, true)
+          assert.deepEqual(future.actions, [])
+          assert.equal(future.periodAction, null)
+          assert.equal(future.futureNotice.title, '未来日期不能新增记录')
+          if (!periodsSynced) assert.doesNotMatch(JSON.stringify(state), /经期第\s*\d+\s*天/)
+        })
+      }
+    }
+  }
+}
+
+for (const periodsSynced of [false, true]) {
+  for (const memoriesSynced of [false, true]) {
+    test(`F2 prediction and cycle reminders: periods synced ${periodsSynced}, memories synced ${memoriesSynced}`, () => {
+      const state = buildHomeCalendarState({
+        year: 2026, month: 5, today: '2026-06-26', periodsSynced, memoriesSynced,
+        periods: [
+          { startDate: '2026-04-28', endDate: '2026-05-02' },
+          { startDate: '2026-05-26', endDate: '2026-05-30' }
+        ]
+      })
+      assert.equal(state.hasRecords, true)
+      assert.equal(state.homeStatus.text, periodsSynced ? '这几天可能开始' : '经期未同步，暂不预测')
+      assert.equal(state.periodQuickLabel, '记经期')
+      assert.equal(state.ongoingCompletionReminder, null)
+      assert.deepEqual(state.days.filter(day => day.isPredict).map(day => day.date), periodsSynced
+        ? ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26'] : [])
+      assert.equal(state.predictionExplanation.summary, periodsSynced ? '预计 6月23日 开始，\n前后 3 天是可能开始的窗口' : '经期未同步，暂不预测')
+      assert.deepEqual(state.cycleReminders, periodsSynced ? [{
+        type: 'due', title: '这几天可能开始', text: '如果已经开始，可以记经期',
+        action: 'quickPeriod', date: '2026-06-26',
+        periodAction: { url: '/pages/period/edit/edit?startDate=2026-06-26', notice: '' }
+      }] : [])
+      assert.deepEqual(state.dayDetailsByDate['2026-06-26'].meanings.map(item => item.text), periodsSynced ? ['这一天是下次可能开始的日子。'] : [])
+      assert.equal(state.monthSummaryLine, `本月 ${periodsSynced ? '经期 0 天' : '经期未同步'} · ${memoriesSynced ? '欢乐时光 0 条' : '欢乐时光未同步'}`)
+    })
+  }
+}
+
 test('F1: an ongoing period owns today even when a later completed record covers it', () => {
   const state = buildHomeCalendarState({
     year: 2026, month: 5, today: '2026-06-26',
@@ -153,15 +280,10 @@ test('buildHomeCalendarState returns fallback prediction state and explicit day 
     today: '2026-08-03'
   })
 
-  assert.equal(state.avgCycle, null)
-  assert.equal(state.avgDuration, null)
-  assert.equal(state.nextPredict, null)
-  assert.equal(state.nextPredictDisplay, '--')
-  assert.equal(state.nextPredictWeekday, '')
-  assert.equal(state.predictionRangeDisplay, '')
-  assert.equal(state.predictionWindow, null)
-  assert.equal(state.predictConfidence, null)
-  assert.deepEqual(state.predictionDetail, prediction)
+  assert.equal(state.homeStatus.text, '经期第 3 天')
+  assert.equal(state.periodQuickLabel, '记经期')
+  assert.equal(state.predictionExplanation.available, false)
+  assert.equal(state.monthSummaryLine, '本月 经期 5 天 · 欢乐时光 1 条')
   assert.deepEqual(state.predictionExplanation, insights.buildPredictionExplanation(prediction))
   assert.deepEqual(
     state.legendItems.map(item => item.key),
@@ -220,27 +342,19 @@ test('buildHomeCalendarState reuses cycle and insight helpers for predictable re
     today: '2026-08-10'
   })
 
-  assert.equal(state.avgCycle, prediction.avgCycle)
-  assert.equal(state.avgDuration, prediction.avgDuration)
-  assert.equal(state.nextPredict, prediction.nextStart)
-  assert.equal(state.nextPredictDisplay, prediction.nextDisplay)
-  assert.equal(state.nextPredictWeekday, prediction.nextWeekday)
-  assert.equal(state.predictionRangeDisplay, prediction.rangeDisplay)
-  assert.deepEqual(state.predictionWindow, {
-    rangeStart: prediction.rangeStart,
-    rangeEnd: prediction.rangeEnd
-  })
-  assert.equal(state.predictConfidence, prediction.confidenceText)
-  assert.deepEqual(state.predictionDetail, prediction)
+  assert.equal(state.homeStatus.text, '这几天可能开始')
+  assert.equal(state.predictionExplanation.summary, '预计 8月10日 开始，\n前后 1 天是可能开始的窗口')
+  assert.ok(state.predictionExplanation.lines.includes('平均周期 28 天，平均持续 5 天'))
   assert.deepEqual(state.predictionExplanation, insights.buildPredictionExplanation(prediction))
   assert.deepEqual(
     state.legendItems.map(item => item.key),
     ['today', 'period', 'memory', 'predict', 'holiday', 'workday']
   )
-  assert.deepEqual(
-    state.cycleReminders,
-    cycle.buildCycleReminders(prediction, periods, { today: '2026-08-10' })
-  )
+  assert.deepEqual(state.cycleReminders, [{
+    type: 'due', title: '这几天可能开始', text: '如果已经开始，可以记经期',
+    action: 'quickPeriod', date: '2026-08-10',
+    periodAction: { url: '/pages/period/edit/edit?startDate=2026-08-10', notice: '' }
+  }])
   assert.deepEqual(
     state.monthlyRecap,
     insights.buildMonthlyRecap({ year: 2026, month: 7, periods, memories, prediction })
@@ -1170,9 +1284,6 @@ test('buildHomeCalendarState invents no prediction or marks when there is no his
   })
 
   // 无历史：不产出预测，也不出现任何预测或经期标记
-  assert.equal(state.avgDuration, null)
-  assert.equal(state.nextPredict, null)
-  assert.equal(state.predictionWindow, null)
   assert.equal(state.days.some(day => day.isPredict), false)
   assert.equal(state.days.some(day => day.isPeriod), false)
   assert.equal(state.predictionExplanation.available, false)
@@ -1195,9 +1306,6 @@ test('a single ongoing record projects start-through-today without inventing a p
     state.days.filter(day => day.isPeriod).map(day => day.date),
     ['2026-08-10', '2026-08-11', '2026-08-12', '2026-08-13']
   )
-  assert.equal(state.avgDuration, null)
-  assert.equal(state.nextPredict, null)
-  assert.equal(state.predictionWindow, null)
   assert.equal(state.days.some(day => day.isPredict), false)
   assert.equal(state.predictionExplanation.available, false)
   assert.equal(state.monthlyRecap.highlights[0], '经期：8月10日–8月13日，进行中，本月 4 天')
@@ -1220,9 +1328,7 @@ test('homepage prediction keeps durations from completed history when an ongoing
 
   // 进行中的开始日参与周期起点（下次预测从 08-10 起算），
   // 持续时长取已完成历史 3、5、5 的中位数 5，存库的 99 不进统计
-  assert.equal(state.avgCycle, 28)
-  assert.equal(state.avgDuration, 5)
-  assert.equal(state.nextPredict, '2026-09-07')
+  assert.equal(state.predictionExplanation.summary, '预计 9月7日 开始，\n前后 1 天是可能开始的窗口')
   assert.ok(state.predictionExplanation.lines.includes('平均周期 28 天，平均持续 5 天'))
 
   // 八月标记只来自进行中投影：08-10 到今天 08-12
@@ -1249,9 +1355,7 @@ test('homepage prediction excludes an unknown-end record from duration but marks
   })
 
   // 结束日期不详的开始日可作为最近周期起点，但存库 9 天不进持续时长中位数
-  assert.equal(state.avgCycle, 28)
-  assert.equal(state.avgDuration, 5)
-  assert.equal(state.nextPredict, '2026-09-07')
+  assert.equal(state.predictionExplanation.summary, '预计 9月7日 开始，\n前后 1 天是可能开始的窗口')
 
   // 日历上只有已知开始日带经期标记，不延伸范围
   assert.deepEqual(

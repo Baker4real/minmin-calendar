@@ -358,6 +358,85 @@ test('future dates keep holiday and workday meanings with a persistent no-record
   assert.equal(app.rendered(home).selectedDateSubtitle, '闰四月初一')
 })
 
+test('day titles and quick entries keep the rendered today across midnight until the next calendar projection', async t => {
+  const app = homeApp(t, { now: '2026-12-31T23:59:59+08:00', periods: [period('live', '2026-12-25', '', 'ongoing')] })
+  const home = await launch(app)
+  assert.equal(app.rendered(home).homeStatus.text, '经期第 7 天')
+  await app.advance(2000)
+  await day(app, home, '2026-12-31')
+  assert.equal(app.rendered(home).selectedDateLabel, '12月31日 周四')
+  assert.equal(app.rendered(home).selectedDayDetail.periods[0].range, '12月25日–12月31日（进行中）')
+  await closeSheet(app, home, 'dayActions')
+  await tap(app, home, 'quickPeriod')
+  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=live&startDate=2026-12-25&endDate=2026-12-31&status=known-end')
+  await back(app)
+  await tap(app, home, 'nextMonth')
+  const january = app.rendered(home)
+  assert.equal(january.showBackToToday, false)
+  assert.equal(january.homeStatus.text, '经期第 8 天')
+  assert.deepEqual(january.days.filter(item => item.isToday).map(item => item.date), ['2027-01-01'])
+  assert.equal(january.periodQuickLabel, '经期第 8 天 · 记结束')
+  await tap(app, home, 'quickMemory')
+  assert.equal(navigation(app).at(-1), '/pages/memory/edit/edit?date=2027-01-01')
+})
+
+test('a calendar render samples today once even when the system clock crosses midnight during projection', async t => {
+  const app = homeApp(t, { now: '2026-12-31T23:59:59+08:00', periods: [period('live', '2026-12-25', '', 'ongoing')] })
+  const home = await launch(app)
+  const Clock = global.Date
+  let todayReads = 0
+  function MidnightDate(...args) {
+    if (args.length) return new Clock(...args)
+    return new Clock(todayReads++ === 0 ? '2026-12-31T23:59:59+08:00' : '2027-01-01T00:00:00+08:00')
+  }
+  MidnightDate.prototype = Clock.prototype
+  Object.setPrototypeOf(MidnightDate, Clock)
+  try {
+    global.Date = MidnightDate
+    app.dispatch(home, 'nextMonth')
+  } finally {
+    global.Date = Clock
+  }
+  await app.settle()
+  const data = app.rendered(home)
+  assert.equal(todayReads, 1)
+  assert.equal(data.showBackToToday, true)
+  assert.equal(data.homeStatus.text, '经期第 7 天')
+  assert.equal(data.periodQuickLabel, '经期第 7 天 · 记结束')
+  assert.deepEqual(data.days.filter(item => item.isToday), [])
+  await day(app, home, '2027-01-01')
+  assert.equal(app.rendered(home).selectedDateLabel, '2027年1月1日 周五')
+  assert.equal(app.rendered(home).selectedDateIsFuture, true)
+  assert.deepEqual(app.rendered(home).selectedDayDetail.actions, [])
+})
+
+test('a completion candidate is not seen until its first visible render commits', async t => {
+  const app = homeApp(t, { autoCommit: false, periods: [period('live', '2026-06-20', '', 'ongoing')] })
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  app.hide()
+  assert.equal(app.storage.ongoingPeriodReminderShown, undefined)
+  app.commit(home)
+  app.show()
+  await app.settle()
+  assert.equal(app.storage.ongoingPeriodReminderShown, undefined)
+  app.commit(home)
+  await app.settle()
+  app.commit(home)
+  assert.equal(app.rendered(home).ongoingCompletionReminder.title, '经期还未结束')
+  app.hide()
+  assert.equal(app.storage.ongoingPeriodReminderShown, 'live')
+})
+
+test('a previously visible completion reminder stays seen when a later calendar render has not committed', async t => {
+  const app = homeApp(t, { autoCommit: false, periods: [period('live', '2026-06-20', '', 'ongoing')] })
+  const home = await launch(app)
+  assert.equal(app.rendered(home).ongoingCompletionReminder.title, '经期还未结束')
+  app.dispatch(home, 'nextMonth')
+  app.hide()
+  assert.equal(app.storage.ongoingPeriodReminderShown, 'live')
+})
+
 test('completion reminder waits for leaving, survives refresh and is seen once per record', async t => {
   const app = homeApp(t, { periods: [period('p2', '2026-06-20', '', 'ongoing')] })
   const home = await launch(app)

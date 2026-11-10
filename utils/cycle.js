@@ -375,20 +375,9 @@ function findOngoingPeriod(periods = []) {
   return entry.reason === 'ongoing' ? entry.record : null
 }
 
-// 经期集合一次都没同步上时（首页首次加载只有经期失败），状态行与预测说明共用这一句
-const UNSYNCED_PERIODS_TEXT = '经期未同步，暂不预测'
-
 // 首页状态行。经期覆盖今天时优先于预测；预测窗口沿用既有预计开始日 ± 波动天数。
 // 推迟只用中性语气，不表示警示。
 function buildHomeStatusLine(periods, options = {}) {
-  // 经期集合一次都没同步上时，手里的列表不完整：不说经期第几天、不估算、也不说记录不够
-  if (options.periodsSynced === false) {
-    return {
-      status: 'unsynced',
-      text: UNSYNCED_PERIODS_TEXT,
-      tone: 'neutral'
-    }
-  }
   const today = isDateString(options.today) ? options.today : util.formatDate(new Date())
   const prediction = options.prediction || predictNextPeriod(periods, { ...options, today })
   const active = periodCoverage.getPeriodOnDate(periods, today, today)
@@ -610,7 +599,6 @@ module.exports = {
   SYMPTOM_GROUPS,
   SYMPTOM_OPTIONS,
   PERIOD_STATUS_OPTIONS,
-  UNSYNCED_PERIODS_TEXT,
   predictNextPeriod,
   buildCycleReminders,
   buildOngoingCompletionReminder,
