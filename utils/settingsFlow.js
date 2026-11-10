@@ -2,13 +2,14 @@ const cloudApi = require('./cloud')
 const roomSessionApi = require('./room')
 const roomAccessOutcome = require('./roomAccessOutcome')
 const roomRecordsSnapshot = require('./roomRecordsSnapshot')
+const wxPrompts = require('./wxPrompts')
 
 const ROOM_LEAVE_NOTICE_KEY = 'bindUnbindNotice'
 
 // Pages render the outcome; confirmation, server leave and the pending notice belong here.
 function leaveRoom({ onResult, notifyOnBind = false }) {
   const wxApi = getWx()
-  wxApi.showModal({
+  wxPrompts.modal({
     title: '解除绑定',
     content: '解除绑定后你会退出这个房间。TA 还在的话会留在房间里；房间里只剩你时，房间会归档。之后在绑定页点「创建」即可恢复。',
     confirmText: '解除绑定',
@@ -35,7 +36,7 @@ function leaveRoom({ onResult, notifyOnBind = false }) {
       kind: 'failure',
       message: roomAccessOutcome.presentUserFailure(error.errMsg || getErrorMessage(error))
     })
-  })
+  }, wxApi)
 }
 
 function consumeRoomLeaveNotice() {
@@ -151,12 +152,8 @@ function clearLocalCache(options = {}) {
 
 function confirmExport(options = {}) {
   const wxApi = resolveWxApi(options)
-  if (!wxApi || typeof wxApi.showModal !== 'function') {
-    return Promise.resolve({ kind: 'confirmed' })
-  }
-
   return new Promise(resolve => {
-    wxApi.showModal({
+    wxPrompts.modal({
       title: '导出数据',
       content: '会导出全部经期和欢乐时光。建议发到「文件传输助手」保存。目前还不能导入恢复。',
       confirmText: '开始导出',
@@ -164,7 +161,7 @@ function confirmExport(options = {}) {
       success: result => {
         resolve(result && result.confirm ? { kind: 'confirmed' } : { kind: 'cancelled' })
       }
-    })
+    }, wxApi)
   })
 }
 
@@ -176,50 +173,13 @@ function createRoomDataClient(cloud, roomSession) {
 }
 
 function handleExportLoadFailure(wxApi, outcome, retryExport, navigateToBind) {
-  const prompt = roomAccessOutcome.buildModalRoomAccessPrompt(outcome, {
-    retryTitle: '导出失败',
-    retryContent: '导出失败，请检查网络',
-    noRoomContent: '导出前需要先绑定房间',
-    repairRetryContent: getRoomRepairMessage(outcome.repair)
+  const presentation = roomAccessOutcome.presentRoomAccessFailure(outcome, 'export')
+  return wxPrompts.present(presentation, {
+    wx: wxApi,
+    retry: retryExport,
+    navigateToBind,
+    fallback: presentation.mode === 'toast' ? { kind: 'export-failed', message: presentation.content } : outcome
   })
-
-  if (prompt.mode === 'retry') {
-    return promptRetry({
-      wxApi,
-      title: prompt.title,
-      content: prompt.content,
-      retryAction: retryExport,
-      fallback: outcome
-    })
-  }
-
-  if (prompt.mode === 'navigate-to-bind') {
-    return promptNavigateToBind({
-      wxApi,
-      title: prompt.title,
-      content: prompt.content,
-      navigateToBind,
-      fallback: outcome
-    })
-  }
-
-  showToast(wxApi, { title: prompt.content, icon: 'none' })
-  return {
-    kind: 'export-failed',
-    message: prompt.content
-  }
-}
-
-function getRoomRepairMessage(repair) {
-  if (repair && repair.kind === 'success' && repair.bound && repair.roomCode) {
-    return '房间状态已更新，请重试导出'
-  }
-  if (repair && repair.kind === 'success' && !repair.bound) {
-    return '房间状态已变化，请重新绑定'
-  }
-  return roomAccessOutcome.presentUserFailure(
-    repair && repair.message ? repair.message : '同步房间状态失败，请稍后重试'
-  )
 }
 
 function createLoadingGuard(wxApi) {
@@ -340,51 +300,6 @@ function createNavigateToBind(wxApi) {
     return () => wxApi.navigateTo({ url: '/pages/bind/bind' })
   }
   return () => {}
-}
-
-function promptRetry({ wxApi, title, content, retryAction, fallback }) {
-  if (!wxApi || typeof wxApi.showModal !== 'function' || typeof retryAction !== 'function') {
-    showToast(wxApi, { title: content, icon: 'none' })
-    return Promise.resolve(fallback)
-  }
-
-  return new Promise(resolve => {
-    wxApi.showModal({
-      title,
-      content,
-      confirmText: '重试',
-      cancelText: '取消',
-      success: async (result) => {
-        if (!result.confirm) {
-          resolve(fallback)
-          return
-        }
-        resolve(retryAction())
-      }
-    })
-  })
-}
-
-function promptNavigateToBind({ wxApi, title, content, navigateToBind, fallback }) {
-  if (!wxApi || typeof wxApi.showModal !== 'function' || typeof navigateToBind !== 'function') {
-    showToast(wxApi, { title: content, icon: 'none' })
-    return Promise.resolve(fallback)
-  }
-
-  return new Promise(resolve => {
-    wxApi.showModal({
-      title,
-      content,
-      confirmText: '去绑定',
-      cancelText: '取消',
-      success: async (result) => {
-        if (result.confirm) {
-          navigateToBind()
-        }
-        resolve(fallback)
-      }
-    })
-  })
 }
 
 function getWx() {

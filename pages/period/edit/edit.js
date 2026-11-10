@@ -2,6 +2,7 @@ const util = require('../../../utils/util')
 const cloud = require('../../../utils/cloud')
 const cycle = require('../../../utils/cycle')
 const recordCommands = require('../../../utils/recordCommands')
+const wxPrompts = require('../../../utils/wxPrompts')
 const recordDraft = require('../../../utils/recordDraft')
 const recordEditRoute = require('../../../utils/recordEditRoute')
 const recordFieldErrors = require('../../../utils/recordFieldErrors')
@@ -217,7 +218,6 @@ Page(withPageVisibility({
       },
       validate: () => collectPeriodFieldErrors({ startDate, endDate, status }, today),
       successTitle: '保存成功',
-      failureTitle: '保存失败',
       mergedTitle: '已打开进行中的经期',
       mergedContent: '房间里已有一条进行中的经期，已为你打开它'
     })
@@ -264,15 +264,19 @@ Page(withPageVisibility({
       const covering = cycle.findPeriodCoveringDate(this._periodHistory, this.data.startDate, today)
       if (!covering) return 'save'
       const editExisting = await new Promise(resolve => {
-        wx.showModal({
+        wxPrompts.modal({
           title: '这一天已有经期',
           content: '开始日已经落在一条已有经期里。',
           confirmText: '去编辑那条',
           cancelText: '仍然新建',
           success: res => resolve(!!(res && res.confirm)),
-          fail: () => resolve(false)
+          fail: () => {
+            wxPrompts.present({ mode: 'toast', content: '这次没有完成，请重试' })
+            resolve(null)
+          }
         })
       })
+      if (editExisting === null) return { kind: 'cancelled' }
       if (!editExisting) return 'save'
       this.discardRecordDraft()
       wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(covering) })
@@ -355,8 +359,7 @@ Page(withPageVisibility({
         action: () => client.remove('periods', this.data.id),
         confirmTitle: '确认删除',
         confirmContent: '删除后你们两人的日历都会移除这条经期记录，且不可恢复',
-        successTitle: '已删除',
-        failureTitle: '删除失败'
+        successTitle: '已删除'
       })
       if (outcome.kind === 'success') {
         this.discardRecordDraft()

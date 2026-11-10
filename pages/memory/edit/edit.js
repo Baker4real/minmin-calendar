@@ -129,8 +129,7 @@ Page(withPageVisibility({
       },
       validate: () => collectMemoryFieldErrors({ date }, today),
       successTitle: '已存进你们的欢乐时光',
-      successIcon: 'none',
-      failureTitle: '保存失败'
+      successIcon: 'none'
     })
     if (outcome && outcome.kind === 'validation') {
       this.showFieldErrors(outcome.fieldErrors)
@@ -161,8 +160,7 @@ Page(withPageVisibility({
         action: () => client.remove('memories', this.data.id),
         confirmTitle: '确认删除',
         confirmContent: '删除后你们两人的日历都会移除这条欢乐时光，且不可恢复',
-        successTitle: '已删除',
-        failureTitle: '删除失败'
+        successTitle: '已删除'
       })
       if (outcome.kind === 'success') {
         this.discardRecordDraft()

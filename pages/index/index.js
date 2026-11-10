@@ -2,6 +2,7 @@ const util = require('../../utils/util')
 const cloud = require('../../utils/cloud')
 const cycle = require('../../utils/cycle')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
+const wxPrompts = require('../../utils/wxPrompts')
 const recordEditRoute = require('../../utils/recordEditRoute')
 const recordDraft = require('../../utils/recordDraft')
 const roomRecordsSnapshot = require('../../utils/roomRecordsSnapshot')
@@ -794,13 +795,10 @@ Page(withPageVisibility({
   },
 
   handleRoomStatusAction() {
-    if (this.data.roomStatusAction === 'bind') {
-      this.goBind()
-      return
-    }
-    if (!this._loadingPromise) {
-      this._loadingPromise = this.loadData({ background: false })
-    }
+    return wxPrompts.runAction(this.data.roomStatusAction, {
+      navigateToBind: () => this.goBind(),
+      retry: () => this.loadData({ background: false })
+    })
   },
 
   // 首页已加载后的刷新失败重试：保持后台刷新语义，失败时日历与重试句都留驻，
@@ -1078,15 +1076,12 @@ Page(withPageVisibility({
   },
 
   applyRoomStatusOutcome(outcome) {
-    this.showRoomStatus(roomAccessOutcome.buildInlineRoomStatus(outcome, {
-      noRoomTitle: '还没绑定房间',
-      noRoomDesc: '需要先创建或加入一个共享房间\n才能和对方一起使用',
-      failureTitle: '日历加载失败',
-      fallbackDesc: '请检查网络后重试'
-    }))
+    return wxPrompts.present(roomAccessOutcome.presentRoomAccessFailure(outcome, 'home'), {
+      showInline: presentation => this.showRoomStatus(presentation)
+    })
   },
 
-  showRoomStatus({ title, desc, actionText, action }) {
+  showRoomStatus({ title, content: desc, actionText, action }) {
     this.hideSyncStatus()
     // 下一次能显示日历时按那次同步的结果重新判定哪些集合同步上了
     this._ensureSyncState().synced = { periods: false, memories: false }

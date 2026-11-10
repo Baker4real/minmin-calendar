@@ -216,7 +216,8 @@ test('runRecordSave classifies a reopened save as merged and explains it with a 
     content: '房间里已有一条进行中的经期，已为你打开它',
     showCancel: false,
     confirmText: '知道了',
-    success: modal.success
+    success: modal.success,
+    fail: modal.fail
   })
   assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
 
@@ -323,7 +324,8 @@ test('runRecordSave does not replay unknown save mutations after retryable failu
     content: '保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
     confirmText: '知道了',
     showCancel: false,
-    success: modal.success
+    success: modal.success,
+    fail: modal.fail
   })
   assert.deepEqual(env.wx.toasts, [])
   assert.equal(env.timer.calls.length, 0)
@@ -637,7 +639,7 @@ test('runRecordSave keeps room repair sync failures visible without replaying th
   assert.deepEqual(result, {
     kind: 'room-repair',
     action: 'refresh-check',
-    message: '网络不太稳定，请重试\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
+    message: '网络不太稳定\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
     roomCode: 'ROOM01',
     repair: {
       kind: 'retryable-failure',
@@ -647,10 +649,11 @@ test('runRecordSave keeps room repair sync failures visible without replaying th
   assert.deepEqual(page.setDataCalls, [{ saving: true }, { saving: false }])
   assert.deepEqual(modal, {
     title: '保存失败',
-    content: '网络不太稳定，请重试\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
+    content: '网络不太稳定\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
     confirmText: '知道了',
     showCancel: false,
-    success: modal.success
+    success: modal.success,
+    fail: modal.fail
   })
   assert.deepEqual(env.wx.toasts, [])
   assert.equal(env.timer.calls.length, 0)
@@ -881,7 +884,7 @@ test('runRecordDelete keeps room repair sync failures visible without replaying 
   assert.deepEqual(result, {
     kind: 'room-repair',
     action: 'refresh-check',
-    message: '网络不太稳定，请重试\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
+    message: '网络不太稳定\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
     roomCode: 'ROOM01',
     repair: {
       kind: 'retryable-failure',
@@ -892,10 +895,11 @@ test('runRecordDelete keeps room repair sync failures visible without replaying 
   assert.deepEqual(page.setDataCalls, [{ deleting: true }, { deleting: false }])
   assert.deepEqual(modal, {
     title: '删除失败',
-    content: '网络不太稳定，请重试\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
+    content: '网络不太稳定\n\n删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
     confirmText: '知道了',
     showCancel: false,
-    success: modal.success
+    success: modal.success,
+    fail: modal.fail
   })
   assert.deepEqual(env.wx.toasts, [])
   assert.equal(env.timer.calls.length, 0)

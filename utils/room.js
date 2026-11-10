@@ -246,30 +246,6 @@ function getErrorMessage(error) {
   return error && error.message ? error.message : String(error || '未知错误')
 }
 
-function presentRoomActionMessage(msg, logger) {
-  const text = typeof msg === 'string' ? msg.trim() : ''
-  if (isProductRoomMessage(text)) return text
-  logger.error(msg || 'room action failed')
-  return presentRoomActionFailure(text)
-}
-
-function isProductRoomMessage(text) {
-  if (!text) return false
-  if (/[A-Za-z]/.test(text)) return false
-  if (/\d+\s*ms/.test(text)) return false
-  return true
-}
-
-function presentRoomActionFailure(error) {
-  const text = getErrorMessage(error)
-  if (isRetryableNetworkFailure(text)) return '网络不太稳定，请重试'
-  return '这次没有完成，请重试'
-}
-
-function isRetryableNetworkFailure(text) {
-  return /timeout|timed out|超时|network|云数据库|\d+\s*ms|request:fail/i.test(text)
-}
-
 function getFailureMessage(result) {
   return result && result.msg ? result.msg : '未知错误'
 }

@@ -88,9 +88,7 @@ Page(withPageVisibility({
       onLoaded: periods => {
         this.calcStats(periods)
         this.setData({ hasLoaded: true })
-      },
-      retryableTitle: '加载失败，请检查网络',
-      failureTitle: '加载失败'
+      }
     })
     await labelLoadedPeriods(this, outcome, pairedPromise)
   },
@@ -117,9 +115,7 @@ Page(withPageVisibility({
             this.memoryMonthChoices
           )
         })
-      },
-      retryableTitle: '加载失败，请检查网络',
-      failureTitle: '加载失败'
+      }
     })
     await labelLoadedMemories(this, outcome, pairedPromise, today)
   },

@@ -1,9 +1,10 @@
 /**
  * Adapter between record operations and the WeChat page lifecycle.
- * Business outcome classification stays in roomAccessOutcome; this module
- * intentionally owns only page state, wx feedback, navigation, and retries.
+ * Failure presentation belongs to roomAccessOutcome and is executed by wxPrompts.
+ * Editing coordination remains here and in the edit pages until the session migration.
  */
 const roomAccessOutcome = require('./roomAccessOutcome')
+const wxPrompts = require('./wxPrompts')
 
 function runRecordSave(options) {
   const opts = options || {}
@@ -16,7 +17,6 @@ function runRecordSave(options) {
     loadingKey = 'saving',
     successTitle = '保存成功',
     successIcon,
-    failureTitle = '保存失败',
     successDelay = 1000
   } = opts
   const navigateBack = typeof opts.navigateBack === 'function'
@@ -35,14 +35,12 @@ function runRecordSave(options) {
     loadingKey,
     successTitle,
     successIcon,
-    failureTitle,
     mergedTitle: opts.mergedTitle,
     mergedContent: opts.mergedContent,
     navigateBack,
     navigateToBind,
     successDelay,
-    retryableMode: 'confirm-state',
-    retryableAdvice: '保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
+    operation: 'save',
     refetch: opts.refetch,
     reconcile: opts.reconcile
   })
@@ -63,13 +61,9 @@ function runRecordDelete(options) {
     ? opts.navigateBack
     : createNavigateBack(wxApi)
 
-  if (!wxApi || typeof wxApi.showModal !== 'function') {
-    return Promise.resolve({ kind: 'cancelled' })
-  }
-
   // 确认之前不进入删除忙碌态：按钮仍读「删除此记录」，取消后无需复位。
   return new Promise(resolve => {
-    wxApi.showModal({
+    wxPrompts.modal({
       title: confirmTitle,
       confirmText,
       confirmColor,
@@ -86,11 +80,10 @@ function runRecordDelete(options) {
           loadingKey,
           validate: null,
           navigateBack,
-          retryableMode: 'confirm-state',
-          retryableAdvice: '删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作'
+          operation: 'delete'
         }))
       }
-    })
+    }, wxApi)
   })
 }
 
@@ -104,10 +97,7 @@ async function runRecordListLoad(options) {
     onLoaded,
     itemsKey,
     loadingKey = 'loading',
-    loadFailedKey = 'loadFailed',
-    retryableTitle = '加载失败，请检查网络',
-    failureTitle = '加载失败',
-    roomRepairTitle = '房间状态已变化，请重新绑定'
+    loadFailedKey = 'loadFailed'
   } = opts
   const navigateToBind = typeof opts.navigateToBind === 'function'
     ? opts.navigateToBind
@@ -121,8 +111,7 @@ async function runRecordListLoad(options) {
   } catch (error) {
     outcome = {
       kind: 'retryable-failure',
-      message: roomAccessOutcome.presentUserFailure(getErrorMessage(error)),
-      retry: action
+      message: roomAccessOutcome.presentUserFailure(getErrorMessage(error))
     }
   }
 
@@ -141,12 +130,9 @@ async function runRecordListLoad(options) {
   const result = await handleFailureOutcome({
     outcome,
     wxApi,
-    retryableTitle,
-    failureTitle,
-    roomRepairTitle,
+    operation: 'list',
     retryAction: () => runRecordListLoad(options),
-    navigateToBind,
-    retryableMode: 'retry'
+    navigateToBind
   })
   if (!result || result.kind !== 'success') {
     updatePage(page, { [loadFailedKey]: true })
@@ -164,14 +150,12 @@ async function runCommand(options) {
     loadingKey = 'saving',
     successTitle,
     successIcon,
-    failureTitle,
     mergedTitle = '已合并到已有记录',
     mergedContent = '房间里已有一条进行中的记录，已为你打开它',
     navigateBack,
     navigateToBind,
     successDelay,
-    retryableMode = 'confirm-state',
-    retryableAdvice = `${failureTitle}，请稍后刷新后确认结果`,
+    operation,
     refetch,
     reconcile
   } = options
@@ -193,8 +177,7 @@ async function runCommand(options) {
   } catch (error) {
     outcome = {
       kind: 'retryable-failure',
-      message: roomAccessOutcome.presentUserFailure(getErrorMessage(error)),
-      retry: action
+      message: roomAccessOutcome.presentUserFailure(getErrorMessage(error))
     }
   }
 
@@ -203,10 +186,8 @@ async function runCommand(options) {
     // 不显示保存成功、不排返回，用说明 modal 告知后再把结果交给页面
     if (outcome.result && outcome.result.reopened === true) {
       updatePage(page, { [loadingKey]: false })
-      return promptAcknowledge({
-        wxApi,
-        title: mergedTitle,
-        content: mergedContent,
+      return wxPrompts.present({ mode: 'acknowledge', title: mergedTitle, content: mergedContent }, {
+        wx: wxApi,
         fallback: { kind: 'merged', result: outcome.result }
       })
     }
@@ -222,7 +203,7 @@ async function runCommand(options) {
     return outcome
   }
 
-  if (outcome.kind === 'retryable-failure' && retryableMode !== 'retry' && typeof refetch === 'function') {
+  if (outcome.kind === 'retryable-failure' && operation === 'save' && typeof refetch === 'function') {
     if (outcome.message) roomAccessOutcome.presentUserFailure(outcome.message)
     const reconciled = await confirmUnconfirmedSave({
       refetch,
@@ -241,18 +222,7 @@ async function runCommand(options) {
       return { kind: 'success', result: { record: reconciled.record } }
     }
     if (reconciled.confirmed) {
-      updatePage(page, { [loadingKey]: false })
-      const message = '没有保存成功，请重试'
-      return promptAcknowledge({
-        wxApi,
-        title: failureTitle,
-        content: message,
-        fallback: {
-          kind: 'retryable-failure',
-          action: 'refresh-check',
-          message
-        }
-      })
+      outcome = { kind: 'save-not-applied' }
     }
   }
 
@@ -260,112 +230,18 @@ async function runCommand(options) {
   return handleFailureOutcome({
     outcome,
     wxApi,
-    retryableTitle: `${failureTitle}，请重试`,
-    failureTitle,
-    roomRepairTitle: '房间状态已变化，请重新绑定',
+    operation,
     retryAction: () => runCommand(options),
-    navigateToBind,
-    retryableMode,
-    retryableAdvice
+    navigateToBind
   })
 }
 
-async function handleFailureOutcome({
-  outcome,
-  wxApi,
-  retryableTitle,
-  failureTitle,
-  roomRepairTitle,
-  retryAction,
-  navigateToBind,
-  retryableMode = 'retry',
-  retryableAdvice = retryableTitle
-}) {
-  if (outcome.kind === 'retryable-failure') {
-    if (retryableMode !== 'retry') {
-      const normalized = {
-        ...outcome,
-        action: 'refresh-check',
-        message: retryableAdvice
-      }
-      return promptAcknowledge({
-        wxApi,
-        title: failureTitle,
-        content: retryableAdvice,
-        fallback: normalized
-      })
-    }
-    return promptRetry({
-      wxApi,
-      title: failureTitle,
-      content: retryableTitle,
-      retryAction,
-      fallback: outcome
-    })
-  }
-
-  if (outcome.kind === 'room-repair') {
-    const normalized = normalizeRoomRepairOutcome(outcome, roomRepairTitle)
-    if (normalized.action === 'retry') {
-      return promptRetry({
-        wxApi,
-        title: '房间状态已同步',
-        content: normalized.message,
-        retryAction,
-        fallback: normalized
-      })
-    }
-    if (normalized.action === 'rebind') {
-      return promptNavigateToBind({
-        wxApi,
-        title: '房间状态已变化',
-        content: normalized.message,
-        navigateToBind,
-        fallback: normalized
-      })
-    }
-    if (retryableMode === 'retry') {
-      return promptRetry({
-        wxApi,
-        title: failureTitle,
-        content: normalized.message,
-        retryAction,
-        fallback: normalized
-      })
-    }
-    const acknowledged = {
-      ...normalized,
-      action: 'refresh-check',
-      message: buildRecoveryAdviceMessage(normalized.message, retryableAdvice)
-    }
-    return promptAcknowledge({
-      wxApi,
-      title: failureTitle,
-      content: acknowledged.message,
-      fallback: acknowledged
-    })
-  }
-
-  if (outcome.kind === 'no-room') {
-    const normalized = {
-      kind: 'no-room',
-      message: '请先绑定房间'
-    }
-    return promptNavigateToBind({
-      wxApi,
-      title: '请先绑定房间',
-      content: '当前操作需要先绑定房间',
-      navigateToBind,
-      fallback: normalized
-    })
-  }
-
-  const message = roomAccessOutcome.presentUserFailure(outcome.message || failureTitle)
-  safeShowToast(wxApi, { title: message, icon: 'none' })
-  return {
-    ...outcome,
-    message
-  }
+function handleFailureOutcome({ outcome, operation, wxApi, retryAction, navigateToBind }) {
+  return wxPrompts.present(roomAccessOutcome.presentRoomAccessFailure(outcome, operation), {
+    wx: wxApi,
+    retry: retryAction,
+    navigateToBind
+  })
 }
 
 // validate 返回空值表示通过；字符串是无法定位到字段的整体错误；
@@ -381,15 +257,6 @@ function readValidation(validate) {
     fieldErrors[field] = result[field]
   })
   return { kind: 'validation', message: fieldErrors[fields[0]], fieldErrors }
-}
-
-function normalizeRoomRepairOutcome(outcome, roomRepairTitle) {
-  return {
-    ...outcome,
-    ...roomAccessOutcome.buildRoomRepairAction(outcome, {
-      rebindMessage: roomRepairTitle
-    })
-  }
 }
 
 async function confirmUnconfirmedSave({ refetch, reconcile }) {
@@ -436,20 +303,6 @@ function sameFieldValue(actual, expected) {
   return String(actual == null ? '' : actual) === String(expected == null ? '' : expected)
 }
 
-function buildRecoveryAdviceMessage(message, advice) {
-  const shown = roomAccessOutcome.presentUserFailure(message)
-  if (!advice) {
-    return shown
-  }
-  if (!shown) {
-    return advice
-  }
-  if (shown === advice) {
-    return shown
-  }
-  return `${shown}\n\n${advice}`
-}
-
 function updatePage(page, update) {
   if (page && typeof page.setData === 'function') {
     page.setData(update)
@@ -476,68 +329,6 @@ function createNavigateToBind(wxApi) {
     return () => wxApi.navigateTo({ url: '/pages/bind/bind' })
   }
   return () => {}
-}
-
-function promptAcknowledge({ wxApi, title, content, fallback }) {
-  if (!wxApi || typeof wxApi.showModal !== 'function') {
-    safeShowToast(wxApi, { title: content, icon: 'none' })
-    return Promise.resolve(fallback)
-  }
-
-  return new Promise(resolve => {
-    wxApi.showModal({
-      title,
-      content,
-      showCancel: false,
-      confirmText: '知道了',
-      success: () => resolve(fallback)
-    })
-  })
-}
-
-function promptRetry({ wxApi, title, content, retryAction, fallback }) {
-  if (!wxApi || typeof wxApi.showModal !== 'function' || typeof retryAction !== 'function') {
-    safeShowToast(wxApi, { title: content, icon: 'none' })
-    return Promise.resolve(fallback)
-  }
-
-  return new Promise(resolve => {
-    wxApi.showModal({
-      title,
-      content,
-      confirmText: '重试',
-      cancelText: '取消',
-      success: async (result) => {
-        if (!result.confirm) {
-          resolve(fallback)
-          return
-        }
-        resolve(retryAction())
-      }
-    })
-  })
-}
-
-function promptNavigateToBind({ wxApi, title, content, navigateToBind, fallback }) {
-  if (!wxApi || typeof wxApi.showModal !== 'function' || typeof navigateToBind !== 'function') {
-    safeShowToast(wxApi, { title: content, icon: 'none' })
-    return Promise.resolve(fallback)
-  }
-
-  return new Promise(resolve => {
-    wxApi.showModal({
-      title,
-      content,
-      confirmText: '去绑定',
-      cancelText: '取消',
-      success: async (result) => {
-        if (result.confirm) {
-          navigateToBind()
-        }
-        resolve(fallback)
-      }
-    })
-  })
 }
 
 function getWx() {

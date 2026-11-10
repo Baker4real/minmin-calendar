@@ -416,32 +416,27 @@ for (const spec of records) {
     }
   }
 
-  test(`${spec.kind}: business rejection and cancelled or failed room-repair retry leave home untouched`, async (t) => {
+  test(`${spec.kind}: business rejection and acknowledged room repair preserve input without touching home`, async (t) => {
     const app = setup(t)
     const { home, page } = await openEditor(app, spec)
     await app.dispatch(page, 'onNoteInput', value('失败后仍保留'))
     cloudRoute(app, spec, 'add').reply({ code: -9, msg: '保存失败，请稍后重试' })
     await app.dispatch(page, 'save')
     assert.equal(app.wx.toasts.at(-1).title, '保存失败，请稍后重试')
-    for (const retry of [false, true]) {
-      cloudRoute(app, spec, 'add').replyOnce({ code: -1, errorCode: 'ROOM_ACCESS_DENIED', msg: '无权访问该房间' }).reject(new Error('network down'))
-      const saving = app.dispatch(page, 'save')
-      await app.settle()
-      assert.equal(app.wx.modals.at(-1).title, '房间状态已同步')
-      assert.equal(app.wx.modals.at(-1).confirmText, '重试')
-      app.respond('showModal', app.wx.modals.length - 1, { confirm: retry, cancel: !retry })
-      await app.settle()
-      if (retry) {
-        assert.equal(app.wx.modals.at(-1).content, '没有保存成功，请重试')
-        app.respond('showModal', app.wx.modals.length - 1, { confirm: true })
-      }
-      await saving
-      assert.equal(cell(home)[spec.marker], false)
-      assert.equal(page.data.saving, false)
-      assert.equal(page.data.submitted, false)
-      assert.equal(app.storage.recordTabSegment, undefined)
-    }
-    assert.equal(writes(app).length, 4)
+    cloudRoute(app, spec, 'add').reply({ code: -1, errorCode: 'ROOM_ACCESS_DENIED', msg: '无权访问该房间' })
+    const saving = app.dispatch(page, 'save')
+    await app.settle()
+    assert.equal(app.wx.modals.at(-1).title, '房间状态已同步')
+    assert.equal(app.wx.modals.at(-1).content, '房间状态已同步\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交')
+    assert.equal(app.wx.modals.at(-1).confirmText, '知道了')
+    assert.equal(app.wx.modals.at(-1).showCancel, false)
+    app.respond('showModal', app.wx.modals.length - 1, { confirm: true })
+    await saving
+    assert.equal(cell(home)[spec.marker], false)
+    assert.equal(page.data.saving, false)
+    assert.equal(page.data.submitted, false)
+    assert.equal(app.storage.recordTabSegment, undefined)
+    assert.equal(writes(app).length, 2)
     app.hide()
     assert.equal(JSON.parse(app.storage[draftKey(spec)]).note, '失败后仍保留')
   })

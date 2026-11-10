@@ -3,6 +3,7 @@ const roomSession = require('../../utils/room')
 const roomPresence = require('../../utils/roomPresence')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const settingsFlow = require('../../utils/settingsFlow')
+const wxPrompts = require('../../utils/wxPrompts')
 const safeArea = require('../../utils/safeArea')
 const {
   settingsHelpSheet,
@@ -116,7 +117,7 @@ Page(withPageVisibility({
   },
 
   clearData() {
-    wx.showModal({
+    wxPrompts.modal({
       title: '重新同步房间',
       content: '只会清掉本机缓存的房间码，再重新获取。不会删除记录，也不会退出房间。',
       success: async (res) => {

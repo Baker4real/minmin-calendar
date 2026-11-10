@@ -764,11 +764,11 @@ test('confirmExport returns cancelled when the user dismisses the export explana
   assert.deepEqual(result, { kind: 'cancelled' })
 })
 
-test('confirmExport proceeds when the modal api is unavailable', async () => {
+test('confirmExport cancels when the modal api cannot ask for consent', async () => {
   assert.equal(typeof settingsFlow.confirmExport, 'function')
 
-  assert.deepEqual(await settingsFlow.confirmExport({ wx: null }), { kind: 'confirmed' })
-  assert.deepEqual(await settingsFlow.confirmExport({ wx: {} }), { kind: 'confirmed' })
+  assert.deepEqual(await settingsFlow.confirmExport({ wx: null }), { kind: 'cancelled' })
+  assert.deepEqual(await settingsFlow.confirmExport({ wx: {} }), { kind: 'cancelled' })
 })
 
 test('settings about group shows the version once and opens a short help sheet', async () => {

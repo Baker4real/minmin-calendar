@@ -29,11 +29,10 @@ function createRoomDataClient(options = {}) {
   async function runAction(action, collection, data, id) {
     const resolution = await resolver.resolveActiveRoom()
     if (resolution.kind === 'retryable-failure') {
-      return buildRetryableFailure({
-        action,
-        message: roomAccessOutcome.presentUserFailure(resolution.message),
-        retry: () => runAction(action, collection, data, id)
-      })
+      return {
+        kind: 'retryable-failure',
+        message: roomAccessOutcome.presentUserFailure(resolution.message)
+      }
     }
     if (resolution.kind !== 'resolved') {
       return { kind: 'no-room' }
@@ -61,11 +60,10 @@ function createRoomDataClient(options = {}) {
         message: roomAccessOutcome.presentUserFailure(result.msg || '操作失败')
       }
     } catch (error) {
-      return buildRetryableFailure({
-        action,
-        message: roomAccessOutcome.presentUserFailure(getErrorMessage(error)),
-        retry: () => runAction(action, collection, data, id)
-      })
+      return {
+        kind: 'retryable-failure',
+        message: roomAccessOutcome.presentUserFailure(getErrorMessage(error))
+      }
     }
   }
 
@@ -107,38 +105,6 @@ function buildSuccessOutcome(action, result) {
   return {
     kind: 'success',
     result
-  }
-}
-
-function buildRetryableFailure({ action, message, retry }) {
-  const outcome = {
-    kind: 'retryable-failure',
-    message,
-    retryDescriptor: buildRetryDescriptor(action)
-  }
-  if (isRetryableAction(action) && typeof retry === 'function') {
-    outcome.retry = retry
-  }
-  return outcome
-}
-
-function isRetryableAction(action) {
-  return action === 'list'
-}
-
-function buildRetryDescriptor(action) {
-  if (isRetryableAction(action)) {
-    return {
-      action,
-      mode: 'auto-retry',
-      message: '读取失败，可以直接重试'
-    }
-  }
-
-  return {
-    action,
-    mode: 'confirm-before-retry',
-    message: '保存结果未知，请先确认记录状态后再重试'
   }
 }
 

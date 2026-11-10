@@ -117,97 +117,86 @@ function buildRoomRepairAction(outcome, options = {}) {
   }
 }
 
-function buildInlineRoomStatus(outcome, options = {}) {
-  if (outcome && outcome.kind === 'no-room') {
-    return {
-      title: options.noRoomTitle || '请先绑定房间',
-      desc: options.noRoomDesc || '当前操作需要先绑定房间',
-      actionText: options.bindActionText || '去绑定',
-      action: 'bind'
-    }
-  }
-
-  if (outcome && outcome.kind === 'room-repair') {
-    const repairAction = buildRoomRepairAction(outcome, {
-      retryMessage: options.repairRetryDesc || '房间状态已同步，请重新加载日历',
-      rebindMessage: options.repairRebindDesc || '当前共享房间已不可用，请重新绑定后再查看日历'
-    })
-    if (repairAction.action === 'retry') {
-      return {
-        title: options.repairRetryTitle || '房间状态已更新',
-        desc: repairAction.message,
-        actionText: options.retryActionText || '重新加载',
-        action: 'retry'
-      }
-    }
-    if (repairAction.action === 'rebind') {
-      return {
-        title: options.repairRebindTitle || '房间状态已变化',
-        desc: repairAction.message,
-        actionText: options.bindActionText || '去绑定',
-        action: 'bind'
-      }
-    }
-    return {
-      title: options.repairFailureTitle || '房间同步失败',
-      desc: repairAction.message,
-      actionText: options.retryActionText || '重试',
-      action: 'retry'
-    }
-  }
-
-  return {
-    title: options.failureTitle || '加载失败',
-    desc: presentUserFailure(outcome && outcome.message ? outcome.message : (options.fallbackDesc || '请检查网络后重试')),
-    actionText: options.retryActionText || '重试',
-    action: 'retry'
-  }
+const OPERATION_COPY = {
+  list: { title: '加载失败', retry: '加载失败，请检查网络', repairedTitle: '房间状态已同步', repaired: '房间状态已同步，请重试' },
+  save: {
+    title: '保存失败',
+    check: '保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
+    repairedTitle: '房间状态已同步'
+  },
+  delete: {
+    title: '删除失败',
+    check: '删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
+    repairedTitle: '房间状态已同步'
+  },
+  export: { title: '导出失败', retry: '导出失败，请检查网络', repairedTitle: '房间状态已更新', repaired: '房间状态已更新，请重试导出' },
+  home: { title: '日历加载失败', repairedTitle: '房间状态已更新', repaired: '房间状态已同步，请重新加载日历' }
 }
 
-function buildModalRoomAccessPrompt(outcome, options = {}) {
-  if (outcome && outcome.kind === 'retryable-failure') {
-    return {
-      mode: 'retry',
-      title: options.retryTitle || '操作失败',
-      content: options.retryContent || '操作失败，请检查网络'
-    }
-  }
-
-  if (outcome && outcome.kind === 'room-repair') {
-    const repairAction = buildRoomRepairAction(outcome)
-    if (repairAction.action === 'retry') {
-      return {
-        mode: 'retry',
-        title: options.repairRetryTitle || '房间状态已更新',
-        content: options.repairRetryContent || '房间状态已更新，请重试'
-      }
-    }
-    if (repairAction.action === 'rebind') {
-      return {
-        mode: 'navigate-to-bind',
-        title: options.repairRebindTitle || '房间状态已变化',
-        content: repairAction.message
-      }
-    }
-    return {
-      mode: 'retry',
-      title: options.repairFailureTitle || '房间同步失败',
-      content: repairAction.message
-    }
-  }
+// The operation, not the caller, decides whether another attempt needs a record check.
+function presentRoomAccessFailure(outcome, operation) {
+  const copy = OPERATION_COPY[operation]
+  const home = operation === 'home'
+  const repair = outcome && outcome.kind === 'room-repair' ? buildRoomRepairAction(outcome) : null
+  const result = repair ? { ...outcome, ...repair } : outcome
 
   if (outcome && outcome.kind === 'no-room') {
     return {
-      mode: 'navigate-to-bind',
-      title: options.noRoomTitle || '请先绑定房间',
-      content: options.noRoomContent || '当前操作需要先绑定房间'
+      mode: home ? 'inline' : 'navigate-to-bind',
+      title: home ? '还没绑定房间' : '请先绑定房间',
+      content: home ? '需要先创建或加入一个共享房间\n才能和对方一起使用'
+        : operation === 'export' ? '导出前需要先绑定房间' : '当前操作需要先绑定房间',
+      action: 'bind',
+      actionText: '去绑定',
+      result: { kind: 'no-room', message: '请先绑定房间' }
     }
   }
 
+  if (repair && repair.action === 'rebind') {
+    return {
+      mode: home ? 'inline' : 'navigate-to-bind',
+      title: '房间状态已变化',
+      content: home ? '当前共享房间已不可用，请重新绑定后再查看日历' : repair.message,
+      action: 'bind',
+      actionText: '去绑定',
+      result
+    }
+  }
+
+  if (outcome && outcome.kind === 'save-not-applied') {
+    const message = '没有保存成功，请重试'
+    return {
+      mode: 'acknowledge', title: copy.title, content: message, action: 'refresh-check',
+      result: { kind: 'retryable-failure', action: 'refresh-check', message }
+    }
+  }
+
+  if (repair || (outcome && outcome.kind === 'retryable-failure')) {
+    const repaired = repair && repair.action === 'retry'
+    const title = repaired ? copy.repairedTitle
+      : repair && (home || operation === 'export') ? '房间同步失败' : copy.title
+    const message = repaired ? copy.repaired : repair ? repair.message
+      : home ? presentUserFailure(outcome.message || '请检查网络后重试') : copy.retry
+    if (copy.check) {
+      // Remove a direct-retry suffix before asking the user to check a mutation.
+      const explanation = repaired ? '房间状态已同步' : repair ? message.replace(/，请重试$/, '') : ''
+      const content = explanation ? `${explanation}\n\n${copy.check}` : copy.check
+      return {
+        mode: 'acknowledge', title, content, action: 'refresh-check',
+        result: { ...result, action: 'refresh-check', message: content }
+      }
+    }
+    return {
+      mode: home ? 'inline' : 'retry', title, content: message,
+      action: 'retry', actionText: home && repaired ? '重新加载' : '重试', result
+    }
+  }
+
+  const content = presentUserFailure(outcome && outcome.message ? outcome.message : copy.title)
   return {
-    mode: 'toast',
-    title: options.failureTitle || '操作失败',
-    content: presentUserFailure(outcome && outcome.message ? outcome.message : (options.failureContent || '操作失败'))
+    mode: home ? 'inline' : 'toast', title: copy.title, content,
+    action: home ? 'retry' : 'none', actionText: home ? '重试' : '',
+    result: { ...outcome, message: content }
   }
 }
 
@@ -238,9 +227,8 @@ function buildRoomDisplayStateFromAccessOutcome(outcome) {
 }
 
 module.exports = {
-  buildInlineRoomStatus,
+  presentRoomAccessFailure,
   buildRoomDisplayStateFromAccessOutcome,
-  buildModalRoomAccessPrompt,
   buildRoomDisplayState,
   buildRoomRepairAction,
   isStaleRoomFailure,
