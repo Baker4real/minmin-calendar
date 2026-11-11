@@ -1,0 +1,10 @@
+{
+  "name": "@minmin/automator-image",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Jimp.read compatibility for the pinned WeChat automator's QR decoder.",
+  "main": "index.cjs",
+  "dependencies": {
+    "jimp-modern": "npm:jimp@1.6.1"
+  }
+}

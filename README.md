@@ -60,6 +60,8 @@ Two details make `watchOptions.ignore` easy to get wrong:
 
 多个 git worktree 并行开发时，每个 worktree 用 `npm ci --prefer-offline` 装自己的 `node_modules`，依赖装成真实文件，不从主检出硬链接：硬链接的目录树会被本机的受管删除拒收，worktree 用完就没法整棵回收。Playwright 浏览器只在主检出的 `.scratch/browsers/` 装一份，链接 worktree 里的 `npm run browser:install` 和 `npm run test:hit` 都直接用主检出这份。
 
+根开发依赖中的 `miniprogram-automator` 固定为 `0.12.1`。它只通过旧式 `Jimp.read(buffer).bitmap` 解码二维码；[图像读取适配](tests/tools/automator-image/index.cjs) 将这次调用转发到 `jimp@1.6.1`，保留 PNG、JPEG、BMP、TIFF 和 GIF 读取，避免旧 Jimp 带入 `core-js@2`、`phin` 和 `mkdirp@0.5`。根依赖覆盖同时将 Zod 固定为安全版本 `4.6.7`。升级 automator 时须复核它的图像调用接口；`npm ci`、`npm audit` 和完整验证都通过后再采用新锁文件。
+
 The mini program initializes WeChat Cloud in `app.js` with:
 
 ```js

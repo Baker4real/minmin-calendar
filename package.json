@@ -17,7 +17,15 @@
     "devtools:mcp": "node tests/tools/wechatMcp.mjs"
   },
   "devDependencies": {
-    "miniprogram-automator": "^0.12.1",
+    "jimp": "file:tests/tools/automator-image",
+    "jimp-modern": "npm:jimp@1.6.1",
+    "miniprogram-automator": "0.12.1",
     "playwright": "1.64.0"
+  },
+  "overrides": {
+    "miniprogram-automator": {
+      "jimp": "$jimp"
+    },
+    "zod": "4.6.7"
   }
 }
