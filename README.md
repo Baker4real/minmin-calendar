@@ -109,7 +109,7 @@ npm run verify
 
 #169 的页面行为测试经 `tests/helpers/miniProgram.js` 这一份微信平台 harness，或 `buildHomeCalendarState` 的纯 projection 表格验证。`tests/test-seam-guardrail.test.js` 随完整测试运行：迁移预算 `BUDGET` 已清空，仅保留 Room lifecycle 云函数部署打包的 JS 源码读取例外；WXML/WXSS 设计守卫与既有公开 interface 测试继续保留。harness 同样约束原生确认按钮文案最多四个汉字。
 
-首次安装及 Playwright 版本升级后运行 `browser:install`，浏览器保存在项目 `.scratch/browsers/`。日常输出只显示每项结果、测试条数和日志路径；完整日志在 `.scratch/verify/`，坐标与截图证据在 `.scratch/coordinate-hit/`，两处都只保留最近一次运行。任何检查失败均退出非零；CI 失败时保留这些诊断产物。`npm test`、`npm run check`、`npm run test:hit` 可用于单独定位，不能代替完整验收。
+首次检出及 Playwright 版本升级后运行 `npm run release:prepare`；仅补装浏览器时可用 `npm run browser:install`，缓存位置按上面的检出类型解析。日常输出只显示结果、测试条数和日志路径；完整门禁日志在 `.scratch/verify/`，依赖原文在 `.scratch/dependencies/`，发布准备日志和结果在 `.scratch/release-prepare/`，坐标与截图证据在 `.scratch/coordinate-hit/`。这些入口覆盖各自最近一次结果；CI 失败时归档上述诊断目录。任何检查失败均退出非零。`npm test`、`npm run check`、`npm run test:hit` 可用于单独定位，不能代替完整验收。
 
 WXML/WXSS 的 Impeccable 静态检查走 `npm run impeccable:detect -- --target pages --launcher <impeccable(.cmd) 路径>`。入口先把 `app.json` 注册的页面转换成 HTML shim，`<include>` 的片段原地展开进引用它的页面，展开出的元素 `data-src` 指回片段文件；输出源 WXML 数、生成 HTML 数、展开过的片段、扫描类型和 findings 摘要；没有 WXML 时失败闭锁，不把直接检测 `pages/` 的空数组当成已覆盖。本机存在受管 `D:\agents\tmp` 时默认把每次运行写入其独立子目录，其他环境回退到 `.scratch/impeccable-shims/`；可用 `--out` 或 `MINMIN_IMPECCABLE_TEMP` 覆盖。完整 findings 保留在输出目录，退出码 0 表示无命中、2 表示有候选、1 表示覆盖或调用失败。候选仍须回源复核，本检查不进入 CI，也不替代微信验收。
 
@@ -148,5 +148,5 @@ This is a regular non-GSD repository. For non-trivial work, start with `CONTEXT.
 ## Git Branch Policy
 
 - This repository is a standalone public project, not a third-party upstream local patch stack.
-- Do not maintain `patch-stack/*` remote branches here. Use normal `main` history, focused commits, and temporary rollback branches when needed.
-- Reserve `patch-stack/*` for repositories whose name or responsibility is explicitly `*-local-patches`.
+- Publish authorized changes as focused commits to the user-owned `origin/main`. Creating a temporary branch requires explicit approval.
+- Do not create or update `patch-stack/*` branches in this project.
