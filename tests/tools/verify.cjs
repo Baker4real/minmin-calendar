@@ -66,6 +66,10 @@ function main() {
   // One fixed directory that each run overwrites, so runs never pile up under .scratch.
   const logDir = path.join(root, '.scratch', 'verify')
   fs.mkdirSync(logDir, { recursive: true })
+  if (!runLogged('dependencies', ['tests/tools/dependencyTools.cjs', 'check'], logDir)) {
+    process.exitCode = 1
+    return
+  }
   const { sources: files, tests } = targets(process.argv.includes('--tracked'))
   const syntaxLog = path.join(logDir, 'syntax.log')
   const fd = fs.openSync(syntaxLog, 'w')
@@ -83,6 +87,7 @@ function main() {
   console.log(`${syntaxOK ? 'PASS' : 'FAIL'} syntax (${files.length} files): ${syntaxLog}`)
   const results = [syntaxOK,
     runLogged('tests', ['--test', '--test-reporter=spec', ...tests], logDir, root, testCounts),
+    runLogged('clock', ['tests/tools/clockRegression.cjs'], logDir),
     runLogged('room-artifacts', ['cloudfunctions/_shared/syncRoomMembershipLifecycle.js', '--check'], logDir),
     runLogged('coordinate-hit', ['tests/tools/navHitTest.cjs'], logDir)]
   process.exitCode = results.every(Boolean) ? 0 : 1

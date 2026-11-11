@@ -58,9 +58,9 @@ Two details make `watchOptions.ignore` easy to get wrong:
 
 开发者工具内部脚本的加载错误、连接超时和 Console 提示先按 [开发者工具验证](docs/devtools-verification.md) 分层检查；不能仅凭 `WAServiceMainContext.js` 文件名或堆栈不含本仓库路径，就判定为可忽略噪音或业务故障。
 
-多个 git worktree 并行开发时，每个 worktree 用 `npm ci --prefer-offline` 装自己的 `node_modules`，依赖装成真实文件，不从主检出硬链接：硬链接的目录树会被本机的受管删除拒收，worktree 用完就没法整棵回收。Playwright 浏览器只在主检出的 `.scratch/browsers/` 装一份，链接 worktree 里的 `npm run browser:install` 和 `npm run test:hit` 都直接用主检出这份。
+多个 git worktree 并行开发时，每个 worktree 用 `npm run deps:install` 装自己的 `node_modules`，依赖装成真实文件，不从主检出硬链接：硬链接的目录树会被本机的受管删除拒收，worktree 用完就没法整棵回收。Playwright 浏览器只在主检出的 `.scratch/browsers/` 装一份，链接 worktree 里的 `npm run browser:install` 和 `npm run test:hit` 都直接用主检出这份。
 
-根开发依赖中的 `miniprogram-automator` 固定为 `0.12.1`。它只通过旧式 `Jimp.read(buffer).bitmap` 解码二维码；[图像读取适配](tests/tools/automator-image/index.cjs) 将这次调用转发到 `jimp@1.6.1`，保留 PNG、JPEG、BMP、TIFF 和 GIF 读取，避免旧 Jimp 带入 `core-js@2`、`phin` 和 `mkdirp@0.5`。根依赖覆盖同时将 Zod 固定为安全版本 `4.6.7`。升级 automator 时须复核它的图像调用接口；`npm ci`、`npm audit` 和完整验证都通过后再采用新锁文件。
+根开发依赖中的 `miniprogram-automator` 固定为 `0.12.1`。它只通过旧式 `Jimp.read(buffer).bitmap` 解码二维码；[图像读取适配](tests/tools/automator-image/index.cjs) 将这次调用转发到 `jimp@1.6.1`，保留 PNG、JPEG、BMP、TIFF 和 GIF 读取，避免旧 Jimp 带入 `core-js@2`、`phin` 和 `mkdirp@0.5`。根依赖覆盖同时将 Zod 固定为安全版本 `4.6.7`。升级 automator 时须复核它的图像调用接口；完整验证中的真实 SDK 二维码回归会读取上述五种格式并核对内容，不以“包可以加载”代替解码通过。安装与审计入口见下方 Verification。
 
 The mini program initializes WeChat Cloud in `app.js` with:
 
@@ -95,12 +95,17 @@ Cloud functions live under `cloudfunctions/`; each function has its own `package
 使用 Node.js 24，在项目根运行：
 
 ```powershell
-npm ci
-npm run browser:install
+npm run release:prepare
 npm run verify
 ```
 
-`npm run verify` 是本地、提交钩子与 CI 的共同入口：检查 app、pages、utils、cloudfunctions、tests 中的 JavaScript 语法，自动发现全部 `tests/*.test.js`，核对 Room artifact，再运行 320/375/430 宽度的坐标命中回归。依赖和临时目录不进入语法清单；新增源文件无需维护 README 清单。提交钩子传 `--tracked`：语法和测试清单改从 git 索引取（已跟踪加已暂存的文件），共享工作树里别的会话还没跟踪的文件不进本次提交的检查。
+`npm run release:prepare` 在目标检出执行带告警检查的 `npm ci`、安装对应 Playwright 浏览器，再实际启动并关闭 headless Chromium；独立副本使用自己的缓存，linked worktree 沿用主检出缓存。可传 `-- --root <目标检出绝对路径>`；`-- --check-only` 只检查现成环境。准备失败立即返回非零，完整日志和结果保存在目标的 `.scratch/release-prepare/`，不会提交、推送或运行完整验收。
+
+`npm run deps:install` 可单独安装根开发依赖：弃用/安装脚本等 npm 告警、非零退出或锁文件漂移都会失败。`npm run deps:check` 在线审计根依赖（包含 dev）并检查锁中的弃用包；它区分策略不通过（退出 1）与网络、超时或无效报告（退出 2），缺少审计结果不会算零漏洞。云函数各自的依赖锁不在此根审计范围。
+
+`npm --silent run deps:report -- <包名...>` 输出不超过 6000 UTF-8 字节的 JSON：包版本、告警来源、最短依赖链和去重后的直接依赖影响集合；省略包名时只列问题节点。完整审计原文留在 `.scratch/dependencies/`，输出包含原文路径及被省略条数，避免展开整个 peer 依赖树。
+
+`npm run verify` 是本地、提交钩子与 CI 的共同入口：先执行根依赖审计，检查 app、pages、utils、cloudfunctions、tests 中的 JavaScript 语法，自动发现全部 `tests/*.test.js`（含真实自动化 SDK 图像兼容回归），再将既有跨日/午夜用例分别放在 UTC 和 Asia/Taipei 子进程中验证，核对 Room artifact，并运行 320/375/430 宽度的坐标命中回归。日期边界回归也可单独用 `npm run test:clock` 定位；两轴都必须执行完全部指定用例，缺失、跳过或进程失败不能算通过。依赖和临时目录不进入语法清单；新增源文件无需维护 README 清单。提交钩子传 `--tracked`：语法和测试清单改从 git 索引取（已跟踪加已暂存的文件），共享工作树里别的会话还没跟踪的文件不进本次提交的检查。
 
 #169 的页面行为测试经 `tests/helpers/miniProgram.js` 这一份微信平台 harness，或 `buildHomeCalendarState` 的纯 projection 表格验证。`tests/test-seam-guardrail.test.js` 随完整测试运行：迁移预算 `BUDGET` 已清空，仅保留 Room lifecycle 云函数部署打包的 JS 源码读取例外；WXML/WXSS 设计守卫与既有公开 interface 测试继续保留。harness 同样约束原生确认按钮文案最多四个汉字。
 

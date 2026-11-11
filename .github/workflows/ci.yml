@@ -14,8 +14,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-      - run: npm ci
-      - run: npm run browser:install
+      - run: npm run release:prepare
       - run: npm run verify
       - uses: actions/upload-artifact@v7
         if: failure()
@@ -24,4 +23,6 @@ jobs:
           path: |
             .scratch/verify/
             .scratch/coordinate-hit/
+            .scratch/dependencies/
+            .scratch/release-prepare/
           include-hidden-files: true
