@@ -392,7 +392,8 @@ test('returning on a later day updates status, reminders and editor dates even w
 })
 
 test('day titles and quick entries keep the rendered today across midnight until the next calendar projection', async t => {
-  const app = homeApp(t, { now: '2026-12-31T23:59:59+08:00', periods: [period('live', '2026-12-25', '', 'ongoing')] })
+  // Match the calendar's host-local midnight in both UTC CI and local DevTools.
+  const app = homeApp(t, { now: '2026-12-31T23:59:59', periods: [period('live', '2026-12-25', '', 'ongoing')] })
   const home = await launch(app)
   assert.equal(app.rendered(home).homeStatus.text, '经期第 7 天')
   await app.advance(2000)
@@ -414,13 +415,13 @@ test('day titles and quick entries keep the rendered today across midnight until
 })
 
 test('a calendar render samples today once even when the system clock crosses midnight during projection', async t => {
-  const app = homeApp(t, { now: '2026-12-31T23:59:59+08:00', periods: [period('live', '2026-12-25', '', 'ongoing')] })
+  const app = homeApp(t, { now: '2026-12-31T23:59:59', periods: [period('live', '2026-12-25', '', 'ongoing')] })
   const home = await launch(app)
   const Clock = global.Date
   let todayReads = 0
   function MidnightDate(...args) {
     if (args.length) return new Clock(...args)
-    return new Clock(todayReads++ === 0 ? '2026-12-31T23:59:59+08:00' : '2027-01-01T00:00:00+08:00')
+    return new Clock(todayReads++ === 0 ? '2026-12-31T23:59:59' : '2027-01-01T00:00:00')
   }
   MidnightDate.prototype = Clock.prototype
   Object.setPrototypeOf(MidnightDate, Clock)
