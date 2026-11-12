@@ -85,3 +85,12 @@ intent: "按日期记录 epic 级改动的验证结果与未验证项"
 交互证据分层：#183 的绑定/设置解绑入口与取消/确认、两种记录的保存/删除已有实际 OS 坐标点击证据；最终源码重跑的删除确认使用受控平台应答。最终弹层另以实际 OS 拖拽证明四层长拖关闭、工具菜单短拖回弹；MCP touch action 虽返回 success 却未驱动关闭，该失败没有算通过。系统返回的运行态证据是 page-container beforeleave 原生事件重放，不是物理系统键；多层返回优先级、叠层交接及重入由共享平台公开事件回归证明。重叠弹窗两种选择在最终源码上实测，编辑不新增、仍新建只 add 一次，前置 saving 可见。合并后的身份、日期标签及完成时长来自此前 `33d2820…` 指纹的运行态，保留为历史证据，最终代码由平台回归补证，没有重标成最终截图。
 
 验证边界：小屏微信运行态和模拟器机型切换按维护者决定不做；真机、真实云写入、VoiceOver/TalkBack 实听、系统减弱动效实机、物理系统返回、键盘顶起及低端设备性能未验证，均不属于本次已声明的模拟器验收结论。本 epic 无云函数、schema 或远程协议改动，未部署；本次仅本地 docs 交付，未 push、关票或外发原始截图。
+
+
+2026-11-12：retro 环境候选落地（2026-11-11 #189 拆票后的回顾，共 9 个候选）。仓库内：本文件顶部新增「云函数部署现状」表，每个云函数一行，`dataOp` 无部署记录；表后附 `cloud-info` 回读说明，`README.md` 指向这张表。`AGENTS.md`「开始任务」第 5 条：删代码、改签名或估影响面时，调用者以全仓 grep 为准。`docs/agents/issue-tracker.md` 写明子票验收不重复常驻规则、spec 在 `docs/specs/` 留同源副本，#189 的副本已放进 `docs/specs/`。开发者工具 CLI 入口放行 `cloud-list`、`cloud-info` 两个只读查询；官方 CLI 查询失败也退出 0，所以入口按输出里的成功行（`√` 或 `✔`）判定，失败时 `status` 为 `failed`、退出码 1；`deploy`、`inc-deploy`、`download` 不放行。`docs/devtools-verification.md` 同步说明。
+
+票：#190 追加两条验收，一条是云函数集合读取的条数上限静态检查，一条是 `dataOp` 在 3 秒超时内的分页说明；#199 追加一条：部署后更新部署表。仓库外：全局规则加了全仓审查时读上下文指引的分支并同步到各宿主，to-spec、to-tickets、transitions-dev、transitions-polish、storage-analyzer 五个 skill 经受管事务更新，把脚本用法和票文件格式写进 skill，并压缩了三条最长的描述。
+
+验证：2026-11-11 实跑 `cloud-list`、`cloud-info` 都成功，未知函数名判为 `failed`、退出码 1。`node --test tests/devtools-cli.test.js` 5/5 通过。`npm run verify` 通过：依赖、语法 139 文件、1168/1168 测试、clock、Room artifacts、坐标命中；`git diff --check` 无错误。
+
+未验证：线上 `dataOp` 跑的是哪一版、何时部署，`cloud-info` 只返回状态、超时和运行时；`cloud-info` 部分函数失败时的真实输出，现有用例是按 CLI 符号规则合成的；#190 的静态检查与分页说明尚未实现；已发布的 #190、#199 验收里仍有几条重复的常驻规则，没有回改。边界：未改云函数或协议，无部署。本条落地于 2026-11-12，当日已 commit 并推送 main。
