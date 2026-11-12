@@ -35,7 +35,16 @@ node tests/devtoolsCapture.mjs --ws ws://127.0.0.1:9420 --states 'home,home:tool
 
 `--trust-project` 是自动化首次连接所需参数。CLI 的服务端口和 automator 的 9420 是不同通路；开启服务端口不保证 9420 会监听。不要因 `auto` 卡住而把业务代码改成兜底逻辑。
 
-`devtools:cli` 使用安装包中的官方 CLI 入口，自动把项目路径规范为 Windows 原生绝对路径，并为 `auto` 添加 `--trust-project`。支持 `islogin`、`open`、`close`、`auto`，默认 10 秒、最多 60 秒；输出只含命令、状态和退出码，不输出登录原文。超时返回 124，并终止本次启动的 CLI 进程树；不会终止已运行的 IDE。`ok` 只代表 CLI 退出成功，页面是否就绪仍需运行态检查。预检的登录检查共用此入口。
+`devtools:cli` 使用安装包中的官方 CLI 入口，自动把项目路径规范为 Windows 原生绝对路径，并为 `auto` 添加 `--trust-project`。支持 `islogin`、`open`、`close`、`auto` 和下文两个云函数只读查询，默认 10 秒、最多 60 秒；除云函数查询外，输出只含命令、状态和退出码，不输出登录原文。超时返回 124，并终止本次启动的 CLI 进程树；不会终止已运行的 IDE。`ok` 只代表 CLI 退出成功，页面是否就绪仍需运行态检查。预检的登录检查共用此入口。
+
+同一入口还有两个只读的云函数查询，云环境 ID 取 `app.js` 里 `wx.cloud.init` 的 `env`：
+
+```powershell
+npm --silent run devtools:cli -- cloud-list --env <云环境 ID> --timeout 30000
+npm --silent run devtools:cli -- cloud-info --env <云环境 ID> --names dataOp,joinRoom --timeout 30000
+```
+
+`cloud-list` 列出云端已有的云函数；`cloud-info` 返回每个函数的状态、超时秒数和运行时（2026-11-11 实测只有这三项）。它们不返回部署时间、代码摘要或依赖版本，回答不了「线上跑的是哪一版」：那要在云开发控制台或真实小程序上下文里核对，结果记进 `docs/verification-log.md` 的「云函数部署现状」表。官方 CLI 查询失败时也退出 0，本入口按输出里有没有成功行判定，成功行的符号是 `√` 或 `✔`（随终端环境变化）；`cloud-info` 部分函数失败时，CLI 打的是警告符号而不是成功行，本入口同样判为 `failed`。失败时 `status` 为 `failed`、退出码 1，`output` 是错误原文。`deploy`、`inc-deploy`、`download` 不放行。
 
 要看编译、重载、页面 webview 和文件增删的先后（比如上表的启动后没加载页面、编译漏掉新模块），运行 `npm run devtools:timeline -- --from 20:26 --to 20:28`。它从本项目所在 profile 的 IDE 日志里挑出编译、appservice 重载与启动、`WEBVIEW_PAGEFRAME` 创建与销毁、调试面板加载、代码文件（js、ts、wxml、wxss、wxs、json）的新增与删除，以及除已知噪音外的 WARN/ERROR，按时间排好。只写时分秒时按今天算，默认看最近 10 分钟；输出里的 openid 和 token 已替换。
 

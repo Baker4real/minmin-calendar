@@ -80,6 +80,8 @@ Cloud functions live under `cloudfunctions/`; each function has its own `package
 
 2026-08-12 的架构深化已合并到当前 `main`（`159ed78` 及后续收尾提交）；本地测试和静态检查已验证，但当前仓库没有这批提交对应的新云函数部署或线上 live verification 凭证。需要发布时，仍按上面的维护窗口顺序部署并单独记录远端产物、依赖版本和真实小程序上下文 smoke 结果。
 
+各云函数最后一次有记录的部署见 `docs/verification-log.md` 的「云函数部署现状」表；每次部署后更新它。
+
 ### 云数据库索引基线
 
 `rooms` 集合必须保留以下索引：

@@ -40,11 +40,13 @@ What should be true when this is done?
 Links to screenshots, ADRs, code paths, or prior commits.
 ```
 
-This shape is for standalone bugs and requests. A spec (epic parent) follows the to-spec template. Its sub-tickets follow the to-tickets template: `## Parent`, `## What to build`, `## Acceptance criteria`, a two-digit order prefix in the title (`01 …`), and blockers as native `blockedBy` links instead of a body section.
+This shape is for standalone bugs and requests. A spec (epic parent) follows the to-spec template. Its sub-tickets follow the to-tickets template: `## Parent`, `## What to build`, `## Acceptance criteria`, a two-digit order prefix in the title (`01 …`), and blockers as native `blockedBy` links instead of a body section. Acceptance criteria list only the checks specific to that ticket. Standing rules already apply to every ticket and stay out of it: `AGENTS.md`「完成标准」 (the README verification set, `git diff --check`) and the global default of no commit, push or deploy without authorization.
 
 ## Spec 发现约定
 
 implement-spec 等技能无参数调用时，spec 默认取当前开放的 epic 父票：有子票以 `## Parent` 指向它、整组标记 `ready-for-agent`。只开放一个 epic 时直接采用；多个 epic 同时开放时先与用户确认目标再开工。
+
+spec 发布为 epic 父票后，在 `docs/specs/<发布日期>-<slug>.md` 留一份同源副本：frontmatter 照同目录最近一份填写，H1 之后一行 `**Issue:** [#<n>](<issue URL>)`，其余正文与父票一致。父票是事实源，改父票正文时同步改副本。
 
 ## Close and evidence fallbacks
 
