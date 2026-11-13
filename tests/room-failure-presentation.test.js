@@ -10,6 +10,8 @@ const saveAdvice = '保存结果暂未确认，请返回列表刷新后检查是
 const deleteAdvice = '删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作'
 const modal = (title, content, next) => ({ form: 'modal', title, content, next })
 const inline = (title, content, actionText, next) => ({ form: 'inline', title, content, actionText, next })
+// #194: the record tab shows a retryable read failure only inside its segment, as the failure screen and its retry.
+const segment = next => ({ form: 'segment', next })
 
 // One table owns the expected presentation at the platform seam. A lost read reply
 // is simply retryable: there is no mutation to reconcile. Saves distinguish a
@@ -17,7 +19,7 @@ const inline = (title, content, actionText, next) => ({ form: 'inline', title, c
 const scenarios = [
   {
     failure: 'retryable',
-    list: modal('加载失败', '加载失败，请检查网络', 'retry'),
+    list: segment('retry'),
     save: modal('保存失败', '没有保存成功，请重试', 'check'),
     delete: modal('删除失败', deleteAdvice, 'check'),
     export: modal('导出失败', '导出失败，请检查网络', 'retry'),
@@ -25,7 +27,7 @@ const scenarios = [
   },
   {
     failure: 'unconfirmed',
-    list: modal('加载失败', '加载失败，请检查网络', 'retry'),
+    list: segment('retry'),
     save: modal('保存失败', saveAdvice, 'check'),
     delete: modal('删除失败', deleteAdvice, 'check'),
     export: modal('导出失败', '导出失败，请检查网络', 'retry'),
@@ -49,7 +51,7 @@ const scenarios = [
   },
   {
     failure: 'repaired',
-    list: modal('房间状态已同步', '房间状态已同步，请重试', 'retry'),
+    list: segment('retry'),
     save: modal('房间状态已同步', `房间状态已同步\n\n${saveAdvice}`, 'check'),
     delete: modal('房间状态已同步', `房间状态已同步\n\n${deleteAdvice}`, 'check'),
     export: modal('房间状态已更新', '房间状态已更新，请重试导出', 'retry'),
@@ -57,7 +59,7 @@ const scenarios = [
   },
   {
     failure: 'repair-failed',
-    list: modal('加载失败', '网络不太稳定，请重试', 'retry'),
+    list: segment('retry'),
     save: modal('保存失败', `网络不太稳定\n\n${saveAdvice}`, 'check'),
     delete: modal('删除失败', `网络不太稳定\n\n${deleteAdvice}`, 'check'),
     export: modal('房间同步失败', '网络不太稳定，请重试', 'retry'),
@@ -122,7 +124,21 @@ async function prepare(t, { operation, record }, failure, { missingModal = false
   return { app, page, pending }
 }
 
+const segmentKeys = view => view.segment === 'period'
+  ? { failed: 'loadFailed', loaded: 'hasLoaded', loading: 'loading', retry: 'loadData' }
+  : { failed: 'memoryLoadFailed', loaded: 'memoryHasLoaded', loading: 'memoryLoading', retry: 'loadMemoryData' }
+
 function assertPresentation(app, page, expected) {
+  if (expected.form === 'segment') {
+    const view = app.rendered(page)
+    const keys = segmentKeys(view)
+    assert.equal(view[keys.failed], true)
+    assert.equal(view[keys.loaded], false)
+    assert.equal(view[keys.loading], false)
+    assert.deepEqual(app.wx.modals, [])
+    assert.deepEqual(app.wx.toasts, [])
+    return
+  }
   if (expected.form === 'inline') {
     const view = app.rendered(page)
     assert.equal(view.noRoom, true)
@@ -145,7 +161,7 @@ function assertPresentation(app, page, expected) {
   }
 }
 
-for (const [failure, operation] of [['retryable', 'list'], ['unconfirmed', 'save'], ['no-room', 'export']]) {
+for (const [failure, operation] of [['rebind', 'list'], ['unconfirmed', 'save'], ['no-room', 'export']]) {
   for (const unavailable of ['missingModal', 'failedModal']) {
     test(`${operation}: ${unavailable} falls back to the same advice without navigating or retrying`, async (t) => {
       const spec = operations.find(item => item.operation === operation)
@@ -176,6 +192,7 @@ for (const scenario of scenarios) {
         if (spec.operation === 'export') app.respondNext('showModal', { confirm: true })
       }
       if (expected.form === 'inline') await app.dispatch(page, 'handleRoomStatusAction')
+      else if (expected.form === 'segment') await app.dispatch(page, segmentKeys(app.rendered(page)).retry)
       else app.respond('showModal', app.wx.modals.length - 1, { confirm: true })
       await app.settle()
       await pending

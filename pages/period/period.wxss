@@ -410,6 +410,11 @@
 .load-failed.load-failed-hover {
   transform: scale(0.98);
 }
+/* 未同步的分段在失败卡下面照常列出本机已保存的记录（#194），两块之间与月份卡同一档间距 */
+.load-failed + .period-year-list,
+.load-failed + .memory-month-list {
+  margin-top: 20rpx;
+}
 .retry-btn {
   min-height: 88rpx;
   display: flex;

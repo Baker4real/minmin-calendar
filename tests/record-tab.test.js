@@ -10,6 +10,8 @@ const roomLookups = app => app.cloud.calls.filter(call => call.name === 'getMyRo
 const writes = (page, key) => page.setDataCalls.filter(patch => key in patch).map(patch => patch[key])
 const groupAuthors = groups => groups.flatMap(group => group.records.map(row => row.authorLabel))
 const periodGroupAuthors = years => years.flatMap(year => groupAuthors(year.months))
+const memoryRowIds = page => page.data.memoryGroups.flatMap(group => group.records.map(row => row._id))
+const marked = (app, page, marker) => app.rendered(page).days.filter(day => day[marker]).map(day => day.date)
 
 // No getMyRoom rule by default: the tab takes pairing from its list replies (#191), so a Room
 // lookup from a bound tab fails loudly as an unprogrammed cloud call.
@@ -26,57 +28,148 @@ const segments = [
   { segment: 'memory', collection: 'memories', loading: 'memoryLoading', failed: 'memoryLoadFailed', loaded: 'memoryHasLoaded', retry: 'loadMemoryData', record: { _id: 'm1', date: '2026-06-01', note: '测试记录' } }
 ]
 
+// #194: the tab renders the app's one copy of the Room's records. What Home already read shows at once,
+// record authors included, while the tab's show asks for one silent refresh of both lists.
+test('after Home has read the records, the tab shows them with authors before its silent refresh lands, then updates', async (t) => {
+  const app = setup(t)
+  list(app, 'periods').reply({ code: 0, roomStatus: 'paired', data: [
+    { _id: 'p-mine', startDate: '2026-09-01', endDate: '2026-09-03', createdByMe: true },
+    { _id: 'p-theirs', startDate: '2026-08-01', endDate: '2026-08-03', createdByMe: false }
+  ] })
+  list(app, 'memories').reply({ code: 0, roomStatus: 'paired', data: [{ _id: 'mine', date: '2026-09-18', note: '散步', createdByMe: true }] })
+  app.launch('/pages/index/index')
+  await app.flush()
+  const periods = list(app, 'periods').defer()
+  const memories = list(app, 'memories').defer()
+  app.wx.switchTab({ url: route })
+  await app.settle()
+  const tab = app.currentPage
+  assert.equal(tab.route, 'pages/period/period')
+  assert.equal(app.rendered(tab).loading, false)
+  assert.deepEqual(app.rendered(tab).periods.map(row => [row._id, row.authorLabel]), [['p-mine', '我记的'], ['p-theirs', 'TA 记的']])
+  assert.deepEqual(groupAuthors(app.rendered(tab).memoryGroups), ['我记的'])
+  assert.deepEqual(listCalls(app).map(call => call.data.collection), ['periods', 'memories', 'periods', 'memories'])
+
+  periods.resolve({ code: 0, roomStatus: 'paired', data: [
+    { _id: 'p-new', startDate: '2026-10-01', endDate: '2026-10-04', createdByMe: false },
+    { _id: 'p-mine', startDate: '2026-09-01', endDate: '2026-09-03', createdByMe: true },
+    { _id: 'p-theirs', startDate: '2026-08-01', endDate: '2026-08-03', createdByMe: false }
+  ] })
+  memories.resolve({ code: 0, roomStatus: 'paired', data: [{ _id: 'mine', date: '2026-09-18', note: '散步', createdByMe: true }] })
+  await app.settle()
+  assert.deepEqual(app.rendered(tab).periods.map(row => [row._id, row.authorLabel]), [['p-new', 'TA 记的'], ['p-mine', '我记的'], ['p-theirs', 'TA 记的']])
+  assert.deepEqual(listCalls(app).length, 4)
+  assert.equal(roomLookups(app), 0)
+})
+
+// A save or delete reaches the other page through the shared records, not through that page's own refresh:
+// each return below leaves the refresh it triggers unanswered while the other page is checked.
+test('a save or delete on the record tab shows on Home before any refresh answers', async (t) => {
+  const app = setup(t)
+  const home = app.launch('/pages/index/index')
+  await app.flush()
+  app.wx.switchTab({ url: route })
+  await app.flush()
+  const tab = app.currentPage
+  const saved = { _id: 'm-tab', date: '2026-10-08', note: '' }
+  async function returnToHomeWithRefreshPending() {
+    const pending = [list(app, 'periods').defer(), list(app, 'memories').defer()]
+    await app.advance(1000)
+    assert.equal(app.currentPage, tab)
+    app.wx.switchTab({ url: '/pages/index/index' })
+    await app.settle()
+    assert.equal(app.currentPage, home)
+    return pending
+  }
+
+  await app.dispatch(tab, 'addMemory')
+  await app.dispatch(app.currentPage, 'onDateChange', { detail: { value: saved.date } })
+  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'memories' } }).reply({ code: 0, id: saved._id, record: saved })
+  await app.dispatch(app.currentPage, 'save')
+  let [periods, memories] = await returnToHomeWithRefreshPending()
+  assert.deepEqual(marked(app, home, 'isMemory'), ['2026-10-08'])
+  list(app, 'memories').reply({ code: 0, data: [saved] })
+  periods.resolve({ code: 0, data: [] })
+  memories.resolve({ code: 0, data: [saved] })
+  await app.flush()
+  assert.deepEqual(marked(app, home, 'isMemory'), ['2026-10-08'])
+
+  app.wx.switchTab({ url: route })
+  await app.flush()
+  await app.dispatch(tab, 'editMemory', dataset({ id: saved._id }))
+  app.respondNext('showModal', { confirm: true })
+  app.cloud.when({ name: 'dataOp', data: { action: 'remove', collection: 'memories', id: saved._id } }).reply({ code: 0 })
+  await app.dispatch(app.currentPage, 'delete')
+  ;[periods, memories] = await returnToHomeWithRefreshPending()
+  assert.deepEqual(marked(app, home, 'isMemory'), [])
+  periods.resolve({ code: 0, data: [] })
+  memories.resolve({ code: 0, data: [] })
+  await app.settle()
+  assert.deepEqual(marked(app, home, 'isMemory'), [])
+})
+
+test('a save from Home is listed on the record tab before any refresh answers', async (t) => {
+  const app = setup(t)
+  const home = app.launch('/pages/index/index')
+  await app.flush()
+  await app.dispatch(home, 'quickMemory')
+  const saved = { _id: 'm-home', date: '2026-10-20', note: '' }
+  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'memories' } }).reply({ code: 0, id: saved._id, record: saved })
+  await app.dispatch(app.currentPage, 'save')
+  const [periods, memories] = [list(app, 'periods').defer(), list(app, 'memories').defer()]
+  await app.advance(1000)
+  assert.equal(app.currentPage, home)
+  app.wx.switchTab({ url: route })
+  await app.settle()
+  const tab = app.currentPage
+  assert.equal(tab.route, 'pages/period/period')
+  assert.equal(tab.data.segment, 'memory')
+  assert.deepEqual(memoryRowIds(tab), ['m-home'])
+  assert.equal(listCalls(app).length, 4, 'the tab shares Home\'s refresh')
+  periods.resolve({ code: 0, data: [] })
+  memories.resolve({ code: 0, data: [saved] })
+  await app.settle()
+  assert.deepEqual(memoryRowIds(tab), ['m-home'])
+})
+
+const bothLists = loads => Array(loads).fill(['periods', 'memories']).flat()
+
 for (const spec of segments) {
-  test(`${spec.segment}: first failure stays unknown, cancel exposes retry, and tapping it loads records`, async (t) => {
+  const other = segments.find(item => item !== spec)
+  test(`${spec.segment}: a first read failure shows the segment's failure and retry without a prompt, while the other segment shows normally`, async (t) => {
     const app = setup(t, spec)
     const pending = list(app, spec.collection).defer()
+    list(app, other.collection).reply({ code: 0, data: [other.record] })
     const page = app.launch(route)
     await app.settle()
     assert.equal(page.data[spec.loading], true)
     assert.equal(page.data[spec.loaded], false)
     pending.reject(new Error('network down'))
     await app.settle()
-    const modal = app.wx.modals.at(-1)
-    assert.equal(modal.title, '加载失败')
-    assert.equal(modal.content, '加载失败，请检查网络')
-    assert.equal(modal.confirmText, '重试')
-    app.respond('showModal', 0, { confirm: false, cancel: true })
-    await app.settle()
+    assert.deepEqual(app.wx.modals, [])
+    assert.deepEqual(app.wx.toasts, [])
     assert.equal(page.data[spec.failed], true)
     assert.equal(page.data[spec.loaded], false)
     assert.equal(page.data[spec.loading], false)
     assert.deepEqual(page.data[spec.collection], [])
+    if (spec.segment === 'period') assert.deepEqual([page.data.avgCycle, page.data.avgDuration], [null, null])
+    assert.equal(page.data[other.failed], false)
+    assert.equal(page.data[other.loaded], true)
+    assert.equal(page.data[other.collection][0]._id, other.record._id)
     list(app, spec.collection).reply({ code: 0, data: [spec.record] })
     await app.dispatch(page, spec.retry)
     await app.flush()
     assert.equal(page.data[spec.failed], false)
     assert.equal(page.data[spec.loaded], true)
     assert.equal(page.data[spec.collection][0]._id, spec.record._id)
-    assert.deepEqual(listCalls(app).map(call => call.data.collection), [spec.collection, spec.collection])
-  })
-
-  test(`${spec.segment}: confirming retry reloads only the failed collection`, async (t) => {
-    const app = setup(t, spec)
-    const pending = list(app, spec.collection).defer()
-    const page = app.launch(route)
-    await app.settle()
-    pending.reject(new Error('network down'))
-    await app.settle()
-    list(app, spec.collection).reply({ code: 0, data: [spec.record] })
-    app.respond('showModal', 0, { confirm: true })
-    await app.flush()
-    assert.equal(page.data[spec.failed], false)
-    assert.equal(page.data[spec.loaded], true)
-    assert.equal(page.data[spec.collection][0]._id, spec.record._id)
-    assert.equal(app.wx.toasts.length, 0)
-    assert.deepEqual(listCalls(app).map(call => call.data.collection), [spec.collection, spec.collection])
+    assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(2))
   })
 
   const populated = spec.segment === 'period'
     ? [spec.record, { _id: 'p2', startDate: '2026-07-03', endDate: '2026-07-07' }]
     : [spec.record]
   for (const records of [[], populated]) {
-    test(`${spec.segment}: refresh preserves ${records.length ? 'rows and stats' : 'confirmed empty state'} and stops on success and failure`, async (t) => {
+    test(`${spec.segment}: pull-down refresh keeps ${records.length ? 'rows and stats' : 'the confirmed empty state'} on screen, stops on success and failure, and a failure only offers the inline retry`, async (t) => {
       const app = setup(t, spec)
       list(app, spec.collection).reply({ code: 0, data: records })
       const page = app.launch(route)
@@ -91,7 +184,8 @@ for (const spec of segments) {
       const pending = list(app, spec.collection).defer()
       const refresh = page.onPullDownRefresh()
       await app.settle()
-      assert.equal(page.data[spec.loading], true)
+      assert.equal(page.data[spec.loading], false, 'a refresh of synced records is silent')
+      assert.deepEqual(page.data[spec.segment === 'period' ? 'periods' : 'memoryGroups'], before)
       assert.equal(app.platformCalls.stopPullDownRefresh, undefined)
       pending.resolve({ code: 0, data: records })
       await refresh
@@ -99,16 +193,18 @@ for (const spec of segments) {
       assert.equal(page.data[spec.loading], false)
       assert.equal(app.platformCalls.stopPullDownRefresh.length, 1)
       list(app, spec.collection).reject(new Error('network down'))
-      app.respondNext('showModal', { confirm: false, cancel: true })
       await page.onPullDownRefresh()
       await app.settle()
       assert.equal(app.platformCalls.stopPullDownRefresh.length, 2)
+      assert.deepEqual(app.wx.modals, [])
+      assert.deepEqual(app.wx.toasts, [])
       assert.equal(page.data[spec.failed], true)
       assert.equal(page.data[spec.loaded], true)
       assert.equal(page.data[spec.loading], false)
       assert.deepEqual(page.data[spec.segment === 'period' ? 'periods' : 'memoryGroups'], before)
       assert.deepEqual([page.data.avgCycle, page.data.avgDuration], stats)
-      assert.deepEqual(listCalls(app).map(call => call.data.collection), Array(3).fill(spec.collection))
+      assert.equal(page.data[other.failed], false)
+      assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(3))
       list(app, spec.collection).reply({ code: 0, data: records })
       await app.dispatch(page, spec.retry)
       assert.equal(page.data[spec.failed], false)
@@ -116,23 +212,48 @@ for (const spec of segments) {
   }
 }
 
-test('segment intent is consumed once, only the selected list loads, and failure states stay independent', async (t) => {
+test('an unsynced period list keeps its failure and retry, lists the record saved here, and shows placeholder stats', async (t) => {
+  const app = setup(t)
+  list(app, 'periods').reject(new Error('network down'))
+  const page = app.launch(route)
+  await app.flush()
+  assert.equal(page.data.loadFailed, true)
+  await app.dispatch(page, 'addPeriod')
+  await app.dispatch(app.currentPage, 'selectStatus', dataset({ value: 'known-end' }))
+  const saved = { _id: 'saved-here', startDate: '2026-10-20', endDate: '2026-10-20', status: 'known-end' }
+  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'periods' } }).reply({ code: 0, id: saved._id, record: saved })
+  await app.dispatch(app.currentPage, 'save')
+  await app.flush()
+  assert.equal(app.currentPage, page)
+  assert.equal(page.data.loading, false)
+  assert.equal(page.data.loadFailed, true)
+  assert.equal(page.data.hasLoaded, false)
+  assert.deepEqual(page.data.periods.map(row => row._id), ['saved-here'])
+  assert.deepEqual([page.data.avgCycle, page.data.avgDuration], [null, null])
+  assert.deepEqual(app.wx.modals, [])
+})
+
+test('segment intent is consumed once, a show reads both lists once, switching segments sends no request, and failure states stay independent', async (t) => {
   const app = setup(t, { segment: 'memory' })
+  list(app, 'periods').reject(new Error('network down'))
   const page = app.launch(route)
   await app.flush()
   assert.equal(page.data.segment, 'memory')
   assert.equal(app.storage.recordTabSegment, undefined)
-  assert.deepEqual(listCalls(app).map(call => call.data.collection), ['memories'])
-  list(app, 'periods').reject(new Error('network down'))
-  app.respondNext('showModal', { confirm: false })
-  await app.dispatch(page, 'selectSegment', dataset({ segment: 'period' }))
+  assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(1))
   assert.equal(page.data.loadFailed, true)
   assert.equal(page.data.memoryLoadFailed, false)
+  await app.dispatch(page, 'selectSegment', dataset({ segment: 'period' }))
+  assert.equal(page.data.segment, 'period')
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'unknown' }))
+  await app.flush()
   assert.equal(page.data.segment, 'memory')
-  assert.deepEqual(listCalls(app).map(call => call.data.collection), ['memories', 'periods', 'memories'])
+  assert.equal(page.data.loadFailed, true)
+  assert.equal(page.data.memoryLoadFailed, false)
+  assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(1), 'switching segments reads nothing')
+  assert.deepEqual(app.wx.modals, [])
   list(app, 'periods').reply({ code: 0, data: [] })
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'period' }))
   app.hide()
@@ -140,9 +261,10 @@ test('segment intent is consumed once, only the selected list loads, and failure
   await app.flush()
   assert.equal(page.data.segment, 'period', 'consumed memory intent must not hijack the later visit')
   assert.equal(page.data.loadFailed, false)
+  assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(2))
 })
 
-test('legacy memory route redirects to the real record tab and loads its memory segment once', async (t) => {
+test('legacy memory route redirects to the real record tab and opens its memory segment with one read of both lists', async (t) => {
   const app = setup(t)
   list(app, 'memories').reply({ code: 0, data: [{ _id: 'm1', date: '2026-06-01', note: '测试记录' }] })
   app.launch('/pages/memory/memory')
@@ -151,7 +273,7 @@ test('legacy memory route redirects to the real record tab and loads its memory 
   assert.equal(app.currentPage.data.segment, 'memory')
   assert.equal(app.currentPage.data.memoryGroups[0].records[0].note, '测试记录')
   assert.equal(app.storage.recordTabSegment, undefined)
-  assert.deepEqual(listCalls(app).map(call => call.data.collection), ['memories'])
+  assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(1))
   assert.ok(app.navigation.some(item => item.method === 'switchTab' && item.url === route))
 })
 
@@ -247,7 +369,7 @@ for (const status of ['paired', 'waiting', null, 'archived']) {
   })
 }
 
-test('each record tab show reads only its segment list, looks no Room up, and rows carry authors in their first render', async (t) => {
+test('each record tab show reads both lists once, looks no Room up, and rows carry authors in their first render', async (t) => {
   const app = setup(t)
   list(app, 'periods').reply({ code: 0, roomStatus: 'paired', data: [
     { _id: 'p-mine', startDate: '2026-09-01', endDate: '2026-09-03', createdByMe: true },
@@ -259,17 +381,18 @@ test('each record tab show reads only its segment list, looks no Room up, and ro
   ] })
   const page = app.launch(route)
   await app.flush()
-  assert.deepEqual(app.cloud.calls.map(call => [call.name, call.data.action, call.data.collection]), [['dataOp', 'list', 'periods']])
-  assert.deepEqual(writes(page, 'periods').map(rows => rows.map(row => row.authorLabel)), [['我记的', 'TA 记的']])
-  assert.deepEqual(writes(page, 'periodGroups').map(periodGroupAuthors), [['我记的', 'TA 记的']])
+  assert.deepEqual(app.cloud.calls.map(call => [call.name, call.data.action, call.data.collection]), [['dataOp', 'list', 'periods'], ['dataOp', 'list', 'memories']])
+  // Only row renders count: the first show starts with nothing to list.
+  const rowWrites = key => writes(page, key).filter(rows => rows.length)
+  assert.deepEqual(rowWrites('periods').map(rows => rows.map(row => row.authorLabel)), [['我记的', 'TA 记的']])
+  assert.deepEqual(rowWrites('periodGroups').map(periodGroupAuthors), [['我记的', 'TA 记的']])
+  assert.deepEqual(rowWrites('memoryGroups').map(groupAuthors), [['我记的', 'TA 记的']])
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
-  await app.flush()
-  assert.deepEqual(writes(page, 'memoryGroups').map(groupAuthors), [['我记的', 'TA 记的']])
   app.hide()
   app.show()
   await app.flush()
-  assert.deepEqual(listCalls(app).map(call => call.data.collection), ['periods', 'memories', 'memories'])
-  assert.deepEqual(writes(page, 'memoryGroups').map(groupAuthors), [['我记的', 'TA 记的'], ['我记的', 'TA 记的']], 'one row render per load')
+  assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(2))
+  assert.deepEqual(rowWrites('memoryGroups').map(groupAuthors), [['我记的', 'TA 记的'], ['我记的', 'TA 记的']], 'one row render per show; an unchanged refresh adds none')
   assert.equal(roomLookups(app), 0)
 })
 
@@ -283,8 +406,9 @@ test('without a new status the tab keeps the Room\'s last pairing, while another
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
   await app.flush()
   assert.deepEqual(groupAuthors(page.data.memoryGroups), ['我记的'], 'same Room: the periods list already said paired')
-  // This device now holds another Room whose list brings back no status.
+  // This device now holds another Room whose lists bring back no status.
   app.wx.setStorageSync('roomCode', 'ROOM02')
+  list(app, 'periods').reply({ code: 0, data: [] })
   await page.onPullDownRefresh()
   await app.flush()
   assert.equal(listCalls(app).at(-1).data.roomCode, 'ROOM02')
@@ -594,35 +718,28 @@ test('month headers toggle without navigation, retain choices across switches an
   assert.equal(app.storage.memoryMonthChoices, undefined)
 })
 
-for (const confirm of [false, true]) {
-  test(`room repair failure remains retryable after ${confirm ? 'confirming' : 'cancelling'} the prompt`, async (t) => {
-    const app = setup(t)
-    const pending = list(app, 'periods').defer()
-    const page = app.launch(route)
-    await app.settle()
-    app.cloud.when('getMyRoom').reject(new Error('network down'))
-    pending.resolve({ code: -1, errorCode: 'ROOM_ACCESS_DENIED' })
-    await app.settle()
-    assert.equal(app.wx.modals[0].title, '加载失败')
-    assert.equal(app.wx.modals[0].content, '网络不太稳定，请重试')
-    assert.equal(app.wx.modals[0].confirmText, '重试')
-    assert.equal(app.navigation.length, 1, 'a repair network failure must not redirect to binding')
-    app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01' } })
-    list(app, 'periods').reply({ code: 0, data: [segments[0].record] })
-    app.respond('showModal', 0, { confirm, cancel: !confirm })
-    await app.settle()
-    if (!confirm) {
-      assert.equal(page.data.loadFailed, true)
-      assert.equal(page.data.hasLoaded, false)
-      await app.dispatch(page, 'loadData')
-    }
-    await app.flush()
-    assert.equal(page.data.loadFailed, false)
-    assert.equal(page.data.periods[0]._id, 'p1')
-    assert.equal(app.storage.roomCode, 'ROOM01')
-    assert.equal(listCalls(app).length, 2)
-  })
-}
+test('a Room repair that fails stays retryable inside the segments, without a prompt or a redirect to binding', async (t) => {
+  const app = setup(t)
+  const pending = list(app, 'periods').defer()
+  const page = app.launch(route)
+  await app.settle()
+  app.cloud.when('getMyRoom').reject(new Error('network down'))
+  pending.resolve({ code: -1, errorCode: 'ROOM_ACCESS_DENIED' })
+  await app.settle()
+  assert.deepEqual(app.wx.modals, [])
+  assert.deepEqual(app.wx.toasts, [])
+  assert.equal(app.navigation.length, 1, 'a repair network failure must not redirect to binding')
+  assert.equal(page.data.loadFailed, true)
+  assert.equal(page.data.hasLoaded, false)
+  app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01' } })
+  list(app, 'periods').reply({ code: 0, data: [segments[0].record] })
+  await app.dispatch(page, 'loadData')
+  await app.flush()
+  assert.equal(page.data.loadFailed, false)
+  assert.equal(page.data.periods[0]._id, 'p1')
+  assert.equal(app.storage.roomCode, 'ROOM01')
+  assert.equal(listCalls(app).length, 4)
+})
 
 for (const noRoom of [false, true]) {
   test(`missing prompt APIs leave ${noRoom ? 'unbound' : 'network-failed'} list visibly retryable`, async (t) => {
@@ -636,9 +753,60 @@ for (const noRoom of [false, true]) {
     assert.equal(page.data.loading, false)
     assert.equal(page.data.loadFailed, true)
     assert.equal(page.data.hasLoaded, false)
-    assert.equal(listCalls(app).length, noRoom ? 0 : 1)
+    assert.equal(listCalls(app).length, noRoom ? 0 : 2)
   })
 }
+
+// Two pages subscribe to the shared records: one Room change, one 「去绑定」, from the page in front.
+test('when the Room needs rebinding, only the record tab in front prompts once, however many of its loads share the result', async (t) => {
+  const app = setup(t)
+  const home = app.launch('/pages/index/index')
+  await app.flush()
+  app.wx.switchTab({ url: route })
+  await app.flush()
+  const tab = app.currentPage
+  list(app, 'periods').reply({ code: -1, errorCode: 'ROOM_ACCESS_DENIED' })
+  list(app, 'memories').reply({ code: -1, errorCode: 'ROOM_ACCESS_DENIED' })
+  app.cloud.when('getMyRoom').reply({ code: 1, msg: '未加入任何房间' })
+  const refresh = tab.onPullDownRefresh()
+  const retry = app.dispatch(tab, 'loadMemoryData')
+  await Promise.all([refresh, retry])
+  await app.settle()
+  assert.deepEqual(app.wx.modals.map(modal => [modal.title, modal.confirmText]), [['房间状态已变化', '去绑定']])
+  assert.equal(listCalls(app).length, 6, 'the pull-down and the retry share one load')
+  assert.equal(app.rendered(home).noRoom, true, 'hidden Home only renders its Room status')
+  assert.equal(app.rendered(tab).loadFailed, true)
+  assert.equal(app.rendered(tab).hasLoaded, false)
+  app.respond('showModal', 0, { confirm: true })
+  await app.settle()
+  assert.equal(app.currentPage.route, 'pages/bind/bind')
+})
+
+test('a record tab that went hidden while its load ran never prompts; Home in front shows the Room status', async (t) => {
+  const app = setup(t)
+  const home = app.launch('/pages/index/index')
+  await app.flush()
+  app.wx.switchTab({ url: route })
+  await app.flush()
+  const tab = app.currentPage
+  const periods = list(app, 'periods').defer()
+  const memories = list(app, 'memories').defer()
+  const refresh = tab.onPullDownRefresh()
+  await app.settle()
+  app.wx.switchTab({ url: '/pages/index/index' })
+  await app.settle()
+  assert.equal(listCalls(app).length, 6, 'Home shares the record tab\'s load')
+  app.cloud.when('getMyRoom').reply({ code: 1, msg: '未加入任何房间' })
+  periods.resolve({ code: -1, errorCode: 'ROOM_ACCESS_DENIED' })
+  memories.resolve({ code: -1, errorCode: 'ROOM_ACCESS_DENIED' })
+  await refresh
+  await app.settle()
+  assert.deepEqual(app.wx.modals, [])
+  assert.deepEqual(app.wx.toasts, [])
+  assert.equal(app.currentPage, home)
+  assert.equal(app.rendered(home).noRoom, true)
+  assert.equal(app.rendered(home).roomStatusActionText, '去绑定')
+})
 
 test('record tab period entry reopens an ongoing record, otherwise starts today, and rows open their own record', async (t) => {
   const app = setup(t)
@@ -748,7 +916,7 @@ for (const spec of segments) {
       assert.equal(app.currentPage, page)
       assert.equal(page.data.segment, spec.segment)
       assert.equal(page.data[spec.collection].length, action === 'remove' ? 0 : 1)
-      assert.equal(listCalls(app).length, beforeReturn + 1)
+      assert.equal(listCalls(app).length, beforeReturn + 2)
       assert.equal(app.storage.recordTabSegment, undefined)
       await app.dispatch(page, 'selectSegment', dataset({ segment: other }))
       app.hide()

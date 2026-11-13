@@ -79,6 +79,30 @@ test('a failed collection prevents a partial export and offers retry', async (t)
   assert.equal(app.wx.toasts.at(-1).title, '导出成功')
 })
 
+// #194: the app's shared records are not an export source; export reads both lists itself, in order.
+test('export reads its own lists in order even after Home has read the records, and stops at a failed first list', async (t) => {
+  const app = settingsApp(t, { storage: { roomCode: 'ROOM01' } })
+  const list = collection => app.cloud.when({ name: 'dataOp', data: { action: 'list', collection } })
+  list('periods').reply({ code: 0, data: [{ _id: 'p1', startDate: '2026-06-20', endDate: '2026-06-24' }] })
+  list('memories').reply({ code: 0, data: [] })
+  app.launch('/pages/index/index')
+  await app.flush()
+  app.wx.switchTab({ url: '/pages/settings/settings' })
+  await app.settle()
+  const before = app.cloud.calls.length
+  list('periods').reject(new Error('network down'))
+  app.respondNext('showModal', { confirm: true })
+  const exporting = app.dispatch(app.currentPage, 'exportData')
+  await app.settle()
+  assert.deepEqual(app.cloud.calls.slice(before).filter(call => call.name === 'dataOp').map(call => call.data.collection), ['periods'])
+  assert.equal(app.wx.modals.at(-1).title, '导出失败')
+  assert.deepEqual(app.files, [])
+  app.respond('showModal', app.wx.modals.length - 1, { confirm: false, cancel: true })
+  await exporting
+  assert.deepEqual(app.files, [])
+  assert.equal(app.platformCalls.shareFileMessage, undefined)
+})
+
 test('share cancellation keeps the clipboard intact and share failure copies only by explicit choice', async (t) => {
   for (const [failure, copyJson] of [['shareFileMessage:fail cancel', false], ['shareFileMessage:fail unavailable', true]]) {
     await t.test(failure, async (t) => {

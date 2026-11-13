@@ -25,7 +25,8 @@ const UNKNOWN_LISTED_ROOM = { roomCode: '', roomStatus: '' }
 // reconciliation, not just decisions for a Page to execute. Pages subscribe on load and
 // unsubscribe on unload; a listener's calendarChanged/recordChange describe one atomic
 // projection update, while loading and pill-only updates leave calendar feedback and
-// animation marks alone. Listeners only render; prompts come from the result of load().
+// animation marks alone. Listeners only render; prompts come from the result of load(), and
+// claimPrompt keeps one result to one prompt.
 function createRoomRecordsSync() {
   const collections = Object.fromEntries(COLLECTIONS.map(collection => [collection, {
     records: [], revision: 0, pendingRevision: null, synced: false
@@ -45,6 +46,8 @@ function createRoomRecordsSync() {
   let pill = null
   // The Room pairing as the lists last brought it back, with the room code it belongs to (#191).
   let listedRoom = UNKNOWN_LISTED_ROOM
+  // Load results some caller has already presented a prompt for (#194).
+  const promptedResults = new WeakSet()
 
   function getState() {
     const scope = failedCollections.length === 2 ? 'all' : failedCollections[0]
@@ -278,7 +281,16 @@ function createRoomRecordsSync() {
     publish(true, hasLoadedHomeData ? { collection, record, mode, before } : null)
   }
 
-  return { subscribe, load, applyRecordChange, getState }
+  // Every caller of one in-flight load gets the same result: a page showing, pulling down and
+  // retrying at once, or two pages sharing it. The first caller in front to claim a result
+  // presents its prompt; later claims of that result return false, so one failure prompts once.
+  function claimPrompt(result) {
+    if (!result || typeof result !== 'object' || promptedResults.has(result)) return false
+    promptedResults.add(result)
+    return true
+  }
+
+  return { subscribe, load, applyRecordChange, getState, claimPrompt }
 }
 
 function syncingPill() {
@@ -345,5 +357,5 @@ module.exports = {
   load: shared.load,
   applyRecordChange: shared.applyRecordChange,
   getState: shared.getState,
-  adoptListedRoomStatus
+  claimPrompt: shared.claimPrompt
 }

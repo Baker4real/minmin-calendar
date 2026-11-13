@@ -186,8 +186,10 @@ function presentRoomAccessFailure(outcome, operation) {
         result: { ...result, action: 'refresh-check', message: content }
       }
     }
+    // Home and the record tab keep a recoverable read failure inside the page: Home's inline Room
+    // status, the record tab's segment failure screen or inline retry (#194).
     return {
-      mode: home ? 'inline' : 'retry', title, content: message,
+      mode: home || operation === 'list' ? 'inline' : 'retry', title, content: message,
       action: 'retry', actionText: home && repaired ? '重新加载' : '重试', result
     }
   }

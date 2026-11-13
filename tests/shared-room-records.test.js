@@ -107,6 +107,45 @@ for (const rebound of [null, B]) {
   })
 }
 
+function tabShowsRoomA(patch) {
+  const rows = [...(patch.periods || []), ...(patch.memoryGroups || []).flatMap(group => group.records)]
+  return rows.some(row => row._id === 'a-p' || row._id === 'a-m')
+}
+
+// #194: the record tab lives on as a tab page while Settings moves the device to another Room.
+test('a live record tab shows none of the previous Room once the device holds another Room, with that Room\'s memories failing', async t => {
+  const app = homeApp(t)
+  await launchRoomA(app)
+  app.wx.switchTab({ url: '/pages/period/period' })
+  await app.settle()
+  const tab = app.currentPage
+  assert.deepEqual(app.rendered(tab).periods.map(row => [row._id, row.authorLabel]), [['a-p', '我记的']])
+  app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: A, status: 'paired' } })
+  app.wx.switchTab({ url: '/pages/settings/settings' })
+  await app.settle()
+  app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: B, status: 'waiting' } })
+  listRoute(app, 'periods', B).reply(listed([period('b-p', '2026-06-20', { createdByMe: true })]))
+  listRoute(app, 'memories', B).reject(new Error('network down'))
+  app.respondNext('showModal', { confirm: true })
+  await app.dispatch(app.currentPage, 'clearData')
+  await app.settle()
+  assert.equal(app.storage.roomCode, B)
+
+  const before = tab.setDataCalls.length
+  const modals = app.wx.modals.length
+  app.wx.switchTab({ url: '/pages/period/period' })
+  await app.settle()
+  assert.equal(app.currentPage, tab)
+  const view = app.rendered(tab)
+  // Room B brought back no pairing, so Room A's pairing does not name the author either.
+  assert.deepEqual(view.periods.map(row => [row._id, row.authorLabel]), [['b-p', undefined]])
+  assert.deepEqual(view.memoryGroups, [])
+  assert.equal(view.memoryLoadFailed, true)
+  assert.equal(view.memoryHasLoaded, false)
+  assert.deepEqual(app.wx.modals.slice(modals), [], 'the failed memories prompt nothing')
+  assert.deepEqual(tab.setDataCalls.slice(before).filter(tabShowsRoomA), [], 'no frame of the tab carries Room A')
+})
+
 // Settings unbind: the server leave succeeds and the app relaunches on the bind page, unbound.
 // Settings looks Room A up on show; `status` is the pairing that lookup sees.
 async function leaveFromSettings(app, status = 'paired') {
