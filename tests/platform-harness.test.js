@@ -180,7 +180,7 @@ test('every registered real page can complete load, show, hide and unload with f
   }
 })
 
-test('an edit notifies the real previous page before timed navigation and the record tab consumes its segment intent', async (t) => {
+test('a confirmed edit reaches the real home through the shared records before timed navigation and the record tab consumes its segment intent', async (t) => {
   const app = createMiniProgram({ storage: { roomCode: 'ROOM01' } })
   t.after(() => app.teardown())
   app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01' } })

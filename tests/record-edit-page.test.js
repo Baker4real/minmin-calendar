@@ -31,6 +31,11 @@ function setup(t, options = {}) {
   return app
 }
 
+// Periods this device has not read yet: a new period's save first asks the shared records to load them.
+function periodsUnread(app) {
+  cloudRoute(app, period, 'list').reject(new Error('network down'))
+}
+
 async function openEditor(app, spec, options = {}) {
   const home = app.launch(homeRoute)
   await app.flush()
@@ -257,11 +262,9 @@ for (const scenario of overlapOwners) {
 test('period: merged save replaces the form, updates home once and moves drafts to the reopened identity', async (t) => {
   const app = setup(t)
   const existing = { _id: 'ongoing', ...period.payload, startDate: '2026-09-01', note: '伴侣已记', flow: 'normal', symptoms: ['tired'] }
-  cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
+  // This device has not read the partner's ongoing record yet; the cloud write is the final constraint.
   const home = app.launch(homeRoute)
   await app.flush()
-  // An older editor snapshot misses the ongoing record; the cloud write is the final constraint.
-  cloudRoute(app, period, 'list').reply({ code: 0, data: [] })
   app.wx.navigateTo({ url: editUrl(period) })
   await app.settle()
   const page = app.currentPage
@@ -354,6 +357,7 @@ test('period: merge replaces visible labels and draft baseline before the same e
 for (const exit of ['invalid', 'edit existing', 'still create', 'confirmation failure']) {
   test(`period: delayed preflight ${exit} releases saving and preserves the correct outcome guard`, async (t) => {
     const app = setup(t)
+    periodsUnread(app)
     const { page } = await openEditor(app, period, exit === 'invalid' ? { startDate: '2026-09-18' } : {})
     await app.dispatch(page, 'onNoteInput', value('保存前的备注'))
     const history = cloudRoute(app, period, 'list').defer()
@@ -403,6 +407,7 @@ for (const exit of ['invalid', 'edit existing', 'still create', 'confirmation fa
 for (const spec of records) {
   test(`${spec.kind}: saving is visible from the tap through preflight and keeps the tapped form stable`, async (t) => {
     const app = setup(t)
+    if (spec.kind === 'period') periodsUnread(app)
     const { home, page } = await openEditor(app, spec)
     await app.dispatch(page, 'onNoteInput', value('点击时的备注'))
     const history = spec.kind === 'period' ? cloudRoute(app, spec, 'list').defer() : null
@@ -795,3 +800,107 @@ for (const spec of records) {
     assert.equal(app.storage.recordTabSegment, undefined)
   })
 }
+
+// #195: the period editor reads the periods held in the app's shared Room records.
+test('period: from the shown home, the editor reads no list, the save is one add, and the return refresh lists each kind once', async (t) => {
+  const app = setup(t)
+  const home = app.launch(homeRoute)
+  await app.flush()
+  const shown = app.cloud.calls.length
+  const calls = () => app.cloud.calls.slice(shown).map(call => [call.name, call.data.action, call.data.collection])
+  await app.dispatch(home, 'quickPeriod')
+  await app.settle()
+  const page = app.currentPage
+  assert.equal(page.route, 'pages/period/edit/edit')
+  assert.deepEqual(calls(), [], 'opening the editor from home reads nothing')
+  const saved = { _id: 'saved', ...period.payload }
+  cloudRoute(app, period, 'add').reply({ code: 0, record: saved })
+  await app.dispatch(page, 'save')
+  await app.settle()
+  assert.deepEqual(calls(), [['dataOp', 'add', 'periods']], 'saving a new period only adds it')
+  cloudRoute(app, period, 'list').reply({ code: 0, data: [saved] })
+  await app.advance(1000)
+  await app.flush()
+  assert.equal(app.currentPage, home)
+  assert.equal(cell(home).isPeriod, true)
+  assert.deepEqual(calls(), [['dataOp', 'add', 'periods'], ['dataOp', 'list', 'periods'], ['dataOp', 'list', 'memories']])
+})
+
+const lists = app => app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action === 'list').map(call => call.data.collection)
+
+test('period: an editor opened while the shared records are loading joins that load and hints from what it brings', async (t) => {
+  const app = setup(t)
+  const periods = cloudRoute(app, period, 'list').defer()
+  app.launch(homeRoute)
+  await app.settle()
+  app.wx.navigateTo({ url: editUrl(period, { startDate: '2026-09-10', endDate: '2026-09-14' }) })
+  await app.settle()
+  const page = app.currentPage
+  assert.deepEqual(lists(app), ['periods', 'memories'], 'the editor reads nothing of its own')
+  assert.equal(page.data.periodDayCountText, '共 5 天')
+  assert.equal(page.data.periodLengthHint, '', 'no history yet: the default 5 days')
+  periods.resolve({ code: 0, data: [
+    { _id: 'old1', startDate: '2026-05-01', endDate: '2026-05-03' },
+    { _id: 'old2', startDate: '2026-06-01', endDate: '2026-06-03' }
+  ] })
+  await app.settle()
+  assert.equal(page.data.periodLengthHint, '比你通常的 3 天长，确认一下结束日？')
+  assert.deepEqual(lists(app), ['periods', 'memories'])
+})
+
+test('period: periods this device cannot read leave the default length and no overlap question', async (t) => {
+  const app = setup(t)
+  periodsUnread(app)
+  const { page } = await openEditor(app, period, { startDate: '2026-09-03', endDate: '2026-09-09' })
+  assert.deepEqual(lists(app), ['periods', 'memories', 'periods', 'memories'], 'opening asks the shared records once')
+  assert.equal(page.data.periodLengthHint, '比你通常的 5 天长，确认一下结束日？')
+  const saved = { _id: 'saved', ...period.payload, startDate: '2026-09-03', endDate: '2026-09-09', status: 'known-end', duration: 7 }
+  cloudRoute(app, period, 'add').reply({ code: 0, record: saved })
+  await app.dispatch(page, 'save')
+  await app.settle()
+  assert.deepEqual(lists(app).slice(4), ['periods', 'memories'], 'saving asks the shared records once more')
+  assert.deepEqual(app.wx.modals, [])
+  assert.deepEqual(writes(app).map(call => call.action), ['add'])
+  assert.equal(page.data.submitted, true)
+})
+
+test('period: a period saved here and not yet confirmed by a list counts for the next editor', async (t) => {
+  const app = setup(t)
+  const { home, page } = await openEditor(app, period, { startDate: '2026-09-10', endDate: '2026-09-12' })
+  const saved = { _id: 'local', ...period.payload, startDate: '2026-09-10', endDate: '2026-09-12', status: 'known-end', duration: 3 }
+  cloudRoute(app, period, 'add').reply({ code: 0, record: saved })
+  await app.dispatch(page, 'save')
+  const refresh = cloudRoute(app, period, 'list').defer()
+  await app.advance(1000)
+  assert.equal(app.currentPage, home)
+  app.wx.navigateTo({ url: editUrl(period, { startDate: '2026-09-11', endDate: '2026-09-15' }) })
+  await app.settle()
+  const next = app.currentPage
+  assert.equal(next.data.periodLengthHint, '比你通常的 3 天长，确认一下结束日？')
+  app.respondNext('showModal', { confirm: true })
+  await app.dispatch(next, 'save')
+  await app.settle()
+  assert.equal(app.wx.modals.at(-1).title, '这一天已有经期')
+  assert.equal(app.currentPage.data.id, 'local')
+  assert.deepEqual(writes(app).map(call => call.action), ['add'])
+  refresh.resolve({ code: 0, data: [saved] })
+  await app.flush()
+})
+
+test('period: a save in the editor opened through the overlap question reaches home before any refresh', async (t) => {
+  const app = setup(t)
+  const existing = { _id: 'covered', startDate: '2026-09-01', endDate: '2026-09-05', status: 'known-end' }
+  cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
+  const { home, page } = await openEditor(app, period, { startDate: '2026-09-03' })
+  app.respondNext('showModal', { confirm: true })
+  await app.dispatch(page, 'save')
+  await app.settle()
+  const owner = app.currentPage
+  assert.equal(owner.data.id, 'covered')
+  await app.dispatch(owner, 'onEndChange', value('2026-09-07'))
+  cloudRoute(app, period, 'update').reply({ code: 0, record: { ...existing, endDate: '2026-09-07' } })
+  await app.dispatch(owner, 'save')
+  assert.equal(cell(home, '2026-09-07').isPeriod, true)
+  assert.equal(app.storage.recordTabSegment, 'period')
+  assert.deepEqual(lists(app), ['periods', 'memories'], 'only the first home load has read')
+})

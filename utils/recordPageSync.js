@@ -21,41 +21,20 @@ function consumeRecordTabSegmentIntent() {
   return segment
 }
 
-function notifyRecordSaved({ collection, isEdit, outcome }) {
-  if (!outcome || (outcome.kind !== 'success' && outcome.kind !== 'merged')) return
+// A confirmed save (including a merge into the ongoing record) or delete leaves the record tab's
+// one-time segment intent and returns the record change the edit session hands to the shared
+// records once (#195). A save whose canonical record did not come back has no change to hand over.
+function savedRecordChange({ collection, isEdit, outcome }) {
+  if (!outcome || (outcome.kind !== 'success' && outcome.kind !== 'merged')) return null
   setRecordTabSegmentIntent(RECORD_SEGMENTS[collection])
   const record = getSavedRecord(outcome)
-  if (record) {
-    notifyPreviousPageRecordChange({
-      collection,
-      mode: outcome.kind === 'merged' || isEdit ? 'update' : 'add',
-      record
-    })
-  }
+  if (!record) return null
+  return { collection, mode: outcome.kind === 'merged' || isEdit ? 'update' : 'add', record }
 }
 
-function notifyRecordDeleted({ collection, id }) {
+function deletedRecordChange({ collection, id }) {
   setRecordTabSegmentIntent(RECORD_SEGMENTS[collection])
-  notifyPreviousPageRecordChange({ collection, mode: 'remove', record: { _id: id } })
-}
-
-function notifyPreviousPageRecordChange(change, options = {}) {
-  const getPages = options.getCurrentPages || getCurrentPagesProvider()
-  if (typeof getPages !== 'function') return false
-
-  const pages = getPages()
-  if (!Array.isArray(pages) || pages.length < 2) return false
-
-  const previousPage = pages[pages.length - 2]
-  if (!previousPage || typeof previousPage.applyRecordChange !== 'function') return false
-
-  try {
-    previousPage.applyRecordChange(change)
-    return true
-  } catch (error) {
-    if (typeof options.onError === 'function') options.onError(error)
-    return false
-  }
+  return { collection, mode: 'remove', record: { _id: id } }
 }
 
 function getSavedRecord(outcome) {
@@ -66,16 +45,10 @@ function getSavedRecord(outcome) {
   return { ...record }
 }
 
-function getCurrentPagesProvider() {
-  if (typeof getCurrentPages === 'function') return getCurrentPages
-  return null
-}
-
 module.exports = {
-  notifyPreviousPageRecordChange,
   getSavedRecord,
-  notifyRecordSaved,
-  notifyRecordDeleted,
+  savedRecordChange,
+  deletedRecordChange,
   setRecordTabSegmentIntent,
   consumeRecordTabSegmentIntent
 }

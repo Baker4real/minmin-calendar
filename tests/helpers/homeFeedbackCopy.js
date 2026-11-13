@@ -2,6 +2,7 @@ const { createMiniProgram } = require('./miniProgram')
 
 // Geometry guards measure actual rendered copy from the same platform seam as
 // the page tests. No source scans or duplicated list of production sentences.
+// Records change only through confirmed saves in real editors opened from Home (#195).
 async function homeFeedbackCopy() {
   const retryCopies = new Set()
   const statuses = new Set()
@@ -19,6 +20,19 @@ async function homeFeedbackCopy() {
         if (data.refreshRetryVisible) retryCopies.add(data.refreshRetryText)
         if (data.syncStatusMounted && data.syncStatusText) statuses.add(data.syncStatusText)
       }
+      // Save in a real editor opened from Home: Home stays hidden, then shows and refreshes when it returns.
+      const saveInEditor = async (record, query) => {
+        const write = query.has('id') ? 'update' : 'add'
+        app.cloud.when({ name: 'dataOp', data: { action: write, collection: failed } }).reply({ code: 0, id: record._id, record })
+        app.wx.navigateTo({ url: `/pages/${failed === 'periods' ? 'period' : 'memory'}/edit/edit?${query}` })
+        await app.settle()
+        await app.dispatch(app.currentPage, 'save')
+        await capture()
+      }
+      const returnHome = async () => {
+        await app.advance(1000)
+        await capture()
+      }
       await capture()
       routes[failed].reply({ code: 0, data: [] })
       await home.onPullDownRefresh()
@@ -26,15 +40,13 @@ async function homeFeedbackCopy() {
       const saved = failed === 'periods'
         ? { _id: 'p1', startDate: '2026-06-20', endDate: '2026-06-22', status: 'known-end' }
         : { _id: 'm1', date: '2026-06-20', note: '' }
-      home.applyRecordChange({ collection: failed, mode: 'add', record: saved })
-      await capture()
+      const fields = failed === 'periods' ? { startDate: saved.startDate, endDate: saved.endDate } : { date: saved.date }
+      await saveInEditor(saved, new URLSearchParams(fields))
       routes[failed].reply({ code: 0, data: [saved] })
-      await home.onPullDownRefresh()
-      await capture()
-      home.applyRecordChange({ collection: failed, mode: 'update', record: { ...saved, note: '补一句' } })
+      await returnHome()
+      await saveInEditor({ ...saved, note: '补一句' }, new URLSearchParams({ id: saved._id, ...fields, note: '补一句' }))
       routes[failed].reject(new Error('network unavailable'))
-      await home.onPullDownRefresh()
-      await capture()
+      await returnHome()
       routes[failed === 'periods' ? 'memories' : 'periods'].reject(new Error('network unavailable'))
       await home.onPullDownRefresh()
       await capture()

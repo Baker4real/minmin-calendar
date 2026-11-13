@@ -11,6 +11,7 @@ const recordEditRoute = require('./recordEditRoute')
 const recordFieldErrors = require('./recordFieldErrors')
 const recordPageSync = require('./recordPageSync')
 const roomAccessOutcome = require('./roomAccessOutcome')
+const roomRecordsSync = require('./roomRecordsSync')
 const wxPrompts = require('./wxPrompts')
 
 const EDIT_KINDS = {
@@ -110,7 +111,6 @@ function openRecordEditSession({ kind, route, render }) {
   let draftDiscarded = false
   let deleteConfirming = false
   let savePreparing = false
-  let periodHistory = []
   let state = {
     ...routeState,
     ...(storedDraft ? recordDraft.pickDraftFields(storedDraft, config.draftFields) : {}),
@@ -124,7 +124,18 @@ function openRecordEditSession({ kind, route, render }) {
 
   function publish(update = {}) {
     state = { ...state, ...update }
-    render({ ...state, ...config.describeForm(state, today(), periodHistory) })
+    render({ ...state, ...config.describeForm(state, today(), heldPeriods()) })
+  }
+
+  // 时长提示和保存前的归属查询读共享记录里的经期，包括尚待确认的本地改动；欢乐时光会话不读
+  function heldPeriods() {
+    return config.overlapOwner ? roomRecordsSync.getState().collections[config.collection].records : []
+  }
+
+  // 经期未同步时请共享记录加载一次（与在途加载合并），结束后按那时持有的经期继续；
+  // 读不到就没有历史：时长用默认值、不问归属。加载结果的提示归发起显示的页面，编辑页不提示
+  async function loadUnsyncedPeriods() {
+    if (!roomRecordsSync.getState().collections[config.collection].synced) await roomRecordsSync.load()
   }
 
   function busy() {
@@ -141,20 +152,10 @@ function openRecordEditSession({ kind, route, render }) {
     recordDraft.clearDraft(storage, draftKey)
   }
 
-  async function loadPeriodHistory() {
-    try {
-      const outcome = await cloud.createRoomDataClient().list(config.collection)
-      if (outcome.kind === 'success') periodHistory = outcome.data
-    } catch (error) {
-      // 读取失败保留已有历史；时长仍可使用领域默认值。
-    }
-    publish()
-  }
-
   async function resolveNewPeriodOverlap() {
     if (state.isEdit || !config.overlapOwner) return 'save'
-    await loadPeriodHistory()
-    const owner = config.overlapOwner(periodHistory, state.startDate, today())
+    await loadUnsyncedPeriods()
+    const owner = config.overlapOwner(heldPeriods(), state.startDate, today())
     if (!owner) return 'save'
     const editExisting = await new Promise(resolve => {
       wxPrompts.modal({
@@ -196,11 +197,16 @@ function openRecordEditSession({ kind, route, render }) {
     publish({ ...form, draftRestored: false, fieldErrors: {} })
   }
 
+  // 经期会话先订阅再画第一次：订阅时共享记录按本机当前的房间码核对归属，上一个 Room 的经期不进提示；
+  // 之后经期有变化（加载结束、本地改动）就按新的经期重画时长提示
+  const unsubscribe = config.overlapOwner
+    ? roomRecordsSync.subscribe((_, { calendarChanged }) => { if (calendarChanged) publish() })
+    : () => {}
   publish()
   if (storedDraft) {
     wxPrompts.present({ mode: 'toast', content: '已恢复上次未完成的输入' })
   }
-  if (config.overlapOwner) loadPeriodHistory()
+  if (config.overlapOwner) loadUnsyncedPeriods()
 
   return {
     changeField(field, value) {
@@ -249,7 +255,9 @@ function openRecordEditSession({ kind, route, render }) {
         } else if (outcome.kind === 'success') {
           discardDraft()
         }
-        recordPageSync.notifyRecordSaved({ collection: config.collection, isEdit, outcome })
+        // 保存成功后把记录变化交给共享记录一次：首页、记录 tab 和之后打开的编辑页都从那里读到，不找上一个页面转交
+        const change = recordPageSync.savedRecordChange({ collection: config.collection, isEdit, outcome })
+        if (change) roomRecordsSync.applyRecordChange(change)
         return outcome
       } finally {
         savePreparing = false
@@ -274,7 +282,7 @@ function openRecordEditSession({ kind, route, render }) {
         })
         if (outcome.kind === 'success') {
           discardDraft()
-          recordPageSync.notifyRecordDeleted({ collection: config.collection, id: state.id })
+          roomRecordsSync.applyRecordChange(recordPageSync.deletedRecordChange({ collection: config.collection, id: state.id }))
         }
         return outcome
       } finally {
@@ -283,7 +291,10 @@ function openRecordEditSession({ kind, route, render }) {
     },
 
     onHide: persistDraft,
-    onUnload: persistDraft
+    onUnload() {
+      persistDraft()
+      unsubscribe()
+    }
   }
 }
 

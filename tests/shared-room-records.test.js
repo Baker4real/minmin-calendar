@@ -262,6 +262,33 @@ test('a save that lands after the device moved to another Room drops the previou
   assert.deepEqual(listCalls(app).slice(-2).map(call => call.data.roomCode), [B, B])
 })
 
+// #195: the period editor reads the shared periods, so it subscribes before reading them.
+test('a period editor opened after the device moved to another Room hints and asks from that Room only', async t => {
+  const app = homeApp(t)
+  const home = await launchRoomA(app)
+  // Another flow leaves this device holding Room B before the editor opens.
+  app.wx.setStorageSync('roomCode', B)
+  const periods = listRoute(app, 'periods', B).defer()
+  listRoute(app, 'memories', B).reply(listed([]))
+  app.wx.navigateTo({ url: '/pages/period/edit/edit?startDate=2026-06-01&endDate=2026-06-03' })
+  await app.settle()
+  const edit = app.currentPage
+  // Room A's one-day period is no history here: three days stay within the default five.
+  assert.equal(app.rendered(edit).periodDayCountText, '共 3 天')
+  assert.equal(app.rendered(edit).periodLengthHint, '')
+  assert.deepEqual(marked(app, home, 'isPeriod'), [])
+  const saved = period('b-new', '2026-06-01', { endDate: '2026-06-03' })
+  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'periods', roomCode: B } }).reply({ code: 0, id: saved._id, record: saved })
+  const saving = app.dispatch(edit, 'save')
+  await app.settle()
+  periods.resolve(listed([]))
+  await saving
+  // Room A's period on the same start day asks nothing: only Room B's periods count.
+  assert.deepEqual(app.wx.modals, [])
+  assert.deepEqual(app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action !== 'list').map(call => call.data.roomCode), [B])
+  assert.deepEqual(listCalls(app).slice(-2).map(call => call.data.roomCode), [B, B])
+})
+
 test('records Home read after its own Room lookup belong to the Room the lookup found, so the next show refreshes them silently', async t => {
   const app = homeApp(t)
   const home = await launchRoomA(app)

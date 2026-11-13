@@ -71,22 +71,50 @@ test('cloud records render the calendar, summary and the selected day detail', a
   assert.equal(app.wx.modals.length, 0)
 })
 
+// #195: a record change reaches Home only from a confirmed save or delete in a real editor opened from
+// Home, which hides Home until the editor returns. The editor hands over the cloud's canonical record.
+const editorKinds = { periods: 'period', memories: 'memory' }
+function editorQuery({ collection, mode, record }) {
+  const fields = collection === 'memories'
+    ? { date: record.date, note: record.note }
+    : { startDate: record.startDate, endDate: record.endDate, status: record.status === 'known-end' ? '' : record.status }
+  return new URLSearchParams(Object.entries({ id: mode === 'add' ? '' : record._id, ...fields }).filter(([, value]) => value)).toString()
+}
+async function confirmInEditor(app, change, { query = editorQuery(change), write = change.mode, reopened = false } = {}) {
+  const { collection, mode, record } = change
+  app.cloud.when({ name: 'dataOp', data: { action: write, collection } })
+    .reply(mode === 'remove' ? { code: 0 } : { code: 0, id: record._id, record, ...(reopened ? { reopened } : {}) })
+  app.wx.navigateTo({ url: `/pages/${editorKinds[collection]}/edit/edit?${query}` })
+  await app.settle()
+  if (mode === 'remove' || reopened) app.respondNext('showModal', { confirm: true })
+  await app.dispatch(app.currentPage, mode === 'remove' ? 'delete' : 'save')
+  await app.settle()
+}
+// A confirmed save returns to Home on its timer, and Home refreshes as it shows.
+async function returnHome(app) { await app.advance(1000) }
+// Home's refreshes stay on their way, so Home shows what the editors handed over.
+function holdRefresh(app) {
+  listRoute(app, 'periods').defer()
+  listRoute(app, 'memories').defer()
+}
+
 test('record notifications refresh the day details and removed rows do not leak into later opens', async t => {
   const app = homeApp(t, { periods: [period('p1', '2026-06-01', '2026-06-03')], memories: [memory('m1', '2026-06-04', '只有四号的备注')] })
   const home = await launch(app)
   await day(app, home, '2026-06-04')
   assert.equal(app.rendered(home).selectedDayDetail.memories[0].note, '只有四号的备注')
   await closeSheet(app, home, 'dayActions')
-  home.applyRecordChange({ collection: 'memories', mode: 'update', record: memory('m1', '2026-06-04', '修改后的备注') })
-  home.applyRecordChange({ collection: 'periods', mode: 'update', record: period('p1', '2026-06-01', '2026-06-04') })
-  await app.settle()
+  holdRefresh(app)
+  await confirmInEditor(app, { collection: 'memories', mode: 'update', record: memory('m1', '2026-06-04', '修改后的备注') })
+  await returnHome(app)
+  await confirmInEditor(app, { collection: 'periods', mode: 'update', record: period('p1', '2026-06-01', '2026-06-04') })
+  await returnHome(app)
   await day(app, home, '2026-06-04')
   assert.equal(app.rendered(home).selectedDayDetail.memories[0].note, '修改后的备注')
   assert.equal(app.rendered(home).selectedDayDetail.periods[0].range, '6月1日–6月4日')
   await closeSheet(app, home, 'dayActions')
-  home.applyRecordChange({ collection: 'memories', mode: 'remove', record: { _id: 'm1' } })
-  home.applyRecordChange({ collection: 'periods', mode: 'remove', record: { _id: 'p1' } })
-  await app.settle()
+  await confirmInEditor(app, { collection: 'memories', mode: 'remove', record: { _id: 'm1' } })
+  await confirmInEditor(app, { collection: 'periods', mode: 'remove', record: { _id: 'p1' } })
   await day(app, home, '2026-06-04')
   assert.deepEqual(app.rendered(home).selectedDayDetail.periods, [])
   assert.deepEqual(app.rendered(home).selectedDayDetail.memories, [])
@@ -548,9 +576,12 @@ test('completion reminder waits for leaving, survives refresh and is seen once p
   await app.settle()
   const later = app.currentPage
   assert.equal(app.rendered(later).ongoingCompletionReminder, null)
-  later.applyRecordChange({ collection: 'periods', mode: 'update', record: period('p2', '2026-06-20', '2026-06-24') })
-  later.applyRecordChange({ collection: 'periods', mode: 'add', record: period('p3', '2026-06-18', '', 'ongoing') })
-  await app.settle()
+  holdRefresh(app)
+  await confirmInEditor(app, { collection: 'periods', mode: 'update', record: period('p2', '2026-06-20', '2026-06-24') })
+  await returnHome(app)
+  await confirmInEditor(app, { collection: 'periods', mode: 'add', record: period('p3', '2026-06-18', '', 'ongoing') })
+  await returnHome(app)
+  assert.equal(app.currentPage, later)
   assert.equal(app.rendered(later).ongoingCompletionReminder.title, '经期还未结束')
   assert.equal(app.storage.ongoingPeriodReminderShown, 'p2')
   app.hide()
@@ -561,12 +592,11 @@ test('short ongoing and completed records have no completion reminder or automat
   const app = homeApp(t, { periods: [period('p2', '2026-06-24', '', 'ongoing')] })
   const home = await launch(app)
   assert.equal(app.rendered(home).ongoingCompletionReminder, null)
-  app.hide()
+  // Completing the record in its editor hides Home first.
+  await confirmInEditor(app, { collection: 'periods', mode: 'update', record: period('p2', '2026-06-24', '2026-06-26') })
   assert.equal(app.storage.ongoingPeriodReminderShown, undefined)
-  home.applyRecordChange({ collection: 'periods', mode: 'update', record: period('p2', '2026-06-24', '2026-06-26') })
-  await app.settle()
   assert.equal(app.rendered(home).ongoingCompletionReminder, null)
-  assert.equal(app.cloud.calls.some(call => call.name === 'dataOp' && call.data.action !== 'list'), false)
+  assert.deepEqual(app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action !== 'list').map(call => call.data.action), ['update'], 'only the member\'s own save writes')
 })
 
 test('tapping the completion reminder opens the original ongoing record without ending it', async t => {
@@ -1001,9 +1031,11 @@ test('back-to-today emphasis replays on request and clears on record, month and 
   await tap(app, home, 'openMonthPicker')
   await tap(app, home, 'jumpToToday')
   assert.equal(calendarAnimation(app, home, 'emphasis'), 'calendar-emphasis-today-b')
-  home.applyRecordChange({ collection: 'memories', record: memory('m1', '2026-06-03') })
-  await app.settle()
+  const saved = memory('m1', '2026-06-03')
+  await confirmInEditor(app, { collection: 'memories', mode: 'add', record: saved })
   assert.equal(calendarAnimation(app, home, 'emphasis'), '')
+  listRoute(app, 'memories').reply(success([saved]))
+  await returnHome(app)
   for (const action of ['nextMonth', 'select', 'refresh']) {
     await tap(app, home, 'jumpToToday')
     if (action === 'select') await selectMonth(app, home, 2026, 1)
@@ -1041,21 +1073,16 @@ test('closing real prediction content emphasizes only predicted days and does no
   assert.equal(calendarAnimation(app, home, 'emphasis'), '')
 })
 
-async function notifyHidden(app, home, change) {
-  app.hide()
-  home.applyRecordChange(change)
-  await app.settle()
-}
-
 test('a saved memory blooms on return, confirmation refresh preserves it, later hiding clears it', async t => {
   const app = homeApp(t, { memories: [memory('m1', '2026-06-02')] })
   const home = await launch(app)
   assert.deepEqual(feedback(app, home), [])
   const saved = memory('m2', '2026-06-10')
-  await notifyHidden(app, home, { collection: 'memories', mode: 'add', record: saved })
+  await confirmInEditor(app, { collection: 'memories', mode: 'add', record: saved })
   assert.deepEqual(feedback(app, home), [['2026-06-10', 'record-feedback-memory']])
   listRoute(app, 'memories').reply(success([saved, memory('m1', '2026-06-02')]))
-  app.show(); await app.settle()
+  await returnHome(app)
+  assert.equal(app.currentPage, home)
   assert.equal(classes('page', app.rendered(home)).includes('page-hidden'), false)
   assert.deepEqual(feedback(app, home), [['2026-06-10', 'record-feedback-memory']])
   app.hide(); await app.settle()
@@ -1076,28 +1103,31 @@ for (const [label, initial, mode, saved, dates] of [
   test(`confirmed ${label} period blooms on every covered date`, async t => {
     const app = homeApp(t, { periods: initial })
     const home = await launch(app)
-    await notifyHidden(app, home, { collection: 'periods', mode, record: saved })
+    await confirmInEditor(app, { collection: 'periods', mode, record: saved })
     assert.deepEqual(feedback(app, home), dates.map(date => [date, 'record-feedback-period']))
     assert.ok(dates.every(date => marked(app, home, 'period').includes(date)))
   })
 }
 
-for (const [label, collection, change] of [
+for (const [label, collection, change, editor] of [
   ['memory note edit', 'memories', { mode: 'update', record: memory('m1', '2026-06-02', '补一句') }],
   ['memory date edit', 'memories', { mode: 'update', record: memory('m1', '2026-06-05') }],
   ['memory delete', 'memories', { mode: 'remove', record: { _id: 'm1' } }],
-  ['mode-less upsert', 'memories', { record: memory('m9', '2026-06-09') }],
   ['other month', 'memories', { mode: 'add', record: memory('m9', '2026-05-01') }],
-  ['merged into ongoing', 'periods', { mode: 'update', record: { ...ongoing, note: '已经记录过的经期' } }],
+  // A new ongoing period the cloud merges into the existing one comes back as an update of that record.
+  ['merged into ongoing', 'periods', { mode: 'update', record: { ...ongoing, note: '已经记录过的经期' } },
+    { query: 'startDate=2026-06-10&status=ongoing', write: 'add', reopened: true }],
   ['unknown end', 'periods', { mode: 'update', record: { ...ongoing, status: 'unknown-end' } }],
   ['completed record date edit', 'periods', { mode: 'update', record: { ...earlier, endDate: '2026-06-04' } }],
   ['period delete', 'periods', { mode: 'remove', record: { _id: 'p1' } }],
-  ['duplicate add notification', 'periods', { mode: 'add', record: { ...earlier, note: '重复回流' } }]
+  // The cloud answers a new period with a record Home already holds.
+  ['duplicate add notification', 'periods', { mode: 'add', record: { ...earlier, note: '重复回流' } },
+    { query: 'startDate=2026-06-12&endDate=2026-06-13' }]
 ]) {
   test(`${label} does not play new-record feedback`, async t => {
     const app = homeApp(t, { periods: [ongoing, earlier], memories: [memory('m1', '2026-06-02')] })
     const home = await launch(app)
-    await notifyHidden(app, home, { collection, ...change })
+    await confirmInEditor(app, { collection, ...change }, editor)
     assert.deepEqual(feedback(app, home), [])
   })
 }
@@ -1106,7 +1136,7 @@ test('an unshown loading calendar accepts a record notification without playing 
   const app = homeApp(t)
   const pending = listRoute(app, 'periods').defer()
   const home = await launch(app)
-  await notifyHidden(app, home, { collection: 'memories', mode: 'add', record: memory('m9', '2026-06-09') })
+  await confirmInEditor(app, { collection: 'memories', mode: 'add', record: memory('m9', '2026-06-09') })
   assert.equal(app.rendered(home).loading, true)
   assert.deepEqual(feedback(app, home), [])
   pending.resolve(success([]))
@@ -1120,8 +1150,8 @@ test('later saves replace feedback; month changes and changed cloud records clea
   async function save(collection, record) {
     records[collection].push(record)
     listRoute(app, collection).reply(success(records[collection]))
-    await notifyHidden(app, home, { collection, mode: 'add', record })
-    app.show(); await app.settle()
+    await confirmInEditor(app, { collection, mode: 'add', record })
+    await returnHome(app)
   }
   await save('memories', memory('m1', '2026-06-10'))
   await save('periods', period('p1', '2026-06-12', '2026-06-13'))
@@ -1144,10 +1174,10 @@ test('room loss clears calendar feedback, flip and emphasis before a recovered c
   assert.ok(calendarAnimation(app, home, 'flip'))
   await tap(app, home, 'jumpToToday')
   assert.ok(calendarAnimation(app, home, 'emphasis'))
-  await notifyHidden(app, home, { collection: 'memories', mode: 'add', record: memory('m1', '2026-06-10') })
+  await confirmInEditor(app, { collection: 'memories', mode: 'add', record: memory('m1', '2026-06-10') })
   app.wx.removeStorageSync('roomCode')
   app.cloud.when('getMyRoom').reply({ code: 0, room: null })
-  app.show(); await app.settle()
+  await returnHome(app)
   assert.equal(app.rendered(home).noRoom, true)
   assert.equal(calendarAnimation(app, home, 'flip'), '')
   assert.equal(calendarAnimation(app, home, 'emphasis'), '')
