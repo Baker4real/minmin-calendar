@@ -947,13 +947,16 @@ test('Room membership lifecycle preserves records for creator recovery and isola
     createdByMe: true
   }
 
+  // A list also brings back the Room's pairing status (#191); these lifecycle Rooms are all waiting.
   assert.deepEqual(await dataOp({ action: 'list', collection: 'periods', roomCode: 'ROOM01' }), {
     code: 0,
-    data: [periodProjection]
+    data: [periodProjection],
+    roomStatus: 'waiting'
   })
   assert.deepEqual(await dataOp({ action: 'list', collection: 'memories', roomCode: 'ROOM01' }), {
     code: 0,
-    data: [memoryProjection]
+    data: [memoryProjection],
+    roomStatus: 'waiting'
   })
 
   assert.deepEqual(await lifecycle.leave({ openid: 'creator' }), {
@@ -989,11 +992,13 @@ test('Room membership lifecycle preserves records for creator recovery and isola
   activeOpenid = 'new-creator'
   assert.deepEqual(await dataOp({ action: 'list', collection: 'periods', roomCode: 'ROOM02' }), {
     code: 0,
-    data: []
+    data: [],
+    roomStatus: 'waiting'
   })
   assert.deepEqual(await dataOp({ action: 'list', collection: 'memories', roomCode: 'ROOM02' }), {
     code: 0,
-    data: []
+    data: [],
+    roomStatus: 'waiting'
   })
   assert.deepEqual(await dataOp({ action: 'list', collection: 'periods', roomCode: 'ROOM01' }), {
     code: -1,
@@ -1008,11 +1013,13 @@ test('Room membership lifecycle preserves records for creator recovery and isola
   activeOpenid = 'creator'
   assert.deepEqual(await dataOp({ action: 'list', collection: 'periods', roomCode: 'ROOM01' }), {
     code: 0,
-    data: [periodProjection]
+    data: [periodProjection],
+    roomStatus: 'waiting'
   })
   assert.deepEqual(await dataOp({ action: 'list', collection: 'memories', roomCode: 'ROOM01' }), {
     code: 0,
-    data: [memoryProjection]
+    data: [memoryProjection],
+    roomStatus: 'waiting'
   })
 })
 

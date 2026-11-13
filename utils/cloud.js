@@ -45,7 +45,7 @@ function createRoomDataClient(options = {}) {
       )
       const result = res.result || {}
       if (result.code === 0) {
-        return buildSuccessOutcome(action, result)
+        return buildSuccessOutcome(action, result, roomCode)
       }
       if (roomAccessOutcome.isStaleRoomFailure(result)) {
         const repair = await session.repairCachedRoom(roomCode)
@@ -90,12 +90,17 @@ function getWx() {
   return wx
 }
 
-function buildSuccessOutcome(action, result) {
+// list 成功结果：记录、本次读取所用的房间码，以及云端带回的 Room 配对状态 roomStatus（waiting / paired）。
+// 云端没给状态或取值不认识时不带 roomStatus，调用方按未知处理（旧版 dataOp 不返回它）。
+function buildSuccessOutcome(action, result, roomCode) {
   if (action === 'list') {
-    return {
+    const outcome = {
       kind: 'success',
-      data: result.data || []
+      data: result.data || [],
+      roomCode
     }
+    if (result.roomStatus === 'waiting' || result.roomStatus === 'paired') outcome.roomStatus = result.roomStatus
+    return outcome
   }
 
   return {

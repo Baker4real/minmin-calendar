@@ -6,11 +6,16 @@ const route = '/pages/period/period'
 const dataset = value => ({ currentTarget: { dataset: value } })
 const list = (app, collection) => app.cloud.when({ name: 'dataOp', data: { action: 'list', collection } })
 const listCalls = app => app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action === 'list')
+const roomLookups = app => app.cloud.calls.filter(call => call.name === 'getMyRoom').length
+const writes = (page, key) => page.setDataCalls.filter(patch => key in patch).map(patch => patch[key])
+const groupAuthors = groups => groups.flatMap(group => group.records.map(row => row.authorLabel))
+const periodGroupAuthors = years => years.flatMap(year => groupAuthors(year.months))
 
-function setup(t, { segment = 'period', status = 'waiting', ...options } = {}) {
+// No getMyRoom rule by default: the tab takes pairing from its list replies (#191), so a Room
+// lookup from a bound tab fails loudly as an unprogrammed cloud call.
+function setup(t, { segment = 'period', ...options } = {}) {
   const app = createMiniProgram({ now: '2026-10-20T12:00:00+08:00', ...options, storage: { roomCode: 'ROOM01', recordTabSegment: segment, ...options.storage } })
   t.after(() => app.teardown())
-  app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01', status } })
   list(app, 'periods').reply({ code: 0, data: [] })
   list(app, 'memories').reply({ code: 0, data: [] })
   return app
@@ -215,19 +220,20 @@ for (const scenario of periodCases) {
   })
 }
 
-for (const status of ['paired', 'waiting']) {
-  test(`${status}: rows name authors only when paired and same-day memories have distinct spoken labels`, async (t) => {
-    const app = setup(t, { status })
-    list(app, 'periods').reply({ code: 0, data: [
+for (const status of ['paired', 'waiting', null, 'archived']) {
+  test(`${status === null ? 'no status' : status}: rows name authors only when the lists bring back paired and same-day memories have distinct spoken labels`, async (t) => {
+    const app = setup(t)
+    const reply = data => status === null ? { code: 0, data } : { code: 0, roomStatus: status, data }
+    list(app, 'periods').reply(reply([
       { _id: 'p-mine', startDate: '2026-09-01', endDate: '2026-09-03', createdByMe: true, flow: 'heavy', symptoms: ['cramps'] },
       { _id: 'p-theirs', startDate: '2026-08-01', endDate: '2026-08-03', createdByMe: false },
       { _id: 'p-old', startDate: '2026-07-01', endDate: '2026-07-02' }
-    ] })
-    list(app, 'memories').reply({ code: 0, data: [
+    ]))
+    list(app, 'memories').reply(reply([
       { _id: 'mine', date: '2026-09-18', note: '散步', createdByMe: true },
       { _id: 'theirs', date: '2026-09-18', note: ' ', createdByMe: false },
       { _id: 'old', date: '2026-09-02', note: '旧记录' }
-    ] })
+    ]))
     const page = app.launch(route)
     await app.flush()
     assert.deepEqual(page.data.periods.map(row => row.authorLabel), status === 'paired' ? ['我记的', 'TA 记的', undefined] : [undefined, undefined, undefined])
@@ -240,6 +246,55 @@ for (const status of ['paired', 'waiting']) {
     ] : ['编辑欢乐时光，9月18日，散步', '编辑欢乐时光，9月18日', '编辑欢乐时光，9月2日，旧记录'])
   })
 }
+
+test('each record tab show reads only its segment list, looks no Room up, and rows carry authors in their first render', async (t) => {
+  const app = setup(t)
+  list(app, 'periods').reply({ code: 0, roomStatus: 'paired', data: [
+    { _id: 'p-mine', startDate: '2026-09-01', endDate: '2026-09-03', createdByMe: true },
+    { _id: 'p-theirs', startDate: '2026-08-01', endDate: '2026-08-03', createdByMe: false }
+  ] })
+  list(app, 'memories').reply({ code: 0, roomStatus: 'paired', data: [
+    { _id: 'mine', date: '2026-09-18', note: '散步', createdByMe: true },
+    { _id: 'theirs', date: '2026-09-02', note: '', createdByMe: false }
+  ] })
+  const page = app.launch(route)
+  await app.flush()
+  assert.deepEqual(app.cloud.calls.map(call => [call.name, call.data.action, call.data.collection]), [['dataOp', 'list', 'periods']])
+  assert.deepEqual(writes(page, 'periods').map(rows => rows.map(row => row.authorLabel)), [['我记的', 'TA 记的']])
+  assert.deepEqual(writes(page, 'periodGroups').map(periodGroupAuthors), [['我记的', 'TA 记的']])
+  await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
+  await app.flush()
+  assert.deepEqual(writes(page, 'memoryGroups').map(groupAuthors), [['我记的', 'TA 记的']])
+  app.hide()
+  app.show()
+  await app.flush()
+  assert.deepEqual(listCalls(app).map(call => call.data.collection), ['periods', 'memories', 'memories'])
+  assert.deepEqual(writes(page, 'memoryGroups').map(groupAuthors), [['我记的', 'TA 记的'], ['我记的', 'TA 记的']], 'one row render per load')
+  assert.equal(roomLookups(app), 0)
+})
+
+test('without a new status the tab keeps the Room\'s last pairing, while another Room starts unpaired', async (t) => {
+  const app = setup(t)
+  const memories = [{ _id: 'mine', date: '2026-09-18', note: '', createdByMe: true }]
+  list(app, 'periods').reply({ code: 0, roomStatus: 'paired', data: [] })
+  list(app, 'memories').reply({ code: 0, data: memories })
+  const page = app.launch(route)
+  await app.flush()
+  await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
+  await app.flush()
+  assert.deepEqual(groupAuthors(page.data.memoryGroups), ['我记的'], 'same Room: the periods list already said paired')
+  // This device now holds another Room whose list brings back no status.
+  app.wx.setStorageSync('roomCode', 'ROOM02')
+  await page.onPullDownRefresh()
+  await app.flush()
+  assert.equal(listCalls(app).at(-1).data.roomCode, 'ROOM02')
+  assert.deepEqual(groupAuthors(page.data.memoryGroups), [undefined])
+  list(app, 'memories').reply({ code: 0, roomStatus: 'paired', data: memories })
+  await page.onPullDownRefresh()
+  await app.flush()
+  assert.deepEqual(groupAuthors(page.data.memoryGroups), ['我记的'])
+  assert.equal(roomLookups(app), 0)
+})
 
 test('memory month cards sort across years, preserve same-day records and match the calendar recap count', async (t) => {
   const app = setup(t, { segment: 'memory' })
@@ -268,7 +323,7 @@ test('memory month cards sort across years, preserve same-day records and match 
 })
 
 test('period year and month groups use the start month once, newest first, while preserving record identity and state', async (t) => {
-  const app = setup(t, { status: 'paired' })
+  const app = setup(t)
   const records = [
     { _id: 'cross-year', startDate: '2024-12-28', endDate: '2025-01-02', note: '跨年合成记录' },
     { _id: 'cross-month', startDate: '2025-03-30', endDate: '2025-04-03', flow: 'heavy', symptoms: ['cramps'], createdByMe: false },
@@ -277,7 +332,7 @@ test('period year and month groups use the start month once, newest first, while
     { _id: 'january', startDate: '2025-01-12', endDate: '2025-01-12' },
     { _id: 'live', startDate: '2026-09-30', status: 'ongoing', createdByMe: true }
   ]
-  list(app, 'periods').reply({ code: 0, data: records })
+  list(app, 'periods').reply({ code: 0, roomStatus: 'paired', data: records })
   const page = app.launch(route)
   await app.flush()
   assert.deepEqual(page.data.periodGroups.map(year => [year.title, year.months.map(month => [month.key, month.title, month.records.map(row => row._id)])]), [
@@ -318,12 +373,12 @@ for (const scenario of [
 const periodExpansion = page => page.data.periodGroups.flatMap(year => year.months.map(month => [month.key, month.expanded]))
 
 test('period month choices are immediate, page-local and survive refresh failure and segment switches', async (t) => {
-  const app = setup(t, { status: 'paired' })
+  const app = setup(t)
   const records = [
     { _id: 'recent', startDate: '2026-10-01', endDate: '2026-10-05' },
     { _id: 'older', startDate: '2025-10-01', status: 'unknown-end' }
   ]
-  list(app, 'periods').reply({ code: 0, data: records })
+  list(app, 'periods').reply({ code: 0, roomStatus: 'paired', data: records })
   const page = app.launch(route)
   await app.flush()
   assert.deepEqual(periodExpansion(page), [['2026-10', true], ['2025-10', true]])

@@ -16,7 +16,8 @@ test('RoomDataClient list returns success data for the active room', async () =>
 
   assert.deepEqual(outcome, {
     kind: 'success',
-    data: [{ _id: 'p1', startDate: '2026-06-01' }]
+    data: [{ _id: 'p1', startDate: '2026-06-01' }],
+    roomCode: 'ROOM01'
   })
   assert.deepEqual(cloud.calls, [{
     name: 'dataOp',
@@ -28,6 +29,34 @@ test('RoomDataClient list returns success data for the active room', async () =>
       roomCode: 'ROOM01'
     }
   }])
+})
+
+for (const roomStatus of ['waiting', 'paired']) {
+  test(`RoomDataClient list hands over the ${roomStatus} pairing status with the room code the list was read from`, async () => {
+    const cloud = createFakeCloud([
+      { result: { code: 0, roomStatus, data: [{ _id: 'm1', date: '2026-06-02', createdByMe: true }] } }
+    ])
+    const client = createRoomDataClient({ cloud, roomSession: createFakeRoomSession({ roomCode: ' room01 ' }) })
+
+    const outcome = await client.list('memories')
+
+    assert.deepEqual(outcome, {
+      kind: 'success',
+      data: [{ _id: 'm1', date: '2026-06-02', createdByMe: true }],
+      roomCode: 'ROOM01',
+      roomStatus
+    })
+  })
+}
+
+test('RoomDataClient list leaves the pairing status out when the cloud gives none or one it does not know', async () => {
+  const unknownStatuses = [undefined, '', 'archived', 'PAIRED', 1, { status: 'paired' }]
+  const cloud = createFakeCloud(unknownStatuses.map(roomStatus => ({ result: { code: 0, roomStatus, data: [] } })))
+  const client = createRoomDataClient({ cloud, roomSession: createFakeRoomSession({ roomCode: 'ROOM01' }) })
+
+  for (const roomStatus of unknownStatuses) {
+    assert.deepEqual(await client.list('periods'), { kind: 'success', data: [], roomCode: 'ROOM01' }, `roomStatus ${JSON.stringify(roomStatus)}`)
+  }
 })
 
 test('RoomDataClient lists records with an injected in-memory resolved room', async () => {
@@ -45,7 +74,8 @@ test('RoomDataClient lists records with an injected in-memory resolved room', as
 
   assert.deepEqual(outcome, {
     kind: 'success',
-    data: [{ _id: 'p1', startDate: '2026-06-01' }]
+    data: [{ _id: 'p1', startDate: '2026-06-01' }],
+    roomCode: 'TEST01'
   })
   assert.deepEqual(roomSession.activeRoomCalls, [])
   assert.deepEqual(cloud.calls, [{
@@ -228,7 +258,8 @@ test('RoomDataClient recovers the active room from RoomSession before loading re
 
   assert.deepEqual(outcome, {
     kind: 'success',
-    data: [{ _id: 'p1', startDate: '2026-06-01' }]
+    data: [{ _id: 'p1', startDate: '2026-06-01' }],
+    roomCode: 'ROOM02'
   })
   assert.deepEqual(roomSession.activeRoomCalls, ['getActiveRoom'])
   assert.deepEqual(cloud.calls, [{
@@ -263,7 +294,8 @@ test('RoomDataClient classifies rejected cloud calls as retryable failures and k
 
   assert.deepEqual(retryOutcome, {
     kind: 'success',
-    data: [{ _id: 'm1', date: '2026-06-24' }]
+    data: [{ _id: 'm1', date: '2026-06-24' }],
+    roomCode: 'ROOM01'
   })
 })
 
@@ -285,7 +317,8 @@ test('RoomDataClient classifies cloud timeouts as retryable failures', async () 
 
   assert.deepEqual(retryOutcome, {
     kind: 'success',
-    data: [{ _id: 'p1' }]
+    data: [{ _id: 'p1' }],
+    roomCode: 'ROOM01'
   })
 })
 

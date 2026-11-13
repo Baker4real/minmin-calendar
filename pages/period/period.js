@@ -6,8 +6,8 @@ const recordCommands = require('../../utils/recordCommands')
 const recordPageSync = require('../../utils/recordPageSync')
 const recordEditRoute = require('../../utils/recordEditRoute')
 const memoryMonthGroups = require('../../utils/memoryMonthGroups')
+const { adoptListedRoomStatus } = require('../../utils/roomRecordsSync')
 const safeArea = require('../../utils/safeArea')
-const roomSession = require('../../utils/room')
 const { restoreTabBarOnShow } = require('../../utils/sheetLifecycle')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 
@@ -74,47 +74,42 @@ Page(withPageVisibility({
   async loadData() {
     const client = cloud.createRoomDataClient()
     const today = util.formatDate(new Date())
-    const pairedPromise = roomIsPaired()
-    const outcome = await recordCommands.runRecordListLoad({
+    await recordCommands.runRecordListLoad({
       page: this,
       itemsKey: 'periods',
-      action: () => client.list('periods'),
+      action: () => listAdoptingRoomStatus(this, client, 'periods'),
       mapRecords: periods => [...periods]
         .sort((a, b) => b.startDate.localeCompare(a.startDate))
-        .map(period => cycle.decoratePeriod(period, { today })),
+        .map(period => withAuthorLabel(this, cycle.decoratePeriod(period, { today }))),
       onLoaded: periods => {
         this.calcStats(periods)
         this.setData({ hasLoaded: true, periodGroups: buildPeriodGroups(this.data.periods, this.periodMonthChoices, this.periodYearChoices) })
       }
     })
-    await labelLoadedPeriods(this, outcome, pairedPromise)
   },
 
   async loadMemoryData() {
     const client = cloud.createRoomDataClient()
     const today = util.formatDate(new Date())
-    const pairedPromise = roomIsPaired()
-    const outcome = await recordCommands.runRecordListLoad({
+    await recordCommands.runRecordListLoad({
       page: this,
       itemsKey: 'memories',
       loadingKey: 'memoryLoading',
       loadFailedKey: 'memoryLoadFailed',
-      action: () => client.list('memories'),
+      action: () => listAdoptingRoomStatus(this, client, 'memories'),
       mapRecords: memories => [...memories].sort((a, b) => b.date.localeCompare(a.date)),
       onLoaded: memories => {
         // 列表加载成功后产出月份分组（issue #108）；失败路径不清 memories，分组同样保留上次的。
         // 展开状态由页面内存的手动选择推导（issue #109）：重载后手动选择保留，没点过的月份走默认规则
-        this._loadedMemories = memories
         this.setData({
           memoryHasLoaded: true,
           memoryGroups: memoryMonthGroups.applyMemoryMonthExpansion(
-            memoryMonthGroups.buildMemoryMonthGroups(memories, { today }),
+            memoryMonthGroups.buildMemoryMonthGroups(memories.map(memory => withAuthorLabel(this, memory)), { today }),
             this.memoryMonthChoices
           )
         })
       }
     })
-    await labelLoadedMemories(this, outcome, pairedPromise, today)
   },
 
   calcStats(periods) {
@@ -233,45 +228,19 @@ function findMemoryRecordById(groups, id) {
   return null
 }
 
-async function labelLoadedPeriods(page, outcome, pairedPromise) {
-  const paired = await pairedPromise
-  page._roomPaired = paired
-  if (!paired || !outcome || outcome.kind !== 'success') return
-  const periods = page.data.periods.map(period => withAuthorLabel(
-    period,
-    cycle.recordAuthorLabel(period, { paired: true })
-  ))
-  page.setData({ periods, periodGroups: buildPeriodGroups(periods, page.periodMonthChoices, page.periodYearChoices) })
+// 配对状态只来自列表结果（#191），规则与首页同步共用 adoptListedRoomStatus。记录 tab 还没接上共享记录（#194），
+// 先由页面记住列表上一次带回的房间码与配对状态；结果先记下再交给 runRecordListLoad，这一次的行就按它渲染
+async function listAdoptingRoomStatus(page, client, collection) {
+  const outcome = await client.list(collection)
+  page._listedRoom = adoptListedRoomStatus(page._listedRoom, outcome)
+  return outcome
 }
 
-async function labelLoadedMemories(page, outcome, pairedPromise, today) {
-  const paired = await pairedPromise
-  page._roomPaired = paired
-  if (!paired || !outcome || outcome.kind !== 'success' || !page._loadedMemories) return
-  const rows = page._loadedMemories.map(memory => withAuthorLabel(
-    memory,
-    cycle.recordAuthorLabel(memory, { paired: true })
-  ))
-  page.setData({
-    memoryGroups: memoryMonthGroups.applyMemoryMonthExpansion(
-      memoryMonthGroups.buildMemoryMonthGroups(rows, { today }),
-      page.memoryMonthChoices
-    )
-  })
-}
-
-function withAuthorLabel(record, authorLabel) {
-  if (!authorLabel) return record
-  return { ...record, authorLabel }
-}
-
-async function roomIsPaired() {
-  try {
-    const room = await roomSession.getVerifiedActiveRoom()
-    return Boolean(room && room.status === 'paired')
-  } catch (error) {
-    return false
-  }
+// 记录作者随列表的同一次渲染给出：已配对时带「我记的 / TA 记的」，未配对或状态未知时不带
+function withAuthorLabel(page, record) {
+  const paired = Boolean(page._listedRoom && page._listedRoom.roomStatus === 'paired')
+  const authorLabel = cycle.recordAuthorLabel(record, { paired })
+  return authorLabel ? { ...record, authorLabel } : record
 }
 
 function calculateAverageDuration(periods = []) {

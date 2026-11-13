@@ -7,7 +7,6 @@ const recordDraft = require('../../utils/recordDraft')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 const { computeCalendarRowHeight } = require('../../utils/calendarRowHeight')
 const safeArea = require('../../utils/safeArea')
-const roomSession = require('../../utils/room')
 const roomPresence = require('../../utils/roomPresence')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 const {
@@ -183,7 +182,7 @@ Page(withPageVisibility({
   onShow() {
     restoreTabBarOnShow(this)
     // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效，行高按新密度同一次重算。
-    // 记录加载必须在这次调用里同步开始，不能等房间状态请求回来。
+    // 记录加载在这次调用里同步开始；配对状态随两份列表一起带回，不另查房间（#191）。
     const today = util.formatDate(new Date())
     const calendarDensity = this.getSavedCalendarDensity()
     // 隔日回来时所有日期内容一起更新；同日静默刷新保留当前投影的反馈与动画。
@@ -197,30 +196,18 @@ Page(withPageVisibility({
       }), () => this.markOngoingReminderShown(reminder))
     }
     this.refreshReducedMotion()
-    const load = this._recordsSync.load({ background: this.data.hasLoadedHomeData && !this.data.noRoom })
-    const presence = this.observeRoomPresence()
-    return load.then(async (outcome) => {
-      await presence
-      return outcome
-    }, async (error) => {
-      await presence
-      throw error
-    })
+    return this.loadRecords({ background: this.data.hasLoadedHomeData && !this.data.noRoom })
   },
 
-  async observeRoomPresence() {
-    try {
-      const room = await roomSession.getVerifiedActiveRoom()
-      const paired = Boolean(room && room.status === 'paired')
-      const changed = paired !== (this._roomPaired === true)
-      this._roomPaired = paired
-      if (roomPresence.rememberRoomStatus(room && room.status)) {
+  // 首页发起的每次加载都经这里：「TA 已加入」只认这次列表带回的配对状态，由 roomPresence 判定只提示一次；
+  // 没带回状态（读取失败或旧版 dataOp）就不喂旧值。显示、下拉、重试共用一次在途加载时也只提示一次。
+  loadRecords(options) {
+    return this._recordsSync.load(options).then(result => {
+      if (roomPresence.rememberRoomStatus(result && result.roomStatus)) {
         wx.showToast({ title: 'TA 已加入', icon: 'none' })
       }
-      if (changed && this.data.hasLoadedHomeData) {
-        this.applyHomeCalendarState()
-      }
-    } catch (error) {}
+      return result
+    })
   },
 
   // 一次性配对欢迎（issue #149）：日历能显示时才挂上欢迎条，行高同一次 setData 计入它；
@@ -305,7 +292,7 @@ Page(withPageVisibility({
   // 一次性记号（见 _calendarMarks），fields 是其他字段（选月面板），不覆盖投影和记号
   applyHomeCalendarState(overrides = {}, { flip, emphasis, fields = {} } = {}) {
     const hasOwn = (key) => Object.prototype.hasOwnProperty.call(overrides, key)
-    const { collections } = this._recordsSync.getState()
+    const { collections, roomPaired } = this._recordsSync.getState()
     const year = hasOwn('year') ? overrides.year : this.data.year
     const month = hasOwn('month') ? overrides.month : this.data.month
     const today = hasOwn('today') ? overrides.today : util.formatDate(new Date())
@@ -316,7 +303,7 @@ Page(withPageVisibility({
       periods: collections.periods.records,
       memories: collections.memories.records,
       today,
-      roomPaired: this._roomPaired === true,
+      roomPaired,
       periodsSynced: collections.periods.synced,
       memoriesSynced: collections.memories.synced,
       recordChange: hasOwn('recordChange') ? overrides.recordChange : null
@@ -477,18 +464,18 @@ Page(withPageVisibility({
   handleRoomStatusAction() {
     return wxPrompts.runAction(this.data.roomStatusAction, {
       navigateToBind: () => this.goBind(),
-      retry: () => this._recordsSync.load({ background: false })
+      retry: () => this.loadRecords({ background: false })
     })
   },
 
   // 首页已加载后的刷新失败重试：保持后台刷新语义，失败时日历与重试句都留驻，
   // 不把已显示的日历换回整页失败画面
   retryRefresh() {
-    return this._recordsSync.load({ background: true })
+    return this.loadRecords({ background: true })
   },
 
   onPullDownRefresh() {
-    const task = this._recordsSync.load({ background: true })
+    const task = this.loadRecords({ background: true })
     const stop = () => {
       if (typeof wx.stopPullDownRefresh === 'function') wx.stopPullDownRefresh()
     }
