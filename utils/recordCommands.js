@@ -300,59 +300,6 @@ function confirmRecordDelete(content) {
   })
 }
 
-async function runRecordListLoad(options) {
-  const opts = options || {}
-  const wxApi = resolveWxApi(opts)
-  const {
-    page,
-    action,
-    mapRecords,
-    onLoaded,
-    itemsKey,
-    loadingKey = 'loading',
-    loadFailedKey = 'loadFailed'
-  } = opts
-  const navigateToBind = typeof opts.navigateToBind === 'function'
-    ? opts.navigateToBind
-    : createNavigateToBind(wxApi)
-
-  updatePage(page, { [loadingKey]: true })
-
-  let outcome
-  try {
-    outcome = await action()
-  } catch (error) {
-    outcome = {
-      kind: 'retryable-failure',
-      message: roomAccessOutcome.presentUserFailure(getErrorMessage(error))
-    }
-  }
-
-  if (outcome.kind === 'success') {
-    const records = Array.isArray(outcome.data) ? outcome.data : []
-    const viewData = typeof mapRecords === 'function' ? mapRecords(records) : records
-    updatePage(page, { [itemsKey]: viewData, [loadFailedKey]: false })
-    if (typeof onLoaded === 'function') {
-      onLoaded(records)
-    }
-    updatePage(page, { [loadingKey]: false })
-    return outcome
-  }
-
-  updatePage(page, { [loadingKey]: false })
-  const result = await handleFailureOutcome({
-    outcome,
-    wxApi,
-    operation: 'list',
-    retryAction: () => runRecordListLoad(options),
-    navigateToBind
-  })
-  if (!result || result.kind !== 'success') {
-    updatePage(page, { [loadFailedKey]: true })
-  }
-  return result
-}
-
 async function runCommand(options) {
   const {
     render,
@@ -431,10 +378,9 @@ async function runCommand(options) {
   })
 }
 
-function handleFailureOutcome({ outcome, operation, wxApi, retryAction, navigateToBind }) {
+function handleFailureOutcome({ outcome, operation, wxApi, navigateToBind }) {
   return wxPrompts.present(roomAccessOutcome.presentRoomAccessFailure(outcome, operation), {
     wx: wxApi,
-    retry: retryAction,
     navigateToBind
   })
 }
@@ -483,31 +429,11 @@ function sameFieldValue(actual, expected) {
   return String(actual == null ? '' : actual) === String(expected == null ? '' : expected)
 }
 
-function updatePage(page, update) {
-  if (page && typeof page.setData === 'function') {
-    page.setData(update)
-  }
-}
-
 function createNavigateToBind(wxApi) {
   if (wxApi && typeof wxApi.navigateTo === 'function') {
     return () => wxApi.navigateTo({ url: '/pages/bind/bind' })
   }
   return () => {}
-}
-
-function getWx() {
-  if (typeof wx === 'undefined') {
-    throw new Error('wx is unavailable outside the WeChat runtime')
-  }
-  return wx
-}
-
-function resolveWxApi(options) {
-  if (options && Object.prototype.hasOwnProperty.call(options, 'wx')) {
-    return options.wx
-  }
-  return getWx()
 }
 
 function safeShowToast(wxApi, options) {
@@ -521,6 +447,5 @@ function getErrorMessage(error) {
 }
 
 module.exports = {
-  openRecordEditSession,
-  runRecordListLoad
+  openRecordEditSession
 }
