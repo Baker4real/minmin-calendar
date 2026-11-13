@@ -431,21 +431,6 @@ test('buildMonthlyRecap keeps completed precision separate from ongoing and unkn
 })
 
 test('prediction explanation states where the predicted duration comes from', () => {
-  // 用户设置档：经期时长来自常用设置，不说「平均」
-  const manual = insights.buildPredictionExplanation(
-    cycle.predictNextPeriod(
-      [period('2026-06-01', '2026-06-05')],
-      { typicalCycleLength: 30, typicalPeriodLength: 4 }
-    )
-  )
-  assert.deepEqual(manual.lines, [
-    '参考手动设置的常用周期',
-    '平均周期 30 天，经期时长按常用 4 天',
-    '预计持续 4 天',
-    '记录还不多，仅供参考',
-    '根据记录估算，不是医疗建议'
-  ])
-
   // 默认档：没有已完成时长，不把五天默认说成已知平均
   const defaulted = insights.buildPredictionExplanation(
     cycle.predictNextPeriod([

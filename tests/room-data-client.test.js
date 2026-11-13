@@ -2,7 +2,7 @@ const assert = require('node:assert/strict')
 const test = require('node:test')
 
 const cloudModule = require('../utils/cloud')
-const { createInMemoryRoomResolver } = require('../utils/roomResolver')
+const { createInMemoryRoomResolver } = require('./helpers/inMemoryRoomResolver')
 const { createRoomDataClient } = cloudModule
 
 test('RoomDataClient list returns success data for the active room', async () => {
