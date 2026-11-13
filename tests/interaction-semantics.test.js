@@ -755,12 +755,19 @@ test('record tab segment control reads as a radio group with a perceivable check
   // 月份卡头（issue #109）：点按切换展开/收起，按 button 朗读；
   // 读屏名「YYYY年M月，N 条欢乐时光，已展开/已收起」由分组数据绑定，
   // aria-expanded 与展开状态同条件；不用 active 条件类（单选语义才配 aria-checked）
-  const monthHeader = elements.find((element) => classTokens(element).includes('month-header'))
-  assert.ok(monthHeader, 'expected the memory month card header')
-  assert.equal(monthHeader.attrs.bindtap, 'toggleMonth')
-  assert.equal(monthHeader.attrs['aria-role'], 'button')
-  assert.equal(monthHeader.attrs['aria-label'], '{{group.ariaLabel}}')
-  assert.equal(monthHeader.attrs['aria-expanded'], '{{group.expanded}}')
+  const yearHeader = byHandler('togglePeriodYear', 'period-year-title')
+  assert.ok(yearHeader)
+  assert.equal(yearHeader.attrs['aria-role'], 'button')
+  assert.equal(yearHeader.attrs['aria-label'], '{{yearGroup.ariaLabel}}')
+  assert.equal(yearHeader.attrs['aria-expanded'], '{{yearGroup.expanded}}')
+  assert.match(readPage('pages/period/period.wxml'), /wx:if="\{\{yearGroup\.expanded\}\}" class="period-year-months"/)
+  for (const handler of ['toggleMonth', 'togglePeriodMonth']) {
+    const monthHeader = byHandler(handler, 'month-header')
+    assert.ok(monthHeader, `expected the ${handler} month header`)
+    assert.equal(monthHeader.attrs['aria-role'], 'button')
+    assert.equal(monthHeader.attrs['aria-label'], '{{group.ariaLabel}}')
+    assert.equal(monthHeader.attrs['aria-expanded'], '{{group.expanded}}')
+  }
 })
 
 test('edit pages name the save and delete operations and expose inert variants as disabled', () => {

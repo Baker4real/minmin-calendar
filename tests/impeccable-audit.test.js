@@ -97,9 +97,9 @@ test('capture summaries classify current, stale and historical evidence without 
   fs.writeFileSync(capture, records.map(record => JSON.stringify(record)).join('\n'))
   const summary = buildAuditSummary({ projectPath: root, component: 'calendar', captureFile: capture })
 
-  assert.deepEqual(summary.evidence.counts, { current: 1, stale: 1, 'historical-unbound': 1 })
+  assert.deepEqual(summary.evidence.counts, { 'runtime-unconfirmed': 1, stale: 1, 'historical-unbound': 1 })
   assert.equal(summary.evidence.entries.length, 3)
-  assert.equal(summary.evidence.entries[0].classification, 'current')
+  assert.equal(summary.evidence.entries[0].classification, 'runtime-unconfirmed')
   assert.equal(summary.evidence.entries[2].classification, 'historical-unbound')
 })
 

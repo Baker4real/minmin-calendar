@@ -62,6 +62,35 @@
   line-height: var(--line-height-assist);
 }
 
+/* 年份可独立折叠，展开后恢复各月份自己的选择。 */
+.period-year + .period-year {
+  margin-top: 28rpx;
+}
+.period-year-title {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  padding: 0 6rpx;
+  margin-bottom: 12rpx;
+  transition: opacity var(--duration-press) ease;
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-title);
+  line-height: var(--line-height-title);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.year-toggle {
+  font-size: var(--font-size-caption);
+  color: #E8909E;
+}
+.period-year-title:active,
+.period-year-title.period-year-title-hover {
+  opacity: 0.75;
+}
+
 /* List Items */
 .list-item {
   display: flex;

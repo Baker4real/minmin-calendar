@@ -232,19 +232,19 @@ test('quick record buttons keep the calendar marks, rose fill, readable labels a
   assert.match(ruleBody(wxss, '.quick-text'), /font-size:\s*var\(--font-size-body\)/)
 })
 
-test('compact density keeps record actions on a 375×667 screen for a 6-row month', () => {
+test('compact density preserves the thicker band and allows scrolling on a short 6-row month', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
   const wxss = readIndexWxss()
-  assert.match(ruleBody(wxss, '.calendar-density-compact .day-cell'), /height:\s*var\(--calendar-row-height,\s*140rpx\)/)
+  assert.match(ruleBody(wxss, '.calendar-density-compact .day-cell'), /height:\s*var\(--calendar-row-height,\s*148rpx\)/)
   assert.match(ruleBody(wxss, '.home-sticky'), /position:\s*fixed/)
   assert.match(ruleBody(wxss, '.home-status.neutral'), /color:\s*var\(--text-secondary\)/)
   assert.doesNotMatch(ruleBody(wxss, '.home-status.neutral'), /#F97373|249,\s*115,\s*115/)
   const row = computeCalendarRowHeight({ viewportWidth: 375, viewportHeight: 619, navBarHeightPx: 64, density: 'compact', days: Array.from({ length: 42 }, () => ({ isEmpty: true })), showBackToToday: true })
-  assert.equal(row.heightPx, 51.33)
+  assert.equal(row.heightPx, 54)
   assert.equal(row.infoMerged, true)
-  assert.equal(row.actionsFit, true)
+  assert.equal(row.actionsFit, false)
   assert.ok(row.heightPx >= row.contentMinPx)
-  assert.ok(row.heightPx <= 70)
+  assert.ok(row.heightPx <= 74)
 })
 
 test('a disabled month arrow is dimmed and does not press', () => {

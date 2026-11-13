@@ -267,6 +267,231 @@ test('memory month cards sort across years, preserve same-day records and match 
   assert.equal(groups[0].count, 3)
 })
 
+test('period year and month groups use the start month once, newest first, while preserving record identity and state', async (t) => {
+  const app = setup(t, { status: 'paired' })
+  const records = [
+    { _id: 'cross-year', startDate: '2024-12-28', endDate: '2025-01-02', note: '跨年合成记录' },
+    { _id: 'cross-month', startDate: '2025-03-30', endDate: '2025-04-03', flow: 'heavy', symptoms: ['cramps'], createdByMe: false },
+    { _id: 'same-a', startDate: '2025-03-30', status: 'unknown-end' },
+    { _id: 'early', startDate: '2025-03-01', endDate: '2025-03-02' },
+    { _id: 'january', startDate: '2025-01-12', endDate: '2025-01-12' },
+    { _id: 'live', startDate: '2026-09-30', status: 'ongoing', createdByMe: true }
+  ]
+  list(app, 'periods').reply({ code: 0, data: records })
+  const page = app.launch(route)
+  await app.flush()
+  assert.deepEqual(page.data.periodGroups.map(year => [year.title, year.months.map(month => [month.key, month.title, month.records.map(row => row._id)])]), [
+    ['2026年', [['2026-09', '9月', ['live']]]],
+    ['2025年', [['2025-03', '3月', ['cross-month', 'same-a', 'early']], ['2025-01', '1月', ['january']]]],
+    ['2024年', [['2024-12', '12月', ['cross-year']]]]
+  ])
+  const rows = page.data.periodGroups.flatMap(year => year.months.flatMap(month => month.records))
+  assert.deepEqual(rows, page.data.periods)
+  assert.deepEqual(rows.map(row => row.durationText), ['进行中', '5天', '结束日期不详', '2天', '1天', '6天'])
+  assert.equal(rows[0].authorLabel, '我记的')
+  assert.equal(rows[1].authorLabel, 'TA 记的')
+  assert.equal(rows[1].flowLabel, '量多')
+  assert.deepEqual(rows[1].symptomLabels, ['痛经'])
+  assert.equal(rows.at(-1).note, '跨年合成记录')
+  assert.equal(new Set(rows.map(row => row._id)).size, records.length)
+})
+
+for (const scenario of [
+  { name: 'March to April', record: { _id: 'spec-cross-month', startDate: '2025-03-30', endDate: '2025-04-03' }, months: [[2025, 2, ['2025-03-30', '2025-03-31']], [2025, 3, ['2025-04-01', '2025-04-02', '2025-04-03']]] },
+  { name: 'December to January', record: { _id: 'spec-cross-year', startDate: '2024-12-28', endDate: '2025-01-02' }, months: [[2024, 11, ['2024-12-28', '2024-12-29', '2024-12-30', '2024-12-31']], [2025, 0, ['2025-01-01', '2025-01-02']]] },
+  { name: 'ongoing March through today in April', record: { _id: 'spec-live', startDate: '2026-03-30', status: 'ongoing' }, months: [[2026, 2, ['2026-03-30', '2026-03-31']], [2026, 3, ['2026-04-01', '2026-04-02']]] }
+]) {
+  test(`period grouping keeps one record while both calendar months retain coverage: ${scenario.name}`, async (t) => {
+    const { buildHomeCalendarState } = require('../utils/homeCalendarState')
+    const app = setup(t, { now: '2026-04-02T12:00:00+08:00' })
+    list(app, 'periods').reply({ code: 0, data: [scenario.record] })
+    const page = app.launch(route)
+    await app.flush()
+    assert.deepEqual(page.data.periodGroups.flatMap(year => year.months.map(month => [month.key, month.records.map(row => row._id)])), [[scenario.record.startDate.slice(0, 7), [scenario.record._id]]])
+    for (const [year, month, dates] of scenario.months) {
+      const state = buildHomeCalendarState({ year, month, today: '2026-04-02', periods: [scenario.record], memories: [] })
+      assert.deepEqual(state.days.filter(day => day.isPeriod).map(day => day.date), dates)
+    }
+  })
+}
+
+const periodExpansion = page => page.data.periodGroups.flatMap(year => year.months.map(month => [month.key, month.expanded]))
+
+test('period month choices are immediate, page-local and survive refresh failure and segment switches', async (t) => {
+  const app = setup(t, { status: 'paired' })
+  const records = [
+    { _id: 'recent', startDate: '2026-10-01', endDate: '2026-10-05' },
+    { _id: 'older', startDate: '2025-10-01', status: 'unknown-end' }
+  ]
+  list(app, 'periods').reply({ code: 0, data: records })
+  const page = app.launch(route)
+  await app.flush()
+  assert.deepEqual(periodExpansion(page), [['2026-10', true], ['2025-10', true]])
+  assert.equal(page.data.periodGroups[0].months[0].ariaLabel, '2026年10月，已展开，收起经期记录')
+  const navigations = app.navigation.length
+  const storage = structuredClone(app.storage)
+  await app.dispatch(page, 'togglePeriodMonth', dataset({ key: '2026-10' }))
+  assert.equal(app.navigation.length, navigations)
+  assert.deepEqual(periodExpansion(page), [['2026-10', false], ['2025-10', true]])
+  assert.equal(page.data.periodGroups[0].months[0].ariaLabel, '2026年10月，已收起，展开经期记录')
+  assert.equal(page.data.periodGroups[0].months[0].toggleLabel, '展开')
+  assert.deepEqual(app.storage, storage)
+  await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
+  await app.dispatch(page, 'selectSegment', dataset({ segment: 'period' }))
+  await page.onPullDownRefresh()
+  const before = structuredClone(page.data.periodGroups)
+  list(app, 'periods').reject(new Error('network down'))
+  app.respondNext('showModal', { confirm: false })
+  await page.onPullDownRefresh()
+  assert.deepEqual(page.data.periodGroups, before)
+  list(app, 'periods').reply({ code: 0, data: records })
+  await app.dispatch(page, 'loadData')
+  assert.deepEqual(periodExpansion(page), [['2026-10', false], ['2025-10', true]])
+  app.wx.reLaunch({ url: route })
+  await app.flush()
+  assert.deepEqual(periodExpansion(app.currentPage), [['2026-10', true], ['2025-10', true]])
+  list(app, 'periods').reply({ code: 0, data: [] })
+  await app.dispatch(app.currentPage, 'loadData')
+  assert.deepEqual(app.currentPage.data.periodGroups, [])
+  assert.equal(app.currentPage.data.loadFailed, false)
+})
+
+test('period years collapse independently, retain month choices across refresh and reset on a new page', async (t) => {
+  const app = setup(t)
+  const records = [
+    { _id: 'oct', startDate: '2026-10-01', endDate: '2026-10-05' },
+    { _id: 'sep', startDate: '2026-09-01', status: 'unknown-end' },
+    { _id: 'old', startDate: '2025-12-28', endDate: '2026-01-02' }
+  ]
+  list(app, 'periods').reply({ code: 0, data: records })
+  const page = app.launch(route)
+  await app.flush()
+  const years = () => page.data.periodGroups.map(year => [year.key, year.expanded])
+  assert.deepEqual(years(), [['2026', true], ['2025', true]])
+  await app.dispatch(page, 'togglePeriodMonth', dataset({ key: '2026-09' }))
+  const storage = structuredClone(app.storage)
+  const navigations = app.navigation.length
+  await app.dispatch(page, 'togglePeriodYear', dataset({ key: '2026' }))
+  assert.deepEqual(years(), [['2026', false], ['2025', true]])
+  assert.equal(page.data.periodGroups[0].ariaLabel, '2026年，已收起，展开经期记录')
+  assert.equal(page.data.periodGroups[0].toggleLabel, '展开')
+  assert.equal(app.navigation.length, navigations)
+  await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
+  await app.dispatch(page, 'selectSegment', dataset({ segment: 'period' }))
+  await page.onPullDownRefresh()
+  assert.deepEqual(years(), [['2026', false], ['2025', true]])
+  await app.dispatch(page, 'togglePeriodYear', dataset({ key: '2026' }))
+  assert.deepEqual(years(), [['2026', true], ['2025', true]])
+  assert.deepEqual(periodExpansion(page), [['2026-10', true], ['2026-09', false], ['2025-12', true]])
+  assert.deepEqual(app.storage, storage)
+  app.wx.reLaunch({ url: route })
+  await app.flush()
+  assert.ok(app.currentPage.data.periodGroups.every(year => year.expanded))
+  assert.ok(periodExpansion(app.currentPage).every(([, expanded]) => expanded))
+})
+
+test('period saves expand their destination month, moves remove empty years, and deletion removes the final month', async (t) => {
+  const app = setup(t)
+  let records = [
+    { _id: 'recent', startDate: '2026-09-01', endDate: '2026-09-05' },
+    { _id: 'move', startDate: '2025-12-28', endDate: '2026-01-02' }
+  ]
+  list(app, 'periods').reply({ code: 0, data: records })
+  const page = app.launch(route)
+  await app.flush()
+  await app.dispatch(page, 'togglePeriodMonth', dataset({ key: '2026-09' }))
+  await app.dispatch(page, 'togglePeriodYear', dataset({ key: '2026' }))
+  assert.equal(page.data.periodGroups[0].expanded, false)
+  await app.dispatch(page, 'editPeriod', dataset({ id: 'move' }))
+  assert.equal(app.currentPage.data.startDate, '2025-12-28')
+  await app.dispatch(app.currentPage, 'onStartChange', { detail: { value: '2026-09-12' } })
+  await app.dispatch(app.currentPage, 'onEndChange', { detail: { value: '2026-09-16' } })
+  const moved = { _id: 'move', startDate: '2026-09-12', endDate: '2026-09-16', status: 'known-end' }
+  app.cloud.when({ name: 'dataOp', data: { action: 'update', collection: 'periods', id: 'move' } }).reply({ code: 0, record: moved })
+  records = [records[0], moved]
+  list(app, 'periods').reply({ code: 0, data: records })
+  await app.dispatch(app.currentPage, 'save')
+  await app.flush()
+  assert.equal(app.currentPage, page)
+  assert.deepEqual(periodExpansion(page), [['2026-09', true]])
+  assert.equal(page.data.periodGroups[0].expanded, true)
+  assert.deepEqual(page.data.periodGroups[0].months[0].records.map(row => row._id), ['move', 'recent'])
+  for (const id of ['move', 'recent']) {
+    await app.dispatch(page, 'editPeriod', dataset({ id }))
+    assert.equal(app.currentPage.data.id, id)
+    app.respondNext('showModal', { confirm: true })
+    app.cloud.when({ name: 'dataOp', data: { action: 'remove', collection: 'periods', id } }).reply({ code: 0 })
+    records = records.filter(record => record._id !== id)
+    list(app, 'periods').reply({ code: 0, data: records })
+    await app.dispatch(app.currentPage, 'delete')
+    await app.flush()
+  }
+  assert.deepEqual(page.data.periodGroups, [])
+  assert.deepEqual(page.data.periods, [])
+})
+
+test('period add into a collapsed February and move from March to February expand the saved month', async (t) => {
+  const app = setup(t)
+  let records = [
+    { _id: 'feb', startDate: '2026-02-01', endDate: '2026-02-05' },
+    { _id: 'march', startDate: '2026-03-10', endDate: '2026-03-14' }
+  ]
+  list(app, 'periods').reply({ code: 0, data: records })
+  const page = app.launch(route)
+  await app.flush()
+  await app.dispatch(page, 'togglePeriodMonth', dataset({ key: '2026-02' }))
+  await app.dispatch(page, 'addPeriod')
+  await app.dispatch(app.currentPage, 'onStartChange', { detail: { value: '2026-02-20' } })
+  await app.dispatch(app.currentPage, 'selectStatus', dataset({ value: 'known-end' }))
+  await app.dispatch(app.currentPage, 'onEndChange', { detail: { value: '2026-02-24' } })
+  const added = { _id: 'feb-added', startDate: '2026-02-20', endDate: '2026-02-24', status: 'known-end' }
+  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'periods' } }).reply({ code: 0, record: added })
+  await app.dispatch(app.currentPage, 'save')
+  records = [...records, added]
+  list(app, 'periods').reply({ code: 0, data: records })
+  await app.flush()
+  assert.equal(app.currentPage, page)
+  assert.deepEqual(periodExpansion(page), [['2026-03', true], ['2026-02', true]])
+  await app.dispatch(page, 'togglePeriodMonth', dataset({ key: '2026-02' }))
+  await app.dispatch(page, 'editPeriod', dataset({ id: 'march' }))
+  await app.dispatch(app.currentPage, 'onStartChange', { detail: { value: '2026-02-12' } })
+  await app.dispatch(app.currentPage, 'onEndChange', { detail: { value: '2026-02-16' } })
+  const moved = { _id: 'march', startDate: '2026-02-12', endDate: '2026-02-16', status: 'known-end' }
+  app.cloud.when({ name: 'dataOp', data: { action: 'update', collection: 'periods', id: 'march' } }).reply({ code: 0, record: moved })
+  records = records.map(record => record._id === 'march' ? moved : record)
+  list(app, 'periods').reply({ code: 0, data: records })
+  await app.dispatch(app.currentPage, 'save')
+  await app.flush()
+  assert.deepEqual(periodExpansion(page), [['2026-02', true]])
+  assert.deepEqual(page.data.periodGroups[0].months[0].records.map(record => record._id), ['feb-added', 'march', 'feb'])
+})
+
+for (const attempt of ['cancel', 'failure']) {
+  test(`period changed start month preserves groups and collapse choices after ${attempt}`, async (t) => {
+    const app = setup(t)
+    const records = [{ _id: 'march', startDate: '2026-03-10', endDate: '2026-03-14' }, { _id: 'feb', startDate: '2026-02-01', endDate: '2026-02-05' }]
+    list(app, 'periods').reply({ code: 0, data: records })
+    const page = app.launch(route)
+    await app.flush()
+    await app.dispatch(page, 'togglePeriodMonth', dataset({ key: '2026-02' }))
+    const before = structuredClone(page.data.periodGroups)
+    await app.dispatch(page, 'editPeriod', dataset({ id: 'march' }))
+    await app.dispatch(app.currentPage, 'onStartChange', { detail: { value: '2026-02-12' } })
+    await app.dispatch(app.currentPage, 'onEndChange', { detail: { value: '2026-02-16' } })
+    if (attempt === 'failure') {
+      app.cloud.when({ name: 'dataOp', data: { action: 'update', collection: 'periods', id: 'march' } }).reply({ code: 400, msg: '合成保存失败' })
+      app.respondNext('showModal', { confirm: true })
+      await app.dispatch(app.currentPage, 'save')
+      assert.notEqual(app.currentPage, page)
+      assert.deepEqual(page.data.periodGroups, before)
+    }
+    await app.dispatch(app.currentPage, 'goBack')
+    await app.flush()
+    assert.equal(app.currentPage, page)
+    assert.deepEqual(page.data.periodGroups, before)
+  })
+}
+
 const monthRecords = [
   { _id: 'sep', date: '2026-09-18', note: '九月晚餐' },
   { _id: 'aug', date: '2026-08-02', note: '八月散步' },
@@ -374,7 +599,7 @@ test('record tab period entry reopens an ongoing record, otherwise starts today,
   assert.equal(app.currentPage.data.startDate, '2026-10-18')
   await app.dispatch(app.currentPage, 'goBack')
   await app.flush()
-  await app.dispatch(page, 'editPeriod', dataset({ index: 1 }))
+  await app.dispatch(page, 'editPeriod', dataset({ id: 'p1' }))
   assert.equal(app.currentPage.data.note, '测试备注')
   assert.equal(app.currentPage.data.startDate, '2026-08-01')
   list(app, 'periods').reply({ code: 0, data: [closed] })

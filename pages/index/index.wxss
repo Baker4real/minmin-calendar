@@ -414,9 +414,9 @@
   visibility: hidden;
 }
 .calendar-density-compact .day-cell {
-  height: var(--calendar-row-height, 140rpx);
+  height: var(--calendar-row-height, 148rpx);
   justify-content: center;
-  padding: 10rpx 0 12rpx;
+  padding: 4rpx 0 12rpx;
 }
 .calendar-density-compact .day-num {
   font-size: var(--font-size-calendar-date-compact);
@@ -438,11 +438,11 @@
   margin-top: 6rpx;
 }
 /* 清爽密度空间不足时（issue #153）：节日/调休与 ♥、「预」并成日期下的一行，信息一项不少、读屏名不变。
-   内容顶对齐，日期停在常规清爽格的位置，色带照旧包住日期；信息行按「预」胶囊高留足，不再向下垂出。
+   内容顶对齐，日期与细色带共用常规清爽格的槽位；信息行按「预」胶囊高留足，不再向下垂出。
    几何账本 utils/calendarRowHeight.js 只在这个月每一天都并得进一行时才挂这个类，否则保持常规三行、页面滚动 */
 .calendar-info-merged .day-cell {
   justify-content: flex-start;
-  padding: 14rpx 0 4rpx;
+  padding: 8rpx 0 4rpx;
 }
 .calendar-info-merged .day-info {
   flex-direction: row;
@@ -482,16 +482,13 @@
   color: #E8909E;
   font-weight: var(--font-weight-title);
 }
-.day-cell.today.period .day-num {
-  color: rgba(255,255,255,0.92);
-}
 /* 今天（issue #162）：围住日期数字的紧凑胶囊——浅玫瑰底、薰衣草细描边，数字仍是玫瑰色。格子本身不上色，
    整日点按范围仍是整格；农历、节日/调休与标记都在胶囊外。胶囊挂在日期身后（日期自成叠放层，见下方 z-index 1）。
    完整密度：胶囊从格子顶画起（0–41rpx）。清爽与合并信息行：日期上方 5rpx 起。下沿都离下一槽
    （农历字框、节日/调休或信息行）留 2rpx：rpx 按段取整成整数 px，贴着槽顶画会在部分屏宽上压到「班」1px。
-   经期今天不画胶囊，今天只描在色带外缘。
+   经期中的今天同样显示这枚胶囊，下方色带独立表示经期。
    今天的状态强调（issue #165）用同一个框：两档密度的几何只写在这里，胶囊和光晕各自只写颜色 */
-.day-cell.today:not(.period) .day-num::before,
+.day-cell.today .day-num::before,
 .calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after,
 .calendar-days.calendar-emphasis-today-b .day-cell.today .day-num::after {
   content: '';
@@ -506,7 +503,7 @@
   border-radius: var(--radius-full);
   pointer-events: none;
 }
-.calendar-density-compact .day-cell.today:not(.period) .day-num::before,
+.calendar-density-compact .day-cell.today .day-num::before,
 .calendar-density-compact .calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after,
 .calendar-density-compact .calendar-days.calendar-emphasis-today-b .day-cell.today .day-num::after {
   top: -5rpx;
@@ -514,12 +511,12 @@
   height: 43rpx;
   margin-left: -32rpx;
 }
-.day-cell.today:not(.period) .day-num::before {
+.day-cell.today .day-num::before {
   border: 2rpx solid rgba(196,160,210,0.55);
   background: rgba(232,144,158,0.14);
 }
 /* 今天的状态强调（issue #165）：回到今天时，日期胶囊的位置亮起一圈更亮、更粗的薰衣草描边再落回 0，只动透明度、播一次。
-   形状、位置和胶囊重合（框见上）；经期今天没有胶囊，光晕同样围住日期、叠在色带上，播完不留痕。
+   形状、位置和胶囊重合（框见上），经期中的今天也照常围住日期，播完不留痕。
    不铺底：日期就在框里，再叠一层玫瑰底，峰值时玫瑰日期掉到约 3:1；描边 4rpx 落在框边，不压数字。
    只在 .calendar-days 带强调记号时存在，静止的日历不多一层；a、b 交替才会从头重播 */
 .calendar-days.calendar-emphasis-today-a .day-cell.today .day-num::after,
@@ -613,18 +610,29 @@
   border-radius: var(--radius-circle);
 }
 
-/* Period band: a compact 22% rose wash behind the date. Caps live on the band so a row connects; no transition. */
+/* 完整模式：色带位于农历字框后；清爽模式：所有日期都预留独立细条槽。 */
+.period-slot {
+  position: absolute;
+  top: 43rpx;
+  width: 100%;
+  height: 24rpx;
+  z-index: 0;
+  pointer-events: none;
+}
+.calendar-density-compact .period-slot {
+  position: relative;
+  top: auto;
+  flex-shrink: 0;
+  height: 12rpx;
+  margin-top: 2rpx;
+}
 .period-band {
   position: absolute;
   inset: 0 0 auto;
-  height: 44rpx;
+  height: 100%;
   z-index: 0;
   pointer-events: none;
   background: rgba(232,144,158,0.22);
-}
-.calendar-density-compact .period-band {
-  top: 8rpx;
-  height: 48rpx;
 }
 .day-cell.period {
   border-radius: 0;
@@ -635,25 +643,6 @@
 .day-marks {
   position: relative;
   z-index: 1;
-}
-/* 经期今天（issue #162）：不叠第二枚胶囊，只在色带外缘描今天，宽度和颜色同今天胶囊；描边画在色带盒子里，色带高度不变。
-   和邻格相连的一侧、进行中开口的一端不描：中段只描上下两条边，不在色带里画竖线 */
-.day-cell.today.period .period-band {
-  box-sizing: border-box;
-  border: 2rpx solid rgba(196,160,210,0.55);
-}
-.day-cell.today.period-middle .period-band {
-  border-left-width: 0;
-  border-right-width: 0;
-}
-.day-cell.today.period-start .period-band {
-  border-right-width: 0;
-}
-.day-cell.today.period-end .period-band {
-  border-left-width: 0;
-}
-.day-cell.today.period-open .period-band {
-  border-right-width: 0;
 }
 .day-cell.period-start .period-band {
   border-top-left-radius: var(--radius-full);
@@ -1580,7 +1569,8 @@
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
 }
 .legend-sample .period-band {
-  top: 14rpx;
+  top: 24rpx;
+  height: 24rpx;
 }
 /* 经期记录动作的图标（issue #159）：就是图例那段单日色带，同一组 .day-cell.period.period-single 与 .period-band。
    这里只把它缩进圆盘、让色带铺满样本；颜色和胶囊形仍由色带自己的规则给。样本不接收点按，按压归外层按钮。
@@ -1603,6 +1593,7 @@
   height: 24rpx;
 }
 .action-sample .period-band {
+  top: 0;
   height: 100%;
 }
 .legend-copy {

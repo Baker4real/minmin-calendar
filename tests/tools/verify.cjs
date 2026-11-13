@@ -18,19 +18,23 @@ function testCounts(log) {
   return counts.tests ? ` (${counts.pass ?? 0}/${counts.tests} pass, ${counts.fail ?? 0} fail)` : ''
 }
 
-function runLogged(name, args, logDir, cwd = root, summarize = () => '') {
+function runLogged(name, args, logDir, cwd = root, summarize = () => '', report = console.log) {
   const log = path.join(logDir, `${name}.log`)
   const fd = fs.openSync(log, 'w')
   let result
   try {
-    result = spawnSync(process.execPath, args, { cwd, stdio: ['ignore', fd, fd], timeout: 180000 })
+    const env = { ...process.env }
+    delete env.NODE_TEST_CONTEXT
+    result = spawnSync(process.execPath, args, { cwd, env, stdio: ['ignore', fd, fd], timeout: 180000 })
     if (result.error) fs.writeSync(fd, `${result.error.message}\n`)
   } finally { fs.closeSync(fd) }
   const ok = result.status === 0 && !result.error
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${summarize(log)}: ${log}`)
+  report(`${ok ? 'PASS' : 'FAIL'} ${name}${summarize(log)}: ${log}`)
   if (!ok) {
     const lines = fs.readFileSync(log, 'utf8').trim().split(/\r?\n/)
-    console.error(lines.slice(-18).join('\n'))
+    const names = [...new Set(lines.filter(line => /^✖ /.test(line)))].slice(0, 4)
+    if (names.length) report(names.map(line => line.slice(0, 180)).join('\n'))
+    report(lines.slice(-12).map(line => line.length > 300 ? line.slice(0, 300) + '…' : line).join('\n'))
   }
   return ok
 }
@@ -62,7 +66,37 @@ function targets(tracked) {
   }
 }
 
+function runTarget({ tests, name, cwd = root, report = console.log } = {}) {
+  if (!Array.isArray(tests) || !tests.length || new Set(tests).size !== tests.length ||
+      !tests.every(file => /^tests\/[\w.-]+\.test\.js$/.test(file) && fs.existsSync(path.join(cwd, file)))) throw new Error('Select existing tests/<name>.test.js files, without duplicates')
+  if (name !== undefined) new RegExp(name)
+  const logDir = path.join(cwd, '.scratch', 'verify-target')
+  fs.mkdirSync(logDir, { recursive: true })
+  const ok = runLogged('tests', ['--test', '--test-reporter=spec', ...(name === undefined ? [] : [`--test-name-pattern=${name}`]), ...tests], logDir, cwd, testCounts, report)
+  const log = path.join(logDir, 'tests.log')
+  const counts = {}
+  for (const [, key, value] of fs.readFileSync(log, 'utf8').matchAll(/^ℹ (tests|pass|fail|skipped|cancelled) (\d+)\r?$/gm)) counts[key] = Number(value)
+  // Node 24 reports a file wrapper as a passing test when --test-name-pattern
+  // selects nothing. Exclude those exact file rows rather than trusting exit 0.
+  const output = fs.readFileSync(log, 'utf8')
+  const fileRows = output.split(/\r?\n/).filter(line => {
+    const title = line.replace(/^[✔✖]\s+/, '').replace(/\s+\([\d.]+ms\)$/, '').replace(/\\/g, '/')
+    return tests.includes(title)
+  }).length
+  const matched = (counts.tests || 0) - (counts.skipped || 0) - fileRows
+  if (!matched) report(`FAIL no matching tests: ${log}`)
+  return { ok: ok && matched > 0 && counts.fail === 0 && counts.cancelled === 0, counts, log }
+}
+function targetMain(argv) {
+  const options = {}
+  for (let i = 0; i < argv.length; i += 2) {
+    if (!['--tests', '--name'].includes(argv[i]) || !argv[i + 1]) throw new Error('Options: --tests tests/a.test.js,tests/b.test.js [--name pattern]')
+    options[argv[i].slice(2)] = argv[i + 1]
+  }
+  process.exitCode = runTarget({ tests: options.tests?.split(','), name: options.name }).ok ? 0 : 1
+}
 function main() {
+  if (process.argv[2] === '--target') return targetMain(process.argv.slice(3))
   // One fixed directory that each run overwrites, so runs never pile up under .scratch.
   const logDir = path.join(root, '.scratch', 'verify')
   fs.mkdirSync(logDir, { recursive: true })
@@ -94,4 +128,4 @@ function main() {
 }
 
 if (require.main === module) main()
-module.exports = { sourceFiles, runLogged, testCounts, trackedFiles, pickTargets }
+module.exports = { sourceFiles, runLogged, testCounts, trackedFiles, pickTargets, runTarget }

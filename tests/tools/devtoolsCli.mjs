@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { electronEnvironment } from './electronProcess.mjs'
 
 export const defaultIde = 'D:/Program Files (x86)/Tencent/微信web开发者工具'
 const root = fileURLToPath(new URL('../../', import.meta.url))
@@ -76,7 +77,7 @@ export async function runOfficialCli({ ide = defaultIde, command = 'islogin', pr
   if (!existsSync(executable) || !existsSync(entry)) throw new Error('Official CLI missing; specify --ide')
   const bootstrap = "const e=process.argv[1],a=process.argv.slice(2);process.argv=[process.execPath,'--ms-enable-electron-run-as-node',e,'--electron'].concat(a);require(e)"
   return runBounded(executable, ['-e', bootstrap, entry, ...args], {
-    timeoutMs, cwd: ide, env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', cwd: project },
+    timeoutMs, cwd: ide, env: { ...electronEnvironment('cli'), cwd: project },
   })
 }
 

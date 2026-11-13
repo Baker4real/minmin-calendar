@@ -1120,8 +1120,8 @@ test('state emphasis is a one-shot opacity halo that exists only under its token
 
   // 今天的光晕就是日期胶囊自己的形状，两档密度都和胶囊重合
   const box = (decls) => ['top', 'left', 'width', 'height', 'margin-left'].map((prop) => decls[prop])
-  const capsule = declsOf(index, '.day-cell.today:not(.period) .day-num::before')
-  const compactCapsule = { ...capsule, ...declsOf(index, '.calendar-density-compact .day-cell.today:not(.period) .day-num::before') }
+  const capsule = declsOf(index, '.day-cell.today .day-num::before')
+  const compactCapsule = { ...capsule, ...declsOf(index, '.calendar-density-compact .day-cell.today .day-num::before') }
   for (const token of ['today-a', 'today-b']) {
     const selector = `.calendar-days.calendar-emphasis-${token} ${HALO_TARGETS.today}`
     const halo = declsOf(index, selector)
@@ -1206,7 +1206,7 @@ test('day cells keep only their press scale, and day colors switch immediately',
 
   // issue #162：今天胶囊挂在日期上，和日期颜色一样即时出现、即时消失
   for (const selector of [
-    '.day-cell.today:not(.period) .day-num::before',
+    '.day-cell.today .day-num::before',
     '.day-cell.workday',
     '.day-cell.today .day-num'
   ]) {

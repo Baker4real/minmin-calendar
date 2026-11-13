@@ -1117,13 +1117,13 @@ test('legend items use the same marker description the calendar cells draw', () 
   const state = buildHomeCalendarState({ year: 2026, month: 7, today: '2026-08-10' })
   const legend = Object.fromEntries(state.legendItems.map(item => [item.key, item]))
 
-  // issue #162：今天是日期外的一枚小胶囊；经期里的今天不画胶囊，改在色带边缘描边
+  // issue #188：今天始终是日期外的一枚小胶囊，经期色带独立表示经期
   assert.equal(legend.today.cellClass, 'today')
   assert.deepEqual(legend.today.parts, [{ kind: 'num', className: 'day-num', text: '8' }])
   assert.match(legend.today.text, /浅玫瑰色小胶囊/)
   assert.match(legend.today.text, /薰衣草/)
   assert.match(legend.today.text, /经期中的今天/)
-  assert.match(legend.today.text, /色带边缘/)
+  assert.match(legend.today.text, /保留这枚胶囊/)
   assert.doesNotMatch(legend.today.text, /光圈|玫瑰底|整格/)
 
   assert.equal(legend.period.cellClass, 'period period-single')

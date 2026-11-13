@@ -295,6 +295,7 @@ test('index calendar keeps marker and tag semantics explicit for each meaning', 
   assert.match(wxml, /item\.isHoliday \? 'holiday' : ''/)
   assert.match(wxml, /item\.isWorkday \? 'workday' : ''/)
   assert.doesNotMatch(wxml, /class="mark period-mark"/)
+  assert.match(wxml, /class="period-slot"[^>]*aria-hidden="true"/)
   assert.match(wxml, /wx:if="{{item\.periodSegment != 'none'}}" class="period-band"/)
   assert.match(wxml, /item\.periodSegment === 'start' \? 'period-start' : ''/)
   assert.match(wxml, /item\.periodSegment === 'middle' \? 'period-middle' : ''/)
@@ -338,7 +339,7 @@ test('holiday and workday tags read in both densities and stay outside the today
   // 调休格的低对比底在今天也照常铺：今天只在日期上加胶囊，不再整格让位（issue #162）
   assert.match(wxss, /\.day-cell\.workday\s*\{/)
   assert.doesNotMatch(wxss, /\.workday:not\(\.today\)/, 'today keeps the workday wash under its capsule')
-  assert.match(wxss, /\.day-cell\.today:not\(\.period\) \.day-num::before\s*\{/, 'today hangs a capsule on the date, not a ring on the cell')
+  assert.match(wxss, /\.day-cell\.today \.day-num::before\s*\{/, 'today hangs a capsule on the date, including period days')
 })
 
 test('legend samples reuse the calendar cell marker classes', () => {
@@ -478,7 +479,7 @@ test('index calendar applies the persisted density without hosting the control',
   assert.doesNotMatch(wxml, /class="day-lunar">\{\{item\.lunarText\}\}/)
   assert.match(wxml, /wx:if="\{\{!item\.isEmpty\}\}" class="day-tag-line"/)
 
-  assert.match(wxss, /\.calendar-density-compact\s+\.day-cell\s*\{[\s\S]*height:\s*var\(--calendar-row-height,\s*140rpx\)/)
+  assert.match(wxss, /\.calendar-density-compact\s+\.day-cell\s*\{[\s\S]*height:\s*var\(--calendar-row-height,\s*148rpx\)/)
 })
 
 test('settings page hosts the calendar density control with a quiet rose selected state', () => {

@@ -4,6 +4,8 @@ cloudfunctions/**/node_modules/
 
 # WeChat DevTools local state
 project.private.config.json
+# Disposable compile challenge; release verification refuses it until cleaned.
+utils/__captureProbe.js
 .eslintrc.local
 
 # Local/private overrides

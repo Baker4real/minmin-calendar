@@ -25,12 +25,12 @@
 // 返回，所以每个状态先离开当前页再进入目标页，保证拿到全新的页面实例。
 // 模拟器视口跟随 IDE 当前选择的机型；320px 截图需先在 IDE 模拟器里手动切小屏机型再重跑。
 
-import { mkdirSync, appendFileSync } from 'node:fs'
+import { mkdirSync, appendFileSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import automator from 'miniprogram-automator'
 import { probeEndpoint } from './tools/devtoolsPreflight.mjs'
-import { buildCaptureEvidence } from './tools/captureEvidence.mjs'
+import { buildCaptureEvidence, confirmRuntimeProbe } from './tools/captureEvidence.mjs'
 
 const args = {}
 for (let i = 2; i < process.argv.length; i += 2) {
@@ -39,6 +39,7 @@ for (let i = 2; i < process.argv.length; i += 2) {
 
 const projectPath = path.resolve(import.meta.dirname, '..')
 const outDir = args.out || path.join(projectPath, '.scratch', 'screenshots')
+const runtimeProbe = args.runtimeproof ? JSON.parse(readFileSync(args.runtimeproof, 'utf8')) : null
 const FAKE_ROOM_CODE = 'ABC123'
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -69,6 +70,15 @@ async function currentPath() {
   return page ? page.path : ''
 }
 
+async function confirmLoadedBuild() {
+  if (!runtimeProbe) return null
+  const loaded = await withTimeout(miniProgram.evaluate(function () {
+    // Read the compile product; do not manufacture a nonce in App/global state.
+    return require('utils/__captureProbe.js')
+  }), 5000, 'compiled runtime probe')
+  return confirmRuntimeProbe(projectPath, runtimeProbe, loaded)
+}
+
 async function screenshot(file, state) {
   const deadline = Date.now() + 10000
   let ready = false
@@ -85,7 +95,11 @@ async function screenshot(file, state) {
   if (!ready) throw new Error('No rendered page root before screenshot')
   const info = await withTimeout(miniProgram.systemInfo(), 10000, 'systemInfo')
   if (!(info.windowWidth > 0 && info.windowHeight > 0)) throw new Error('Missing actual viewport dimensions')
+  await confirmLoadedBuild()
+  const beforeRoute = await currentPath()
   await withTimeout(miniProgram.screenshot({ path: file }), 20000, 'screenshot')
+  const runtime = await confirmLoadedBuild()
+  if (await currentPath() !== beforeRoute) throw new Error('Route changed during capture; evidence rejected')
   const pageData = await withTimeout(activePage.data(), 3000, 'page data')
   const evidence = buildCaptureEvidence({
     projectPath,
@@ -93,6 +107,7 @@ async function screenshot(file, state) {
     route: await currentPath(),
     viewport: { width: info.windowWidth, height: info.windowHeight },
     state,
+    runtime,
     density: pageData && pageData.calendarDensity ? pageData.calendarDensity : null
   })
   appendFileSync(path.join(outDir, 'captures.jsonl'), JSON.stringify(evidence) + '\n')

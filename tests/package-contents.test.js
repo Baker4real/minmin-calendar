@@ -56,6 +56,10 @@ function packagedFiles() {
 
 const packaged = packagedFiles()
 
+test('temporary compile challenges cannot remain in a release package', () => {
+  assert.ok(!fs.existsSync(path.join(repoRoot, 'utils/__captureProbe.js')), 'Clean the runtime proof before verification or release')
+})
+
 test('only mini program roots go into the upload package', () => {
   const paths = packaged.map(file => file.rel)
   for (const runtime of ['app.json', 'pages/index/index.wxml']) assert.ok(paths.includes(runtime), `${runtime} must stay in the package`)

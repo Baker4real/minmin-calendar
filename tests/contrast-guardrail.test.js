@@ -115,7 +115,7 @@ test('month title and today stay rose', () => {
     "today's date stays rose")
 })
 
-test('period band stays a translucent rose and date numbers on it clear 4.5:1', () => {
+test('period band stays a translucent rose and lunar text on it clears 4.5:1', () => {
   const band = declarationOf('pages/index/index.wxss', '.period-band', 'background')
   const parsed = /^rgba\(\s*232\s*,\s*144\s*,\s*158\s*,\s*(0\.\d+)\s*\)$/.exec(band)
   assert.ok(parsed, `period band must be rose at 18\u201324% opacity, got ${band}`)
@@ -129,16 +129,11 @@ test('period band stays a translucent rose and date numbers on it clear 4.5:1', 
   )
   const rose = hex('#E8909E')
   const bandOnGrid = composite(grid, rose, alpha)
-  // 经期今天不画胶囊、不铺整格底（calendar-micro-labels 钉住），日期直接落在色带上
-  const todaySurface = bandOnGrid
-  const holidaySurface = composite(composite(grid, hex('#D4A574'), 0.08), rose, alpha)
-
-  const dayNum = exactDeclaration('pages/index/index.wxss', '.day-num', 'color')
-  const todayOnBand = exactDeclaration('pages/index/index.wxss', '.day-cell.today.period .day-num', 'color')
-  assert.ok(meetsContrast(paint(dayNum, bandOnGrid), toHex(bandOnGrid)))
-  assert.ok(meetsContrast(paint(dayNum, holidaySurface), toHex(holidaySurface)))
-  assert.ok(meetsContrast(paint(todayOnBand, todaySurface), toHex(todaySurface)))
-  assert.ok(meetsContrast('#F0C4C0', toHex(todaySurface)), 'the memory heart must stay readable on the band')
+  // 完整密度的农历在色带上；节日不另铺金底。日期、今天胶囊与心形留在各自槽位。
+  for (const selector of ['.day-lunar', '.day-cell.holiday .day-lunar']) {
+    const lunar = exactDeclaration('pages/index/index.wxss', selector, 'color')
+    assert.ok(meetsContrast(paint(lunar, bandOnGrid), toHex(bandOnGrid)), `${selector} stays readable on the rose band`)
+  }
 })
 
 // issue #162：今天胶囊只包住日期，「预」在胶囊外（几何由 calendar-micro-labels 钉住），今天落在预测窗口时
@@ -153,7 +148,7 @@ test('the in-cell 预 stays at least 4.5:1 on the grid, outside the today capsul
 
 // issue #162：今天胶囊是浅玫瑰底 + 薰衣草细描边 + 玫瑰数字。数字在胶囊合成面上 ≥4.5:1；
 // 胶囊底和网格只差约 1.3:1，形状靠描边：描边叠在胶囊底上，对胶囊外的面 ≥3:1
-const TODAY_CAPSULE = '.day-cell.today:not(.period) .day-num::before'
+const TODAY_CAPSULE = '.day-cell.today .day-num::before'
 
 test('today capsule keeps the rose date at 4.5:1 and its lavender edge at 3:1 on the grid, the workday wash and the legend sample', () => {
   const file = 'pages/index/index.wxss'
@@ -204,9 +199,6 @@ test('the emphasis halos keep today\'s date and the 预 at 4.5:1 at their peak',
   const capsuleFill = cssColor(exactDeclaration(file, TODAY_CAPSULE, 'background'))
   const date = resolvePaint(exactDeclaration(file, '.day-cell.today .day-num', 'color'))
   const wash = cssColor(exactDeclaration(file, '.day-cell.workday', 'background'))
-  const band = cssColor(declarationOf(file, '.period-band', 'background'))
-  const bandSurface = composite(gridSurface(), band, band.a)
-  const dateOnBand = exactDeclaration(file, '.day-cell.today.period .day-num', 'color')
 
   for (const token of ['today-a', 'today-b']) {
     const halo = haloAtPeak(`.calendar-days.calendar-emphasis-${token} .day-cell.today .day-num::after`)
@@ -218,10 +210,6 @@ test('the emphasis halos keep today\'s date and the 预 at 4.5:1 at their peak',
       const ratio = contrastRatio(date, toHex(peak))
       assert.ok(ratio >= 4.5, `${token}: today's date at the halo peak over the capsule on ${name} is ${ratio.toFixed(2)}:1`)
     }
-    // 经期今天没有胶囊，光晕直接叠在色带上
-    const onBand = composite(bandSurface, halo.color, halo.alpha)
-    const bandRatio = contrastRatio(paint(dateOnBand, onBand), toHex(onBand))
-    assert.ok(bandRatio >= 4.5, `${token}: today's date at the halo peak on the period band is ${bandRatio.toFixed(2)}:1`)
   }
 
   const chip = cssLayer(exactDeclaration(file, '.predict-mark', 'background'))

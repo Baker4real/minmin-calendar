@@ -161,8 +161,10 @@ module.exports = {
           aria-label="{{item.ariaLabel}}"
           hover-class="day-cell-hover"
         >
-          <view wx:if="{{item.periodSegment != 'none'}}" class="period-band"></view>
           <view class="day-num">{{item.day}}</view>
+          <view class="period-slot" aria-hidden="true">
+            <view wx:if="{{item.periodSegment != 'none'}}" class="period-band"></view>
+          </view>
           <view wx:if="{{!item.isEmpty && calendarDensity == 'full'}}" class="day-lunar">{{item.lunarCellText}}</view>
           <view class="day-info">
             <view wx:if="{{!item.isEmpty}}" class="day-tag-line">

@@ -1,10 +1,10 @@
 // 首页日历几何账本（issue #153）：行高、格内内容最小高度、清爽密度是否合并信息行、记录入口是否在首屏，
 // 由同一组输入一次算出。这里的数字都对应 pages/index/index.wxss 里的实际槽位，CSS 仍负责真实尺寸；
 // tests/narrow-screen-geometry.test.js 与 tests/calendar-micro-labels.test.js 逐项核对两边一致。
-// 换算口径：750rpx = 视口宽。行高上限是改成按可用高度计算之前的固定行高，下限是 44px 触控高度；
+// 换算口径：750rpx = 视口宽。清爽色带加厚后行高上限同步增加8rpx，下限是44px触控高度；
 // 格内内容放不下时行高停在内容最小高度，不裁切、不缩字，记录入口改由页面自然滚动触达。
 
-const ROW_CAP_RPX = { full: 160, compact: 140 }
+const ROW_CAP_RPX = { full: 160, compact: 148 }
 const ROW_FLOOR_PX = 44
 
 // 首屏文档流，自上而下：吸顶区占位、可选的欢迎条与行内重试、周头、网格上下内边距、记录入口。
@@ -22,10 +22,10 @@ const FIRST_SCREEN_RPX = {
 }
 const FIRST_SCREEN_BORDER_PX = 6
 
-// 格内纵向槽位，自上而下：每行是 上外边距 + 盒高。最后一行装标记，「预」胶囊比它高时向下垂出。
-// full：日期、农历、节日/调休、标记，顶对齐。compact：日期、节日/调休、标记，居中。
-// merged：清爽密度空间不足时把节日/调休和标记并成日期下的一行，顶对齐，日期停在常规清爽格的位置，
-// 信息行按「预」胶囊的高度留足，不再垂出。
+// 格内纵向槽位，自上而下：每行是上外边距 + 盒高。最后一行装标记，「预」胶囊比它高时向下垂出。
+// full：日期、农历、节日/调休、标记，顶对齐；经期色带借用农历行后的绝对定位槽。
+// compact：日期、经期细条、节日/调休、标记，居中；所有日期都保留细条槽以维持对齐。
+// merged：清爽密度空间不足时把节日/调休和标记并成日期下的一行，顶对齐；细条仍占独立槽。
 const CELL_RPX = {
   full: {
     align: 'top',
@@ -40,20 +40,22 @@ const CELL_RPX = {
   },
   compact: {
     align: 'center',
-    paddingTop: 10,
+    paddingTop: 4,
     paddingBottom: 12,
     stack: [
       { gap: 0, height: 38 },
+      { gap: 2, height: 12 },
       { gap: 2, height: 34 },
       { gap: 6, height: 30 }
     ]
   },
   merged: {
     align: 'top',
-    paddingTop: 14,
+    paddingTop: 8,
     paddingBottom: 4,
     stack: [
       { gap: 0, height: 38 },
+      { gap: 2, height: 12 },
       { gap: 2, height: 42 }
     ]
   }

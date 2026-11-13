@@ -169,7 +169,8 @@ test('period list keeps last data on refresh failure and offers retry in the lis
   const periodWxss = readPageFile('pages/period/period.wxss')
 
   // 已成功加载过再失败：列表分支不再被失败态顶掉，重试行留在列表区域
-  assert.match(periodWxml, /wx:elif="\{\{periods\.length > 0 && !loading\}\}" class="premium-card"/)
+  assert.match(periodWxml, /wx:elif="\{\{periods\.length > 0 && !loading\}\}"/)
+  assert.match(periodWxml, /wx:for="\{\{group\.records\}\}"[^>]*bindtap="editPeriod"/)
   assert.match(
     periodWxml,
     /wx:if="\{\{loadFailed && hasLoaded && !loading\}\}" class="list-retry" bindtap="loadData" aria-role="button" aria-label="刷新失败，点按重试"/

@@ -522,13 +522,14 @@ const CELL_LAYOUT_SELECTORS = {
     cell: '.calendar-density-compact .day-cell',
     slots: [
       '.calendar-density-compact .day-num',
+      '.calendar-density-compact .period-slot',
       '.calendar-density-compact .day-tag-line',
       '.calendar-density-compact .day-marks'
     ]
   },
   merged: {
     cell: '.calendar-info-merged .day-cell',
-    slots: ['.calendar-density-compact .day-num', '.calendar-info-merged .day-info']
+    slots: ['.calendar-density-compact .day-num', '.calendar-density-compact .period-slot', '.calendar-info-merged .day-info']
   }
 }
 
@@ -564,18 +565,17 @@ function cellHoldsContent(layout, height, wxss) {
 test('the cell slot ledger is the CSS stack and each layout holds its content exactly at the ledger minimum', () => {
   const { CALENDAR_LEDGER, calendarCellContentMinRpx } = require('../utils/calendarRowHeight')
   const wxss = readWxss()
-  // 完整：4 + 日期 32 + 农历 36 + 节日 40 + 标记 32，「预」垂出 12 再留格底 3 → 159
-  // 清爽：居中的 日期 38 + 节日 36 + 标记 36 = 110，内边距 10 / 12；居中后「预」垂出 12 + 格底 3 → 138
-  // 合并：顶对齐 14 + 日期 38 + 信息行 2+42 + 4 → 100（信息行按「预」胶囊高留足，不垂出）
-  // issue #162：今天改成日期胶囊后，这 3rpx 从「让开整格内描边」改记为格底留白，数值不变，行高与合并判定都不变
-  const expectedMin = { full: 159, compact: 138, merged: 100 }
+  // 完整：4 + 日期32 + 农历34 + 节日38 + 标记30，「预」垂出12再留格底3 → 159
+  // 清爽：居中的 日期38 + 细条2+12 + 节日2+34 + 标记6+30，内边距4/12；「预」垂出12再留格底3 → 146
+  // 合并：顶对齐8 + 日期38 + 细条2+12 + 信息行2+42 + 4 → 108
+  const expectedMin = { full: 159, compact: 146, merged: 108 }
   for (const layout of Object.keys(CELL_LAYOUT_SELECTORS)) {
     assert.deepEqual(CALENDAR_LEDGER.cellRpx[layout], cssCellLayout(wxss, layout), `${layout} ledger must equal the CSS slots`)
     const min = calendarCellContentMinRpx(layout)
     assert.equal(min, expectedMin[layout], `${layout} content minimum`)
     assert.ok(cellHoldsContent(layout, min, wxss), `${layout} content must fit at its ${min}rpx minimum`)
     assert.ok(!cellHoldsContent(layout, min - 1, wxss), `${layout} minimum ${min}rpx must be tight`)
-    const cap = layout === 'full' ? 160 : 140
+    const cap = layout === 'full' ? 160 : 148
     assert.ok(min <= cap, `${layout} minimum ${min}rpx must stay under the ${cap}rpx cap`)
   }
   assert.equal(CALENDAR_LEDGER.predictMarkRpx, declarationRpx(ruleBody(wxss, '.predict-mark'), 'height'))
@@ -634,28 +634,50 @@ test('the merged info row ledger uses the CSS widths and its single row holds th
   }
 })
 
-// issue #153：行高在内容最小高度与上限之间变化时，色带仍只包住日期数字（单日、连续段、开放端的形状都挂在色带上，不受影响）
-test('the period band still wraps the date number at every row height the ledger can choose', () => {
-  const { calendarCellContentMinRpx } = require('../utils/calendarRowHeight')
+test('compact period bands keep visible thickness at narrow widths instead of reading as an underline', () => {
   const wxss = readWxss()
-  const fullBand = ruleBody(wxss, '.period-band')
-  const compactBand = ruleBody(wxss, '.calendar-density-compact .period-band')
-  const bands = {
-    full: { top: Number(/inset:\s*(\d+)/.exec(fullBand)[1]), height: declarationRpx(fullBand, 'height') },
-    compact: { top: declarationRpx(compactBand, 'top'), height: declarationRpx(compactBand, 'height') }
+  const compact = declarationRpx(ruleBody(wxss, '.calendar-density-compact .period-slot'), 'height')
+  const full = declarationRpx(ruleBody(wxss, '.period-slot'), 'height')
+  for (const width of [320, 375, 430]) {
+    const heightPx = Math.floor(compact * width / 750)
+    assert.ok(heightPx >= 5, `at ${width}px the compact period band is only ${heightPx}px thick and loses its rounded ends`)
   }
-  for (const [layout, density, cap] of [['full', 'full', 160], ['compact', 'compact', 140], ['merged', 'compact', 140]]) {
+  assert.ok(compact < full, 'the compact band remains slimmer than the lunar-line band')
+})
+
+// 色带使用独立槽位：完整模式在农历字框后，清爽模式在日期与信息之间。
+test('period bands stay below dates and today capsules, behind lunar text or above compact information', () => {
+  const { calendarCellContentMinRpx, CALENDAR_ROW_CAP_RPX } = require('../utils/calendarRowHeight')
+  const wxss = readWxss()
+  const fullSlot = ruleBody(wxss, '.period-slot')
+  const compactSlot = ruleBody(wxss, '.calendar-density-compact .period-slot')
+  const fullTop = declarationRpx(fullSlot, 'top')
+  const fullHeight = declarationRpx(fullSlot, 'height')
+  const compactHeight = declarationRpx(compactSlot, 'height')
+  assert.match(compactSlot, /position:\s*relative/)
+  assert.match(compactSlot, /top:\s*auto/)
+  for (const layout of ['full', 'compact', 'merged']) {
     const cell = cssCellLayout(wxss, layout)
+    const density = layout === 'full' ? 'full' : 'compact'
     const stack = cell.stack.reduce((sum, slot) => sum + slot.gap + slot.height, 0)
-    for (const height of [calendarCellContentMinRpx(layout), cap]) {
+    for (const height of [calendarCellContentMinRpx(layout), CALENDAR_ROW_CAP_RPX[density]]) {
       const dateTop = cell.align === 'center'
         ? cell.paddingTop + (height - cell.paddingTop - cell.paddingBottom - stack) / 2
         : cell.paddingTop
-      const band = bands[density]
-      assert.ok(
-        band.top <= dateTop && dateTop + cell.stack[0].height <= band.top + band.height,
-        `${layout} at ${height}rpx puts the date at ${dateTop}rpx outside the ${band.top}–${band.top + band.height}rpx band`
-      )
+      const dateBottom = dateTop + cell.stack[0].height
+      const bandTop = layout === 'full' ? fullTop : dateBottom + cell.stack[1].gap
+      const bandBottom = bandTop + (layout === 'full' ? fullHeight : compactHeight)
+      const capsule = todayCapsuleBox(wxss, density)
+      assert.ok(bandTop >= dateBottom, `${layout} band covers the date`)
+      assert.ok(bandTop >= dateTop + capsule.top + capsule.height + 2, `${layout} band touches the today capsule`)
+      if (layout === 'full') {
+        const lunarTop = dateBottom + cell.stack[1].gap
+        assert.ok(bandTop >= lunarTop && bandBottom <= lunarTop + cell.stack[1].height, 'full band stays inside the lunar line')
+      } else {
+        const infoSlot = cell.stack[2]
+        const infoTop = dateBottom + cell.stack[1].gap + cell.stack[1].height + infoSlot.gap
+        assert.ok(bandBottom + 2 <= infoTop, `${layout} band touches information or marks`)
+      }
     }
   }
 })
@@ -665,8 +687,8 @@ test('the period band still wraps the date number at every row height the ledger
 // （再高会被 overflow 裁平）到下一槽字框上方 TODAY_CAPSULE_ROUNDING_RPX：完整密度的日期贴着格子顶（上内边距 4rpx），
 // 农历字框从 43rpx 起，余量只有 41rpx。两档是同一枚记号，高度下限取票面下限和各档余量里最小的那个，
 // 余量够 44rpx 时下限就回到票面（理由见 DESIGN.md 日历状态表「今天」）。
-const TODAY_CAPSULE_SELECTOR = '.day-cell.today:not(.period) .day-num::before'
-const COMPACT_TODAY_CAPSULE_SELECTOR = '.calendar-density-compact .day-cell.today:not(.period) .day-num::before'
+const TODAY_CAPSULE_SELECTOR = '.day-cell.today .day-num::before'
+const COMPACT_TODAY_CAPSULE_SELECTOR = '.calendar-density-compact .day-cell.today .day-num::before'
 const TODAY_CAPSULE_TARGET_RPX = { min: 44, max: 52 }
 // 基础库把每段 rpx 各自换成整数 px：正长度向下取整，负偏移向零取整（开发者工具 3.16.1 在 390px 宽实测）。
 // 胶囊各段分开取整、下一槽的位置由好几段累加，两边差得出 1px；留 2rpx，375–430px 宽都碰不到下一槽
@@ -758,7 +780,7 @@ test('today is a compact capsule around the date number and never paints the who
     full: declarationRpx(ruleBody(wxss, '.day-num'), 'font-size'),
     compact: declarationRpx(ruleBody(wxss, '.calendar-density-compact .day-num'), 'font-size')
   }
-  const layouts = [['full', 'full', 160], ['compact', 'compact', 140], ['merged', 'compact', 140]]
+  const layouts = [['full', 'full', 160], ['compact', 'compact', 148], ['merged', 'compact', 148]]
     .map(([layout, density, cap]) => ({ layout, density, heights: [calendarCellContentMinRpx(layout), cap] }))
   // 一档排版在某个行高下日期行盒的顶和高，以及紧挨的下一槽字框的顶：完整密度是农历，农历字框从行盒顶加半行距开始；
   // 清爽是节日/调休，合并是信息行，「班」「预」胶囊占满自己的槽，从槽顶就有底色
@@ -770,7 +792,8 @@ test('today is a compact capsule around the date number and never paints the who
       : cell.paddingTop
     const dateLine = cell.stack[0].height
     const nextSlotTop = dateTop + dateLine + cell.stack[1].gap
-    return { dateTop, dateLine, nextInkTop: layout === 'full' ? nextSlotTop + lunarLeading : nextSlotTop }
+    const nextInkTop = layout === 'full' ? nextSlotTop + lunarLeading : nextSlotTop
+    return { dateTop, dateLine, nextInkTop }
   }
   // 余量：格子顶到下一槽字框上方 TODAY_CAPSULE_ROUNDING_RPX。下限是票面下限和各档余量里最小的那个
   const rooms = layouts.flatMap(({ layout, heights }) =>
@@ -825,7 +848,7 @@ test('today is a compact capsule around the date number and never paints the who
   )
 })
 
-// 行高变量缺省时，CSS 退回的就是账本上限：完整 160rpx、清爽 140rpx（合并信息行沿用清爽格的高度规则）
+// 行高变量缺省时，CSS 退回的就是账本上限：完整 160rpx、清爽 148rpx（合并信息行沿用清爽格的高度规则）
 test('the CSS row-height fallbacks are the ledger caps for both densities', () => {
   const { CALENDAR_ROW_CAP_RPX } = require('../utils/calendarRowHeight')
   const wxss = readWxss()
@@ -835,7 +858,7 @@ test('the CSS row-height fallbacks are the ledger caps for both densities', () =
   assert.match(compact, /height:\s*var\(--calendar-row-height,\s*\d+rpx\)/)
   assert.equal(declarationRpx(full, 'height'), CALENDAR_ROW_CAP_RPX.full)
   assert.equal(declarationRpx(compact, 'height'), CALENDAR_ROW_CAP_RPX.compact)
-  assert.deepEqual(CALENDAR_ROW_CAP_RPX, { full: 160, compact: 140 })
+  assert.deepEqual(CALENDAR_ROW_CAP_RPX, { full: 160, compact: 148 })
   assert.doesNotMatch(ruleBody(wxss, '.calendar-info-merged .day-cell'), /height:/)
 })
 
@@ -877,14 +900,17 @@ test('period band stays compact, connects across a week and caps the open end wi
   const wxss = readWxss()
   const band = ruleBody(wxss, '.period-band')
   assert.match(band, /inset:\s*0\s+0\s+auto/)
-  assert.match(band, /height:\s*44rpx/)
+  assert.match(band, /height:\s*100%/)
+  const fullSlot = ruleBody(wxss, '.period-slot')
+  assert.match(fullSlot, /top:\s*43rpx/)
+  assert.match(fullSlot, /height:\s*24rpx/)
   assert.match(band, /background:\s*rgba\(232,\s*144,\s*158,\s*0\.(?:1[89]|2[0-4])\)/)
   assert.doesNotMatch(band, /transition\s*:/)
   assert.doesNotMatch(band, /animation\s*:/)
 
-  const compactBand = ruleBody(wxss, '.calendar-density-compact .period-band')
-  assert.match(compactBand, /top:\s*8rpx/)
-  assert.match(compactBand, /height:\s*48rpx/)
+  const compactSlot = ruleBody(wxss, '.calendar-density-compact .period-slot')
+  assert.match(compactSlot, /height:\s*12rpx/)
+  assert.match(compactSlot, /margin-top:\s*2rpx/)
 
   const cell = ruleBody(wxss, '.day-cell.period')
   assert.match(cell, /border-radius:\s*0/)
@@ -947,8 +973,10 @@ test('legend samples are calendar cells on the grid glass', () => {
   assert.equal(anchoredDeclaration(legend, 'border-radius'), anchoredDeclaration(ruleBody(wxss, '.day-cell'), 'border-radius'))
   assert.ok(wxss.indexOf('\n.legend-sample.day-cell {') > wxss.indexOf('\n.day-cell.period {'), 'the legend corner rule must follow the period square-corner rule')
   const tile = declarationRpx(legend, 'height')
-  const band = declarationRpx(ruleBody(wxss, '.period-band'), 'height')
-  assert.equal(declarationRpx(ruleBody(wxss, '.legend-sample .period-band'), 'top'), (tile - band) / 2, 'the band sample sits in the middle of its tile')
+  const band = declarationRpx(ruleBody(wxss, '.period-slot'), 'height')
+  const sampleBand = ruleBody(wxss, '.legend-sample .period-band')
+  assert.equal(declarationRpx(sampleBand, 'top'), (tile - band) / 2, 'the band sample sits in the middle of its tile')
+  assert.equal(declarationRpx(sampleBand, 'height'), band, 'the band sample keeps the full slot height')
 })
 
 const BAND_SIDES = ['top', 'right', 'bottom', 'left']
@@ -972,8 +1000,8 @@ function bandStrokeSides(rules, cellClasses) {
   rules.forEach((rule, order) => {
     for (const selector of rule.selectors) {
       const compounds = selector.trim().split(/\s+/)
-      if (compounds.length !== 2 || compounds[1] !== '.period-band') continue
-      const cell = compounds[0]
+      if (compounds[compounds.length - 1] !== '.period-band' || compounds.length > 2) continue
+      const cell = compounds.length === 2 ? compounds[0] : ''
       const excluded = [...cell.matchAll(/:not\(\.([\w-]+)\)/g)].map(match => match[1])
       const required = [...cell.replace(/:not\([^)]*\)/g, '').matchAll(/\.([\w-]+)/g)].map(match => match[1])
       if (!required.every(name => cellClasses.includes(name)) || excluded.some(name => cellClasses.includes(name))) continue
@@ -1007,33 +1035,17 @@ function bandStrokeSides(rules, cellClasses) {
   return BAND_SIDES.filter(name => width[name] > 0)
 }
 
-// issue #162：经期今天不叠第二枚胶囊，只在色带外缘描今天。和邻格相连的一侧、进行中开口的一端都不描，
-// 色带的连接与开口保持原样：中段只有上下两条边，不会在色带里画出竖线
-test("today on a period band strokes only the band's outer edges and never cuts the run", () => {
+// issue #188：经期中的今天复用日期胶囊，色带只保留连续段的圆头和进行中开口。
+test("today on a period band keeps the band connection and uses the date capsule", () => {
   const { parseWxssRules } = require('./designTokens')
   const wxss = readWxss()
   const rules = parseWxssRules(wxss)
-  const cases = [
-    [['period-single'], ['top', 'right', 'bottom', 'left']],
-    [['period-start'], ['top', 'bottom', 'left']],
-    [['period-middle'], ['top', 'bottom']],
-    [['period-end'], ['top', 'right', 'bottom']],
-    [['period-open', 'period-end'], ['top', 'bottom']],
-    [['period-open', 'period-single'], ['top', 'bottom', 'left']]
-  ]
-  for (const [segment, expected] of cases) {
-    assert.deepEqual(
-      bandStrokeSides(rules, ['day-cell', 'today', 'period', ...segment]),
-      expected,
-      `today on a ${segment.join(' ')} band strokes the wrong sides`
-    )
-    assert.deepEqual(bandStrokeSides(rules, ['day-cell', 'period', ...segment]), [], `a ${segment.join(' ')} band that is not today stays unstroked`)
+  for (const segment of [['period-single'], ['period-start'], ['period-middle'], ['period-end'], ['period-open', 'period-end'], ['period-open', 'period-single']]) {
+    for (const today of [[], ['today']]) {
+      assert.deepEqual(bandStrokeSides(rules, ['day-cell', 'period', ...segment, ...today]), [], `${segment.join(' ')} ${today.join(' ')} has no today stroke on the band`)
+    }
   }
-
-  // 今天只有一种描边：经期今天的色带边与今天胶囊同宽同色；描边画在色带盒子里，色带仍是 44 / 48rpx 高
-  const ring = ruleBody(wxss, '.day-cell.today.period .period-band')
-  assert.equal(anchoredDeclaration(ring, 'border'), anchoredDeclaration(ruleBody(wxss, TODAY_CAPSULE_SELECTOR), 'border'))
-  assert.match(ring, /box-sizing:\s*border-box/)
+  assert.match(wxss, /\.day-cell\.today \.day-num::before\s*\{/)
 })
 
 function verticalBox(body, property) {

@@ -748,7 +748,7 @@ test('another quiet show can reverse sync-pill entry before the render callback 
 })
 
 // August 2026 has six actual calendar rows. At 375 x 619 the existing
-// geometry contract is 55.33px without an extra row, 50px with welcome/retry.
+// geometry contract is 55.33px without an extra row, 54px with welcome/retry.
 for (const banner of ['welcome', 'retry']) {
   test(`${banner} reserves calendar space and gives it back when cleared`, async t => {
     const app = homeApp(t, {
@@ -760,13 +760,13 @@ for (const banner of ['welcome', 'retry']) {
     if (banner === 'retry') m.reject(new Error('network down'))
     const home = app.launch('/pages/index/index')
     await app.settle()
-    assert.equal(app.rendered(home).calendarRowHeightPx, 50)
+    assert.equal(app.rendered(home).calendarRowHeightPx, 54)
     assert.equal(app.rendered(home).calendarInfoMerged, true)
     if (banner === 'welcome') {
       await app.dispatch(home, 'nextMonth')
       await app.dispatch(home, 'prevMonth')
       await app.settle()
-      assert.equal(app.rendered(home).calendarRowHeightPx, 50)
+      assert.equal(app.rendered(home).calendarRowHeightPx, 54)
       await showAgain(app)
       assert.equal(app.rendered(home).partnerWelcome, false)
     } else {
@@ -782,7 +782,7 @@ for (const banner of ['welcome', 'retry']) {
       m.reject(new Error('network down'))
       await showAgain(app)
       assertRetry(app, home, 'all')
-      assert.equal(app.rendered(home).calendarRowHeightPx, 50)
+      assert.equal(app.rendered(home).calendarRowHeightPx, 54)
     }
   })
 }

@@ -12,12 +12,14 @@ const { restoreTabBarOnShow } = require('../../utils/sheetLifecycle')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 
 Page(withPageVisibility({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), segment: 'period', periods: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memories: [], memoryGroups: [], memoryLoading: false, memoryLoadFailed: false, memoryHasLoaded: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), segment: 'period', periods: [], periodGroups: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memories: [], memoryGroups: [], memoryLoading: false, memoryLoadFailed: false, memoryHasLoaded: false },
 
   // 欢乐时光月份卡的展开选择（issue #109）：页面内存按月份键记「用户点过卡头」的月份，
   // 值为 memoryMonthGroups.EXPANDED / COLLAPSED；没点过的月份走默认规则（展开最近三个有记录的月份）。
   // 不写本地存储，小程序重启后自然恢复默认
   memoryMonthChoices: {},
+  periodMonthChoices: {},
+  periodYearChoices: {},
 
   onShow() {
     // 本页没有弹层：别的页面在弹层开着时被卸载留下的隐藏 tabBar，在这里交还
@@ -61,6 +63,10 @@ Page(withPageVisibility({
       }
       this.setData({ segment: 'memory' })
     } else if (change.collection === 'periods') {
+      if ((change.mode === 'add' || change.mode === 'update') && change.record && change.record.startDate) {
+        this.periodMonthChoices = { ...this.periodMonthChoices, [change.record.startDate.slice(0, 7)]: true }
+        this.periodYearChoices = { ...this.periodYearChoices, [change.record.startDate.slice(0, 4)]: true }
+      }
       this.setData({ segment: 'period' })
     }
   },
@@ -78,7 +84,7 @@ Page(withPageVisibility({
         .map(period => cycle.decoratePeriod(period, { today })),
       onLoaded: periods => {
         this.calcStats(periods)
-        this.setData({ hasLoaded: true })
+        this.setData({ hasLoaded: true, periodGroups: buildPeriodGroups(this.data.periods, this.periodMonthChoices, this.periodYearChoices) })
       }
     })
     await labelLoadedPeriods(this, outcome, pairedPromise)
@@ -133,9 +139,26 @@ Page(withPageVisibility({
     wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: today }) })
   },
 
+  togglePeriodYear(e) {
+    const key = e.currentTarget.dataset.key
+    const year = this.data.periodGroups.find(group => group.key === key)
+    if (!year) return
+    this.periodYearChoices = { ...this.periodYearChoices, [key]: !year.expanded }
+    this.setData({ periodGroups: buildPeriodGroups(this.data.periods, this.periodMonthChoices, this.periodYearChoices) })
+  },
+
+  togglePeriodMonth(e) {
+    const key = e.currentTarget.dataset.key
+    const month = this.data.periodGroups.flatMap(year => year.months).find(group => group.key === key)
+    if (!month) return
+    this.periodMonthChoices = { ...this.periodMonthChoices, [key]: !month.expanded }
+    this.setData({ periodGroups: buildPeriodGroups(this.data.periods, this.periodMonthChoices, this.periodYearChoices) })
+  },
+
   editPeriod(e) {
-    const p = this.data.periods[e.currentTarget.dataset.index]
-    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(p) })
+    const record = this.data.periods.find(period => period._id === e.currentTarget.dataset.id)
+    if (!record) return
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(record) })
   },
 
   addMemory() {
@@ -167,6 +190,40 @@ Page(withPageVisibility({
   }
 }))
 
+// 列表已按开始日稳定倒序；跨月记录只按开始年月出现一次。
+function buildPeriodGroups(periods, choices, yearChoices) {
+  const years = []
+  for (const record of periods) {
+    const key = record.startDate.slice(0, 7)
+    const yearKey = key.slice(0, 4)
+    let year = years[years.length - 1]
+    if (!year || year.key !== yearKey) {
+      const expanded = yearChoices[yearKey] !== false
+      const toggleLabel = expanded ? '收起' : '展开'
+      year = {
+        key: yearKey, title: `${yearKey}年`, expanded, toggleLabel,
+        ariaLabel: `${yearKey}年，${expanded ? '已展开' : '已收起'}，${toggleLabel}经期记录`,
+        months: []
+      }
+      years.push(year)
+    }
+    let month = year.months[year.months.length - 1]
+    if (!month || month.key !== key) {
+      const title = `${Number(key.slice(5))}月`
+      const expanded = choices[key] !== false
+      const toggleLabel = expanded ? '收起' : '展开'
+      month = {
+        key, title, expanded, toggleLabel,
+        ariaLabel: `${yearKey}年${title}，${expanded ? '已展开' : '已收起'}，${toggleLabel}经期记录`,
+        records: []
+      }
+      year.months.push(month)
+    }
+    month.records.push(record)
+  }
+  return years
+}
+
 // 欢乐时光月份分组内的记录查找：返回带 _id/date/note 的行数据，找不到返回 null（不撞出空表单）
 function findMemoryRecordById(groups, id) {
   for (const group of groups) {
@@ -180,12 +237,11 @@ async function labelLoadedPeriods(page, outcome, pairedPromise) {
   const paired = await pairedPromise
   page._roomPaired = paired
   if (!paired || !outcome || outcome.kind !== 'success') return
-  page.setData({
-    periods: page.data.periods.map(period => withAuthorLabel(
-      period,
-      cycle.recordAuthorLabel(period, { paired: true })
-    ))
-  })
+  const periods = page.data.periods.map(period => withAuthorLabel(
+    period,
+    cycle.recordAuthorLabel(period, { paired: true })
+  ))
+  page.setData({ periods, periodGroups: buildPeriodGroups(periods, page.periodMonthChoices, page.periodYearChoices) })
 }
 
 async function labelLoadedMemories(page, outcome, pairedPromise, today) {

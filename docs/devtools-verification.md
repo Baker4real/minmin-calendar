@@ -93,6 +93,12 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 
 读 console 用 `get_simulator_console`（network 用 `get_simulator_network`）。`command` 是 grep 字符串，只认 `-n`、`-i`、`-E`、`-C N`、`-m N` 和一个模式，不带 `-E` 时按字面匹配。它读的是项目窗口最近 200 条 console 缓存，不是实时流。2026-11-07 点编译后实测（开发者工具 2.02.2609250、基础库 3.18.0），请求 `grep -n -E "WeChatLib|Subpackages|LazyCodeLoading"` 和 `grep -n .` 都只返回 1 行，即主上下文（`WAServiceMainContext.js`）打印的 `[system] WeChatLib: 3.18.0`。所以主上下文的输出能进缓存，但缓存不全：按基础库源码，同一次启动主上下文还会打印 `Subpackages`，子上下文会打印 `LazyCodeLoading`，这两行都没进来，原因没查实。用它查 `getPageTypeById`、`routeDone` 这类报错时，命中可以当证据，没命中不能说明 console 干净，仍以 IDE 界面为准。模拟器生命周期日志只有 `[log]` 级，也没有这些报错。
 
+## 独立 Electron 启动与诊断
+
+日常项目打开仍用 `devtools:cli`；该 CLI 子进程只局部设置 `ELECTRON_RUN_AS_NODE=1`。需要直接启动 GUI／主进程 inspector 时使用 `npm run devtools:session -- gui|inspect --executable <当前官方exe绝对路径>`，不在 shell 手工继承或修改机器级环境变量。GUI 还需 `--title <预期精确窗口名>`；额外启动参数放进 JSON 字符串数组，用 `--args-file <文件>` 传入。inspect 默认仅绑定 `127.0.0.1:9229`，可用 `--port` 改端口。两种模式都会在自己的子进程中移除所有大小写形式的 Node 模式变量。
+
+这是有界诊断入口：默认就绪上限 15 秒，`--timeout` 最多 60 秒；就绪后默认立即关闭，也可用 `--hold-ms 1..55000` 留出诊断时间。GUI 的 ready 只表示本轮 PID 出现了指定标题的窗口，不证明页面健康；inspect 会通过协议读取 process.pid，比对本轮启动 PID。已运行实例的单实例转交或已有 inspector 不会被认领，启动失败就停止，不杀共享实例。API `withElectronSession(options, work)` 供同进程诊断使用，回调带 AbortSignal；正常、异常和超时都在 finally 中仅清理所属子进程树，并等待退出。不要把本入口用于常驻开发服务。
+
 ## 代码质量扫描口径
 
 官方文档没写这两项怎么统计；以下读自开发者工具 2.02.2609231 安装包里的扫描器（as of 2026-10-10）。允许进包的根目录和两项预算由 `tests/package-contents.test.js` 钉住。
@@ -108,9 +114,15 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 
 `npm run test:hit` 从当前 WXML 提取导航栏，从 WXSS 提取相应规则，在 Chromium 的 320、375、430 宽度按坐标点击按钮中心。每种宽度随后恢复装饰层拦截，必须观察到点击失效，证明检查能捕获原故障。截图和实际 viewport 保存到 `.scratch/coordinate-hit/`，每次运行覆盖上一次；截图偶发失败时打印 WARN 并重试一次，第二次仍失败则本次检查失败。这验证 CSS 命中，不模拟微信布局引擎或完整页面流程。
 
-`devtoolsCapture.mjs` 在已渲染的 `.page` 出现后截图，将微信 `systemInfo` 的实际 `windowWidth/windowHeight`、页面路径、具名状态、日历密度、采集时间和 `captureToolVersion` 追加到截图目录的 `captures.jsonl`。每条另带 `source`：`app.*`、`pages/**`、`utils/**` 运行源码的 SHA-256 指纹与范围。评审先比对该指纹：一致才是 `current`，不一致是 `stale`，旧图缺少指纹则是 `historical-unbound`；后两类不得冒充当前版本验收。MCP `--preflight` 同样报告实际视口。要验收小屏，先在 IDE 选择小屏机型，再回读视口；不能根据图片尺寸或机型名称推断已验证 320px。
+`devtoolsCapture.mjs` 在已渲染的 `.page` 出现后截图，将微信 `systemInfo` 的实际 `windowWidth/windowHeight`、页面路径、具名状态、日历密度、采集时间和 `captureToolVersion` 追加到截图目录的 `captures.jsonl`。`source` 只表示采集时磁盘中 `app.*`、`pages/**`、`utils/**` 的 SHA-256 指纹，不单独证明模拟器加载了同一版。当前 version 2 另带 `runtime`；只有磁盘一致且本轮编译挑战匹配才是 `current`。磁盘不同为 `stale`，没有磁盘指纹为 `historical-unbound`，磁盘一致但缺少运行确认（包括旧版图）为 `runtime-unconfirmed`；后三者都不能作为当前版本验收。MCP `--preflight` 同样报告实际视口；截图尺寸或机型名称不能证明逻辑视口。
+
+需要当前版本证据时，先运行 `npm run devtools:runtime-proof -- prepare`，在当前 IDE 对本仓库完成编译，再运行 `node tests/devtoolsCapture.mjs --ws ws://127.0.0.1:9420 --states home --runtime-proof .scratch/runtime-probe.json`。prepare 以独占创建方式写入临时 `utils/__captureProbe.js`，包含新 nonce 与业务源码指纹；采集器从编译环境 require 此模块，截图前后回读并检查源码和页面路径未变，不能通过 evaluate 人工赋值伪造通过。缺失、旧 nonce 或源码变化直接拒绝登记。未传 proof 时仍可采集定位图，但明确记为运行版本未确认。
+
+采集后必须运行 `npm run devtools:runtime-proof -- clean`；它只删除内容与本轮 proof 匹配的临时模块和证明文件，内容变动则拒绝清理。临时模块不参与业务指纹并被 git 忽略，完整验证的包内容检查会拒绝它的残留，防止进入发布。挑战证明本轮编译标记已进入运行环境，不替代页面状态、样式或关键交互验收。
 
 开始组件级视觉审计时先运行 `node tests/impeccableAudit.mjs --component <id>`（ID 用 `--list-components` 查看）。它把相关 DESIGN.md 与 `docs/motion-and-interaction.md` 片段、静态选择器、动效、测试和截图账本压成一份 JSON；截图分类复用上述指纹规则。先读这些定位信息，再按疑点打开源码和 current 证据，避免先读完整规范或遍历所有历史截图。摘要失败或没有 current 证据时按缺口记录，不把静态索引或旧图当作运行态验收。
+
+实际坐标点击复用 [受管 GUI 会话](D:/agents/projects/统一环境/docs/env-governance/gui-session.md)：Harness 无官方后端时使用其中的 Windows 传输。每次动作都绑定新截图、窗口身份和 DPI；失焦、几何变化或遮挡产生的是证据无效，不能登记成产品按钮 FAIL。连续两次失效后停止自动输入并做一次人工对照，不继续用自写点按脚本推进安装包补丁。
 
 选择器 `tap()` 可能绕过命中遮挡。验证“按钮点不到”时，CSS 坐标回归之外还需在微信中实际坐标点击或人工点击；菜单打开、图例交接、关闭等状态流可用选择器自动化验证。截图若出现空白或未完成状态，先确认目标页面已就绪再重截，不能将文件写入成功当作界面验收。
 
