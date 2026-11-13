@@ -59,7 +59,7 @@ function predictNextPeriod(periods, options = {}) {
 
   // 只有已知结束的记录贡献正时长；进行中与结束日期不详的时长恒为 0
   const durations = normalized.map(item => item.duration).filter(isPositiveNumber)
-  const predictedDuration = getPredictedDuration(durations, options)
+  const predictedDuration = getPredictedDuration(durations)
   const cycleLengths = collectCycleLengths(normalized)
   const candidateCycles = cycleLengths.filter(length => length >= 15 && length <= 60)
   const stableCycles = getStableCycles(candidateCycles)
@@ -97,22 +97,6 @@ function predictNextPeriod(periods, options = {}) {
       usedCycleCount: 1,
       ignoredCycleCount,
       source: 'history',
-      today: options.today
-    })
-  }
-
-  const manualCycle = toPositiveInt(options.typicalCycleLength)
-  if (manualCycle) {
-    return buildPrediction({
-      lastStart: normalized[normalized.length - 1].startDate,
-      avgCycle: manualCycle,
-      avgDuration: predictedDuration.days,
-      durationSource: predictedDuration.source,
-      rangeDays: 3,
-      confidence: 'low',
-      usedCycleCount: 0,
-      ignoredCycleCount,
-      source: 'manual',
       today: options.today
     })
   }
@@ -163,7 +147,7 @@ function buildCycleReminders(prediction, periods, options = {}) {
 }
 
 // 超期进行中记录的一次非阻塞完成提示（issue #98）。
-// 预期时长优先级与预测结束日同源：用户配置 → 最近已完成时长中位数 → 五天默认；
+// 预期时长与预测结束日同源：最近已完成时长中位数 → 五天默认；
 // 进行中记录自身与结束日期不详记录的时长恒为 0，天然不进预期计算。
 // 只返回提示对象，绝不写结束日期、绝不关闭状态。
 function buildOngoingCompletionReminder(periods, options = {}) {
@@ -175,7 +159,7 @@ function buildOngoingCompletionReminder(periods, options = {}) {
   if (!owner) return null
   const runningDays = owner.day
 
-  const expected = expectedPeriodLength(periods, options)
+  const expected = expectedPeriodLength(periods)
   if (runningDays <= expected.days) return null
 
   return {
@@ -429,11 +413,6 @@ function buildPeriodQuickAction(periods, options = {}) {
   return { label, ariaLabel: label, mode: 'complete' }
 }
 
-function findPeriodCoveringDate(periods, date, today) {
-  const owner = periodCoverage.getPeriodOnDate(periods, date, today)
-  return owner ? owner.record : null
-}
-
 function getPeriodDuration(period) {
   if (getPeriodStatus(period) !== 'known-end') return 0
   const range = projectPeriodRange(period)
@@ -487,14 +466,14 @@ function inclusiveDayCount(startDate, endDate) {
   return util.daysBetween(util.parseDate(startDate), util.parseDate(endDate)) + 1
 }
 
-function expectedPeriodLength(periods, options = {}) {
+function expectedPeriodLength(periods) {
   const durations = normalizePeriods(periods).map(item => item.duration).filter(isPositiveNumber)
-  return getPredictedDuration(durations, options)
+  return getPredictedDuration(durations)
 }
 
 // 已知起止的含首尾天数，以及是否超过超期完成提醒所用的同一预期时长。
 // 只描述，不改记录、不写结束日。
-function describeKnownPeriodLength({ startDate, endDate, periods = [], typicalPeriodLength } = {}) {
+function describeKnownPeriodLength({ startDate, endDate, periods = [] } = {}) {
   const days = inclusiveDayCount(startDate, endDate)
   if (!days) {
     return {
@@ -506,7 +485,7 @@ function describeKnownPeriodLength({ startDate, endDate, periods = [], typicalPe
       hint: ''
     }
   }
-  const expected = expectedPeriodLength(periods, { typicalPeriodLength })
+  const expected = expectedPeriodLength(periods)
   const exceedsExpected = days > expected.days
   return {
     days,
@@ -518,11 +497,9 @@ function describeKnownPeriodLength({ startDate, endDate, periods = [], typicalPe
   }
 }
 
-// 预测持续时长的优先级：用户设置 → 已完成历史时长中位数 → 五天默认。
+// 预测持续时长的优先级：已完成历史时长中位数 → 五天默认。
 // 进行中与结束日期不详的记录不进 durations；结果只用于预测展示，绝不写回经期记录。
-function getPredictedDuration(durations, options) {
-  const manualDuration = toPositiveInt(options.typicalPeriodLength)
-  if (manualDuration) return { days: manualDuration, source: 'manual' }
+function getPredictedDuration(durations) {
   if (durations.length === 0) return { days: 5, source: 'default' }
   return { days: Math.max(1, Math.round(median(durations.slice(-6)))), source: 'history' }
 }
@@ -580,12 +557,6 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
 }
 
-function toPositiveInt(value) {
-  const number = Number(value)
-  if (!Number.isFinite(number) || number <= 0) return 0
-  return Math.round(number)
-}
-
 function isPositiveNumber(value) {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
 }
@@ -607,7 +578,6 @@ module.exports = {
   getPeriodStatus,
   isPeriodStatus,
   findOngoingPeriod,
-  findPeriodCoveringDate,
   decidePeriodRecordForDate,
   buildPeriodQuickAction,
   buildHomeStatusLine,
