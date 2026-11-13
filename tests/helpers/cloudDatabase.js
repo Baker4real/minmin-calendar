@@ -131,5 +131,7 @@ function clone(value) {
 }
 
 module.exports = {
+  DEFAULT_LIMIT,
+  MAX_LIMIT,
   createCloudDatabase
 }

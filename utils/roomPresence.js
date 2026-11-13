@@ -1,8 +1,15 @@
 const ROOM_STATUS_SEEN_KEY = 'roomStatusSeen'
 const PARTNER_WELCOME_KEY = 'partnerWelcome'
+// 客户端认得的 Room 配对状态只有这两个：列表结果只带回它们（utils/cloud.js），记下的状态也只认它们
+const PAIRING_STATUSES = ['waiting', 'paired']
+
+// 认得的配对状态原样返回，其余（缺失、不认识的取值）一律是 ''
+function acceptedPairingStatus(status) {
+  return PAIRING_STATUSES.includes(status) ? status : ''
+}
 
 function rememberRoomStatus(status, storage = createWxStorage()) {
-  const current = status === 'waiting' || status === 'paired' ? status : ''
+  const current = acceptedPairingStatus(status)
   if (!current) return false
   const previous = storage.get(ROOM_STATUS_SEEN_KEY) || ''
   if (previous === current) return false
@@ -41,6 +48,7 @@ function createWxStorage() {
 }
 
 module.exports = {
+  acceptedPairingStatus,
   rememberRoomStatus,
   markPartnerWelcomePending,
   isPartnerWelcomePending,

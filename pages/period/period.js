@@ -208,14 +208,16 @@ Page(withPageVisibility({
   }
 }))
 
-// 一个分段的状态：首次加载中画骨架；未同步（从未读取成功，或 Room 被拦下）给失败画面与重试；
-// 已同步、最近一次刷新失败的给行内重试并保留列表
+// 一个分段的状态：首次加载中画骨架；未同步的分段遇到任何一次加载（重试、下拉、显示时的刷新）也画骨架，另一段已同步
+// 让这次加载静默时，被点的重试仍看得见在读（决定 23）。没有加载在跑时，未同步（读取失败，或 Room 被拦下）给失败画面
+// 与重试；已同步、最近一次刷新失败的给行内重试并保留列表
 function segmentState(state, collection, keys) {
   const { synced } = state.collections[collection]
+  const loading = state.loading || (!synced && state.refreshing)
   return {
-    [keys.loading]: state.loading,
+    [keys.loading]: loading,
     [keys.loaded]: synced,
-    [keys.failed]: !state.loading && (!synced || state.failedCollections.includes(collection))
+    [keys.failed]: !loading && (!synced || state.failedCollections.includes(collection))
   }
 }
 

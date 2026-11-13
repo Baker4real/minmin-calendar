@@ -1,4 +1,5 @@
 const { createMiniProgram } = require('./miniProgram')
+const { confirmInEditor } = require('./recordPages')
 
 // Geometry guards measure actual rendered copy from the same platform seam as
 // the page tests. No source scans or duplicated list of production sentences.
@@ -22,11 +23,7 @@ async function homeFeedbackCopy() {
       }
       // Save in a real editor opened from Home: Home stays hidden, then shows and refreshes when it returns.
       const saveInEditor = async (record, query) => {
-        const write = query.has('id') ? 'update' : 'add'
-        app.cloud.when({ name: 'dataOp', data: { action: write, collection: failed } }).reply({ code: 0, id: record._id, record })
-        app.wx.navigateTo({ url: `/pages/${failed === 'periods' ? 'period' : 'memory'}/edit/edit?${query}` })
-        await app.settle()
-        await app.dispatch(app.currentPage, 'save')
+        await confirmInEditor(app, { collection: failed, mode: query.has('id') ? 'update' : 'add', record }, { query })
         await capture()
       }
       const returnHome = async () => {

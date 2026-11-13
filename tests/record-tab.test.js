@@ -1,17 +1,46 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
+const { listCalls, listed, markedDates: marked, roomLookups } = require('./helpers/recordPages')
+const { evaluateWxmlExpression, wxmlElementTree } = require('./wxmlTemplate')
 
 const route = '/pages/period/period'
 const dataset = value => ({ currentTarget: { dataset: value } })
 const list = (app, collection) => app.cloud.when({ name: 'dataOp', data: { action: 'list', collection } })
-const listCalls = app => app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action === 'list')
-const roomLookups = app => app.cloud.calls.filter(call => call.name === 'getMyRoom').length
 const writes = (page, key) => page.setDataCalls.filter(patch => key in patch).map(patch => patch[key])
 const groupAuthors = groups => groups.flatMap(group => group.records.map(row => row.authorLabel))
 const periodGroupAuthors = years => years.flatMap(year => groupAuthors(year.months))
 const memoryRowIds = page => page.data.memoryGroups.flatMap(group => group.records.map(row => row._id))
-const marked = (app, page, marker) => app.rendered(page).days.filter(day => day[marker]).map(day => day.date)
+
+// Whether the tab's WXML draws an element for the rendered data: its own wx:if / wx:elif holds, no earlier branch
+// of its chain holds (WXML draws one branch per chain), and the same goes for every element around it.
+// Ask only about the segment on screen: the memory segment is a bare wx:else, which the tree does not read.
+const tabTemplate = wxmlElementTree(fs.readFileSync(path.join(__dirname, '../pages/period/period.wxml'), 'utf8'))
+const allElements = nodes => nodes.flatMap(node => [node, ...allElements(node.children)])
+function holds(node, data) {
+  const expr = node.attrs['wx:if'] ?? node.attrs['wx:elif']
+  return expr === undefined || Boolean(evaluateWxmlExpression(expr.replace(/^\{\{|\}\}$/g, ''), data))
+}
+function earlierBranches(node) {
+  const siblings = node.parent ? node.parent.children : tabTemplate
+  const branches = []
+  for (let index = siblings.indexOf(node) - 1; index >= 0; index -= 1) {
+    branches.push(siblings[index])
+    if (siblings[index].attrs['wx:if'] !== undefined) break
+  }
+  return branches
+}
+function draws(data, match) {
+  const element = allElements(tabTemplate).find(match)
+  assert.ok(element, 'the element is in the record tab template')
+  for (let node = element; node; node = node.parent) {
+    if (!holds(node, data)) return false
+    if (node.attrs['wx:elif'] !== undefined && earlierBranches(node).some(branch => holds(branch, data))) return false
+  }
+  return true
+}
 
 // No getMyRoom rule by default: the tab takes pairing from its list replies (#191), so a Room
 // lookup from a bound tab fails loudly as an unprogrammed cloud call.
@@ -24,8 +53,8 @@ function setup(t, { segment = 'period', ...options } = {}) {
 }
 
 const segments = [
-  { segment: 'period', collection: 'periods', loading: 'loading', failed: 'loadFailed', loaded: 'hasLoaded', retry: 'loadData', record: { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05' } },
-  { segment: 'memory', collection: 'memories', loading: 'memoryLoading', failed: 'memoryLoadFailed', loaded: 'memoryHasLoaded', retry: 'loadMemoryData', record: { _id: 'm1', date: '2026-06-01', note: '测试记录' } }
+  { segment: 'period', collection: 'periods', loading: 'loading', failed: 'loadFailed', loaded: 'hasLoaded', retry: 'loadData', listClass: 'period-year-list', record: { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05' } },
+  { segment: 'memory', collection: 'memories', loading: 'memoryLoading', failed: 'memoryLoadFailed', loaded: 'memoryHasLoaded', retry: 'loadMemoryData', listClass: 'memory-month-list', record: { _id: 'm1', date: '2026-06-01', note: '测试记录' } }
 ]
 
 // #194: the tab renders the app's one copy of the Room's records. What Home already read shows at once,
@@ -134,6 +163,41 @@ test('a save from Home is listed on the record tab before any refresh answers', 
 
 const bothLists = loads => Array(loads).fill(['periods', 'memories']).flat()
 
+// Spec decision 23: the other segment's records make the retry a silent refresh, yet the segment that never read
+// successfully shows its loading state while the retry runs, then its rows or the failure again, with no prompt.
+for (const spec of segments) {
+  const other = segments.find(item => item !== spec)
+  test(`${spec.segment}: a retry of the never-synced segment shows its loading state while it runs, then the failure or the rows`, async (t) => {
+    const app = setup(t, spec)
+    list(app, spec.collection).reject(new Error('network down'))
+    list(app, other.collection).reply({ code: 0, data: [other.record] })
+    const page = app.launch(route)
+    await app.flush()
+    assert.equal(page.data[spec.failed], true)
+    const pending = list(app, spec.collection).defer()
+    const retry = app.dispatch(page, spec.retry)
+    await app.settle()
+    assert.equal(page.data[spec.loading], true, 'the tapped segment shows progress')
+    assert.equal(page.data[spec.failed], false)
+    assert.equal(page.data[other.loading], false, 'the synced segment keeps its rows')
+    assert.equal(page.data[other.loaded], true)
+    pending.reject(new Error('network down'))
+    await retry
+    await app.settle()
+    assert.equal(page.data[spec.loading], false)
+    assert.equal(page.data[spec.failed], true)
+    assert.equal(page.data[spec.loaded], false)
+    assert.deepEqual(app.wx.modals, [])
+    assert.deepEqual(app.wx.toasts, [])
+    list(app, spec.collection).reply({ code: 0, data: [spec.record] })
+    await app.dispatch(page, spec.retry)
+    await app.flush()
+    assert.equal(page.data[spec.failed], false)
+    assert.equal(page.data[spec.loaded], true)
+    assert.equal(page.data[spec.collection][0]._id, spec.record._id)
+  })
+}
+
 for (const spec of segments) {
   const other = segments.find(item => item !== spec)
   test(`${spec.segment}: a first read failure shows the segment's failure and retry without a prompt, while the other segment shows normally`, async (t) => {
@@ -212,26 +276,62 @@ for (const spec of segments) {
   }
 }
 
-test('an unsynced period list keeps its failure and retry, lists the record saved here, and shows placeholder stats', async (t) => {
-  const app = setup(t)
-  list(app, 'periods').reject(new Error('network down'))
+// Failure mode 7 keeps the revision gate: a list read before a local change is set aside. A collection that has no
+// complete list yet is read again before the load ends, so the set-aside snapshot never looks like a read failure.
+test('a memory saved during the very first load does not leave the segment failed: the shared load reads the memories again', async (t) => {
+  const app = setup(t, { segment: 'memory' })
+  const periods = list(app, 'periods').defer()
+  const memories = list(app, 'memories').defer()
   const page = app.launch(route)
-  await app.flush()
-  assert.equal(page.data.loadFailed, true)
-  await app.dispatch(page, 'addPeriod')
-  await app.dispatch(app.currentPage, 'selectStatus', dataset({ value: 'known-end' }))
-  const saved = { _id: 'saved-here', startDate: '2026-10-20', endDate: '2026-10-20', status: 'known-end' }
-  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'periods' } }).reply({ code: 0, id: saved._id, record: saved })
+  await app.settle()
+  await app.dispatch(page, 'addMemory')
+  const saved = { _id: 'm-new', date: '2026-10-20', note: '新的' }
+  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'memories' } }).reply({ code: 0, id: saved._id, record: saved })
+  await app.dispatch(app.currentPage, 'onNoteInput', { detail: { value: saved.note } })
   await app.dispatch(app.currentPage, 'save')
-  await app.flush()
-  assert.equal(app.currentPage, page)
-  assert.equal(page.data.loading, false)
-  assert.equal(page.data.loadFailed, true)
-  assert.equal(page.data.hasLoaded, false)
-  assert.deepEqual(page.data.periods.map(row => row._id), ['saved-here'])
-  assert.deepEqual([page.data.avgCycle, page.data.avgDuration], [null, null])
+  await app.advance(1000)
+  assert.equal(app.currentPage, page, 'back on the tab, whose show joins the load still out')
+  const older = [{ _id: 'm-old', date: '2026-10-02', note: '' }, { _id: 'm-older', date: '2026-09-20', note: '' }]
+  list(app, 'memories').reply({ code: 0, data: [saved, ...older] })
+  periods.resolve({ code: 0, data: [] })
+  memories.resolve({ code: 0, data: older })
+  await app.settle()
+  assert.equal(page.data.memoryLoadFailed, false)
+  assert.equal(page.data.memoryHasLoaded, true)
+  assert.equal(page.data.memoryLoading, false)
+  assert.deepEqual(memoryRowIds(page), ['m-new', 'm-old', 'm-older'])
+  assert.deepEqual(writes(page, 'memoryLoadFailed').filter(Boolean), [], 'no frame shows the memories as failed')
+  assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(2))
   assert.deepEqual(app.wx.modals, [])
 })
+
+// #194: a collection that never read successfully keeps its failure card and retry, and the records saved on this
+// device are drawn under that card, not hidden behind it. The period stats stay placeholders.
+for (const spec of segments) {
+  test(`${spec.segment}: an unsynced list keeps its failure card and retry, and draws the record saved here under it`, async (t) => {
+    const app = setup(t, spec)
+    list(app, spec.collection).reject(new Error('network down'))
+    const page = app.launch(route)
+    await app.flush()
+    assert.equal(page.data[spec.failed], true)
+    const saved = spec.segment === 'period'
+      ? { _id: 'saved-here', startDate: '2026-10-20', endDate: '2026-10-20', status: 'known-end' }
+      : { _id: 'saved-here', date: '2026-10-20', note: '' }
+    await app.dispatch(page, spec.segment === 'period' ? 'addPeriod' : 'addMemory')
+    if (spec.segment === 'period') await app.dispatch(app.currentPage, 'selectStatus', dataset({ value: 'known-end' }))
+    app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: spec.collection } }).reply({ code: 0, id: saved._id, record: saved })
+    await app.dispatch(app.currentPage, 'save')
+    await app.flush()
+    assert.equal(app.currentPage, page)
+    const data = app.rendered(page)
+    assert.deepEqual([data[spec.loading], data[spec.failed], data[spec.loaded]], [false, true, false])
+    assert.ok(draws(data, node => node.classes.includes('load-failed') && node.attrs.bindtap === spec.retry), 'the failure card and its retry stay')
+    assert.ok(draws(data, node => node.classes.includes(spec.listClass)), 'the list is drawn under the failure card')
+    assert.deepEqual(spec.segment === 'period' ? data.periods.map(row => row._id) : memoryRowIds(page), ['saved-here'])
+    if (spec.segment === 'period') assert.deepEqual([data.avgCycle, data.avgDuration], [null, null])
+    assert.deepEqual(app.wx.modals, [])
+  })
+}
 
 test('segment intent is consumed once, a show reads both lists once, switching segments sends no request, and failure states stay independent', async (t) => {
   const app = setup(t, { segment: 'memory' })
@@ -345,7 +445,7 @@ for (const scenario of periodCases) {
 for (const status of ['paired', 'waiting', null, 'archived']) {
   test(`${status === null ? 'no status' : status}: rows name authors only when the lists bring back paired and same-day memories have distinct spoken labels`, async (t) => {
     const app = setup(t)
-    const reply = data => status === null ? { code: 0, data } : { code: 0, roomStatus: status, data }
+    const reply = data => listed(data, status)
     list(app, 'periods').reply(reply([
       { _id: 'p-mine', startDate: '2026-09-01', endDate: '2026-09-03', createdByMe: true, flow: 'heavy', symptoms: ['cramps'] },
       { _id: 'p-theirs', startDate: '2026-08-01', endDate: '2026-08-03', createdByMe: false },

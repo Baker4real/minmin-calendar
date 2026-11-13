@@ -1,6 +1,6 @@
 // Collection outcomes are addressed directly, without synthesizing *Outcome keys.
-// Home accepts retryable partial success; export stops at the first failed list.
-async function loadHomeRecordsSnapshot(options = {}) {
+// The shared records' load (roomRecordsSync) accepts retryable partial success; export stops at the first failed list.
+async function loadSharedRecordsSnapshot(options = {}) {
   const client = requireRoomDataClient(options.client)
   const [periods, memories] = await Promise.all([
     listRecordCollection({ client, collection: 'periods' }),
@@ -44,4 +44,4 @@ async function listRecordCollection({ client, collection }) {
   return { kind: 'malformed-failure', message: '导出失败' }
 }
 
-module.exports = { loadExportRecordsSnapshot, loadHomeRecordsSnapshot }
+module.exports = { loadExportRecordsSnapshot, loadSharedRecordsSnapshot }

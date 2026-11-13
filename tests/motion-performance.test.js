@@ -7,7 +7,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
-const { FILL_PROPERTIES, fillOf, listWxssFiles } = require('./designTokens')
+const { FILL_PROPERTIES, PRESS_SCALE_BAND, fillOf, listWxssFiles } = require('./designTokens')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const { renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
 
@@ -301,6 +301,9 @@ function continuousRole(name) {
 // delay：一次性动画的延迟也登记在这里，只有记录成功反馈等返回转场（--delay-return，issue #167），别的一次性动画不写延迟。
 // reducedMotion：注册表的「减弱动效」一栏。stays 是只动透明度、照常播放的温和反馈；fades 换成只动透明度的替代，
 // 不能整段停掉；不写就是停掉（none）或换成只动透明度的替代。
+// 每条钉的是具体哪一档 token，不只是「经共享 token」：docs/motion-and-interaction.md「动效与性能边界」逐档登记了
+// 每个 token 管哪些动效（例如 dayDetailFade 归 --duration-state，bindReveal 归 --duration-enter），注册表的
+// 「时长与曲线」一栏逐条写同一档。换档是改登记的规则，先改那两处文档再改这里。
 const LITERAL_DURATION_ANIMATIONS = new Set([...Object.keys(CONTINUOUS_ANIMATIONS), 'heroIn'])
 const RETURN_DELAY = 'var(--delay-return)'
 const ONE_SHOT_ANIMATIONS = {
@@ -390,6 +393,9 @@ const SHEET_MOTION_TWINS = {
 // 全仓唯一允许写进 transition 第四段的延迟：弹层内容块进场晚标题一拍（issue #166）
 const STAGGER_DELAY = 'var(--delay-stagger)'
 
+// 弹层与同步胶囊每一段用哪档 token 同样是登记的规则：docs/motion-and-interaction.md「首页底部弹层进出」
+// 「设置「使用说明」弹层」「弹层标题与内容错相」「首页同步胶囊进出」逐段写了时长、曲线和延迟，
+// 「动效与性能边界」写了每档 token 的角色。换档先改那几条文档再改这里。
 function sheetMotionExpectation(selector, prop) {
   const spaced = selector.replace(/\s+/g, ' ').trim()
   const normalized = SHEET_MOTION_TWINS[spaced] || spaced
@@ -683,12 +689,6 @@ test('every animation stops or turns movement-free under reduced motion unless r
   assert.deepEqual(violations, [])
 })
 
-// 声明了过渡、还没有减弱动效覆盖的选择器（issue #197 盘点出的样式缺口）。本票只改测试；补上覆盖时删掉对应一行
-const REDUCED_MOTION_GAPS = {
-  'pages/index/index.wxss .jump-today': 'the back-to-today button press transition is missing from the index reduced-motion list',
-  'pages/period/period.wxss .period-year-title': 'the year title press fade (issue #187) is missing from the period reduced-motion list'
-}
-
 // 减弱动效下过渡全部即时切换：按压只剩即时缩放和底色变化，弹层和胶囊立即到位，编辑页边框即时切换（issue #106）
 test('every transition switches instantly under reduced motion', () => {
   const files = analyzedWxssFiles()
@@ -697,7 +697,6 @@ test('every transition switches instantly under reduced motion', () => {
     for (const rule of file.rules) {
       if (rule.inReducedMotion || !rule.decls.transition || rule.decls.transition === 'none') continue
       for (const selector of rule.selectors) {
-        if (REDUCED_MOTION_GAPS[`${file.relative} ${selector}`]) continue
         const covering = reducedMotionCoverage(files, file, selector, 'transition')
         if (!covering.some((rm) => rm.decls.transition === 'none')) {
           violations.push(`${file.relative} ${selector} transition has no reduced-motion coverage`)
@@ -744,7 +743,8 @@ test('reduced motion makes native tab bar hide and restore instant', () => {
 
 // issue #166：按压改变的每一路——缩放、底色、描边、柔光层透明度——都在 --duration-press 里一起走，
 // 松手按同一拍回来，没有哪一路先跳到位。按压不换 box-shadow：阴影不能过渡，柔光的变化落在柔光层的透明度上。
-// 禁用与加载变体不算按压（它们把每一路钉在静止值，见 interaction-semantics）。
+// 禁用与加载变体不算按压，这里跳过它们。它们按下时每一路都不动，这一条已经没有护栏：#196 按 spec 决定 29/30
+// 删了 interaction-semantics 里那条检查（它不在保留的不变量里），interaction-semantics 现在只钉它们读作禁用。
 // 唯一例外是「记录」tab 欢乐时光卡头：issue #109 让卡头不写过渡，它的按压只有一层底色，没有第二路要对齐。
 const PRESS_BEAT_EXCEPTIONS = {
   'pages/period/period.wxss .month-header': 'issue #109: the collapsible month header writes no transition'
@@ -782,6 +782,7 @@ test('a press moves every channel it changes on the press beat, and never swaps 
       if (rule.inReducedMotion) continue
       for (const selector of rule.selectors.filter((item) => item.includes(':active'))) {
         const target = lastCompound(selector)
+        // 惰性变体的按压不查：既不查同拍，也不查它是否真的静止（见上方说明，那一条不再受护栏）
         if (selectorSignature(target).classes.some((cls) => INERT_CLASSES.includes(cls))) continue
         const where = `${file.relative} ${selector}`
         if (rule.decls['box-shadow']) violations.push(`${where} swaps its box-shadow; dim a glow layer instead`)
@@ -804,8 +805,8 @@ test('a press moves every channel it changes on the press beat, and never swaps 
   assert.deepEqual(violations, [])
 })
 
-// 按压在减弱动效下仍是即时缩放，缩放落在登记的 0.94–0.98 区间（docs/motion-and-interaction.md：Pressed 用 scale(0.94–0.98)）
-const PRESS_SCALE_BAND = [0.94, 0.98]
+// 按压在减弱动效下仍是即时缩放，缩放落在登记的 0.94–0.98 区间（docs/motion-and-interaction.md：Pressed 用 scale(0.94–0.98)），
+// 区间与 interaction-semantics 共用 designTokens 的 PRESS_SCALE_BAND
 
 test('every press scale stays inside the registered 0.94-0.98 band', () => {
   const violations = []

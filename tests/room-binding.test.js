@@ -7,6 +7,7 @@ const {
 } = require('../cloudfunctions/_shared/roomMembershipLifecycle')
 const { createDataOpHandler } = require('../cloudfunctions/dataOp/dataOpHandler')
 const { createRoomRecords } = require('../cloudfunctions/dataOp/roomRecords')
+const { DEFAULT_LIMIT, MAX_LIMIT } = require('./helpers/cloudDatabase')
 
 function createRoomMembershipLifecycle(options) {
   let membershipSequence = 0
@@ -1128,7 +1129,7 @@ function createQuery(allData, name, query, options = {}) {
       return chain
     },
     async get() {
-      let result = allData[name].filter(record => matchesQuery(record, query))
+      const result = allData[name].filter(record => matchesQuery(record, query))
       result.sort((left, right) => {
         for (const [field, direction] of orders) {
           const comparison = String(left[field] || '').localeCompare(String(right[field] || ''))
@@ -1136,9 +1137,10 @@ function createQuery(allData, name, query, options = {}) {
         }
         return 0
       })
-      result = result.slice(offset)
-      if (limitCount !== null) result = result.slice(0, limitCount)
-      return { data: clone(result) }
+      // 读取条数上限与 tests/helpers/cloudDatabase.js 同源：没指定条数最多 100 条，指定了单次不超过 1000 条。
+      // 没有默认上限的替身会让分页回退照样通过（spec 失败模式 2）
+      const pageSize = limitCount === null ? DEFAULT_LIMIT : Math.min(limitCount, MAX_LIMIT)
+      return { data: clone(result.slice(offset, offset + pageSize)) }
     },
     async update({ data }) {
       const records = allData[name].filter(record => matchesQuery(record, query))

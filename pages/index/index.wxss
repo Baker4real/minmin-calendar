@@ -1764,6 +1764,7 @@
   .nav-btn::before,
   .jump-option,
   .jump-year-step,
+  .jump-today,
   .sheet-action,
   .day-detail-row,
   .sheet-close,

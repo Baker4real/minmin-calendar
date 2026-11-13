@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const path = require('node:path')
 const test = require('node:test')
-const { parseWxssRules } = require('./designTokens')
+const { TOUCH_FLOOR_RPX, parseWxssRules } = require('./designTokens')
 
 const chinaHolidays = require('../utils/chinaHolidays')
 const util = require('../utils/util')
@@ -281,7 +281,7 @@ test('retired calendar marks stay out of the home page', () => {
 
 // DESIGN：触控高度至少 44px，750rpx 设计宽下盒高 ≥88rpx。这里只比下限，不钉具体尺寸
 test('calendar, sheet, density and chip controls keep touch targets at or above the 88rpx floor', () => {
-  const floor = 88
+  const floor = TOUCH_FLOOR_RPX
   for (const [file, selector, sides] of [
     ['pages/index/index.wxss', '.sheet-close', ['width', 'height']],
     ['pages/index/index.wxss', '.sheet-action.compact', ['min-height']],

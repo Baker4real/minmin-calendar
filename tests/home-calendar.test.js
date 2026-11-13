@@ -3,13 +3,12 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
+const { confirmInEditor, listed, roomLookups } = require('./helpers/recordPages')
 const { evaluateWxmlExpression, renderWxmlAttribute, renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
 
 const wxml = fs.readFileSync(path.join(__dirname, '../pages/index/index.wxml'), 'utf8')
 const tags = wxmlOpeningTags(wxml)
 const success = data => ({ code: 0, data })
-// The Room pairing status rides on each list reply (#191); null leaves it out as an older dataOp does.
-const listed = (data, roomStatus) => roomStatus === null ? success(data) : { ...success(data), roomStatus }
 const period = (id, startDate, endDate = startDate, status = 'known-end') => ({ _id: id, startDate, endDate, status })
 const memory = (id, date, note = '') => ({ _id: id, date, note })
 function listRoute(app, collection) {
@@ -22,7 +21,6 @@ function homeApp(t, { periods = [], memories = [], roomStatus = 'waiting', ...op
   listRoute(app, 'memories').reply(listed(memories, roomStatus))
   return app
 }
-const roomLookups = app => app.cloud.calls.filter(call => call.name === 'getMyRoom').length
 const calendarFrames = page => page.setDataCalls.filter(patch => 'days' in patch).length
 async function launch(app) {
   const home = app.launch('/pages/index/index')
@@ -72,24 +70,7 @@ test('cloud records render the calendar, summary and the selected day detail', a
 })
 
 // #195: a record change reaches Home only from a confirmed save or delete in a real editor opened from
-// Home, which hides Home until the editor returns. The editor hands over the cloud's canonical record.
-const editorKinds = { periods: 'period', memories: 'memory' }
-function editorQuery({ collection, mode, record }) {
-  const fields = collection === 'memories'
-    ? { date: record.date, note: record.note }
-    : { startDate: record.startDate, endDate: record.endDate, status: record.status === 'known-end' ? '' : record.status }
-  return new URLSearchParams(Object.entries({ id: mode === 'add' ? '' : record._id, ...fields }).filter(([, value]) => value)).toString()
-}
-async function confirmInEditor(app, change, { query = editorQuery(change), write = change.mode, reopened = false } = {}) {
-  const { collection, mode, record } = change
-  app.cloud.when({ name: 'dataOp', data: { action: write, collection } })
-    .reply(mode === 'remove' ? { code: 0 } : { code: 0, id: record._id, record, ...(reopened ? { reopened } : {}) })
-  app.wx.navigateTo({ url: `/pages/${editorKinds[collection]}/edit/edit?${query}` })
-  await app.settle()
-  if (mode === 'remove' || reopened) app.respondNext('showModal', { confirm: true })
-  await app.dispatch(app.currentPage, mode === 'remove' ? 'delete' : 'save')
-  await app.settle()
-}
+// Home (confirmInEditor), which hides Home until the editor returns. The editor hands over the cloud's canonical record.
 // A confirmed save returns to Home on its timer, and Home refreshes as it shows.
 async function returnHome(app) { await app.advance(1000) }
 // Home's refreshes stay on their way, so Home shows what the editors handed over.

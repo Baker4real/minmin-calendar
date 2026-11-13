@@ -2,8 +2,8 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
-const { parseWxssRules } = require('./designTokens')
-const { conditionalClassCondition, wxmlElementTree } = require('./wxmlTemplate')
+const { PRESS_SCALE_BAND, TOUCH_FLOOR_RPX, parseWxssRules } = require('./designTokens')
+const { conditionalClassCondition, wxmlElementTree, wxmlOpeningTags } = require('./wxmlTemplate')
 
 // issue #57：交互语义护栏 —— 每个用户可点控件都有明确角色与可读名称；
 // 选中/禁用/隐藏状态用 aria 表达且与视觉状态同条件绑定，不与可操作状态冲突；
@@ -22,9 +22,6 @@ const PAGE_WXML = [
   'pages/memory/edit/edit.wxml',
   'pages/settings/settings.wxml'
 ]
-
-// DESIGN：触控高度至少 44px，750rpx 设计宽下盒高 ≥88rpx
-const TOUCH_FLOOR_RPX = 88
 
 // include 等于把目标文件原样拷到这个位置（共享的极光标记就是这样进每个页面的）：
 // 先展开再检查，护栏看到的是页面渲染出来的结构
@@ -77,9 +74,10 @@ function assertPressScaleInBand(relativePath, selector) {
   const scale = /scale\(([\d.]+)\)/.exec(declsOf(relativePath, `${selector}:active`).transform || '')
   if (!scale) return
   const value = Number(scale[1])
+  const [low, high] = PRESS_SCALE_BAND
   assert.ok(
-    value >= 0.94 && value <= 0.98,
-    `${relativePath} ${selector}:active press scale ${value} is outside the registered 0.94-0.98 band`
+    value >= low && value <= high,
+    `${relativePath} ${selector}:active press scale ${value} is outside the registered ${low}-${high} band`
   )
 }
 
@@ -91,6 +89,13 @@ test('conditional class extraction accepts both quote styles', () => {
   assert.equal(conditionalClassCondition("a {{ busy ? 'disabled' : '' }}", 'disabled'), 'busy')
   assert.equal(conditionalClassCondition('a static-class', 'active'), null)
   assert.equal(conditionalClassCondition("a {{ cond ? 'other' : '' }}", 'active'), null)
+})
+
+test('both WXML tag readers read single- and double-quoted attributes alike', () => {
+  const fragment = `<view class='row {{busy ? "disabled" : ""}}' bindtap="retry" aria-role='button'></view>`
+  const expected = { class: 'row {{busy ? "disabled" : ""}}', bindtap: 'retry', 'aria-role': 'button' }
+  assert.deepEqual(wxmlOpeningTags(fragment)[0].attrs, expected)
+  assert.deepEqual(wxmlElementTree(fragment)[0].attrs, expected)
 })
 
 test('every tap target exposes an explicit role and a readable name', () => {

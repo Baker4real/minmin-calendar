@@ -3,16 +3,16 @@ const test = require('node:test')
 
 const {
   loadExportRecordsSnapshot,
-  loadHomeRecordsSnapshot
+  loadSharedRecordsSnapshot
 } = require('../utils/roomRecordsSnapshot')
 
-test('loadHomeRecordsSnapshot returns both room-scoped record collections on success', async () => {
+test('loadSharedRecordsSnapshot returns both room-scoped record collections on success', async () => {
   const client = createFakeRoomDataClient({
     periods: [{ _id: 'p1', startDate: '2026-07-01' }],
     memories: [{ _id: 'm1', date: '2026-07-02' }]
   })
 
-  const snapshot = await loadHomeRecordsSnapshot({ client })
+  const snapshot = await loadSharedRecordsSnapshot({ client })
 
   assert.equal(snapshot.kind, 'success')
   assert.deepEqual(snapshot.collections.periods.data, [{ _id: 'p1', startDate: '2026-07-01' }])
@@ -23,9 +23,9 @@ test('loadHomeRecordsSnapshot returns both room-scoped record collections on suc
   ])
 })
 
-test('loadHomeRecordsSnapshot requires RoomDataClient instead of legacy cloud getters', async () => {
+test('loadSharedRecordsSnapshot requires RoomDataClient instead of legacy cloud getters', async () => {
   await assert.rejects(
-    () => loadHomeRecordsSnapshot({
+    () => loadSharedRecordsSnapshot({
       cloud: {
         async getPeriods() {
           return [{ _id: 'p1' }]
@@ -39,8 +39,8 @@ test('loadHomeRecordsSnapshot requires RoomDataClient instead of legacy cloud ge
   )
 })
 
-test('loadHomeRecordsSnapshot keeps partial-success semantics for retryable collection failures', async () => {
-  const snapshot = await loadHomeRecordsSnapshot({
+test('loadSharedRecordsSnapshot keeps partial-success semantics for retryable collection failures', async () => {
+  const snapshot = await loadSharedRecordsSnapshot({
     client: createFakeRoomDataClient({
       periods: { kind: 'retryable-failure', message: 'network down' },
       memories: [{ _id: 'm1', date: '2026-07-02' }]
@@ -54,9 +54,9 @@ test('loadHomeRecordsSnapshot keeps partial-success semantics for retryable coll
   assert.equal(snapshot.collections.memories.kind, 'success')
 })
 
-test('loadHomeRecordsSnapshot returns blocking room outcomes without hiding the cause', async () => {
+test('loadSharedRecordsSnapshot returns blocking room outcomes without hiding the cause', async () => {
   const noRoom = { kind: 'no-room' }
-  const snapshot = await loadHomeRecordsSnapshot({
+  const snapshot = await loadSharedRecordsSnapshot({
     client: createFakeRoomDataClient({
       periods: noRoom,
       memories: { kind: 'retryable-failure', message: 'network down' }

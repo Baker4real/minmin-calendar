@@ -127,15 +127,16 @@ function openRecordEditSession({ kind, route, render }) {
     render({ ...state, ...config.describeForm(state, today(), heldPeriods()) })
   }
 
-  // 时长提示和保存前的归属查询读共享记录里的经期，包括尚待确认的本地改动；欢乐时光会话不读
+  // 时长提示和保存前的归属查询读共享记录里的经期，包括尚待确认的本地改动；欢乐时光会话不读。
+  // 每次读都按本机当前的房间码核对归属：保存遇到 Room 修复换了房间时，上一个 Room 的经期先被清掉，不进提示
   function heldPeriods() {
-    return config.overlapOwner ? roomRecordsSync.getState().collections[config.collection].records : []
+    return config.overlapOwner ? roomRecordsSync.readCurrentRoom().collections[config.collection].records : []
   }
 
   // 经期未同步时请共享记录加载一次（与在途加载合并），结束后按那时持有的经期继续；
   // 读不到就没有历史：时长用默认值、不问归属。加载结果的提示归发起显示的页面，编辑页不提示
   async function loadUnsyncedPeriods() {
-    if (!roomRecordsSync.getState().collections[config.collection].synced) await roomRecordsSync.load()
+    if (!roomRecordsSync.readCurrentRoom().collections[config.collection].synced) await roomRecordsSync.load()
   }
 
   function busy() {

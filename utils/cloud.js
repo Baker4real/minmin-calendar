@@ -1,6 +1,7 @@
 // 云数据库工具层 — 统一通过云函数操作，避免小程序端数据库权限影响共享读写。
 const roomSession = require('./room')
 const roomAccessOutcome = require('./roomAccessOutcome')
+const roomPresence = require('./roomPresence')
 const { createRoomResolver } = require('./roomResolver')
 
 // ===== 查询超时包装 =====
@@ -99,7 +100,8 @@ function buildSuccessOutcome(action, result, roomCode) {
       data: result.data || [],
       roomCode
     }
-    if (result.roomStatus === 'waiting' || result.roomStatus === 'paired') outcome.roomStatus = result.roomStatus
+    const roomStatus = roomPresence.acceptedPairingStatus(result.roomStatus)
+    if (roomStatus) outcome.roomStatus = roomStatus
     return outcome
   }
 

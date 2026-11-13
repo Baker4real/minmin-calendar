@@ -1,13 +1,13 @@
 const assert = require('node:assert/strict')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
+const { listCalls, listed, markedDates: marked } = require('./helpers/recordPages')
 
 // #193: one Room record copy shared by every page, observed only through real pages,
 // lifecycles, platform responses and rendered data. A and B are two Rooms this device
 // holds one after the other; once B is the Room, nothing of A may show.
 const A = 'ROOM01'
 const B = 'ROOM02'
-const listed = (data, roomStatus) => roomStatus ? { code: 0, data, roomStatus } : { code: 0, data }
 const period = (id, date, extra = {}) => ({ _id: id, startDate: date, endDate: date, status: 'known-end', ...extra })
 const memory = (id, date, extra = {}) => ({ _id: id, date, note: '', ...extra })
 
@@ -19,14 +19,6 @@ function homeApp(t, options = {}) {
 
 function listRoute(app, collection, roomCode) {
   return app.cloud.when({ name: 'dataOp', data: { action: 'list', collection, roomCode } })
-}
-
-function listCalls(app) {
-  return app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action === 'list')
-}
-
-function marked(app, page, marker) {
-  return app.rendered(page).days.filter(day => day[marker]).map(day => day.date)
 }
 
 // Room A as Home first reads it: paired, one period and one memory, both with an author.
@@ -207,6 +199,38 @@ for (const [entry, failed] of [['createRoom', 'memories'], ['joinRoom', 'periods
   })
 }
 
+// The same leave as seen from the record tab and the period editor's duration hint (spec Testing Decisions).
+for (const [entry, failed] of [['createRoom', 'memories'], ['joinRoom', 'periods']]) {
+  test(`after Room leave and ${entry === 'createRoom' ? 'creating' : 'joining'} another Room, the record tab and the period editor's hint never show the previous Room, with the new Room's ${failed} failing`, async t => {
+    const app = homeApp(t)
+    await launchRoomA(app)
+    app.wx.switchTab({ url: '/pages/period/period' })
+    await app.settle()
+    assert.deepEqual(app.rendered(app.currentPage).periods.map(row => row._id), ['a-p'])
+    const bind = await leaveFromSettings(app)
+    // Room A's one period lasts one day and Room B's three: a three-day range is longer only than Room A's.
+    listRoute(app, 'periods', B).reply(listed([period('b-p', '2026-06-20', { endDate: '2026-06-22', createdByMe: true })]))
+    listRoute(app, 'memories', B).reply(listed([memory('b-m', '2026-06-12', { createdByMe: true })]))
+    listRoute(app, failed, B).reject(new Error('network down'))
+    await enterRoomB(app, bind, entry)
+
+    app.wx.switchTab({ url: '/pages/period/period' })
+    await app.settle()
+    const tab = app.currentPage
+    const view = app.rendered(tab)
+    assert.deepEqual(view.periods.map(row => row._id), failed === 'periods' ? [] : ['b-p'])
+    assert.deepEqual(view.memoryGroups.flatMap(group => group.records.map(row => row._id)), failed === 'memories' ? [] : ['b-m'])
+    assert.equal(view[failed === 'periods' ? 'loadFailed' : 'memoryLoadFailed'], true)
+    assert.deepEqual(tab.setDataCalls.filter(tabShowsRoomA), [], 'no frame of the tab carries Room A')
+
+    app.wx.navigateTo({ url: '/pages/period/edit/edit?startDate=2026-06-10&endDate=2026-06-12' })
+    await app.settle()
+    const edit = app.currentPage
+    assert.equal(app.rendered(edit).periodDayCountText, '共 3 天')
+    assert.equal(app.rendered(edit).periodLengthHint, '', 'Room A\'s one-day period is no history here')
+  })
+}
+
 test('a load still in flight for the previous Room is not shared with the next Room and never lands in it', async t => {
   const app = homeApp(t)
   listRoute(app, 'periods', A).reply(listed([period('a-p', '2026-06-01', { createdByMe: true })], 'waiting'))
@@ -287,6 +311,48 @@ test('a period editor opened after the device moved to another Room hints and as
   assert.deepEqual(app.wx.modals, [])
   assert.deepEqual(app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action !== 'list').map(call => call.data.roomCode), [B])
   assert.deepEqual(listCalls(app).slice(-2).map(call => call.data.roomCode), [B, B])
+})
+
+// Spec decision 21 / failure mode 5: the editor stays open while its own save's Room repair moves the device.
+test('a period editor whose save moved the device to another Room hints and asks from that Room only', async t => {
+  const app = homeApp(t)
+  listRoute(app, 'periods', A).reply(listed([period('a-p', '2026-06-01', { endDate: '2026-06-03', createdByMe: true })], 'paired'))
+  listRoute(app, 'memories', A).reply(listed([], 'paired'))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  app.wx.navigateTo({ url: '/pages/period/edit/edit?startDate=2026-06-10&endDate=2026-06-13' })
+  await app.settle()
+  const edit = app.currentPage
+  assert.equal(app.rendered(edit).periodLengthHint, '比你通常的 3 天长，确认一下结束日？', 'Room A\'s three-day period is this Room\'s history')
+
+  // The add into Room A is refused as stale; the repair finds this member in Room B now.
+  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'periods', roomCode: A } })
+    .reply({ code: -1, errorCode: 'ROOM_ACCESS_DENIED', msg: '无权访问该房间' })
+  app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: B, status: 'waiting' } })
+  const repaired = app.dispatch(edit, 'save')
+  await app.settle()
+  app.respond('showModal', app.wx.modals.length - 1, { confirm: true })
+  await repaired
+  await app.settle()
+  assert.equal(app.storage.roomCode, B)
+  assert.equal(app.rendered(edit).periodLengthHint, '', 'Room A\'s history no longer counts')
+  assert.deepEqual(marked(app, home, 'isPeriod'), [], 'Home under the editor drops Room A too')
+
+  // A start day inside Room A's period asks nothing: Room B's periods are read once, then the save goes on.
+  await app.dispatch(edit, 'onStartChange', { detail: { value: '2026-06-02' } })
+  assert.equal(app.rendered(edit).periodLengthHint, '')
+  const periodsB = listRoute(app, 'periods', B).defer()
+  listRoute(app, 'memories', B).reply(listed([]))
+  const saved = period('b-new', '2026-06-02', { endDate: '2026-06-13' })
+  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'periods', roomCode: B } }).reply({ code: 0, id: saved._id, record: saved })
+  const modals = app.wx.modals.length
+  const saving = app.dispatch(edit, 'save')
+  await app.settle()
+  periodsB.resolve(listed([]))
+  await saving
+  assert.deepEqual(app.wx.modals.slice(modals), [], 'Room A\'s period on that day asks nothing')
+  assert.deepEqual(app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action === 'add').map(call => call.data.roomCode), [A, B])
+  assert.deepEqual(listCalls(app).slice(2).map(call => [call.data.collection, call.data.roomCode]), [['periods', B], ['memories', B]])
 })
 
 test('records Home read after its own Room lookup belong to the Room the lookup found, so the next show refreshes them silently', async t => {
