@@ -1,5 +1,5 @@
 const util = require('../../utils/util')
-const { createRoomRecordsSync } = require('../../utils/roomRecordsSync')
+const roomRecordsSync = require('../../utils/roomRecordsSync')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const wxPrompts = require('../../utils/wxPrompts')
 const recordEditRoute = require('../../utils/recordEditRoute')
@@ -169,9 +169,8 @@ Page(withPageVisibility({
   onLoad() {
     this.refreshReducedMotion()
     const now = new Date()
-    this._recordsSync = createRoomRecordsSync({
-      onChange: (state, change) => this.renderRecordsSync(state, change)
-    })
+    // 全应用共用一份 Room 记录（#193）：加载时订阅、卸载时退订，订阅回调只更新渲染数据
+    this._unsubscribeRecords = roomRecordsSync.subscribe((state, change) => this.renderRecordsSync(state, change))
     this.applyHomeCalendarState({
       year: now.getFullYear(),
       month: now.getMonth(),
@@ -196,13 +195,14 @@ Page(withPageVisibility({
       }), () => this.markOngoingReminderShown(reminder))
     }
     this.refreshReducedMotion()
-    return this.loadRecords({ background: this.data.hasLoadedHomeData && !this.data.noRoom })
+    return this.loadRecords()
   },
 
-  // 首页发起的每次加载都经这里：「TA 已加入」只认这次列表带回的配对状态，由 roomPresence 判定只提示一次；
-  // 没带回状态（读取失败或旧版 dataOp）就不喂旧值。显示、下拉、重试共用一次在途加载时也只提示一次。
-  loadRecords(options) {
-    return this._recordsSync.load(options).then(result => {
+  // 首页发起的每次加载都经这里，前台还是静默刷新由共享记录自己判断（#193）。提示只依据这次加载返回的结果：
+  // 「TA 已加入」只认这次列表带回的配对状态，由 roomPresence 判定只提示一次；没带回状态（读取失败、旧版 dataOp
+  // 或换了 Room 而作废）就不喂旧值。显示、下拉、重试共用一次在途加载时也只提示一次。
+  loadRecords() {
+    return roomRecordsSync.load().then(result => {
       if (roomPresence.rememberRoomStatus(result && result.roomStatus)) {
         wx.showToast({ title: 'TA 已加入', icon: 'none' })
       }
@@ -266,6 +266,8 @@ Page(withPageVisibility({
     }
     if (state.blockedOutcome) {
       this.applyRoomStatusOutcome(state.blockedOutcome, fields)
+      // 换了 Room 而清空的记录：行内 Room 状态先盖住日历，再把日历换成清空后的样子，背后不留上一个 Room（#193）
+      if (calendarChanged) this.applyHomeCalendarState()
       return
     }
     Object.assign(fields, {
@@ -292,7 +294,7 @@ Page(withPageVisibility({
   // 一次性记号（见 _calendarMarks），fields 是其他字段（选月面板），不覆盖投影和记号
   applyHomeCalendarState(overrides = {}, { flip, emphasis, fields = {} } = {}) {
     const hasOwn = (key) => Object.prototype.hasOwnProperty.call(overrides, key)
-    const { collections, roomPaired } = this._recordsSync.getState()
+    const { collections, roomPaired } = roomRecordsSync.getState()
     const year = hasOwn('year') ? overrides.year : this.data.year
     const month = hasOwn('month') ? overrides.month : this.data.month
     const today = hasOwn('today') ? overrides.today : util.formatDate(new Date())
@@ -330,7 +332,7 @@ Page(withPageVisibility({
   },
 
   applyRecordChange(change) {
-    this._recordsSync.applyRecordChange(change)
+    roomRecordsSync.applyRecordChange(change)
   },
 
   prevMonth() {
@@ -464,18 +466,18 @@ Page(withPageVisibility({
   handleRoomStatusAction() {
     return wxPrompts.runAction(this.data.roomStatusAction, {
       navigateToBind: () => this.goBind(),
-      retry: () => this.loadRecords({ background: false })
+      retry: () => this.loadRecords()
     })
   },
 
-  // 首页已加载后的刷新失败重试：保持后台刷新语义，失败时日历与重试句都留驻，
+  // 首页已加载后的刷新失败重试：共享记录已持有这个 Room 的数据，这次是静默刷新，失败时日历与重试句都留驻，
   // 不把已显示的日历换回整页失败画面
   retryRefresh() {
-    return this.loadRecords({ background: true })
+    return this.loadRecords()
   },
 
   onPullDownRefresh() {
-    const task = this.loadRecords({ background: true })
+    const task = this.loadRecords()
     const stop = () => {
       if (typeof wx.stopPullDownRefresh === 'function') wx.stopPullDownRefresh()
     }
@@ -558,7 +560,7 @@ Page(withPageVisibility({
     const recordId = e.currentTarget.dataset.id
     if (!recordId) return
     const collection = kind === 'memory' ? 'memories' : 'periods'
-    const record = this._recordsSync.getState().collections[collection].records.find(item => (item._id || item.id) === recordId)
+    const record = roomRecordsSync.getState().collections[collection].records.find(item => (item._id || item.id) === recordId)
     if (!record) return
     this.closeDayActions()
     wx.navigateTo({
@@ -659,6 +661,7 @@ Page(withPageVisibility({
 
   onUnload() {
     this.persistOngoingReminderSeen()
+    if (this._unsubscribeRecords) this._unsubscribeRecords()
   },
 
   onOngoingReminderTap() {
