@@ -87,7 +87,7 @@ npm run verify
 
 `npm run verify` 是本地、提交钩子与 CI 的共同入口：先执行根依赖审计，检查 app、pages、utils、cloudfunctions、tests 中的 JavaScript 语法，自动发现全部 `tests/*.test.js`（含真实自动化 SDK 图像兼容回归），再将既有跨日/午夜用例分别放在 UTC 和 Asia/Taipei 子进程中验证，核对 Room artifact，并运行 320/375/430 宽度的坐标命中回归。日期边界回归也可单独用 `npm run test:clock` 定位；两轴都必须执行完全部指定用例，缺失、跳过或进程失败不能算通过。依赖和临时目录不进入语法清单；新增源文件无需维护 README 清单。提交钩子传 `--tracked`：语法和测试清单改从 git 索引取（已跟踪加已暂存的文件），共享工作树里别的会话还没跟踪的文件不进本次提交的检查。
 
-#169 的页面行为测试经 `tests/helpers/miniProgram.js` 这一份微信平台 harness，或 `buildHomeCalendarState` 的纯 projection 表格验证。`tests/test-seam-guardrail.test.js` 随完整测试运行：迁移预算 `BUDGET` 已清空，仅保留 Room lifecycle 云函数部署打包的 JS 源码读取例外；WXML/WXSS 设计守卫与既有公开 interface 测试继续保留。harness 同样约束原生确认按钮文案最多四个汉字。
+#169 的页面行为测试经 `tests/helpers/miniProgram.js` 这一份微信平台 harness，或 `buildHomeCalendarState` 的纯 projection 表格验证。`tests/test-seam-guardrail.test.js` 随完整测试运行：迁移预算 `BUDGET` 已清空，只保留两处 JS 源码读取例外：Room lifecycle 云函数的部署打包，以及 `tests/cloudfunction-collection-reads.test.js` 对云函数集合读取条数上限的静态检查；WXML/WXSS 设计守卫与既有公开 interface 测试继续保留。harness 同样约束原生确认按钮文案最多四个汉字。
 
 首次检出及 Playwright 版本升级后运行 `npm run release:prepare`；仅补装浏览器时可用 `npm run browser:install`，缓存位置按上面的检出类型解析。日常输出只显示结果、测试条数和日志路径；完整门禁日志在 `.scratch/verify/`，依赖原文在 `.scratch/dependencies/`，发布准备日志和结果在 `.scratch/release-prepare/`，坐标与截图证据在 `.scratch/coordinate-hit/`。这些入口覆盖各自最近一次结果；CI 失败时归档上述诊断目录。任何检查失败均退出非零。`npm test`、`npm run check`、`npm run test:hit` 可用于单独定位，不能代替完整验收。定向用例优先用 `npm run verify:target -- --tests tests/capture-evidence.test.js,tests/devtools-cli.test.js [--name '用例正则']`：复用完整日志写盘，只返回计数和有界失败片段，日志在 `.scratch/verify-target/tests.log`；文件重复、非法路径或零匹配均失败，不能把 Node 的文件包装行当作有效用例。预期测试红灯保留真实非零退出；retro 审计用 `--expected-exit <原始结果行号>:<退出码>` 标记，不能把其他失败一起豁免。
 
