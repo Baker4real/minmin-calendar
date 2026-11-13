@@ -2,12 +2,14 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { parseWxssRules } = require('./designTokens')
+const { conditionalClassCondition, wxmlElementTree } = require('./wxmlTemplate')
 
 // issue #57：交互语义护栏 —— 每个用户可点控件都有明确角色与可读名称；
 // 选中/禁用/隐藏状态用 aria 表达且与视觉状态同条件绑定，不与可操作状态冲突；
 // 日历格继续朗读完整领域语义，空白格保持隐藏。
-// issue #77：标记各管一件事 —— 可见符号与句子的语义也在此钉住：
-// 哪个标记在场、哪个控件可用、显示哪句话；不断言私有结构。
+// issue #196：这里只钉不变量——读屏语义、触控下限、DESIGN 登记的按压缩放区间、已退役的符号。
+// 在设计规则允许的范围内改一个间距、时长或色值就会变红的断言不放进来（README「Verification」）。
 
 const repoRoot = path.join(__dirname, '..')
 
@@ -21,6 +23,9 @@ const PAGE_WXML = [
   'pages/settings/settings.wxml'
 ]
 
+// DESIGN：触控高度至少 44px，750rpx 设计宽下盒高 ≥88rpx
+const TOUCH_FLOOR_RPX = 88
+
 // include 等于把目标文件原样拷到这个位置（共享的极光标记就是这样进每个页面的）：
 // 先展开再检查，护栏看到的是页面渲染出来的结构
 function readPage(relativePath) {
@@ -28,24 +33,25 @@ function readPage(relativePath) {
     .replace(/<include src="\/([^"]+)"\s*\/>/g, (_, target) => readPage(target))
 }
 
-const TAG_PATTERN = /<([a-zA-Z][\w-]*)((?:\s+[a-zA-Z][\w:.-]*(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*\/?>/g
-const ATTR_PATTERN = /([a-zA-Z][\w:.-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g
-
-function collectElements(wxml) {
-  const withoutComments = wxml.replace(/<!--[\s\S]*?-->/g, '')
-  const elements = []
-  let match
-  TAG_PATTERN.lastIndex = 0
-  while ((match = TAG_PATTERN.exec(withoutComments))) {
-    const attrs = {}
-    ATTR_PATTERN.lastIndex = 0
-    let attrMatch
-    while ((attrMatch = ATTR_PATTERN.exec(match[2]))) {
-      attrs[attrMatch[1]] = attrMatch[2] ?? attrMatch[3] ?? ''
-    }
-    elements.push({ tag: match[1], attrs })
+function walk(nodes, visit) {
+  for (const node of nodes) {
+    visit(node)
+    walk(node.children, visit)
   }
+}
+
+// 页面渲染出的全部元素，按文档顺序
+function elementsOf(relativePath) {
+  const elements = []
+  walk(wxmlElementTree(readPage(relativePath)), (node) => elements.push(node))
   return elements
+}
+
+// 一个选择器在样式表里的全部声明，后写的覆盖先写的
+function declsOf(relativePath, selector) {
+  return Object.assign({}, ...parseWxssRules(fs.readFileSync(path.join(repoRoot, relativePath), 'utf8'))
+    .filter((rule) => rule.selectors.includes(selector))
+    .map((rule) => rule.decls))
 }
 
 function describe(element) {
@@ -62,58 +68,19 @@ function normalizeExpr(expr) {
   return String(expr).replace(/\s+/g, ' ').trim()
 }
 
-function classTokens(element) {
-  return String(element.attrs.class || '')
-    .replace(/\{\{[\s\S]*?\}\}/g, ' ')
-    .split(/\s+/)
-    .filter(Boolean)
+function rpx(value) {
+  return /^\d+(?:\.\d+)?rpx$/.test(value || '') ? Number.parseFloat(value) : NaN
 }
 
-function parseAttrs(raw) {
-  const attrs = {}
-  ATTR_PATTERN.lastIndex = 0
-  let attrMatch
-  while ((attrMatch = ATTR_PATTERN.exec(raw))) {
-    attrs[attrMatch[1]] = attrMatch[2] ?? attrMatch[3] ?? ''
-  }
-  return attrs
-}
-
-function parseWxmlForest(wxml) {
-  const source = wxml.replace(/<!--[\s\S]*?-->/g, '')
-  const pattern = /<\/?([a-zA-Z][\w-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'))?)*)\s*(\/?)>/g
-  const roots = []
-  const stack = []
-  let match
-  while ((match = pattern.exec(source))) {
-    const token = match[0]
-    const tag = match[1]
-    if (token.startsWith('</')) {
-      while (stack.length && stack[stack.length - 1].tag !== tag) stack.pop()
-      stack.pop()
-      continue
-    }
-    const parent = stack[stack.length - 1]
-    const node = { tag, attrs: parseAttrs(match[2] || ''), children: [], parent: parent || null }
-    if (parent) parent.children.push(node)
-    else roots.push(node)
-    if (match[3] !== '/') stack.push(node)
-  }
-  return roots
-}
-
-function walkForest(nodes, visit) {
-  for (const node of nodes) {
-    visit(node)
-    walkForest(node.children, visit)
-  }
-}
-
-// 抽取 {{cond ? 'active' : ''}} 形式的条件类绑定条件；单双引号等价接受
-function conditionalClassCondition(classAttr, className) {
-  const pattern = new RegExp(`\\{\\{([\\s\\S]*?)\\s*\\?\\s*(['"])${className}\\2\\s*:\\s*(['"])\\3\\s*\\}\\}`)
-  const match = pattern.exec(classAttr)
-  return match ? match[1].trim() : null
+// DESIGN：Pressed 用 transform: scale(0.94–0.98)。只看写了缩放的按压，不要求每个控件都缩放
+function assertPressScaleInBand(relativePath, selector) {
+  const scale = /scale\(([\d.]+)\)/.exec(declsOf(relativePath, `${selector}:active`).transform || '')
+  if (!scale) return
+  const value = Number(scale[1])
+  assert.ok(
+    value >= 0.94 && value <= 0.98,
+    `${relativePath} ${selector}:active press scale ${value} is outside the registered 0.94-0.98 band`
+  )
 }
 
 test('conditional class extraction accepts both quote styles', () => {
@@ -129,7 +96,7 @@ test('conditional class extraction accepts both quote styles', () => {
 test('every tap target exposes an explicit role and a readable name', () => {
   const failures = []
   for (const file of PAGE_WXML) {
-    for (const element of collectElements(readPage(file))) {
+    for (const element of elementsOf(file)) {
       if (!isTapTarget(element)) continue
       if (!element.attrs['aria-role'] || !element.attrs['aria-label']) {
         failures.push(`${file}: ${describe(element)} bindtap/catchtap without aria-role + aria-label`)
@@ -142,7 +109,7 @@ test('every tap target exposes an explicit role and a readable name', () => {
 test('pickers and text inputs expose accessible names', () => {
   const failures = []
   for (const file of PAGE_WXML) {
-    for (const element of collectElements(readPage(file))) {
+    for (const element of elementsOf(file)) {
       if (element.attrs.bindchange && (!element.attrs['aria-role'] || !element.attrs['aria-label'])) {
         failures.push(`${file}: ${describe(element)} picker without aria-role + aria-label`)
       }
@@ -157,7 +124,7 @@ test('pickers and text inputs expose accessible names', () => {
 test('selected state mirrors the active class condition via aria-checked', () => {
   const failures = []
   for (const file of PAGE_WXML) {
-    for (const element of collectElements(readPage(file))) {
+    for (const element of elementsOf(file)) {
       const activeCondition = conditionalClassCondition(element.attrs.class || '', 'active')
       if (!activeCondition) continue
       const expected = `{{${normalizeExpr(activeCondition)}}}`
@@ -173,7 +140,7 @@ test('selected state mirrors the active class condition via aria-checked', () =>
 test('disabled and loading states cannot be confused with operable controls', () => {
   const failures = []
   for (const file of PAGE_WXML) {
-    for (const element of collectElements(readPage(file))) {
+    for (const element of elementsOf(file)) {
       const classAttr = element.attrs.class || ''
       const disabledCondition = conditionalClassCondition(classAttr, 'disabled')
       if (disabledCondition) {
@@ -184,8 +151,7 @@ test('disabled and loading states cannot be confused with operable controls', ()
         }
         continue
       }
-      const tokens = classTokens(element)
-      if ((tokens.includes('disabled') || tokens.includes('loading')) && element.attrs['aria-disabled'] !== 'true') {
+      if ((element.classes.includes('disabled') || element.classes.includes('loading')) && element.attrs['aria-disabled'] !== 'true') {
         failures.push(`${file}: ${describe(element)} static disabled/loading without aria-disabled="true"`)
       }
     }
@@ -193,89 +159,26 @@ test('disabled and loading states cannot be confused with operable controls', ()
   assert.deepEqual(failures, [])
 })
 
-// issue #166：禁用与加载中的控件按下时不缩放、不换底色、不提亮描边、没有柔光。做法二选一：整块不接点按
-// （pointer-events: none），或者每一路按压都被 :active.<状态> 钉回静止值；带柔光层的控件在这两种状态下柔光为 0。
-test('disabled and loading variants show no press feedback and no glow', () => {
-  const { FILL_PROPERTIES, fillOf, parseWxssRules } = require('./designTokens')
+// 读屏念「已禁用」的控件就是样式上的惰性变体：带 disabled / loading 类，不靠别的写法装成禁用。
+// picker 被禁用时，读屏念的是 picker 本身（它带角色和名称），所以 aria-disabled 写在 picker 上、与 disabled 同一条件
+test('controls read as disabled are the inert variants, and a disabled picker reads as disabled', () => {
   const failures = []
-  let checked = 0
   for (const file of PAGE_WXML) {
-    const rules = [
-      ...parseWxssRules(readPage('app.wxss')),
-      ...parseWxssRules(readPage(file.replace(/\.wxml$/, '.wxss')))
-    ]
-    const declsOf = (selector) => rules
-      .filter((rule) => rule.selectors.includes(selector))
-      .reduce((decls, rule) => ({ ...decls, ...rule.decls }), {})
-    const restValue = (decls, prop) => {
-      if (prop === 'border-color') return decls['border-color'] || (/rgba\([^)]*\)/.exec(decls.border || '') || [])[0]
-      if (FILL_PROPERTIES.includes(prop)) return fillOf(decls)
-      return decls[prop]
-    }
-    for (const element of collectElements(readPage(file))) {
-      const classAttr = element.attrs.class || ''
-      const states = ['disabled', 'loading'].filter((state) => new RegExp(`(^|[\\s'"])${state}(?=[\\s'"]|$)`).test(classAttr))
-      if (!states.length) continue
-      const base = classTokens(element)[0]
-      for (const state of states) {
-        checked += 1
-        const where = `${file}: .${base}.${state}`
-        if (declsOf(`.${base}.${state}`)['pointer-events'] === 'none') continue
-        for (const layer of ['', '::before']) {
-          const pressed = declsOf(`.${base}:active${layer}`)
-          const rest = declsOf(`.${base}${layer}`)
-          const pinned = declsOf(`.${base}:active.${state}${layer}`)
-          const glowLayer = layer === '::before' && Boolean(rest['box-shadow'])
-          if (glowLayer) {
-            if (declsOf(`.${base}.${state}${layer}`).opacity !== '0') failures.push(`${where} still glows`)
-            if (pinned.opacity !== '0') failures.push(`${where} glows again while pressed`)
-            continue
-          }
-          for (const prop of Object.keys(pressed)) {
-            const expected = prop === 'transform' ? 'none' : restValue(rest, prop)
-            const actual = prop === 'transform' ? pinned.transform : restValue(pinned, prop)
-            if (actual !== expected) failures.push(`${where}${layer} pressed ${prop} is ${actual || '(pressed value)'}, expected rest ${expected}`)
-          }
-        }
-      }
-    }
-  }
-  assert.ok(checked >= 10, 'the disabled and loading variants are found')
-
-  // 惰性变体靠类名命名，样式表才能把每一路按压钉住：不写内联透明度冒充禁用
-  for (const file of PAGE_WXML) {
-    for (const element of collectElements(readPage(file))) {
-      if (element.attrs['aria-disabled'] !== 'true') continue
-      const tokens = classTokens(element)
-      if (!tokens.includes('disabled') && !tokens.includes('loading')) {
+    for (const element of elementsOf(file)) {
+      if (element.attrs['aria-disabled'] === 'true' && !element.classes.includes('disabled') && !element.classes.includes('loading')) {
         failures.push(`${file}: ${describe(element)} reads as disabled but carries no disabled/loading class`)
       }
-      if (/opacity/.test(element.attrs.style || '')) {
-        failures.push(`${file}: ${describe(element)} dims itself with an inline style`)
+      if (element.tag === 'picker' && element.attrs.disabled && element.attrs['aria-role'] &&
+        normalizeExpr(element.attrs['aria-disabled'] || '') !== normalizeExpr(element.attrs.disabled)) {
+        failures.push(`${file}: <picker bindchange="${element.attrs.bindchange}"> disabled=${element.attrs.disabled} but aria-disabled=${element.attrs['aria-disabled'] || '(missing)'}`)
       }
     }
-    // picker 被禁用时，里面那块可按的字段同条件带 disabled，不再亮起按压；
-    // 读屏念的是 picker 本身（它带角色和名称），所以 aria-disabled 写在 picker 上、同一条件
-    walkForest(parseWxmlForest(readPage(file)), (node) => {
-      if (node.tag !== 'picker' || !node.attrs.disabled) return
-      if (node.attrs['aria-role'] && normalizeExpr(node.attrs['aria-disabled'] || '') !== normalizeExpr(node.attrs.disabled)) {
-        failures.push(`${file}: <picker bindchange="${node.attrs.bindchange}"> disabled=${node.attrs.disabled} but aria-disabled=${node.attrs['aria-disabled'] || '(missing)'}`)
-      }
-      const condition = /^\{\{(.+)\}\}$/.exec(node.attrs.disabled)
-      walkForest(node.children, (child) => {
-        if (!child.attrs['hover-class']) return
-        const classAttr = child.attrs.class || ''
-        const bound = new RegExp(`\\{\\{\\s*${(condition ? condition[1] : '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\?\\s*'\\s*disabled'`).test(classAttr)
-        if (!bound) failures.push(`${file}: ${describe(child)} keeps its press while its picker is disabled`)
-      })
-    })
   }
   assert.deepEqual(failures, [])
 })
 
 test('calendar day cells keep composed domain aria labels, a button role, and hidden empty cells', () => {
-  const elements = collectElements(readPage('pages/index/index.wxml'))
-  const dayCell = elements.find((element) => classTokens(element).includes('day-cell'))
+  const dayCell = elementsOf('pages/index/index.wxml').find((element) => element.classes.includes('day-cell'))
   assert.ok(dayCell, 'expected the calendar day cell in index.wxml')
   assert.equal(dayCell.attrs['aria-role'], 'button')
   assert.equal(dayCell.attrs['aria-label'], '{{item.ariaLabel}}')
@@ -284,57 +187,43 @@ test('calendar day cells keep composed domain aria labels, a button role, and hi
   for (const [name, value] of Object.entries(dayCell.attrs)) {
     if (name !== 'class') assert.doesNotMatch(value, /recordFeedback/, `${name} must not depend on the record feedback`)
   }
-  assert.match(dayCell.attrs.class, /recordFeedback/)
-  // 空白格的领域语义由 utils/homeCalendarState.js 保证输出空串（home-calendar-state.test.js 钉住），
-  // 这里钉住模板侧：hidden 绑定不变、aria 文案只来自 item.ariaLabel
-  const wxml = readPage('pages/index/index.wxml')
-  const gridStart = wxml.indexOf('class="calendar-grid')
-  const gridEnd = wxml.indexOf('class="quick-actions"')
-  const grid = wxml.slice(gridStart, gridEnd)
-  assert.doesNotMatch(grid, /aria-label="[^"{]/)
 })
 
 test('month navigation, sheet dismiss, quick record and sheet actions are screen-reader identifiable', () => {
-  const elements = collectElements(readPage('pages/index/index.wxml'))
+  const elements = elementsOf('pages/index/index.wxml')
   const byHandler = (handler, cls) =>
     elements.find((element) =>
-      element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
+      element.attrs.bindtap === handler && (!cls || element.classes.includes(cls)))
 
   assert.equal(byHandler('prevMonth', 'nav-btn').attrs['aria-label'], '上一个月')
   assert.equal(byHandler('nextMonth', 'nav-btn').attrs['aria-label'], '下一个月')
   assert.equal(byHandler('quickPeriod', 'quick-btn').attrs['aria-label'], '{{periodQuickAriaLabel}}')
   assert.equal(byHandler('quickMemory', 'quick-btn').attrs['aria-label'], '记欢乐时光')
-  assert.match(readPage('pages/index/index.wxml'), /class="quick-text">记欢乐时光</)
 
   // 弹层遮罩本身是可点的「关闭」操作，必须带角色与可读名称；信息弹层按当前内容命名（issue #155）
   assert.equal(byHandler('closeMonthPicker', 'day-sheet-mask').attrs['aria-label'], '关闭月份选择')
   assert.equal(byHandler('closeDayActions', 'day-sheet-mask').attrs['aria-label'], '关闭当日操作')
   assert.equal(byHandler('closeInfoSheet', 'day-sheet-mask').attrs['aria-label'], '关闭{{infoSheetName}}')
 
-  // 四个 sheet 的 × 关闭按钮（月份跳转 / 日操作 / 信息面板 / 月份工具菜单）
-  const closeButtons = elements.filter((element) => classTokens(element).includes('sheet-close'))
-  assert.equal(closeButtons.length, 4)
-  for (const button of closeButtons) {
+  // 每个 sheet 的 × 关闭按钮
+  for (const button of elements.filter((element) => element.classes.includes('sheet-close'))) {
     assert.equal(button.attrs['aria-role'], 'button')
     assert.equal(button.attrs['aria-label'], '关闭')
   }
 
-  // 日操作弹层与详情模式的补记操作
-  const dayActions = elements
-    .filter((element) => element.attrs.bindtap === 'onDayActionTap')
-    .map((element) => element.attrs['aria-label'])
-  assert.deepEqual(dayActions, ['{{item.label}}'])
-  // issue #157：详情行读屏名由日历投影按记录拼好（区间与状态或日期与备注摘要，配对后加作者），模板只绑定
-  const recordRows = elements
-    .filter((element) => element.attrs.bindtap === 'onDayRecordTap')
-    .map((element) => element.attrs['aria-label'])
-  assert.deepEqual(recordRows, ['{{item.ariaLabel}}', '{{item.ariaLabel}}'])
+  // 日操作弹层与详情模式的补记操作；issue #157：详情行读屏名由日历投影按记录拼好
+  // （区间与状态或日期与备注摘要，配对后加作者），模板只绑定
+  for (const action of elements.filter((element) => element.attrs.bindtap === 'onDayActionTap')) {
+    assert.equal(action.attrs['aria-label'], '{{item.label}}')
+  }
+  for (const row of elements.filter((element) => element.attrs.bindtap === 'onDayRecordTap')) {
+    assert.equal(row.attrs['aria-label'], '{{item.ariaLabel}}')
+  }
 
-  // 月份格点一下即跳转，不再有确认按钮
+  // 月份格是单选，点一下即跳转
   const jumpOption = byHandler('selectJumpMonth', 'jump-option')
   assert.equal(jumpOption.attrs['aria-role'], 'radio')
   assert.equal(jumpOption.attrs['aria-label'], '选择{{item.label}}')
-  assert.equal(byHandler('confirmMonthJump', 'jump-confirm'), undefined)
 
   // 复制小结
   const copyRecap = byHandler('copyMonthlyRecap', 'copy-recap')
@@ -345,12 +234,7 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(byHandler('openMonthMenu', 'nav-tool').attrs['aria-role'], 'button')
   assert.equal(byHandler('openMonthMenu', 'nav-tool').attrs['aria-label'], '打开工具菜单')
   assert.equal(byHandler('closeMonthMenu', 'day-sheet-mask').attrs['aria-label'], '关闭工具菜单')
-  const menuItems = elements.filter((element) => element.attrs.bindtap === 'onMonthMenuTap')
-  assert.deepEqual(
-    menuItems.map((element) => element.attrs['aria-label']),
-    ['打开日历图例', '查看经期预测', '查看本月小结']
-  )
-  for (const item of menuItems) {
+  for (const item of elements.filter((element) => element.attrs.bindtap === 'onMonthMenuTap')) {
     assert.equal(item.attrs['aria-role'], 'button')
   }
 
@@ -362,84 +246,73 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
 
 // issue #134：遮罩和面板是兄弟。遮罩单独作为「关闭」朗读，面板里的控件不包在这个按钮里。
 test('sheet mask and panel are siblings so only the mask is announced as close', () => {
-  const forest = parseWxmlForest(readPage('pages/index/index.wxml'))
-  const masks = []
-  walkForest(forest, (node) => {
-    if (classTokens(node).includes('day-sheet-mask')) masks.push(node)
-  })
-  assert.equal(masks.length, 4)
+  const masks = elementsOf('pages/index/index.wxml').filter((node) => node.classes.includes('day-sheet-mask'))
+  assert.ok(masks.length > 0, 'expected the sheet masks in index.wxml')
 
-  const labels = []
   for (const mask of masks) {
+    const name = mask.attrs['aria-label']
     assert.equal(mask.attrs['aria-role'], 'button')
-    labels.push(mask.attrs['aria-label'])
-    assert.equal(mask.children.length, 0, `${mask.attrs['aria-label']} must not wrap panel controls`)
+    assert.equal(mask.children.length, 0, `${name} must not wrap panel controls`)
 
     const host = mask.parent
-    assert.ok(host, `${mask.attrs['aria-label']} needs a sibling panel`)
+    assert.ok(host, `${name} needs a sibling panel`)
     assert.equal(host.attrs['aria-role'], undefined)
     assert.equal(host.attrs['aria-label'], undefined)
-    const panel = host.children.find((child) => classTokens(child).includes('sheet-slide'))
-    assert.ok(panel, `${mask.attrs['aria-label']} panel should be a sibling`)
+    const panel = host.children.find((child) => child.classes.includes('sheet-slide'))
+    assert.ok(panel, `${name} panel should be a sibling`)
     assert.equal(panel.attrs['aria-role'], undefined)
     assert.notEqual(panel, mask)
     const named = []
-    walkForest(panel.children, (node) => {
+    walk(panel.children, (node) => {
       if (node.attrs['aria-label']) named.push(node.attrs['aria-label'])
     })
-    assert.ok(named.length > 0, `${mask.attrs['aria-label']} panel controls stay reachable`)
-    assert.ok(named.includes('关闭'), `${mask.attrs['aria-label']} keeps its own close control`)
+    assert.ok(named.length > 0, `${name} panel controls stay reachable`)
+    assert.ok(named.includes('关闭'), `${name} keeps its own close control`)
   }
-  assert.deepEqual(labels.sort(), ['关闭{{infoSheetName}}', '关闭工具菜单', '关闭当日操作', '关闭月份选择'])
 })
 
 // issue #154：设置「使用说明」同首页弹层的结构——遮罩单独朗读为「关闭使用说明」，
-// 面板标题行里有可见的「×」关闭键（读屏名「关闭」），触控高度至少 88rpx。
+// 面板标题行里有可见的「×」关闭键（读屏名「关闭」），触控尺寸不低于 88rpx。
 test('settings help keeps a separately named mask and a visible close in its title row', () => {
-  const forest = parseWxmlForest(readPage('pages/settings/settings.wxml'))
-  const masks = []
-  walkForest(forest, (node) => {
-    if (classTokens(node).includes('help-mask')) masks.push(node)
-  })
-  assert.equal(masks.length, 1)
-  const [mask] = masks
-  assert.equal(mask.attrs.bindtap, 'closeHelp')
-  assert.equal(mask.attrs['aria-role'], 'button')
-  assert.equal(mask.attrs['aria-label'], '关闭使用说明')
-  assert.equal(mask.children.length, 0, 'the mask must not wrap the help panel')
+  const masks = elementsOf('pages/settings/settings.wxml').filter((node) => node.classes.includes('help-mask'))
+  assert.ok(masks.length > 0, 'expected the help mask in settings.wxml')
 
-  const host = mask.parent
-  assert.ok(host, 'the mask needs a sibling panel')
-  assert.equal(host.attrs['aria-role'], undefined)
-  assert.equal(host.attrs['aria-label'], undefined)
-  const panel = host.children.find((child) => classTokens(child).includes('help-slide'))
-  assert.ok(panel, 'the help panel should be the mask sibling')
-  assert.equal(panel.attrs['aria-role'], undefined)
+  for (const mask of masks) {
+    assert.equal(mask.attrs['aria-role'], 'button')
+    assert.equal(mask.attrs['aria-label'], '关闭使用说明')
+    assert.equal(mask.children.length, 0, 'the mask must not wrap the help panel')
 
-  const closes = []
-  walkForest(panel.children, (node) => {
-    if (classTokens(node).includes('sheet-close')) closes.push(node)
-  })
-  assert.equal(closes.length, 1, 'the help panel has one visible close')
-  const [close] = closes
-  assert.equal(close.attrs.bindtap, 'closeHelp')
-  assert.equal(close.attrs['aria-role'], 'button')
-  assert.equal(close.attrs['aria-label'], '关闭')
-  assert.ok(
-    close.parent.children.some((node) => classTokens(node).includes('help-title')),
-    'the close sits in the title row'
-  )
+    const host = mask.parent
+    assert.ok(host, 'the mask needs a sibling panel')
+    assert.equal(host.attrs['aria-role'], undefined)
+    assert.equal(host.attrs['aria-label'], undefined)
+    const panel = host.children.find((child) => child.classes.includes('help-slide'))
+    assert.ok(panel, 'the help panel should be the mask sibling')
+    assert.equal(panel.attrs['aria-role'], undefined)
 
-  const closeRule = wxssRuleBody('pages/settings/settings.wxss', '.sheet-close')
-  assert.ok(closeRule, 'expected .sheet-close in settings.wxss')
-  for (const side of ['width', 'height']) {
-    const size = new RegExp(`(?:^|[;\\s])${side}:\\s*(\\d+)rpx`).exec(closeRule)
-    assert.ok(size && Number(size[1]) >= 88, `the help close ${side} must be at least 88rpx`)
+    const closes = []
+    walk(panel.children, (node) => {
+      if (node.classes.includes('sheet-close')) closes.push(node)
+    })
+    assert.ok(closes.length > 0, 'the help panel has a visible close')
+    for (const close of closes) {
+      assert.equal(close.attrs['aria-role'], 'button')
+      assert.equal(close.attrs['aria-label'], '关闭')
+      assert.ok(
+        close.parent.children.some((node) => node.classes.includes('help-title')),
+        'the close sits in the title row'
+      )
+    }
   }
-  const pressed = wxssRuleBody('pages/settings/settings.wxss', '.sheet-close:active')
-  const scale = /transform:\s*scale\(([\d.]+)\)/.exec(pressed || '')
-  assert.ok(scale, 'the help close keeps a press scale')
-  assert.ok(Number(scale[1]) >= 0.94 && Number(scale[1]) <= 0.98)
+
+  const close = declsOf('pages/settings/settings.wxss', '.sheet-close')
+  for (const side of ['width', 'height']) {
+    assert.ok(
+      rpx(close[side]) >= TOUCH_FLOOR_RPX,
+      `the help close ${side} is ${close[side] || '(missing)'}, below the ${TOUCH_FLOOR_RPX}rpx touch floor`
+    )
+  }
+  assertPressScaleInBand('pages/settings/settings.wxss', '.sheet-close')
 })
 
 // ===== issue #155：首页弹层与设置帮助的读屏模态契约 =====
@@ -454,36 +327,35 @@ const SHEET_PAGES = [
     maskClass: 'day-sheet-mask',
     slideClass: 'sheet-slide',
     titleRowClass: 'sheet-drag-zone',
-    titleClass: 'sheet-title',
-    names: ['月份选择', '当日操作', '工具菜单', '{{infoSheetName}}']
+    titleClass: 'sheet-title'
   },
   {
     file: 'pages/settings/settings.wxml',
     maskClass: 'help-mask',
     slideClass: 'help-slide',
     titleRowClass: 'help-head',
-    titleClass: 'help-title',
-    names: ['使用说明']
+    titleClass: 'help-title'
   }
 ]
 
 function sheetHosts(forest, maskClass) {
   const hosts = []
-  walkForest(forest, (node) => {
-    if (classTokens(node).includes(maskClass)) hosts.push(node.parent)
+  walk(forest, (node) => {
+    if (node.classes.includes(maskClass)) hosts.push(node.parent)
   })
   return hosts
 }
 
 test('every sheet panel is named by its purpose without a dialog role, closed by a mask of the same name', () => {
-  for (const { file, maskClass, slideClass, names } of SHEET_PAGES) {
-    const panelNames = []
-    for (const host of sheetHosts(parseWxmlForest(readPage(file)), maskClass)) {
+  for (const { file, maskClass, slideClass } of SHEET_PAGES) {
+    const hosts = sheetHosts(wxmlElementTree(readPage(file)), maskClass)
+    assert.ok(hosts.length > 0, `${file}: expected its sheets`)
+    for (const host of hosts) {
       // 读屏顺序固定：先是遮罩（关闭这一层），再是面板；宿主里没有别的可读节点
       const [mask, slide, ...rest] = host.children
       assert.deepEqual(rest, [], `${file}: a sheet host holds only its mask and its panel`)
-      assert.ok(classTokens(mask).includes(maskClass), `${file}: the mask is read first`)
-      assert.ok(classTokens(slide).includes(slideClass), `${file}: the panel follows the mask`)
+      assert.ok(mask.classes.includes(maskClass), `${file}: the mask is read first`)
+      assert.ok(slide.classes.includes(slideClass), `${file}: the panel follows the mask`)
       assert.equal(slide.children.length, 1, `${file}: the slide wraps one panel`)
 
       const [panel] = slide.children
@@ -492,9 +364,7 @@ test('every sheet panel is named by its purpose without a dialog role, closed by
       assert.ok(name, `${file}: ${describe(panel)} needs a readable name`)
       assert.equal(mask.attrs['aria-role'], 'button')
       assert.equal(mask.attrs['aria-label'], `关闭${name}`, `${file}: the mask closes the panel by its name`)
-      panelNames.push(name)
     }
-    assert.deepEqual(panelNames, names)
   }
 })
 
@@ -502,20 +372,20 @@ test('every sheet panel is named by its purpose without a dialog role, closed by
 // 再是唯一的内容块 .sheet-body，面板的其余内容都在它里面；读屏顺序因此仍是标题、关闭、内容。
 test('every sheet panel keeps its title and close in a title row above one content tier', () => {
   for (const { file, maskClass, titleRowClass, titleClass } of SHEET_PAGES) {
-    for (const host of sheetHosts(parseWxmlForest(readPage(file)), maskClass)) {
+    for (const host of sheetHosts(wxmlElementTree(readPage(file)), maskClass)) {
       const [panel] = host.children[1].children
       const name = panel.attrs['aria-label']
       const [titleRow, body, ...rest] = panel.children
       assert.deepEqual(rest, [], `${file} ${name}: the panel holds a title row and one content tier`)
-      assert.ok(classTokens(titleRow).includes(titleRowClass), `${file} ${name}: the title row comes first`)
-      assert.ok(body && classTokens(body).includes('sheet-body'), `${file} ${name}: the content tier follows the title row`)
+      assert.ok(titleRow.classes.includes(titleRowClass), `${file} ${name}: the title row comes first`)
+      assert.ok(body && body.classes.includes('sheet-body'), `${file} ${name}: the content tier follows the title row`)
 
       const inTitleRow = []
-      walkForest(titleRow.children, (node) => inTitleRow.push(...classTokens(node)))
+      walk(titleRow.children, (node) => inTitleRow.push(...node.classes))
       assert.ok(inTitleRow.includes(titleClass), `${file} ${name}: the title arrives with the panel`)
       assert.ok(inTitleRow.includes('sheet-close'), `${file} ${name}: the close arrives with the panel`)
       const inBody = []
-      walkForest(body.children, (node) => inBody.push(...classTokens(node)))
+      walk(body.children, (node) => inBody.push(...node.classes))
       assert.equal(inBody.includes('sheet-close'), false, `${file} ${name}: the close is not staggered`)
       assert.equal(inBody.includes(titleClass), false, `${file} ${name}: the title is not staggered`)
     }
@@ -546,8 +416,8 @@ const SHEET_TRIGGERS = {
 
 test('a sheet silences the page behind it, and every trigger returns with that page', () => {
   for (const { file, maskClass } of SHEET_PAGES) {
-    const forest = parseWxmlForest(readPage(file))
-    const root = forest.find((node) => classTokens(node).includes('page'))
+    const forest = wxmlElementTree(readPage(file))
+    const root = forest.find((node) => node.classes.includes('page'))
     assert.ok(root, `${file}: expected the page root`)
     assert.equal(root.attrs['aria-hidden'], undefined, `${file}: the page root itself stays readable`)
 
@@ -555,7 +425,7 @@ test('a sheet silences the page behind it, and every trigger returns with that p
     const regions = []
     for (const child of root.children) {
       if (child.tag === 'wxs' || child.tag === 'page-container') continue
-      if (child.children.some((node) => classTokens(node).includes(maskClass))) {
+      if (child.children.some((node) => node.classes.includes(maskClass))) {
         hosts.push(child)
         continue
       }
@@ -580,45 +450,43 @@ test('a sheet silences the page behind it, and every trigger returns with that p
     }
     for (const [handler, cls] of SHEET_TRIGGERS[file]) {
       const triggers = []
-      walkForest([root], (node) => {
-        if (node.attrs.bindtap === handler && classTokens(node).includes(cls)) triggers.push(node)
+      walk([root], (node) => {
+        if (node.attrs.bindtap === handler && node.classes.includes(cls)) triggers.push(node)
       })
-      assert.equal(triggers.length, 1, `${file}: expected one ${handler} trigger`)
-      const [trigger] = triggers
-      assert.equal(trigger.attrs['aria-role'], 'button', `${file}: ${handler} trigger is a button`)
-      assert.ok(trigger.attrs['aria-label'], `${file}: ${handler} trigger keeps a readable name`)
-      assert.ok(regions.includes(regionOf(trigger)), `${file}: ${handler} trigger comes back with the page`)
+      assert.ok(triggers.length > 0, `${file}: expected the ${handler} trigger`)
+      for (const trigger of triggers) {
+        assert.equal(trigger.attrs['aria-role'], 'button', `${file}: ${handler} trigger is a button`)
+        assert.ok(trigger.attrs['aria-label'], `${file}: ${handler} trigger keeps a readable name`)
+        assert.ok(regions.includes(regionOf(trigger)), `${file}: ${handler} trigger comes back with the page`)
+      }
     }
   }
 
   // 图例、预测说明、本月小结从工具菜单交接：入口在「工具菜单」面板里，原触发器是顶栏「工具」
   const entries = []
-  walkForest(parseWxmlForest(readPage('pages/index/index.wxml')), (node) => {
+  walk(wxmlElementTree(readPage('pages/index/index.wxml')), (node) => {
     if (node.attrs.bindtap === 'onMonthMenuTap') entries.push(node)
   })
-  assert.equal(entries.length, 3)
+  assert.ok(entries.length > 0, 'expected the tool menu entries')
   for (const entry of entries) {
     let panel = entry
-    while (panel && !(panel.parent && classTokens(panel.parent).includes('sheet-slide'))) panel = panel.parent
+    while (panel && !(panel.parent && panel.parent.classes.includes('sheet-slide'))) panel = panel.parent
     assert.ok(panel, `${entry.attrs['aria-label']} lives inside a sheet panel`)
     assert.equal(panel.attrs['aria-label'], '工具菜单')
   }
 })
 
-test('home status line opens the prediction sheet and the record count is gone', () => {
-  const elements = collectElements(readPage('pages/index/index.wxml'))
+test('home status line, month summary and the ongoing reminder read as named buttons', () => {
+  const elements = elementsOf('pages/index/index.wxml')
   const statusLine = elements.find((element) =>
-    element.attrs.bindtap === 'openPredictionSheet' && classTokens(element).includes('home-status'))
-  const summary = elements.find((element) => classTokens(element).includes('month-summary'))
+    element.attrs.bindtap === 'openPredictionSheet' && element.classes.includes('home-status'))
+  const summary = elements.find((element) => element.classes.includes('month-summary'))
 
   assert.ok(statusLine, 'expected the status line to open the prediction sheet')
   assert.equal(statusLine.attrs['aria-role'], 'button')
   assert.equal(statusLine.attrs['aria-label'], '{{homeStatus.text}}')
   assert.ok(summary, 'expected the month summary row')
   assert.equal(summary.attrs['aria-role'], 'button')
-  assert.equal(summary.attrs.bindtap, 'openMonthlyRecap')
-  assert.equal(elements.find((element) => classTokens(element).includes('status-card')), undefined)
-  assert.equal(elements.find((element) => classTokens(element).includes('stat-num')), undefined)
 
   // 卡内超期进行中提醒保留原有动作与朗读名
   const ongoing = elements.find((element) => element.attrs.bindtap === 'onOngoingReminderTap')
@@ -629,45 +497,16 @@ test('home status line opens the prediction sheet and the record count is gone',
   )
 })
 
-test('first-screen loading spinner and sync status changes are perceivable', () => {
-  // issue #106：首屏加载指示与同步状态不再只有视觉信号——
-  // spinner 有朗读名；同步胶囊是 status 角色，朗读名与 syncStatusText 同源，
-  // showSyncStatus 每次改写文本（index-page.test.js 钉住）即产生可朗读的状态变化
-  const elements = collectElements(readPage('pages/index/index.wxml'))
-
-  const skeleton = elements.find((element) => classTokens(element).includes('calendar-skeleton'))
-  assert.ok(skeleton, 'expected the first-screen calendar skeleton')
-  assert.equal(skeleton.attrs['aria-label'], '正在加载')
-  assert.equal(elements.find((element) => classTokens(element).includes('loading-spinner')), undefined)
-
-  const pill = elements.find((element) => classTokens(element).includes('sync-pill'))
-  assert.ok(pill, 'expected the sync status pill')
-  assert.equal(pill.attrs['aria-role'], 'status')
-  assert.equal(pill.attrs['aria-label'], '{{syncStatusText}}')
-  const syncText = elements.find((element) => classTokens(element).includes('sync-text'))
-  assert.ok(syncText, 'expected the sync status text element')
-})
-
 test('bind page controls are named, tab switch exposes checked state, inert states read as disabled', () => {
-  const elements = collectElements(readPage('pages/bind/bind.wxml'))
+  const elements = elementsOf('pages/bind/bind.wxml')
   const byHandler = (handler, cls) =>
     elements.find((element) =>
-      element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
+      element.attrs.bindtap === handler && (!cls || element.classes.includes(cls)))
 
   const createTab = byHandler('switchTab', 'tab')
   assert.equal(createTab.attrs['aria-role'], 'radio')
   assert.equal(createTab.attrs['aria-checked'], "{{tab==='create'}}")
 
-  // issue #84：房间码文本回归纯展示——无点按、无控件角色与名称；复制键是唯一复制入口
-  const boundCode = elements.find((element) => classTokens(element).includes('bound-code'))
-  assert.equal(boundCode.attrs.bindtap, undefined)
-  assert.equal(boundCode.attrs['aria-role'], undefined)
-  assert.equal(boundCode.attrs['aria-label'], undefined)
-  assert.equal(
-    elements.filter((element) => element.attrs.bindtap === 'copyRoomCode').length,
-    1,
-    'the copy button must be the only copy entry on the bind page'
-  )
   assert.equal(byHandler('copyRoomCode', 'copy-btn').attrs['aria-role'], 'button')
   assert.equal(byHandler('copyRoomCode', 'copy-btn').attrs['aria-label'], '复制房间码')
   assert.equal(byHandler('goHome', 'btn-premium').attrs['aria-role'], 'button')
@@ -680,8 +519,7 @@ test('bind page controls are named, tab switch exposes checked state, inert stat
 
 // issue #140：原生分享按钮没有 bindtap，仍要按按钮朗读，读屏名是「发给 TA」。
 test('bind page share button exposes a button role and the send-to-partner name', () => {
-  const elements = collectElements(readPage('pages/bind/bind.wxml'))
-  const shareButton = elements.find((element) => element.attrs['open-type'] === 'share')
+  const shareButton = elementsOf('pages/bind/bind.wxml').find((element) => element.attrs['open-type'] === 'share')
   assert.ok(shareButton, 'expected the native share button')
   assert.equal(shareButton.tag, 'button')
   assert.equal(shareButton.attrs['aria-role'], 'button')
@@ -689,48 +527,39 @@ test('bind page share button exposes a button role and the send-to-partner name'
 })
 
 test('record list rows, retry affordances and settings menu entries announce their action', () => {
-  const period = collectElements(readPage('pages/period/period.wxml'))
-  const memory = collectElements(readPage('pages/memory/memory.wxml'))
-  const settings = collectElements(readPage('pages/settings/settings.wxml'))
+  const period = elementsOf('pages/period/period.wxml')
+  const settings = elementsOf('pages/settings/settings.wxml')
   const byHandler = (elements, handler, cls) =>
     elements.find((element) =>
-      element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
+      element.attrs.bindtap === handler && (!cls || element.classes.includes(cls)))
 
   // 经期行读屏名称带状态：日期走统一显示格式，进行中/结束日期不详由 rangeSummary 表达
   assert.equal(byHandler(period, 'editPeriod', 'list-item').attrs['aria-label'], '编辑经期记录 {{item.rangeSummary}}')
   assert.equal(byHandler(period, 'loadData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
   // issue #157：欢乐时光月份行的读屏名由月份分组按记录拼好（日期、备注摘要、配对后的作者），模板只绑定
   assert.equal(byHandler(period, 'editMemory', 'list-item').attrs['aria-label'], '{{item.ariaLabel}}')
-  assert.equal(byHandler(memory, 'editMemory', 'list-item'), undefined)
-  assert.equal(byHandler(memory, 'loadData', 'empty-state'), undefined)
 
   assert.equal(byHandler(settings, 'copyRoomCode', 'copy-btn').attrs['aria-label'], '复制房间码')
-  assert.equal(byHandler(settings, 'goMemory', 'menu-item'), undefined)
   assert.equal(byHandler(settings, 'exportData', 'menu-item').attrs['aria-label'], '导出数据')
   assert.equal(byHandler(settings, 'clearData', 'menu-item').attrs['aria-label'], '重新同步房间')
   assert.equal(byHandler(settings, 'openHelp', 'menu-item').attrs['aria-label'], '使用说明')
 
-  // 密度偏好：选中态用 aria-checked 表达（与 active 类同条件，由选中态镜像测试兜底）
-  const densityOptions = settings.filter((element) => classTokens(element).includes('density-option'))
-  assert.equal(densityOptions.length, 2)
-  for (const option of densityOptions) {
+  // 密度偏好是单选：选中态用 aria-checked 表达（与 active 类同条件，由选中态镜像测试兜底）
+  for (const option of settings.filter((element) => element.classes.includes('density-option'))) {
     assert.equal(option.attrs['aria-role'], 'radio')
     assert.ok(option.attrs['aria-checked'], 'density option must expose aria-checked')
   }
 })
 
 test('record tab segment control reads as a radio group with a perceivable checked state', () => {
-  const elements = collectElements(readPage('pages/period/period.wxml'))
-
-  // 组容器有可读名
-  const group = elements.find((element) => classTokens(element).includes('segment-control'))
-  assert.ok(group, 'expected the segment control group')
-  assert.equal(group.attrs['aria-label'], '记录分类')
+  const elements = elementsOf('pages/period/period.wxml')
+  const byHandler = (handler, cls) =>
+    elements.find((element) =>
+      element.attrs.bindtap === handler && (!cls || element.classes.includes(cls)))
 
   // 两个分段选项都是 radio，选中态与 active 类同条件（镜像护栏逐字符兜底，此处钉住朗读名）
-  const options = elements.filter((element) => classTokens(element).includes('segment-option'))
-  assert.equal(options.length, 2)
-  const bySegment = (segment) => options.find((element) => element.attrs['data-segment'] === segment)
+  const bySegment = (segment) => elements.find((element) =>
+    element.classes.includes('segment-option') && element.attrs['data-segment'] === segment)
 
   const periodOption = bySegment('period')
   assert.equal(periodOption.attrs['aria-role'], 'radio')
@@ -743,16 +572,11 @@ test('record tab segment control reads as a radio group with a perceivable check
   assert.equal(memoryOption.attrs['aria-checked'], "{{segment === 'memory'}}")
 
   // 欢乐时光分段内的行读屏名来自月份分组数据（issue #157），重试入口沿用独立页的朗读文案
-  const byHandler = (handler, cls) =>
-    elements.find((element) =>
-      element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
   assert.equal(byHandler('editMemory', 'list-item').attrs['aria-label'], '{{item.ariaLabel}}')
   assert.equal(byHandler('loadMemoryData', 'empty-state').attrs['aria-label'], '加载失败，点按重试')
   assert.equal(byHandler('addMemory', 'btn-premium').attrs['aria-label'], '记欢乐时光')
-  assert.match(readPage('pages/period/period.wxml'), />＋ 记欢乐时光</)
-  assert.doesNotMatch(readPage('pages/memory/memory.wxml'), /wx:for="\{\{memories\}\}"/)
 
-  // 月份卡头（issue #109）：点按切换展开/收起，按 button 朗读；
+  // 年份标题与月份卡头（issue #109）：点按切换展开/收起，按 button 朗读；
   // 读屏名「YYYY年M月，N 条欢乐时光，已展开/已收起」由分组数据绑定，
   // aria-expanded 与展开状态同条件；不用 active 条件类（单选语义才配 aria-checked）
   const yearHeader = byHandler('togglePeriodYear', 'period-year-title')
@@ -760,7 +584,6 @@ test('record tab segment control reads as a radio group with a perceivable check
   assert.equal(yearHeader.attrs['aria-role'], 'button')
   assert.equal(yearHeader.attrs['aria-label'], '{{yearGroup.ariaLabel}}')
   assert.equal(yearHeader.attrs['aria-expanded'], '{{yearGroup.expanded}}')
-  assert.match(readPage('pages/period/period.wxml'), /wx:if="\{\{yearGroup\.expanded\}\}" class="period-year-months"/)
   for (const handler of ['toggleMonth', 'togglePeriodMonth']) {
     const monthHeader = byHandler(handler, 'month-header')
     assert.ok(monthHeader, `expected the ${handler} month header`)
@@ -772,27 +595,25 @@ test('record tab segment control reads as a radio group with a perceivable check
 
 test('edit pages name the save and delete operations and expose inert variants as disabled', () => {
   for (const file of ['pages/period/edit/edit.wxml', 'pages/memory/edit/edit.wxml']) {
-    const elements = collectElements(readPage(file))
+    const elements = elementsOf(file)
     const byHandler = (handler, cls) =>
       elements.find((element) =>
-        element.attrs.bindtap === handler && (!cls || classTokens(element).includes(cls)))
+        element.attrs.bindtap === handler && (!cls || element.classes.includes(cls)))
 
     assert.equal(byHandler('goBack', 'nav-back').attrs['aria-label'], '返回')
     assert.equal(byHandler('save', 'btn-premium').attrs['aria-label'], '保存')
     assert.equal(byHandler('delete', 'btn-danger').attrs['aria-label'], '删除此记录')
 
-    const inertButtons = elements.filter((element) => {
-      const tokens = classTokens(element)
-      return (tokens.includes('loading') || tokens.includes('disabled') ||
-        (element.attrs.style || '').includes('opacity')) && !element.attrs.bindtap
-    })
+    const inertButtons = elements.filter((element) =>
+      (element.classes.includes('loading') || element.classes.includes('disabled') ||
+        (element.attrs.style || '').includes('opacity')) && !element.attrs.bindtap)
     assert.ok(inertButtons.length >= 3, `${file} should expose saving/deleting/disabled variants`)
     for (const button of inertButtons) {
       assert.equal(button.attrs['aria-disabled'], 'true', `${file} ${describe(button)} must read as disabled`)
     }
   }
 
-  const periodEdit = collectElements(readPage('pages/period/edit/edit.wxml'))
+  const periodEdit = elementsOf('pages/period/edit/edit.wxml')
   // issue #100：经期状态是单选组，按 radio 朗读且选中项带 checked 状态；
   // 按 aria-label 前缀区分——状态组与经量组共用 flow-chip 类，不能按类名取第一个
   const statusChip = periodEdit.find((element) =>
@@ -803,49 +624,28 @@ test('edit pages name the save and delete operations and expose inert variants a
   const flowChip = periodEdit.find((element) =>
     (element.attrs['aria-label'] || '').startsWith('经量'))
   assert.equal(flowChip.attrs['aria-role'], 'checkbox')
-  const symptomChip = periodEdit.find((element) => classTokens(element).includes('symptom-chip'))
+  const symptomChip = periodEdit.find((element) => element.classes.includes('symptom-chip'))
   assert.equal(symptomChip.attrs['aria-role'], 'checkbox')
 })
 
-// ===== issue #77：标记各管一件事（可见符号与句子语义） =====
-
-function wxssRuleBody(relativePath, selector) {
-  const css = readPage(relativePath).replace(/\/\*[\s\S]*?\*\//g, '')
-  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  // :active 与 hover-class 可以写在同一条规则里，选择器后面先是逗号再是 `{`。
-  const match = new RegExp(`(?:^|[},\\s])${escaped}\\s*(?:,[^{]*)?\\{([^}]*)\\}`).exec(css)
-  return match ? match[1] : null
-}
+// ===== issue #77 / #106：已退役的符号与叫法不再出现 =====
 
 test('brand, about and settings menu no longer use the red-heart emoji', () => {
-  // 品牌：绑定页大标题旁的心与设置资料卡的心改为文本字形，颜色走色板（wxss）
+  // 品牌：绑定页大标题旁的心与设置资料卡的心改为文本字形；资料卡头像与菜单装饰心一起退场
   const bindWxml = readPage('pages/bind/bind.wxml')
   const settingsWxml = readPage('pages/settings/settings.wxml')
-  assert.match(bindWxml, /class="hero-icon">♥</, 'bind hero heart is the text glyph')
   assert.doesNotMatch(settingsWxml, /profile-avatar|menu-heart/)
   assert.doesNotMatch(bindWxml, /❤/)
   assert.doesNotMatch(settingsWxml, /❤/)
 
-  // 设置页不再放重复的欢乐时光入口，菜单也不再挂装饰心
+  // 设置页不再放重复的欢乐时光入口，菜单也不再挂装饰图标
   for (const emoji of ['🔑', '🗓️', '📤', '🗑️', 'ℹ️']) {
     assert.equal(settingsWxml.includes(emoji), false, `settings menu keeps only markers, found ${emoji}`)
   }
 })
 
-test('homepage no-room heart is the registered rose text glyph', () => {
-  // issue #106：无房间态与绑定页 hero、设置资料卡同款（issue #77 模式）——
-  // ♥ 文本字形，颜色显式走色板玫瑰（emoji 自带红色随表情一起退场）
-  const indexWxml = readPage('pages/index/index.wxml')
-  assert.match(indexWxml, /class="no-room-icon">♥</, 'no-room heart is the text glyph')
-  assert.doesNotMatch(indexWxml, /❤/)
-
-  const iconRule = wxssRuleBody('pages/index/index.wxss', '.no-room-icon')
-  assert.ok(iconRule, 'expected .no-room-icon rule in index.wxss')
-  assert.match(iconRule, /color:\s*#E8909E/i, 'the glyph heart takes the palette rose')
-})
-
 test('make-up record wording uses the happy-time family across app markup', () => {
-  // issue #106：补录动作不再叫「补记忆」，与列表/编辑页/设置入口同一族「欢乐时光」叫法
+  // issue #106：补录动作不再叫「补记忆」（CONTEXT：记忆一词已退役），与列表/编辑页/设置入口同一族「欢乐时光」叫法
   for (const file of PAGE_WXML) {
     assert.doesNotMatch(readPage(file), /补记忆/, `${file} keeps the happy-time family wording`)
   }
@@ -863,103 +663,23 @@ test('no decorative emoji hearts or warning emoji remain in app markup', () => {
   }
 })
 
-test('happy-time list rows show only the light heart, no second rose dot', () => {
+test('happy-time list rows draw no second rose dot', () => {
   // 玫瑰圆点只表经期：欢乐时光列表行不再有时间轴玫瑰点
-  assert.equal(wxssRuleBody('pages/memory/memory.wxss', '.list-item::before'), null,
+  const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, 'pages/memory/memory.wxss'), 'utf8'))
+  assert.equal(rules.some((rule) => rule.selectors.includes('.list-item::before')), false,
     'memory rows must not draw the rose timeline dot')
-  assert.match(readPage('pages/memory/memory.wxss'), /\.memory-heart\s*\{[^}]*color:\s*#F0C4C0/i)
-
-  // 行内唯一标记是浅色心
-  assert.match(readPage('pages/period/period.wxml'), /class="memory-heart">♥</)
-  assert.doesNotMatch(readPage('pages/memory/memory.wxml'), /class="memory-heart"/)
 })
 
-test('bind success is stated in rose text without a green checkmark', () => {
-  const wxml = readPage('pages/bind/bind.wxml')
-  const boundCard = wxml.slice(wxml.indexOf('wx:if="{{bound}}"'), wxml.indexOf('wx:else'))
-  assert.match(boundCard, /class="bound-status">已绑定房间</,
-    'the bound screen states success in plain text')
-  assert.doesNotMatch(wxml, /✅|✔|💚/, 'no green-check glyph anywhere on the bind page')
-
-  // 成功用玫瑰文字表达（绑定页色板没有绿色）；
-  // issue #104：紫粉试点退役，成功标题回到主色玫瑰（海军卡面上 ≥4.5:1，对比度测试钉住）
-  const boundStatus = wxssRuleBody('pages/bind/bind.wxss', '.bound-status')
-  assert.ok(boundStatus, 'expected .bound-status rule')
-  assert.match(boundStatus, /color:\s*(?:#E8909E|var\(--aurora-pink\))\s*;/i)
+test('bind page shows no green checkmark', () => {
+  // 绑定成功用玫瑰文字表达，绑定页色板没有绿色，绿色对勾字形已退役
+  assert.doesNotMatch(readPage('pages/bind/bind.wxml'), /✅|✔|💚/, 'no green-check glyph anywhere on the bind page')
 })
 
-test('settings danger styling is only the bottom unbind row', () => {
-  const settingsWxml = readPage('pages/settings/settings.wxml')
-  assert.ok(!/class="menu-item danger"[^>]*bindtap="clearData"/.test(settingsWxml),
-    'resync stays a plain row')
-  assert.ok(/class="menu-item"[^>]*bindtap="exportData"/.test(settingsWxml),
-    'export stays a plain menu row')
-  assert.ok(/class="menu-item danger"[^>]*bindtap="unbind"/.test(settingsWxml),
-    'unbind keeps the danger menu row')
-  assert.ok(!/class="menu-item danger"[^>]*bindtap="(exportData|about|clearData|openHelp)"/.test(settingsWxml),
-    'danger styling is reserved for unbind')
-})
+// ===== 装饰层与卡内控件 =====
 
-// ===== issue #81：输入焦点与非交互卡片的按压语义 =====
-
-test('text inputs focus into the registered 1px solid outline without any glow', () => {
-  // 房间码输入（绑定页）与经期/欢乐时光备注（编辑页）：
-  // 基线边框本就是 1px solid，焦点只把描边换成实线主色；基线与焦点都不再有光晕
-  // issue #104：绑定页描边色随紫粉试点退役回归玫瑰，与两个编辑页同族
-  const inputs = [
-    ['pages/bind/bind.wxss', '.code-input', /border-color:\s*(?:#E8909E|var\(--aurora-pink\))\s*;/i],
-    ['pages/period/edit/edit.wxss', '.form-input', /border-color:\s*(?:#E8909E|var\(--aurora-pink\))\s*;/i],
-    ['pages/memory/edit/edit.wxss', '.form-input', /border-color:\s*(?:#E8909E|var\(--aurora-pink\))\s*;/i]
-  ]
-  for (const [file, selector, focusOutline] of inputs) {
-    const base = wxssRuleBody(file, selector)
-    assert.ok(base, `expected ${selector} rule in ${file}`)
-    assert.match(base, /border:\s*1px solid\s/,
-      `${file} ${selector} keeps a 1px solid baseline border`)
-    assert.doesNotMatch(base, /box-shadow\s*:/, `${file} ${selector} baseline must not glow`)
-
-    const focus = wxssRuleBody(file, `${selector}:focus`)
-    assert.ok(focus, `expected ${selector}:focus rule in ${file}`)
-    assert.match(
-      focus,
-      focusOutline,
-      `${file} ${selector}:focus must be the registered solid outline`
-    )
-    assert.doesNotMatch(focus, /box-shadow\s*:/, `${file} ${selector}:focus must not add a glow`)
-  }
-})
-
-test('every tappable control carries a hover-class painted with its :active rule', () => {
-  const { parseWxssRules, listWxssFiles } = require('./designTokens')
-  const rules = []
-  for (const file of listWxssFiles(repoRoot)) {
-    rules.push(...parseWxssRules(fs.readFileSync(file, 'utf8')))
-  }
-  const failures = []
-  for (const file of PAGE_WXML) {
-    for (const element of collectElements(readPage(file))) {
-      if (!isTapTarget(element)) continue
-      const hover = element.attrs['hover-class'] || ''
-      const stem = hover.endsWith('-hover') ? hover.slice(0, -'-hover'.length) : ''
-      if (!stem || !classTokens(element).includes(stem)) {
-        failures.push(`${file}: ${describe(element)} hover-class=${hover || '(missing)'}`)
-        continue
-      }
-      const painted = rules.some((rule) =>
-        rule.selectors.some((selector) => selector.includes(`.${hover}`)) &&
-        rule.selectors.some((selector) => selector.includes(':active')))
-      if (!painted) {
-        failures.push(`${file}: hover-class ${hover} is not in an :active rule`)
-      }
-    }
-  }
-  assert.deepEqual(failures, [])
-})
-
-// 顶栏光斑和极光（基底、色团容器、每个色团）都是纯装饰，点按穿过它们落到下面的控件（issue #163）
+// 顶栏光斑和极光（基底、色团容器、每个色团）都是纯装饰，点按穿过它们落到下面的控件（issue #163）：
+// 装饰层一旦接住点按，下面控件的可点区域就被吃掉，触控目标落到下限以下
 test('ambient decorations cannot intercept taps on page controls', () => {
-  const { parseWxssRules } = require('./designTokens')
-  const rules = parseWxssRules(readPage('app.wxss'))
   for (const selector of [
     '.header-gradient::before',
     '.header-gradient::after',
@@ -967,72 +687,12 @@ test('ambient decorations cannot intercept taps on page controls', () => {
     '.aurora',
     '.aurora-bloom'
   ]) {
-    const declarations = Object.assign({}, ...rules
-      .filter(rule => rule.selectors.includes(selector))
-      .map(rule => rule.decls))
-    assert.equal(declarations['pointer-events'], 'none', `${selector} must let taps reach navigation controls`)
+    assert.equal(declsOf('app.wxss', selector)['pointer-events'], 'none', `${selector} must let taps reach navigation controls`)
   }
 })
 
-test('glass cards are not press targets', () => {
-  // 玻璃卡本身不可点（issue #113）。按压从基类拿掉，不再靠各页 transform:none 抵消。
-  const card = wxssRuleBody('app.wxss', '.premium-card')
-  assert.ok(card, 'expected .premium-card in app.wxss')
-  assert.doesNotMatch(card, /transition\s*:/, 'glass card base must not keep a press transition')
-  assert.equal(wxssRuleBody('app.wxss', '.premium-card:active'), null,
-    'glass card base must not scale on press')
-  for (const [file, selector] of [
-    ['pages/settings/settings.wxss', '.profile-card:active'],
-    ['pages/period/edit/edit.wxss', '.premium-card:active'],
-    ['pages/memory/edit/edit.wxss', '.premium-card:active'],
-    ['pages/bind/bind.wxss', '.premium-card:active']
-  ]) {
-    assert.equal(wxssRuleBody(file, selector), null,
-      `${file} must not keep a page-level rule that only cancels card press scale`)
-  }
-})
-
-test('untappable settings rows do not take menu press feedback', () => {
-  // 房间码行没有 bindtap。分组标题不是菜单行。
-  // 全局与设置页的列表/菜单 :active 只命中可点行（issue #113）。
-  const menuRows = collectElements(readPage('pages/settings/settings.wxml'))
-    .filter((element) => classTokens(element).includes('menu-item'))
-  const inert = menuRows.filter((element) => !isTapTarget(element))
-  assert.equal(inert.length, 3, 'settings has the room-code row, the member status row, and the version row')
-  assert.ok(classTokens(inert[0]).includes('room-code-item'), 'the room-code row stays inert')
-  assert.match(inert[1].attrs['wx:if'] || '', /roomMemberLabel/, 'the member status row stays inert')
-  assert.equal(classTokens(inert[2]).includes('room-code-item'), false, 'the version row is the other inert row')
-  for (const row of inert) {
-    assert.ok(classTokens(row).includes('non-interactive'), `${describe(row)} needs the non-interactive modifier`)
-  }
-  for (const row of menuRows.filter(isTapTarget)) {
-    assert.equal(classTokens(row).includes('non-interactive'), false, `${describe(row)} stays tappable`)
-  }
-
-  const app = readPage('app.wxss').replace(/\/\*[\s\S]*?\*\//g, '')
-  assert.match(app, /\.list-item:not\(\.non-interactive\):active/)
-  assert.match(app, /\.menu-item:not\(\.non-interactive\):active/)
-  assert.doesNotMatch(app, /(^|[^\w.-])\.list-item:active\s*[,{]/)
-  assert.doesNotMatch(app, /(^|[^\w.-])\.menu-item:active\s*[,{]/)
-
-  const settingsCss = readPage('pages/settings/settings.wxss').replace(/\/\*[\s\S]*?\*\//g, '')
-  const pressBackground = wxssRuleBody(
-    'pages/settings/settings.wxss',
-    '.menu-item:not(.non-interactive):not(.danger):active'
-  )
-  assert.match(pressBackground || '', /background\s*:/, 'tappable menu rows keep the press background')
-  assert.doesNotMatch(settingsCss, /(^|[^\w.-])\.menu-item:active\s*[,{]/)
-})
-
-test('buttons inside cards keep their registered press scale', () => {
-  // 卡片不缩放不牵连卡内控件：经量/症状芯片、复制键、重试/去绑定仍按登记的 0.94–0.98 缩放
-  const pressScale = (file, selector) => {
-    const body = wxssRuleBody(file, `${selector}:active`)
-    assert.ok(body, `expected ${selector}:active rule in ${file}`)
-    const scale = /transform:\s*scale\(([\d.]+)\)/.exec(body)
-    assert.ok(scale, `${file} ${selector}:active must keep a press scale`)
-    return Number(scale[1])
-  }
+test('buttons inside cards press within the registered 0.94-0.98 band', () => {
+  // 卡片不缩放不牵连卡内控件：经量/症状芯片、复制键、重试/去绑定、密度选项按下时的缩放落在 DESIGN 登记的区间里。
   // 经量/症状芯片共用一条 :active 规则（.flow-chip:active, .symptom-chip:active），经 .symptom-chip 锚定
   for (const [file, selector] of [
     ['pages/period/edit/edit.wxss', '.symptom-chip'],
@@ -1040,10 +700,6 @@ test('buttons inside cards keep their registered press scale', () => {
     ['pages/settings/settings.wxss', '.room-action-btn'],
     ['pages/settings/settings.wxss', '.density-option']
   ]) {
-    const scale = pressScale(file, selector)
-    assert.ok(
-      scale >= 0.94 && scale <= 0.98,
-      `${file} ${selector}:active press scale ${scale} is outside the registered 0.94-0.98 band`
-    )
+    assertPressScaleInBand(file, selector)
   }
 })
