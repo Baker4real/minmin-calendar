@@ -117,16 +117,6 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .skeleton-dot,
-  .skeleton-line {
-    animation: none;
-  }
-  .load-failed,
-  .retry-btn {
-    transition: none;
-  }
-}
 
 /* Empty State */
 .empty-state {
@@ -169,4 +159,17 @@
 .retry-btn:active,
 .retry-btn.retry-btn-hover {
   transform: scale(0.96);
+}
+
+/* 减弱动效：本页声明的动画和过渡都在这里覆盖，写在文件末尾才压得住它们（app.wxss 的同名覆盖会被本页规则盖过） */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-dot,
+  .skeleton-line {
+    animation: none;
+  }
+  .list-item,
+  .load-failed,
+  .retry-btn {
+    transition: none;
+  }
 }

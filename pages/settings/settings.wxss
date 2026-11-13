@@ -379,6 +379,7 @@
   .copy-btn::before,
   .density-option,
   .room-action-btn,
+  .menu-item,
   .menu-item.danger,
   .menu-item.danger::before,
   .help-mask,

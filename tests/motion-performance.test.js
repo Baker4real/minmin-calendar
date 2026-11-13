@@ -1,5 +1,5 @@
 // 动效护栏（issue #58 起；issue #197 收窄为只守不变量）。每条断言属于下面一类：
-// 声明了动画或过渡的选择器在减弱动效下有覆盖；已退役的缓动、token 与符号不再出现；一次性动效的时长与曲线只经共享 token；
+// 声明了动画或过渡的选择器在减弱动效下有覆盖，且覆盖在层叠里排在声明之后；已退役的缓动、token 与符号不再出现；一次性动效的时长与曲线只经共享 token；
 // 常驻动画和模糊不超出登记的预算；状态通道在减弱动效下仍可感知；JS 里的时长常量与对应的样式 token 一致。
 // 具体时长、缩放和色值以 app.wxss 与 docs/motion-and-interaction.md 为准，这里不复写：在规则允许的范围内改值时测试保持通过。
 const assert = require('node:assert/strict')
@@ -93,6 +93,8 @@ function analyzeFile(css) {
     }
   }
 
+  // order：规则在文件里的先后，层叠时后写的胜出
+  rules.forEach((rule, order) => { rule.order = order })
   return { rules, reducedMotionRules, keyframes }
 }
 
@@ -178,7 +180,9 @@ test('reduced-motion coverage requires matching pseudo-element scope', () => {
 function analyzedWxssFiles() {
   return listWxssFiles(repoRoot).map((file) => {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    return { relative, ...analyzeFile(fs.readFileSync(file, 'utf8')) }
+    const analyzed = analyzeFile(fs.readFileSync(file, 'utf8'))
+    for (const rule of analyzed.rules) rule.source = relative
+    return { relative, ...analyzed }
   })
 }
 
@@ -649,8 +653,17 @@ function reducedMotionRulesFor(files, file) {
   return files.filter((item) => item === file || item.relative === 'app.wxss').flatMap((item) => item.reducedMotionRules)
 }
 
-function reducedMotionCoverage(files, file, selector, prop) {
-  return reducedMotionRulesFor(files, file).filter((rm) => rm.decls[prop] !== undefined &&
+// 覆盖要排在被覆盖的声明之后才生效：微信先加载 app.wxss，页面 wxss 里的同名选择器盖过它；同一文件里后写的盖过先写的。
+// 覆盖与声明的类数相同（reducedMotionSelectorCovers），这里只比先后：写在 app.wxss 的覆盖管不住页面里同名选择器的声明，
+// 写在文件前面的减弱动效块管不住后面才声明的过渡
+function laterInCascade(rm, rule) {
+  if (rm.source !== rule.source) return rule.source === 'app.wxss'
+  return rm.order > rule.order
+}
+
+// rule 是声明动画或过渡的那条规则，只算层叠里排在它之后的覆盖
+function reducedMotionCoverage(files, file, rule, selector, prop) {
+  return reducedMotionRulesFor(files, file).filter((rm) => rm.decls[prop] !== undefined && laterInCascade(rm, rule) &&
     rm.selectors.some((rmSelector) => reducedMotionSelectorCovers(selector, rmSelector, AURORA_SAME_ELEMENT)))
 }
 
@@ -672,9 +685,9 @@ test('every animation stops or turns movement-free under reduced motion unless r
       for (const animation of ruleAnimations(rule)) {
         if (ONE_SHOT_ANIMATIONS[animation.name]?.reducedMotion === 'stays' && movementFree(animation.name)) continue
         for (const selector of rule.selectors) {
-          const covering = reducedMotionCoverage(files, file, selector, 'animation')
+          const covering = reducedMotionCoverage(files, file, rule, selector, 'animation')
           if (covering.length === 0) {
-            violations.push(`${file.relative} ${selector} (${animation.name}) has no reduced-motion coverage`)
+            violations.push(`${file.relative} ${selector} (${animation.name}) has no reduced-motion coverage later in the cascade`)
             continue
           }
           for (const substitute of covering.flatMap((rm) => parseAnimationShorthand(rm.decls.animation))) {
@@ -697,9 +710,9 @@ test('every transition switches instantly under reduced motion', () => {
     for (const rule of file.rules) {
       if (rule.inReducedMotion || !rule.decls.transition || rule.decls.transition === 'none') continue
       for (const selector of rule.selectors) {
-        const covering = reducedMotionCoverage(files, file, selector, 'transition')
+        const covering = reducedMotionCoverage(files, file, rule, selector, 'transition')
         if (!covering.some((rm) => rm.decls.transition === 'none')) {
-          violations.push(`${file.relative} ${selector} transition has no reduced-motion coverage`)
+          violations.push(`${file.relative} ${selector} transition has no reduced-motion coverage later in the cascade`)
         }
       }
     }
@@ -866,7 +879,7 @@ test('opacity-only feedback keeps playing under reduced motion and the heart sti
         for (const selector of rule.selectors) {
           checked += 1
           const where = `${file.relative} ${selector} (${animation.name})`
-          const covering = reducedMotionCoverage(files, file, selector, 'animation')
+          const covering = reducedMotionCoverage(files, file, rule, selector, 'animation')
           if (policy === 'stays') {
             if (!movementFree(animation.name)) violations.push(`${where} may only stay under reduced motion if it moves nothing but opacity`)
             if (covering.length) violations.push(`${where} is a state channel and must keep playing under reduced motion`)

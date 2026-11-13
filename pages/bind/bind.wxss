@@ -26,7 +26,7 @@
   margin-bottom: 20rpx;
   animation: heroIn 0.6s var(--ease-out) both;
   /* ♥ 字形只留一层浅粉字阴影。不可点元素不再叠远层光晕（issue #146）。
-     heroIn 无回弹入场保留，辉光本身无持续动画，减弱动效由 app.wxss 全局名单静止 */
+     heroIn 无回弹入场保留，辉光本身无持续动画，减弱动效由本页文件末尾的减弱动效块静止 */
   text-shadow: 0 0 18rpx rgba(240,196,192,0.32);
 }
 /* 入场只做淡入 + 轻微放大，不做 overshoot 回弹（issue #58） */
@@ -353,14 +353,17 @@ button.share-invite::after {
   background-color: rgba(249,115,115,0.18);
 }
 
-/* 减弱动效（app.wxss 全局名单外的页面登记）：复制键、幽灵「进入应用」按下为立即缩放、无过渡；
+/* 减弱动效：本页声明的动画和过渡都在这里覆盖，写在文件末尾才压得住它们（app.wxss 的同名覆盖会被本页规则盖过）。
+   复制键、幽灵「进入应用」、创建/加入 tab 按下为立即缩放、无过渡；♥ 不播 heroIn，直接出现；
    政策见 DESIGN.md「动效与性能边界」——按压 = 即时 scale + 既有底色变化 */
 @media (prefers-reduced-motion: reduce) {
   .copy-btn,
   .copy-btn::before,
   .btn-ghost,
   .error-retry,
-  .bind-reveal {
+  .bind-reveal,
+  .hero-icon,
+  .tab {
     animation: none;
     transition: none;
   }

@@ -565,7 +565,9 @@ page {
 
 /* ===== Reduced Motion — 全局兜底 =====
    政策（issue #58）：移除位移/缩放/旋转与装饰动画；状态反馈走颜色/透明度等无位移通道。
-   加载中不静默：spinner 的旋转替换为 loadingPulse 透明度脉冲。 */
+   加载中不静默：spinner 的旋转替换为 loadingPulse 透明度脉冲。
+   这里只管 app.wxss 自己声明的动画和过渡：页面 wxss 里的同名选择器会盖过这里，
+   页面声明的写在本页文件末尾的减弱动效块里。 */
 @media (prefers-reduced-motion: reduce) {
   .page,
   .aurora-bloom,
@@ -591,15 +593,7 @@ page {
   .nav-back,
   .nav-back-surface,
   .nav-back-surface::before,
-  .list-item,
-  .menu-item,
   .calendar-grid {
-    animation: none;
-    transition: none;
-  }
-  .cycle-card,
-  .hero-icon,
-  .tab {
     animation: none;
     transition: none;
   }

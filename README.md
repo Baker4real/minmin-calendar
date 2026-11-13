@@ -89,7 +89,7 @@ npm run verify
 
 #169 的页面行为测试经 `tests/helpers/miniProgram.js` 这一份微信平台 harness，或 `buildHomeCalendarState` 的纯 projection 表格验证。`tests/test-seam-guardrail.test.js` 随完整测试运行：迁移预算 `BUDGET` 已清空，只保留两处 JS 源码读取例外：Room lifecycle 云函数的部署打包，以及 `tests/cloudfunction-collection-reads.test.js` 对云函数集合读取条数上限的静态检查；WXML/WXSS 设计守卫与既有公开 interface 测试继续保留。harness 同样约束原生确认按钮文案最多四个汉字。
 
-WXML/WXSS 设计守卫只钉不变量：DESIGN 规定的对比度下限在实际合成底上成立；声明了动画或过渡的选择器在减弱动效下有覆盖；颜色只经 token，不出现 token 之外的裸色值；已退役的缓动、token 和符号不再出现；DESIGN 写明的预算类上限；读屏语义（可点元素的角色与读屏名、选中与禁用状态、弹层的读屏边界）；触控目标不低于下限。纯视觉调整让钉字面量的断言变红时，删掉该断言，不改数字；变红的是上述不变量时，改样式。把下限写成相等的断言改成下限比较；其余护栏文件随改随删，不做一次性清理。
+WXML/WXSS 设计守卫只钉不变量：DESIGN 规定的对比度下限在实际合成底上成立；声明了动画或过渡的选择器在减弱动效下有覆盖，且覆盖在层叠里排在声明之后；颜色只经 token，不出现 token 之外的裸色值；已退役的缓动、token 和符号不再出现；DESIGN 写明的预算类上限；读屏语义（可点元素的角色与读屏名、选中与禁用状态、弹层的读屏边界）；触控目标不低于下限。纯视觉调整让钉字面量的断言变红时，删掉该断言，不改数字；变红的是上述不变量时，改样式。把下限写成相等的断言改成下限比较；其余护栏文件随改随删，不做一次性清理。
 
 首次检出及 Playwright 版本升级后运行 `npm run release:prepare`；仅补装浏览器时可用 `npm run browser:install`，缓存位置按上面的检出类型解析。日常输出只显示结果、测试条数和日志路径；完整门禁日志在 `.scratch/verify/`，依赖原文在 `.scratch/dependencies/`，发布准备日志和结果在 `.scratch/release-prepare/`，坐标与截图证据在 `.scratch/coordinate-hit/`。这些入口覆盖各自最近一次结果；CI 失败时归档上述诊断目录。任何检查失败均退出非零。`npm test`、`npm run check`、`npm run test:hit` 可用于单独定位，不能代替完整验收。定向用例优先用 `npm run verify:target -- --tests tests/capture-evidence.test.js,tests/devtools-cli.test.js [--name '用例正则']`：复用完整日志写盘，只返回计数和有界失败片段，日志在 `.scratch/verify-target/tests.log`；文件重复、非法路径或零匹配均失败，不能把 Node 的文件包装行当作有效用例。预期测试红灯保留真实非零退出；retro 审计用 `--expected-exit <原始结果行号>:<退出码>` 标记，不能把其他失败一起豁免。
 
