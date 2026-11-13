@@ -21,6 +21,11 @@ const SYNC_FAILURE_COPY = {
 
 const UNKNOWN_LISTED_ROOM = { roomCode: '', roomStatus: '' }
 
+// A collection holding nothing yet: the start, and what a Room change resets it to.
+function emptyCollection() {
+  return { records: [], revision: 0, pendingRevision: null, synced: false }
+}
+
 // The app's one copy of the current Room's records (#193): it owns the records and their
 // reconciliation, not just decisions for a Page to execute. Pages subscribe on load and
 // unsubscribe on unload; a listener's calendarChanged/recordChange describe one atomic
@@ -28,9 +33,7 @@ const UNKNOWN_LISTED_ROOM = { roomCode: '', roomStatus: '' }
 // animation marks alone. Listeners only render; prompts come from the result of load(), and
 // claimPrompt keeps one result to one prompt.
 function createRoomRecordsSync() {
-  const collections = Object.fromEntries(COLLECTIONS.map(collection => [collection, {
-    records: [], revision: 0, pendingRevision: null, synced: false
-  }]))
+  const collections = Object.fromEntries(COLLECTIONS.map(collection => [collection, emptyCollection()]))
   const listeners = new Set()
   // Every held record, sync mark, pending change and the pairing belong to this room code
   // ('' when the device holds no Room); null until the first checkpoint, when nothing is held yet.
@@ -38,7 +41,7 @@ function createRoomRecordsSync() {
   // Moves on whenever held content is dropped for another Room; a load started before that is superseded.
   let generation = 0
   let inFlight = null
-  let hasLoadedHomeData = false
+  let hasLoadedRecords = false
   let loading = true
   let refreshing = false
   let failedCollections = []
@@ -51,7 +54,7 @@ function createRoomRecordsSync() {
 
   function getState() {
     const scope = failedCollections.length === 2 ? 'all' : failedCollections[0]
-    const copy = hasLoadedHomeData && SYNC_FAILURE_COPY[scope]
+    const copy = hasLoadedRecords && SYNC_FAILURE_COPY[scope]
     return {
       collections: Object.fromEntries(COLLECTIONS.map(collection => [collection, {
         records: collections[collection].records,
@@ -59,7 +62,7 @@ function createRoomRecordsSync() {
         pending: collections[collection].pendingRevision !== null
       }])),
       roomPaired: listedRoom.roomStatus === 'paired',
-      hasLoadedHomeData,
+      hasLoadedRecords,
       loading,
       refreshing,
       failedCollections: [...failedCollections],
@@ -108,10 +111,8 @@ function createRoomRecordsSync() {
       roomCode = code
       return false
     }
-    COLLECTIONS.forEach(collection => {
-      Object.assign(collections[collection], { records: [], revision: 0, pendingRevision: null, synced: false })
-    })
-    hasLoadedHomeData = false
+    COLLECTIONS.forEach(collection => { Object.assign(collections[collection], emptyCollection()) })
+    hasLoadedRecords = false
     failedCollections = []
     blockedOutcome = null
     pill = null
@@ -135,7 +136,7 @@ function createRoomRecordsSync() {
     // One promise per Room serializes all callers, which also keeps an older load from
     // arriving after a newer one. Local changes have their own revision gate.
     if (inFlight) return inFlight
-    const background = hasLoadedHomeData
+    const background = hasLoadedRecords
     const startGeneration = generation
     let startRevisions = currentRevisions()
     loading = !background
@@ -183,7 +184,7 @@ function createRoomRecordsSync() {
   function block(outcome) {
     const cleared = claimRoom(room.getRoomCode())
     COLLECTIONS.forEach(collection => { collections[collection].synced = false })
-    hasLoadedHomeData = false
+    hasLoadedRecords = false
     loading = false
     refreshing = false
     failedCollections = []
@@ -209,7 +210,7 @@ function createRoomRecordsSync() {
   }
 
   function readSnapshot() {
-    return roomRecordsSnapshot.loadHomeRecordsSnapshot({ client: cloud.createRoomDataClient() })
+    return roomRecordsSnapshot.loadSharedRecordsSnapshot({ client: cloud.createRoomDataClient() })
   }
 
   // Whether the revision gate would set aside a list this snapshot read for the held Room, of a collection that has
@@ -240,7 +241,7 @@ function createRoomRecordsSync() {
       const outcome = snapshot.collections[collection]
       return outcome.kind === 'success' && outcome.roomCode === roomCode
     })
-    const wasLoaded = hasLoadedHomeData
+    const wasLoaded = hasLoadedRecords
     const wasPaired = listedRoom.roomStatus === 'paired'
     let listedStatus = ''
     let recordsChanged = false
@@ -264,7 +265,7 @@ function createRoomRecordsSync() {
       if (current.pendingRevision !== null) confirmedPending = true
       current.pendingRevision = null
     }
-    hasLoadedHomeData = true
+    hasLoadedRecords = true
     loading = false
     refreshing = false
     failedCollections = COLLECTIONS.filter(collection => !adopted.includes(collection))
@@ -297,7 +298,7 @@ function createRoomRecordsSync() {
   // recordChange, even before any load has completed or when the held records already match it: the
   // record tab lands on each, while Home plays record feedback only for a calendar change over records
   // it has loaded.
-  function applyRecordChange({ collection, record, mode = 'upsert' } = {}) {
+  function applyRecordChange({ collection, record, mode } = {}) {
     if (!COLLECTIONS.includes(collection) || !record || typeof record !== 'object') return
     // A local change belongs to the Room this device holds now.
     const cleared = claimRoom(room.getRoomCode())
@@ -311,7 +312,7 @@ function createRoomRecordsSync() {
     }
     current.records = records
     current.revision += 1
-    if (hasLoadedHomeData) {
+    if (hasLoadedRecords) {
       current.pendingRevision = current.revision
       pill = syncingPill()
     }

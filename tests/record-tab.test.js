@@ -3,18 +3,16 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
+const { listCalls, listed, markedDates: marked, roomLookups } = require('./helpers/recordPages')
 const { evaluateWxmlExpression, wxmlElementTree } = require('./wxmlTemplate')
 
 const route = '/pages/period/period'
 const dataset = value => ({ currentTarget: { dataset: value } })
 const list = (app, collection) => app.cloud.when({ name: 'dataOp', data: { action: 'list', collection } })
-const listCalls = app => app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action === 'list')
-const roomLookups = app => app.cloud.calls.filter(call => call.name === 'getMyRoom').length
 const writes = (page, key) => page.setDataCalls.filter(patch => key in patch).map(patch => patch[key])
 const groupAuthors = groups => groups.flatMap(group => group.records.map(row => row.authorLabel))
 const periodGroupAuthors = years => years.flatMap(year => groupAuthors(year.months))
 const memoryRowIds = page => page.data.memoryGroups.flatMap(group => group.records.map(row => row._id))
-const marked = (app, page, marker) => app.rendered(page).days.filter(day => day[marker]).map(day => day.date)
 
 // Whether the tab's WXML draws an element for the rendered data: its own wx:if / wx:elif holds, no earlier branch
 // of its chain holds (WXML draws one branch per chain), and the same goes for every element around it.
@@ -447,7 +445,7 @@ for (const scenario of periodCases) {
 for (const status of ['paired', 'waiting', null, 'archived']) {
   test(`${status === null ? 'no status' : status}: rows name authors only when the lists bring back paired and same-day memories have distinct spoken labels`, async (t) => {
     const app = setup(t)
-    const reply = data => status === null ? { code: 0, data } : { code: 0, roomStatus: status, data }
+    const reply = data => listed(data, status)
     list(app, 'periods').reply(reply([
       { _id: 'p-mine', startDate: '2026-09-01', endDate: '2026-09-03', createdByMe: true, flow: 'heavy', symptoms: ['cramps'] },
       { _id: 'p-theirs', startDate: '2026-08-01', endDate: '2026-08-03', createdByMe: false },

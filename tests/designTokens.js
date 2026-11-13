@@ -16,6 +16,11 @@ const PALETTE_HEXES = [
   '#7A7C8C'
 ]
 
+// DESIGN 登记的按压缩放区间：Pressed 用 transform: scale(0.94–0.98)
+const PRESS_SCALE_BAND = [0.94, 0.98]
+// DESIGN 登记的触控下限：高度至少 44px，750rpx 设计宽下盒高 ≥88rpx
+const TOUCH_FLOOR_RPX = 88
+
 function maskComments(css) {
   return String(css).replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
 }
@@ -181,6 +186,8 @@ function listWxmlFiles(root) {
 module.exports = {
   FILL_PROPERTIES,
   PALETTE_HEXES,
+  PRESS_SCALE_BAND,
+  TOUCH_FLOOR_RPX,
   definedRadiusTokens,
   fillOf,
   findOffPaletteHexes,

@@ -7,7 +7,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
-const { FILL_PROPERTIES, fillOf, listWxssFiles } = require('./designTokens')
+const { FILL_PROPERTIES, PRESS_SCALE_BAND, fillOf, listWxssFiles } = require('./designTokens')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const { renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
 
@@ -805,8 +805,8 @@ test('a press moves every channel it changes on the press beat, and never swaps 
   assert.deepEqual(violations, [])
 })
 
-// 按压在减弱动效下仍是即时缩放，缩放落在登记的 0.94–0.98 区间（docs/motion-and-interaction.md：Pressed 用 scale(0.94–0.98)）
-const PRESS_SCALE_BAND = [0.94, 0.98]
+// 按压在减弱动效下仍是即时缩放，缩放落在登记的 0.94–0.98 区间（docs/motion-and-interaction.md：Pressed 用 scale(0.94–0.98)），
+// 区间与 interaction-semantics 共用 designTokens 的 PRESS_SCALE_BAND
 
 test('every press scale stays inside the registered 0.94-0.98 band', () => {
   const violations = []

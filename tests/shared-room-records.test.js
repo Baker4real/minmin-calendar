@@ -1,13 +1,13 @@
 const assert = require('node:assert/strict')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
+const { listCalls, listed, markedDates: marked } = require('./helpers/recordPages')
 
 // #193: one Room record copy shared by every page, observed only through real pages,
 // lifecycles, platform responses and rendered data. A and B are two Rooms this device
 // holds one after the other; once B is the Room, nothing of A may show.
 const A = 'ROOM01'
 const B = 'ROOM02'
-const listed = (data, roomStatus) => roomStatus ? { code: 0, data, roomStatus } : { code: 0, data }
 const period = (id, date, extra = {}) => ({ _id: id, startDate: date, endDate: date, status: 'known-end', ...extra })
 const memory = (id, date, extra = {}) => ({ _id: id, date, note: '', ...extra })
 
@@ -19,14 +19,6 @@ function homeApp(t, options = {}) {
 
 function listRoute(app, collection, roomCode) {
   return app.cloud.when({ name: 'dataOp', data: { action: 'list', collection, roomCode } })
-}
-
-function listCalls(app) {
-  return app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action === 'list')
-}
-
-function marked(app, page, marker) {
-  return app.rendered(page).days.filter(day => day[marker]).map(day => day.date)
 }
 
 // Room A as Home first reads it: paired, one period and one memory, both with an author.

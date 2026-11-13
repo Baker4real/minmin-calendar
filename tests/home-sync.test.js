@@ -3,12 +3,12 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
+const { listCalls, listed, markedDates } = require('./helpers/recordPages')
 
 // #171: real pages, platform responses and rendered data only. Calendar/sheet
 // interaction cases remain in index-page.test.js for #172.
 const ROOM = { code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } }
 const success = data => ({ code: 0, data })
-const listed = (data, roomStatus) => ({ code: 0, data, roomStatus })
 const period = (id, date) => ({ _id: id, startDate: date, endDate: date, status: 'known-end' })
 const memory = (id, date, note = '') => ({ _id: id, date, note })
 
@@ -24,14 +24,6 @@ function homeApp(t, options = {}) {
 
 function listRoute(app, collection) {
   return app.cloud.when({ name: 'dataOp', data: { action: 'list', collection } })
-}
-
-function recordCalls(app) {
-  return app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action === 'list')
-}
-
-function markedDates(app, page, marker) {
-  return app.rendered(page).days.filter(day => day[marker]).map(day => day.date)
 }
 
 function assertCalendar(app, page, periods, memories) {
@@ -52,7 +44,7 @@ test('initial load starts both collections together and renders only after both 
   const home = app.launch('/pages/index/index')
   await app.settle()
   assert.equal(app.rendered(home).loading, true)
-  assert.deepEqual(recordCalls(app).map(call => call.data), [
+  assert.deepEqual(listCalls(app).map(call => call.data), [
     { action: 'list', collection: 'periods', data: {}, id: '', roomCode: 'ROOM01' },
     { action: 'list', collection: 'memories', data: {}, id: '', roomCode: 'ROOM01' }
   ])
@@ -158,7 +150,7 @@ test('first-load network failure offers a retry that clears the failure screen a
   await app.settle()
   assert.equal(app.rendered(home).loading, false)
   assertCalendar(app, home, ['2026-06-01'], ['2026-06-02'])
-  assert.equal(recordCalls(app).length, 4)
+  assert.equal(listCalls(app).length, 4)
 })
 
 const RETRY = {
@@ -272,14 +264,14 @@ test('show, pull-down and retry reuse one in-flight load; pull-down stops only a
 
   const periods = p.defer()
   const memories = m.defer()
-  const count = recordCalls(app).length
+  const count = listCalls(app).length
   const pull = home.onPullDownRefresh()
   await app.settle()
   const retry = app.dispatch(home, 'retryRefresh')
   app.hide()
   app.show()
   await app.settle()
-  assert.equal(recordCalls(app).length, count + 2)
+  assert.equal(listCalls(app).length, count + 2)
   assert.equal(app.rendered(home).refreshing, true)
   assert.equal(app.rendered(home).loading, false)
   assertCalendar(app, home, ['2026-06-01'], [])
@@ -416,14 +408,14 @@ test('a stale first period snapshot never replaces the locally saved period, and
   await app.advance(1000)
   assert.equal(app.currentPage, home)
   assertCalendar(app, home, ['2026-06-20'], [])
-  const lists = recordCalls(app).length
+  const lists = listCalls(app).length
   const frames = home.setDataCalls.length
   pending.resolve(success([period('old', '2026-06-01')]))
   await app.settle()
   const calendars = home.setDataCalls.slice(frames).filter(patch => patch.days)
   assert.ok(calendars.length > 0)
   assert.ok(calendars.every(patch => patch.days.some(day => day.date === '2026-06-20' && day.isPeriod)), 'the stale snapshot never replaces the saved period')
-  assert.equal(recordCalls(app).length, lists + 2, 'the set-aside periods are read again within the same load')
+  assert.equal(listCalls(app).length, lists + 2, 'the set-aside periods are read again within the same load')
   assertCalendar(app, home, ['2026-06-01', '2026-06-20'], [])
   assert.equal(app.rendered(home).monthSummaryLine, '本月 经期 2 天 · 欢乐时光 0 条')
   assert.equal(app.rendered(home).syncStatusText, '已同步')
@@ -551,7 +543,7 @@ test('an unbound homepage offers binding without requesting record collections',
   assert.equal(app.rendered(home).roomStatusTitle, '还没绑定房间')
   assert.equal(app.rendered(home).roomStatusActionText, '去绑定')
   assert.equal(app.rendered(home).roomStatusAction, 'bind')
-  assert.equal(recordCalls(app).length, 0)
+  assert.equal(listCalls(app).length, 0)
   await app.dispatch(home, 'handleRoomStatusAction')
   await app.settle()
   assert.equal(app.currentPage.route, 'pages/bind/bind')
@@ -603,7 +595,7 @@ test('each home show reads the two lists and makes no Room lookup', async t => {
     ['dataOp', 'list', 'periods'], ['dataOp', 'list', 'memories']
   ])
   await showAgain(app)
-  assert.equal(recordCalls(app).length, 4)
+  assert.equal(listCalls(app).length, 4)
   assert.equal(app.cloud.calls.filter(call => call.name === 'getMyRoom').length, 0)
 })
 
@@ -666,7 +658,7 @@ test('TA is announced once when one list of a load shared by pull-down and show 
   await pull
   await app.settle()
   assert.deepEqual(app.wx.toasts.map(toast => toast.title), ['TA 已加入'])
-  assert.equal(recordCalls(app).length, 4)
+  assert.equal(listCalls(app).length, 4)
 })
 
 // Spec decision 24: a load's prompts come only from the page that started it, and only while that page is shown.
@@ -678,7 +670,7 @@ test('a Home that went hidden before its lists brought back paired neither annou
   await app.settle()
   app.wx.switchTab({ url: '/pages/period/period' })
   await app.settle()
-  assert.equal(recordCalls(app).length, 2, 'the record tab shares the load Home started')
+  assert.equal(listCalls(app).length, 2, 'the record tab shares the load Home started')
   periods.resolve(listed([], 'paired'))
   memories.resolve(listed([], 'paired'))
   await app.settle()

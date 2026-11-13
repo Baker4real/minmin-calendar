@@ -269,7 +269,7 @@ Page(withPageVisibility({
     const fields = {
       loading: state.loading,
       refreshing: state.refreshing,
-      hasLoadedHomeData: state.hasLoadedHomeData,
+      hasLoadedHomeData: state.hasLoadedRecords,
       ...state.retry
     }
     if (state.blockedOutcome) {
@@ -286,7 +286,7 @@ Page(withPageVisibility({
       roomStatusAction: ''
     })
     // 编辑页交给共享记录的记录变化（#195）：只有读到过记录的日历才播记录成功反馈，首次加载中的不播
-    if (calendarChanged) this.applyHomeCalendarState({ recordChange: state.hasLoadedHomeData ? recordChange : null }, { fields })
+    if (calendarChanged) this.applyHomeCalendarState({ recordChange: state.hasLoadedRecords ? recordChange : null }, { fields })
     else this.setData(this.withCalendarGeometry(fields))
     if (state.pill) this.showSyncStatus(state.pill.text, state.pill)
     else this.hideSyncStatus()
