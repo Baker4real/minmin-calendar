@@ -20,13 +20,7 @@ function buildPredictionExplanation(prediction) {
     }
   }
 
-  const lines = []
-  if (prediction.usedCycleCount > 0) {
-    lines.push(`参考最近 ${prediction.usedCycleCount} 次有效周期`)
-  } else {
-    lines.push('参考手动设置的常用周期')
-  }
-
+  const lines = [`参考最近 ${prediction.usedCycleCount} 次有效周期`]
   lines.push(formatDurationLine(prediction))
   lines.push(`预计持续 ${prediction.avgDuration} 天`)
   lines.push(spokenConfidence(prediction))
@@ -104,12 +98,9 @@ function formatPredictionSummary(prediction) {
   return `下次预测 ${prediction.nextDisplay}，区间 ${prediction.rangeDisplay}（置信度：${spokenConfidence(prediction)}）`
 }
 
-// 预测持续天数按来源措辞：已知历史才说「平均」，用户设置说「常用」，
+// 预测持续天数按来源措辞：已知历史才说「平均」，
 // 五天默认不冒充已知天数，写明是估计的兜底值
 function formatDurationLine(prediction) {
-  if (prediction.durationSource === 'manual') {
-    return `平均周期 ${prediction.avgCycle} 天，经期时长按常用 ${prediction.avgDuration} 天`
-  }
   if (prediction.durationSource === 'default') {
     return `平均周期 ${prediction.avgCycle} 天，经期时长暂无已知记录，先按默认 ${prediction.avgDuration} 天估`
   }

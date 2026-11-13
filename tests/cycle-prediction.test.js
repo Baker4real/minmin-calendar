@@ -36,29 +36,6 @@ test('predictNextPeriod ignores an outlier cycle and returns a range with confid
   })
 })
 
-test('predictNextPeriod uses manual cycle settings when history is too short', () => {
-  assert.equal(typeof cycle.predictNextPeriod, 'function')
-
-  const prediction = cycle.predictNextPeriod(
-    [period('2026-06-01', '2026-06-04')],
-    { typicalCycleLength: 31, typicalPeriodLength: 4 }
-  )
-
-  assert.deepEqual(pickPrediction(prediction), {
-    canPredict: true,
-    avgCycle: 31,
-    avgDuration: 4,
-    nextStart: '2026-07-02',
-    nextEnd: '2026-07-05',
-    rangeStart: '2026-06-29',
-    rangeEnd: '2026-07-05',
-    confidence: 'low',
-    confidenceText: '低',
-    usedCycleCount: 0,
-    ignoredCycleCount: 0
-  })
-})
-
 test('predictNextPeriod can fall back to a single observed cycle with low confidence', () => {
   assert.equal(typeof cycle.predictNextPeriod, 'function')
 
@@ -85,26 +62,26 @@ test('predictNextPeriod can fall back to a single observed cycle with low confid
 test('predictNextPeriod ignores records with impossible calendar dates', () => {
   assert.equal(typeof cycle.predictNextPeriod, 'function')
 
-  const prediction = cycle.predictNextPeriod(
-    [
-      period('2026-01-01', '2026-01-05'),
-      period('2026-02-31', '2026-03-03'),
-      { startDate: '2026-01-29', endDate: '2026-01-32', duration: 4 }
-    ],
-    { typicalCycleLength: 28, typicalPeriodLength: 5 }
-  )
+  // 两条坏日期只要有一条被算进来，就会多出周期间隔或推后最近起点；
+  // 只剩两条有效记录时是从 1月29日 起算的单周期低置信预测
+  const prediction = cycle.predictNextPeriod([
+    period('2026-01-01', '2026-01-05'),
+    period('2026-01-29', '2026-02-02'),
+    period('2026-02-31', '2026-03-03'),
+    { startDate: '2026-02-26', endDate: '2026-02-32', duration: 4 }
+  ])
 
   assert.deepEqual(pickPrediction(prediction), {
     canPredict: true,
     avgCycle: 28,
     avgDuration: 5,
-    nextStart: '2026-01-29',
-    nextEnd: '2026-02-02',
-    rangeStart: '2026-01-26',
-    rangeEnd: '2026-02-01',
+    nextStart: '2026-02-26',
+    nextEnd: '2026-03-02',
+    rangeStart: '2026-02-23',
+    rangeEnd: '2026-03-01',
     confidence: 'low',
     confidenceText: '低',
-    usedCycleCount: 0,
+    usedCycleCount: 1,
     ignoredCycleCount: 0
   })
 })
@@ -354,7 +331,7 @@ test('decidePeriodRecordForDate opens an ongoing record, a day inside an existin
   )
 })
 
-test('period record projection crosses months, keeps an unknown end on its start day, and runs ongoing through today', () => {
+test('period record projection crosses months, keeps an unknown end on its start day, and reopens an ongoing record from outside its projection', () => {
   const today = '2026-06-26'
   const crossMonth = {
     _id: 'cross',
@@ -375,11 +352,6 @@ test('period record projection crosses months, keeps an unknown end on its start
   assert.equal(cycle.decidePeriodRecordForDate([unknownEnd], '2026-09-12', { today }).action, 'create')
 
   const ongoing = { _id: 'ongoing', startDate: '2026-05-28', endDate: '', status: 'ongoing' }
-  assert.equal(cycle.findPeriodCoveringDate([ongoing], '2026-05-28', today)._id, 'ongoing')
-  assert.equal(cycle.findPeriodCoveringDate([ongoing], '2026-06-26', today)._id, 'ongoing')
-  assert.equal(cycle.findPeriodCoveringDate([ongoing], '2026-06-27', today), null)
-  assert.equal(cycle.findPeriodCoveringDate([ongoing], '2026-05-27', today), null)
-
   const outsideProjection = cycle.decidePeriodRecordForDate([ongoing], '2026-04-01', { today })
   assert.equal(outsideProjection.action, 'open')
   assert.equal(outsideProjection.record._id, 'ongoing')
@@ -429,25 +401,7 @@ test('an ongoing start counts as a cycle start but never contributes an exact du
   assert.equal(prediction.avgDuration, 5)
 })
 
-test('predicted duration prefers the configured typical length over the completed-history median', () => {
-  // 已完成历史时长中位数是 5，用户设置 3 天时以设置优先
-  const prediction = cycle.predictNextPeriod(
-    [
-      period('2026-06-01', '2026-06-05'),
-      period('2026-06-29', '2026-07-03')
-    ],
-    { typicalPeriodLength: 3 }
-  )
-
-  assert.equal(prediction.canPredict, true)
-  assert.equal(prediction.avgDuration, 3)
-  assert.equal(prediction.durationSource, 'manual')
-  // 预测结束日按 3 天推：07-27 开始，07-29 结束
-  assert.equal(prediction.nextStart, '2026-07-27')
-  assert.equal(prediction.nextEnd, '2026-07-29')
-})
-
-test('predicted duration uses the completed-history median when no typical length is configured', () => {
+test('predicted duration uses the completed-history median', () => {
   const prediction = cycle.predictNextPeriod([
     period('2026-06-01', '2026-06-03'),
     period('2026-06-29', '2026-07-05')
@@ -530,33 +484,6 @@ test('prediction never writes a predicted end date back onto period records', ()
   assert.equal(periods[2].endDate, '')
   assert.equal(periods[2].duration, 0)
   assert.notEqual(periods[2].endDate, prediction.nextEnd)
-})
-
-test('buildOngoingCompletionReminder prefers the configured typical length over the history median', () => {
-  assert.equal(typeof cycle.buildOngoingCompletionReminder, 'function')
-
-  const periods = [
-    period('2026-06-01', '2026-06-05'),
-    { _id: 'p-ongoing', startDate: '2026-06-20', endDate: '', status: 'ongoing', duration: 0 }
-  ]
-
-  // 用户配置 3 天：进行到第 4 天（06-23）已超过 3 天 → 提示，预期按配置
-  const reminded = cycle.buildOngoingCompletionReminder(periods, {
-    today: '2026-06-23',
-    typicalPeriodLength: 3
-  })
-  assert.equal(reminded.type, 'ongoing-overdue')
-  assert.equal(reminded.title, '经期还未结束')
-  assert.equal(reminded.text, '已进行 4 天，超过预期的 3 天，可以补填结束日期')
-  assert.equal(reminded.expectedDays, 3)
-  assert.equal(reminded.expectedSource, 'manual')
-  assert.equal(reminded.runningDays, 4)
-  assert.equal(reminded.record._id, 'p-ongoing')
-  assert.equal(reminded.recordKey, 'p-ongoing')
-  assert.equal(reminded.date, '2026-06-23')
-
-  // 同一天但不带配置：已完成历史中位数 5 天，第 4 天未超过 → 不提示
-  assert.equal(cycle.buildOngoingCompletionReminder(periods, { today: '2026-06-23' }), null)
 })
 
 test('buildOngoingCompletionReminder uses the recent completed-duration median as the threshold', () => {
@@ -665,17 +592,6 @@ test('describeKnownPeriodLength counts inclusive days and flags spans past the c
   assert.equal(over.expectedDays, 5)
   assert.equal(over.expectedSource, 'history')
   assert.equal(over.hint, '比你通常的 5 天长，确认一下结束日？')
-
-  const manual = cycle.describeKnownPeriodLength({
-    startDate: '2026-08-01',
-    endDate: '2026-08-04',
-    periods,
-    typicalPeriodLength: 3
-  })
-  assert.equal(manual.expectedDays, 3)
-  assert.equal(manual.expectedSource, 'manual')
-  assert.equal(manual.days, 4)
-  assert.equal(manual.hint, '比你通常的 3 天长，确认一下结束日？')
 
   const unknownOnly = [
     { startDate: '2026-08-01', endDate: '', status: 'unknown-end', duration: 9 }

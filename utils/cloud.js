@@ -16,10 +16,6 @@ function withTimeout(promise, ms = QUERY_TIMEOUT) {
   ]).finally(() => clearTimeout(timer))
 }
 
-function getRoomCode() {
-  return roomSession.getRoomCode()
-}
-
 function createRoomDataClient(options = {}) {
   const cloud = options.cloud || createWxCloud()
   const session = options.roomSession || roomSession
@@ -113,6 +109,5 @@ function getErrorMessage(error) {
 }
 
 module.exports = {
-  createRoomDataClient,
-  getRoomCode
+  createRoomDataClient
 }
