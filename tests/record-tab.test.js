@@ -134,6 +134,41 @@ test('a save from Home is listed on the record tab before any refresh answers', 
 
 const bothLists = loads => Array(loads).fill(['periods', 'memories']).flat()
 
+// Spec decision 23: the other segment's records make the retry a silent refresh, yet the segment that never read
+// successfully shows its loading state while the retry runs, then its rows or the failure again, with no prompt.
+for (const spec of segments) {
+  const other = segments.find(item => item !== spec)
+  test(`${spec.segment}: a retry of the never-synced segment shows its loading state while it runs, then the failure or the rows`, async (t) => {
+    const app = setup(t, spec)
+    list(app, spec.collection).reject(new Error('network down'))
+    list(app, other.collection).reply({ code: 0, data: [other.record] })
+    const page = app.launch(route)
+    await app.flush()
+    assert.equal(page.data[spec.failed], true)
+    const pending = list(app, spec.collection).defer()
+    const retry = app.dispatch(page, spec.retry)
+    await app.settle()
+    assert.equal(page.data[spec.loading], true, 'the tapped segment shows progress')
+    assert.equal(page.data[spec.failed], false)
+    assert.equal(page.data[other.loading], false, 'the synced segment keeps its rows')
+    assert.equal(page.data[other.loaded], true)
+    pending.reject(new Error('network down'))
+    await retry
+    await app.settle()
+    assert.equal(page.data[spec.loading], false)
+    assert.equal(page.data[spec.failed], true)
+    assert.equal(page.data[spec.loaded], false)
+    assert.deepEqual(app.wx.modals, [])
+    assert.deepEqual(app.wx.toasts, [])
+    list(app, spec.collection).reply({ code: 0, data: [spec.record] })
+    await app.dispatch(page, spec.retry)
+    await app.flush()
+    assert.equal(page.data[spec.failed], false)
+    assert.equal(page.data[spec.loaded], true)
+    assert.equal(page.data[spec.collection][0]._id, spec.record._id)
+  })
+}
+
 for (const spec of segments) {
   const other = segments.find(item => item !== spec)
   test(`${spec.segment}: a first read failure shows the segment's failure and retry without a prompt, while the other segment shows normally`, async (t) => {
@@ -211,6 +246,35 @@ for (const spec of segments) {
     })
   }
 }
+
+// Failure mode 7 keeps the revision gate: a list read before a local change is set aside. A collection that has no
+// complete list yet is read again before the load ends, so the set-aside snapshot never looks like a read failure.
+test('a memory saved during the very first load does not leave the segment failed: the shared load reads the memories again', async (t) => {
+  const app = setup(t, { segment: 'memory' })
+  const periods = list(app, 'periods').defer()
+  const memories = list(app, 'memories').defer()
+  const page = app.launch(route)
+  await app.settle()
+  await app.dispatch(page, 'addMemory')
+  const saved = { _id: 'm-new', date: '2026-10-20', note: '新的' }
+  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'memories' } }).reply({ code: 0, id: saved._id, record: saved })
+  await app.dispatch(app.currentPage, 'onNoteInput', { detail: { value: saved.note } })
+  await app.dispatch(app.currentPage, 'save')
+  await app.advance(1000)
+  assert.equal(app.currentPage, page, 'back on the tab, whose show joins the load still out')
+  const older = [{ _id: 'm-old', date: '2026-10-02', note: '' }, { _id: 'm-older', date: '2026-09-20', note: '' }]
+  list(app, 'memories').reply({ code: 0, data: [saved, ...older] })
+  periods.resolve({ code: 0, data: [] })
+  memories.resolve({ code: 0, data: older })
+  await app.settle()
+  assert.equal(page.data.memoryLoadFailed, false)
+  assert.equal(page.data.memoryHasLoaded, true)
+  assert.equal(page.data.memoryLoading, false)
+  assert.deepEqual(memoryRowIds(page), ['m-new', 'm-old', 'm-older'])
+  assert.deepEqual(writes(page, 'memoryLoadFailed').filter(Boolean), [], 'no frame shows the memories as failed')
+  assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(2))
+  assert.deepEqual(app.wx.modals, [])
+})
 
 test('an unsynced period list keeps its failure and retry, lists the record saved here, and shows placeholder stats', async (t) => {
   const app = setup(t)

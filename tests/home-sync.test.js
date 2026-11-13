@@ -387,7 +387,7 @@ async function savePeriod(app, home, record) {
   await app.settle()
 }
 
-test('discarding a stale first period snapshot keeps the locally saved period unconfirmed and the summary unsynced', async t => {
+test('a stale first period snapshot never replaces the locally saved period, and the same load reads the periods again', async t => {
   const app = homeApp(t)
   listRoute(app, 'periods').reject(new Error('network down'))
   const home = app.launch('/pages/index/index')
@@ -397,14 +397,15 @@ test('discarding a stale first period snapshot keeps the locally saved period un
   // A new period waits for the shared records to try the unread periods once, so it is saved before
   // the first snapshot starts; editing it (no wait) is the local change while that snapshot is on its way.
   const saved = period('saved', '2026-06-20')
+  const edited = { ...saved, note: '补一句' }
   await savePeriod(app, home, saved)
   await app.advance(1000)
   assert.equal(app.currentPage, home)
-  const p = listRoute(app, 'periods').reply(success([]))
+  // The periods the server lists once the edit below has landed; the deferred list was read before it.
+  const p = listRoute(app, 'periods').reply(success([edited, period('old', '2026-06-01')]))
   const pending = p.defer()
   app.dispatch(home, 'retryRefresh')
   await app.settle()
-  const edited = { ...saved, note: '补一句' }
   app.cloud.when({ name: 'dataOp', data: { action: 'update', collection: 'periods' } }).reply({ code: 0, record: edited })
   await app.dispatch(home, 'onDayTap', { currentTarget: { dataset: { date: saved.startDate } } })
   await app.settle()
@@ -415,15 +416,14 @@ test('discarding a stale first period snapshot keeps the locally saved period un
   await app.advance(1000)
   assert.equal(app.currentPage, home)
   assertCalendar(app, home, ['2026-06-20'], [])
+  const lists = recordCalls(app).length
+  const frames = home.setDataCalls.length
   pending.resolve(success([period('old', '2026-06-01')]))
   await app.settle()
-  assertCalendar(app, home, ['2026-06-20'], [])
-  assert.equal(app.rendered(home).homeStatus.text, '经期未同步，暂不预测')
-  assert.equal(app.rendered(home).monthSummaryLine, '本月 经期未同步 · 欢乐时光 0 条')
-  assert.equal(app.rendered(home).syncStatusText, '已更新，正在同步')
-
-  p.reply(success([edited, period('old', '2026-06-01')]))
-  await showAgain(app)
+  const calendars = home.setDataCalls.slice(frames).filter(patch => patch.days)
+  assert.ok(calendars.length > 0)
+  assert.ok(calendars.every(patch => patch.days.some(day => day.date === '2026-06-20' && day.isPeriod)), 'the stale snapshot never replaces the saved period')
+  assert.equal(recordCalls(app).length, lists + 2, 'the set-aside periods are read again within the same load')
   assertCalendar(app, home, ['2026-06-01', '2026-06-20'], [])
   assert.equal(app.rendered(home).monthSummaryLine, '本月 经期 2 天 · 欢乐时光 0 条')
   assert.equal(app.rendered(home).syncStatusText, '已同步')
@@ -667,6 +667,32 @@ test('TA is announced once when one list of a load shared by pull-down and show 
   await app.settle()
   assert.deepEqual(app.wx.toasts.map(toast => toast.title), ['TA 已加入'])
   assert.equal(recordCalls(app).length, 4)
+})
+
+// Spec decision 24: a load's prompts come only from the page that started it, and only while that page is shown.
+test('a Home that went hidden before its lists brought back paired neither announces TA over the record tab nor uses the announcement up', async t => {
+  const app = homeApp(t, { storage: { roomCode: 'ROOM01', roomStatusSeen: 'waiting' } })
+  const periods = listRoute(app, 'periods').defer()
+  const memories = listRoute(app, 'memories').defer()
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  app.wx.switchTab({ url: '/pages/period/period' })
+  await app.settle()
+  assert.equal(recordCalls(app).length, 2, 'the record tab shares the load Home started')
+  periods.resolve(listed([], 'paired'))
+  memories.resolve(listed([], 'paired'))
+  await app.settle()
+  assert.equal(app.currentPage.route, 'pages/period/period')
+  assert.deepEqual(app.wx.toasts, [])
+
+  listRoute(app, 'periods').reply(listed([], 'paired'))
+  listRoute(app, 'memories').reply(listed([], 'paired'))
+  app.wx.switchTab({ url: '/pages/index/index' })
+  await app.settle()
+  assert.equal(app.currentPage, home)
+  assert.deepEqual(app.wx.toasts.map(toast => toast.title), ['TA 已加入'])
+  await showAgain(app)
+  assert.equal(app.wx.toasts.length, 1)
 })
 
 test('partner welcome waits for successful loading and a render commit, lasts this visit and is not repeated', async t => {

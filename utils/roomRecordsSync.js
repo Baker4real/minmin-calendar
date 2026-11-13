@@ -86,6 +86,15 @@ function createRoomRecordsSync() {
     return () => { listeners.delete(listener) }
   }
 
+  // The period edit session reads the held periods for its hint, its overlap question and whether they are synced
+  // without loading, and it stays open while its own save's Room repair moves the device to another Room or to none.
+  // So each such read checks the device's current room code too: content held for another code is dropped first,
+  // subscribers hear about it, and the session finds its periods unsynced and asks for one load (#189 review).
+  function readCurrentRoom() {
+    if (claimRoom(room.getRoomCode())) publish(true)
+    return getState()
+  }
+
   function hasPending() {
     return COLLECTIONS.some(collection => collections[collection].pendingRevision !== null)
   }
@@ -128,7 +137,7 @@ function createRoomRecordsSync() {
     if (inFlight) return inFlight
     const background = hasLoadedHomeData
     const startGeneration = generation
-    const startRevisions = currentRevisions()
+    let startRevisions = currentRevisions()
     loading = !background
     refreshing = background
     blockedOutcome = null
@@ -136,7 +145,14 @@ function createRoomRecordsSync() {
     pill = background && hasPending() ? syncingPill() : null
     const loaded = Promise.resolve().then(async () => {
       try {
-        const snapshot = await roomRecordsSnapshot.loadHomeRecordsSnapshot({ client: cloud.createRoomDataClient() })
+        let snapshot = await readSnapshot()
+        // The revision gate sets aside a list read before a local change (failure mode 7). A collection with no
+        // complete list yet would then rest unsynced as if its read had failed, so this load reads both lists again
+        // before it ends; every caller sharing it waits for that read.
+        while (startGeneration === generation && setsAsideUnsynced(snapshot, startRevisions)) {
+          startRevisions = currentRevisions()
+          snapshot = await readSnapshot()
+        }
         if (startGeneration !== generation) return { kind: 'superseded' }
         if (snapshot.kind === 'blocked') {
           block(snapshot.outcome)
@@ -190,6 +206,22 @@ function createRoomRecordsSync() {
 
   function currentRevisions() {
     return Object.fromEntries(COLLECTIONS.map(collection => [collection, collections[collection].revision]))
+  }
+
+  function readSnapshot() {
+    return roomRecordsSnapshot.loadHomeRecordsSnapshot({ client: cloud.createRoomDataClient() })
+  }
+
+  // Whether the revision gate would set aside a list this snapshot read for the held Room, of a collection that has
+  // never synced: a local change landed while it was read. Blocked and failed snapshots reach no gate.
+  function setsAsideUnsynced(snapshot, startRevisions) {
+    if (snapshot.kind !== 'success' && snapshot.kind !== 'partial-success') return false
+    return COLLECTIONS.some(collection => {
+      const outcome = snapshot.collections[collection]
+      const current = collections[collection]
+      return outcome.kind === 'success' && outcome.roomCode === roomCode
+        && !current.synced && current.revision !== startRevisions[collection]
+    })
   }
 
   function resolveSnapshot(snapshot, startRevisions, startedInBackground) {
@@ -295,7 +327,7 @@ function createRoomRecordsSync() {
     return true
   }
 
-  return { subscribe, load, applyRecordChange, getState, claimPrompt }
+  return { subscribe, load, applyRecordChange, getState, readCurrentRoom, claimPrompt }
 }
 
 function syncingPill() {
@@ -362,5 +394,6 @@ module.exports = {
   load: shared.load,
   applyRecordChange: shared.applyRecordChange,
   getState: shared.getState,
+  readCurrentRoom: shared.readCurrentRoom,
   claimPrompt: shared.claimPrompt
 }

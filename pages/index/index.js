@@ -198,16 +198,24 @@ Page(withPageVisibility({
     return this.loadRecords()
   },
 
-  // 首页发起的每次加载都经这里，前台还是静默刷新由共享记录自己判断（#193）。提示只依据这次加载返回的结果：
-  // 「TA 已加入」只认这次列表带回的配对状态，由 roomPresence 判定只提示一次；没带回状态（读取失败、旧版 dataOp
-  // 或换了 Room 而作废）就不喂旧值。显示、下拉、重试共用一次在途加载时也只提示一次。
+  // 首页发起的每次加载都经这里，前台还是静默刷新由共享记录自己判断（#193）
   loadRecords() {
     return roomRecordsSync.load().then(result => {
-      if (roomPresence.rememberRoomStatus(result && result.roomStatus)) {
-        wx.showToast({ title: 'TA 已加入', icon: 'none' })
-      }
+      this.presentLoadResult(result)
       return result
     })
+  },
+
+  // 提示只依据这次加载返回的结果，且只在首页仍在前台时给：「TA 已加入」只认这次列表带回的配对状态，由 roomPresence
+  // 判定只提示一次；没带回状态（读取失败、旧版 dataOp 或换了 Room 而作废）就不喂旧值。加载回来时首页已被切走或盖住，
+  // 就既不提示也不把这次变化记为已见，下次首页显示时的加载再带回它、再提示（决定 24）。显示、下拉、重试共用一次在途
+  // 加载时由 claimPrompt 只提示一次
+  presentLoadResult(result) {
+    if (!result || !result.roomStatus || this.data.pageHidden) return
+    if (!roomRecordsSync.claimPrompt(result)) return
+    if (roomPresence.rememberRoomStatus(result.roomStatus)) {
+      wx.showToast({ title: 'TA 已加入', icon: 'none' })
+    }
   },
 
   // 一次性配对欢迎（issue #149）：日历能显示时才挂上欢迎条，行高同一次 setData 计入它；
