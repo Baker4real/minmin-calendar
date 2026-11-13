@@ -30,6 +30,9 @@ const BUDGET = {}
 const EXEMPT = {
   'tests/cloudfunction-dependencies.test.js': {
     jsSourceRead: '查的是 Room 生命周期云函数的部署打包：每个云函数入口只能加载本地生成的副本，不是小程序页面行为'
+  },
+  'tests/cloudfunction-collection-reads.test.js': {
+    jsSourceRead: '静态检查云函数源码里每次集合读取都带条数上限、按标识读单条或在登记的分页读取函数内：平台会静默截掉超出默认 100 条的记录，没有运行时 seam 能逐条看到所有读取，不是小程序页面行为'
   }
 }
 

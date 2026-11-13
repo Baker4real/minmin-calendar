@@ -11,37 +11,15 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 
 ## Project Shape
 
-- `pages/index/` - renders Calendar projection and forwards calendar/sheet/record events to their owners; keeps local reminder-seen storage, geometry and animation wiring, and the sync-pill display lifecycle and auto-hide timer. Records, revisions and in-flight loads belong to `roomRecordsSync`, not the Page; each projection shares one Today sample, and showing the page on a new date refreshes that projection.
-- `pages/index/homepageSheets.js` - Home's sole registry for the four sheets; derives lifecycle keys and drag targets from each name, initializes their render state, and owns close actions, system-back priority and handoff wiring.
-- `utils/sheetLifecycle.js` - shared enter/leave, handoff, page-obscuring, tabBar and system-back mechanisms plus the reduced-motion probe; Home supplies its own registrations, while Settings keeps its help-sheet adapter.
-- `pages/period/` - 记录 tab hosting the segmented 经期/欢乐时光 lists; the Period editor renders its record-edit session and forwards form/lifecycle events.
-- `pages/memory/` - compatibility entry to the record tab, plus a Memory editor that renders its record-edit session and forwards form/lifecycle events.
-- `pages/bind/` - shared-room create, join, and recover flow.
-- `pages/settings/` - room code, room unbind, export, and local cache controls.
-- `utils/room.js` - room-code cache, recovery, create/join, leave, and local clear wrapper.
-- `utils/roomPresence.js` - one-time local flags for the partner welcome and the seen room status.
-- `utils/cloud.js` - frontend cloud-function access wrapper and room-scoped `RoomDataClient`.
-- `utils/roomResolver.js` - active-room resolution seam used by `RoomDataClient`, with an in-memory test adapter.
-- `utils/recordCommands.js` - Period/Memory edit sessions own form state, identity-scoped drafts, validation and save/delete coordination. Period configuration adds status transitions, history-backed duration hints, overlap choices and reopened-record identity migration. Record-tab list feedback remains here; Room failures use `roomAccessOutcome` and `wxPrompts`.
-- `utils/recordPageSync.js` - saved/deleted record changes, previous-page notification, and the record-tab one-time segment intent.
-- `utils/recordDraft.js` - edit-form draft stash with an injected storage adapter; `createWxDraftStorage` is the only wx local-storage seam.
-- `utils/recordEditRoute.js` - Period/Memory edit URL construction and edit-page route option hydration, including the Memory date ceiling at today.
-- `utils/recordFieldErrors.js` - shared session field-error retention and scrolling to the first invalid field below the fixed nav bar; sessions render each error under its field.
-- `utils/roomRecordsSnapshot.js` - loads room-scoped Period/Memory outcomes keyed by collection; Home allows partial success, while Settings export requires both lists to succeed.
-- `utils/roomRecordsSync.js` - owns homepage records, per-collection revision/confirmation state, one in-flight load shared by all callers, local-change snapshot invalidation, partial-failure retry copy and sync-pill state. It reads through RoomDataClient and publishes each accepted snapshot as one calendar update; blocked Room outcomes go to the Home failure presentation.
-- `utils/settingsFlow.js` - shared room-code copy, export, retry/rebind and local-cache helpers, plus the Bind/Settings Room-leave confirmation, server outcome and one-time unbound notice.
-- `utils/roomAccessOutcome.js` - client-side classification of room access failures plus the sole operation-aware failure presentation mapping.
-- `utils/wxPrompts.js` - executes prompt specifications through wx modal/toast/navigation APIs, with the existing toast fallback when a native modal is unavailable.
-- `utils/homeCalendarState.js` - the pure, complete homepage Calendar projection: markers and ARIA, status, quick-entry labels and destinations, reminder candidates, dated details/actions, prediction explanation, recap versus first-record guide, back-to-today visibility and record feedback; the sole owner of unsynced-collection display rules.
-- `utils/calendarRowHeight.js` - homepage calendar geometry ledger: row height between the 44px floor and the density cap, per-density cell content minimums, the compact merged info row, and whether the record entry fits the first screen; rows never shrink below their content, so a short screen scrolls instead of clipping.
-- `utils/safeArea.js` - runtime safe-area top/bottom computation; every page root injects `--safe-top`, `--safe-bottom`, `--nav-bar-height`, and `--capsule-right`.
-- `utils/util.js` - date, lunar, holiday, base calendar-grid helpers, and the month-swipe decision.
-- `utils/chinaHolidays.js` - official China holiday and adjusted-workday data table (2001-2026).
-- `utils/periodCoverage.js` - period status, projection range, owning record for a date, monthly coverage union, and the destination for a new period entry.
-- `utils/cycle.js` - cycle prediction, reminders, duration, and period metadata labels; period attribution comes from `periodCoverage`.
-- `utils/calendarInsights.js` - prediction explanation and monthly recap copy.
-- `cloudfunctions/` - WeChat Cloud Functions for room lifecycle and record persistence.
-- `cloudfunctions/_shared/roomMembershipLifecycle.js` - canonical Room membership lifecycle source; four Room cloud functions deploy byte-identical local artifacts generated by `syncRoomMembershipLifecycle.js`.
+- `app.js`, `app.json`, `app.wxss` - mini program entry: WeChat Cloud initialization, page and tabBar registration, and global styles.
+- `pages/` - one directory per page registered in `app.json`: `index` (首页 tab), `period` (记录 tab, with the Period editor in `edit/`), `memory` (compatibility entry, with the Memory editor in `edit/`), `bind` (Launch screen) and `settings` (设置 tab); `pages/shared/` holds shared WXML.
+- `utils/` - client modules: domain rules and the Calendar projection, Room session and records access, record sync and edit sessions, and wx platform seams.
+- `images/` - tabBar icons and the app icon.
+- `cloudfunctions/` - one directory per WeChat Cloud Function: `dataOp` for room-scoped records, the four Room lifecycle functions whose shared source lives in `_shared/`, and `login`.
+- `tests/` - `node:test` suites (`tests/*.test.js`), the WeChat platform harness and test helpers in `tests/helpers/`, fixtures in `tests/fixtures/`, and verification tools in `tests/tools/`.
+- `docs/` - ADRs, specs and plans, the verification log and evidence, DevTools verification and motion notes, and agent workflow guides.
+
+Each module's responsibilities are maintained in one place: [CONTEXT.md Technical Shape](CONTEXT.md#technical-shape).
 
 ## Local Development
 
@@ -109,7 +87,7 @@ npm run verify
 
 `npm run verify` 是本地、提交钩子与 CI 的共同入口：先执行根依赖审计，检查 app、pages、utils、cloudfunctions、tests 中的 JavaScript 语法，自动发现全部 `tests/*.test.js`（含真实自动化 SDK 图像兼容回归），再将既有跨日/午夜用例分别放在 UTC 和 Asia/Taipei 子进程中验证，核对 Room artifact，并运行 320/375/430 宽度的坐标命中回归。日期边界回归也可单独用 `npm run test:clock` 定位；两轴都必须执行完全部指定用例，缺失、跳过或进程失败不能算通过。依赖和临时目录不进入语法清单；新增源文件无需维护 README 清单。提交钩子传 `--tracked`：语法和测试清单改从 git 索引取（已跟踪加已暂存的文件），共享工作树里别的会话还没跟踪的文件不进本次提交的检查。
 
-#169 的页面行为测试经 `tests/helpers/miniProgram.js` 这一份微信平台 harness，或 `buildHomeCalendarState` 的纯 projection 表格验证。`tests/test-seam-guardrail.test.js` 随完整测试运行：迁移预算 `BUDGET` 已清空，仅保留 Room lifecycle 云函数部署打包的 JS 源码读取例外；WXML/WXSS 设计守卫与既有公开 interface 测试继续保留。harness 同样约束原生确认按钮文案最多四个汉字。
+#169 的页面行为测试经 `tests/helpers/miniProgram.js` 这一份微信平台 harness，或 `buildHomeCalendarState` 的纯 projection 表格验证。`tests/test-seam-guardrail.test.js` 随完整测试运行：迁移预算 `BUDGET` 已清空，只保留两处 JS 源码读取例外：Room lifecycle 云函数的部署打包，以及 `tests/cloudfunction-collection-reads.test.js` 对云函数集合读取条数上限的静态检查；WXML/WXSS 设计守卫与既有公开 interface 测试继续保留。harness 同样约束原生确认按钮文案最多四个汉字。
 
 首次检出及 Playwright 版本升级后运行 `npm run release:prepare`；仅补装浏览器时可用 `npm run browser:install`，缓存位置按上面的检出类型解析。日常输出只显示结果、测试条数和日志路径；完整门禁日志在 `.scratch/verify/`，依赖原文在 `.scratch/dependencies/`，发布准备日志和结果在 `.scratch/release-prepare/`，坐标与截图证据在 `.scratch/coordinate-hit/`。这些入口覆盖各自最近一次结果；CI 失败时归档上述诊断目录。任何检查失败均退出非零。`npm test`、`npm run check`、`npm run test:hit` 可用于单独定位，不能代替完整验收。定向用例优先用 `npm run verify:target -- --tests tests/capture-evidence.test.js,tests/devtools-cli.test.js [--name '用例正则']`：复用完整日志写盘，只返回计数和有界失败片段，日志在 `.scratch/verify-target/tests.log`；文件重复、非法路径或零匹配均失败，不能把 Node 的文件包装行当作有效用例。预期测试红灯保留真实非零退出；retro 审计用 `--expected-exit <原始结果行号>:<退出码>` 标记，不能把其他失败一起豁免。
 

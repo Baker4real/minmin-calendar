@@ -50,31 +50,6 @@ function createRoomResolver(options = {}) {
   }
 }
 
-function createInMemoryRoomResolver(config = {}) {
-  const resolution = config || {}
-
-  return {
-    async resolveActiveRoom() {
-      if (resolution.kind === 'resolved') {
-        return {
-          kind: 'resolved',
-          roomCode: normalizeRoomCode(resolution.roomCode)
-        }
-      }
-      if (resolution.kind === 'no-room') {
-        return { kind: 'no-room' }
-      }
-      if (resolution.kind === 'retryable-failure') {
-        return {
-          kind: 'retryable-failure',
-          message: resolution.message
-        }
-      }
-      throw new Error('Invalid in-memory resolver config')
-    }
-  }
-}
-
 function getCachedRoomCode(session) {
   if (!session || typeof session.getRoomCode !== 'function') return ''
   return normalizeRoomCode(session.getRoomCode())
@@ -89,6 +64,5 @@ function getErrorMessage(error) {
 }
 
 module.exports = {
-  createRoomResolver,
-  createInMemoryRoomResolver
+  createRoomResolver
 }
