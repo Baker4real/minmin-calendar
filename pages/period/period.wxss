@@ -380,7 +380,8 @@
   .load-failed,
   .retry-btn,
   .list-retry,
-  .segment-option {
+  .segment-option,
+  .period-year-title {
     transition: none;
   }
 }

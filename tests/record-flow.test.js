@@ -108,9 +108,8 @@ test('period list keeps last data on refresh failure and offers retry in the lis
   const periodWxml = readPageFile('pages/period/period.wxml')
   const periodWxss = readPageFile('pages/period/period.wxss')
 
-  // 已成功加载过再失败：列表分支不再被失败态顶掉，重试行留在列表区域；
-  // 列表不挂在失败卡的分支上，未同步时本机已保存的记录照常列出（#194）
-  assert.match(periodWxml, /wx:if="\{\{periods\.length > 0 && !loading\}\}" class="period-year-list"/)
+  // 已成功加载过再失败：重试行留在列表区域。未同步时本机已保存的记录列在失败卡下面（#194），
+  // 由 record-tab 的 harness 用例按渲染数据和模板分支检查
   assert.match(periodWxml, /wx:for="\{\{group\.records\}\}"[^>]*bindtap="editPeriod"/)
   assert.match(
     periodWxml,
@@ -171,11 +170,7 @@ test('record tab memory segment renders month cards with the grouped row contrac
   const periodWxml = readPageFile('pages/period/period.wxml')
   const periodWxss = readPageFile('pages/period/period.wxss')
 
-  // 月份卡：复用 app 级玻璃卡 premium-card，列表分支遍历分组数组；四态条件仍挂在扁平 memories 上
-  assert.match(
-    periodWxml,
-    /wx:if="\{\{memories\.length > 0 && !memoryLoading\}\}" class="memory-month-list"/
-  )
+  // 月份卡：复用 app 级玻璃卡 premium-card，列表分支遍历分组数组
   assert.match(periodWxml, /class="premium-card month-card" wx:for="\{\{memoryGroups\}\}" wx:key="key"/)
 
   // 卡头（issue #109）：点按切换展开/收起，按 button 朗读，aria-expanded 与展开状态同条件绑定；
