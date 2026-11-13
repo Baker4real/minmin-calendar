@@ -3,7 +3,7 @@ const cycle = require('./cycle')
 
 /**
  * 月份键（issue #107）：记录日期（合法 YYYY-MM-DD）所属的公历月份 = 日期前 7 位（YYYY-MM）。
- * 分组模块与页面保存通知（period.js applyRecordChange）共用，避免各自内联日期切片
+ * 分组模块与记录 tab 的记录变化落点（period.js landOnRecordChange）共用，避免各自内联日期切片
  */
 function monthKey(date) {
   return date.slice(0, 7)

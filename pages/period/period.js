@@ -62,28 +62,25 @@ Page(withPageVisibility({
     this.setData({ segment })
   },
 
-  // 编辑页保存/删除后在返回定时器前同步通知（recordPageSync seam）：落到被改动记录所属分段、展开保存结果所在月份，
-  // 再把改动交给共享记录，首页和本页都不等自己的刷新就是新的
-  applyRecordChange(change) {
-    if (!change) return
+  // 共享记录发布的记录变化（编辑页保存/删除成功后交给它的那一次，#195）：落到被改动记录所属分段、
+  // 展开保存结果所在月份，与这次变化的行同一次渲染
+  landOnRecordChange(change) {
     if (change.collection === 'memories') {
       // 保存后自动展开（issue #109）：新增/修改把记录所在月份设为展开，
       // 按月份键记进页面内存，之后的渲染里保持展开；删除（record 只有 _id）不改展开状态
-      if ((change.mode === 'add' || change.mode === 'update') && change.record && change.record.date) {
+      if ((change.mode === 'add' || change.mode === 'update') && change.record.date) {
         this.memoryMonthChoices = {
           ...this.memoryMonthChoices,
           [memoryMonthGroups.monthKey(change.record.date)]: memoryMonthGroups.EXPANDED
         }
       }
-      this.setData({ segment: 'memory' })
-    } else if (change.collection === 'periods') {
-      if ((change.mode === 'add' || change.mode === 'update') && change.record && change.record.startDate) {
-        this.periodMonthChoices = { ...this.periodMonthChoices, [change.record.startDate.slice(0, 7)]: true }
-        this.periodYearChoices = { ...this.periodYearChoices, [change.record.startDate.slice(0, 4)]: true }
-      }
-      this.setData({ segment: 'period' })
+      return { segment: 'memory' }
     }
-    roomRecordsSync.applyRecordChange(change)
+    if ((change.mode === 'add' || change.mode === 'update') && change.record.startDate) {
+      this.periodMonthChoices = { ...this.periodMonthChoices, [change.record.startDate.slice(0, 7)]: true }
+      this.periodYearChoices = { ...this.periodYearChoices, [change.record.startDate.slice(0, 4)]: true }
+    }
+    return { segment: 'period' }
   },
 
   // 显示、下拉和重试都只请共享记录加载一次（两类各读一次，与在途的加载合并）。提示只依据这次加载返回的结果
@@ -116,15 +113,16 @@ Page(withPageVisibility({
 
   // 两个分段渲染共享记录：已同步的集合直接显示；未同步的不显示空态，给失败画面与重试，手里已保存的记录照常列出，
   // 经期条数和平均值显示占位；曾同步、最近一次刷新失败的保留列表并给行内重试。
-  // 行只在显示时和记录或配对变化时（calendarChanged）重画，记录作者随同一次渲染给出；
+  // 行只在显示时、记录或配对变化时（calendarChanged）和落到一次记录变化时重画，记录作者随同一次渲染给出；
   // 点按入口也只认渲染出来的行
-  renderRecords(state, { calendarChanged = false } = {}) {
+  renderRecords(state, { calendarChanged = false, recordChange = null } = {}) {
     const update = {
       ...segmentState(state, 'periods', { loading: 'loading', loaded: 'hasLoaded', failed: 'loadFailed' }),
       ...segmentState(state, 'memories', { loading: 'memoryLoading', loaded: 'memoryHasLoaded', failed: 'memoryLoadFailed' }),
       ...periodStats(state.collections.periods)
     }
-    if (calendarChanged) Object.assign(update, this.recordRows(state))
+    if (recordChange) Object.assign(update, this.landOnRecordChange(recordChange))
+    if (calendarChanged || recordChange) Object.assign(update, this.recordRows(state))
     this.setData(update)
   },
 

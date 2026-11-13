@@ -3,66 +3,6 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
-let recordPageSync = {}
-try {
-  recordPageSync = require('../utils/recordPageSync')
-} catch (error) {
-  recordPageSync = {}
-}
-
-test('record page sync notifies the previous page without requiring a reload', () => {
-  assert.equal(typeof recordPageSync.notifyPreviousPageRecordChange, 'function')
-  assert.equal(typeof recordPageSync.getSavedRecord, 'function')
-
-  const changes = []
-  const notified = recordPageSync.notifyPreviousPageRecordChange(
-    {
-      collection: 'memories',
-      mode: 'add',
-      record: { _id: 'm1', date: '2026-07-03', note: 'second' }
-    },
-    {
-      getCurrentPages: () => [
-        { route: 'pages/index/index' },
-        { route: 'pages/memory/edit/edit' }
-      ].map((page, index) => index === 0
-        ? { ...page, applyRecordChange: change => changes.push(change) }
-        : page)
-    }
-  )
-
-  assert.equal(notified, true)
-  assert.deepEqual(changes, [
-    {
-      collection: 'memories',
-      mode: 'add',
-      record: { _id: 'm1', date: '2026-07-03', note: 'second' }
-    }
-  ])
-  assert.deepEqual(
-    recordPageSync.getSavedRecord({
-      kind: 'success',
-      result: { record: { _id: 'm2', date: '2026-06-24', note: 'canonical' } }
-    }),
-    { _id: 'm2', date: '2026-06-24', note: 'canonical' }
-  )
-  assert.equal(
-    recordPageSync.getSavedRecord({ kind: 'success', result: { id: 'm2' } }),
-    null
-  )
-  assert.deepEqual(
-    recordPageSync.getSavedRecord({
-      kind: 'merged',
-      result: { record: { _id: 'p9', startDate: '2026-09-10', endDate: '', status: 'ongoing' } }
-    }),
-    { _id: 'p9', startDate: '2026-09-10', endDate: '', status: 'ongoing' }
-  )
-  assert.equal(
-    recordPageSync.getSavedRecord({ kind: 'business-failure' }),
-    null
-  )
-})
-
 test('period and memory list templates keep the REC-03 visible row contract', () => {
   const periodWxml = readPageFile('pages/period/period.wxml')
   const memoryWxml = readPageFile('pages/memory/memory.wxml')

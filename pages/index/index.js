@@ -277,7 +277,8 @@ Page(withPageVisibility({
       roomStatusActionText: '',
       roomStatusAction: ''
     })
-    if (calendarChanged) this.applyHomeCalendarState({ recordChange }, { fields })
+    // 编辑页交给共享记录的记录变化（#195）：只有读到过记录的日历才播记录成功反馈，首次加载中的不播
+    if (calendarChanged) this.applyHomeCalendarState({ recordChange: state.hasLoadedHomeData ? recordChange : null }, { fields })
     else this.setData(this.withCalendarGeometry(fields))
     if (state.pill) this.showSyncStatus(state.pill.text, state.pill)
     else this.hideSyncStatus()
@@ -329,10 +330,6 @@ Page(withPageVisibility({
       Object.assign(update, this.selectedDayState(this.data.selectedDate))
     }
     this.setData(this.withCalendarGeometry(update), () => this.markOngoingReminderShown(reminder))
-  },
-
-  applyRecordChange(change) {
-    roomRecordsSync.applyRecordChange(change)
   },
 
   prevMonth() {

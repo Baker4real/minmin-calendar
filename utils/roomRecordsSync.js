@@ -261,6 +261,10 @@ function createRoomRecordsSync() {
     return null
   }
 
+  // Edit sessions hand each confirmed save or delete over once (#195), and every one is published as
+  // recordChange, even before any load has completed or when the held records already match it: the
+  // record tab lands on each, while Home plays record feedback only for a calendar change over records
+  // it has loaded.
   function applyRecordChange({ collection, record, mode = 'upsert' } = {}) {
     if (!COLLECTIONS.includes(collection) || !record || typeof record !== 'object') return
     // A local change belongs to the Room this device holds now.
@@ -268,8 +272,9 @@ function createRoomRecordsSync() {
     const current = collections[collection]
     const before = current.records
     const records = mergeRecordChange(before, record, mode)
+    const change = { collection, record, mode, before }
     if (stableRecordListKey(records) === stableRecordListKey(before)) {
-      if (cleared) publish(true)
+      publish(cleared, change)
       return
     }
     current.records = records
@@ -278,7 +283,7 @@ function createRoomRecordsSync() {
       current.pendingRevision = current.revision
       pill = syncingPill()
     }
-    publish(true, hasLoadedHomeData ? { collection, record, mode, before } : null)
+    publish(true, change)
   }
 
   // Every caller of one in-flight load gets the same result: a page showing, pulling down and
