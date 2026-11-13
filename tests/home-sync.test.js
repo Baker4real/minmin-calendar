@@ -8,13 +8,15 @@ const { createMiniProgram } = require('./helpers/miniProgram')
 // interaction cases remain in index-page.test.js for #172.
 const ROOM = { code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } }
 const success = data => ({ code: 0, data })
+const listed = (data, roomStatus) => ({ code: 0, data, roomStatus })
 const period = (id, date) => ({ _id: id, startDate: date, endDate: date, status: 'known-end' })
 const memory = (id, date, note = '') => ({ _id: id, date, note })
 
+// No getMyRoom rule by default: Home takes pairing from the lists (#191), so a Room lookup
+// from a bound Home fails loudly as an unprogrammed cloud call.
 function homeApp(t, options = {}) {
   const app = createMiniProgram({ storage: { roomCode: 'ROOM01' }, ...options })
   t.after(() => app.teardown())
-  app.cloud.when('getMyRoom').reply(ROOM)
   listRoute(app, 'periods').reply(success([]))
   listRoute(app, 'memories').reply(success([]))
   return app
@@ -580,18 +582,79 @@ for (const [repair, title, actionText] of [
   })
 }
 
-test('waiting-to-paired Room transition announces TA once through real presence responses', async t => {
+test('each home show reads the two lists and makes no Room lookup', async t => {
   const app = homeApp(t)
-  const room = app.cloud.when('getMyRoom').reply(ROOM)
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  assert.equal(app.rendered(home).loading, false)
+  assert.deepEqual(app.cloud.calls.map(call => [call.name, call.data.action, call.data.collection]), [
+    ['dataOp', 'list', 'periods'], ['dataOp', 'list', 'memories']
+  ])
+  await showAgain(app)
+  assert.equal(recordCalls(app).length, 4)
+  assert.equal(app.cloud.calls.filter(call => call.name === 'getMyRoom').length, 0)
+})
+
+test('waiting-to-paired status brought back by the lists announces TA once', async t => {
+  const app = homeApp(t)
+  const p = listRoute(app, 'periods').reply(listed([], 'waiting'))
+  const m = listRoute(app, 'memories').reply(listed([], 'waiting'))
   const home = app.launch('/pages/index/index')
   await app.settle()
   assert.deepEqual(app.wx.toasts, [])
-  room.reply({ code: 0, room: { roomCode: 'ROOM01', status: 'paired' } })
+  p.reply(listed([], 'paired'))
+  m.reply(listed([], 'paired'))
   await showAgain(app)
   assert.deepEqual(app.wx.toasts.map(({ title, icon }) => ({ title, icon })), [{ title: 'TA 已加入', icon: 'none' }])
   await showAgain(app)
+  // A list without a status (dataOp not yet deployed or rolled back) is no new input.
+  p.reply(success([]))
+  m.reply(success([]))
+  await showAgain(app)
   assert.equal(app.wx.toasts.length, 1)
   assert.equal(app.rendered(home).noRoom, false)
+  assert.equal(app.cloud.calls.filter(call => call.name === 'getMyRoom').length, 0)
+})
+
+test('after Settings announces TA, a Home load that brings back no status does not set up a second announcement', async t => {
+  const app = homeApp(t)
+  const p = listRoute(app, 'periods').reply(listed([], 'waiting'))
+  const m = listRoute(app, 'memories').reply(listed([], 'waiting'))
+  app.launch('/pages/index/index')
+  await app.settle()
+  app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01', status: 'paired' } })
+  app.wx.switchTab({ url: '/pages/settings/settings' })
+  await app.settle()
+  assert.deepEqual(app.wx.toasts.map(toast => toast.title), ['TA 已加入'])
+  p.reject(new Error('network down'))
+  m.reject(new Error('network down'))
+  app.wx.switchTab({ url: '/pages/index/index' })
+  await app.settle()
+  p.reply(listed([], 'paired'))
+  m.reply(listed([], 'paired'))
+  await showAgain(app)
+  assert.deepEqual(app.wx.toasts.map(toast => toast.title), ['TA 已加入'])
+  assert.equal(app.cloud.calls.filter(call => call.name === 'getMyRoom').length, 1, 'only Settings looks the Room up')
+})
+
+test('TA is announced once when one list of a load shared by pull-down and show brings back paired', async t => {
+  const app = homeApp(t)
+  const p = listRoute(app, 'periods').reply(listed([], 'waiting'))
+  const m = listRoute(app, 'memories').reply(listed([], 'waiting'))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  const periods = p.defer()
+  m.reply(listed([], 'paired'))
+  const pull = home.onPullDownRefresh()
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.deepEqual(app.wx.toasts, [])
+  periods.reject(new Error('network down'))
+  await pull
+  await app.settle()
+  assert.deepEqual(app.wx.toasts.map(toast => toast.title), ['TA 已加入'])
+  assert.equal(recordCalls(app).length, 4)
 })
 
 test('partner welcome waits for successful loading and a render commit, lasts this visit and is not repeated', async t => {

@@ -6,6 +6,8 @@ const ROOM_ERROR_CODES = {
   ROOM_CODE_CONFLICT: 'ROOM_CODE_CONFLICT',
   ROOM_ACCESS_DENIED: 'ROOM_ACCESS_DENIED'
 }
+// list 成功应答带回的 Room 配对状态只取这两个值；其他取值或没有状态时不带这一项
+const ROOM_PAIRING_STATUSES = ['waiting', 'paired']
 
 function createDataOpHandler({ getWXContext, db, records }) {
   return async function dataOpHandler(event = {}) {
@@ -25,7 +27,9 @@ function createDataOpHandler({ getWXContext, db, records }) {
       if (!roomAccess.allowed) return roomAccess.failure
 
       if (action === 'list') {
+        // 不在 try 里 await：读取失败要让这次调用整体失败（客户端按可重试处理），不能被下面的 catch 变成业务失败
         return records.list({ collection, roomCode })
+          .then(result => withRoomStatus(result, roomAccess.room))
       }
 
       if (action === 'add') {
@@ -97,6 +101,13 @@ function createDataOpHandler({ getWXContext, db, records }) {
 
 function buildFailure(msg, errorCode) {
   return { code: -1, msg, errorCode }
+}
+
+// 配对状态取自鉴权时已读到的 Room 文档，不为它再读一次库；只加状态，不带成员标识、昵称或房间码
+function withRoomStatus(result, room) {
+  const roomStatus = room && room.status
+  if (!result || result.code !== 0 || !ROOM_PAIRING_STATUSES.includes(roomStatus)) return result
+  return { ...result, roomStatus }
 }
 
 module.exports = {

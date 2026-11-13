@@ -8,19 +8,22 @@ const { evaluateWxmlExpression, renderWxmlAttribute, renderWxmlClasses, wxmlOpen
 const wxml = fs.readFileSync(path.join(__dirname, '../pages/index/index.wxml'), 'utf8')
 const tags = wxmlOpeningTags(wxml)
 const success = data => ({ code: 0, data })
+// The Room pairing status rides on each list reply (#191); null leaves it out as an older dataOp does.
+const listed = (data, roomStatus) => roomStatus === null ? success(data) : { ...success(data), roomStatus }
 const period = (id, startDate, endDate = startDate, status = 'known-end') => ({ _id: id, startDate, endDate, status })
 const memory = (id, date, note = '') => ({ _id: id, date, note })
 function listRoute(app, collection) {
   return app.cloud.when({ name: 'dataOp', data: { action: 'list', collection } })
 }
-function homeApp(t, { periods = [], memories = [], paired = false, ...options } = {}) {
+function homeApp(t, { periods = [], memories = [], roomStatus = 'waiting', ...options } = {}) {
   const app = createMiniProgram({ storage: { roomCode: 'ROOM01' }, ...options })
   t.after(() => app.teardown())
-  app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01', status: paired ? 'paired' : 'waiting' } })
-  listRoute(app, 'periods').reply(success(periods))
-  listRoute(app, 'memories').reply(success(memories))
+  listRoute(app, 'periods').reply(listed(periods, roomStatus))
+  listRoute(app, 'memories').reply(listed(memories, roomStatus))
   return app
 }
+const roomLookups = app => app.cloud.calls.filter(call => call.name === 'getMyRoom').length
+const calendarFrames = page => page.setDataCalls.filter(patch => 'days' in patch).length
 async function launch(app) {
   const home = app.launch('/pages/index/index')
   await app.settle()
@@ -150,10 +153,12 @@ function calendarAnimation(app, home, kind) {
   return classes('calendar-days', app.rendered(home)).find(name => name.startsWith(`calendar-${kind}-`)) || ''
 }
 
-for (const paired of [true, false]) {
-  test(`day details distinguish records and ${paired ? 'name paired authors' : 'omit unpaired authors'}`, async t => {
+for (const roomStatus of ['paired', 'waiting', null, 'archived']) {
+  const paired = roomStatus === 'paired'
+  const omitted = roomStatus === null ? 'no status' : `status ${roomStatus}`
+  test(`day details distinguish records and ${paired ? 'name paired authors from the first calendar frame' : `omit authors when the lists bring back ${omitted}`}`, async t => {
     const app = homeApp(t, {
-      paired,
+      roomStatus,
       periods: [
         { ...period('p1', '2026-06-01', '2026-06-03'), createdByMe: true },
         { ...period('p2', '2026-06-02'), createdByMe: false },
@@ -162,6 +167,9 @@ for (const paired of [true, false]) {
       memories: [{ ...memory('m1', '2026-06-02', '散步'), createdByMe: false }, { ...memory('m2', '2026-06-02'), createdByMe: true }]
     })
     const home = await launch(app)
+    // The opening frame plus one frame for both lists: pairing needs no Room lookup and no second render.
+    assert.equal(calendarFrames(home), 2)
+    assert.equal(roomLookups(app), 0)
     await day(app, home, '2026-06-02')
     const detail = app.rendered(home).selectedDayDetail
     const names = [...detail.periods.map(item => attr('period-detail', 'aria-label', { item })), ...detail.memories.map(item => attr('memory-detail', 'aria-label', { item }))]
@@ -178,6 +186,57 @@ for (const paired of [true, false]) {
     assert.equal(app.rendered(home).selectedDayDetail.memories.length, 0, 'previous day rows are replaced')
   })
 }
+
+function selectedPeriodAuthors(app, home) {
+  return app.rendered(home).selectedDayDetail.periods.map(item => item.authorLabel)
+}
+
+test('without a new status the Room keeps its last pairing, while a Room that never had one stays unpaired', async t => {
+  const periods = [{ ...period('p1', '2026-06-01', '2026-06-03'), createdByMe: true }]
+  const app = homeApp(t, { roomStatus: 'paired', periods })
+  const home = await launch(app)
+  await day(app, home, '2026-06-02')
+  assert.deepEqual(selectedPeriodAuthors(app, home), ['我记的'])
+  await closeSheet(app, home, 'dayActions')
+  // Lists from a dataOp that returns no status, then a refresh where both lists fail: no new value either time.
+  listRoute(app, 'periods').reply(listed(periods, null))
+  listRoute(app, 'memories').reply(listed([], null))
+  app.hide(); app.show(); await app.settle()
+  listRoute(app, 'periods').reject(new Error('network down'))
+  listRoute(app, 'memories').reject(new Error('network down'))
+  app.hide(); app.show(); await app.settle()
+  await day(app, home, '2026-06-02')
+  assert.deepEqual(selectedPeriodAuthors(app, home), ['我记的'])
+  await closeSheet(app, home, 'dayActions')
+  // This device now holds another Room whose lists bring back no status.
+  app.wx.setStorageSync('roomCode', 'ROOM02')
+  listRoute(app, 'periods').reply(listed(periods, null))
+  listRoute(app, 'memories').reply(listed([], null))
+  app.hide(); app.show(); await app.settle()
+  assert.deepEqual(app.cloud.calls.slice(-2).map(call => call.data.roomCode), ['ROOM02', 'ROOM02'])
+  await day(app, home, '2026-06-02')
+  assert.deepEqual(selectedPeriodAuthors(app, home), [undefined])
+  assert.equal(roomLookups(app), 0)
+})
+
+test('a refresh that only changes pairing re-projects an open day detail with record authors', async t => {
+  const periods = [{ ...period('p1', '2026-06-01', '2026-06-03'), createdByMe: false }]
+  const app = homeApp(t, { roomStatus: 'waiting', periods })
+  const home = await launch(app)
+  await day(app, home, '2026-06-02')
+  assert.deepEqual(selectedPeriodAuthors(app, home), [undefined])
+  listRoute(app, 'periods').reply(listed(periods, 'paired'))
+  listRoute(app, 'memories').reply(listed([], 'paired'))
+  app.hide(); app.show(); await app.settle()
+  app.commit(home)
+  assert.equal(sheet(app, home, 'dayActions').mounted, true)
+  assert.deepEqual(selectedPeriodAuthors(app, home), ['TA 记的'])
+  listRoute(app, 'periods').reply(listed(periods, 'waiting'))
+  listRoute(app, 'memories').reply(listed([], 'waiting'))
+  app.hide(); app.show(); await app.settle()
+  app.commit(home)
+  assert.deepEqual(selectedPeriodAuthors(app, home), [undefined], 'TA left: the Room is waiting again')
+})
 
 const ownershipScreens = [
   { name: 'F1 ongoing plus a later completed record', records: [period('live', '2026-06-20', '', 'ongoing'), period('later', '2026-06-24', '2026-06-26')], status: '经期第 7 天', quick: '经期第 7 天 · 记结束', aria: '经期第7天 经期进行中', recap: '本月 经期 7 天 · 欢乐时光 0 条', date: '2026-06-26' },
@@ -537,6 +596,7 @@ test('settings density changes resize a real six-row calendar on return before c
   assert.equal(Math.ceil(app.rendered(home).days.length / 7), 6)
   assert.equal(attr('calendar-grid', 'style', app.rendered(home)), '--calendar-row-height: 79.5px')
   assert.equal(classes('calendar-grid', app.rendered(home)).includes('calendar-info-merged'), false)
+  app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } })
   app.wx.switchTab({ url: '/pages/settings/settings' })
   await app.settle()
   await tap(app, app.currentPage, 'setCalendarDensity', { density: 'compact' })

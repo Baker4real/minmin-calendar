@@ -18,6 +18,8 @@ const SYNC_FAILURE_COPY = {
   }
 }
 
+const UNKNOWN_LISTED_ROOM = { roomCode: '', roomStatus: '' }
+
 // Own the records and reconciliation, not just decisions for a Page to execute.
 // The callback's calendarChanged/recordChange describe one atomic projection update;
 // loading and pill-only updates leave calendar feedback and animation marks alone.
@@ -32,6 +34,8 @@ function createRoomRecordsSync({ onChange }) {
   let failedCollections = []
   let blockedOutcome = null
   let pill = null
+  // The Room pairing as the lists last brought it back, with the room code it belongs to (#191).
+  let listedRoom = UNKNOWN_LISTED_ROOM
 
   function getState() {
     const scope = failedCollections.length === 2 ? 'all' : failedCollections[0]
@@ -42,6 +46,7 @@ function createRoomRecordsSync({ onChange }) {
         synced: collections[collection].synced,
         pending: collections[collection].pendingRevision !== null
       }])),
+      roomPaired: listedRoom.roomStatus === 'paired',
       hasLoadedHomeData,
       loading,
       refreshing,
@@ -85,8 +90,10 @@ function createRoomRecordsSync({ onChange }) {
           fail(snapshot.outcome, background)
           return snapshot
         }
-        resolveSnapshot(snapshot, startRevisions, background)
-        return snapshot
+        // roomStatus on the result is what this load's lists brought back, never a held value:
+        // the page that started the load feeds only that to roomPresence.
+        const roomStatus = resolveSnapshot(snapshot, startRevisions, background)
+        return roomStatus ? { ...snapshot, roomStatus } : snapshot
       } catch (error) {
         console.error('load error', error)
         const outcome = { kind: 'retryable-failure', message: error && error.message ? error.message : String(error || '未知错误') }
@@ -123,12 +130,17 @@ function createRoomRecordsSync({ onChange }) {
 
   function resolveSnapshot(snapshot, startRevisions, background) {
     const wasLoaded = hasLoadedHomeData
+    const wasPaired = listedRoom.roomStatus === 'paired'
+    let listedStatus = ''
     let recordsChanged = false
     let syncedChanged = false
     let confirmedPending = false
     for (const collection of COLLECTIONS) {
       const outcome = snapshot.collections[collection]
       const current = collections[collection]
+      // Local record changes invalidate a snapshot's records, not the pairing it brought back.
+      listedRoom = adoptListedRoomStatus(listedRoom, outcome)
+      if (outcome.kind === 'success' && outcome.roomStatus) listedStatus = outcome.roomStatus
       if (outcome.kind !== 'success' || current.revision !== startRevisions[collection]) continue
       // A successful reply only confirms the collection if no local change has
       // invalidated this load's snapshot. Other collections can still advance.
@@ -146,7 +158,10 @@ function createRoomRecordsSync({ onChange }) {
     refreshing = false
     failedCollections = COLLECTIONS.filter(collection => snapshot.collections[collection].kind !== 'success')
     pill = resolvedPill({ background, recordsChanged, confirmedPending })
-    publish(!wasLoaded || recordsChanged || syncedChanged)
+    // Record authors show only when paired, so a pairing change alone is a calendar update.
+    const pairingChanged = (listedRoom.roomStatus === 'paired') !== wasPaired
+    publish(!wasLoaded || recordsChanged || syncedChanged || pairingChanged)
+    return listedStatus
   }
 
   function resolvedPill({ background, recordsChanged, confirmedPending }) {
@@ -186,6 +201,16 @@ function createRoomRecordsSync({ onChange }) {
 
 function syncingPill() {
   return { kind: 'syncing', text: '已更新，正在同步', autoHide: false }
+}
+
+// Pairing comes only from RoomDataClient list results (#191): a brought-back waiting/paired is adopted;
+// a success without one keeps the last value of the same room code and is unpaired for any other code;
+// a failure brings no new value. `held` is { roomCode, roomStatus }; roomStatus '' means unpaired.
+function adoptListedRoomStatus(held, outcome) {
+  const current = held || UNKNOWN_LISTED_ROOM
+  if (!outcome || outcome.kind !== 'success') return current
+  if (outcome.roomStatus) return { roomCode: outcome.roomCode, roomStatus: outcome.roomStatus }
+  return current.roomCode === outcome.roomCode ? current : { roomCode: outcome.roomCode, roomStatus: '' }
 }
 
 function mergeRecordChange(records, record, mode) {
@@ -231,4 +256,4 @@ function getStableRecordIdentity(record) {
   return record._id || record.id || record.date || record.startDate || ''
 }
 
-module.exports = { createRoomRecordsSync }
+module.exports = { createRoomRecordsSync, adoptListedRoomStatus }
