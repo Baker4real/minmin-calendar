@@ -3,6 +3,7 @@ const test = require('node:test')
 
 const { createRoomRecords, FLOW_VALUES, SYMPTOM_VALUES, PERIOD_STATUS_VALUES } = require('../cloudfunctions/dataOp/roomRecords')
 const { FLOW_OPTIONS, SYMPTOM_OPTIONS, PERIOD_STATUS_OPTIONS } = require('../utils/cycle')
+const { createCloudDatabase } = require('./helpers/cloudDatabase')
 
 const SERVER_DATE = { serverDate: true }
 const TODAY = '2026-09-29'
@@ -1223,108 +1224,16 @@ test('RoomRecords accepts switching a known-end record to unknown-end and clears
   assert.equal(db.data.periods.filter(record => record.status === 'ongoing').length, 0)
 })
 
+// 按平台读取行为建模的数据库替身（见 helpers/cloudDatabase.js），带并发竞态用的写入钩子
 function createFakeDb(initial = {}) {
-  const data = {
-    periods: clone(initial.periods || []),
-    memories: clone(initial.memories || [])
-  }
-  let hasNextUpdateResult = false
-  let nextUpdateResult
-
-  return {
-    data,
-    setNextUpdateResult(result) {
-      hasNextUpdateResult = true
-      nextUpdateResult = result
-    },
-    collection(name) {
-      return createCollection(data, name, {
-        beforeUpdate: initial.beforeUpdate,
-        beforeAdd: initial.beforeAdd,
-        beforeWhereUpdate: initial.beforeWhereUpdate,
-        consumeUpdateResult(defaultResult) {
-          if (!hasNextUpdateResult) return defaultResult
-          hasNextUpdateResult = false
-          return nextUpdateResult
-        }
-      })
-    }
-  }
-}
-
-function createCollection(allData, name, { beforeUpdate, beforeAdd, beforeWhereUpdate, consumeUpdateResult } = {}) {
-  return {
-    where(query) {
-      return createQuery(allData[name], query, { beforeWhereUpdate })
-    },
-    async add({ data }) {
-      if (beforeAdd) beforeAdd({ records: allData[name], data })
-      const id = `${name}-${allData[name].length + 1}`
-      allData[name].push({ _id: id, ...clone(data) })
-      return { _id: id }
-    },
-    doc(id) {
-      return {
-        async update({ data }) {
-          if (beforeUpdate) beforeUpdate({ records: allData[name], id })
-          const record = allData[name].find(item => item._id === id)
-          const changed = record && Object.keys(data).some(key =>
-            JSON.stringify(record[key]) !== JSON.stringify(data[key])
-          )
-          if (record) Object.assign(record, clone(data))
-          return consumeUpdateResult({ stats: { updated: changed ? 1 : 0 } })
-        },
-        async remove() {
-          const index = allData[name].findIndex(item => item._id === id)
-          if (index >= 0) allData[name].splice(index, 1)
-          return {}
-        }
-      }
-    }
-  }
-}
-
-function createQuery(records, query, { beforeWhereUpdate } = {}) {
-  let limitCount = null
-  let order = null
-
-  const matches = record =>
-    Object.keys(query).every(key => record[key] === query[key])
-
-  const chain = {
-    limit(count) {
-      limitCount = count
-      return chain
-    },
-    orderBy(field, direction) {
-      order = { field, direction }
-      return chain
-    },
-    async get() {
-      let result = records.filter(matches)
-      if (order) {
-        result = [...result].sort((a, b) => {
-          const comparison = String(a[order.field] || '').localeCompare(String(b[order.field] || ''))
-          return order.direction === 'desc' ? -comparison : comparison
-        })
-      }
-      if (limitCount !== null) result = result.slice(0, limitCount)
-      return { data: clone(result) }
-    },
-    // 条件更新：服务端按当前数据匹配 where 后整批写入
-    async update({ data }) {
-      if (beforeWhereUpdate) beforeWhereUpdate({ records, query })
-      const matched = records.filter(matches)
-      matched.forEach(record => Object.assign(record, clone(data)))
-      return { stats: { updated: matched.length } }
-    }
-  }
-
-  return chain
-}
-
-function clone(value) {
-  return JSON.parse(JSON.stringify(value))
+  return createCloudDatabase({
+    periods: initial.periods || [],
+    memories: initial.memories || []
+  }, {
+    beforeUpdate: initial.beforeUpdate,
+    beforeAdd: initial.beforeAdd,
+    beforeWhereUpdate: initial.beforeWhereUpdate
+  })
 }
 
 function sortedAllowedValues(values) {

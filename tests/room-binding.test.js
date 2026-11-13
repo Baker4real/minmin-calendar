@@ -1103,26 +1103,33 @@ function createCollection(allData, name, nextId, options = {}) {
 
 function createQuery(allData, name, query, options = {}) {
   let limitCount = null
-  let order = null
+  let offset = 0
+  const orders = []
 
   const chain = {
     limit(count) {
       limitCount = count
       return chain
     },
+    skip(count) {
+      offset = count
+      return chain
+    },
+    // 连续的 orderBy 合成一个复合排序，与平台一致
     orderBy(field, direction) {
-      order = [field, direction]
+      orders.push([field, direction])
       return chain
     },
     async get() {
       let result = allData[name].filter(record => matchesQuery(record, query))
-      if (order) {
-        const [field, direction] = order
-        result.sort((left, right) => {
+      result.sort((left, right) => {
+        for (const [field, direction] of orders) {
           const comparison = String(left[field] || '').localeCompare(String(right[field] || ''))
-          return direction === 'desc' ? -comparison : comparison
-        })
-      }
+          if (comparison) return direction === 'desc' ? -comparison : comparison
+        }
+        return 0
+      })
+      result = result.slice(offset)
       if (limitCount !== null) result = result.slice(0, limitCount)
       return { data: clone(result) }
     },

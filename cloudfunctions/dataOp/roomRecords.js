@@ -6,6 +6,8 @@ const FLOW_VALUES = new Set(['light', 'normal', 'heavy'])
 const SYMPTOM_VALUES = new Set(['cramps', 'headache', 'tired', 'mood', 'sleep', 'acne', 'cravings'])
 const PERIOD_STATUS_VALUES = new Set(['ongoing', 'unknown-end', 'known-end'])
 const MAX_NOTE_LENGTH = 500
+// 一次读取的条数：锁定的 SDK（@cloudbase/database 1.4.1 Query.get）未指定条数时只取 100 条，指定时单次最多 1000 条
+const LIST_PAGE_SIZE = 1000
 
 function createRoomRecords({ db, serverDate, today, getOpenid }) {
   const resolveToday = buildTodayResolver(today)
@@ -15,18 +17,19 @@ function createRoomRecords({ db, serverDate, today, getOpenid }) {
     return typeof value === 'string' && value ? value : ''
   }
   return {
+    // 成功就代表该 Room 该集合的全部记录：先按日期倒序、再按记录标识排成全序，逐页读完
     async list({ collection, roomCode }) {
       const order = collection === 'periods'
         ? ['startDate', 'desc']
         : ['date', 'desc']
-      const res = await db.collection(collection)
+      const docs = await readAllPages(db.collection(collection)
         .where({ roomCode })
         .orderBy(order[0], order[1])
-        .get()
+        .orderBy('_id', 'asc'))
       const callerOpenid = resolveCaller()
       return {
         code: 0,
-        data: res.data.map(doc => projectClientRecord(collection, doc, { callerOpenid }))
+        data: docs.map(doc => projectClientRecord(collection, doc, { callerOpenid }))
       }
     },
 
@@ -192,6 +195,23 @@ function createRoomRecords({ db, serverDate, today, getOpenid }) {
       .limit(1)
       .get()
     return existing.data[0] || null
+  }
+}
+
+// 分页读取函数（在 tests/cloudfunction-collection-reads.test.js 登记）：按显式页大小逐页读，读到不满一页为止；
+// 任何一页读取失败都直接抛出，整次读取失败，不返回已读到的部分；同一记录标识只保留第一次出现的那条。
+// 接受的边界：记录数超过一页时才有第二次读取，两次读取之间另一位成员的写入可能让本次结果多一条或少一条，下一次刷新即恢复；不为此增加快照读或游标。
+async function readAllPages(query) {
+  const docs = []
+  const seenIds = new Set()
+  for (let offset = 0; ; offset += LIST_PAGE_SIZE) {
+    const page = await query.skip(offset).limit(LIST_PAGE_SIZE).get()
+    page.data.forEach(doc => {
+      if (seenIds.has(doc._id)) return
+      seenIds.add(doc._id)
+      docs.push(doc)
+    })
+    if (page.data.length < LIST_PAGE_SIZE) return docs
   }
 }
 
