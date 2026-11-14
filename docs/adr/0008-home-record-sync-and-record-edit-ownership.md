@@ -56,7 +56,7 @@ intent: "明确首页同步与记录编辑的目标归属、推翻旧决定的�
 
 **2026-11-11：代码迁移已完成。** `recordCommands` 的 Period/Memory 会话已持有表单、草稿和保存/删除协调；`roomRecordsSync` 已持有首页记录、revision、在途加载和同步状态，两种编辑页与首页仅转发事件并渲染 owner 的输出。当前职责见 [CONTEXT Technical Shape](../../CONTEXT.md#technical-shape)。#176 落地时仅接受目标、尚未迁移的状态是历史基线，不再是当前实现。
 
-迁移将现有协调移交给对应 module，代价是迁移状态所有权和页面接线；收益是同一保存或同步规则只改其 owner，页面的 UI 改动不再同时承担这些规则。页面与 module 不保留两套协调，也未增加通用状态管理框架或运行时依赖；云函数、schema 与远程协议不变。
+迁移将现有协调移交给对应 module，代价是迁移状态所有权和页面接线；收益是同一保存或同步规则只改其 owner，页面的 UI 改动不再同时承担这些规则。页面与 module 不保留两套协调，也未增加通用状态管理框架或运行时依赖；这次迁移没有改动云函数、schema 与远程协议。
 
 #170 建立共享微信平台测试 harness 并先迁移绑定页，#171–#175 已完成其他页面的测试迁移。测试通过真实页面的生命周期和用户事件、可控的 `wx.cloud.callFunction` 应答顺序，观察渲染数据、提示、导航、存储与云调用；Calendar projection seam 保留。新 module 未另增内部测试 seam，页面测试不再依赖私有状态、替换应用 module 或匹配 JS 源码；WXML/WXSS 静态设计守卫保留。
 
@@ -64,9 +64,9 @@ intent: "明确首页同步与记录编辑的目标归属、推翻旧决定的�
 
 ## 2026-11-13 补充：Room 记录全应用共用一份
 
-[epic #189](https://github.com/Baker4real/minmin-calendar/issues/189) 的决定（Implementation Decisions 19–28）：[#193](https://github.com/Baker4real/minmin-calendar/issues/193) 落地共享与 Room 归属，[#194](https://github.com/Baker4real/minmin-calendar/issues/194) 接入记录 tab，[#195](https://github.com/Baker4real/minmin-calendar/issues/195) 接入编辑会话。上文 Decision 第一条的「列表加载入口保留」，以及第二条里「首页」专属和由调用方选择「前台/后台加载」的部分，按本补充改写；区分标准不变。
+[epic #189](https://github.com/Baker4real/minmin-calendar/issues/189) 的决定（Implementation Decisions 19–28）：[#193](https://github.com/Baker4real/minmin-calendar/issues/193) 落地共享与 Room 归属，[#194](https://github.com/Baker4real/minmin-calendar/issues/194) 接入记录 tab，[#195](https://github.com/Baker4real/minmin-calendar/issues/195) 接入编辑会话。上文 Decision 第一条的「列表加载入口保留」，以及第二条里「首页」专属、「创建时接收获取 RoomDataClient 的方式与状态回调」和由调用方选择「前台/后台加载」的部分，按本补充改写；区分标准不变。
 
-**共享范围。** `roomRecordsSync` 从首页专属改为整个小程序共用一份：持有当前 Room 的两类记录、各集合的同步与待确认状态、在途加载和配对状态。首页、记录 tab 和编辑会话都从它读，页面在加载时订阅、卸载时退订。记录 tab 的列表加载入口并入共享记录：记录 tab 显示时请共享记录加载，切换分段不再读取，`recordCommands` 只剩编辑会话。设置页导出不读共享记录，仍顺序读取两类、任何一类失败即停止（ADR-0005）。
+**共享范围。** `roomRecordsSync` 从首页专属改为整个小程序共用一份：在模块里创建一次、不接收参数，自己经 RoomDataClient 读取，持有当前 Room 的两类记录、各集合的同步与待确认状态、在途加载和配对状态。首页、记录 tab 和经期编辑会话都从它读，页面在加载时订阅、卸载时退订；欢乐时光编辑会话不读，只在保存、删除成功后交出记录变化。记录 tab 的列表加载入口并入共享记录：记录 tab 显示时请共享记录加载，切换分段不再读取，`recordCommands` 只剩编辑会话。设置页导出不读共享记录，仍顺序读取两类、任何一类失败即停止（ADR-0005）。
 
 **一个加载入口。** 调用方不再指定前台还是后台：已持有当前 Room 读到过的数据时，任何页面触发的加载都是静默刷新，否则按首次加载。同一 Room 的在途加载由所有调用方共用；请求不超车、按集合的 revision 门（本地改动使在途快照失效）、部分失败和重试文案保持不变。revision 门作废的若是从未同步过的集合的快照，这次加载在结束前把两类再读一次，被作废的快照不当作读取失败呈现。
 

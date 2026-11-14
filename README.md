@@ -56,7 +56,7 @@ Cloud functions live under `cloudfunctions/`; each function has its own `package
 
 部署 Room lifecycle 前运行 `node cloudfunctions\_shared\syncRoomMembershipLifecycle.js --write` 生成四份本地 artifact，并用 `--check` 阻止 canonical 与部署内容漂移。发布时应进入维护窗口，先把 `createRoom`、`joinRoom`、`getMyRoom` 作为同版一组发布，再发布 `leaveRoom`，避免新旧版本混跑。回滚按反向顺序：先恢复 `leaveRoom`，再同版恢复前三个云函数。`membershipId` 可选且旧版本可忽略，无需强制 backfill 或数据回滚；但旧版本运行期间不会维护成员锁，再次前滚前必须重跑锁一致性检查并补齐缺失锁。2026-07-10 已按该函数顺序部署到 `cloud1-d8gyqvcez4e66b3da`，完成 `roomMembers` 基础锁回填、`rooms.roomCode` 唯一索引、部署产物 hash 和实际 SDK 版本核验；带真实微信 `OPENID` 的 transaction retry、并发冲突和完整业务 E2E 仍需在小程序上下文中验证，本地测试或无用户上下文的 CLI invoke 不能替代这些信号。
 
-2026-08-12 的架构深化已合并到当前 `main`（`159ed78` 及后续收尾提交）；本地测试和静态检查已验证，但当前仓库没有这批提交对应的新云函数部署或线上 live verification 凭证。需要发布时，仍按上面的维护窗口顺序部署并单独记录远端产物、依赖版本和真实小程序上下文 smoke 结果。
+截至 2026-11-14：`dataOp` 已按 `22e34a8` 部署（官方 CLI，只部署 `dataOp`），部署后下载回读与仓库逐字节一致，依赖仍解析为上面三个版本；之后在绑定真实 Room 的开发者工具模拟器里核对了列表、配对状态、增删改、导出和耗时（#192）。Room 生命周期四个函数和 `_shared` 自 2026-07-10 部署后没有改动；`login` 没有部署记录。另一位成员一侧的记录作者、手机上已发布旧版的读写仍未验证。再部署时，Room 生命周期函数仍按上面的维护窗口顺序发布，并单独记录远端产物、依赖版本和真实小程序上下文的核对结果。
 
 各云函数最后一次有记录的部署见 `docs/verification-log.md` 的「云函数部署现状」表；每次部署后更新它。
 
@@ -89,7 +89,7 @@ npm run verify
 
 #169 的页面行为测试经 `tests/helpers/miniProgram.js` 这一份微信平台 harness，或 `buildHomeCalendarState` 的纯 projection 表格验证。`tests/test-seam-guardrail.test.js` 随完整测试运行：迁移预算 `BUDGET` 已清空，只保留两处 JS 源码读取例外：Room lifecycle 云函数的部署打包，以及 `tests/cloudfunction-collection-reads.test.js` 对云函数集合读取条数上限的静态检查；WXML/WXSS 设计守卫与既有公开 interface 测试继续保留。harness 同样约束原生确认按钮文案最多四个汉字。
 
-WXML/WXSS 设计守卫只钉不变量：DESIGN 规定的对比度下限在实际合成底上成立；声明了动画或过渡的选择器在减弱动效下有覆盖，且覆盖在层叠里排在声明之后；颜色只经 token，不出现 token 之外的裸色值；已退役的缓动、token 和符号不再出现；DESIGN 写明的预算类上限；读屏语义（可点元素的角色与读屏名、选中与禁用状态、弹层的读屏边界）；可点控件带自己的 hover-class，并和 `:active` 写在同一条规则里；触控目标不低于下限。纯视觉调整让钉字面量的断言变红时，删掉该断言，不改数字；变红的是上述不变量时，改样式。把下限写成相等的断言改成下限比较；其余护栏文件随改随删，不做一次性清理。
+WXML/WXSS 设计守卫只钉不变量：DESIGN 规定的对比度下限在实际合成底上成立；声明了动画或过渡的选择器在减弱动效下有覆盖，且覆盖在层叠里排在声明之后，状态通道在减弱动效下仍看得出；十六进制颜色只取 DESIGN.md 色板，玫瑰实色填充和页面里的金色只经 token，渐变填充和阴影色只用登记过的；一次性动效的时长与曲线只经共享 token，JS 里的时长常量与对应的样式 token 一致；已退役的缓动、token 和符号不再出现；DESIGN 写明的预算类上限；读屏语义（可点元素的角色与读屏名、选中与禁用状态、弹层的读屏边界）；可点控件带自己的 hover-class，并和 `:active` 写在同一条规则里，按压缩放落在 DESIGN 登记的区间内；登记的触控目标不低于下限。纯视觉调整让钉字面量的断言变红时，删掉该断言，不改数字；变红的是上述不变量时，改样式。把下限写成相等的断言改成下限比较；其余护栏文件随改随删，不做一次性清理。
 
 首次检出及 Playwright 版本升级后运行 `npm run release:prepare`；仅补装浏览器时可用 `npm run browser:install`，缓存位置按上面的检出类型解析。日常输出只显示结果、测试条数和日志路径；完整门禁日志在 `.scratch/verify/`，依赖原文在 `.scratch/dependencies/`，发布准备日志和结果在 `.scratch/release-prepare/`，坐标与截图证据在 `.scratch/coordinate-hit/`。这些入口覆盖各自最近一次结果；CI 失败时归档上述诊断目录。任何检查失败均退出非零。`npm test`、`npm run check`、`npm run test:hit` 可用于单独定位，不能代替完整验收。定向用例优先用 `npm run verify:target -- --tests tests/capture-evidence.test.js,tests/devtools-cli.test.js [--name '用例正则']`：复用完整日志写盘，只返回计数和有界失败片段，日志在 `.scratch/verify-target/tests.log`；文件重复、非法路径或零匹配均失败，不能把 Node 的文件包装行当作有效用例。预期测试红灯保留真实非零退出；retro 审计用 `--expected-exit <原始结果行号>:<退出码>` 标记，不能把其他失败一起豁免。
 
