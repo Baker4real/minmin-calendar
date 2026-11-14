@@ -13,6 +13,7 @@ const {
   listWxssFiles,
   parseWxssRules
 } = require('./designTokens')
+const { wxmlElementTree } = require('./wxmlTemplate')
 
 const repoRoot = path.join(__dirname, '..')
 
@@ -398,6 +399,39 @@ test('every :active selector is paired with its hover-class in the same rule', (
         if (!rule.selectors.includes(paired)) {
           violations.push(`${relative} ${selector} is missing ${paired}`)
         }
+      }
+    }
+  }
+  assert.deepEqual(violations, [])
+})
+
+// issue #122：开发者工具按 hover-class 画按压，只写 :active 不画。每个可点控件（bindtap/catchtap，
+// 弹层面板挡冒泡的 catchtap="noop" 除外）带 hover-class：自己的一个类名加 -hover，并写进 :active 规则。
+function tapControls(nodes, found = []) {
+  for (const node of nodes) {
+    const handler = node.attrs.bindtap || node.attrs.catchtap
+    if (handler && handler !== 'noop') found.push(node)
+    tapControls(node.children, found)
+  }
+  return found
+}
+
+test('every tappable control carries its own hover-class, painted by an :active rule', () => {
+  const activeClasses = new Set(listWxssFiles(repoRoot).flatMap((file) =>
+    parseWxssRules(fs.readFileSync(file, 'utf8'))
+      .filter((rule) => rule.selectors.some((selector) => selector.includes(':active')))
+      .flatMap((rule) => rule.selectors.flatMap((selector) => selector.match(/\.[\w-]+/g) || []))))
+  const violations = []
+  for (const file of listWxmlFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    for (const control of tapControls(wxmlElementTree(fs.readFileSync(file, 'utf8')))) {
+      const label = `${relative} <${control.tag} class="${control.attrs.class || ''}">`
+      const hover = control.attrs['hover-class'] || ''
+      const stem = hover.endsWith('-hover') ? hover.slice(0, -'-hover'.length) : ''
+      if (!stem || !control.classes.includes(stem)) {
+        violations.push(`${label} hover-class=${hover || '(missing)'}`)
+      } else if (!activeClasses.has(`.${hover}`)) {
+        violations.push(`${label} hover-class ${hover} is in no :active rule`)
       }
     }
   }
