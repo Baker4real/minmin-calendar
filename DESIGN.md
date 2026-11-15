@@ -278,7 +278,7 @@ Primary fill (`.btn-premium`, `.copy-btn`): rose `#E8909E` fill, label `#0A0E27`
 
 Prediction metadata, reminder cards, and period tag chips stay compact and low-noise. Interactive chips need at least a 44px touch target; active chips use navy type on rose. Calendar cell states are listed under 借入规则; a visual mark still means only one thing.
 
-记录 tab 的经期分段（issue #187）按「年份标题 → 月份玻璃卡 → 经期行」排列；只显示有记录的年月。年份标题使用 body-lg 字号、title 字重与次要文字色，年份之间留 28rpx，标题下留 12rpx；按 2026-11-12 的追加要求，整行提供至少 88rpx 的展开／收起触控区，操作字用玫瑰色，读屏名包含年份、展开状态与操作。年／月均默认展开，选择仅在页面内存保留；收起年份不改月份选择，保存成功同时展开目标年和月。月份沿用 `.month-header`、`.month-toggle` 的字号、触控高度、对比度和即时折叠，不增加一套卡面；卡头只显示月份，读屏名包含完整年月。经期行保留日期范围、状态、时长、作者、经量、症状及备注；欢乐时光分段沿用既有完整年月卡头与默认展开窗口。
+记录 tab 的经期分段（issue #187）按「年份标题 → 月份玻璃卡 → 经期行」排列；只显示有记录的年月。年份标题使用 body-lg 字号、title 字重与次要文字色，年份之间留 28rpx，标题下留 12rpx；按 2026-11-12 的追加要求，整行提供至少 88rpx 的展开／收起触控区，操作字用玫瑰色，读屏名包含年份、展开状态与操作。年／月均默认展开，选择仅在页面内存保留；收起年份不改月份选择，保存成功同时展开目标年和月。月份沿用 `.month-header`、`.month-toggle` 的字号、触控高度、对比度和即时折叠，不增加一套卡面；卡头只显示月份，读屏名包含完整年月。经期行保留日期范围、状态、时长、作者、经量、症状及备注；欢乐时光分段沿用既有完整年月卡头；按 2026-11-14 的用户要求，月份卡默认全部收起（卡头仍显示年月、条数与第一条备注摘要），取代 issue #143 的最近三个有记录月份默认展开，手动选择与保存后展开所在月份的规则不变。
 
 ## 警示红语义
 

@@ -15,7 +15,7 @@ Page(withPageVisibility({
   data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), segment: 'period', periods: [], periodGroups: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memories: [], memoryGroups: [], memoryLoading: true, memoryLoadFailed: false, memoryHasLoaded: false },
 
   // 欢乐时光月份卡的展开选择（issue #109）：页面内存按月份键记「用户点过卡头」的月份，
-  // 值为 memoryMonthGroups.EXPANDED / COLLAPSED；没点过的月份走默认规则（展开最近三个有记录的月份）。
+  // 值为 memoryMonthGroups.EXPANDED / COLLAPSED；没点过的月份默认收起。
   // 不写本地存储，小程序重启后自然恢复默认
   memoryMonthChoices: {},
   periodMonthChoices: {},
@@ -137,7 +137,7 @@ Page(withPageVisibility({
       periods,
       periodGroups: buildPeriodGroups(periods, this.periodMonthChoices, this.periodYearChoices),
       memories,
-      // 欢乐时光月份分组（issue #108）；展开状态由页面内存的手动选择推导（issue #109）：没点过的月份走默认规则
+      // 欢乐时光月份分组（issue #108）；展开状态由页面内存的手动选择推导（issue #109）：没点过的月份收起
       memoryGroups: memoryMonthGroups.applyMemoryMonthExpansion(
         memoryMonthGroups.buildMemoryMonthGroups(memories.map(memory => withAuthorLabel(memory, paired)), { today }),
         this.memoryMonthChoices

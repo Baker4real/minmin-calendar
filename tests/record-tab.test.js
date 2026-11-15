@@ -538,7 +538,7 @@ test('memory month cards sort across years, preserve same-day records and match 
   ])
   assert.deepEqual(groups[0].records.map(row => [row._id, row.dayLabel]), [['a1', '10月8日'], ['a2', '10月8日'], ['first', '10月1日']])
   assert.equal(groups[0].records[1].note, '')
-  assert.equal(groups[0].ariaLabel, '2026年10月，3 条欢乐时光，已展开')
+  assert.equal(groups[0].ariaLabel, '2026年10月，3 条欢乐时光，海边散步，已收起')
   assert.equal(groups[2].records[0].dayLabel, '2025年12月31日')
   const { buildHomeCalendarState } = require('../utils/homeCalendarState')
   const projection = buildHomeCalendarState({ year: 2026, month: 9, today: '2026-10-20', periods: [], memories: records })
@@ -781,12 +781,13 @@ const monthRecords = [
 ]
 const expansion = page => page.data.memoryGroups.map(group => [group.key, group.expanded])
 
-test('month headers toggle without navigation, retain choices across switches and refresh, and move the default window', async (t) => {
+test('month headers start collapsed, toggle without navigation, retain choices across switches and refresh, and new months arrive collapsed', async (t) => {
   const app = setup(t, { segment: 'memory' })
   list(app, 'memories').reply({ code: 0, data: monthRecords })
   const page = app.launch(route)
   await app.flush()
-  assert.deepEqual(expansion(page), [['2026-09', true], ['2026-08', true], ['2026-07', true], ['2026-06', false], ['2026-05', false]])
+  assert.deepEqual(expansion(page), [['2026-09', false], ['2026-08', false], ['2026-07', false], ['2026-06', false], ['2026-05', false]])
+  assert.equal(page.data.memoryGroups[0].ariaLabel, '2026年9月，1 条欢乐时光，九月晚餐，已收起')
   const june = page.data.memoryGroups[3]
   assert.equal(june.excerpt, '六月海边 傍晚')
   assert.equal(june.ariaLabel, '2026年6月，2 条欢乐时光，六月海边 傍晚，已收起')
@@ -795,18 +796,20 @@ test('month headers toggle without navigation, retain choices across switches an
   const navigationCount = app.navigation.length
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-06' }))
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-09' }))
+  await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-08' }))
+  await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-08' }))
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2030-01' }))
   assert.equal(app.navigation.length, navigationCount)
   assert.equal(page.data.memoryGroups[3].toggleLabel, '收起')
   assert.equal(page.data.memoryGroups[3].ariaLabel, '2026年6月，2 条欢乐时光，已展开')
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'period' }))
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
-  assert.deepEqual(expansion(page), [['2026-09', false], ['2026-08', true], ['2026-07', true], ['2026-06', true], ['2026-05', false]])
+  assert.deepEqual(expansion(page), [['2026-09', true], ['2026-08', false], ['2026-07', false], ['2026-06', true], ['2026-05', false]])
   list(app, 'memories').reply({ code: 0, data: [{ _id: 'oct', date: '2026-10-05', note: '十月' }, ...monthRecords] })
   app.hide()
   app.show()
   await app.flush()
-  const expected = [['2026-10', true], ['2026-09', false], ['2026-08', true], ['2026-07', false], ['2026-06', true], ['2026-05', false]]
+  const expected = [['2026-10', false], ['2026-09', true], ['2026-08', false], ['2026-07', false], ['2026-06', true], ['2026-05', false]]
   assert.deepEqual(expansion(page), expected)
   list(app, 'memories').reject(new Error('network down'))
   app.respondNext('showModal', { confirm: false })
@@ -1054,7 +1057,7 @@ test('memory add and move expand the saved older month after returning from the 
   list(app, 'memories').reply({ code: 0, data: records })
   await app.dispatch(app.currentPage, 'save')
   await app.flush()
-  assert.deepEqual(expansion(page), [['2026-08', true], ['2026-07', true], ['2026-06', true], ['2026-05', true]])
+  assert.deepEqual(expansion(page), [['2026-08', false], ['2026-07', false], ['2026-06', true], ['2026-05', true]])
   assert.equal(page.data.memoryGroups.at(-1).records[0].dayLabel, '5月9日')
 })
 
@@ -1078,6 +1081,6 @@ test('deleting rows through the editor removes an emptied month and retains othe
     app.dispatch(app.currentPage, 'delete')
     await app.flush()
     assert.equal(app.currentPage, page)
-    assert.deepEqual(expansion(page), id === 'sep2' ? [['2026-10', false], ['2026-09', true]] : [['2026-10', false]])
+    assert.deepEqual(expansion(page), id === 'sep2' ? [['2026-10', true], ['2026-09', false]] : [['2026-10', true]])
   }
 })

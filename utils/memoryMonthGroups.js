@@ -19,11 +19,10 @@ function firstNoteExcerpt(records) {
 }
 
 // 展开选择的两个取值（issue #109）：页面内存按月份键记「用户点过卡头」的月份，
-// 值只有这两个；收敛为模块常量，页面写选择与这里的展开推导共用同一对值
+// 值只有这两个；收敛为模块常量，页面写选择与这里的展开推导共用同一对值。
+// 没被手动点过的月份一律收起（2026-11-14 用户要求，取代 #143 的「最近三个有记录的月份默认展开」）
 const EXPANDED = 'expanded'
 const COLLAPSED = 'collapsed'
-// 没被手动点过的月份：最近三个有记录的月份默认展开（issue #143，修订 #109 的「只展开最近一个月」）
-const DEFAULT_EXPANDED_MONTHS = 3
 
 /**
  * 欢乐时光月份分组（Memory month group，issue #108/#107）：
@@ -81,22 +80,18 @@ function buildMemoryMonthGroups(memories, options = {}) {
 }
 
 /**
- * 展开推导（issue #109，默认窗口由 #143 改为三个月）：月份卡的展开/收起是显示状态，
- * 不进数据、不落本地存储。默认展开最近三个有记录的月份（不足三个则全部展开；
- * 本月没记录时窗口从最近一个有记录的月份往回数）。
- * 用户手动点过卡头的月份按月份键覆盖（页面内存持有 choices，见 period.js）。
- * 出现更新的月份时窗口前移：仍落在窗口里、且没点过的月份保持展开；
- * 被挤出窗口、且没点过的月份收起。手动展开或收起的月份不因窗口移动而改口。
+ * 展开推导（issue #109；默认收起见上方常量处）：月份卡的展开/收起是显示状态，
+ * 不进数据、不落本地存储。所有月份默认收起，卡头只露出年月、条数与第一条备注摘要；
+ * 用户手动点过卡头的月份按月份键覆盖（页面内存持有 choices，见 period.js），
+ * 保存成功后页面把保存结果所在月份记为展开。新出现的月份同样收起，已点过的月份不受影响。
  * 幂等：对已装饰的分组重复应用结果不变（toggle 只翻转目标月份的选择）。
  * 卡头读屏名「YYYY年M月，N 条欢乐时光，已展开/已收起」由本函数独家产出——
  * 展开态只有这里有，build 不写死一版再被覆写。
  */
 function applyMemoryMonthExpansion(groups, choices) {
   const manual = choices || {}
-  return (Array.isArray(groups) ? groups : []).map((group, index) => {
-    const expanded = Object.prototype.hasOwnProperty.call(manual, group.key)
-      ? manual[group.key] === EXPANDED
-      : index < DEFAULT_EXPANDED_MONTHS
+  return (Array.isArray(groups) ? groups : []).map(group => {
+    const expanded = manual[group.key] === EXPANDED
     const status = expanded ? '已展开' : '已收起'
     const detail = !expanded && group.excerpt ? `${group.excerpt}，${status}` : status
     return {

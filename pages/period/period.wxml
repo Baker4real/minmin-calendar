@@ -119,7 +119,7 @@
         <view class="retry-btn" hover-class="retry-btn-hover">重试</view>
       </view>
       <!-- 欢乐时光月份分组（issue #108）：每月一张玻璃卡，卡头写年月与条数；
-           点卡头切换展开/收起，默认展开最近三个有记录的月份，收起时组内行不渲染（issue #143） -->
+           点卡头切换展开/收起，默认全部收起（2026-11-14 取代 #143 的最近三个月默认展开），收起时组内行不渲染 -->
       <view wx:if="{{memories.length > 0 && !memoryLoading}}" class="memory-month-list">
         <view class="premium-card month-card" wx:for="{{memoryGroups}}" wx:key="key" wx:for-item="group">
           <view class="month-header" bindtap="toggleMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-class="month-header-hover">
