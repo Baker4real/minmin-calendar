@@ -56,7 +56,9 @@ spec 发布为 epic 父票后，在 `docs/specs/<发布日期>-<slug>.md` 留一
 | Batch `gh issue create` (e.g. publishing sub-tickets) returns GraphQL `EOF` | Before retrying, list open issues and match the exact title: the issue is often already created. Reuse it if found; otherwise retry the create once. After the batch, read back every ticket's `parent` and `blockedBy` (`gh issue view <n> --json 'parent,blockedBy'`) and repair gaps with `gh issue edit <n> --parent <p>` / `--add-blocked-by '<list>'`. Quote comma lists so PowerShell passes each as one argument. | Stop at the first ticket that still fails, report the created numbers so far, and do not create later tickets that would reference it. |
 | A screenshot or other file will not upload to `uploads.github.com` | Commit the file on the branch that holds the work, under `docs/evidence/issue-<n>/`, and add an image to `ALLOWED_IMAGES` in `tests/tracked-images.test.js` with a note on what it shows; push that branch, and put the raw URL in the issue comment. | Leave the ticket open and say the file is only on disk. Do not keep retrying the upload API. |
 
-The repository and its issues are public, so anything posted to an issue or committed here is public. Crop each screenshot to the control under test, or swap in stand-in data before capturing: real period dates and counts, prediction ranges, memory hearts, notes, room codes, tokens, and other secrets stay off GitHub.
+The repository and its issues are public, so anything posted to an issue or committed here is public. Crop each screenshot to the control under test, or capture on a stand-in Room (`npm run devtools:standin`, see [替身 Room](../devtools-verification.md#替身-room)): real period dates and counts, prediction ranges, memory hearts, notes, room codes, tokens, and other secrets stay off GitHub.
+
+Evidence that names a test quotes its title exactly as written in `test('…')` and adds its `file:line`, so a reader can find the test again; check each quoted title against the file before posting.
 
 ## Local Scratch Notes
 

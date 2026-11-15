@@ -126,7 +126,15 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 
 选择器 `tap()` 可能绕过命中遮挡。验证“按钮点不到”时，CSS 坐标回归之外还需在微信中实际坐标点击或人工点击；菜单打开、图例交接、关闭等状态流可用选择器自动化验证。截图若出现空白或未完成状态，先确认目标页面已就绪再重截，不能将文件写入成功当作界面验收。
 
-automator 驱动时，由页面内 `wx.navigateTo` 打开的页面常常退不回：小程序内 `wx.navigateBack` 报 ok，页面栈却不变，点导航栏返回也一样。2026-11-14 记录 tab 的 `editPeriod` 打开的编辑页 6/6 退不回，automator `navigateTo` 打开的 5/5 都退回；同一个删除流程在后一种页面上 4/4 退回记录 tab，前一种 1/1 卡住，导航代码当时没有改动，所以这不是删除流程的故障（真机未验证）。脚本要走「打开 → 保存或删除 → 返回」时，先用 `mockWxMethod('navigateTo', …)` 记下入口拼出的 URL 且不跳转，再用 automator 按这个 URL 打开，页面拿到的参数与点入口相同。`restoreWxMethod` 只对本次 mock 过的方法调用：对没 mock 过的方法，它会把方法置成 `undefined`（2026-11-14 `showModal`、`navigateTo` 因此消失，用 `devtools:cli` 关闭并重开项目后恢复）。
+automator 驱动时，由页面内 `wx.navigateTo` 打开的页面常常退不回：小程序内 `wx.navigateBack` 报 ok，页面栈却不变，点导航栏返回也一样。2026-11-14 记录 tab 的 `editPeriod` 打开的编辑页 6/6 退不回，automator `navigateTo` 打开的 5/5 都退回；同一个删除流程在后一种页面上 4/4 退回记录 tab，前一种 1/1 卡住，导航代码当时没有改动，所以这不是删除流程的故障（真机未验证）。替身 Room 的 `openFrom` 按这条打开编辑页：入口照常运行，`wx.navigateTo` 只记下入口拼出的 URL、不跳转，再由 automator 按这个 URL 打开，页面拿到的参数与点入口相同。`restoreWxMethod` 只对本次 mock 过的方法调用：对没 mock 过的方法，它会把方法置成 `undefined`（2026-11-14 `showModal`、`navigateTo` 因此消失，用 `devtools:cli` 关闭并重开项目后恢复）；替身 Room 的 `restoreWx` 只还原自己 mock 过的方法，结束时回读这些 `wx` 方法仍在。
+
+### 替身 Room
+
+开发者工具登的是维护者的真实微信号，绑的是真实房间。运行态要走读写流程，或要截能外发的图时，用 `tests/tools/devtoolsStandin.mjs`：`npm run devtools:standin -- --demo` 跑一遍自带演示，自写脚本用其中的 `withStandin`，用法见文件头注释。它先快照全部本地存储，把小程序里的 `wx.cloud` 整个换成替身，所有云函数都由替身应答（房间码 `ABC123`，记录 id 以 `standin-` 开头）；经应用自己的模块证明拦截生效后才放行。结束时还原存储和 `wx.cloud`，按快照哈希核对，再回到首页。截图前扫描页面数据，出现非替身记录或真实房间码就拒绝截图。
+
+- 编辑页：先 `goto` 到 tab 页，再 `openFrom('<入口方法>', 参数)` 打开；保存、删除和返回都回到这个 tab 页。
+- 进程被强杀、存储没还原时：`npm run devtools:standin -- --restore` 放回快照；下一次启动也会先做这一步。
+- 截图、`captures.jsonl` 和恢复文件都在 `.scratch/standin/`。
 
 ### UI 收尾清单
 
@@ -136,4 +144,4 @@ automator 驱动时，由页面内 `wx.navigateTo` 打开的页面常常退不�
 - **页面状态与密度**：日历改动覆盖完整、清爽两种密度，并按改动面覆盖单日、连续段和今天态；其他页面改动覆盖受影响状态。只读 GUI 截图只能证明当时可见画面。
 - **关键交互**：按改动面走完相关端到端流程；选择器 `tap()` 的状态变化不证明实际坐标可达。
 - **交付报告**：逐项写明已验证与未验证内容。缺少密度或关键交互证据时，明确列出缺口，不写笼统的「全部验证通过」。
-- **证据外发**：开发者工具用维护者的微信号运行，绑定的是真实房间，截图里的日历、统计和实读到的日期、条数都是真实记录。证据留在 `.scratch/`；贴进 issue 或提交进仓库前，按 [Issue Tracker](agents/issue-tracker.md) 的证据规则裁到被测控件或换成替身数据。
+- **证据外发**：开发者工具用维护者的微信号运行，绑定的是真实房间，截图里的日历、统计和实读到的日期、条数都是真实记录。证据留在 `.scratch/`；贴进 issue 或提交进仓库前，按 [Issue Tracker](agents/issue-tracker.md) 的证据规则裁到被测控件或换成替身数据（用上面的替身 Room）。

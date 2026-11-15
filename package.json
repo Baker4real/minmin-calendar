@@ -22,7 +22,8 @@
     "devtools:resources": "node tests/tools/devtoolsResources.mjs",
     "devtools:timeline": "node tests/tools/devtoolsTimeline.mjs",
     "devtools:cli": "node tests/tools/devtoolsCli.mjs",
-    "devtools:mcp": "node tests/tools/wechatMcp.mjs"
+    "devtools:mcp": "node tests/tools/wechatMcp.mjs",
+    "devtools:standin": "node tests/tools/devtoolsStandin.mjs"
   },
   "devDependencies": {
     "jimp": "file:tests/tools/automator-image",
