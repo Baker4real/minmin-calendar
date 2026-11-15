@@ -126,7 +126,7 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 
 选择器 `tap()` 可能绕过命中遮挡。验证“按钮点不到”时，CSS 坐标回归之外还需在微信中实际坐标点击或人工点击；菜单打开、图例交接、关闭等状态流可用选择器自动化验证。截图若出现空白或未完成状态，先确认目标页面已就绪再重截，不能将文件写入成功当作界面验收。
 
-automator 驱动时，由页面内 `wx.navigateTo` 打开的页面常常退不回：小程序内 `wx.navigateBack` 报 ok，页面栈却不变，点导航栏返回也一样。2026-11-14 记录 tab 的 `editPeriod` 打开的编辑页 6/6 退不回，automator `navigateTo` 打开的 5/5 都退回；同一个删除流程在后一种页面上 4/4 退回记录 tab，前一种 1/1 卡住，导航代码当时没有改动，所以这不是删除流程的故障（真机未验证）。替身 Room 的 `openFrom` 按这条打开编辑页：入口照常运行，`wx.navigateTo` 只记下入口拼出的 URL、不跳转，再由 automator 按这个 URL 打开，页面拿到的参数与点入口相同。`restoreWxMethod` 只对本次 mock 过的方法调用：对没 mock 过的方法，它会把方法置成 `undefined`（2026-11-14 `showModal`、`navigateTo` 因此消失，用 `devtools:cli` 关闭并重开项目后恢复）；替身 Room 的 `restoreWx` 只还原自己 mock 过的方法，结束时回读这些 `wx` 方法仍在。
+automator 驱动时，由页面内 `wx.navigateTo` 打开的页面常常退不回：小程序内 `wx.navigateBack` 报 ok，页面栈却不变，点导航栏返回也一样。2026-11-14 记录 tab 的 `editPeriod` 打开的编辑页 6/6 退不回，automator `navigateTo` 打开的 5/5 都退回；同一个删除流程在后一种页面上 4/4 退回记录 tab，前一种 1/1 卡住，导航代码当时没有改动，所以这不是删除流程的故障（真机未验证）。替身 Room 的 `openFrom` 按这条打开编辑页：入口照常运行，`wx.navigateTo` 只记下入口拼出的 URL、不跳转，再由 automator 按这个 URL 打开，页面拿到的参数与点入口相同。`restoreWxMethod` 只对本次 mock 过的方法调用：对没 mock 过的方法，它会把方法置成 `undefined`（2026-11-14 `showModal`、`navigateTo` 因此消失，用 `devtools:cli` 关闭并重开项目后恢复）；替身 Room 的 `restoreWx` 只还原自己 mock 过的方法，结束时回读这些 `wx` 方法仍在。automator 的 `page.callMethod` 在记录 tab 上报 `this.<方法名> is not a function`，方法其实就在页面实例上（2026-11-15，基础库 3.18.0）：要调页面方法时，在小程序内取 `getCurrentPages()` 的末页调用，替身 Room 的 `openFrom` 和 `callMethod` 步骤都这样做。
 
 ### 替身 Room
 
