@@ -19,7 +19,7 @@ intent: "连接与资源诊断、官方 CLI/MCP 入口及 GUI 验收边界"
 | CLI 未确认登录或超时 | 检查 IDE 登录与服务端口；脚本 10 秒后退出，保留诊断摘要。 |
 | CLI 正常，9420 未监听 | 运行下面的 `auto` 命令一次；若仍停在 preparing，使用 MCP 备用路径。 |
 | 9420 已监听 | 运行 `devtoolsCapture.mjs --ws`；握手超过 15 秒即失败，转 MCP。 |
-| `DevTools project window` 为 FAIL，或 CLI 与 9420 都正常、截图却报 `fail to capture screenshot` 或等 `.page` 渲染超时 | 项目窗口最小化时截图会失败（2026-11-04 实测）：请维护者还原窗口，重跑预检后再截。窗口正常仍失败时，看是否有别的程序窗口挡住模拟器区域，同样请维护者处理；还失败就停下，报失败行和截图目录。SKIP 表示没找到这个窗口，先在开发者工具里打开项目。本机排查记录见知识库「微信开发者工具 CLI 自动化验收环境坑」。 |
+| `DevTools project window` 为 FAIL，或 CLI 与 9420 都正常、截图却报 `fail to capture screenshot` 或等 `.page` 渲染超时 | 项目窗口最小化时截图会失败（2026-11-04 实测）：请维护者还原窗口，重跑预检后再截。最小化只挡截图，页面数据、选择器查询和元素 tap 照常（2026-11-14 用 automator、11-15 用 MCP 的 `getData`、`querySelectorAll` 实测）；只需核对运行态时不必等还原，用 MCP 的 `automation_page_action` 读数据、数元素，`automation_element_action` 点元素，截图在交付报告里记为未验证。窗口正常仍失败时，看是否有别的程序窗口挡住模拟器区域，同样请维护者处理；还失败就停下，报失败行和截图目录。SKIP 表示没找到这个窗口，先在开发者工具里打开项目。本机排查记录见知识库「微信开发者工具 CLI 自动化验收环境坑」。 |
 | `Latest app launch loaded a page` 报 `without loading a page`，或 console 报 `routeDone with a webviewId N is not found` | 最近一次逻辑层启动只跑了 `App onLaunch`，没加载任何页面；CLI 和 9420 照常应答，页面逻辑却要到下一次编译才恢复。常见于开发者工具刚启动的一分钟内（2026-11-07 实测）。等调试面板加载完，在开发者工具里点一次「编译」后重跑预检。SKIP 表示日志里还没有启动记录，或启动不到 5 秒还没写页面记录（日志每 3 秒落盘），稍后重跑。排查记录见知识库「微信开发者工具重载竞态与基础库本地补丁」。 |
 | `Latest app launch loaded a page` 报 `page code never ran`，或 console 报 `module '<路径>.js' is not defined, require args is '<相对路径>'`（常跟着 `Component is not found in path "wx://not-found"`），而这个文件在磁盘上、已入 git | 开发者工具的增量编译漏掉了这个模块，常见于开着项目时 git 一次写进新模块和引用它的页面（2026-11-08 那次是 rebase，开发者工具 2.02.2609250）；`npm run devtools:timeline` 能看到编译前的那批 `onFileChange add`。请维护者关闭并重新打开项目后重跑预检；只改修改时间或改名再改回都会触发重编译，但恢复不了。判据：页面没注册时框架照样记 onLoad，但每个页面的 data 都用 safeArea 调 `wx.getWindowInfo`，所以正常启动在第一个页面的 onLoad 之前有这条调用，漏掉时一条 API 调用都没有。 |
 | 只需外观确认，automator / MCP 均不可用 | 在任务已授权只读截图与窗口激活时，Kimi Code 可用 `kimi-cu-win` 直接按「微信开发者工具」定位窗口，最小化时先激活再截图；只证明当时可见画面，不证明实际视口、交互或小屏验收。 |
@@ -41,7 +41,7 @@ node tests/devtoolsCapture.mjs --ws ws://127.0.0.1:9420 --states 'home,home:tool
 
 ```powershell
 npm --silent run devtools:cli -- cloud-list --env <云环境 ID> --timeout 30000
-npm --silent run devtools:cli -- cloud-info --env <云环境 ID> --names dataOp,joinRoom --timeout 30000
+npm --silent run devtools:cli -- cloud-info --env <云环境 ID> --names 'dataOp,joinRoom' --timeout 30000
 ```
 
 `cloud-list` 列出云端已有的云函数；`cloud-info` 返回每个函数的状态、超时秒数和运行时（2026-11-11 实测只有这三项）。它们不返回部署时间、代码摘要或依赖版本，回答不了「线上跑的是哪一版」：那要在云开发控制台或真实小程序上下文里核对，结果记进 `docs/verification-log.md` 的「云函数部署现状」表。官方 CLI 查询失败时也退出 0，本入口按输出里有没有成功行判定，成功行的符号是 `√` 或 `✔`（随终端环境变化）；`cloud-info` 部分函数失败时，CLI 打的是警告符号而不是成功行，本入口同样判为 `failed`。失败时 `status` 为 `failed`、退出码 1，`output` 是错误原文。`deploy`、`inc-deploy`、`download` 不放行。
