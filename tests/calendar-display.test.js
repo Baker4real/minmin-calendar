@@ -121,17 +121,29 @@ test('getChineseDateMeta marks lunar text and official holidays across years', (
   )
 })
 
+test('getChineseDateMeta marks published 2027 off-days and adjusted workdays', () => {
+  const offDay = util.getChineseDateMeta('2027-01-03')
+  assert.equal(offDay.holidayName, '元旦')
+  assert.equal(offDay.isHoliday, true)
+  assert.equal(offDay.isWorkday, false)
+
+  const adjustedWorkday = util.getChineseDateMeta('2027-01-31')
+  assert.equal(adjustedWorkday.holidayName, '')
+  assert.equal(adjustedWorkday.isHoliday, false)
+  assert.equal(adjustedWorkday.isWorkday, true)
+})
+
 test('getChineseDateMeta does not infer adjusted workdays beyond published holiday data', () => {
   assert.equal(chinaHolidays.PUBLISHED_HOLIDAY_START_YEAR, 2001)
-  assert.equal(chinaHolidays.PUBLISHED_HOLIDAY_END_YEAR, 2026)
-  assert.equal(chinaHolidays.hasPublishedHolidayYear(2026), true)
-  assert.equal(chinaHolidays.hasPublishedHolidayYear(2027), false)
+  assert.equal(chinaHolidays.PUBLISHED_HOLIDAY_END_YEAR, 2027)
+  assert.equal(chinaHolidays.hasPublishedHolidayYear(2027), true)
+  assert.equal(chinaHolidays.hasPublishedHolidayYear(2028), false)
 
   assert.deepEqual(
-    pickMeta(util.getChineseDateMeta('2027-01-03')),
+    pickMeta(util.getChineseDateMeta('2028-01-03')),
     {
-      weekday: '周日',
-      lunarText: '冬月廿六',
+      weekday: '周一',
+      lunarText: '腊月初七',
       holidayName: '',
       isHoliday: false,
       isWorkday: false
@@ -139,10 +151,10 @@ test('getChineseDateMeta does not infer adjusted workdays beyond published holid
   )
 
   assert.deepEqual(
-    pickMeta(util.getChineseDateMeta('2027-05-01')),
+    pickMeta(util.getChineseDateMeta('2028-05-01')),
     {
-      weekday: '周六',
-      lunarText: '三月廿五',
+      weekday: '周一',
+      lunarText: '四月初七',
       holidayName: '劳动节',
       isHoliday: true,
       isWorkday: false

@@ -13,6 +13,7 @@
     "deps:check": "node tests/tools/dependencyTools.cjs check",
     "deps:report": "node tests/tools/dependencyTools.cjs report",
     "test:clock": "node tests/tools/clockRegression.cjs",
+    "holidays:generate": "node tests/tools/generateHolidays.cjs",
     "release:prepare": "node tests/tools/prepareRelease.cjs",
     "browser:install": "node tests/tools/installBrowser.cjs",
     "test:hit": "node tests/tools/navHitTest.cjs",

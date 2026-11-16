@@ -82,6 +82,7 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 - `utils/recordFieldErrors.js` holds the field-error rules both record-edit sessions share: while editing, only fields that already show an error are re-checked, and a failed save scrolls to the first invalid field below the fixed nav bar. Sessions render each error under its field.
 - `utils/calendarRowHeight.js` is the homepage calendar geometry ledger. From the viewport, nav bar, density, the month's day cells and the optional back-to-today, partner-welcome and inline-retry rows, it computes in one pass the row height between the 44px floor and the density cap, the per-density cell content minimums, whether compact density merges the info row, and whether the record entry fits the first screen. Rows never shrink below their content, so a short screen scrolls instead of clipping; its numbers mirror slots in `pages/index/index.wxss`.
 - `utils/chinaHolidays.js` is the official China holiday and adjusted-workday data table that `utils/util.js` reads; its coverage and maintenance rules are under Holiday Data Boundary.
+- `tests/tools/generateHolidays.cjs` converts an offline NateScarlet/holiday-cn yearly JSON fixture into the table's normalized, consecutive-day ranges; `tests/fixtures/holiday-cn/` preserves the upstream inputs, version and license for reproducible annual maintenance.
 - `utils/safeArea.js` owns runtime safe-area computation for status-bar top, gesture-area bottom, the capsule rectangle, nav-bar height, and the inset that clears the capsule; page roots inject `--safe-top`, `--safe-bottom`, `--nav-bar-height`, and `--capsule-right`.
 - `utils/pageVisibility.js` registers a Page through `withPageVisibility`, which keeps a `pageHidden` mark: cleared first on show, set after the page's own `onHide`, and written only when it changes. The page root's `page-hidden` class lets `app.wxss` pause resident decoration, and Home and the record tab give no load prompts while hidden.
 - `cloudfunctions/dataOp/index.js` is the cloud runtime adapter for room-authorized CRUD on `periods` and `memories`.
@@ -102,9 +103,10 @@ intent: 查找双人共享日历的领域语言、房间生命周期、技术边
 
 ## Holiday Data Boundary
 
-- `utils/chinaHolidays.js` currently contains official China holiday and adjusted-workday ranges for 2001-2026.
+- `utils/chinaHolidays.js` currently contains official China holiday and adjusted-workday ranges for 2001-2027.
 - Years inside that published range may show official off-day and adjusted-workday facts from the data table.
-- Years beyond 2026 may still show static festival names such as Spring Festival, Qingming, Labor Day, Dragon Boat Festival, Mid-Autumn Festival, National Day, and New Year's Day, but must not infer adjusted workdays.
+- Years beyond 2027 may still show static festival names such as Spring Festival, Qingming, Labor Day, Dragon Boat Festival, Mid-Autumn Festival, National Day, and New Year's Day, but must not infer adjusted workdays.
+- Annual maintenance reads a local upstream fixture with `npm run holidays:generate -- tests/fixtures/holiday-cn/2027.json` (substitute the target year), then updates the table and published year bound with the generated entries; neither the generator nor its tests access the network.
 - Before the app enters a year beyond `PUBLISHED_HOLIDAY_END_YEAR`, update the published ranges from State Council holiday notices and keep the maintenance test green.
 
 ## Verification Baseline
