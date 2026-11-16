@@ -303,25 +303,49 @@ test('empty rooms show the first-record guide and records supply status, recap a
 })
 
 for (const ongoing of [false, true]) {
-  test(`quick and dated period entries ${ongoing ? 'reopen the ongoing record' : 'edit coverage or create for the selected day'}`, async t => {
+  test(`quick and dated period entries ${ongoing ? 'complete the ongoing record only from the quick entry or earlier blank notice' : 'edit coverage or create for the selected day'}`, async t => {
     const app = homeApp(t, { periods: [period('p1', '2026-06-01', '2026-06-05'), ...(ongoing ? [period('p2', '2026-06-20', '', 'ongoing')] : [])] })
     const home = await launch(app)
     assert.equal(attr('quick-btn', 'aria-label', app.rendered(home)), ongoing ? '经期第 7 天 · 记结束' : '记经期')
     await tap(app, home, 'quickPeriod')
     assert.equal(navigation(app).at(-1), ongoing ? '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete' : '/pages/period/edit/edit?startDate=2026-06-26')
     await back(app)
-    for (const date of ['2026-06-03', '2026-06-10']) {
-      await day(app, home, date)
-      const action = app.rendered(home).selectedDayDetail.actions.find(item => item.key === 'period')
+
+    await day(app, home, '2026-06-03')
+    let detail = app.rendered(home).selectedDayDetail
+    assert.equal(detail.periods[0].recordId, 'p1')
+    assert.ok(detail.periods[0].ariaLabel.startsWith('编辑这次经期'))
+    assert.equal(detail.actions.some(item => item.key === 'period'), false)
+    await tap(app, home, 'onDayRecordTap', { kind: 'period', id: 'p1' })
+    assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&status=known-end')
+    await back(app)
+    await app.advance(200)
+
+    await day(app, home, '2026-06-10')
+    detail = app.rendered(home).selectedDayDetail
+    assert.equal(detail.actions.some(item => item.key === 'memory'), true)
+    if (ongoing) {
+      assert.equal(detail.actions.some(item => item.key === 'period'), false)
+      assert.equal(visible('ongoing-period-notice', app.rendered(home)), true)
+      assert.deepEqual(detail.ongoingNotice, {
+        title: '这次经期还在进行中',
+        text: '记了结束才能补记别的',
+        actionLabel: '记结束'
+      })
+      await tap(app, home, 'onDayActionTap', { action: 'completePeriod' })
+      assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
+      assert.equal(app.rendered(app.currentPage).status, 'known-end')
+      assert.equal(app.rendered(app.currentPage).endDate, '2026-06-26')
+    } else {
+      assert.equal(visible('ongoing-period-notice', app.rendered(home)), false)
+      const action = detail.actions.find(item => item.key === 'period')
       assert.ok(action)
       await tap(app, home, 'onDayActionTap', { action: action.key })
-      const expected = ongoing ? '/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing'
-        : date === '2026-06-03' ? '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&status=known-end' : '/pages/period/edit/edit?startDate=2026-06-10'
-      assert.equal(navigation(app).at(-1), expected)
-      await back(app)
-      await app.advance(200)
+      assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?startDate=2026-06-10')
     }
-    assert.deepEqual(app.wx.toasts.map(item => item.title), ongoing ? Array(3).fill('已有进行中的经期，继续编辑它') : [])
+    await back(app)
+    await app.advance(200)
+    assert.deepEqual(app.wx.toasts.map(item => item.title), ongoing ? Array(2).fill('已有进行中的经期，继续编辑它') : [])
     assert.equal(app.cloud.calls.some(call => call.name === 'dataOp' && call.data.action !== 'list'), false)
   })
 }
@@ -343,8 +367,8 @@ test('all home period entries and the completion reminder choose the latest ongo
   assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
   await back(app)
   await day(app, home, '2026-06-03')
-  await tap(app, home, 'onDayActionTap', { action: 'period' })
-  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&status=ongoing')
+  await tap(app, home, 'onDayActionTap', { action: 'completePeriod' })
+  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
   assert.deepEqual(app.wx.toasts.map(item => item.title), [
     '已有进行中的经期，继续编辑它', '已有进行中的经期，继续编辑它'
   ])
@@ -863,6 +887,45 @@ for (const id of Object.keys(openers)) {
   })
 }
 
+test('real WXS sheet touchcancel restores the open pose and clears drag displacement', async t => {
+  const app = homeApp(t, { selectors: { '.sheet-slide-monthPicker': { height: 400 } } })
+  const home = await launch(app)
+  await openSheet(app, home, 'monthPicker')
+  const currentTarget = { dataset: { sheet: 'monthPicker' } }
+  const touch = { identifier: 1, pageX: 100, pageY: 100 }
+  app.dispatch(home, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
+  app.dispatch(home, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 240 }] })
+  assert.equal(app.viewStyle(home, '.sheet-slide-monthPicker').transform, 'translateY(140px)')
+  app.dispatch(home, 'sheetDrag.touchCancel', { currentTarget, changedTouches: [{ ...touch, pageY: 240 }] })
+  await app.settle()
+  await app.advance(16)
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-open')
+  assert.equal(app.viewStyle(home, '.sheet-slide-monthPicker').transform, '')
+  const nextTouch = { identifier: 2, pageX: 100, pageY: 100 }
+  app.dispatch(home, 'sheetDrag.touchStart', { currentTarget, touches: [nextTouch] })
+  await app.advance(100)
+  app.dispatch(home, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...nextTouch, pageY: 300 }] })
+  await app.settle()
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-leaving', 'a later gesture is tracked normally')
+})
+
+test('real WXS sheet release clears tracking before reading changed touches', async t => {
+  const app = homeApp(t, { selectors: { '.sheet-slide-monthPicker': { height: 400 } } })
+  const home = await launch(app)
+  await openSheet(app, home, 'monthPicker')
+  const currentTarget = { dataset: { sheet: 'monthPicker' } }
+  const firstTouch = { identifier: 1, pageX: 100, pageY: 100 }
+  const nextTouch = { identifier: 2, pageX: 100, pageY: 100 }
+  app.dispatch(home, 'sheetDrag.touchStart', { currentTarget, touches: [firstTouch] })
+  app.dispatch(home, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [nextTouch] })
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-open')
+  app.dispatch(home, 'sheetDrag.touchStart', { currentTarget, touches: [nextTouch] })
+  await app.advance(100)
+  app.dispatch(home, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...nextTouch, pageY: 300 }] })
+  await app.settle()
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-leaving', 'a missing released touch cannot block the next drag')
+})
+
 test('WXS attribute changes reach the view only after render commit and style observations are read-only', async t => {
   const app = homeApp(t, { autoCommit: false, selectors: { '.sheet-slide-monthPicker': { height: 400 } } })
   const home = await launch(app)
@@ -956,6 +1019,23 @@ for (const [year, month, blockedArrow, dx] of [[2001, 0, 'prevMonth', 80], [2035
     assert.equal(renderWxmlAttribute(arrow.attrs['aria-disabled'], app.rendered(home)), 'false')
   })
 }
+
+test('real calendar WXS touchcancel resets without flipping and allows a later swipe', async t => {
+  const app = homeApp(t)
+  const home = await launch(app)
+  const before = app.rendered(home)
+  const start = { identifier: 1, pageX: 150, pageY: 200 }
+  const end = { ...start, pageX: 50 }
+  app.dispatch(home, 'monthSwipe.touchStart', { touches: [start] })
+  app.dispatch(home, 'monthSwipe.touchMove', { touches: [end] })
+  app.dispatch(home, 'monthSwipe.touchCancel', { changedTouches: [end] })
+  await app.settle()
+  app.commit(home)
+  assert.deepEqual([app.rendered(home).year, app.rendered(home).month], [before.year, before.month])
+  assert.deepEqual(app.rendered(home).days, before.days)
+  await swipe(app, home, -80)
+  assert.equal(app.rendered(home).month, before.month + 1)
+})
 
 for (const [dx, dy, delta] of [[-49, 0, 1], [49, 0, -1], [-80, 79, 1], [80, 10, -1], [-48, 0, 0], [48, 0, 0], [-49, 49, 0], [-49, 50, 0], [10, 0, 0], [0, 80, 0]]) {
   test(`real calendar WXS swipe (${dx}, ${dy}) changes month by ${delta}`, async t => {

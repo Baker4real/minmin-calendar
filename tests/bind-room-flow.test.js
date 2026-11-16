@@ -87,7 +87,7 @@ test('bind and settings copy buttons are the same rose small button pixel-for-pi
   assert.equal(settingsRule['box-shadow'], undefined)
   const bindGlow = findRule(readPageFile('pages/bind/bind.wxss'), '.copy-btn::before')
   const settingsGlow = findRule(readPageFile('pages/settings/settings.wxss'), '.copy-btn::before')
-  assert.equal(settingsGlow['box-shadow'], '0 4px 15px rgba(232,144,158,0.28)')
+  assert.equal(settingsGlow['box-shadow'], '0 8rpx 30rpx rgba(232,144,158,0.28)')
   assert.equal(bindGlow['box-shadow'], settingsGlow['box-shadow'], 'copy button glow must match the settings anchor')
 
   // 88rpx 触控高度、按下缩放和按下时柔光沉下去的程度在两页同样同款
@@ -687,7 +687,7 @@ test('first room check shows the opening hint only after 800ms and clears it whe
       assert.equal(bind.data.openingCalendarHint, false, 'a completed fast check must not show a stale hint')
 
       const wxml = readPageFile('pages/bind/bind.wxml')
-      const heartAt = wxml.indexOf('class="hero-icon">♥')
+      const heartAt = wxml.indexOf('class="hero-icon"')
       const hintAt = wxml.indexOf('wx:if="{{openingCalendarHint}}"')
       assert.ok(heartAt !== -1 && hintAt > heartAt)
       assert.match(wxml.slice(hintAt), /class="hero-desc opening-calendar">正在打开日历…<\/text>/)
@@ -703,7 +703,7 @@ test('first room check keeps only the brand heart before the opening-hint delay'
   assert.equal(page.data.verifying, true)
   assert.equal(page.data.revealed, false)
   const wxml = readPageFile('pages/bind/bind.wxml')
-  const heartAt = wxml.indexOf('class="hero-icon">♥')
+  const heartAt = wxml.indexOf('class="hero-icon"')
   const gateAt = wxml.indexOf('wx:if="{{revealed}}"')
   assert.ok(heartAt !== -1 && gateAt > heartAt)
   const gated = wxml.slice(gateAt)

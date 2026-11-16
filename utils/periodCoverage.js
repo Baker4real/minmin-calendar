@@ -1,6 +1,11 @@
 const util = require('./util')
 
 const ONGOING_PERIOD_NOTICE = '已有进行中的经期，继续编辑它'
+const BEFORE_ONGOING_PERIOD_NOTICE = {
+  title: '这次经期还在进行中',
+  text: '记了结束才能补记别的',
+  actionLabel: '记结束'
+}
 
 // 显式状态优先；旧记录只有严格合法的结束日期才算已知结束。
 function getPeriodStatus(period = {}) {
@@ -64,15 +69,30 @@ function getMonthCoverage(periods, year, month, today) {
   return { dates, count: dates.size }
 }
 
-// 新记录入口先重开进行中，即使所选日不在它的投影里；否则打开归属记录或按所选日新建。
+// 被覆盖的日子打开归属记录；更早的空白日先完成进行中记录；没有进行中时按所选日新建。
 function decidePeriodRecordForDate(periods, date, { today = '' } = {}) {
+  const owner = getPeriodOnDate(periods, date, today)
+  if (owner) {
+    const ongoing = owner.status === 'ongoing'
+    return {
+      action: 'open',
+      reason: ongoing ? 'ongoing' : 'coverage',
+      record: owner.record,
+      startDate: owner.record.startDate,
+      notice: ongoing ? ONGOING_PERIOD_NOTICE : ''
+    }
+  }
   const ongoing = records(periods).reduce((chosen, record) => {
     if (!record || getPeriodStatus(record) !== 'ongoing' || !util.isValidDateString(record.startDate)) return chosen
     return !chosen || prefers(record, chosen) ? record : chosen
   }, null)
-  if (ongoing) return { action: 'open', reason: 'ongoing', record: ongoing, startDate: ongoing.startDate, notice: ONGOING_PERIOD_NOTICE }
-  const owner = getPeriodOnDate(periods, date, today)
-  if (owner) return { action: 'open', reason: 'coverage', record: owner.record, startDate: owner.record.startDate, notice: '' }
+  if (ongoing) {
+    const decision = { action: 'open', reason: 'ongoing', record: ongoing, startDate: ongoing.startDate, notice: ONGOING_PERIOD_NOTICE }
+    if (util.isValidDateString(date) && date < ongoing.startDate) {
+      decision.ongoingNotice = { ...BEFORE_ONGOING_PERIOD_NOTICE }
+    }
+    return decision
+  }
   return { action: 'create', reason: '', record: null, startDate: date, notice: '' }
 }
 

@@ -271,7 +271,7 @@ page {
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
   border-radius: var(--radius-card);
   border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
+  box-shadow: 0 16rpx 64rpx rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
   position: relative;
   overflow: hidden;
   color: var(--text-primary);
@@ -323,7 +323,7 @@ page {
   opacity: 0.5;
 }
 .btn-premium::before {
-  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
+  box-shadow: 0 8rpx 30rpx rgba(232,144,158,0.28);
 }
 .btn-premium:active,
 .btn-premium.btn-premium-hover {

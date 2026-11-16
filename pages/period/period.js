@@ -1,6 +1,6 @@
 const util = require('../../utils/util')
 const cycle = require('../../utils/cycle')
-const periodCoverage = require('../../utils/periodCoverage')
+const { buildPeriodQuickEntry } = require('../../utils/homeCalendarState')
 const recordPageSync = require('../../utils/recordPageSync')
 const recordEditRoute = require('../../utils/recordEditRoute')
 const memoryMonthGroups = require('../../utils/memoryMonthGroups')
@@ -12,7 +12,7 @@ const { restoreTabBarOnShow } = require('../../utils/sheetLifecycle')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 
 Page(withPageVisibility({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), segment: 'period', periods: [], periodGroups: [], avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memories: [], memoryGroups: [], memoryLoading: true, memoryLoadFailed: false, memoryHasLoaded: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), segment: 'period', periods: [], periodGroups: [], periodQuickLabel: '＋ 记经期', periodQuickAriaLabel: '记经期', avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memories: [], memoryGroups: [], memoryLoading: true, memoryLoadFailed: false, memoryHasLoaded: false },
 
   // 欢乐时光月份卡的展开选择（issue #109）：页面内存按月份键记「用户点过卡头」的月份，
   // 值为 memoryMonthGroups.EXPANDED / COLLAPSED；没点过的月份默认收起。
@@ -129,6 +129,11 @@ Page(withPageVisibility({
   recordRows(state) {
     const today = util.formatDate(new Date())
     const paired = state.roomPaired
+    const quickEntry = buildPeriodQuickEntry(state.collections.periods.records, {
+      today,
+      periodsSynced: state.collections.periods.synced
+    })
+    this._periodQuickAction = quickEntry.action
     const periods = [...state.collections.periods.records]
       .sort((a, b) => b.startDate.localeCompare(a.startDate))
       .map(period => withAuthorLabel(cycle.decoratePeriod(period, { today }), paired))
@@ -136,6 +141,8 @@ Page(withPageVisibility({
     return {
       periods,
       periodGroups: buildPeriodGroups(periods, this.periodMonthChoices, this.periodYearChoices),
+      periodQuickLabel: quickEntry.mode === 'add' ? '＋ 记经期' : quickEntry.label,
+      periodQuickAriaLabel: quickEntry.ariaLabel,
       memories,
       // 欢乐时光月份分组（issue #108）；展开状态由页面内存的手动选择推导（issue #109）：没点过的月份收起
       memoryGroups: memoryMonthGroups.applyMemoryMonthExpansion(
@@ -146,15 +153,10 @@ Page(withPageVisibility({
   },
 
   addPeriod() {
-    const today = util.formatDate(new Date())
-    const entry = periodCoverage.decidePeriodRecordForDate(this.data.periods, today, { today })
-    // 记录 tab 只重开进行中；其余结果仍以今天新建，保存前再让用户选择重叠处理。
-    if (entry.reason === 'ongoing') {
-      wx.showToast({ title: entry.notice, icon: 'none' })
-      wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(entry.record) })
-      return
-    }
-    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl({ startDate: today }) })
+    const entry = this._periodQuickAction
+    if (!entry) return
+    if (entry.notice) wx.showToast({ title: entry.notice, icon: 'none' })
+    wx.navigateTo({ url: entry.url })
   },
 
   togglePeriodYear(e) {

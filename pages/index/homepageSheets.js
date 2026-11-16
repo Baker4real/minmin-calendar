@@ -73,6 +73,15 @@ function homepageSheets(page) {
     }))
     const find = name => sheets.find(entry => entry.name === name)
     const close = (entry, extra = {}) => entry.close(page, entry.lifecycle, extra)
+    const dragClearPatch = (entry, action) => {
+      const current = page.data.sheetDragClear
+      return {
+        sheetDragClear: {
+          ...current,
+          [entry.name]: { token: current[entry.name].token + 1, action }
+        }
+      }
+    }
     page._homepageSheets = {
       open(name, extra) {
         find(name).lifecycle.open(page, extra)
@@ -87,15 +96,14 @@ function homepageSheets(page) {
         const entry = detail && find(detail.sheet)
         if (!entry || page.data[entry.phaseKey] !== 'open') return
         const action = decideSheetDragRelease(detail.displacement, detail.elapsed, detail.panelHeight)
-        const current = page.data.sheetDragClear
-        const extra = {
-          sheetDragClear: {
-            ...current,
-            [entry.name]: { token: current[entry.name].token + 1, action }
-          }
-        }
+        const extra = dragClearPatch(entry, action)
         if (action === 'close') close(entry, extra)
         else page.setData(extra)
+      },
+      dragCancel(detail) {
+        const entry = detail && find(detail.sheet)
+        if (!entry || page.data[entry.phaseKey] !== 'open') return
+        page.setData(dragClearPatch(entry, 'reset'))
       },
       systemBack() {
         dismissSheetOnSystemBack(page, {

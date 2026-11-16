@@ -7,7 +7,7 @@
 
   <view class="content">
     <!-- 记录分类：经期 / 欢乐时光 同级可达，单选 radio 语义（issue #103） -->
-    <view class="segment-control" aria-label="记录分类">
+    <view class="segment-control" aria-role="radiogroup" aria-label="记录分类">
       <view
         class="segment-option {{segment === 'period' ? 'active' : ''}}"
         data-segment="period"
@@ -47,7 +47,7 @@
         </view>
       </view>
 
-      <view class="btn-premium" bindtap="addPeriod" aria-role="button" aria-label="新增经期记录" hover-class="btn-premium-hover">＋ 新增经期记录</view>
+      <view class="btn-premium" bindtap="addPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-class="btn-premium-hover">{{periodQuickLabel}}</view>
 
       <!-- 未同步（从未读取成功）：重试是可识别的操作，不是与空列表一样的安静说明；
            本机已保存、还没同步的记录照常列在它下面（#194） -->
@@ -89,7 +89,7 @@
       </view>
       <!-- 空态断言句只在确认没有失败时出现：成功加载 0 条后再刷新失败时，数字保留 0，语境由重试行解释 -->
       <view wx:elif="{{periods.length === 0 && !loading && !loadFailed}}" class="empty-state">
-        <text>经期开始那天点「＋ 新增经期记录」，记两次以上就能预测下次</text>
+        <text>经期开始那天点「＋ 记经期」，记两次以上就能预测下次</text>
       </view>
 
       <!-- 已成功加载过再失败：保留上次列表与数字，重试留在列表区域 -->
@@ -131,7 +131,7 @@
           </view>
           <view class="list-item" wx:if="{{group.expanded}}" wx:for="{{group.records}}" wx:key="_id" bindtap="editMemory" data-id="{{item._id}}" aria-role="button" aria-label="{{item.ariaLabel}}" hover-class="list-item-hover">
             <view class="memory-left">
-              <text class="memory-heart">♥</text>
+              <text class="memory-heart" aria-hidden="true">♥</text>
               <view class="memory-info">
                 <view class="memory-date">{{item.dayLabel}}</view>
                 <view wx:if="{{item.authorLabel}}" class="memory-note">{{item.authorLabel}}</view>

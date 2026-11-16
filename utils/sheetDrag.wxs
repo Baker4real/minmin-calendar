@@ -50,21 +50,21 @@ function touchEnd(event, ownerInstance) {
   if (!panel) return
   var state = panel.getState()
   if (!state.tracking) return
+  var dragging = state.dragging
+  state.tracking = false
+  state.dragging = false
+  state.displacement = 0
   var touch = findTouch(event.changedTouches, state.identifier)
   if (!touch) return
   var delta = touch.pageY - state.startY
-  if (!state.dragging && (delta > START_PX || delta < -START_PX)) {
-    state.dragging = true
+  if (!dragging && (delta > START_PX || delta < -START_PX)) {
+    dragging = true
     if (!(state.panelHeight > 0)) state.panelHeight = readHeight(panel)
   }
   var displacement = delta > 0 ? delta : rubberBand(delta, state.panelHeight)
   var elapsed = event.timeStamp - state.startTime
-  var dragging = state.dragging
   var sheet = state.sheet
   var panelHeight = state.panelHeight
-  state.tracking = false
-  state.dragging = false
-  state.displacement = 0
   if (!dragging) return
   ownerInstance.callMethod('onSheetDragRelease', {
     sheet: sheet,
@@ -72,6 +72,18 @@ function touchEnd(event, ownerInstance) {
     elapsed: elapsed,
     panelHeight: panelHeight
   })
+}
+
+function touchCancel(event, ownerInstance) {
+  var panel = findPanel(event, ownerInstance)
+  if (!panel) return
+  var state = panel.getState()
+  if (!state.tracking) return
+  var sheet = state.sheet
+  state.tracking = false
+  state.dragging = false
+  state.displacement = 0
+  ownerInstance.callMethod('onSheetDragCancel', { sheet: sheet })
 }
 
 function clearInline(newValue, oldValue, ownerInstance, instance) {
@@ -136,5 +148,6 @@ module.exports = {
   touchStart: touchStart,
   touchMove: touchMove,
   touchEnd: touchEnd,
+  touchCancel: touchCancel,
   clearInline: clearInline
 }

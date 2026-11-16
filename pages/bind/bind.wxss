@@ -232,7 +232,7 @@
   bottom: 0;
   left: 0;
   border-radius: var(--radius-sm);
-  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
+  box-shadow: 0 8rpx 30rpx rgba(232,144,158,0.28);
   transition: opacity var(--duration-press) ease;
   pointer-events: none;
 }

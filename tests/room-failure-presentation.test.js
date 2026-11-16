@@ -243,7 +243,11 @@ for (const confirmation of confirmations) {
       else app.respondNext('showModal', new Error('showModal:fail unavailable'))
       const pending = app.dispatch(page, confirmation.event)
       await app.settle()
-      assert.ok(app.wx.toasts.length, 'unavailable confirmation must leave visible feedback')
+      if (confirmation.name === 'overlap') {
+        assert.deepEqual(app.wx.toasts, [], 'an unavailable overlap question is a no-op')
+      } else {
+        assert.ok(app.wx.toasts.length, 'unavailable confirmation must leave visible feedback')
+      }
       assert.equal(app.currentPage, page)
       assert.equal(app.cloud.calls.filter(call => call.name === 'leaveRoom').length, 0)
       assert.equal(writes(app).length, 0)
