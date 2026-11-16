@@ -228,6 +228,36 @@ for (const editExisting of [true, false]) {
   })
 }
 
+for (const close of [
+  { name: 'both result flags are false', result: { confirm: false, cancel: false } },
+  { name: 'the modal fails', result: new Error('showModal:fail dismissed') }
+]) {
+  test(`period: overlap question ${close.name} keeps the form without creating, saving or navigating`, async (t) => {
+    const app = setup(t)
+    const existing = { _id: 'covered', startDate: '2026-09-01', endDate: '2026-09-05', status: 'known-end' }
+    cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
+    cloudRoute(app, period, 'add').reply({ code: 0, record: { _id: 'unexpected', ...period.payload, startDate: '2026-09-03', endDate: '2026-09-04', status: 'known-end', duration: 2, note: '保留输入' } })
+    const { page } = await openEditor(app, period, { startDate: '2026-09-03' })
+    await app.dispatch(page, 'onEndChange', value('2026-09-04'))
+    await app.dispatch(page, 'onNoteInput', value('保留输入'))
+    const originalForm = form(page, period)
+    const navigationCount = app.navigation.length
+    const saving = app.dispatch(page, 'save')
+    await app.settle()
+    assert.equal(app.wx.modals[0].title, '这一天已有经期')
+    app.respond('showModal', 0, close.result)
+    await saving
+    await app.settle()
+    assert.deepEqual(writes(app), [])
+    assert.equal(app.currentPage, page)
+    assert.equal(app.navigation.length, navigationCount)
+    assert.deepEqual(form(page, period), originalForm)
+    assert.equal(page.data.saving, false)
+    assert.equal(page.data.submitted, false)
+    assert.deepEqual(app.wx.toasts, [])
+  })
+}
+
 const overlapOwners = [
   { name: 'ongoing beats later completed', records: [
     { _id: 'live', startDate: '2026-09-10', status: 'ongoing' },
@@ -415,7 +445,7 @@ for (const exit of ['invalid', 'edit existing', 'still create', 'confirmation fa
     }
     assert.equal(app.currentPage, page)
     if (exit === 'invalid') assert.deepEqual(page.data.fieldErrors, { endDate: '请选择结束日期；还没结束可以选「进行中」' })
-    if (exit === 'confirmation failure') assert.equal(app.wx.toasts.at(-1).title, '这次没有完成，请重试')
+    if (exit === 'confirmation failure') assert.deepEqual(app.wx.toasts, [])
     if (exit === 'still create') {
       await app.dispatch(page, 'save')
       assert.equal(writes(app).length, 1, 'confirmed success remains submitted until return')
@@ -765,7 +795,7 @@ for (const spec of records) {
     assert.equal(modal.title, '确认删除')
     assert.equal(modal.content, spec.consequence)
     assert.equal(modal.confirmText, '删除')
-    assert.equal(modal.confirmColor, '#F97373')
+    assert.equal(modal.confirmColor, undefined, 'native delete confirmation uses the platform default color')
     assert.equal(page.data.deleting, false)
     await app.dispatch(page, 'delete')
     assert.equal(app.wx.modals.length, 1)
