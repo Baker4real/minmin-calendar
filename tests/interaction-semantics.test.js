@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 const { PRESS_SCALE_BAND, TOUCH_FLOOR_RPX, parseWxssRules } = require('./designTokens')
 const { conditionalClassCondition, wxmlElementTree, wxmlOpeningTags } = require('./wxmlTemplate')
 
@@ -23,11 +23,9 @@ const PAGE_WXML = [
   'pages/settings/settings.wxml'
 ]
 
-// include 等于把目标文件原样拷到这个位置（共享的极光标记就是这样进每个页面的）：
-// 先展开再检查，护栏看到的是页面渲染出来的结构
+// 统一入口展开共享 include 与 import/template，护栏检查页面渲染出来的结构。
 function readPage(relativePath) {
-  return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
-    .replace(/<include src="\/([^"]+)"\s*\/>/g, (_, target) => readPage(target))
+  return readSource(path.join(repoRoot, relativePath), 'utf8')
 }
 
 function walk(nodes, visit) {
@@ -46,7 +44,7 @@ function elementsOf(relativePath) {
 
 // 一个选择器在样式表里的全部声明，后写的覆盖先写的
 function declsOf(relativePath, selector) {
-  return Object.assign({}, ...parseWxssRules(fs.readFileSync(path.join(repoRoot, relativePath), 'utf8'))
+  return Object.assign({}, ...parseWxssRules(readSource(path.join(repoRoot, relativePath), 'utf8'))
     .filter((rule) => rule.selectors.includes(selector))
     .map((rule) => rule.decls))
 }
@@ -673,7 +671,7 @@ test('no decorative emoji hearts or warning emoji remain in app markup', () => {
 
 test('happy-time list rows draw no second rose dot', () => {
   // 玫瑰圆点只表经期：欢乐时光列表行不再有时间轴玫瑰点
-  const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, 'pages/memory/memory.wxss'), 'utf8'))
+  const rules = parseWxssRules(readSource(path.join(repoRoot, 'pages/memory/memory.wxss'), 'utf8'))
   assert.equal(rules.some((rule) => rule.selectors.includes('.list-item::before')), false,
     'memory rows must not draw the rose timeline dot')
 })

@@ -1,12 +1,12 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const { confirmInEditor, listed, roomLookups } = require('./helpers/recordPages')
 const { evaluateWxmlExpression, renderWxmlAttribute, renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
 
-const wxml = fs.readFileSync(path.join(__dirname, '../pages/index/index.wxml'), 'utf8')
+const wxml = readSource(path.join(__dirname, '../pages/index/index.wxml'), 'utf8')
 const tags = wxmlOpeningTags(wxml)
 const success = data => ({ code: 0, data })
 const period = (id, startDate, endDate = startDate, status = 'known-end') => ({ _id: id, startDate, endDate, status })
@@ -308,7 +308,7 @@ for (const ongoing of [false, true]) {
     const home = await launch(app)
     assert.equal(attr('quick-btn', 'aria-label', app.rendered(home)), ongoing ? '经期第 7 天 · 记结束' : '记经期')
     await tap(app, home, 'quickPeriod')
-    assert.equal(navigation(app).at(-1), ongoing ? '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end' : '/pages/period/edit/edit?startDate=2026-06-26')
+    assert.equal(navigation(app).at(-1), ongoing ? '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete' : '/pages/period/edit/edit?startDate=2026-06-26')
     await back(app)
 
     await day(app, home, '2026-06-03')
@@ -333,7 +333,7 @@ for (const ongoing of [false, true]) {
         actionLabel: '记结束'
       })
       await tap(app, home, 'onDayActionTap', { action: 'completePeriod' })
-      assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end')
+      assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
       assert.equal(app.rendered(app.currentPage).status, 'known-end')
       assert.equal(app.rendered(app.currentPage).endDate, '2026-06-26')
     } else {
@@ -364,11 +364,11 @@ test('all home period entries and the completion reminder choose the latest ongo
   assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&status=ongoing')
   await back(app)
   await tap(app, home, 'quickPeriod')
-  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&endDate=2026-06-26&status=known-end')
+  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
   await back(app)
   await day(app, home, '2026-06-03')
   await tap(app, home, 'onDayActionTap', { action: 'completePeriod' })
-  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&endDate=2026-06-26&status=known-end')
+  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
   assert.deepEqual(app.wx.toasts.map(item => item.title), [
     '已有进行中的经期，继续编辑它', '已有进行中的经期，继续编辑它'
   ])
@@ -477,7 +477,7 @@ test('returning on a later day updates status, reminders and editor dates even w
   assert.equal(app.rendered(app.currentPage).maxDate, '2026-06-25')
   await back(app)
   await tap(app, home, 'quickPeriod')
-  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=live&startDate=2026-06-20&endDate=2026-06-25&status=known-end')
+  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=live&startDate=2026-06-20&endDate=2026-06-25&status=known-end&intent=complete')
   assert.equal(app.rendered(app.currentPage).status, 'known-end')
   assert.equal(app.rendered(app.currentPage).endDate, '2026-06-25')
   assert.equal(app.rendered(app.currentPage).maxDate, '2026-06-25')
@@ -494,7 +494,7 @@ test('day titles and quick entries keep the rendered today across midnight until
   assert.equal(app.rendered(home).selectedDayDetail.periods[0].range, '12月25日–12月31日（进行中）')
   await closeSheet(app, home, 'dayActions')
   await tap(app, home, 'quickPeriod')
-  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=live&startDate=2026-12-25&endDate=2026-12-31&status=known-end')
+  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=live&startDate=2026-12-25&endDate=2026-12-31&status=known-end&intent=complete')
   await back(app)
   await tap(app, home, 'nextMonth')
   const january = app.rendered(home)
@@ -996,7 +996,7 @@ for (const [dx, dy, delta] of [[-49, 0, 1], [49, 0, -1], [-80, 79, 1], [80, 10, 
 test('month slide continues quick repeats, restarts at the duration and reverses with the grid', async t => {
   const app = homeApp(t, { now: '2026-11-08T12:00:00+08:00' })
   const home = await launch(app)
-  const css = fs.readFileSync(path.join(__dirname, '../app.wxss'), 'utf8')
+  const css = readSource(path.join(__dirname, '../app.wxss'), 'utf8')
   const enterMs = Number(/--duration-enter:\s*(\d+)ms/.exec(css)[1])
   assert.equal(calendarAnimation(app, home, 'flip'), '')
   await tap(app, home, 'nextMonth')

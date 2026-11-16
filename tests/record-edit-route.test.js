@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const route = require('../utils/recordEditRoute')
 
@@ -149,7 +149,7 @@ test('buildPeriodEditUrl opens an ongoing record as ended today when the caller 
 
   assert.equal(
     url,
-    '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end&note=%E8%85%B9%E7%97%9B'
+    '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end&note=%E8%85%B9%E7%97%9B&intent=complete'
   )
 
   assert.deepEqual(route.parsePeriodEditOptions({
@@ -157,7 +157,8 @@ test('buildPeriodEditUrl opens an ongoing record as ended today when the caller 
     startDate: '2026-06-20',
     endDate: '2026-06-26',
     status: 'known-end',
-    note: '%E8%85%B9%E7%97%9B'
+    note: '%E8%85%B9%E7%97%9B',
+    intent: 'complete'
   }, { today: '2026-06-26' }), {
     id: 'p2',
     startDate: '2026-06-20',
@@ -240,7 +241,7 @@ test('parseMemoryEditOptions keeps the original date when editing while clamping
 })
 
 test('memory edit page clamps the date picker to today', () => {
-  const memoryEditWxml = fs.readFileSync(
+  const memoryEditWxml = readSource(
     path.join(__dirname, '..', 'pages/memory/edit/edit.wxml'),
     'utf8'
   )

@@ -1,15 +1,15 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 const { listWxmlFiles, parseWxssRules } = require('./designTokens')
-const { renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
+const { evaluateWxmlExpression, renderWxmlAttribute, renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
 
 // issue #78：房间码复制/解除绑定同屏可达、清除本地数据文案与行为对齐的页面接缝测试。
 // issue #102：已绑定冷启动自动 switchTab 进首页（跳转失败才留「进入应用」兜底）；校验失败留在
 // 本页给可点重试；已绑定卡不再有解除绑定（needUnbind 中间态入口保留）；创建后提示「把房间码发给 TA」；
-// 加入成功给一次「已和 TA 连上」反馈再进首页。
+// 加入成功后直达首页，由首页的一次性欢迎条说明配对结果。
 // issue #104：绑定页收敛回 Aurora Bloom——紫粉试点 token/深紫画布/粉胶囊/粉幽灵整体移除，
 // #78 的绑定页/设置页复制键像素同款契约按 DESIGN.md 重建条件恢复（fill/label/radius/padding/shadow 全等）。
 // 观察用户能看见或能做到的事：哪个控件在场、哪句话显示、点按后落到哪个状态；
@@ -17,7 +17,7 @@ const { renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
 
 const repoRoot = path.join(__dirname, '..')
 
-const readPageFile = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
+const readPageFile = (relativePath) => readSource(path.join(repoRoot, relativePath), 'utf8')
 
 test('bind bound screen puts the copy button in the same row as the room code, ahead of the enter-app main button', () => {
   const wxml = readPageFile('pages/bind/bind.wxml')
@@ -143,7 +143,7 @@ test('findRule treats an :active selector and its hover-class as one rule', () =
 })
 
 // issue #104：未绑定表单域收敛回 Aurora 海军域——tab 条与输入框玻璃面回海军实底回退、
-// 聚焦描边回玫瑰；输入行为（6 位上限/等宽数字/逐字槽位/1px 实线描边）零变化；
+// 聚焦描边回玫瑰；输入仍用等宽数字/逐字槽位/1px 实线描边，#211 为接受含空白粘贴码去掉原始 6 字截断；
 // 选中 tab 是描边玫瑰弱选中（issue #145），不再用主按钮实色填充。
 // 需解绑中间态入口在场（样式跟随 app 级警示红），错误提示保持警示红族形态。
 test('bind unbound form rides the navy Aurora glass while the error strip keeps the warning-red family', () => {
@@ -229,7 +229,7 @@ test('page templates do not put a br tag inside a text node', () => {
   const offenders = []
   for (const file of listWxmlFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    const wxml = fs.readFileSync(file, 'utf8').replace(/<!--[\s\S]*?-->/g, '')
+    const wxml = readSource(file, 'utf8').replace(/<!--[\s\S]*?-->/g, '')
     for (const body of textNodeBodies(wxml)) {
       if (/<br\b/i.test(body)) offenders.push(`${relative}: ${body.trim()}`)
     }
@@ -335,6 +335,23 @@ test('confirming same-screen unbind leaves the room and returns to a clean unbou
   assert.equal(page.data.errorMsg, '')
 })
 
+test('created room shows the room-ready title and its next-step explanation before the code', async (t) => {
+  const app = bindPlatform(t, { createRoom: { code: 0, room: { roomCode: 'ROOM05' } } })
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  await app.dispatch(page, 'createRoom')
+
+  const card = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
+  const status = /<view class="bound-status">([\s\S]*?)<\/view>/.exec(card)
+  const explanation = /<text wx:if="\{\{justCreated\}\}" class="info-text">([\s\S]*?)<\/text>/.exec(card)
+  assert.ok(status)
+  assert.ok(explanation)
+  assert.equal(renderWxmlAttribute(status[1], page.data), '房间建好了')
+  assert.equal(explanation[1], '把房间码发给 TA，TA 加入后你们看的是同一本日历')
+  assert.ok(status.index < explanation.index)
+  assert.ok(explanation.index < card.indexOf('class="bound-code-row"'))
+})
+
 test('creating a room leaves its code ready to copy and share, with sharing the only main action', async (t) => {
   const app = bindPlatform(t, { createRoom: { code: 0, room: { roomCode: 'ROOM05' } }, failHome: true })
   const page = app.launch('/pages/bind/bind')
@@ -355,7 +372,7 @@ test('creating a room leaves its code ready to copy and share, with sharing the 
   assert.equal(page.data.homeJumpFailed, true)
   assert.deepEqual(boundCardActions(page.data), actions, 'a failed home jump does not demote sharing')
   const card = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
-  assert.match(card, /wx:if="\{\{justCreated\}\}"[^>]*>\s*把房间码发给 TA\s*<\//)
+  assert.match(card, /wx:if="\{\{justCreated\}\}"[^>]*>\s*把房间码发给 TA，TA 加入后你们看的是同一本日历\s*<\//)
   assert.equal((card.match(/bindtap="copyRoomCode"/g) || []).length, 1)
   app.hide()
   app.show()
@@ -381,11 +398,75 @@ test('bind page shares a fixed invite card carrying only the room code to the la
   assert.match(button[0], /wx:if="\{\{justCreated\}\}"/)
 })
 
-test('bind page prefills an invite without joining and ignores malformed invite lengths', async (t) => {
-  for (const [code, tab, joinCode] of [['ROOM05', 'join', 'ROOM05'], ['ABC', 'create', '']]) {
-    await t.test(code, async (t) => {
+test('bind starts with two equal unselected entries and expands only the chosen room flow', async (t) => {
+  const app = bindPlatform(t)
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+
+  const wxml = readPageFile('pages/bind/bind.wxml')
+  const entries = wxmlOpeningTags(wxml).filter(tag => tag.classes[0] === 'tab')
+  assert.deepEqual(entries.map(tag => tag.attrs['aria-label']), ['我来建房间', '我有房间码'])
+  assert.match(wxml, />我来建房间<\/view>/)
+  assert.match(wxml, />我有房间码<\/view>/)
+  assert.equal(page.data.tab, '')
+  const panels = wxmlOpeningTags(wxml).filter(tag => /^\{\{tab === '(create|join)'\}\}$/.test(tag.attrs['wx:if'] || ''))
+  const panelVisible = tab => {
+    const panel = panels.find(tag => tag.attrs['wx:if'].includes(`'${tab}'`))
+    assert.ok(panel, `expected the ${tab} panel`)
+    return evaluateWxmlExpression(panel.attrs['wx:if'].slice(2, -2), page.data)
+  }
+  assert.equal(panelVisible('create'), false)
+  assert.equal(panelVisible('join'), false)
+  for (const entry of entries) {
+    assert.equal(renderWxmlClasses(entry.attrs.class, page.data).includes('active'), false)
+    assert.equal(evaluateWxmlExpression(entry.attrs['aria-checked'].slice(2, -2), page.data), false)
+  }
+
+  await app.dispatch(page, 'switchTab', { currentTarget: { dataset: { tab: 'join' } } })
+  assert.equal(panelVisible('create'), false)
+  assert.equal(panelVisible('join'), true)
+  await app.dispatch(page, 'switchTab', { currentTarget: { dataset: { tab: 'create' } } })
+  assert.equal(panelVisible('create'), true)
+  assert.equal(panelVisible('join'), false)
+})
+
+test('cancelling invite share skips home navigation on that return show only', async (t) => {
+  const app = bindPlatform(t, { createRoom: { code: 0, room: { roomCode: 'ROOM05' } } })
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  await app.dispatch(page, 'createRoom')
+  app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM05', status: 'waiting' } })
+
+  const card = app.share(page)
+  assert.equal(card.path, '/pages/bind/bind?roomCode=ROOM05')
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.equal(homeJumps(app).length, 0, 'the show that closes the share panel stays on Bind')
+  assert.equal(app.currentPage.route, 'pages/bind/bind')
+  assert.equal(page.data.bound, true)
+  assert.equal(page.data.justCreated, true)
+  assert.deepEqual(boundCardActions(page.data), [
+    { tier: 'primary', label: '发给 TA', action: 'share' },
+    { tier: 'secondary', label: '进入应用', action: 'goHome' }
+  ])
+
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.equal(homeJumps(app).length, 1, 'a later show resumes the normal bound-room navigation')
+  assert.equal(app.currentPage.route, 'pages/index/index')
+})
+
+test('bind page normalizes every whitespace in an invite and ignores malformed invite lengths', async (t) => {
+  for (const [code, tab, joinCode] of [
+    ['ROOM05', 'join', 'ROOM05'],
+    [' a b\tc 1 2 3 ', 'join', 'ABC123'],
+    ['ABC', '', '']
+  ]) {
+    await t.test(JSON.stringify(code), async (t) => {
       const app = bindPlatform(t)
-      const page = app.launch(`/pages/bind/bind?roomCode=${code}`)
+      const page = app.launch(`/pages/bind/bind?roomCode=${encodeURIComponent(code)}`)
       await app.settle()
       assert.equal(page.data.bound, false)
       assert.equal(page.data.tab, tab)
@@ -397,13 +478,27 @@ test('bind page prefills an invite without joining and ignores malformed invite 
   }
 })
 
+test('bind page removes all whitespace from pasted input before uppercasing and joining', async (t) => {
+  const app = bindPlatform(t)
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  await app.dispatch(page, 'switchTab', { currentTarget: { dataset: { tab: 'join' } } })
+  await app.dispatch(page, 'onCodeInput', { detail: { value: ' a b\tc 1 2 3 ' } })
+  assert.equal(page.data.joinCode, 'ABC123')
+  const input = wxmlOpeningTags(readPageFile('pages/bind/bind.wxml')).find(tag => tag.classes.includes('code-input'))
+  assert.notEqual(input.attrs.maxlength, '6', 'the raw input must accept whitespace around a six-character code')
+  await app.dispatch(page, 'joinRoom')
+  const join = app.cloud.calls.find(call => call.name === 'joinRoom')
+  assert.equal(join.data.roomCode, 'ABC123')
+})
+
 test('already-bound launch ignores the invite, enters home silently and never shows the enter fallback', async (t) => {
   const app = bindPlatform(t, { room: { roomCode: 'ROOM01', status: 'waiting' } })
   const page = app.launch('/pages/bind/bind?roomCode=ROOM05')
   await app.settle()
   assert.equal(page.data.bound, true)
   assert.equal(page.data.roomCode, 'ROOM01')
-  assert.equal(page.data.tab, 'create')
+  assert.equal(page.data.tab, '')
   assert.equal(page.data.joinCode, '')
   assert.equal(page.data.errorMsg, '')
   assert.equal(page.data.justCreated, false)
@@ -417,14 +512,14 @@ test('already-bound launch ignores the invite, enters home silently and never sh
   assert.deepEqual(app.wx.toasts, [])
 })
 
-test('bind page confirms a successful join once and enters the real homepage', async (t) => {
+test('bind page enters the real homepage directly after a successful join without a toast', async (t) => {
   const app = bindPlatform(t, { joinRoom: { code: 0, roomCode: 'ROOM09' } })
   const page = app.launch('/pages/bind/bind?roomCode=ROOM09')
   await app.settle()
   app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM09', status: 'paired' } })
   await app.dispatch(page, 'joinRoom')
   await app.settle()
-  assert.deepEqual(app.wx.toasts, [{ title: '已和 TA 连上' }])
+  assert.deepEqual(app.wx.toasts, [])
   assert.equal(homeJumps(app).length, 1)
   assert.equal(page.data.bound, true)
   assert.equal(page.data.roomCode, 'ROOM09')
@@ -490,8 +585,8 @@ test('first room check keeps only the brand heart until its delayed response', a
   const gateAt = wxml.indexOf('wx:if="{{revealed}}"')
   assert.ok(heartAt !== -1 && gateAt > heartAt)
   const gated = wxml.slice(gateAt)
-  for (const marker of ['class="hero-title"', 'class="hero-desc"', 'wx:if="{{bound}}"', 'class="error-msg"', 'class="error-retry"', '创建房间', '加入房间']) assert.ok(gated.includes(marker))
-  assert.doesNotMatch(wxml.slice(0, gateAt), /hero-title|创建房间|已绑定房间|error-msg|error-retry/)
+  for (const marker of ['class="hero-title"', 'class="hero-desc"', 'wx:if="{{bound}}"', 'class="error-msg"', 'class="error-retry"', '我来建房间', '我有房间码']) assert.ok(gated.includes(marker))
+  assert.doesNotMatch(wxml.slice(0, gateAt), /hero-title|我来建房间|我有房间码|已绑定房间|error-msg|error-retry/)
   assert.equal(findRule(readPageFile('pages/bind/bind.wxss'), '.hero-icon').animation, 'heroIn 0.6s var(--ease-out) both')
   check.resolve({ code: 0, room: null })
   await app.settle()
@@ -712,6 +807,69 @@ test('bind page reports restored records only after both collections load succes
       assert.match(readPageFile('pages/bind/bind.wxml'), /\{\{restoredNotice\}\}/)
     })
   }
+})
+
+test('create and join each commit their result and loading false together exactly once', async (t) => {
+  for (const action of ['createRoom', 'joinRoom']) {
+    for (const outcome of ['success', 'failure']) {
+      await t.test(`${action} ${outcome}`, async (t) => {
+        const success = outcome === 'success'
+        const app = bindPlatform(t, {
+          [action]: success
+            ? action === 'createRoom' ? { code: 0, room: { roomCode: 'ROOM05' } } : { code: 0, roomCode: 'ROOM05' }
+            : { code: -1, msg: '这次没有完成，请重试' }
+        })
+        const page = app.launch(action === 'joinRoom' ? '/pages/bind/bind?roomCode=ROOM05' : '/pages/bind/bind')
+        await app.settle()
+        const start = page.setDataCalls.length
+        await app.dispatch(page, action)
+        const frames = page.setDataCalls.slice(start)
+        assert.equal(frames.length, 2, 'one loading frame and one combined result frame')
+        assert.equal(frames[0].loading, true)
+        assert.equal(frames[1].loading, false)
+        assert.equal(frames.filter(frame => frame.loading === false).length, 1)
+        if (success) {
+          assert.equal(frames[1].bound, true)
+          assert.equal(frames[1].roomCode, 'ROOM05')
+          if (action === 'createRoom') assert.equal(frames[1].justCreated, true)
+        } else {
+          assert.equal(frames[1].errorMsg, '这次没有完成，请重试')
+          assert.equal(frames[1].needUnbind, false)
+        }
+      })
+    }
+  }
+})
+
+test('restored room notice reads periods and memories in parallel without delaying the create result', async (t) => {
+  const app = bindPlatform(t, { createRoom: { code: 0, room: { roomCode: 'ROOM05' } } })
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  const periods = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'periods' } }).defer()
+  const memories = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'memories' } }).defer()
+  const start = page.setDataCalls.length
+  const creating = app.dispatch(page, 'createRoom')
+  await app.settle()
+
+  const listCalls = app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action === 'list')
+  assert.deepEqual(listCalls.map(call => call.data.collection).sort(), ['memories', 'periods'])
+  const resultFrames = page.setDataCalls.slice(start)
+  assert.equal(resultFrames.length, 2)
+  assert.equal(resultFrames[1].loading, false)
+  assert.equal(resultFrames[1].bound, true)
+  assert.equal(Object.hasOwn(resultFrames[1], 'restoredNotice'), false)
+
+  periods.resolve({ code: 0, data: [{ _id: 'p1' }, { _id: 'p2' }] })
+  await app.settle()
+  assert.equal(page.setDataCalls.slice(start).length, 2)
+  memories.resolve({ code: 0, data: [{ _id: 'm1' }] })
+  await creating
+  await app.settle()
+
+  const frames = page.setDataCalls.slice(start)
+  assert.equal(frames.length, 3)
+  assert.equal(frames[1].loading, false)
+  assert.deepEqual(frames[2], { restoredNotice: '已恢复原来的房间和 3 条记录' })
 })
 
 // Scenario data programs only cloud responses and platform state; all pages and modules are real.

@@ -45,10 +45,7 @@ function clearDraft(storage, key) {
 }
 
 function syncDraft(storage, key, values, baseline) {
-  if (JSON.stringify(values || {}) === JSON.stringify(baseline || {})) {
-    clearDraft(storage, key)
-    return 'cleared'
-  }
+  if (JSON.stringify(values || {}) === JSON.stringify(baseline || {})) return 'unchanged'
   writeDraft(storage, key, values)
   return 'written'
 }

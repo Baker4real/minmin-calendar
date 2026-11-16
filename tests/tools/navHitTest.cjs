@@ -2,6 +2,7 @@
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
+const { readSource } = require('../sourceFiles')
 const { parseWxssRules } = require('../designTokens')
 const { browsersPath } = require('./playwrightBrowsers.cjs')
 const root = path.resolve(__dirname, '../..')
@@ -36,13 +37,13 @@ async function main() {
   const browser = await chromium.launch({ headless: true })
   const evidence = []
   try {
-    const wxml = fs.readFileSync(path.join(root, 'pages/index/index.wxml'), 'utf8')
+    const wxml = readSource(path.join(root, 'pages/index/index.wxml'), 'utf8')
     const nav = wxml.match(/<view\b[^>]*\bclass="nav-bar header-gradient"[^>]*>([\s\S]*?)<\/view>\s*<\/view>/)
     assert.ok(nav, 'navbar fixture must be extracted from the current WXML')
     assert.match(nav[0], /class="nav-tool"[^>]*bindtap="openMonthMenu"/)
     for (const width of widths) {
       const page = await browser.newPage({ viewport: { width, height: 932 } })
-      const sources = ['app.wxss', 'pages/index/index.wxss'].map(file => fs.readFileSync(path.join(root, file), 'utf8'))
+      const sources = ['app.wxss', 'pages/index/index.wxss'].map(file => readSource(path.join(root, file), 'utf8'))
       const selectors = new Set(['page', '.nav-bar', '.nav-title', '.nav-tool', '.header-gradient', '.header-gradient::before', '.header-gradient::after'])
       const css = sources.flatMap(parseWxssRules).filter(rule => rule.selectors.some(selector => selectors.has(selector))).map(rule => {
         const names = rule.selectors.filter(selector => selectors.has(selector)).map(selector => selector === 'page' ? 'body' : selector)

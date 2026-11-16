@@ -3,9 +3,9 @@
 // 常驻动画和模糊不超出登记的预算；状态通道在减弱动效下仍可感知；JS 里的时长常量与对应的样式 token 一致。
 // 具体时长、缩放和色值以 app.wxss 与 docs/motion-and-interaction.md 为准，这里不复写：在规则允许的范围内改值时测试保持通过。
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const { FILL_PROPERTIES, PRESS_SCALE_BAND, fillOf, listWxssFiles } = require('./designTokens')
 const { createMiniProgram } = require('./helpers/miniProgram')
@@ -14,7 +14,7 @@ const { renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
 const repoRoot = path.join(__dirname, '..')
 
 function readRepo(relative) {
-  return fs.readFileSync(path.join(repoRoot, relative), 'utf8')
+  return readSource(path.join(repoRoot, relative), 'utf8')
 }
 
 function maskComments(css) {
@@ -180,7 +180,7 @@ test('reduced-motion coverage requires matching pseudo-element scope', () => {
 function analyzedWxssFiles() {
   return listWxssFiles(repoRoot).map((file) => {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    const analyzed = analyzeFile(fs.readFileSync(file, 'utf8'))
+    const analyzed = analyzeFile(readSource(file, 'utf8'))
     for (const rule of analyzed.rules) rule.source = relative
     return { relative, ...analyzed }
   })
@@ -208,7 +208,7 @@ test('bounce/elastic/spring easing keywords are retired from every WXSS', () => 
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    const masked = maskComments(fs.readFileSync(file, 'utf8'))
+    const masked = maskComments(readSource(file, 'utf8'))
     for (const keyword of ['bounce', 'elastic', 'spring']) {
       const pattern = new RegExp(keyword, 'i')
       if (pattern.test(masked)) violations.push(`${relative} still names "${keyword}"`)
@@ -221,7 +221,7 @@ test('no cubic-bezier overshoots: both y parameters stay within 0-1', () => {
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    const masked = maskComments(fs.readFileSync(file, 'utf8'))
+    const masked = maskComments(readSource(file, 'utf8'))
     for (const match of masked.matchAll(/cubic-bezier\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/g)) {
       const [y1, y2] = [Number(match[2]), Number(match[4])]
       if (y1 < 0 || y1 > 1 || y2 < 0 || y2 > 1) {
@@ -549,7 +549,7 @@ test('cubic-bezier survives only as the --ease-out definition', () => {
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    const stripped = maskComments(fs.readFileSync(file, 'utf8'))
+    const stripped = maskComments(readSource(file, 'utf8'))
       .replace(/--ease-out\s*:\s*cubic-bezier\([^)]*\)/g, '')
     if (/cubic-bezier\s*\(/i.test(stripped)) violations.push(relative)
   }
@@ -560,7 +560,7 @@ test('the single-use --transition token stays retired', () => {
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    const masked = maskComments(fs.readFileSync(file, 'utf8'))
+    const masked = maskComments(readSource(file, 'utf8'))
     if (/(^|[^\w-])--transition(?![\w-])/.test(masked)) violations.push(relative)
   }
   assert.deepEqual(violations, [])
@@ -602,7 +602,7 @@ test('infinite animations stay inside the registered registry with slow decorati
 test('retired second-layer / bounce animations and the month-change dim stay gone', () => {
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    const masked = maskComments(fs.readFileSync(file, 'utf8'))
+    const masked = maskComments(readSource(file, 'utf8'))
     for (const name of RETIRED_ANIMATIONS) {
       assert.equal(masked.includes(name), false, `${relative} should not define or reference ${name}`)
     }

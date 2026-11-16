@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const { listCalls, listed, markedDates: marked, roomLookups } = require('./helpers/recordPages')
 const { evaluateWxmlExpression, wxmlElementTree } = require('./wxmlTemplate')
@@ -18,7 +18,7 @@ const memoryRowIds = page => page.data.memoryGroups.flatMap(group => group.recor
 // Whether the tab's WXML draws an element for the rendered data: its own wx:if / wx:elif holds, no earlier branch
 // of its chain holds (WXML draws one branch per chain), and the same goes for every element around it.
 // Ask only about the segment on screen: the memory segment is a bare wx:else, which the tree does not read.
-const tabWxml = fs.readFileSync(path.join(__dirname, '../pages/period/period.wxml'), 'utf8')
+const tabWxml = readSource(path.join(__dirname, '../pages/period/period.wxml'), 'utf8')
 const tabTemplate = wxmlElementTree(tabWxml)
 const allElements = nodes => nodes.flatMap(node => [node, ...allElements(node.children)])
 function holds(node, data) {
@@ -877,7 +877,7 @@ test('when the Room needs rebinding, only the record tab in front prompts once, 
   const retry = app.dispatch(tab, 'loadMemoryData')
   await Promise.all([refresh, retry])
   await app.settle()
-  assert.deepEqual(app.wx.modals.map(modal => [modal.title, modal.confirmText]), [['房间状态已变化', '去绑定']])
+  assert.deepEqual(app.wx.modals.map(modal => [modal.title, modal.confirmText]), [['已不在这个房间', '去绑定']])
   assert.equal(listCalls(app).length, 6, 'the pull-down and the retry share one load')
   assert.equal(app.rendered(home).noRoom, true, 'hidden Home only renders its Room status')
   assert.equal(app.rendered(tab).loadFailed, true)
@@ -926,7 +926,7 @@ test('record tab period entry matches the home projection with and without an on
   await app.dispatch(page, 'addPeriod')
   await app.settle()
   assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
-  assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?id=p2&startDate=2026-10-18&endDate=2026-10-20&status=known-end')
+  assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?id=p2&startDate=2026-10-18&endDate=2026-10-20&status=known-end&intent=complete')
   assert.equal(app.wx.toasts.at(-1).title, home.periodQuickAction.notice)
   assert.equal(app.currentPage.data.status, 'known-end')
   assert.equal(app.currentPage.data.endDate, '2026-10-20')
@@ -966,7 +966,7 @@ test('record tab chooses the latest ongoing record, then creates today even when
   await app.dispatch(page, 'addPeriod')
   assert.equal(app.currentPage.data.id, 'latest-live')
   assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
-  assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?id=latest-live&startDate=2026-10-15&endDate=2026-10-20&status=known-end')
+  assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?id=latest-live&startDate=2026-10-15&endDate=2026-10-20&status=known-end&intent=complete')
   assert.equal(app.wx.toasts.at(-1).title, home.periodQuickAction.notice)
   list(app, 'periods').reply({ code: 0, data: [closedToday] })
   await app.dispatch(app.currentPage, 'goBack')

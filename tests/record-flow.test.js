@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 test('period and memory list templates keep the REC-03 visible row contract', () => {
   const periodWxml = readPageFile('pages/period/period.wxml')
@@ -376,5 +376,5 @@ test('record lists preview long notes as one clamped line without displacing lat
 })
 
 function readPageFile(relativePath) {
-  return fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8')
+  return readSource(path.join(__dirname, '..', relativePath), 'utf8')
 }

@@ -1,16 +1,16 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const { contrastRatio, meetsContrast } = require('./contrast')
 
-const PERIOD_EDIT_WXSS = fs.readFileSync(
+const PERIOD_EDIT_WXSS = readSource(
   path.join(__dirname, '..', 'pages/period/edit/edit.wxss'),
   'utf8'
 )
 
-const PERIOD_LIST_WXSS = fs.readFileSync(
+const PERIOD_LIST_WXSS = readSource(
   path.join(__dirname, '..', 'pages/period/period.wxss'),
   'utf8'
 )

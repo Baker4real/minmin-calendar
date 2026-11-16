@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 let settingsFlow = {}
 try {
@@ -485,7 +485,7 @@ test('exportRecordsAsJson keeps repaired room export failures on the export retr
 
   await waitForAsyncTurn()
   assert.equal(env.wx.modals.length, 1)
-  assert.equal(env.wx.modals[0].title, '房间状态已更新')
+  assert.equal(env.wx.modals[0].title, '已重新连上房间')
   assert.equal(env.wx.modals[0].content, '房间状态已更新，请重试导出')
   assert.equal(env.wx.modals[0].confirmText, '重试')
 
@@ -1101,7 +1101,7 @@ function createFakeRoomDataClient(results = {}) {
 }
 
 function readPageFile(relativePath) {
-  return fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8')
+  return readSource(path.join(__dirname, '..', relativePath), 'utf8')
 }
 
 function waitForAsyncTurn() {

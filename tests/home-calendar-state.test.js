@@ -51,7 +51,7 @@ for (const scenario of firstScreenCases) {
           assert.equal(state.periodQuickLabel, quick)
           assert.equal(state.periodQuickAriaLabel, quick)
           assert.equal(state.periodQuickAction.url, scenario.name === 'ongoing'
-            ? '/pages/period/edit/edit?id=live&startDate=2026-06-20&endDate=2026-06-26&status=known-end'
+            ? '/pages/period/edit/edit?id=live&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete'
             : '/pages/period/edit/edit?startDate=2026-06-26')
           assert.equal(state.periodQuickAction.notice, scenario.name === 'ongoing' ? '已有进行中的经期，继续编辑它' : '')
           assert.equal(state.memoryQuickAction.url, '/pages/memory/edit/edit?date=2026-06-26')
@@ -158,7 +158,7 @@ test('homeCalendarState uses record rows on covered days and a persistent comple
     text: '记了结束才能补记别的',
     actionLabel: '记结束'
   })
-  assert.equal(earlierBlank.periodAction.url, '/pages/period/edit/edit?id=ongoing&startDate=2026-06-20&endDate=2026-06-26&status=known-end')
+  assert.equal(earlierBlank.periodAction.url, '/pages/period/edit/edit?id=ongoing&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
   assert.equal(earlierBlank.futureNotice, null)
 
   const today = state.dayDetailsByDate['2026-06-26']

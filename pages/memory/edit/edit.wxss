@@ -85,13 +85,22 @@
   line-height: var(--line-height-body);
 }
 
-/* 草稿恢复说明：表单上常驻可见，不只靠一闪而过的提示 */
+/* 草稿恢复说明常驻并主动播报；只有可点的放弃操作使用玫瑰色 */
 .draft-notice {
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
-  color: var(--aurora-pink);
+  color: var(--text-secondary);
   margin-bottom: 24rpx;
+}
+.draft-discard {
+  display: inline-block;
+  color: var(--aurora-pink);
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.draft-discard:active,
+.draft-discard.draft-discard-hover {
+  transform: scale(0.96);
 }
 
 /* Buttons：保存紧跟表单卡，一个块间距；删除另在下方危险区（issue #164） */
@@ -112,7 +121,8 @@
    （issue #106；DESIGN.md 动效政策——状态反馈走无位移通道） */
 @media (prefers-reduced-motion: reduce) {
   .form-picker,
-  .form-input {
+  .form-input,
+  .draft-discard {
     transition: none;
   }
 }

@@ -550,8 +550,8 @@ test('an unbound homepage offers binding without requesting record collections',
 })
 
 for (const [repair, title, actionText] of [
-  [ROOM, '房间状态已更新', '重新加载'],
-  [{ code: 0, room: null }, '房间状态已变化', '去绑定'],
+  [ROOM, '已重新连上房间', '重新加载'],
+  [{ code: 0, room: null }, '已不在这个房间', '去绑定'],
   [{ code: -1, msg: 'network down' }, '房间同步失败', '重试']
 ]) {
   test(`background Room repair shows ${title} until its visible action is taken`, async t => {

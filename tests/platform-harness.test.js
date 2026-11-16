@@ -2,7 +2,7 @@ const assert = require('node:assert/strict')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
 
-test('navigation runs real page lifecycle and restores a draft using the same clock as timeouts', async (t) => {
+test('navigation runs real page lifecycle and does not restore a previous-date draft on a new day', async (t) => {
   const app = createMiniProgram({ now: '2026-06-26T12:00:00+08:00' })
   t.after(() => app.teardown())
   app.cloud.when('getMyRoom').reply({ code: 0, room: null })
@@ -20,8 +20,8 @@ test('navigation runs real page lifecycle and restores a draft using the same cl
   setTimeout(() => app.wx.navigateTo({ url: '/pages/memory/edit/edit' }), 86400000)
   await app.advance(86400000)
   assert.equal(app.currentPage.data.maxDate, '2026-06-27')
-  assert.equal(app.currentPage.data.note, '测试草稿')
-  assert.equal(app.currentPage.data.draftRestored, true)
+  assert.equal(app.currentPage.data.note, '')
+  assert.equal(app.currentPage.data.draftRestored, false)
   assert.deepEqual(app.lifecycle.filter(item => item.route === edit.route).map(item => item.name),
     ['onLoad', 'onShow', 'onReady', 'onUnload', 'onLoad', 'onShow', 'onReady'])
 })
