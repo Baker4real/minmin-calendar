@@ -74,6 +74,8 @@ Cloud functions live under `cloudfunctions/`; each function has its own `package
 
 使用 Node.js 24，在项目根运行：
 
+节假日年度更新时，将上游年度 JSON 存为本地夹具后运行 `npm run holidays:generate -- tests/fixtures/holiday-cn/2027.json`（替换年份），脚本会离线输出可加入 `utils/chinaHolidays.js` 的条目。
+
 ```powershell
 npm run release:prepare
 npm run verify
