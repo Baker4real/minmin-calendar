@@ -31,7 +31,7 @@
           <view class="cycle-item">
             <text class="cycle-label">总记录</text>
             <!-- 首次加载失败时不给确信的 0；已成功加载过则保留上次的数字 -->
-            <text wx:if="{{!loading && (!loadFailed || hasLoaded)}}" class="cycle-num">{{periods.length}}</text>
+            <text wx:if="{{!loading && (!loadFailed || hasLoaded)}}" class="cycle-num">{{periodCount}}</text>
             <text wx:elif="{{!loading}}" class="cycle-num">--</text>
           </view>
           <view class="cycle-item">
@@ -55,7 +55,7 @@
         <text class="load-failed-text">经期记录加载失败</text>
         <view class="retry-btn" hover-class="retry-btn-hover">重试</view>
       </view>
-      <view wx:if="{{periods.length > 0 && !loading}}" class="period-year-list">
+      <view wx:if="{{periodCount > 0 && !loading}}" class="period-year-list">
         <view class="period-year" wx:for="{{periodGroups}}" wx:key="key" wx:for-item="yearGroup">
           <view class="period-year-title" bindtap="togglePeriodYear" data-key="{{yearGroup.key}}" aria-role="button" aria-label="{{yearGroup.ariaLabel}}" aria-expanded="{{yearGroup.expanded}}" hover-class="period-year-title-hover">
             <text>{{yearGroup.title}}</text>
@@ -67,28 +67,30 @@
               <text class="month-header-text">{{group.title}}</text>
               <text class="month-toggle">{{group.toggleLabel}}</text>
             </view>
-            <view class="list-item" wx:if="{{group.expanded}}" wx:for="{{group.records}}" wx:key="_id" bindtap="editPeriod" data-id="{{item._id}}" aria-role="button" aria-label="编辑经期记录 {{item.rangeSummary}}" hover-class="list-item-hover">
-              <view class="item-left">
-                <view class="item-date">{{item.dateLabel}}</view>
-                <view wx:if="{{item.authorLabel}}" class="item-note">{{item.authorLabel}}</view>
-                <view wx:if="{{item.flowLabel || item.symptomText}}" class="item-tags">
-                  <text wx:if="{{item.flowLabel}}" class="item-tag flow">{{item.flowLabel}}</text>
-                  <text wx:for="{{item.symptomLabels}}" wx:for-item="tag" wx:key="*this" class="item-tag">{{tag}}</text>
+            <block wx:if="{{group.expanded}}">
+              <view class="list-item" wx:for="{{group.records}}" wx:key="_id" bindtap="editPeriod" data-id="{{item._id}}" aria-role="button" aria-label="编辑经期记录 {{item.rangeSummary}}" hover-class="list-item-hover">
+                <view class="item-left">
+                  <view class="item-date">{{item.dateLabel}}</view>
+                  <view wx:if="{{item.authorLabel}}" class="item-note">{{item.authorLabel}}</view>
+                  <view wx:if="{{item.flowLabel || item.symptomText}}" class="item-tags">
+                    <text wx:if="{{item.flowLabel}}" class="item-tag flow">{{item.flowLabel}}</text>
+                    <text wx:for="{{item.symptomLabels}}" wx:for-item="tag" wx:key="*this" class="item-tag">{{tag}}</text>
+                  </view>
+                  <view wx:if="{{item.note}}" class="item-note">{{item.note}}</view>
                 </view>
-                <view wx:if="{{item.note}}" class="item-note">{{item.note}}</view>
+                <view class="item-right">
+                  <text wx:if="{{item.status === 'known-end'}}" class="item-duration">{{item.durationText}}</text>
+                  <text wx:else class="item-duration ongoing">{{item.durationText}}</text>
+                  <text class="item-arrow">›</text>
+                </view>
               </view>
-              <view class="item-right">
-                <text wx:if="{{item.status === 'known-end'}}" class="item-duration">{{item.durationText}}</text>
-                <text wx:else class="item-duration ongoing">{{item.durationText}}</text>
-                <text class="item-arrow">›</text>
-              </view>
-            </view>
+            </block>
           </view>
           </view>
         </view>
       </view>
       <!-- 空态断言句只在确认没有失败时出现：成功加载 0 条后再刷新失败时，数字保留 0，语境由重试行解释 -->
-      <view wx:elif="{{periods.length === 0 && !loading && !loadFailed}}" class="empty-state">
+      <view wx:elif="{{periodCount === 0 && !loading && !loadFailed}}" class="empty-state">
         <text>经期开始那天点「＋ 记经期」，记两次以上就能预测下次</text>
       </view>
 
@@ -120,7 +122,7 @@
       </view>
       <!-- 欢乐时光月份分组（issue #108）：每月一张玻璃卡，卡头写年月与条数；
            点卡头切换展开/收起，默认全部收起（2026-11-14 取代 #143 的最近三个月默认展开），收起时组内行不渲染 -->
-      <view wx:if="{{memories.length > 0 && !memoryLoading}}" class="memory-month-list">
+      <view wx:if="{{memoryCount > 0 && !memoryLoading}}" class="memory-month-list">
         <view class="premium-card month-card" wx:for="{{memoryGroups}}" wx:key="key" wx:for-item="group">
           <view class="month-header" bindtap="toggleMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-class="month-header-hover">
             <view class="month-header-main">
@@ -129,22 +131,24 @@
             </view>
             <text class="month-toggle">{{group.toggleLabel}}</text>
           </view>
-          <view class="list-item" wx:if="{{group.expanded}}" wx:for="{{group.records}}" wx:key="_id" bindtap="editMemory" data-id="{{item._id}}" aria-role="button" aria-label="{{item.ariaLabel}}" hover-class="list-item-hover">
-            <view class="memory-left">
-              <text class="memory-heart" aria-hidden="true">♥</text>
-              <view class="memory-info">
-                <view class="memory-date">{{item.dayLabel}}</view>
-                <view wx:if="{{item.authorLabel}}" class="memory-note">{{item.authorLabel}}</view>
-                <view wx:if="{{item.note}}" class="memory-note">{{item.note}}</view>
+          <block wx:if="{{group.expanded}}">
+            <view class="list-item" wx:for="{{group.records}}" wx:key="_id" bindtap="editMemory" data-id="{{item._id}}" aria-role="button" aria-label="{{item.ariaLabel}}" hover-class="list-item-hover">
+              <view class="memory-left">
+                <text class="memory-heart" aria-hidden="true">♥</text>
+                <view class="memory-info">
+                  <view class="memory-date">{{item.dayLabel}}</view>
+                  <view wx:if="{{item.authorLabel}}" class="memory-note">{{item.authorLabel}}</view>
+                  <view wx:if="{{item.note}}" class="memory-note">{{item.note}}</view>
+                </view>
               </view>
+              <view class="memory-arrow">›</view>
             </view>
-            <view class="memory-arrow">›</view>
-          </view>
+          </block>
         </view>
       </view>
 
       <!-- 空态断言句只在确认没有失败时出现，与经期列表的失败语境规则一致 -->
-      <view wx:elif="{{memories.length === 0 && !memoryLoading && !memoryLoadFailed}}" class="empty-state">
+      <view wx:elif="{{memoryCount === 0 && !memoryLoading && !memoryLoadFailed}}" class="empty-state">
         <text>想记的那天点「＋ 记欢乐时光」，写一句就留在日历上</text>
       </view>
 
