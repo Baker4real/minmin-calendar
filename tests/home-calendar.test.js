@@ -887,6 +887,45 @@ for (const id of Object.keys(openers)) {
   })
 }
 
+test('real WXS sheet touchcancel restores the open pose and clears drag displacement', async t => {
+  const app = homeApp(t, { selectors: { '.sheet-slide-monthPicker': { height: 400 } } })
+  const home = await launch(app)
+  await openSheet(app, home, 'monthPicker')
+  const currentTarget = { dataset: { sheet: 'monthPicker' } }
+  const touch = { identifier: 1, pageX: 100, pageY: 100 }
+  app.dispatch(home, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
+  app.dispatch(home, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 240 }] })
+  assert.equal(app.viewStyle(home, '.sheet-slide-monthPicker').transform, 'translateY(140px)')
+  app.dispatch(home, 'sheetDrag.touchCancel', { currentTarget, changedTouches: [{ ...touch, pageY: 240 }] })
+  await app.settle()
+  await app.advance(16)
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-open')
+  assert.equal(app.viewStyle(home, '.sheet-slide-monthPicker').transform, '')
+  const nextTouch = { identifier: 2, pageX: 100, pageY: 100 }
+  app.dispatch(home, 'sheetDrag.touchStart', { currentTarget, touches: [nextTouch] })
+  await app.advance(100)
+  app.dispatch(home, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...nextTouch, pageY: 300 }] })
+  await app.settle()
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-leaving', 'a later gesture is tracked normally')
+})
+
+test('real WXS sheet release clears tracking before reading changed touches', async t => {
+  const app = homeApp(t, { selectors: { '.sheet-slide-monthPicker': { height: 400 } } })
+  const home = await launch(app)
+  await openSheet(app, home, 'monthPicker')
+  const currentTarget = { dataset: { sheet: 'monthPicker' } }
+  const firstTouch = { identifier: 1, pageX: 100, pageY: 100 }
+  const nextTouch = { identifier: 2, pageX: 100, pageY: 100 }
+  app.dispatch(home, 'sheetDrag.touchStart', { currentTarget, touches: [firstTouch] })
+  app.dispatch(home, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [nextTouch] })
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-open')
+  app.dispatch(home, 'sheetDrag.touchStart', { currentTarget, touches: [nextTouch] })
+  await app.advance(100)
+  app.dispatch(home, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...nextTouch, pageY: 300 }] })
+  await app.settle()
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-leaving', 'a missing released touch cannot block the next drag')
+})
+
 test('WXS attribute changes reach the view only after render commit and style observations are read-only', async t => {
   const app = homeApp(t, { autoCommit: false, selectors: { '.sheet-slide-monthPicker': { height: 400 } } })
   const home = await launch(app)
@@ -980,6 +1019,23 @@ for (const [year, month, blockedArrow, dx] of [[2001, 0, 'prevMonth', 80], [2035
     assert.equal(renderWxmlAttribute(arrow.attrs['aria-disabled'], app.rendered(home)), 'false')
   })
 }
+
+test('real calendar WXS touchcancel resets without flipping and allows a later swipe', async t => {
+  const app = homeApp(t)
+  const home = await launch(app)
+  const before = app.rendered(home)
+  const start = { identifier: 1, pageX: 150, pageY: 200 }
+  const end = { ...start, pageX: 50 }
+  app.dispatch(home, 'monthSwipe.touchStart', { touches: [start] })
+  app.dispatch(home, 'monthSwipe.touchMove', { touches: [end] })
+  app.dispatch(home, 'monthSwipe.touchCancel', { changedTouches: [end] })
+  await app.settle()
+  app.commit(home)
+  assert.deepEqual([app.rendered(home).year, app.rendered(home).month], [before.year, before.month])
+  assert.deepEqual(app.rendered(home).days, before.days)
+  await swipe(app, home, -80)
+  assert.equal(app.rendered(home).month, before.month + 1)
+})
 
 for (const [dx, dy, delta] of [[-49, 0, 1], [49, 0, -1], [-80, 79, 1], [80, 10, -1], [-48, 0, 0], [48, 0, 0], [-49, 49, 0], [-49, 50, 0], [10, 0, 0], [0, 80, 0]]) {
   test(`real calendar WXS swipe (${dx}, ${dy}) changes month by ${delta}`, async t => {

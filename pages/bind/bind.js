@@ -1,10 +1,13 @@
 const roomSession = require('../../utils/room')
+const { buildRoomShareCard } = require('../../utils/roomShare')
 const settingsFlow = require('../../utils/settingsFlow')
 const cloud = require('../../utils/cloud')
+const roomRecordsSync = require('../../utils/roomRecordsSync')
 const safeArea = require('../../utils/safeArea')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 
 const ROOM_CODE_LENGTH = 6
+const OPENING_CALENDAR_HINT_DELAY = 800
 
 function normalizeRoomCode(value) {
   return String(value || '').replace(/\s/g, '').toUpperCase()
@@ -42,6 +45,7 @@ Page(withPageVisibility({
     tab: '',
     bound: false,
     roomCode: '',
+    roomStatus: '',
     joinCode: '',
     loading: false,
     errorMsg: '',
@@ -50,9 +54,10 @@ Page(withPageVisibility({
     justCreated: false,
     restoredNotice: '',
     homeJumpFailed: false,
-    // issue #115：第一次显示到第一次校验结果之前只留品牌心
+    // issue #115/#220：第一次校验结果前只留品牌心；慢校验 800ms 后追加打开提示
     verifying: true,
-    revealed: false
+    revealed: false,
+    openingCalendarHint: false
   },
 
   onLoad(options) {
@@ -68,13 +73,28 @@ Page(withPageVisibility({
 
   async checkRoom(options = {}) {
     const returningFromShare = options.returningFromShare === true
-    const room = await roomSession.getVerifiedActiveRoom()
+    const firstCheck = this.data.verifying
+    if (firstCheck && !this._openingCalendarHintTimer && !this.data.openingCalendarHint) {
+      this._openingCalendarHintTimer = setTimeout(() => {
+        this._openingCalendarHintTimer = null
+        if (this.data.verifying) this.setData({ openingCalendarHint: true })
+      }, OPENING_CALENDAR_HINT_DELAY)
+    }
+    const preload = firstCheck && roomSession.getRoomCode()
+    const checking = roomSession.getVerifiedActiveRoom()
+    if (preload) roomRecordsSync.load()
+    const room = await checking
+    if (this._openingCalendarHintTimer) {
+      clearTimeout(this._openingCalendarHintTimer)
+      this._openingCalendarHintTimer = null
+    }
+    if (preload && !room.bound) roomRecordsSync.discard()
     const inviteCode = this.pendingInviteCode || ''
     this.pendingInviteCode = ''
     if (room.bound) {
       // issue #102：已绑定冷启动直达首页，不再停在绑定页多点一次「进入应用」
       // review #99：重校验清空一次性旗标——「进入应用」只在跳转失败或刚创建房间时出现
-      this.setData({ bound: true, roomCode: room.roomCode, errorMsg: '', needUnbind: false, justCreated: returningFromShare ? this.data.justCreated : false, checkFailed: false, homeJumpFailed: false, verifying: false })
+      this.setData({ bound: true, roomCode: room.roomCode, roomStatus: room.status || '', errorMsg: '', needUnbind: false, justCreated: returningFromShare ? this.data.justCreated : false, checkFailed: false, homeJumpFailed: false, verifying: false, openingCalendarHint: false })
       if (!returningFromShare) this.goHome()
       return
     }
@@ -82,6 +102,7 @@ Page(withPageVisibility({
     const data = {
       bound: false,
       roomCode: '',
+      roomStatus: '',
       errorMsg: room.errorMsg || '',
       needUnbind: false,
       justCreated: false,
@@ -89,7 +110,8 @@ Page(withPageVisibility({
       // 校验失败（网络/云端异常）时给出可点重试；未绑定没有错误文案，不出重试
       checkFailed: Boolean(room.errorMsg),
       verifying: false,
-      revealed: true
+      revealed: true,
+      openingCalendarHint: false
     }
     if (inviteCode) {
       data.tab = 'join'
@@ -117,7 +139,8 @@ Page(withPageVisibility({
     const res = await roomSession.createRoom()
     if (res.code === 0) {
       // issue #102：创建后引导——本次会话内在房间码区域提示「把房间码发给 TA」（onShow 重校验后清除）
-      this.setData({ bound: true, roomCode: res.roomCode, needUnbind: false, justCreated: true, loading: false })
+      this.setData({ bound: true, roomCode: res.roomCode, roomStatus: 'waiting', needUnbind: false, justCreated: true, loading: false })
+      wx.vibrateShort({ type: 'light' })
       const restoredNotice = await restoredRoomNotice()
       if (restoredNotice) this.setData({ restoredNotice })
     } else {
@@ -132,7 +155,7 @@ Page(withPageVisibility({
     this.setData({ loading: true, errorMsg: '', checkFailed: false })
     const res = await roomSession.joinRoom(code)
     if (res.code === 0) {
-      this.setData({ bound: true, roomCode: res.roomCode, needUnbind: false, loading: false })
+      this.setData({ bound: true, roomCode: res.roomCode, roomStatus: 'paired', needUnbind: false, loading: false })
       this.goHome()
     } else {
       this.setData({ errorMsg: res.msg, needUnbind: res.reason === 'already-in-other-room', loading: false })
@@ -145,14 +168,11 @@ Page(withPageVisibility({
     })
   },
 
-  // issue #140：邀请卡标题固定，不含经期或记录；房间码只放在启动首屏的路径参数里
+  // issue #140 / #218：静态邀请图不含页面内容；只有等待中的有效 Room 在路径里带房间码
   onShareAppMessage() {
     // R8：分享返回后的那次 onShow 仍校验房间，但保留建房卡，不自动离开；下一次显示恢复正常。
     this.inviteSharePending = true
-    return {
-      title: '邀请你加入我的日历',
-      path: `/pages/bind/bind?roomCode=${this.data.roomCode}`
-    }
+    return buildRoomShareCard(this.data)
   },
 
   goHome() {
@@ -169,7 +189,7 @@ Page(withPageVisibility({
     settingsFlow.leaveRoom({
       onResult: result => {
         if (result.kind === 'success') {
-          this.setData({ bound: false, roomCode: '', joinCode: '', errorMsg: '', needUnbind: false })
+          this.setData({ bound: false, roomCode: '', roomStatus: '', joinCode: '', errorMsg: '', needUnbind: false })
         } else if (result.kind === 'failure') {
           this.setData({ errorMsg: result.message })
         }

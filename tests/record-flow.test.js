@@ -262,13 +262,13 @@ test('record edit notes are multi-line textareas with the unchanged 500-char cap
   }
 })
 
-// issue #156：日期错误常驻在所属字段的 picker 下方，同时并进该 picker 的读屏名，
+// 日期错误常驻在所属字段的 picker 下方，同时并进带当前显示值的 picker 读屏名；
 // 读屏能听出是开始日、结束日还是欢乐时光日期出错；字段容器带页面滚动锚点
-test('edit forms keep each date error under its own picker and inside that picker screen-reader name', () => {
+test('edit forms read each displayed date and keep its own error inside that picker screen-reader name', () => {
   const cases = [
-    ['pages/period/edit/edit.wxml', 'startDate', '选择开始日期'],
-    ['pages/period/edit/edit.wxml', 'endDate', '选择结束日期'],
-    ['pages/memory/edit/edit.wxml', 'date', '选择日期']
+    ['pages/period/edit/edit.wxml', 'startDate', '开始日期，{{startDateLabel}}，点按修改'],
+    ['pages/period/edit/edit.wxml', 'endDate', "结束日期，{{endDate ? endDateLabel + '，点按修改' : '还没选，点按选择'}}"],
+    ['pages/memory/edit/edit.wxml', 'date', '日期，{{dateLabel}}，点按修改']
   ]
   for (const [file, field, name] of cases) {
     const wxml = readPageFile(file)

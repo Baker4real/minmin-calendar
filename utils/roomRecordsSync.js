@@ -127,6 +127,23 @@ function createRoomRecordsSync() {
     return true
   }
 
+  // Launch validation can reject the Room after its preload has started or already landed.
+  // Drop that unverified snapshot and supersede its load without changing the local Room cache.
+  function discard() {
+    claimRoom(room.getRoomCode())
+    COLLECTIONS.forEach(collection => { Object.assign(collections[collection], emptyCollection()) })
+    hasLoadedRecords = false
+    loading = false
+    refreshing = false
+    failedCollections = []
+    blockedOutcome = null
+    pill = null
+    listedRoom = UNKNOWN_LISTED_ROOM
+    generation += 1
+    inFlight = null
+    publish(true)
+  }
+
   // Callers never choose: holding data already read for this Room makes any load a silent refresh.
   // The result is what the calling page presents from: success / partial-success (with only the
   // roomStatus this load's own lists brought back), retryable-failure / blocked (with the outcome
@@ -328,7 +345,7 @@ function createRoomRecordsSync() {
     return true
   }
 
-  return { subscribe, load, applyRecordChange, getState, readCurrentRoom, claimPrompt }
+  return { subscribe, load, discard, applyRecordChange, getState, readCurrentRoom, claimPrompt }
 }
 
 function syncingPill() {
@@ -393,6 +410,7 @@ const shared = createRoomRecordsSync()
 module.exports = {
   subscribe: shared.subscribe,
   load: shared.load,
+  discard: shared.discard,
   applyRecordChange: shared.applyRecordChange,
   getState: shared.getState,
   readCurrentRoom: shared.readCurrentRoom,

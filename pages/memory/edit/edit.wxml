@@ -19,7 +19,7 @@
       </view>
       <view class="form-item" id="field-date">
         <text class="form-label">日期</text>
-        <picker mode="date" value="{{date}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onDateChange" aria-role="button" aria-disabled="{{saving}}" aria-label="选择日期{{fieldErrors.date ? '，' + fieldErrors.date : ''}}">
+        <picker mode="date" value="{{date}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onDateChange" aria-role="button" aria-disabled="{{saving}}" aria-label="日期，{{dateLabel}}，点按修改{{fieldErrors.date ? '，' + fieldErrors.date : ''}}">
           <view class="form-picker{{saving ? ' disabled' : ''}}" hover-class="form-picker-hover">
             <text>{{dateLabel}}</text>
             <text class="form-picker-arrow">›</text>

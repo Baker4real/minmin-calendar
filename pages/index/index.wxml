@@ -40,6 +40,12 @@ function touchEnd(event, ownerInstance) {
   ownerInstance.callMethod('onCalendarSwipe', { dx: dx, dy: dy })
 }
 
+function touchCancel(event, ownerInstance) {
+  var instance = event.instance
+  if (!instance) return
+  instance.getState().tracking = false
+}
+
 function horizontalWins(dx, dy) {
   var absX = dx < 0 ? -dx : dx
   var absY = dy < 0 ? -dy : dy
@@ -58,7 +64,8 @@ function findTouch(touches, identifier) {
 module.exports = {
   touchStart: touchStart,
   touchMove: touchMove,
-  touchEnd: touchEnd
+  touchEnd: touchEnd,
+  touchCancel: touchCancel
 }
 </wxs>
   <view class="reduced-motion-probe" aria-hidden="true"></view>
@@ -76,7 +83,7 @@ module.exports = {
 
   <view wx:if="{{noRoom}}" class="no-room" aria-hidden="{{pageObscured}}">
     <!-- 爱心画面只属于未绑定/需要重新绑定；加载失败保持失败标题 + 重试，不复用这颗心（issue #79） -->
-    <view wx:if="{{roomStatusAction == 'bind'}}" class="no-room-icon">♥</view>
+    <view wx:if="{{roomStatusAction == 'bind'}}" class="no-room-icon" aria-hidden="true">♥</view>
     <text class="no-room-title">{{roomStatusTitle}}</text>
     <text class="no-room-desc">{{roomStatusDesc}}</text>
     <view class="btn-premium" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}" hover-class="btn-premium-hover">{{roomStatusActionText}}</view>
@@ -140,7 +147,7 @@ module.exports = {
       bindtouchstart="{{monthSwipe.touchStart}}"
       bindtouchmove="{{monthSwipe.touchMove}}"
       bindtouchend="{{monthSwipe.touchEnd}}"
-      bindtouchcancel="{{monthSwipe.touchEnd}}"
+      bindtouchcancel="{{monthSwipe.touchCancel}}"
     >
     <view class="week-header">
       <view class="week-cell" wx:for="{{weekDays}}" wx:key="*this">{{item}}</view>
@@ -251,7 +258,7 @@ module.exports = {
     <view class="day-sheet-mask sheet-{{monthPickerPhase}}" bindtap="closeMonthPicker" aria-role="button" aria-label="关闭月份选择" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-monthPicker sheet-{{monthPickerPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.monthPicker}}">
     <view class="calendar-jump-sheet safe-bottom" catchtap="noop" aria-label="月份选择">
-      <view class="sheet-drag-zone" data-sheet="monthPicker" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
+      <view class="sheet-drag-zone" data-sheet="monthPicker" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
         <view class="sheet-date-copy">
@@ -296,7 +303,7 @@ module.exports = {
 
       <view class="jump-section">
         <text class="jump-section-title">月份</text>
-        <view class="jump-month-grid">
+        <view class="jump-month-grid" aria-role="radiogroup" aria-label="月份">
           <view
             class="jump-option month-option {{item.value == jumpMonth ? 'active' : ''}}"
             wx:for="{{jumpMonths}}"
@@ -317,7 +324,7 @@ module.exports = {
     <view class="day-sheet-mask sheet-{{dayActionsPhase}}" bindtap="closeDayActions" aria-role="button" aria-label="关闭当日操作" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-dayActions sheet-{{dayActionsPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.dayActions}}">
     <view class="day-action-sheet safe-bottom" catchtap="noop" aria-label="当日操作">
-      <view class="sheet-drag-zone" data-sheet="dayActions" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
+      <view class="sheet-drag-zone" data-sheet="dayActions" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
         <view class="sheet-date-copy">
@@ -438,7 +445,7 @@ module.exports = {
     <view class="day-sheet-mask sheet-{{toolsMenuPhase}}" bindtap="closeMonthMenu" aria-role="button" aria-label="关闭工具菜单" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-toolsMenu sheet-{{toolsMenuPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.toolsMenu}}">
     <view class="day-action-sheet safe-bottom" catchtap="noop" aria-label="工具菜单">
-      <view class="sheet-drag-zone" data-sheet="toolsMenu" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
+      <view class="sheet-drag-zone" data-sheet="toolsMenu" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
         <view class="sheet-date-copy">
@@ -485,7 +492,7 @@ module.exports = {
     <view class="day-sheet-mask sheet-{{infoSheetPhase}}{{infoSheetHandoff ? ' sheet-handoff' : ''}}" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭{{infoSheetName}}" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-infoSheet sheet-{{infoSheetPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.infoSheet}}">
     <view class="day-action-sheet calendar-info-panel safe-bottom" catchtap="noop" aria-label="{{infoSheetName}}">
-      <view class="sheet-drag-zone" data-sheet="infoSheet" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
+      <view class="sheet-drag-zone" data-sheet="infoSheet" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
         <view class="sheet-date-copy">

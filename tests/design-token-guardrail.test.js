@@ -733,11 +733,56 @@ function declsFor(relative, selector) {
   return Object.assign({}, ...rules.map((rule) => rule.decls))
 }
 
+test('shadow offsets use rpx and preserve registered 1px hairlines', () => {
+  const violations = []
+  const numericToken = /^-?(?:\d+\.?\d*|\.\d+)(?:rpx|px)?$/
+  const pxToken = /^-?(?:\d+\.?\d*|\.\d+)px$/
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    for (const rule of parseWxssRules(readSource(file, 'utf8'))) {
+      for (const prop of ['box-shadow', 'text-shadow', 'filter']) {
+        const value = rule.decls[prop]
+        if (!value || value === 'none') continue
+        for (const layer of shadowLayers(prop, value)) {
+          const lengths = layer.replace(/rgba\([^)]*\)/g, '').split(/\s+/).filter(token => numericToken.test(token))
+          for (const token of lengths.slice(0, 2)) {
+            if (!pxToken.test(token)) continue
+            if (/\binset\b/.test(layer) && /^-?1px$/.test(token)) continue
+            violations.push(`${relative} ${rule.selectors.join(', ')} ${prop}: px offset in ${layer}`)
+          }
+        }
+      }
+    }
+  }
+  assert.deepEqual(violations, [])
+  assert.match(declsFor('app.wxss', '.premium-card')['box-shadow'], /inset 0 1px 0/)
+  assert.match(declsFor('pages/index/index.wxss', '.month-nav')['box-shadow'], /inset 0 1px 0/)
+})
+
+test('sheet body copy and date ranges keep word integrity with anywhere fallback', () => {
+  const cases = [
+    ['pages/index/index.wxss', [
+      '.sheet-subtitle', '.sheet-action-desc', '.detail-empty-desc', '.detail-meaning-text',
+      '.detail-main', '.detail-meta', '.legend-text', '.prediction-summary', '.explain-line',
+      '.recap-summary', '.recap-highlight'
+    ]],
+    ['pages/settings/settings.wxss', ['.help-copy']],
+    ['pages/period/period.wxss', ['.item-date']]
+  ]
+  for (const [relative, selectors] of cases) {
+    for (const selector of selectors) {
+      const decls = declsFor(relative, selector)
+      assert.notEqual(decls['word-break'], 'break-all', `${relative} ${selector} must not split date digits or words`)
+      assert.equal(decls['overflow-wrap'], 'anywhere', `${relative} ${selector} keeps emergency wrapping`)
+    }
+  }
+})
+
 // issue #146：辉光只留在主按钮和复制键上。月份导航、加载圈、同步点不发光；
 // 绑定页爱心只留一层字阴影。提醒和详情的彩色 rail 继续承载状态色。
 // issue #166：主按钮和复制键的玫瑰光画在 ::before 柔光层上，按钮本身不带阴影（按压契约见 motion-performance）。
 test('glow stays on primary buttons and the copy control', () => {
-  const roseGlow = '0 4px 15px rgba(232,144,158,0.28)'
+  const roseGlow = '0 8rpx 30rpx rgba(232,144,158,0.28)'
   for (const [relative, selector] of [
     ['app.wxss', '.btn-premium'],
     ['pages/settings/settings.wxss', '.copy-btn'],
@@ -837,7 +882,7 @@ test('glows sit only on the places DESIGN.md registers', () => {
   const design = readSource(path.join(repoRoot, 'DESIGN.md'), 'utf8')
   for (const registered of [
     'drop-shadow(0 0 10px rgba(240,196,192,0.3))',
-    '0 8px 32px rgba(232,144,158,0.15)',
+    '0 16rpx 64rpx rgba(232,144,158,0.15)',
     '`.jump-option.active`',
     '经期编辑页选中的状态、经量和症状芯片'
   ]) {
