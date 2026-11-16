@@ -217,7 +217,10 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   // 日操作弹层与详情模式的补记操作；issue #157：详情行读屏名由日历投影按记录拼好
   // （区间与状态或日期与备注摘要，配对后加作者），模板只绑定
   for (const action of elements.filter((element) => element.attrs.bindtap === 'onDayActionTap')) {
-    assert.equal(action.attrs['aria-label'], '{{item.label}}')
+    assert.equal(action.attrs['aria-role'], 'button')
+    assert.equal(action.attrs['aria-label'], action.classes.includes('ongoing-completion-action')
+      ? '{{selectedDayDetail.ongoingNotice.actionLabel}}'
+      : '{{item.label}}')
   }
   for (const row of elements.filter((element) => element.attrs.bindtap === 'onDayRecordTap')) {
     assert.equal(row.attrs['aria-label'], '{{item.ariaLabel}}')
