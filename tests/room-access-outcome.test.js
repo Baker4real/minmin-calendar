@@ -7,10 +7,10 @@ test('buildRoomRepairAction maps repaired membership to retry and rebind actions
   assert.deepEqual(roomAccess.buildRoomRepairAction({
     kind: 'room-repair',
     repair: { kind: 'success', bound: true, roomCode: 'ROOM01' }
-  }, { rebindMessage: '房间状态已变化，请重新绑定' }), {
+  }), {
     kind: 'room-repair',
     action: 'retry',
-    message: '房间状态已同步，请重试',
+    message: '已重新连上房间，再试一次',
     roomCode: 'ROOM01'
   })
 
@@ -18,10 +18,10 @@ test('buildRoomRepairAction maps repaired membership to retry and rebind actions
     kind: 'room-repair',
     roomCode: 'STALE1',
     repair: { kind: 'success', bound: false, roomCode: '' }
-  }, { rebindMessage: '房间状态已变化，请重新绑定' }), {
+  }), {
     kind: 'room-repair',
     action: 'rebind',
-    message: '房间状态已变化，请重新绑定',
+    message: '你已经不在这个房间里了，记录没有删除。重新加入或建房间后再继续',
     roomCode: 'STALE1'
   })
 
@@ -46,7 +46,7 @@ test('buildRoomRepairAction maps repaired membership to retry and rebind actions
   }
 })
 
-test('presentUserFailure maps technical failures to a next step and leaves product copy alone', () => {
+test('presentUserFailure keeps failure classification and old or new product copy stable', () => {
   assert.equal(typeof roomAccess.presentUserFailure, 'function')
   const errors = []
   const originalError = console.error
@@ -62,10 +62,20 @@ test('presentUserFailure maps technical failures to a next step and leaves produ
       roomAccess.presentUserFailure('同步房间状态失败：network down'),
       '网络不太稳定，请重试'
     )
-    assert.equal(
-      roomAccess.presentUserFailure('无权访问该房间'),
-      '房间状态已变化，请重新绑定'
-    )
+    for (const message of ['无权访问该房间', '未加入任何房间', '未加入该房间', '房间不存在']) {
+      assert.equal(
+        roomAccess.presentUserFailure(message),
+        '你已经不在这个房间里了，记录没有删除。重新加入或建房间后再继续'
+      )
+    }
+    for (const copy of [
+      '房间状态已变化，请重新绑定',
+      '房间状态已同步，请重试',
+      '你已经不在这个房间里了，记录没有删除。重新加入或建房间后再继续',
+      '已重新连上房间，再试一次'
+    ]) {
+      assert.equal(roomAccess.presentUserFailure(copy), copy)
+    }
     assert.equal(
       roomAccess.presentUserFailure('记录不存在或无权修改'),
       '这条记录已经不在了，请返回列表查看'

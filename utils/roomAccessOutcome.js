@@ -39,7 +39,7 @@ function getErrorCode(result) {
 
 const USER_FAILURE_COPY = {
   network: '网络不太稳定，请重试',
-  room: '房间状态已变化，请重新绑定',
+  room: '你已经不在这个房间里了，记录没有删除。重新加入或建房间后再继续',
   missing: '这条记录已经不在了，请返回列表查看',
   unknown: '这次没有完成，请重试'
 }
@@ -95,7 +95,7 @@ function buildRoomRepairAction(outcome, options = {}) {
     return {
       kind: 'room-repair',
       action: 'retry',
-      message: options.retryMessage || '房间状态已同步，请重试',
+      message: options.retryMessage || '已重新连上房间，再试一次',
       roomCode
     }
   }
@@ -104,7 +104,7 @@ function buildRoomRepairAction(outcome, options = {}) {
     return {
       kind: 'room-repair',
       action: 'rebind',
-      message: options.rebindMessage || '房间状态已变化，请重新绑定',
+      message: options.rebindMessage || '你已经不在这个房间里了，记录没有删除。重新加入或建房间后再继续',
       roomCode
     }
   }
@@ -118,19 +118,19 @@ function buildRoomRepairAction(outcome, options = {}) {
 }
 
 const OPERATION_COPY = {
-  list: { title: '加载失败', retry: '加载失败，请检查网络', repairedTitle: '房间状态已同步', repaired: '房间状态已同步，请重试' },
+  list: { title: '加载失败', retry: '加载失败，请检查网络', repairedTitle: '已重新连上房间', repaired: '已重新连上房间，再试一次' },
   save: {
     title: '保存失败',
-    check: '保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交',
-    repairedTitle: '房间状态已同步'
+    check: '还不确定有没有存上。回到列表刷新看看，已经有了就不用再记',
+    repairedTitle: '已重新连上房间'
   },
   delete: {
     title: '删除失败',
-    check: '删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作',
-    repairedTitle: '房间状态已同步'
+    check: '还不确定有没有删掉。回到列表刷新看看',
+    repairedTitle: '已重新连上房间'
   },
-  export: { title: '导出失败', retry: '导出失败，请检查网络', repairedTitle: '房间状态已更新', repaired: '房间状态已更新，请重试导出' },
-  home: { title: '日历加载失败', repairedTitle: '房间状态已更新', repaired: '房间状态已同步，请重新加载日历' }
+  export: { title: '导出失败', retry: '导出失败，请检查网络', repairedTitle: '已重新连上房间', repaired: '房间状态已更新，请重试导出' },
+  home: { title: '日历加载失败', repairedTitle: '已重新连上房间', repaired: '房间状态已同步，请重新加载日历' }
 }
 
 // The operation, not the caller, decides whether another attempt needs a record check.
@@ -155,8 +155,8 @@ function presentRoomAccessFailure(outcome, operation) {
   if (repair && repair.action === 'rebind') {
     return {
       mode: home ? 'inline' : 'navigate-to-bind',
-      title: '房间状态已变化',
-      content: home ? '当前共享房间已不可用，请重新绑定后再查看日历' : repair.message,
+      title: '已不在这个房间',
+      content: home ? '你已经不在这个房间里了，记录没有删除。重新绑定后再看日历' : repair.message,
       action: 'bind',
       actionText: '去绑定',
       result
@@ -179,7 +179,7 @@ function presentRoomAccessFailure(outcome, operation) {
       : home ? presentUserFailure(outcome.message || '请检查网络后重试') : copy.retry
     if (copy.check) {
       // Remove a direct-retry suffix before asking the user to check a mutation.
-      const explanation = repaired ? '房间状态已同步' : repair ? message.replace(/，请重试$/, '') : ''
+      const explanation = repaired ? '已重新连上房间' : repair ? message.replace(/，请重试$/, '') : ''
       const content = explanation ? `${explanation}\n\n${copy.check}` : copy.check
       return {
         mode: 'acknowledge', title, content, action: 'refresh-check',
