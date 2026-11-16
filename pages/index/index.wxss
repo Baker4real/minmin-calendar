@@ -369,7 +369,7 @@
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 0 0 var(--radius-card) var(--radius-card);
   padding: 6rpx 10rpx;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  box-shadow: 0 16rpx 64rpx rgba(0,0,0,0.2);
 }
 /* 格子外的一层（issue #165）：翻月滑入只动这一层，卡片、周头和月份标题不动。这一层没有盒子
    （无内外边距、无描边、不定宽高），日期格宽度仍按网格内容宽算，几何账本不变 */
@@ -1198,7 +1198,6 @@
   letter-spacing: var(--letter-spacing-assist);
   font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.78);
-  word-break: break-all;
   overflow-wrap: anywhere;
 }
 .sheet-close {
@@ -1285,7 +1284,6 @@
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
-  word-break: break-all;
   overflow-wrap: anywhere;
 }
 .sheet-action-arrow {
@@ -1333,7 +1331,6 @@
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
-  word-break: break-all;
   overflow-wrap: anywhere;
 }
 .day-detail-row {
@@ -1399,7 +1396,6 @@
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
-  word-break: break-all;
   overflow-wrap: anywhere;
 }
 .detail-rail {
@@ -1441,7 +1437,6 @@
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.88);
-  word-break: break-all;
   overflow-wrap: anywhere;
 }
 .detail-meta {
@@ -1452,7 +1447,6 @@
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
-  word-break: break-all;
   overflow-wrap: anywhere;
 }
 .compact-actions {
@@ -1555,7 +1549,6 @@
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
-  word-break: break-all;
   overflow-wrap: anywhere;
 }
 .prediction-summary {
@@ -1565,7 +1558,6 @@
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.9);
-  word-break: break-all;
   overflow-wrap: anywhere;
 }
 .explain-line {
@@ -1576,7 +1568,6 @@
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
-  word-break: break-all;
   overflow-wrap: anywhere;
 }
 .recap-summary {
@@ -1587,7 +1578,6 @@
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.82);
-  word-break: break-all;
   overflow-wrap: anywhere;
 }
 .recap-highlights {
@@ -1603,7 +1593,6 @@
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.78);
-  word-break: break-all;
   overflow-wrap: anywhere;
 }
 .copy-recap {

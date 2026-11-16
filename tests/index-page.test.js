@@ -273,6 +273,8 @@ test('homepage sheets keep mounted phases, inert leave, layer order and system b
   assert.match(wxml.slice(0, wxml.indexOf('>')), /class="page safe-top \{\{pageObscured \? 'page-obscured' : ''\}\} \{\{pageHidden \? 'page-hidden' : ''\}\}"/)
   assert.match(wxml, /infoSheetHandoff/)
   assert.match(wxml, /sheet-handoff/)
+  const cancellations = wxml.match(/bindtouchcancel="\{\{sheetDrag\.touchCancel\}\}"/g) || []
+  assert.equal(cancellations.length, 4)
 })
 
 test('month jump sheet uses a bounded year stepper and immediate month selection', () => {
@@ -304,7 +306,7 @@ test('the calendar area tracks month swipes in WXS and does not follow the finge
   assert.match(region, /bindtouchstart="\{\{monthSwipe\.touchStart\}\}"/)
   assert.match(region, /bindtouchmove="\{\{monthSwipe\.touchMove\}\}"/)
   assert.match(region, /bindtouchend="\{\{monthSwipe\.touchEnd\}\}"/)
-  assert.match(region, /bindtouchcancel="\{\{monthSwipe\.touchEnd\}\}"/)
+  assert.match(region, /bindtouchcancel="\{\{monthSwipe\.touchCancel\}\}"/)
   assert.match(region, /bindtap="onDayTap"/)
   assert.doesNotMatch(wxml, /monthSwipe\.wxs/)
   const inline = wxml.match(/<wxs module="monthSwipe">([\s\S]*?)<\/wxs>/)

@@ -1,5 +1,6 @@
 const cloud = require('../../utils/cloud')
 const roomSession = require('../../utils/room')
+const { buildRoomShareCard } = require('../../utils/roomShare')
 const roomPresence = require('../../utils/roomPresence')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const settingsFlow = require('../../utils/settingsFlow')
@@ -32,6 +33,7 @@ function settingsInitialData() {
     capsuleRight: safeArea.getCapsuleRightInset(),
     ...cachedRoomFirstFrame(),
     roomCodeLoaded: false,
+    roomStatus: '',
     roomMemberLabel: '',
     calendarDensity: 'compact',
     // 使用说明弹层：closed → open → leaving → closed，与首页弹层同一生命周期（issue #154）
@@ -50,6 +52,8 @@ Page(withPageVisibility({
 
   async onShow() {
     restoreTabBarOnShow(this)
+    // Unknown and non-waiting states never expose the capsule's forward action.
+    wx.hideShareMenu()
     this.setData({ calendarDensity: getSavedCalendarDensity() })
     probeReducedMotion(this)
     await this.resolveRoom()
@@ -87,6 +91,10 @@ Page(withPageVisibility({
     await settingsFlow.copyRoomCode({
       roomCode: this.data.roomCode
     })
+  },
+
+  onShareAppMessage() {
+    return buildRoomShareCard(this.data)
   },
 
   // issue #102 / #139：解除绑定在页底危险区；二次确认仍走 leaveRoom，成功后 reLaunch 回绑定页
@@ -152,13 +160,19 @@ function syncActiveRoom(page, room) {
   // roomCodeLoaded：首次解析完成前不出重试/去绑定操作，避免未绑定文案闪出可点入口
   page.setData({
     roomCodeLoaded: true,
+    roomStatus: room && room.status || '',
     roomMemberLabel: membershipLabel(room && room.status),
     ...roomAccessOutcome.buildRoomDisplayState(room)
   })
+  if (page.data.roomStatus === 'waiting' && page.data.roomCode) {
+    wx.showShareMenu({ menus: ['shareAppMessage'] })
+  } else {
+    wx.hideShareMenu()
+  }
 }
 
 function membershipLabel(status) {
-  if (status === 'waiting') return '等待 TA 加入'
+  if (status === 'waiting') return 'TA 还没加入'
   if (status === 'paired') return 'TA 已加入'
   return ''
 }

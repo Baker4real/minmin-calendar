@@ -7,7 +7,7 @@
 
   <view class="content">
     <!-- 记录分类：经期 / 欢乐时光 同级可达，单选 radio 语义（issue #103） -->
-    <view class="segment-control" aria-label="记录分类">
+    <view class="segment-control" aria-role="radiogroup" aria-label="记录分类">
       <view
         class="segment-option {{segment === 'period' ? 'active' : ''}}"
         data-segment="period"
@@ -131,7 +131,7 @@
           </view>
           <view class="list-item" wx:if="{{group.expanded}}" wx:for="{{group.records}}" wx:key="_id" bindtap="editMemory" data-id="{{item._id}}" aria-role="button" aria-label="{{item.ariaLabel}}" hover-class="list-item-hover">
             <view class="memory-left">
-              <text class="memory-heart">♥</text>
+              <text class="memory-heart" aria-hidden="true">♥</text>
               <view class="memory-info">
                 <view class="memory-date">{{item.dayLabel}}</view>
                 <view wx:if="{{item.authorLabel}}" class="memory-note">{{item.authorLabel}}</view>

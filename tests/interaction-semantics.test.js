@@ -192,6 +192,49 @@ test('calendar day cells keep composed domain aria labels, a button role, and hi
   }
 })
 
+test('decorative heart glyphs are hidden from screen readers', () => {
+  for (const [file, className] of [
+    ['pages/index/index.wxml', 'no-room-icon'],
+    ['pages/bind/bind.wxml', 'hero-icon'],
+    ['pages/period/period.wxml', 'memory-heart']
+  ]) {
+    const heart = elementsOf(file).find((element) => element.classes.includes(className))
+    assert.ok(heart, `${file}: expected the decorative .${className}`)
+    assert.equal(heart.attrs['aria-hidden'], 'true', `${file}: .${className} must not be read`)
+  }
+})
+
+test('five radio groups expose radiogroup while page and sheet titles avoid unsupported heading roles', () => {
+  // 微信 aria-component 文档指向 MDN Using ARIA 的 Widget Roles；radiogroup 是其复合控件角色。
+  // heading 只列在 Document structure roles，不属于微信指向的控件角色范围，因此不写到标题上。
+  for (const [file, optionHandler, name] of [
+    ['pages/period/period.wxml', 'selectSegment', '记录分类'],
+    ['pages/settings/settings.wxml', 'setCalendarDensity', '日历信息密度'],
+    ['pages/bind/bind.wxml', 'switchTab', '绑定方式'],
+    ['pages/index/index.wxml', 'selectJumpMonth', '月份'],
+    ['pages/period/edit/edit.wxml', 'selectStatus', '经期状态']
+  ]) {
+    const option = elementsOf(file).find((element) => element.attrs.bindtap === optionHandler)
+    assert.ok(option, `${file}: expected a ${optionHandler} radio option`)
+    const group = option.parent
+    assert.ok(group, `${file}: ${optionHandler} needs a group container`)
+    assert.equal(group.attrs['aria-role'], 'radiogroup', `${file}: ${name} group role`)
+    assert.equal(group.attrs['aria-label'], name, `${file}: ${name} group name`)
+  }
+
+  const titleClasses = new Set([
+    'nav-title', 'hero-title', 'bound-status', 'no-room-title', 'sheet-title', 'help-title'
+  ])
+  for (const file of PAGE_WXML) {
+    const titles = elementsOf(file).filter((element) =>
+      element.classes.some((className) => titleClasses.has(className)))
+    assert.ok(titles.length > 0, `${file}: expected at least one page or sheet title`)
+    for (const title of titles) {
+      assert.equal(title.attrs['aria-role'], undefined, `${file}: ${describe(title)} must not claim heading`)
+    }
+  }
+})
+
 test('month navigation, sheet dismiss, quick record and sheet actions are screen-reader identifiable', () => {
   const elements = elementsOf('pages/index/index.wxml')
   const byHandler = (handler, cls) =>
@@ -610,9 +653,10 @@ test('edit pages name the save and delete operations and expose inert variants a
 
   const periodEdit = elementsOf('pages/period/edit/edit.wxml')
   // issue #100：经期状态是单选组，按 radio 朗读且选中项带 checked 状态；
-  // 按 aria-label 前缀区分——状态组与经量组共用 flow-chip 类，不能按类名取第一个
+  // 按 aria-label 前缀区分——状态组与经量组共用 flow-chip 类，不能按类名取第一个；
+  // 状态容器也与选项同名，只取选项本身
   const statusChip = periodEdit.find((element) =>
-    (element.attrs['aria-label'] || '').startsWith('经期状态'))
+    element.classes.includes('flow-chip') && (element.attrs['aria-label'] || '').startsWith('经期状态'))
   assert.equal(statusChip.attrs['aria-role'], 'radio')
   assert.equal(statusChip.attrs['aria-checked'], '{{status === item.value}}')
   // 经量（可再点取消的单选）与症状（多选）保持 checkbox
@@ -621,6 +665,14 @@ test('edit pages name the save and delete operations and expose inert variants a
   assert.equal(flowChip.attrs['aria-role'], 'checkbox')
   const symptomChip = periodEdit.find((element) => element.classes.includes('symptom-chip'))
   assert.equal(symptomChip.attrs['aria-role'], 'checkbox')
+})
+
+test('flow options stay checkboxes and announce single selection with tap-again cancellation', () => {
+  const flowChip = elementsOf('pages/period/edit/edit.wxml').find((element) =>
+    (element.attrs['aria-label'] || '').startsWith('经量'))
+  assert.ok(flowChip, 'expected the flow option template')
+  assert.equal(flowChip.attrs['aria-role'], 'checkbox')
+  assert.equal(flowChip.attrs['aria-label'], '经量 {{item.label}}，单选，再点取消')
 })
 
 // ===== issue #77 / #106：已退役的符号与叫法不再出现 =====

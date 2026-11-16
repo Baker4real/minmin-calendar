@@ -17,7 +17,7 @@
       </view>
       <view class="form-item" id="field-startDate">
         <text class="form-label">开始日期</text>
-        <picker mode="date" value="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onStartChange" aria-role="button" aria-disabled="{{saving}}" aria-label="选择开始日期{{fieldErrors.startDate ? '，' + fieldErrors.startDate : ''}}">
+        <picker mode="date" value="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onStartChange" aria-role="button" aria-disabled="{{saving}}" aria-label="开始日期，{{startDateLabel}}，点按修改{{fieldErrors.startDate ? '，' + fieldErrors.startDate : ''}}">
           <view class="form-picker{{saving ? ' disabled' : ''}}" hover-class="form-picker-hover">
             <text>{{startDateLabel}}</text>
             <text class="form-picker-arrow">›</text>
@@ -30,7 +30,7 @@
           <text class="form-label">经期状态</text>
           <text class="form-hint">{{statusHint}}</text>
         </view>
-        <view class="flow-options">
+        <view class="flow-options" aria-role="radiogroup" aria-label="经期状态">
           <view
             wx:for="{{statusOptions}}"
             wx:key="value"
@@ -45,7 +45,7 @@
       </view>
       <view class="form-item" wx:if="{{status === 'known-end'}}" id="field-endDate">
         <text class="form-label">结束日期</text>
-        <picker mode="date" value="{{endDate}}" start="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onEndChange" aria-role="button" aria-disabled="{{saving}}" aria-label="选择结束日期{{fieldErrors.endDate ? '，' + fieldErrors.endDate : ''}}">
+        <picker mode="date" value="{{endDate}}" start="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onEndChange" aria-role="button" aria-disabled="{{saving}}" aria-label="结束日期，{{endDate ? endDateLabel + '，点按修改' : '还没选，点按选择'}}{{fieldErrors.endDate ? '，' + fieldErrors.endDate : ''}}">
           <view class="form-picker{{saving ? ' disabled' : ''}}" hover-class="form-picker-hover">
             <text>{{endDateLabel}}</text>
             <text class="form-picker-arrow">›</text>
@@ -68,7 +68,7 @@
             data-value="{{item.value}}"
             bindtap="selectFlow"
             aria-role="checkbox"
-            aria-label="经量 {{item.label}}"
+            aria-label="经量 {{item.label}}，单选，再点取消"
             aria-checked="{{flow === item.value}}"
             aria-disabled="{{saving}}" hover-class="flow-chip-hover">{{item.label}}</view>
         </view>

@@ -370,6 +370,7 @@ async function runCommand(options) {
         fallback: { kind: 'merged', result: outcome.result }
       })
     }
+    if (operation === 'save') wxApi.vibrateShort({ type: 'light' })
     safeShowToast(wxApi, {
       title: successTitle,
       ...(successIcon ? { icon: successIcon } : {})
@@ -391,6 +392,7 @@ async function runCommand(options) {
       if (refetchMessage) roomAccessOutcome.presentUserFailure(refetchMessage)
     }
     if (reconciled.confirmed && reconciled.record) {
+      wxApi.vibrateShort({ type: 'light' })
       safeShowToast(wxApi, { title: '已保存' })
       setTimeout(() => wxApi.navigateBack(), successDelay)
       render({ [loadingKey]: false, submitted: true })

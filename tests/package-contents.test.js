@@ -67,6 +67,12 @@ test('only mini program roots go into the upload package', () => {
   assert.deepEqual(unexpected, [], 'Add these paths to packOptions.ignore in project.config.json, or to PACKAGE_ROOTS if the mini program loads them at runtime')
 })
 
+test('privacy-safe invite artwork is included in the upload package within 40 KB', () => {
+  const invite = packaged.find(file => file.rel === 'images/invite-card.png')
+  assert.ok(invite, 'images/invite-card.png must be packaged, not ignored')
+  assert.ok(invite.size <= 40 * 1024, `invite card is ${invite.size} B (limit ${40 * 1024} B)`)
+})
+
 test('images and audio in the package stay under the 200 KB code-quality budget', () => {
   const media = packaged.filter(file => MEDIA_EXTS.has(path.extname(file.rel).toLowerCase()))
   const total = media.reduce((sum, file) => sum + file.size, 0)
