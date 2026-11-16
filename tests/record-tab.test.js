@@ -3,7 +3,7 @@ const path = require('node:path')
 const test = require('node:test')
 const { readSource } = require('./sourceFiles')
 const { createMiniProgram } = require('./helpers/miniProgram')
-const { listCalls, listed, markedDates: marked, roomLookups } = require('./helpers/recordPages')
+const { confirmDelete, listCalls, listed, markedDates: marked, roomLookups } = require('./helpers/recordPages')
 const { evaluateWxmlExpression, wxmlElementTree } = require('./wxmlTemplate')
 const { buildHomeCalendarState } = require('../utils/homeCalendarState')
 
@@ -128,9 +128,14 @@ test('a save or delete on the record tab shows on Home before any refresh answer
   app.wx.switchTab({ url: route })
   await app.flush()
   await app.dispatch(tab, 'editMemory', dataset({ id: saved._id }))
-  app.respondNext('showModal', { confirm: true })
-  app.cloud.when({ name: 'dataOp', data: { action: 'remove', collection: 'memories', id: saved._id } }).reply({ code: 0 })
-  await app.dispatch(app.currentPage, 'delete')
+  const removing = app.cloud.when({ name: 'dataOp', data: { action: 'remove', collection: 'memories', id: saved._id } }).defer()
+  const edit = app.currentPage
+  const mutation = app.dispatch(edit, 'delete')
+  await app.settle()
+  await app.dispatch(edit, 'onConfirmationAction', dataset({ action: 'confirm' }))
+  await app.advance(200)
+  removing.resolve({ code: 0 })
+  await mutation
   ;[periods, memories] = await returnToHomeWithRefreshPending()
   assert.deepEqual(marked(app, home, 'isMemory'), [])
   periods.resolve({ code: 0, data: [] })
@@ -700,11 +705,10 @@ test('period saves expand their destination month, moves remove empty years, and
   for (const id of ['move', 'recent']) {
     await app.dispatch(page, 'editPeriod', dataset({ id }))
     assert.equal(app.currentPage.data.id, id)
-    app.respondNext('showModal', { confirm: true })
     app.cloud.when({ name: 'dataOp', data: { action: 'remove', collection: 'periods', id } }).reply({ code: 0 })
     records = records.filter(record => record._id !== id)
     list(app, 'periods').reply({ code: 0, data: records })
-    await app.dispatch(app.currentPage, 'delete')
+    await confirmDelete(app)
     await app.flush()
   }
   assert.deepEqual(page.data.periodGroups, [])
@@ -1024,10 +1028,14 @@ for (const spec of segments) {
         ? { _id: 'p1', startDate: '2026-10-20', status: 'ongoing' }
         : { _id: 'm1', date: '2026-10-20', note: '' }
       const pending = app.cloud.when({ name: 'dataOp', data: { action, collection: spec.collection } }).defer()
-      if (action === 'remove') app.respondNext('showModal', { confirm: true })
       const edit = app.currentPage
       const mutation = app.dispatch(edit, action === 'remove' ? 'delete' : 'save')
       await app.settle()
+      if (action === 'remove') {
+        await app.dispatch(edit, 'onConfirmationAction', dataset({ action: 'confirm' }))
+        await app.advance(200)
+        await app.settle()
+      }
       assert.equal(page.data.segment, other, 'unconfirmed writes must not land a segment')
       pending.resolve({ code: 0, id: record._id, record })
       await mutation
@@ -1095,11 +1103,10 @@ test('deleting rows through the editor removes an emptied month and retains othe
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-10' }))
   for (const id of ['sep2', 'sep1']) {
     await app.dispatch(page, 'editMemory', dataset({ id }))
-    app.respondNext('showModal', { confirm: true })
     app.cloud.when({ name: 'dataOp', data: { action: 'remove', collection: 'memories', id } }).reply({ code: 0 })
     records = records.filter(record => record._id !== id)
     list(app, 'memories').reply({ code: 0, data: records })
-    app.dispatch(app.currentPage, 'delete')
+    await confirmDelete(app)
     await app.flush()
     assert.equal(app.currentPage, page)
     assert.deepEqual(expansion(page), id === 'sep2' ? [['2026-10', true], ['2026-09', false]] : [['2026-10', true]])

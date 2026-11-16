@@ -29,17 +29,30 @@ function editorQuery({ collection, mode, record }) {
   return new URLSearchParams(Object.entries({ id: mode === 'add' ? '' : record._id, ...fields }).filter(([, value]) => value)).toString()
 }
 
+// 在真实编辑页里点共享面板的危险确认键；返回删除 Promise，调用方决定何时等待它。
+async function confirmDelete(app, page = app.currentPage) {
+  const pending = app.dispatch(page, 'delete')
+  await app.settle()
+  await app.dispatch(page, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
+  await app.advance(200)
+  await app.settle()
+  return pending
+}
+
 // 在真实编辑页里确认一次保存或删除（#195：记录变化只从编辑页来），云端按 write 回复这条记录。
-// 删除和云端合并到已有进行中（reopened）会先弹确认，这里替用户点确定。
+// 删除走共享面板；云端合并到已有进行中（reopened）的归属询问仍保留原生确认。
 async function confirmInEditor(app, change, { query = editorQuery(change), write = change.mode, reopened = false } = {}) {
   const { collection, mode, record } = change
   app.cloud.when({ name: 'dataOp', data: { action: write, collection } })
     .reply(mode === 'remove' ? { code: 0 } : { code: 0, id: record._id, record, ...(reopened ? { reopened } : {}) })
   app.wx.navigateTo({ url: `/pages/${EDITOR_PAGES[collection]}/edit/edit?${query}` })
   await app.settle()
-  if (mode === 'remove' || reopened) app.respondNext('showModal', { confirm: true })
-  await app.dispatch(app.currentPage, mode === 'remove' ? 'delete' : 'save')
+  if (mode === 'remove') await confirmDelete(app)
+  else {
+    if (reopened) app.respondNext('showModal', { confirm: true })
+    await app.dispatch(app.currentPage, 'save')
+  }
   await app.settle()
 }
 
-module.exports = { confirmInEditor, listCalls, listed, markedDates, roomLookups }
+module.exports = { confirmDelete, confirmInEditor, listCalls, listed, markedDates, roomLookups }

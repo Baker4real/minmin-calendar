@@ -1,6 +1,8 @@
-<view class="page safe-top {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
+<import src="/pages/shared/confirmation-sheet.wxml" />
+<view class="page safe-top {{pageObscured ? 'page-obscured' : ''}} {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
+  <wxs module="sheetDrag" src="../../../utils/sheetDrag.wxs"></wxs>
   <include src="/pages/shared/aurora.wxml" />
-  <view class="nav-bar header-gradient">
+  <view aria-hidden="{{pageObscured}}" class="nav-bar header-gradient">
     <view class="nav-back" hover-class="nav-back-hover" bindtap="goBack" aria-role="button" aria-label="返回">
       <view class="nav-back-surface"></view>
       <text class="nav-back-icon">‹</text>
@@ -9,7 +11,7 @@
     <view wx:else class="nav-title">新增欢乐时光</view>
   </view>
 
-  <view class="content">
+  <view class="content" aria-hidden="{{pageObscured}}">
     <view class="premium-card">
       <view wx:if="{{draftRestored}}" class="draft-notice" aria-role="alert">
         <text>{{draftNoticeText}} · </text>
@@ -42,4 +44,5 @@
       <view wx:elif="{{isEdit}}" class="btn-danger disabled" aria-role="button" aria-disabled="true">删除此记录</view>
     </view>
   </view>
+  <template is="confirmationSheet" data="{{confirmationName: confirmationName, confirmationTitle: confirmationTitle, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions, confirmationMounted: confirmationMounted, confirmationPhase: confirmationPhase, confirmationDragClear: confirmationDragClear, sheetExitGuard: sheetExitGuard}}" />
 </view>

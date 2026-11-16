@@ -375,6 +375,19 @@ test('record lists preview long notes as one clamped line without displacing lat
   assert.match(memoryWxss, /\.memory-info\s*\{[^}]*min-width:\s*0[^}]*\}/)
 })
 
+test('both edit pages reuse the shared confirmation sheet, back guard and reduced-motion probe', () => {
+  for (const kind of ['period', 'memory']) {
+    const wxml = readPageFile(`pages/${kind}/edit/edit.wxml`)
+    const wxss = readPageFile(`pages/${kind}/edit/edit.wxss`)
+    assert.match(wxml, /class="reduced-motion-probe" aria-hidden="true"/)
+    assert.match(wxml, /class="confirmation-mask sheet-\{\{confirmationPhase\}\}" bindtap="onConfirmationMask"/)
+    assert.match(wxml, /class="sheet-close" bindtap="onConfirmationClose"/)
+    assert.match(wxml, /class="btn-danger confirmation-action"[^>]*hover-class="btn-danger-hover"/)
+    assert.match(wxml, /bindbeforeleave="onSheetSystemBack"/)
+    assert.match(wxss, /\.confirmation-panel\s*\{/, `${kind} must import the shared confirmation styles`)
+  }
+})
+
 function readPageFile(relativePath) {
   return readSource(path.join(__dirname, '..', relativePath), 'utf8')
 }
