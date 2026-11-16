@@ -708,7 +708,7 @@ for (const spec of records) {
           assert.equal(modal.title, '保存失败')
           assert.equal(modal.showCancel, false)
           assert.equal(modal.content, result === 'refetch failure'
-            ? '保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交'
+            ? '还不确定有没有存上。回到列表刷新看看，已经有了就不用再记'
             : '没有保存成功，请重试')
           app.respond('showModal', app.wx.modals.length - 1, { confirm: true })
           await saving
@@ -736,8 +736,8 @@ for (const spec of records) {
     cloudRoute(app, spec, 'add').reply({ code: -1, errorCode: 'ROOM_ACCESS_DENIED', msg: '无权访问该房间' })
     const saving = app.dispatch(page, 'save')
     await app.settle()
-    assert.equal(app.wx.modals.at(-1).title, '房间状态已同步')
-    assert.equal(app.wx.modals.at(-1).content, '房间状态已同步\n\n保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交')
+    assert.equal(app.wx.modals.at(-1).title, '已重新连上房间')
+    assert.equal(app.wx.modals.at(-1).content, '已重新连上房间\n\n还不确定有没有存上。回到列表刷新看看，已经有了就不用再记')
     assert.equal(app.wx.modals.at(-1).confirmText, '知道了')
     assert.equal(app.wx.modals.at(-1).showCancel, false)
     app.respond('showModal', app.wx.modals.length - 1, { confirm: true })
