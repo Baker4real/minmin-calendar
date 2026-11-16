@@ -1,8 +1,8 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 const { listWxmlFiles, parseWxssRules } = require('./designTokens')
 const { evaluateWxmlExpression, renderWxmlAttribute, renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
 
@@ -17,7 +17,7 @@ const { evaluateWxmlExpression, renderWxmlAttribute, renderWxmlClasses, wxmlOpen
 
 const repoRoot = path.join(__dirname, '..')
 
-const readPageFile = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
+const readPageFile = (relativePath) => readSource(path.join(repoRoot, relativePath), 'utf8')
 
 test('bind bound screen puts the copy button in the same row as the room code, ahead of the enter-app main button', () => {
   const wxml = readPageFile('pages/bind/bind.wxml')
@@ -229,7 +229,7 @@ test('page templates do not put a br tag inside a text node', () => {
   const offenders = []
   for (const file of listWxmlFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    const wxml = fs.readFileSync(file, 'utf8').replace(/<!--[\s\S]*?-->/g, '')
+    const wxml = readSource(file, 'utf8').replace(/<!--[\s\S]*?-->/g, '')
     for (const body of textNodeBodies(wxml)) {
       if (/<br\b/i.test(body)) offenders.push(`${relative}: ${body.trim()}`)
     }

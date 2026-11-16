@@ -1,8 +1,8 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 const { TOUCH_FLOOR_RPX, parseWxssRules } = require('./designTokens')
 
 const chinaHolidays = require('../utils/chinaHolidays')
@@ -284,8 +284,8 @@ test('buildCalendarDays returns base date cells without app marker semantics', (
 // 已退役的日历标记不再出现：经期圆点（.period-mark，经期改画色带）、图例独立符号（DESIGN：图例复用日历格标记类，
 // 不另设 .legend-symbol / item.marker）、记经期动作的 ● 圆点与 .period-tone 色（issue #159，改画图例那段单日色带）
 test('retired calendar marks stay out of the home page', () => {
-  const wxml = fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
-  const rules = parseWxssRules(fs.readFileSync(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8'))
+  const wxml = readSource(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const rules = parseWxssRules(readSource(path.join(__dirname, '..', 'pages/index/index.wxss'), 'utf8'))
 
   assert.doesNotMatch(wxml, /period-mark|legend-symbol|\{\{item\.marker\}\}|●|period-tone/)
   assert.equal(rules.some(rule => rule.selectors.includes('.period-tone')), false, 'the dot tone is gone')
@@ -305,7 +305,7 @@ test('calendar, sheet, density and chip controls keep touch targets at or above 
     ['pages/period/edit/edit.wxss', '.flow-chip', ['min-height']],
     ['pages/period/edit/edit.wxss', '.symptom-chip', ['min-height']]
   ]) {
-    const decls = Object.assign({}, ...parseWxssRules(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'))
+    const decls = Object.assign({}, ...parseWxssRules(readSource(path.join(__dirname, '..', file), 'utf8'))
       .filter(rule => rule.selectors.includes(selector))
       .map(rule => rule.decls))
     for (const side of sides) {

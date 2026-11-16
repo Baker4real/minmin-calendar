@@ -552,6 +552,12 @@ Page(withPageVisibility({
       return
     }
     const detail = this._dayDetail(date)
+    if (action === 'completePeriod') {
+      if (!detail.ongoingNotice || !detail.periodAction) return
+      this.closeDayActions()
+      this.openProjectedEntry(detail.periodAction)
+      return
+    }
     if (!detail.actions.some(item => item.key === action)) return
     const entry = action === 'period' ? detail.periodAction : action === 'memory' ? detail.memoryAction : null
     if (!entry) return

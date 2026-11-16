@@ -117,16 +117,15 @@ function buildHomeCalendarState({
       monthlyRecap.predictionSummary, ...monthlyRecap.highlights].filter(Boolean).join('\n')
   }
 
-  const quickAction = cycle.buildPeriodQuickAction(periods, { today })
-  const quickLabel = periodsSynced ? quickAction.label : quickAction.mode === 'complete' ? '记结束' : '记经期'
+  const quickEntry = buildPeriodQuickEntry(periods, { today, periodsSynced })
 
   const todayDate = util.parseDate(today)
   return {
     hasRecords: periods.length > 0 || memories.length > 0 || !periodsSynced || !memoriesSynced,
     showBackToToday: year !== todayDate.getFullYear() || month !== todayDate.getMonth(),
-    periodQuickLabel: quickLabel,
-    periodQuickAriaLabel: quickLabel,
-    periodQuickAction: buildPeriodEntry(periods, today, today, { completeOngoing: true }),
+    periodQuickLabel: quickEntry.label,
+    periodQuickAriaLabel: quickEntry.ariaLabel,
+    periodQuickAction: quickEntry.action,
     memoryQuickAction: { url: recordEditRoute.buildMemoryEditUrl({ date: today }) },
     ongoingCompletionReminder: periodsSynced ? cycle.buildOngoingCompletionReminder(periods, { today }) : null,
     legendItems: CALENDAR_LEGEND_ITEMS,
@@ -142,6 +141,20 @@ function buildHomeCalendarState({
     days,
     recordFeedback: buildRecordFeedback(days, recordChange, { periods, memories, today }),
     dayDetailsByDate: buildDayDetailsByDate(days, periods, memories, today, roomPaired)
+  }
+}
+
+// 首页与记录 tab 共用同一个经期快捷入口投影。没有进行中时始终按今天新建；有进行中时打开同一条并带记结束意图。
+function buildPeriodQuickEntry(periods, { today, periodsSynced = true } = {}) {
+  const quickAction = cycle.buildPeriodQuickAction(periods, { today })
+  const label = periodsSynced ? quickAction.label : quickAction.mode === 'complete' ? '记结束' : '记经期'
+  return {
+    label,
+    ariaLabel: label,
+    mode: quickAction.mode,
+    action: quickAction.mode === 'complete'
+      ? buildPeriodEntry(periods, today, today, { completeOngoing: true })
+      : { url: recordEditRoute.buildPeriodEditUrl({ startDate: today }), notice: '' }
   }
 }
 
@@ -290,16 +303,18 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
     const meanings = buildDayMeanings(day).filter(isDayDetailSentence)
 
     const isFuture = day.date > today
+    const periodAction = isFuture ? null : buildPeriodEntry(periods, day.date, today, { completeOngoing: true })
     details[day.date] = {
       title: util.formatDisplayDate(day.date, { today, withWeekday: true }),
       subtitle: [day.lunarText, day.holidayName].filter(Boolean).join(' · '),
       isFuture,
-      periodAction: isFuture ? null : buildPeriodEntry(periods, day.date, today),
+      periodAction,
       memoryAction: isFuture ? null : { url: recordEditRoute.buildMemoryEditUrl({ date: day.date }) },
       meanings,
       periods: periodDetails,
       memories: memoryDetails,
-      actions: buildDayRecordActions(day, today),
+      actions: buildDayRecordActions(day, today, day.isPeriod || Boolean(periodAction && periodAction.ongoingNotice)),
+      ongoingNotice: periodAction && periodAction.ongoingNotice ? periodAction.ongoingNotice : null,
       futureNotice: buildFutureDayNotice(day, today),
       empty: !meanings.length && !periodDetails.length && !memoryDetails.length
     }
@@ -308,15 +323,17 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
   return details
 }
 
-// 所有新经期入口只转译归属 module 的完整落点，路由默认值由 recordEditRoute 持有。
+// 按日期的经期入口只转译归属 module 的完整落点，路由默认值由 recordEditRoute 持有。
 function buildPeriodEntry(periods, date, today, { completeOngoing = false } = {}) {
   const decision = periodCoverage.decidePeriodRecordForDate(periods, date, { today })
   const record = decision.action === 'open' ? decision.record : { startDate: decision.startDate }
-  return {
+  const entry = {
     url: recordEditRoute.buildPeriodEditUrl(record,
       completeOngoing && decision.reason === 'ongoing' ? { intent: 'complete', today } : undefined),
     notice: decision.notice
   }
+  if (decision.ongoingNotice) entry.ongoingNotice = decision.ongoingNotice
+  return entry
 }
 
 function withAuthorLabel(row, authorLabel) {
@@ -333,21 +350,23 @@ function isDayDetailSentence(meaning) {
   return meaning.key === 'predict' || meaning.key === 'holiday' || meaning.key === 'workday'
 }
 
-// 经期的编辑动作只有一个名字（CONTEXT.md「Record names」）：当日动作和详情行读屏名共用
+// 经期的编辑动作只有一个名字（CONTEXT.md「Record names」）：详情行读屏名使用这个领域动作名
 const PERIOD_EDIT_ACTION = '编辑这次经期'
 
-function buildDayRecordActions(day, today) {
+function buildDayRecordActions(day, today, suppressPeriod = false) {
   if (!day.date || day.date > today) return []
-  return [
-    {
+  const actions = []
+  if (!suppressPeriod) {
+    actions.push({
       key: 'period',
-      label: day.isPeriod ? PERIOD_EDIT_ACTION : (day.date === today ? '记经期' : '补记经期')
-    },
-    {
-      key: 'memory',
-      label: day.date === today ? '记欢乐时光' : '补记欢乐时光'
-    }
-  ]
+      label: day.date === today ? '记经期' : '补记经期'
+    })
+  }
+  actions.push({
+    key: 'memory',
+    label: day.date === today ? '记欢乐时光' : '补记欢乐时光'
+  })
+  return actions
 }
 
 // 晚于今天的日子没有记录动作；当日弹层用这句持久说明给出下一步，不再只剩标题和关闭键
@@ -508,5 +527,6 @@ function lunarCellLabel(lunarText) {
 }
 
 module.exports = {
-  buildHomeCalendarState
+  buildHomeCalendarState,
+  buildPeriodQuickEntry
 }

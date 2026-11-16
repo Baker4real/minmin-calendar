@@ -47,7 +47,7 @@
         </view>
       </view>
 
-      <view class="btn-premium" bindtap="addPeriod" aria-role="button" aria-label="新增经期记录" hover-class="btn-premium-hover">＋ 新增经期记录</view>
+      <view class="btn-premium" bindtap="addPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-class="btn-premium-hover">{{periodQuickLabel}}</view>
 
       <!-- 未同步（从未读取成功）：重试是可识别的操作，不是与空列表一样的安静说明；
            本机已保存、还没同步的记录照常列在它下面（#194） -->
@@ -89,7 +89,7 @@
       </view>
       <!-- 空态断言句只在确认没有失败时出现：成功加载 0 条后再刷新失败时，数字保留 0，语境由重试行解释 -->
       <view wx:elif="{{periods.length === 0 && !loading && !loadFailed}}" class="empty-state">
-        <text>经期开始那天点「＋ 新增经期记录」，记两次以上就能预测下次</text>
+        <text>经期开始那天点「＋ 记经期」，记两次以上就能预测下次</text>
       </view>
 
       <!-- 已成功加载过再失败：保留上次列表与数字，重试留在列表区域 -->

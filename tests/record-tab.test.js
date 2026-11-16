@@ -1,10 +1,11 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const { listCalls, listed, markedDates: marked, roomLookups } = require('./helpers/recordPages')
 const { evaluateWxmlExpression, wxmlElementTree } = require('./wxmlTemplate')
+const { buildHomeCalendarState } = require('../utils/homeCalendarState')
 
 const route = '/pages/period/period'
 const dataset = value => ({ currentTarget: { dataset: value } })
@@ -17,7 +18,8 @@ const memoryRowIds = page => page.data.memoryGroups.flatMap(group => group.recor
 // Whether the tab's WXML draws an element for the rendered data: its own wx:if / wx:elif holds, no earlier branch
 // of its chain holds (WXML draws one branch per chain), and the same goes for every element around it.
 // Ask only about the segment on screen: the memory segment is a bare wx:else, which the tree does not read.
-const tabTemplate = wxmlElementTree(fs.readFileSync(path.join(__dirname, '../pages/period/period.wxml'), 'utf8'))
+const tabWxml = readSource(path.join(__dirname, '../pages/period/period.wxml'), 'utf8')
+const tabTemplate = wxmlElementTree(tabWxml)
 const allElements = nodes => nodes.flatMap(node => [node, ...allElements(node.children)])
 function holds(node, data) {
   const expr = node.attrs['wx:if'] ?? node.attrs['wx:elif']
@@ -911,18 +913,23 @@ test('a record tab that went hidden while its load ran never prompts; Home in fr
   assert.equal(app.rendered(home).roomStatusActionText, '去绑定')
 })
 
-test('record tab period entry reopens an ongoing record, otherwise starts today, and rows open their own record', async (t) => {
+test('record tab period entry matches the home projection with and without an ongoing record', async (t) => {
   const app = setup(t)
   const closed = { _id: 'p1', startDate: '2026-08-01', endDate: '2026-08-05', note: '测试备注' }
   const ongoing = { _id: 'p2', startDate: '2026-10-18', status: 'ongoing' }
   list(app, 'periods').reply({ code: 0, data: [closed, ongoing] })
   const page = app.launch(route)
   await app.flush()
+  let home = buildHomeCalendarState({ year: 2026, month: 9, today: '2026-10-20', periods: [closed, ongoing] })
+  assert.equal(page.data.periodQuickLabel, home.periodQuickLabel)
+  assert.equal(page.data.periodQuickAriaLabel, home.periodQuickAriaLabel)
   await app.dispatch(page, 'addPeriod')
   await app.settle()
-  assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?id=p2&startDate=2026-10-18&status=ongoing')
-  assert.equal(app.wx.toasts.at(-1).title, '已有进行中的经期，继续编辑它')
-  assert.equal(app.currentPage.data.startDate, '2026-10-18')
+  assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
+  assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?id=p2&startDate=2026-10-18&endDate=2026-10-20&status=known-end&intent=complete')
+  assert.equal(app.wx.toasts.at(-1).title, home.periodQuickAction.notice)
+  assert.equal(app.currentPage.data.status, 'known-end')
+  assert.equal(app.currentPage.data.endDate, '2026-10-20')
   await app.dispatch(app.currentPage, 'goBack')
   await app.flush()
   await app.dispatch(page, 'editPeriod', dataset({ id: 'p1' }))
@@ -931,32 +938,46 @@ test('record tab period entry reopens an ongoing record, otherwise starts today,
   list(app, 'periods').reply({ code: 0, data: [closed] })
   await app.dispatch(app.currentPage, 'goBack')
   await app.flush()
+  home = buildHomeCalendarState({ year: 2026, month: 9, today: '2026-10-20', periods: [closed] })
+  assert.equal(page.data.periodQuickLabel, '＋ 记经期')
+  assert.equal(page.data.periodQuickAriaLabel, home.periodQuickAriaLabel)
   await app.dispatch(page, 'addPeriod')
+  assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
   assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?startDate=2026-10-20')
   assert.equal(app.currentPage.data.startDate, '2026-10-20')
   assert.equal(app.wx.toasts.length, 1)
+  assert.match(tabWxml, /bindtap="addPeriod"[^>]*aria-label="\{\{periodQuickAriaLabel\}\}"[^>]*>\{\{periodQuickLabel\}\}<\/view>/)
 })
 
 test('record tab chooses the latest ongoing record, then creates today even when completed coverage exists', async (t) => {
   const app = setup(t)
   const closedToday = { _id: 'closed-today', startDate: '2026-10-18', endDate: '2026-10-20', status: 'known-end' }
-  list(app, 'periods').reply({ code: 0, data: [
+  const records = [
     { _id: 'older-live', startDate: '2026-10-01', status: 'ongoing' },
     { _id: 'latest-live', startDate: '2026-10-15', status: 'ongoing' }, closedToday
-  ] })
+  ]
+  list(app, 'periods').reply({ code: 0, data: records })
   const page = app.launch(route)
   await app.flush()
   assert.equal(page.data.periods.length, 3)
+  let home = buildHomeCalendarState({ year: 2026, month: 9, today: '2026-10-20', periods: records })
+  assert.equal(page.data.periodQuickLabel, '经期第 6 天 · 记结束')
+  assert.equal(page.data.periodQuickLabel, home.periodQuickLabel)
   await app.dispatch(page, 'addPeriod')
   assert.equal(app.currentPage.data.id, 'latest-live')
-  assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?id=latest-live&startDate=2026-10-15&status=ongoing')
-  assert.equal(app.wx.toasts.at(-1).title, '已有进行中的经期，继续编辑它')
+  assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
+  assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?id=latest-live&startDate=2026-10-15&endDate=2026-10-20&status=known-end&intent=complete')
+  assert.equal(app.wx.toasts.at(-1).title, home.periodQuickAction.notice)
   list(app, 'periods').reply({ code: 0, data: [closedToday] })
   await app.dispatch(app.currentPage, 'goBack')
   await app.flush()
+  home = buildHomeCalendarState({ year: 2026, month: 9, today: '2026-10-20', periods: [closedToday] })
+  assert.equal(home.periodQuickAction.url, '/pages/period/edit/edit?startDate=2026-10-20')
+  assert.equal(page.data.periodQuickLabel, '＋ 记经期')
   await app.dispatch(page, 'addPeriod')
   assert.equal(app.currentPage.data.isEdit, false)
   assert.equal(app.currentPage.data.startDate, '2026-10-20')
+  assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
   assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?startDate=2026-10-20')
   assert.equal(app.wx.toasts.length, 1)
 })

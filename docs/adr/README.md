@@ -11,6 +11,7 @@ intent: "按改动面查找必须遵守的 ADR"
 
 | 改动范围 | ADR |
 |---|---|
+| 确认交互、底部弹层、跨页共享样式与模板、引入 UI 库或更换渲染引擎 | [0009 应用内确认与界面复用方式](0009-in-app-confirmation-and-ui-reuse.md) |
 | 全应用共用的 Room 记录（首页、记录 tab、经期编辑会话读同一份）的加载、同步与 Room 归属，记录编辑会话的保存、草稿、未确认核对、合并与删除 | [0008 首页记录同步与记录编辑的 module 归属](0008-home-record-sync-and-record-edit-ownership.md) |
 | 经期状态（进行中 / 结束日期不详 / 已结束）、结束日期默认值、补记、时长统计、预测用到的样本，某天归哪条经期与本月覆盖天数，预期时长的来源 | [0007 经期记录允许在结束日期未知时保存](0007-open-ended-period-records.md) |
 | 退出房间、解除绑定、所有权转移 | [0001 Room Leave Transfers Ownership to the Remaining Member](0001-room-leave-ownership-transfer.md) |
