@@ -301,18 +301,38 @@ test('findOngoingPeriod returns the ongoing record and projectPeriodRange never 
   assert.equal(cycle.projectPeriodRange({ startDate: '2026-09-30', status: 'ongoing' }, '2026-09-24'), null)
 })
 
-test('decidePeriodRecordForDate opens an ongoing record, a day inside an existing record, or creates', () => {
+test('periodCoverage entry destinations open the owning record, block earlier blank days, or create by date', () => {
   assert.equal(typeof cycle.decidePeriodRecordForDate, 'function')
 
   const today = '2026-06-26'
   const finished = { _id: 'finished', startDate: '2026-06-01', endDate: '2026-06-05', status: 'known-end' }
   const ongoing = { _id: 'ongoing', startDate: '2026-06-20', endDate: '', status: 'ongoing' }
 
-  // 有进行中记录时，即使所选日落在另一条已结束记录里，也打开进行中那条并给出记录页同款提示
-  const duringOngoing = cycle.decidePeriodRecordForDate([finished, ongoing], '2026-06-03', { today })
+  // 被覆盖的日子先问归属：另一条已结束记录覆盖时，不再被进行中记录抢走去向。
+  const covered = cycle.decidePeriodRecordForDate([finished, ongoing], '2026-06-03', { today })
+  assert.equal(covered.action, 'open')
+  assert.equal(covered.reason, 'coverage')
+  assert.equal(covered.record._id, 'finished')
+  assert.equal(covered.startDate, '2026-06-01')
+  assert.equal(covered.notice, '')
+
+  const duringOngoing = cycle.decidePeriodRecordForDate([finished, ongoing], '2026-06-22', { today })
   assert.equal(duringOngoing.action, 'open')
+  assert.equal(duringOngoing.reason, 'ongoing')
   assert.equal(duringOngoing.record._id, 'ongoing')
-  assert.equal(duringOngoing.notice, '已有进行中的经期，继续编辑它')
+
+  // 第一步：进行中开始日之前的空白日不新建，给常驻说明和记结束入口。
+  const earlierBlank = cycle.decidePeriodRecordForDate([finished, ongoing], '2026-06-10', { today })
+  assert.equal(earlierBlank.action, 'open')
+  assert.equal(earlierBlank.reason, 'ongoing')
+  assert.equal(earlierBlank.record._id, 'ongoing')
+  assert.equal(earlierBlank.startDate, '2026-06-20')
+  assert.equal(earlierBlank.notice, '已有进行中的经期，继续编辑它')
+  assert.deepEqual(earlierBlank.ongoingNotice, {
+    title: '这次经期还在进行中',
+    text: '记了结束才能补记别的',
+    actionLabel: '记结束'
+  })
 
   const insideFinished = cycle.decidePeriodRecordForDate([finished], '2026-06-03', { today })
   assert.equal(insideFinished.action, 'open')

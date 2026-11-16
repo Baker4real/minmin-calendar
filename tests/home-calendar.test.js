@@ -303,25 +303,49 @@ test('empty rooms show the first-record guide and records supply status, recap a
 })
 
 for (const ongoing of [false, true]) {
-  test(`quick and dated period entries ${ongoing ? 'reopen the ongoing record' : 'edit coverage or create for the selected day'}`, async t => {
+  test(`quick and dated period entries ${ongoing ? 'complete the ongoing record only from the quick entry or earlier blank notice' : 'edit coverage or create for the selected day'}`, async t => {
     const app = homeApp(t, { periods: [period('p1', '2026-06-01', '2026-06-05'), ...(ongoing ? [period('p2', '2026-06-20', '', 'ongoing')] : [])] })
     const home = await launch(app)
     assert.equal(attr('quick-btn', 'aria-label', app.rendered(home)), ongoing ? '经期第 7 天 · 记结束' : '记经期')
     await tap(app, home, 'quickPeriod')
     assert.equal(navigation(app).at(-1), ongoing ? '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end' : '/pages/period/edit/edit?startDate=2026-06-26')
     await back(app)
-    for (const date of ['2026-06-03', '2026-06-10']) {
-      await day(app, home, date)
-      const action = app.rendered(home).selectedDayDetail.actions.find(item => item.key === 'period')
+
+    await day(app, home, '2026-06-03')
+    let detail = app.rendered(home).selectedDayDetail
+    assert.equal(detail.periods[0].recordId, 'p1')
+    assert.ok(detail.periods[0].ariaLabel.startsWith('编辑这次经期'))
+    assert.equal(detail.actions.some(item => item.key === 'period'), false)
+    await tap(app, home, 'onDayRecordTap', { kind: 'period', id: 'p1' })
+    assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&status=known-end')
+    await back(app)
+    await app.advance(200)
+
+    await day(app, home, '2026-06-10')
+    detail = app.rendered(home).selectedDayDetail
+    assert.equal(detail.actions.some(item => item.key === 'memory'), true)
+    if (ongoing) {
+      assert.equal(detail.actions.some(item => item.key === 'period'), false)
+      assert.equal(visible('ongoing-period-notice', app.rendered(home)), true)
+      assert.deepEqual(detail.ongoingNotice, {
+        title: '这次经期还在进行中',
+        text: '记了结束才能补记别的',
+        actionLabel: '记结束'
+      })
+      await tap(app, home, 'onDayActionTap', { action: 'completePeriod' })
+      assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end')
+      assert.equal(app.rendered(app.currentPage).status, 'known-end')
+      assert.equal(app.rendered(app.currentPage).endDate, '2026-06-26')
+    } else {
+      assert.equal(visible('ongoing-period-notice', app.rendered(home)), false)
+      const action = detail.actions.find(item => item.key === 'period')
       assert.ok(action)
       await tap(app, home, 'onDayActionTap', { action: action.key })
-      const expected = ongoing ? '/pages/period/edit/edit?id=p2&startDate=2026-06-20&status=ongoing'
-        : date === '2026-06-03' ? '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&status=known-end' : '/pages/period/edit/edit?startDate=2026-06-10'
-      assert.equal(navigation(app).at(-1), expected)
-      await back(app)
-      await app.advance(200)
+      assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?startDate=2026-06-10')
     }
-    assert.deepEqual(app.wx.toasts.map(item => item.title), ongoing ? Array(3).fill('已有进行中的经期，继续编辑它') : [])
+    await back(app)
+    await app.advance(200)
+    assert.deepEqual(app.wx.toasts.map(item => item.title), ongoing ? Array(2).fill('已有进行中的经期，继续编辑它') : [])
     assert.equal(app.cloud.calls.some(call => call.name === 'dataOp' && call.data.action !== 'list'), false)
   })
 }
@@ -343,8 +367,8 @@ test('all home period entries and the completion reminder choose the latest ongo
   assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&endDate=2026-06-26&status=known-end')
   await back(app)
   await day(app, home, '2026-06-03')
-  await tap(app, home, 'onDayActionTap', { action: 'period' })
-  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&status=ongoing')
+  await tap(app, home, 'onDayActionTap', { action: 'completePeriod' })
+  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&endDate=2026-06-26&status=known-end')
   assert.deepEqual(app.wx.toasts.map(item => item.title), [
     '已有进行中的经期，继续编辑它', '已有进行中的经期，继续编辑它'
   ])
