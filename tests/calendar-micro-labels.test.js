@@ -1,14 +1,14 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const WXSS_PATH = path.join(__dirname, '..', 'pages/index/index.wxss')
 const APP_WXSS_PATH = path.join(__dirname, '..', 'app.wxss')
 const PERIOD_WXSS_PATH = path.join(__dirname, '..', 'pages/period/period.wxss')
 const MEMORY_WXSS_PATH = path.join(__dirname, '..', 'pages/memory/memory.wxss')
 const APP_TOKENS = Object.fromEntries(
-  [...fs.readFileSync(APP_WXSS_PATH, 'utf8').matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/gi)]
+  [...readSource(APP_WXSS_PATH, 'utf8').matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/gi)]
     .map((match) => [`--${match[1]}`, match[2].trim()])
 )
 const MIN_CAPTION_RPX = 24
@@ -50,7 +50,7 @@ const OUT_CELL_CAPTION_SELECTORS = [
 const SECONDARY_TEXT_ALPHA = 0.6
 
 function readWxss() {
-  return fs.readFileSync(WXSS_PATH, 'utf8')
+  return readSource(WXSS_PATH, 'utf8')
 }
 
 function ruleBody(wxss, selector) {
@@ -485,13 +485,13 @@ test('tappable arrows reach the body-secondary contrast level', () => {
     [PERIOD_WXSS_PATH, '.item-arrow'],
     [MEMORY_WXSS_PATH, '.memory-arrow']
   ]) {
-    const body = ruleBody(fs.readFileSync(file, 'utf8'), selector)
+    const body = ruleBody(readSource(file, 'utf8'), selector)
     assert.match(body, /color:\s*var\(--text-secondary\)/, `${selector} should use --text-secondary`)
   }
 })
 
 test('the month title stays rose and tappable without the month-nav glow', () => {
-  const app = fs.readFileSync(APP_WXSS_PATH, 'utf8')
+  const app = readSource(APP_WXSS_PATH, 'utf8')
   const navTitle = ruleBody(app, '.nav-title')
   assert.doesNotMatch(navTitle, /text-shadow/, 'nav title should not carry the rose glow')
 
@@ -944,7 +944,7 @@ test('period band stays compact, connects across a week and caps the open end wi
 
 // DESIGN.md 是唯一视觉权威：frontmatter 的今天胶囊登记就是 CSS 画的那一枚，整格的 todayBg / todayRing 已退役
 test('DESIGN.md registers the today capsule the CSS draws', () => {
-  const design = fs.readFileSync(path.join(__dirname, '..', 'DESIGN.md'), 'utf8')
+  const design = readSource(path.join(__dirname, '..', 'DESIGN.md'), 'utf8')
   const frontmatter = design.split('\n---')[0]
   const registered = key => (new RegExp(`\\n\\s+${key}:\\s*"([^"]+)"`).exec(frontmatter) || [])[1]
   const wxss = readWxss()

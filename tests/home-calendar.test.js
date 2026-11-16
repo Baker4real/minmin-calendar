@@ -1,12 +1,12 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const { confirmInEditor, listed, roomLookups } = require('./helpers/recordPages')
 const { evaluateWxmlExpression, renderWxmlAttribute, renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
 
-const wxml = fs.readFileSync(path.join(__dirname, '../pages/index/index.wxml'), 'utf8')
+const wxml = readSource(path.join(__dirname, '../pages/index/index.wxml'), 'utf8')
 const tags = wxmlOpeningTags(wxml)
 const success = data => ({ code: 0, data })
 const period = (id, startDate, endDate = startDate, status = 'known-end') => ({ _id: id, startDate, endDate, status })
@@ -972,7 +972,7 @@ for (const [dx, dy, delta] of [[-49, 0, 1], [49, 0, -1], [-80, 79, 1], [80, 10, 
 test('month slide continues quick repeats, restarts at the duration and reverses with the grid', async t => {
   const app = homeApp(t, { now: '2026-11-08T12:00:00+08:00' })
   const home = await launch(app)
-  const css = fs.readFileSync(path.join(__dirname, '../app.wxss'), 'utf8')
+  const css = readSource(path.join(__dirname, '../app.wxss'), 'utf8')
   const enterMs = Number(/--duration-enter:\s*(\d+)ms/.exec(css)[1])
   assert.equal(calendarAnimation(app, home, 'flip'), '')
   await tap(app, home, 'nextMonth')

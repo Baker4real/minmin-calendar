@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource: readFile } = require('./sourceFiles')
 
 const { auroraPeakHex, contrastGrounds, contrastRatio, meetsContrast, surfaceFill } = require('./contrast')
 const { parseWxssRules } = require('./designTokens')
@@ -51,7 +51,7 @@ const WARNING_RED = '#F97373'
 const WARNING_RED_BORDER = 'rgba(249,115,115,0.28)'
 
 function readSource(relativePath) {
-  return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
+  return readFile(path.join(repoRoot, relativePath), 'utf8')
 }
 
 function wxssRuleBody(relativePath, selector) {

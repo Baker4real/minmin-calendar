@@ -4,6 +4,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { pathToFileURL } from 'node:url'
+import sourceFiles from './sourceFiles.js'
 import { classifyCaptureEvidence, fingerprintRuntimeSources } from './tools/captureEvidence.mjs'
 
 const COMPONENTS = {
@@ -64,7 +65,7 @@ function relative(projectPath, file) {
 function readSource(projectPath, file) {
   const absolute = path.join(projectPath, file)
   if (!existsSync(absolute)) throw new Error(`Audit source missing: ${file}`)
-  return { file, text: readFileSync(absolute, 'utf8') }
+  return { file, text: sourceFiles.readSource(absolute, 'utf8') }
 }
 
 function lineAt(text, offset) {

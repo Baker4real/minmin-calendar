@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const repoRoot = path.join(__dirname, '..')
 const recordDraft = require('../utils/recordDraft')
@@ -133,13 +133,13 @@ function createMemoryStorage() {
 
 test('edit forms bind an alert restore notice with a separate rose discard action', () => {
   for (const relativePath of ['pages/period/edit/edit.wxml', 'pages/memory/edit/edit.wxml']) {
-    const wxml = fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
+    const wxml = readSource(path.join(repoRoot, relativePath), 'utf8')
     assert.match(wxml, /wx:if="\{\{draftRestored\}\}" class="draft-notice" aria-role="alert"/)
     assert.match(wxml, /\{\{draftNoticeText\}\} · /, `${relativePath} binds the restore description`)
     assert.match(wxml, /class="draft-discard"[^>]*bindtap="discardDraft"[^>]*aria-role="button"[^>]*aria-label="\{\{draftDiscardText\}\}"/)
     assert.doesNotMatch(wxml, /已恢复上次未完成的输入/)
 
-    const wxss = fs.readFileSync(path.join(repoRoot, relativePath.replace(/\.wxml$/, '.wxss')), 'utf8')
+    const wxss = readSource(path.join(repoRoot, relativePath.replace(/\.wxml$/, '.wxss')), 'utf8')
     assert.match(wxss, /\.draft-notice\s*\{[^}]*color: var\(--text-secondary\)/s)
     assert.match(wxss, /\.draft-discard\s*\{[^}]*color: var\(--aurora-pink\)/s)
   }
