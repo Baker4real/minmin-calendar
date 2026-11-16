@@ -34,6 +34,10 @@ Page(withPageVisibility({
     this._editSession.changeField('note', e.detail.value)
   },
 
+  discardDraft() {
+    this._editSession.discardDraft()
+  },
+
   goBack() {
     wx.navigateBack()
   },
