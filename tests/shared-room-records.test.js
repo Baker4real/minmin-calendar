@@ -395,8 +395,8 @@ test('records Home read after its own Room lookup belong to the Room the lookup 
 })
 
 for (const [repair, rebound, title] of [
-  [{ code: 0, room: { roomCode: B, status: 'waiting' } }, B, '房间状态已更新'],
-  [{ code: 0, room: null }, undefined, '房间状态已变化']
+  [{ code: 0, room: { roomCode: B, status: 'waiting' } }, B, '已重新连上房间'],
+  [{ code: 0, room: null }, undefined, '已不在这个房间']
 ]) {
   test(`a Room repair that leaves the device ${rebound ? 'in another Room' : 'without a Room'} keeps nothing of the previous Room behind the Room status`, async t => {
     const app = homeApp(t)

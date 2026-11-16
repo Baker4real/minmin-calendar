@@ -6,8 +6,8 @@ const records = [
   { kind: 'period', collection: 'periods', fields: { id: 'edited', startDate: '2026-06-20', status: 'ongoing' } },
   { kind: 'memory', collection: 'memories', fields: { id: 'edited', date: '2026-06-20' } }
 ]
-const saveAdvice = '保存结果暂未确认，请返回列表刷新后检查是否已生效，避免重复提交'
-const deleteAdvice = '删除结果暂未确认，请返回列表刷新后确认记录是否已删除，避免重复操作'
+const saveAdvice = '还不确定有没有存上。回到列表刷新看看，已经有了就不用再记'
+const deleteAdvice = '还不确定有没有删掉。回到列表刷新看看'
 const modal = (title, content, next) => ({ form: 'modal', title, content, next })
 const inline = (title, content, actionText, next) => ({ form: 'inline', title, content, actionText, next })
 // #194: the record tab shows a retryable read failure only inside its segment, as the failure screen and its retry.
@@ -35,11 +35,11 @@ const scenarios = [
   },
   {
     failure: 'rebind',
-    list: modal('房间状态已变化', '房间状态已变化，请重新绑定', 'bind'),
-    save: modal('房间状态已变化', '房间状态已变化，请重新绑定', 'bind'),
-    delete: modal('房间状态已变化', '房间状态已变化，请重新绑定', 'bind'),
-    export: modal('房间状态已变化', '房间状态已变化，请重新绑定', 'bind'),
-    home: inline('房间状态已变化', '当前共享房间已不可用，请重新绑定后再查看日历', '去绑定', 'bind')
+    list: modal('已不在这个房间', '你已经不在这个房间里了，记录没有删除。重新加入或建房间后再继续', 'bind'),
+    save: modal('已不在这个房间', '你已经不在这个房间里了，记录没有删除。重新加入或建房间后再继续', 'bind'),
+    delete: modal('已不在这个房间', '你已经不在这个房间里了，记录没有删除。重新加入或建房间后再继续', 'bind'),
+    export: modal('已不在这个房间', '你已经不在这个房间里了，记录没有删除。重新加入或建房间后再继续', 'bind'),
+    home: inline('已不在这个房间', '你已经不在这个房间里了，记录没有删除。重新绑定后再看日历', '去绑定', 'bind')
   },
   {
     failure: 'no-room',
@@ -52,10 +52,10 @@ const scenarios = [
   {
     failure: 'repaired',
     list: segment('retry'),
-    save: modal('房间状态已同步', `房间状态已同步\n\n${saveAdvice}`, 'check'),
-    delete: modal('房间状态已同步', `房间状态已同步\n\n${deleteAdvice}`, 'check'),
-    export: modal('房间状态已更新', '房间状态已更新，请重试导出', 'retry'),
-    home: inline('房间状态已更新', '房间状态已同步，请重新加载日历', '重新加载', 'retry')
+    save: modal('已重新连上房间', `已重新连上房间\n\n${saveAdvice}`, 'check'),
+    delete: modal('已重新连上房间', `已重新连上房间\n\n${deleteAdvice}`, 'check'),
+    export: modal('已重新连上房间', '房间状态已更新，请重试导出', 'retry'),
+    home: inline('已重新连上房间', '房间状态已同步，请重新加载日历', '重新加载', 'retry')
   },
   {
     failure: 'repair-failed',

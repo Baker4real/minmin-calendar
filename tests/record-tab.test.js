@@ -875,7 +875,7 @@ test('when the Room needs rebinding, only the record tab in front prompts once, 
   const retry = app.dispatch(tab, 'loadMemoryData')
   await Promise.all([refresh, retry])
   await app.settle()
-  assert.deepEqual(app.wx.modals.map(modal => [modal.title, modal.confirmText]), [['房间状态已变化', '去绑定']])
+  assert.deepEqual(app.wx.modals.map(modal => [modal.title, modal.confirmText]), [['已不在这个房间', '去绑定']])
   assert.equal(listCalls(app).length, 6, 'the pull-down and the retry share one load')
   assert.equal(app.rendered(home).noRoom, true, 'hidden Home only renders its Room status')
   assert.equal(app.rendered(tab).loadFailed, true)
