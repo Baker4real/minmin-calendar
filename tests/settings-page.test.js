@@ -1,6 +1,9 @@
 const assert = require('node:assert/strict')
+const path = require('node:path')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
+const { readSource } = require('./sourceFiles')
+const { evaluateWxmlExpression, wxmlOpeningTags } = require('./wxmlTemplate')
 
 function settingsApp(t, options = {}) {
   const app = createMiniProgram(options)
@@ -410,6 +413,48 @@ test('bind still verifies its Room when reading or removing the optional leave n
   }
 })
 
+test('waiting settings shows a native reinvite button and shares the static room invite', async (t) => {
+  const app = settingsApp(t)
+  const page = app.launch('/pages/settings/settings')
+  await app.settle()
+
+  assert.equal(page.data.roomMemberLabel, 'TA 还没加入')
+  assert.equal(settingsInviteVisible(page.data), true)
+  assert.deepEqual(app.platformCalls.showShareMenu, [{ menus: ['shareAppMessage'] }])
+  assert.ok(app.platformCalls.hideShareMenu.length >= 1, 'capsule sharing starts hidden until the Room resolves')
+  assert.deepEqual(app.share(page), {
+    title: '邀请你加入我的日历',
+    path: '/pages/bind/bind?roomCode=ROOM01',
+    imageUrl: '/images/invite-card.png'
+  })
+})
+
+test('non-waiting settings hides capsule sharing and unexpected shares use the ordinary static card', async (t) => {
+  for (const [state, room] of [
+    ['paired', { roomCode: 'ROOM01', status: 'paired' }],
+    ['unknown', { roomCode: 'ROOM01' }],
+    ['unbound', null]
+  ]) {
+    await t.test(state, async (t) => {
+      const app = settingsApp(t)
+      app.cloud.when('getMyRoom').reply({ code: 0, room })
+      const page = app.launch('/pages/settings/settings')
+      await app.settle()
+
+      assert.equal(settingsInviteVisible(page.data), false)
+      assert.equal(app.platformCalls.showShareMenu, undefined)
+      assert.ok(app.platformCalls.hideShareMenu.length >= 1)
+      const card = app.share(page)
+      assert.deepEqual(card, {
+        title: '美少女的日历',
+        path: '/pages/bind/bind',
+        imageUrl: '/images/invite-card.png'
+      })
+      assert.equal(JSON.stringify(card).includes('ROOM01'), false)
+    })
+  }
+})
+
 test('settings shows membership and announces only a waiting-to-paired transition', async (t) => {
   for (const initialStatus of ['waiting', 'paired']) {
     await t.test(initialStatus, async (t) => {
@@ -417,7 +462,7 @@ test('settings shows membership and announces only a waiting-to-paired transitio
       app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01', status: initialStatus } })
       const page = app.launch('/pages/settings/settings')
       await app.settle()
-      assert.equal(page.data.roomMemberLabel, initialStatus === 'waiting' ? '等待 TA 加入' : 'TA 已加入')
+      assert.equal(page.data.roomMemberLabel, initialStatus === 'waiting' ? 'TA 还没加入' : 'TA 已加入')
       assert.deepEqual(app.wx.toasts, [])
       app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01', status: 'paired' } })
       for (let repeat = 0; repeat < 2; repeat += 1) {
@@ -536,3 +581,14 @@ test('system back closes help and keeps settings in place during repeated back e
   assert.equal(app.currentPage, page)
   assert.equal(app.navigation.length, 1)
 })
+
+function settingsInviteVisible(data) {
+  const template = readSource(path.join(__dirname, '../pages/settings/settings.wxml'), 'utf8')
+  const button = wxmlOpeningTags(template).find(tag => tag.attrs['open-type'] === 'share')
+  assert.ok(button, 'settings must contain a native share button')
+  assert.match(template, /<button\b[^>]*open-type="share"[^>]*>\s*再发邀请\s*<\/button>/)
+  assert.equal(button.attrs['aria-label'], '再发邀请')
+  const condition = button.attrs['wx:if']
+  assert.ok(condition, 'the reinvite button must be conditional on the Room state')
+  return Boolean(evaluateWxmlExpression(condition.slice(2, -2), data))
+}

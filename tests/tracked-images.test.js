@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict')
 const { execFileSync } = require('node:child_process')
+const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
@@ -10,6 +11,7 @@ const test = require('node:test')
 const repoRoot = path.join(__dirname, '..')
 // 小程序自己的图标，随包上传。
 const APP_IMAGE_ROOT = 'images/'
+const INVITE_CARD = 'images/invite-card.png'
 const IMAGE_FILE = /\.(?:png|jpe?g|gif|webp|svg|bmp|heic)$/i
 const ALLOWED_IMAGES = {
   'docs/evidence/issue-122/press-danger-row.png': '设置页按住解除绑定的那一行，没有记录数据',
@@ -151,6 +153,16 @@ function trackedImages() {
     .split('\0')
     .filter(file => IMAGE_FILE.test(file))
 }
+
+test('invite card is a tracked 500 by 400 PNG no larger than 40 KB', () => {
+  assert.ok(trackedImages().includes(INVITE_CARD), `${INVITE_CARD} must be tracked`)
+  const artwork = fs.readFileSync(path.join(repoRoot, INVITE_CARD))
+  assert.ok(artwork.length <= 40 * 1024, `invite card is ${artwork.length} B (limit ${40 * 1024} B)`)
+  assert.ok(artwork.length >= 24, 'PNG header and IHDR dimensions must be present')
+  assert.equal(artwork.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
+  assert.equal(artwork.readUInt32BE(16), 500)
+  assert.equal(artwork.readUInt32BE(20), 400)
+})
 
 test('every tracked image outside images/ is allowlisted with what it shows', () => {
   const unlisted = trackedImages().filter(file => !file.startsWith(APP_IMAGE_ROOT) && !Object.hasOwn(ALLOWED_IMAGES, file))

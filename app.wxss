@@ -348,6 +348,33 @@ page {
   opacity: 0;
 }
 
+/* 原生分享按钮（issue #140 / #218）：绑定与设置共用同一枚玫瑰主按钮。
+   特异性高于 .btn-premium，盖住组件自带灰底、5px 圆角和 ::after 描边；
+   overflow 放开以免裁掉柔光，按压类让柔光和缩放一起沉。 */
+button.share-invite {
+  margin: 0 0 30rpx;
+  width: 100%;
+  padding: 26rpx 0;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--aurora-pink);
+  color: #0A0E27;
+  font-size: var(--font-size-button);
+  font-weight: var(--font-weight-control);
+  line-height: var(--line-height-body);
+  overflow: visible;
+}
+button.share-invite::after {
+  border: none;
+}
+.share-invite.share-invite-hover {
+  transform: scale(0.96);
+}
+.share-invite.share-invite-hover::before {
+  opacity: 0.5;
+}
+
 /* ===== Danger Button — 柔红，与玫瑰体系同族 ===== */
 .btn-danger {
   position: relative;

@@ -389,6 +389,7 @@ test('bind page shares a fixed invite card carrying only the room code to the la
   assert.equal(JSON.parse(readPageFile('app.json')).pages[0], 'pages/bind/bind')
   assert.equal(card.title, '邀请你加入我的日历')
   assert.equal(card.path, '/pages/bind/bind?roomCode=ROOM05')
+  assert.equal(card.imageUrl, '/images/invite-card.png')
   assert.doesNotMatch(card.title, /经期|欢乐时光|记录|ROOM05/)
   assert.equal(JSON.stringify(card).replace(card.path, '').includes('ROOM05'), false)
   const boundCard = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
@@ -396,6 +397,37 @@ test('bind page shares a fixed invite card carrying only the room code to the la
   assert.ok(button)
   assert.match(button[0], /open-type="share"/)
   assert.match(button[0], /wx:if="\{\{justCreated\}\}"/)
+})
+
+test('bind without a room code shares only the ordinary app card with static artwork', async (t) => {
+  const app = bindPlatform(t)
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+
+  assert.deepEqual(app.share(page), {
+    title: '美少女的日历',
+    path: '/pages/bind/bind',
+    imageUrl: '/images/invite-card.png'
+  })
+})
+
+test('bind with a paired or unknown Room shares only the ordinary static card', async (t) => {
+  for (const status of ['paired', undefined]) {
+    await t.test(status || 'unknown', async (t) => {
+      const app = bindPlatform(t, { room: { roomCode: 'ROOM05', status }, failHome: true })
+      const page = app.launch('/pages/bind/bind')
+      await app.settle()
+
+      assert.equal(page.data.bound, true)
+      const card = app.share(page)
+      assert.deepEqual(card, {
+        title: '美少女的日历',
+        path: '/pages/bind/bind',
+        imageUrl: '/images/invite-card.png'
+      })
+      assert.equal(JSON.stringify(card).includes('ROOM05'), false)
+    })
+  }
 })
 
 test('bind starts with two equal unselected entries and expands only the chosen room flow', async (t) => {
