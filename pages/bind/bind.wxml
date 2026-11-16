@@ -8,6 +8,7 @@
     <view class="hero {{justCreated ? 'hero-bloom' : ''}}">
       <!-- 品牌心是文本字形（颜色走 wxss），不用红色心形表情（issue #77） -->
       <view class="hero-icon">♥</view>
+      <text wx:if="{{openingCalendarHint}}" class="hero-desc opening-calendar">正在打开日历…</text>
       <!-- issue #167：大标题和说明跟下面的卡片同一刻、同一个显现进来 -->
       <view wx:if="{{revealed}}" class="bind-reveal">
         <text class="hero-title">美少女的日历</text>

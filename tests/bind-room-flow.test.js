@@ -492,6 +492,90 @@ test('bind page removes all whitespace from pasted input before uppercasing and 
   assert.equal(join.data.roomCode, 'ABC123')
 })
 
+test('cached-room launch validates and preloads records together, then Home joins that in-flight load', async (t) => {
+  const app = bindPlatform(t, {
+    storage: { roomCode: 'ROOM01' },
+    room: { roomCode: 'ROOM01', status: 'waiting' }
+  })
+  const check = app.cloud.when('getMyRoom').defer()
+  const periods = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'periods' } }).defer()
+  const memories = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'memories' } }).defer()
+  app.launch('/pages/bind/bind')
+  await app.settle()
+
+  assert.deepEqual(app.cloud.calls.map(call => call.name), ['getMyRoom', 'dataOp', 'dataOp'])
+  assert.deepEqual(app.cloud.calls.filter(call => call.name === 'dataOp').map(call => call.data.collection), ['periods', 'memories'])
+  check.resolve({ code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } })
+  await app.settle()
+  assert.equal(app.currentPage.route, 'pages/index/index')
+  const home = app.currentPage
+  assert.equal(home.data.loading, true)
+  assert.equal(app.cloud.calls.filter(call => call.name === 'dataOp').length, 2, 'Home must join the launch load instead of starting another')
+
+  periods.resolve({
+    code: 0,
+    data: [{ _id: 'launch-p', startDate: '2026-06-20', endDate: '2026-06-20', status: 'known-end' }],
+    roomStatus: 'waiting'
+  })
+  memories.resolve({ code: 0, data: [], roomStatus: 'waiting' })
+  await app.settle()
+  assert.equal(home.data.days.find(day => day.date === '2026-06-20').isPeriod, true)
+  assert.equal(home.data.loading, false)
+  assert.equal(app.cloud.calls.filter(call => call.name === 'dataOp').length, 2)
+})
+
+test('invalid cached-room checks discard the launch load and keep the existing failure paths', async (t) => {
+  for (const [label, failure] of [['no-room', false], ['retryable-failure', true]]) {
+    await t.test(label, async (t) => {
+      const app = bindPlatform(t, {
+        storage: { roomCode: 'ROOM01' },
+        room: { roomCode: 'ROOM01', status: 'waiting' }
+      })
+      const check = app.cloud.when('getMyRoom').defer()
+      const periods = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'periods' } }).defer()
+      const memories = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'memories' } }).defer()
+      const bind = app.launch('/pages/bind/bind')
+      await app.settle()
+      if (failure) check.reject(new Error('network down'))
+      else check.resolve({ code: 0, room: null })
+      await app.settle()
+
+      assert.equal(bind.data.bound, false)
+      assert.equal(bind.data.revealed, true)
+      assert.equal(bind.data.verifying, false)
+      assert.equal(bind.data.checkFailed, failure)
+      assert.equal(bind.data.errorMsg, failure ? '网络不太稳定，请重试' : '')
+      assert.equal(app.storage.roomCode, failure ? 'ROOM01' : undefined)
+
+      periods.resolve({
+        code: 0,
+        data: [{ _id: 'stale-launch-p', startDate: '2026-06-20', endDate: '2026-06-20', status: 'known-end' }],
+        roomStatus: 'paired'
+      })
+      memories.resolve({ code: 0, data: [], roomStatus: 'paired' })
+      await app.settle()
+
+      app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } })
+      const laterPeriods = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'periods' } }).defer()
+      const laterMemories = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'memories' } }).defer()
+      app.hide()
+      app.show()
+      await app.settle()
+      assert.equal(app.currentPage.route, 'pages/index/index')
+      const home = app.currentPage
+      assert.equal(app.cloud.calls.filter(call => call.name === 'dataOp').length, 4, 'a later valid entry must read afresh')
+      assert.equal(home.data.loading, true)
+      assert.equal(home.data.refreshing, false)
+      assert.equal(home.data.days.find(day => day.date === '2026-06-20').isPeriod, false, 'the invalidated launch result must not render')
+
+      laterPeriods.resolve({ code: 0, data: [], roomStatus: 'waiting' })
+      laterMemories.resolve({ code: 0, data: [], roomStatus: 'waiting' })
+      await app.settle()
+      assert.equal(home.data.days.find(day => day.date === '2026-06-20').isPeriod, false)
+    })
+  }
+})
+
 test('already-bound launch ignores the invite, enters home silently and never shows the enter fallback', async (t) => {
   const app = bindPlatform(t, { room: { roomCode: 'ROOM01', status: 'waiting' } })
   const page = app.launch('/pages/bind/bind?roomCode=ROOM05')
@@ -573,7 +657,45 @@ test('verification failure stays on the bind page with filtered copy and a worki
   assert.match(wxml, /bindtap="retryCheck"[^>]*aria-role="button"[^>]*aria-label="重试"/)
 })
 
-test('first room check keeps only the brand heart until its delayed response', async (t) => {
+test('first room check shows the opening hint only after 800ms and clears it when validation completes', async (t) => {
+  for (const [label, delay] of [['fast', 400], ['slow', 800]]) {
+    await t.test(label, async (t) => {
+      const app = bindPlatform(t, {
+        storage: { roomCode: 'ROOM01' },
+        room: { roomCode: 'ROOM01', status: 'waiting' }
+      })
+      const check = app.cloud.when('getMyRoom').defer()
+      const bind = app.launch('/pages/bind/bind')
+      await app.settle()
+      assert.equal(bind.data.openingCalendarHint, false)
+
+      if (delay === 800) {
+        await app.advance(799)
+        assert.equal(bind.data.openingCalendarHint, false)
+        await app.advance(1)
+        assert.equal(bind.data.openingCalendarHint, true)
+      } else {
+        await app.advance(delay)
+        assert.equal(bind.data.openingCalendarHint, false)
+      }
+
+      check.resolve({ code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } })
+      await app.settle()
+      assert.equal(app.currentPage.route, 'pages/index/index')
+      assert.equal(bind.data.openingCalendarHint, false)
+      await app.advance(800)
+      assert.equal(bind.data.openingCalendarHint, false, 'a completed fast check must not show a stale hint')
+
+      const wxml = readPageFile('pages/bind/bind.wxml')
+      const heartAt = wxml.indexOf('class="hero-icon">♥')
+      const hintAt = wxml.indexOf('wx:if="{{openingCalendarHint}}"')
+      assert.ok(heartAt !== -1 && hintAt > heartAt)
+      assert.match(wxml.slice(hintAt), /class="hero-desc opening-calendar">正在打开日历…<\/text>/)
+    })
+  }
+})
+
+test('first room check keeps only the brand heart before the opening-hint delay', async (t) => {
   const app = bindPlatform(t)
   const check = app.cloud.when('getMyRoom').defer()
   const page = app.launch('/pages/bind/bind')
