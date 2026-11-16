@@ -51,7 +51,7 @@ for (const scenario of firstScreenCases) {
           assert.equal(state.periodQuickLabel, quick)
           assert.equal(state.periodQuickAriaLabel, quick)
           assert.equal(state.periodQuickAction.url, scenario.name === 'ongoing'
-            ? '/pages/period/edit/edit?id=live&startDate=2026-06-20&endDate=2026-06-26&status=known-end'
+            ? '/pages/period/edit/edit?id=live&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete'
             : scenario.name === 'completed' ? '/pages/period/edit/edit?id=done&startDate=2026-06-24&endDate=2026-06-26&status=known-end'
               : scenario.name === 'unknown end' ? '/pages/period/edit/edit?id=unknown&startDate=2026-06-26&status=unknown-end'
                 : '/pages/period/edit/edit?startDate=2026-06-26')

@@ -1,10 +1,10 @@
 // Published China public holiday arrangements.
-// 2001-2006 are transcribed from early State Council Office notices; 2007-2026
+// 2001-2006 are transcribed from early State Council Office notices; 2007-2027
 // are normalized from NateScarlet/holiday-cn JSON whose yearly files reference
 // the original State Council papers.
 
 const PUBLISHED_HOLIDAY_START_YEAR = 2001
-const PUBLISHED_HOLIDAY_END_YEAR = 2026
+const PUBLISHED_HOLIDAY_END_YEAR = 2027
 
 const PUBLISHED_HOLIDAY_RANGES = [
   { name: '元旦', start: '2001-01-01', end: '2001-01-01', isOffDay: true },
@@ -300,7 +300,19 @@ const PUBLISHED_HOLIDAY_RANGES = [
   { name: '国庆', start: '2026-09-20', end: '2026-09-20', isOffDay: false },
   { name: '中秋', start: '2026-09-25', end: '2026-09-27', isOffDay: true },
   { name: '国庆', start: '2026-10-01', end: '2026-10-07', isOffDay: true },
-  { name: '国庆', start: '2026-10-10', end: '2026-10-10', isOffDay: false }
+  { name: '国庆', start: '2026-10-10', end: '2026-10-10', isOffDay: false },
+  { name: '元旦', start: '2027-01-01', end: '2027-01-03', isOffDay: true },
+  { name: '春节', start: '2027-01-31', end: '2027-01-31', isOffDay: false },
+  { name: '春节', start: '2027-02-05', end: '2027-02-13', isOffDay: true },
+  { name: '春节', start: '2027-02-14', end: '2027-02-14', isOffDay: false },
+  { name: '清明', start: '2027-04-03', end: '2027-04-05', isOffDay: true },
+  { name: '劳动节', start: '2027-05-01', end: '2027-05-05', isOffDay: true },
+  { name: '劳动节', start: '2027-05-08', end: '2027-05-08', isOffDay: false },
+  { name: '端午', start: '2027-06-09', end: '2027-06-09', isOffDay: true },
+  { name: '中秋', start: '2027-09-15', end: '2027-09-15', isOffDay: true },
+  { name: '国庆', start: '2027-09-26', end: '2027-09-26', isOffDay: false },
+  { name: '国庆', start: '2027-10-01', end: '2027-10-07', isOffDay: true },
+  { name: '国庆', start: '2027-10-09', end: '2027-10-09', isOffDay: false }
 ]
 
 function getPublishedHoliday(dateStr) {
@@ -318,6 +330,7 @@ function hasPublishedHolidayYear(year) {
 
 module.exports = {
   PUBLISHED_HOLIDAY_END_YEAR,
+  PUBLISHED_HOLIDAY_RANGES,
   PUBLISHED_HOLIDAY_START_YEAR,
   getPublishedHoliday,
   hasPublishedHolidayYear

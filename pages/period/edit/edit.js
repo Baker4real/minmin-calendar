@@ -50,6 +50,10 @@ Page(withPageVisibility({
     this._editSession.changeField('symptoms', e.currentTarget.dataset.value)
   },
 
+  discardDraft() {
+    this._editSession.discardDraft()
+  },
+
   goBack() {
     wx.navigateBack()
   },

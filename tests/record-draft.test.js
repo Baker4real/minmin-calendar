@@ -77,19 +77,19 @@ test('buildDraftKey separates new records and different edited records from each
   assert.equal(recordDraft.readDraft(storage, periodOneKey).note, '只属于 p1')
 })
 
-test('syncDraft writes while the form differs from its baseline and clears once it returns to it', () => {
+test('syncDraft writes only changed fields and leaves the stored draft untouched at the baseline', () => {
   const storage = createMemoryStorage()
   const key = recordDraft.buildDraftKey({ collection: 'memories', id: '' })
   const baseline = { date: '2026-09-20', note: '' }
 
-  assert.equal(recordDraft.syncDraft(storage, key, { date: '2026-09-20', note: '' }, baseline), 'cleared')
+  assert.equal(recordDraft.syncDraft(storage, key, { date: '2026-09-20', note: '' }, baseline), 'unchanged')
   assert.equal(recordDraft.readDraft(storage, key), null)
 
   assert.equal(recordDraft.syncDraft(storage, key, { date: '2026-09-20', note: '看电影' }, baseline), 'written')
   assert.deepEqual(recordDraft.readDraft(storage, key), { date: '2026-09-20', note: '看电影' })
 
-  assert.equal(recordDraft.syncDraft(storage, key, { date: '2026-09-20', note: '' }, baseline), 'cleared')
-  assert.equal(recordDraft.readDraft(storage, key), null)
+  assert.equal(recordDraft.syncDraft(storage, key, { date: '2026-09-20', note: '' }, baseline), 'unchanged')
+  assert.deepEqual(recordDraft.readDraft(storage, key), { date: '2026-09-20', note: '看电影' }, 'returning to the baseline neither writes nor clears the earlier draft')
 })
 
 test('pickDraftFields keeps only draft fields and copies array values', () => {
@@ -131,13 +131,16 @@ function createMemoryStorage() {
   }
 }
 
-test('edit forms carry a persistent visible draft-restore notice, not only the toast', () => {
+test('edit forms bind an alert restore notice with a separate rose discard action', () => {
   for (const relativePath of ['pages/period/edit/edit.wxml', 'pages/memory/edit/edit.wxml']) {
     const wxml = readSource(path.join(repoRoot, relativePath), 'utf8')
-    assert.match(
-      wxml,
-      /wx:if="\{\{draftRestored\}\}"[^>]*>[^<]*已恢复上次未完成的输入/,
-      `${relativePath} keeps the in-form restore notice bound to draftRestored`
-    )
+    assert.match(wxml, /wx:if="\{\{draftRestored\}\}" class="draft-notice" aria-role="alert"/)
+    assert.match(wxml, /\{\{draftNoticeText\}\} · /, `${relativePath} binds the restore description`)
+    assert.match(wxml, /class="draft-discard"[^>]*bindtap="discardDraft"[^>]*aria-role="button"[^>]*aria-label="\{\{draftDiscardText\}\}"/)
+    assert.doesNotMatch(wxml, /已恢复上次未完成的输入/)
+
+    const wxss = readSource(path.join(repoRoot, relativePath.replace(/\.wxml$/, '.wxss')), 'utf8')
+    assert.match(wxss, /\.draft-notice\s*\{[^}]*color: var\(--text-secondary\)/s)
+    assert.match(wxss, /\.draft-discard\s*\{[^}]*color: var\(--aurora-pink\)/s)
   }
 })

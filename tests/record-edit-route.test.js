@@ -149,7 +149,7 @@ test('buildPeriodEditUrl opens an ongoing record as ended today when the caller 
 
   assert.equal(
     url,
-    '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end&note=%E8%85%B9%E7%97%9B'
+    '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end&note=%E8%85%B9%E7%97%9B&intent=complete'
   )
 
   assert.deepEqual(route.parsePeriodEditOptions({
@@ -157,7 +157,8 @@ test('buildPeriodEditUrl opens an ongoing record as ended today when the caller 
     startDate: '2026-06-20',
     endDate: '2026-06-26',
     status: 'known-end',
-    note: '%E8%85%B9%E7%97%9B'
+    note: '%E8%85%B9%E7%97%9B',
+    intent: 'complete'
   }, { today: '2026-06-26' }), {
     id: 'p2',
     startDate: '2026-06-20',

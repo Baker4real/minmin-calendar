@@ -18,7 +18,8 @@ function buildPeriodEditUrl(record = {}, context = {}) {
     status: completing ? 'known-end' : explicitStatus,
     note: record.note || '',
     flow: record.flow || '',
-    symptoms: Array.isArray(record.symptoms) ? record.symptoms.join(',') : ''
+    symptoms: Array.isArray(record.symptoms) ? record.symptoms.join(',') : '',
+    intent: completing ? 'complete' : ''
   })
 }
 
