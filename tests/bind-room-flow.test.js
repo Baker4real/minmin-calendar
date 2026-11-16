@@ -296,6 +296,22 @@ test('bind page does not offer unbind for ordinary create/join failures', async 
   assert.equal(page.data.needUnbind, false)
 })
 
+test('create and join failures render their error strip with an alert role', async (t) => {
+  const errorStrip = wxmlOpeningTags(readPageFile('pages/bind/bind.wxml')).find(tag => tag.classes.includes('error-msg'))
+  assert.ok(errorStrip, 'bind page has an error strip')
+  for (const [action, message] of [['createRoom', '创建失败'], ['joinRoom', '房间不存在，请检查房间码']]) {
+    await t.test(action, async (t) => {
+      const app = bindPlatform(t, { [action]: { code: -1, msg: message } })
+      const page = app.launch(action === 'joinRoom' ? '/pages/bind/bind?roomCode=ROOM01' : '/pages/bind/bind')
+      await app.settle()
+      await app.dispatch(page, action)
+      assert.equal(page.data.errorMsg, message)
+      assert.equal(Boolean(evaluateWxmlExpression(errorStrip.attrs['wx:if'].slice(2, -2), page.data)), true)
+      assert.equal(errorStrip.attrs['aria-role'], 'alert')
+    })
+  }
+})
+
 test('create and join clear the unbind entry for other failures even when the copy contains the old hint', async (t) => {
   for (const action of ['createRoom', 'joinRoom']) {
     await t.test(action, async (t) => {
@@ -389,6 +405,7 @@ test('bind page shares a fixed invite card carrying only the room code to the la
   assert.equal(JSON.parse(readPageFile('app.json')).pages[0], 'pages/bind/bind')
   assert.equal(card.title, '邀请你加入我的日历')
   assert.equal(card.path, '/pages/bind/bind?roomCode=ROOM05')
+  assert.equal(card.imageUrl, '/images/invite-card.png')
   assert.doesNotMatch(card.title, /经期|欢乐时光|记录|ROOM05/)
   assert.equal(JSON.stringify(card).replace(card.path, '').includes('ROOM05'), false)
   const boundCard = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
@@ -396,6 +413,37 @@ test('bind page shares a fixed invite card carrying only the room code to the la
   assert.ok(button)
   assert.match(button[0], /open-type="share"/)
   assert.match(button[0], /wx:if="\{\{justCreated\}\}"/)
+})
+
+test('bind without a room code shares only the ordinary app card with static artwork', async (t) => {
+  const app = bindPlatform(t)
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+
+  assert.deepEqual(app.share(page), {
+    title: '美少女的日历',
+    path: '/pages/bind/bind',
+    imageUrl: '/images/invite-card.png'
+  })
+})
+
+test('bind with a paired or unknown Room shares only the ordinary static card', async (t) => {
+  for (const status of ['paired', undefined]) {
+    await t.test(status || 'unknown', async (t) => {
+      const app = bindPlatform(t, { room: { roomCode: 'ROOM05', status }, failHome: true })
+      const page = app.launch('/pages/bind/bind')
+      await app.settle()
+
+      assert.equal(page.data.bound, true)
+      const card = app.share(page)
+      assert.deepEqual(card, {
+        title: '美少女的日历',
+        path: '/pages/bind/bind',
+        imageUrl: '/images/invite-card.png'
+      })
+      assert.equal(JSON.stringify(card).includes('ROOM05'), false)
+    })
+  }
 })
 
 test('bind starts with two equal unselected entries and expands only the chosen room flow', async (t) => {
@@ -492,6 +540,90 @@ test('bind page removes all whitespace from pasted input before uppercasing and 
   assert.equal(join.data.roomCode, 'ABC123')
 })
 
+test('cached-room launch validates and preloads records together, then Home joins that in-flight load', async (t) => {
+  const app = bindPlatform(t, {
+    storage: { roomCode: 'ROOM01' },
+    room: { roomCode: 'ROOM01', status: 'waiting' }
+  })
+  const check = app.cloud.when('getMyRoom').defer()
+  const periods = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'periods' } }).defer()
+  const memories = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'memories' } }).defer()
+  app.launch('/pages/bind/bind')
+  await app.settle()
+
+  assert.deepEqual(app.cloud.calls.map(call => call.name), ['getMyRoom', 'dataOp', 'dataOp'])
+  assert.deepEqual(app.cloud.calls.filter(call => call.name === 'dataOp').map(call => call.data.collection), ['periods', 'memories'])
+  check.resolve({ code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } })
+  await app.settle()
+  assert.equal(app.currentPage.route, 'pages/index/index')
+  const home = app.currentPage
+  assert.equal(home.data.loading, true)
+  assert.equal(app.cloud.calls.filter(call => call.name === 'dataOp').length, 2, 'Home must join the launch load instead of starting another')
+
+  periods.resolve({
+    code: 0,
+    data: [{ _id: 'launch-p', startDate: '2026-06-20', endDate: '2026-06-20', status: 'known-end' }],
+    roomStatus: 'waiting'
+  })
+  memories.resolve({ code: 0, data: [], roomStatus: 'waiting' })
+  await app.settle()
+  assert.equal(home.data.days.find(day => day.date === '2026-06-20').isPeriod, true)
+  assert.equal(home.data.loading, false)
+  assert.equal(app.cloud.calls.filter(call => call.name === 'dataOp').length, 2)
+})
+
+test('invalid cached-room checks discard the launch load and keep the existing failure paths', async (t) => {
+  for (const [label, failure] of [['no-room', false], ['retryable-failure', true]]) {
+    await t.test(label, async (t) => {
+      const app = bindPlatform(t, {
+        storage: { roomCode: 'ROOM01' },
+        room: { roomCode: 'ROOM01', status: 'waiting' }
+      })
+      const check = app.cloud.when('getMyRoom').defer()
+      const periods = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'periods' } }).defer()
+      const memories = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'memories' } }).defer()
+      const bind = app.launch('/pages/bind/bind')
+      await app.settle()
+      if (failure) check.reject(new Error('network down'))
+      else check.resolve({ code: 0, room: null })
+      await app.settle()
+
+      assert.equal(bind.data.bound, false)
+      assert.equal(bind.data.revealed, true)
+      assert.equal(bind.data.verifying, false)
+      assert.equal(bind.data.checkFailed, failure)
+      assert.equal(bind.data.errorMsg, failure ? '网络不太稳定，请重试' : '')
+      assert.equal(app.storage.roomCode, failure ? 'ROOM01' : undefined)
+
+      periods.resolve({
+        code: 0,
+        data: [{ _id: 'stale-launch-p', startDate: '2026-06-20', endDate: '2026-06-20', status: 'known-end' }],
+        roomStatus: 'paired'
+      })
+      memories.resolve({ code: 0, data: [], roomStatus: 'paired' })
+      await app.settle()
+
+      app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } })
+      const laterPeriods = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'periods' } }).defer()
+      const laterMemories = app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'memories' } }).defer()
+      app.hide()
+      app.show()
+      await app.settle()
+      assert.equal(app.currentPage.route, 'pages/index/index')
+      const home = app.currentPage
+      assert.equal(app.cloud.calls.filter(call => call.name === 'dataOp').length, 4, 'a later valid entry must read afresh')
+      assert.equal(home.data.loading, true)
+      assert.equal(home.data.refreshing, false)
+      assert.equal(home.data.days.find(day => day.date === '2026-06-20').isPeriod, false, 'the invalidated launch result must not render')
+
+      laterPeriods.resolve({ code: 0, data: [], roomStatus: 'waiting' })
+      laterMemories.resolve({ code: 0, data: [], roomStatus: 'waiting' })
+      await app.settle()
+      assert.equal(home.data.days.find(day => day.date === '2026-06-20').isPeriod, false)
+    })
+  }
+})
+
 test('already-bound launch ignores the invite, enters home silently and never shows the enter fallback', async (t) => {
   const app = bindPlatform(t, { room: { roomCode: 'ROOM01', status: 'waiting' } })
   const page = app.launch('/pages/bind/bind?roomCode=ROOM05')
@@ -573,7 +705,45 @@ test('verification failure stays on the bind page with filtered copy and a worki
   assert.match(wxml, /bindtap="retryCheck"[^>]*aria-role="button"[^>]*aria-label="重试"/)
 })
 
-test('first room check keeps only the brand heart until its delayed response', async (t) => {
+test('first room check shows the opening hint only after 800ms and clears it when validation completes', async (t) => {
+  for (const [label, delay] of [['fast', 400], ['slow', 800]]) {
+    await t.test(label, async (t) => {
+      const app = bindPlatform(t, {
+        storage: { roomCode: 'ROOM01' },
+        room: { roomCode: 'ROOM01', status: 'waiting' }
+      })
+      const check = app.cloud.when('getMyRoom').defer()
+      const bind = app.launch('/pages/bind/bind')
+      await app.settle()
+      assert.equal(bind.data.openingCalendarHint, false)
+
+      if (delay === 800) {
+        await app.advance(799)
+        assert.equal(bind.data.openingCalendarHint, false)
+        await app.advance(1)
+        assert.equal(bind.data.openingCalendarHint, true)
+      } else {
+        await app.advance(delay)
+        assert.equal(bind.data.openingCalendarHint, false)
+      }
+
+      check.resolve({ code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } })
+      await app.settle()
+      assert.equal(app.currentPage.route, 'pages/index/index')
+      assert.equal(bind.data.openingCalendarHint, false)
+      await app.advance(800)
+      assert.equal(bind.data.openingCalendarHint, false, 'a completed fast check must not show a stale hint')
+
+      const wxml = readPageFile('pages/bind/bind.wxml')
+      const heartAt = wxml.indexOf('class="hero-icon"')
+      const hintAt = wxml.indexOf('wx:if="{{openingCalendarHint}}"')
+      assert.ok(heartAt !== -1 && hintAt > heartAt)
+      assert.match(wxml.slice(hintAt), /class="hero-desc opening-calendar">正在打开日历…<\/text>/)
+    })
+  }
+})
+
+test('first room check keeps only the brand heart before the opening-hint delay', async (t) => {
   const app = bindPlatform(t)
   const check = app.cloud.when('getMyRoom').defer()
   const page = app.launch('/pages/bind/bind')
@@ -836,6 +1006,8 @@ test('create and join each commit their result and loading false together exactl
           assert.equal(frames[1].errorMsg, '这次没有完成，请重试')
           assert.equal(frames[1].needUnbind, false)
         }
+        assert.deepEqual(app.platformCalls.vibrateShort, success && action === 'createRoom' ? [{ type: 'light' }] : undefined,
+          'only successful room creation produces one light haptic')
       })
     }
   }
@@ -858,6 +1030,7 @@ test('restored room notice reads periods and memories in parallel without delayi
   assert.equal(resultFrames[1].loading, false)
   assert.equal(resultFrames[1].bound, true)
   assert.equal(Object.hasOwn(resultFrames[1], 'restoredNotice'), false)
+  assert.deepEqual(app.platformCalls.vibrateShort, [{ type: 'light' }], 'creation feedback does not wait for restored-record reads')
 
   periods.resolve({ code: 0, data: [{ _id: 'p1' }, { _id: 'p2' }] })
   await app.settle()

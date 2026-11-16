@@ -8,6 +8,7 @@
     <view class="hero {{justCreated ? 'hero-bloom' : ''}}">
       <!-- 品牌心是文本字形（颜色走 wxss），不用红色心形表情（issue #77） -->
       <view class="hero-icon" aria-hidden="true">♥</view>
+      <text wx:if="{{openingCalendarHint}}" class="hero-desc opening-calendar">正在打开日历…</text>
       <!-- issue #167：大标题和说明跟下面的卡片同一刻、同一个显现进来 -->
       <view wx:if="{{revealed}}" class="bind-reveal">
         <text class="hero-title">美少女的日历</text>
@@ -60,7 +61,7 @@
       <view wx:if="{{needUnbind}}" class="btn-danger unbind-inline" bindtap="unbind" aria-role="button" aria-label="解除绑定" hover-class="btn-danger-hover">解除绑定</view>
     </view>
 
-    <text wx:if="{{errorMsg}}" class="error-msg">{{errorMsg}}</text>
+    <text wx:if="{{errorMsg}}" class="error-msg" aria-role="alert">{{errorMsg}}</text>
     <!-- issue #102：房间校验失败给出可点重试（重跑校验），停留在本页，不导向重新绑定 -->
     <view wx:if="{{checkFailed}}" class="error-retry" bindtap="retryCheck" aria-role="button" aria-label="重试" hover-class="error-retry-hover">重试</view>
     </view>

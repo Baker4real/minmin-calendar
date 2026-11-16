@@ -79,6 +79,8 @@ test('bind page rechecks a cached room and clears stale bound state when verific
   t.after(() => app.teardown())
   app.failNavigation('switchTab')
   app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01' } })
+  app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'periods' } }).reply({ code: 0, data: [] })
+  app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'memories' } }).reply({ code: 0, data: [] })
   const page = app.launch('/pages/bind/bind')
   await app.settle()
   assert.equal(page.data.bound, true)

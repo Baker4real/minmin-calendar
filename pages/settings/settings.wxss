@@ -25,6 +25,10 @@
 .premium-card {
   margin-bottom: 0;
 }
+button.settings-share-invite {
+  width: calc(100% - 60rpx);
+  margin: 0 30rpx 30rpx;
+}
 
 /* Menu Items */
 .menu-item {
