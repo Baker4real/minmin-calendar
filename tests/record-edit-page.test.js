@@ -1,6 +1,9 @@
 const assert = require('node:assert/strict')
+const path = require('node:path')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
+const { readSource } = require('./sourceFiles')
+const { renderWxmlAttribute, wxmlOpeningTags } = require('./wxmlTemplate')
 
 const value = value => ({ detail: { value } })
 const dataset = value => ({ currentTarget: { dataset: value } })
@@ -22,6 +25,13 @@ const form = (page, spec) => Object.fromEntries(Object.keys(spec.fields).map(key
 const draftKey = (spec, id = 'new') => `recordDraft:${spec.collection}:${id}`
 const editUrl = (spec, options = {}) => `/pages/${spec.kind}/edit/edit?${new URLSearchParams(options)}`
 const cell = (page, date = '2026-09-20') => page.data.days.find(day => day.date === date)
+
+function datePickerName(spec, handler, data) {
+  const file = path.join(__dirname, `../pages/${spec.kind}/edit/edit.wxml`)
+  const picker = wxmlOpeningTags(readSource(file, 'utf8')).find(tag => tag.tag === 'picker' && tag.attrs.bindchange === handler)
+  assert.ok(picker, `${spec.kind} exposes its ${handler} date picker`)
+  return renderWxmlAttribute(picker.attrs['aria-label'], data)
+}
 
 function setup(t, options = {}) {
   const app = createMiniProgram({ now: '2026-09-20T12:00:00+08:00', ...options, storage: { roomCode: 'ROOM01', ...options.storage } })
@@ -112,6 +122,44 @@ test('period: legacy draft restores its known dates, labels, flow and selected s
   assert.equal(page.data.endDateLabel, '9月4日')
   assert.equal(page.data.draftRestored, true)
   assert.deepEqual(page.data.symptomGroups.flatMap(group => group.options).filter(option => option.selected).map(option => option.value), ['cramps'])
+})
+
+test('date fields read the same current and cross-year display dates, then append their errors', async (t) => {
+  await t.test('period start and selected end dates', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { id: 'p-date', startDate: '2025-12-30', endDate: '2026-01-02' })
+    assert.equal(page.data.startDateLabel, '2025年12月30日')
+    assert.equal(page.data.endDateLabel, '1月2日')
+    assert.equal(datePickerName(period, 'onStartChange', page.data), `开始日期，${page.data.startDateLabel}，点按修改`)
+    assert.equal(datePickerName(period, 'onEndChange', page.data), `结束日期，${page.data.endDateLabel}，点按修改`)
+
+    await app.dispatch(page, 'onStartChange', value('2026-09-25'))
+    await app.dispatch(page, 'save')
+    assert.deepEqual(page.data.fieldErrors, { startDate: '开始日期不能晚于今天', endDate: '结束日期不能晚于今天' })
+    assert.equal(page.data.startDateLabel, '9月25日')
+    assert.equal(datePickerName(period, 'onStartChange', page.data), `开始日期，${page.data.startDateLabel}，点按修改，${page.data.fieldErrors.startDate}`)
+    assert.equal(datePickerName(period, 'onEndChange', page.data), `结束日期，${page.data.endDateLabel}，点按修改，${page.data.fieldErrors.endDate}`)
+  })
+
+  await t.test('empty period end date', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2026-09-10' })
+    assert.equal(page.data.endDateLabel, '')
+    assert.equal(datePickerName(period, 'onEndChange', page.data), '结束日期，还没选，点按选择')
+    await app.dispatch(page, 'save')
+    assert.equal(datePickerName(period, 'onEndChange', page.data), `结束日期，还没选，点按选择，${page.data.fieldErrors.endDate}`)
+  })
+
+  await t.test('memory date', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, records[1], { date: '2025-12-31' })
+    assert.equal(page.data.dateLabel, '2025年12月31日')
+    assert.equal(datePickerName(records[1], 'onDateChange', page.data), `日期，${page.data.dateLabel}，点按修改`)
+    await app.dispatch(page, 'onDateChange', value('2026-09-21'))
+    await app.dispatch(page, 'save')
+    assert.equal(page.data.dateLabel, '9月21日')
+    assert.equal(datePickerName(records[1], 'onDateChange', page.data), `日期，${page.data.dateLabel}，点按修改，${page.data.fieldErrors.date}`)
+  })
 })
 
 test('period: completion intent keeps route status and end date while restoring the remaining draft fields', async (t) => {

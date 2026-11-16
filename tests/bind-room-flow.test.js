@@ -296,6 +296,22 @@ test('bind page does not offer unbind for ordinary create/join failures', async 
   assert.equal(page.data.needUnbind, false)
 })
 
+test('create and join failures render their error strip with an alert role', async (t) => {
+  const errorStrip = wxmlOpeningTags(readPageFile('pages/bind/bind.wxml')).find(tag => tag.classes.includes('error-msg'))
+  assert.ok(errorStrip, 'bind page has an error strip')
+  for (const [action, message] of [['createRoom', '创建失败'], ['joinRoom', '房间不存在，请检查房间码']]) {
+    await t.test(action, async (t) => {
+      const app = bindPlatform(t, { [action]: { code: -1, msg: message } })
+      const page = app.launch(action === 'joinRoom' ? '/pages/bind/bind?roomCode=ROOM01' : '/pages/bind/bind')
+      await app.settle()
+      await app.dispatch(page, action)
+      assert.equal(page.data.errorMsg, message)
+      assert.equal(Boolean(evaluateWxmlExpression(errorStrip.attrs['wx:if'].slice(2, -2), page.data)), true)
+      assert.equal(errorStrip.attrs['aria-role'], 'alert')
+    })
+  }
+})
+
 test('create and join clear the unbind entry for other failures even when the copy contains the old hint', async (t) => {
   for (const action of ['createRoom', 'joinRoom']) {
     await t.test(action, async (t) => {
