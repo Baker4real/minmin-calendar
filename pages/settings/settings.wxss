@@ -173,6 +173,7 @@
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.85);
+  overflow-wrap: anywhere;
 }
 
 /* 导航标题不可点：中性文字色（共享基类在 app.wxss，页面侧覆盖颜色，issue #77） */
@@ -278,7 +279,7 @@
   bottom: 0;
   left: 0;
   border-radius: var(--radius-sm);
-  box-shadow: 0 4px 15px rgba(232,144,158,0.28);
+  box-shadow: 0 8rpx 30rpx rgba(232,144,158,0.28);
   transition: opacity var(--duration-press) ease;
   pointer-events: none;
 }
