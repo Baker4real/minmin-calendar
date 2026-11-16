@@ -52,9 +52,7 @@ for (const scenario of firstScreenCases) {
           assert.equal(state.periodQuickAriaLabel, quick)
           assert.equal(state.periodQuickAction.url, scenario.name === 'ongoing'
             ? '/pages/period/edit/edit?id=live&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete'
-            : scenario.name === 'completed' ? '/pages/period/edit/edit?id=done&startDate=2026-06-24&endDate=2026-06-26&status=known-end'
-              : scenario.name === 'unknown end' ? '/pages/period/edit/edit?id=unknown&startDate=2026-06-26&status=unknown-end'
-                : '/pages/period/edit/edit?startDate=2026-06-26')
+            : '/pages/period/edit/edit?startDate=2026-06-26')
           assert.equal(state.periodQuickAction.notice, scenario.name === 'ongoing' ? '已有进行中的经期，继续编辑它' : '')
           assert.equal(state.memoryQuickAction.url, '/pages/memory/edit/edit?date=2026-06-26')
           const aria = periodsSynced ? scenario.aria : scenario.aria.replace(/经期第\d+天/, '经期记录')
@@ -89,7 +87,7 @@ for (const scenario of firstScreenCases) {
           assert.deepEqual(detail.meanings, [])
           assert.deepEqual(detail.periods.map(item => item.range), scenario.range ? [scenario.range] : [])
           assert.deepEqual(detail.memories.map(item => item.note), hasMemory ? ['散步'] : [])
-          assert.deepEqual(detail.actions.map(item => item.label), [scenario.count ? '编辑这次经期' : '记经期', '记欢乐时光'])
+          assert.deepEqual(detail.actions.map(item => item.label), scenario.count ? ['记欢乐时光'] : ['记经期', '记欢乐时光'])
           assert.equal(detail.futureNotice, null)
           assert.equal(detail.empty, !scenario.count && !hasMemory)
           const future = state.dayDetailsByDate['2026-06-27']
@@ -131,6 +129,47 @@ for (const periodsSynced of [false, true]) {
     })
   }
 }
+
+test('homeCalendarState uses record rows on covered days and a persistent completion notice on earlier blank days', () => {
+  const state = buildHomeCalendarState({
+    year: 2026,
+    month: 5,
+    today: '2026-06-26',
+    periods: [
+      { _id: 'finished', startDate: '2026-06-01', endDate: '2026-06-05', status: 'known-end' },
+      { _id: 'ongoing', startDate: '2026-06-20', status: 'ongoing' }
+    ]
+  })
+
+  const covered = state.dayDetailsByDate['2026-06-03']
+  assert.equal(covered.periods.length, 1)
+  assert.equal(covered.periods[0].recordId, 'finished')
+  assert.ok(covered.periods[0].ariaLabel.startsWith('编辑这次经期'))
+  assert.ok(covered.periods[0].ariaLabel.includes('6月1日–6月5日'))
+  assert.deepEqual(covered.actions, [{ key: 'memory', label: '补记欢乐时光' }])
+  assert.equal(covered.ongoingNotice, null)
+  assert.equal(covered.periodAction.url, '/pages/period/edit/edit?id=finished&startDate=2026-06-01&endDate=2026-06-05&status=known-end')
+
+  const earlierBlank = state.dayDetailsByDate['2026-06-10']
+  assert.deepEqual(earlierBlank.periods, [])
+  assert.deepEqual(earlierBlank.actions, [{ key: 'memory', label: '补记欢乐时光' }])
+  assert.deepEqual(earlierBlank.ongoingNotice, {
+    title: '这次经期还在进行中',
+    text: '记了结束才能补记别的',
+    actionLabel: '记结束'
+  })
+  assert.equal(earlierBlank.periodAction.url, '/pages/period/edit/edit?id=ongoing&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
+  assert.equal(earlierBlank.futureNotice, null)
+
+  const today = state.dayDetailsByDate['2026-06-26']
+  assert.equal(today.periods[0].recordId, 'ongoing')
+  assert.deepEqual(today.actions, [{ key: 'memory', label: '记欢乐时光' }])
+
+  const future = state.dayDetailsByDate['2026-06-27']
+  assert.deepEqual(future.actions, [])
+  assert.equal(future.ongoingNotice, null)
+  assert.equal(future.futureNotice.title, '未来日期不能新增记录')
+})
 
 test('F1: an ongoing period owns today even when a later completed record covers it', () => {
   const state = buildHomeCalendarState({
@@ -385,7 +424,6 @@ test('buildHomeCalendarState does not restate today, period, or happy time in th
   assert.equal(detail.periods[0].recordId, '')
   assert.equal(detail.memories[0].recordId, 'memory-a')
   assert.deepEqual(detail.actions, [
-    { key: 'period', label: '编辑这次经期' },
     { key: 'memory', label: '记欢乐时光' }
   ])
 })
@@ -1448,7 +1486,7 @@ function assertPeriodDetailWithoutPrediction(detail) {
   assert.equal(detail.meanings.some(item => item.key === 'period' || item.key === 'today' || item.key === 'memory'), false)
   assert.equal(detail.meanings.some(item => item.key === 'predict' || /预测区间/.test(`${item.title} ${item.text}`)), false)
   assert.equal(detail.periods.length > 0, true)
-  assert.equal(detail.actions[0].label, '编辑这次经期')
+  assert.equal(detail.actions.some(action => action.key === 'period'), false)
 }
 
 function period(startDate, endDate) {

@@ -405,6 +405,10 @@ Page(withPageVisibility({
     homepageSheets(this).dragRelease(detail)
   },
 
+  onSheetDragCancel(detail) {
+    homepageSheets(this).dragCancel(detail)
+  },
+
   // 工具菜单承接图例 / 预测说明 / 本月小结，入口在顶栏「工具」。
   openMonthMenu() {
     homepageSheets(this).open('toolsMenu')
@@ -552,6 +556,12 @@ Page(withPageVisibility({
       return
     }
     const detail = this._dayDetail(date)
+    if (action === 'completePeriod') {
+      if (!detail.ongoingNotice || !detail.periodAction) return
+      this.closeDayActions()
+      this.openProjectedEntry(detail.periodAction)
+      return
+    }
     if (!detail.actions.some(item => item.key === action)) return
     const entry = action === 'period' ? detail.periodAction : action === 'memory' ? detail.memoryAction : null
     if (!entry) return

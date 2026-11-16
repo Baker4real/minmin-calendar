@@ -7,7 +7,8 @@
     <!-- issue #167：刚建好房间时 hero-bloom 让品牌心向外漾开一次 -->
     <view class="hero {{justCreated ? 'hero-bloom' : ''}}">
       <!-- 品牌心是文本字形（颜色走 wxss），不用红色心形表情（issue #77） -->
-      <view class="hero-icon">♥</view>
+      <view class="hero-icon" aria-hidden="true">♥</view>
+      <text wx:if="{{openingCalendarHint}}" class="hero-desc opening-calendar">正在打开日历…</text>
       <!-- issue #167：大标题和说明跟下面的卡片同一刻、同一个显现进来 -->
       <view wx:if="{{revealed}}" class="bind-reveal">
         <text class="hero-title">美少女的日历</text>
@@ -38,7 +39,7 @@
 
     <view wx:else class="premium-card">
       <text class="info-text">房间只有你们两个人能看到</text>
-      <view class="tab-bar">
+      <view class="tab-bar" aria-role="radiogroup" aria-label="绑定方式">
         <view class="tab {{tab==='create' ? 'active' : ''}}" bindtap="switchTab" data-tab="create" aria-role="radio" aria-label="我来建房间" aria-checked="{{tab==='create'}}" hover-class="tab-hover">我来建房间</view>
         <view class="tab {{tab==='join' ? 'active' : ''}}" bindtap="switchTab" data-tab="join" aria-role="radio" aria-label="我有房间码" aria-checked="{{tab==='join'}}" hover-class="tab-hover">我有房间码</view>
       </view>

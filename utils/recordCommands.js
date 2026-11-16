@@ -180,11 +180,12 @@ function openRecordEditSession({ kind, route, render }) {
         content: '开始日已经落在一条已有经期里。',
         confirmText: '编辑那条',
         cancelText: '仍然新建',
-        success: response => resolve(!!(response && response.confirm)),
-        fail: () => {
-          wxPrompts.present({ mode: 'toast', content: '这次没有完成，请重试' })
-          resolve(null)
-        }
+        success: response => {
+          if (response && response.confirm) resolve(true)
+          else if (response && response.cancel) resolve(false)
+          else resolve(null)
+        },
+        fail: () => resolve(null)
       })
     })
     if (editExisting === null) return { kind: 'cancelled' }
@@ -325,7 +326,6 @@ function confirmRecordDelete(content) {
     wxPrompts.modal({
       title: '确认删除',
       confirmText: '删除',
-      confirmColor: '#F97373',
       content,
       success: result => resolve(!!(result && result.confirm))
     })

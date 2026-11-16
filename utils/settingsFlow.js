@@ -13,7 +13,6 @@ function leaveRoom({ onResult, notifyOnBind = false }) {
     title: '解除绑定',
     content: '解除绑定后你会退出这个房间。TA 还在的话会留在房间里；房间里只剩你时，房间会归档。之后在绑定页点「创建」即可恢复。',
     confirmText: '解除绑定',
-    confirmColor: '#F97373',
     success: async response => {
       if (!response.confirm) {
         onResult({ kind: 'cancelled' })
