@@ -1,11 +1,11 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const repoRoot = path.join(__dirname, '..')
-const readIndexWxml = () => fs.readFileSync(path.join(repoRoot, 'pages/index/index.wxml'), 'utf8')
-const readIndexWxss = () => fs.readFileSync(path.join(repoRoot, 'pages/index/index.wxss'), 'utf8')
+const readIndexWxml = () => readSource(path.join(repoRoot, 'pages/index/index.wxml'), 'utf8')
+const readIndexWxss = () => readSource(path.join(repoRoot, 'pages/index/index.wxss'), 'utf8')
 function ruleBody(wxss, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const match = wxss.match(new RegExp(`(?:^|[\\n},])\\s*${escaped}\\s*(?:,[^{]*)?\\{([^}]+)\\}`))
@@ -87,7 +87,7 @@ test('homepage stacks navbar tools, sticky month and status, calendar, record ac
 
 test('empty-state guide text meets the secondary-text contrast floor on its composed surface', () => {
   const { contrastRatio } = require('./contrast')
-  const appWxss = fs.readFileSync(path.join(repoRoot, 'app.wxss'), 'utf8')
+  const appWxss = readSource(path.join(repoRoot, 'app.wxss'), 'utf8')
   const wxss = readIndexWxss()
   const canvasMatch = /page\s*\{[^}]*?background:\s*(#[0-9a-f]{6})/i.exec(appWxss)
   assert.ok(canvasMatch)
@@ -219,7 +219,7 @@ test('quick record buttons keep the calendar marks, rose fill, readable labels a
   assert.match(button, /color:\s*#0A0E27/i)
   assert.match(ruleBody(wxss, '.quick-text'), /color:\s*#0A0E27/i)
   const quick = wxml.slice(wxml.indexOf('class="quick-actions"'), wxml.indexOf('class="month-summary"'))
-  assert.match(quick.slice(0, quick.indexOf('bindtap="quickMemory"')), /class="quick-icon sample-plate">\s*<template is="periodBandSample" data="\{\{\.\.\.periodBandSample\}\}"\s*\/>/)
+  assert.match(quick.slice(0, quick.indexOf('bindtap="quickMemory"')), /class="quick-icon sample-plate">\s*<view class="action-sample day-cell \{\{cellClass\}\}">\s*<view wx:for="\{\{parts\}\}" wx:for-item="part" wx:key="className" class="\{\{part\.className\}\}"><\/view>/)
   assert.match(quick, /class="quick-icon memory-tone">♥<\/text>/)
   assert.doesNotMatch(quick, /🩸|❤️|●/)
   assert.match(ruleBody(wxss, '.memory-tone'), /color:\s*#F0C4C0/i)

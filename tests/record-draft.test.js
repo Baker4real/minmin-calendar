@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const repoRoot = path.join(__dirname, '..')
 const recordDraft = require('../utils/recordDraft')
@@ -133,7 +133,7 @@ function createMemoryStorage() {
 
 test('edit forms carry a persistent visible draft-restore notice, not only the toast', () => {
   for (const relativePath of ['pages/period/edit/edit.wxml', 'pages/memory/edit/edit.wxml']) {
-    const wxml = fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
+    const wxml = readSource(path.join(repoRoot, relativePath), 'utf8')
     assert.match(
       wxml,
       /wx:if="\{\{draftRestored\}\}"[^>]*>[^<]*已恢复上次未完成的输入/,

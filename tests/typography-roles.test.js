@@ -2,6 +2,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const { listWxssFiles, parseWxssRules } = require('./designTokens')
 
@@ -56,7 +57,7 @@ const TYPOGRAPHY_EXCEPTIONS = [
 
 function readAppTokens() {
   const tokens = {}
-  for (const rule of parseWxssRules(fs.readFileSync(APP_WXSS, 'utf8'))) {
+  for (const rule of parseWxssRules(readSource(APP_WXSS, 'utf8'))) {
     for (const [prop, value] of Object.entries(rule.decls)) {
       if (prop.startsWith('--')) tokens[prop] = value
     }
@@ -72,7 +73,7 @@ test('app.wxss defines every shared font-size role token with the contract value
 })
 
 test('DESIGN.md registers every shared font-size role token', () => {
-  const design = fs.readFileSync(DESIGN_MD, 'utf8')
+  const design = readSource(DESIGN_MD, 'utf8')
   for (const name of Object.keys(FONT_ROLE_TOKENS)) {
     assert.ok(design.includes(name), `DESIGN.md is missing the ${name} role registration`)
   }
@@ -87,7 +88,7 @@ test('every WXSS font-size uses a role token or a registered glyph/display excep
 
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    for (const rule of parseWxssRules(fs.readFileSync(file, 'utf8'))) {
+    for (const rule of parseWxssRules(readSource(file, 'utf8'))) {
       const fontSize = rule.decls['font-size']
       if (!fontSize) continue
       for (const selector of rule.selectors) {
@@ -123,7 +124,7 @@ test('typography exception registry has no stale entries', () => {
       stale.push(`${entry.file} ${entry.selector}: file missing`)
       continue
     }
-    const found = parseWxssRules(fs.readFileSync(file, 'utf8')).some(
+    const found = parseWxssRules(readSource(file, 'utf8')).some(
       (rule) => rule.selectors.includes(entry.selector) && rule.decls['font-size'] === entry.value
     )
     if (!found) stale.push(`${entry.file} ${entry.selector}: no matching font-size ${entry.value}`)
@@ -307,7 +308,7 @@ const BODY_LINE_HEIGHT = [
 
 function ruleMap(relative) {
   const map = new Map()
-  for (const rule of parseWxssRules(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))) {
+  for (const rule of parseWxssRules(readSource(path.join(repoRoot, relative), 'utf8'))) {
     for (const selector of rule.selectors) {
       if (!map.has(selector)) map.set(selector, rule.decls)
     }
@@ -327,7 +328,7 @@ test('app.wxss defines shared weight, line-height, and letter-spacing roles', ()
 })
 
 test('DESIGN.md registers the same weight, line-height, and letter-spacing role values', () => {
-  const design = fs.readFileSync(DESIGN_MD, 'utf8')
+  const design = readSource(DESIGN_MD, 'utf8')
   for (const [name, value] of Object.entries({
     ...FONT_WEIGHT_ROLE_TOKENS,
     ...LINE_HEIGHT_ROLE_TOKENS,
@@ -379,7 +380,7 @@ function frontmatterTypography(design) {
 }
 
 test('DESIGN.md frontmatter typography carries the role values, not a second ramp', () => {
-  const roles = frontmatterTypography(fs.readFileSync(DESIGN_MD, 'utf8'))
+  const roles = frontmatterTypography(readSource(DESIGN_MD, 'utf8'))
   assert.deepEqual(Object.keys(roles).sort(), Object.keys(FRONTMATTER_TYPOGRAPHY).sort())
   for (const [role, [size, weight, lineHeight]] of Object.entries(FRONTMATTER_TYPOGRAPHY)) {
     const rpx = Number(/^(\d+)rpx$/.exec(FONT_ROLE_TOKENS[size])[1])
@@ -412,7 +413,7 @@ test('literal font-weight survives only on registered icon glyphs', () => {
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    for (const rule of parseWxssRules(fs.readFileSync(file, 'utf8'))) {
+    for (const rule of parseWxssRules(readSource(file, 'utf8'))) {
       const weight = rule.decls['font-weight']
       if (!weight) continue
       for (const selector of rule.selectors) {
@@ -480,7 +481,7 @@ test('assist tracking is one token, and tight or single-character text stays nat
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    for (const rule of parseWxssRules(fs.readFileSync(file, 'utf8'))) {
+    for (const rule of parseWxssRules(readSource(file, 'utf8'))) {
       const spacing = rule.decls['letter-spacing']
       if (!spacing) continue
       if (!allowed.has(spacing)) {
@@ -528,7 +529,7 @@ test('unitless line-heights are always one of the three role tokens', () => {
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    for (const rule of parseWxssRules(fs.readFileSync(file, 'utf8'))) {
+    for (const rule of parseWxssRules(readSource(file, 'utf8'))) {
       const lineHeight = rule.decls['line-height']
       if (!lineHeight) continue
       if (/^var\(--line-height-(body|assist|title)\)$/.test(lineHeight)) continue
@@ -540,7 +541,7 @@ test('unitless line-heights are always one of the three role tokens', () => {
 })
 
 test('system font stack is still the only face and weight roles do not add a font file', () => {
-  const app = fs.readFileSync(APP_WXSS, 'utf8')
+  const app = readSource(APP_WXSS, 'utf8')
   assert.match(app, /font-family:\s*-apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;/)
   assert.doesNotMatch(app, /@font-face/)
 })

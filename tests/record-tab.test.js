@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const { listCalls, listed, markedDates: marked, roomLookups } = require('./helpers/recordPages')
 const { evaluateWxmlExpression, wxmlElementTree } = require('./wxmlTemplate')
@@ -17,7 +17,7 @@ const memoryRowIds = page => page.data.memoryGroups.flatMap(group => group.recor
 // Whether the tab's WXML draws an element for the rendered data: its own wx:if / wx:elif holds, no earlier branch
 // of its chain holds (WXML draws one branch per chain), and the same goes for every element around it.
 // Ask only about the segment on screen: the memory segment is a bare wx:else, which the tree does not read.
-const tabTemplate = wxmlElementTree(fs.readFileSync(path.join(__dirname, '../pages/period/period.wxml'), 'utf8'))
+const tabTemplate = wxmlElementTree(readSource(path.join(__dirname, '../pages/period/period.wxml'), 'utf8'))
 const allElements = nodes => nodes.flatMap(node => [node, ...allElements(node.children)])
 function holds(node, data) {
   const expr = node.attrs['wx:if'] ?? node.attrs['wx:elif']

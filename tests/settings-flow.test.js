@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 let settingsFlow = {}
 try {
@@ -1101,7 +1101,7 @@ function createFakeRoomDataClient(results = {}) {
 }
 
 function readPageFile(relativePath) {
-  return fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8')
+  return readSource(path.join(__dirname, '..', relativePath), 'utf8')
 }
 
 function waitForAsyncTurn() {

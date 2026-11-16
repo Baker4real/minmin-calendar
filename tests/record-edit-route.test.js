@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const route = require('../utils/recordEditRoute')
 
@@ -240,7 +240,7 @@ test('parseMemoryEditOptions keeps the original date when editing while clamping
 })
 
 test('memory edit page clamps the date picker to today', () => {
-  const memoryEditWxml = fs.readFileSync(
+  const memoryEditWxml = readSource(
     path.join(__dirname, '..', 'pages/memory/edit/edit.wxml'),
     'utf8'
   )
