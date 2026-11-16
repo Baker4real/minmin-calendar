@@ -359,6 +359,7 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
     get modals() { return (platformCalls.showModal || []).filter(options => !rejectedModals.has(options)) },
     get actionSheets() { return platformCalls.showActionSheet || [] },
     showToast: options => platform('showToast', options, {}),
+    vibrateShort: options => platform('vibrateShort', options, {}),
     showModal: options => platform('showModal', options),
     showActionSheet: options => platform('showActionSheet', options),
     env: { USER_DATA_PATH: '/wx-user-data' },

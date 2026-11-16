@@ -1006,6 +1006,8 @@ test('create and join each commit their result and loading false together exactl
           assert.equal(frames[1].errorMsg, '这次没有完成，请重试')
           assert.equal(frames[1].needUnbind, false)
         }
+        assert.deepEqual(app.platformCalls.vibrateShort, success && action === 'createRoom' ? [{ type: 'light' }] : undefined,
+          'only successful room creation produces one light haptic')
       })
     }
   }
@@ -1028,6 +1030,7 @@ test('restored room notice reads periods and memories in parallel without delayi
   assert.equal(resultFrames[1].loading, false)
   assert.equal(resultFrames[1].bound, true)
   assert.equal(Object.hasOwn(resultFrames[1], 'restoredNotice'), false)
+  assert.deepEqual(app.platformCalls.vibrateShort, [{ type: 'light' }], 'creation feedback does not wait for restored-record reads')
 
   periods.resolve({ code: 0, data: [{ _id: 'p1' }, { _id: 'p2' }] })
   await app.settle()

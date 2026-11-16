@@ -140,6 +140,7 @@ Page(withPageVisibility({
     if (res.code === 0) {
       // issue #102：创建后引导——本次会话内在房间码区域提示「把房间码发给 TA」（onShow 重校验后清除）
       this.setData({ bound: true, roomCode: res.roomCode, roomStatus: 'waiting', needUnbind: false, justCreated: true, loading: false })
+      wx.vibrateShort({ type: 'light' })
       const restoredNotice = await restoredRoomNotice()
       if (restoredNotice) this.setData({ restoredNotice })
     } else {

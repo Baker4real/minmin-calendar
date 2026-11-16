@@ -378,6 +378,7 @@ test('period: merged save replaces the form, updates home once and moves drafts 
   assert.equal(app.wx.modals.at(-1).showCancel, false)
   app.respond('showModal', 0, { confirm: true })
   await saving
+  assert.equal(app.platformCalls.vibrateShort, undefined, 'a cloud merge that reopens an existing record stays silent')
   assert.deepEqual(form(page, period), { ...period.fields, startDate: '2026-09-01', note: '伴侣已记', flow: 'normal', symptoms: ['tired'] })
   assert.equal(page.data.isEdit, true)
   assert.equal(page.data.draftRestored, false)
@@ -409,6 +410,7 @@ test('period: merged save replaces the form, updates home once and moves drafts 
   cloudRoute(app, period, 'update').reply({ code: 0, record: { ...existing, endDate: '2026-09-05', status: 'known-end', duration: 5 } })
   await app.dispatch(app.currentPage, 'save')
   assert.deepEqual(writes(app).map(call => [call.action, call.id]), [['add', ''], ['update', 'ongoing']])
+  assert.deepEqual(app.platformCalls.vibrateShort, [{ type: 'light' }], 'only the later confirmed update adds a haptic')
   assert.equal(app.storage[draftKey(period, 'ongoing')], undefined)
   assert.equal(cell(home, '2026-09-06').isPeriod, false, 'completion updates the original band instead of adding another period')
 })
@@ -799,6 +801,8 @@ for (const spec of records) {
           await app.advance(1000)
           assert.equal(app.currentPage, page)
         }
+        assert.deepEqual(app.platformCalls.vibrateShort, result === 'match' ? [{ type: 'light' }] : undefined,
+          'only a read-back that confirms the saved record produces one light haptic')
         assert.equal(writes(app).length, 1, 'reconciliation must not replay the mutation')
       })
     }
@@ -825,6 +829,7 @@ for (const spec of records) {
     assert.equal(page.data.submitted, false)
     assert.equal(app.storage.recordTabSegment, undefined)
     assert.equal(writes(app).length, 2)
+    assert.equal(app.platformCalls.vibrateShort, undefined, 'rejected and unconfirmed writes stay silent')
     app.hide()
     assert.equal(JSON.parse(app.storage[draftKey(spec)]).note, '失败后仍保留')
   })
@@ -868,6 +873,7 @@ for (const spec of records) {
     assert.equal(app.currentPage, page)
     assert.equal(cell(home)[spec.marker], false)
     assert.equal(app.wx.toasts.at(-1).title, '已删除')
+    assert.equal(app.platformCalls.vibrateShort, undefined, 'delete confirmation and success stay silent')
     assert.equal(app.storage[draftKey(spec, 'deleted')], undefined)
     assert.equal(app.storage.recordTabSegment, spec.kind)
     await app.dispatch(page, 'delete')
@@ -924,6 +930,7 @@ for (const spec of records) {
     assert.equal(app.rendered(page).submitted, true)
     assert.deepEqual(writes(app), [{ action: 'add', collection: spec.collection, data: { ...spec.payload, note: '表单备注' }, id: '', roomCode: 'ROOM01' }])
     assert.equal(app.wx.toasts.at(-1).title, spec.success)
+    assert.deepEqual(app.platformCalls.vibrateShort, [{ type: 'light' }], 'one light haptic follows the confirmed save')
     if (spec.kind === 'memory') assert.equal(app.wx.toasts.at(-1).icon, 'none')
     assert.equal(cell(home, '2026-09-19')[spec.marker], true, 'the calendar uses the canonical date, not the submitted date')
     assert.equal(app.storage[draftKey(spec)], undefined)
@@ -932,6 +939,7 @@ for (const spec of records) {
     await app.dispatch(page, 'delete')
     assert.equal(writes(app).length, 1)
     assert.equal(app.wx.modals.length, 0)
+    assert.deepEqual(app.platformCalls.vibrateShort, [{ type: 'light' }], 'submitted save cannot repeat the haptic')
     cloudRoute(app, spec, 'list').reply({ code: 0, data: [saved] })
     await app.advance(999)
     assert.equal(app.currentPage, page)
