@@ -30,7 +30,7 @@
           <text class="form-label">经期状态</text>
           <text class="form-hint">{{statusHint}}</text>
         </view>
-        <view class="flow-options">
+        <view class="flow-options" aria-role="radiogroup" aria-label="经期状态">
           <view
             wx:for="{{statusOptions}}"
             wx:key="value"
@@ -68,7 +68,7 @@
             data-value="{{item.value}}"
             bindtap="selectFlow"
             aria-role="checkbox"
-            aria-label="经量 {{item.label}}"
+            aria-label="经量 {{item.label}}，单选，再点取消"
             aria-checked="{{flow === item.value}}"
             aria-disabled="{{saving}}" hover-class="flow-chip-hover">{{item.label}}</view>
         </view>

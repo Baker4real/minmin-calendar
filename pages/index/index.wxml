@@ -76,7 +76,7 @@ module.exports = {
 
   <view wx:if="{{noRoom}}" class="no-room" aria-hidden="{{pageObscured}}">
     <!-- 爱心画面只属于未绑定/需要重新绑定；加载失败保持失败标题 + 重试，不复用这颗心（issue #79） -->
-    <view wx:if="{{roomStatusAction == 'bind'}}" class="no-room-icon">♥</view>
+    <view wx:if="{{roomStatusAction == 'bind'}}" class="no-room-icon" aria-hidden="true">♥</view>
     <text class="no-room-title">{{roomStatusTitle}}</text>
     <text class="no-room-desc">{{roomStatusDesc}}</text>
     <view class="btn-premium" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}" hover-class="btn-premium-hover">{{roomStatusActionText}}</view>
@@ -296,7 +296,7 @@ module.exports = {
 
       <view class="jump-section">
         <text class="jump-section-title">月份</text>
-        <view class="jump-month-grid">
+        <view class="jump-month-grid" aria-role="radiogroup" aria-label="月份">
           <view
             class="jump-option month-option {{item.value == jumpMonth ? 'active' : ''}}"
             wx:for="{{jumpMonths}}"
