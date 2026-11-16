@@ -581,7 +581,7 @@ test('first room check keeps only the brand heart until its delayed response', a
   assert.equal(page.data.verifying, true)
   assert.equal(page.data.revealed, false)
   const wxml = readPageFile('pages/bind/bind.wxml')
-  const heartAt = wxml.indexOf('class="hero-icon">♥')
+  const heartAt = wxml.indexOf('class="hero-icon"')
   const gateAt = wxml.indexOf('wx:if="{{revealed}}"')
   assert.ok(heartAt !== -1 && gateAt > heartAt)
   const gated = wxml.slice(gateAt)

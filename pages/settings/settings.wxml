@@ -31,7 +31,7 @@
       <text class="settings-group-title">日历显示</text>
       <view class="premium-card">
         <text class="density-menu-desc">清爽只看日期与标记（含节日和调休），完整另外显示农历</text>
-        <view class="density-control" aria-label="日历信息密度">
+        <view class="density-control" aria-role="radiogroup" aria-label="日历信息密度">
           <view
             class="density-option {{calendarDensity == 'compact' ? 'active' : ''}}"
             data-density="compact"
