@@ -2,12 +2,13 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const repoRoot = path.join(__dirname, '..')
 const { createMiniProgram } = require('./helpers/miniProgram')
 
 test('period record tab has no back button and the standalone memory page stays registered as a compat route', () => {
-  const appConfig = JSON.parse(fs.readFileSync(path.join(repoRoot, 'app.json'), 'utf8'))
+  const appConfig = JSON.parse(readSource(path.join(repoRoot, 'app.json'), 'utf8'))
   const tabs = appConfig.tabBar.list.map(tab => tab.pagePath)
   assert.ok(tabs.includes('pages/period/period'), 'the record tab must stay a configured tab')
   // issue #103 方案 A：独立欢乐时光列表页保留为兼容路由（深链/历史页面栈仍可达）
@@ -17,12 +18,12 @@ test('period record tab has no back button and the standalone memory page stays 
   )
 
   // tab 页不画返回键：导航模型与其他 tab 一致
-  const wxml = fs.readFileSync(path.join(repoRoot, 'pages/period/period.wxml'), 'utf8')
+  const wxml = readSource(path.join(repoRoot, 'pages/period/period.wxml'), 'utf8')
   assert.equal(wxml.includes('nav-back'), false, 'record tab must not paint a back button')
 })
 
 test('record tab segments period and memory lists behind one radio group', () => {
-  const wxml = fs.readFileSync(path.join(repoRoot, 'pages/period/period.wxml'), 'utf8')
+  const wxml = readSource(path.join(repoRoot, 'pages/period/period.wxml'), 'utf8')
 
   // 分段控件：经期 / 欢乐时光 同级可达（radio 朗读语义由 interaction-semantics 钉住）
   assert.match(wxml, /class="segment-control"/)
@@ -186,7 +187,7 @@ test('every backdrop-filter in wxss is immediately followed by -webkit-backdrop-
 
   const unpaired = []
   for (const file of files) {
-    const lines = fs.readFileSync(file, 'utf8').split(/\r?\n/)
+    const lines = readSource(file, 'utf8').split(/\r?\n/)
     lines.forEach((line, index) => {
       if (!/^\s*backdrop-filter\s*:/.test(line)) return
       const next = lines[index + 1] || ''

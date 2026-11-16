@@ -20,10 +20,11 @@
 // design-system-radius / design-system-font-size / design-system-color 多数由此产生，先按伪影处理；
 // dark-glow、cramped-padding、nested-cards、side-tab、low-contrast 才是要逐条核对的信号。
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import sourceFiles from './sourceFiles.js'
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
 const CONTAINER_TAGS = new Set([
@@ -37,7 +38,10 @@ const DROPPED_VOID_TAGS = new Set(['import', 'include', 'wxs'])
 const KEPT_ATTRS = new Set(['class', 'style', 'id', 'placeholder', 'maxlength', 'src', 'value'])
 
 function read(rel) {
-  return readFileSync(path.join(repoRoot, rel), 'utf8')
+  const file = path.join(repoRoot, rel)
+  // shim 自己为 include 保留 data-src 溯源；模板与样式仍经同一入口展开。
+  if (rel.endsWith('.wxml')) return sourceFiles.readExpandedSource(file, { expandIncludes: false })
+  return sourceFiles.readSource(file, 'utf8')
 }
 
 function convertWxss(css, rpxRatio) {

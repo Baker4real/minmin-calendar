@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const {
   PALETTE_HEXES,
@@ -42,7 +42,7 @@ test('every WXSS file uses only DESIGN.md palette hex colors', () => {
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    for (const violation of findOffPaletteHexes(fs.readFileSync(file, 'utf8'))) {
+    for (const violation of findOffPaletteHexes(readSource(file, 'utf8'))) {
       violations.push(`${relative}:${violation.line} ${violation.hex}`)
     }
   }
@@ -67,7 +67,7 @@ test('every WXML inline style uses only DESIGN.md palette hex colors', () => {
   const violations = []
   for (const file of listWxmlFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    for (const violation of findOffPaletteHexesInInlineStyles(fs.readFileSync(file, 'utf8'))) {
+    for (const violation of findOffPaletteHexesInInlineStyles(readSource(file, 'utf8'))) {
       violations.push(`${relative}:${violation.line} ${violation.hex}`)
     }
   }
@@ -111,11 +111,11 @@ test('radius guardrail flags a trailing literal radius without a semicolon', () 
 })
 
 test('every WXSS file uses only registered radius tokens', () => {
-  const appTokens = definedRadiusTokens(fs.readFileSync(path.join(repoRoot, 'app.wxss'), 'utf8'))
+  const appTokens = definedRadiusTokens(readSource(path.join(repoRoot, 'app.wxss'), 'utf8'))
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    for (const violation of findOffTokenRadii(fs.readFileSync(file, 'utf8'), appTokens)) {
+    for (const violation of findOffTokenRadii(readSource(file, 'utf8'), appTokens)) {
       violations.push(`${relative}:${violation.line} ${violation.component}`)
     }
   }
@@ -134,7 +134,7 @@ const SPACING_TOKENS = {
 
 function appCustomProperties() {
   const tokens = {}
-  for (const rule of parseWxssRules(fs.readFileSync(path.join(repoRoot, 'app.wxss'), 'utf8'))) {
+  for (const rule of parseWxssRules(readSource(path.join(repoRoot, 'app.wxss'), 'utf8'))) {
     for (const [prop, value] of Object.entries(rule.decls)) {
       if (prop.startsWith('--')) tokens[prop] = value
     }
@@ -144,7 +144,7 @@ function appCustomProperties() {
 
 test('app.wxss defines the shared spacing scale tokens and DESIGN.md registers them', () => {
   const tokens = appCustomProperties()
-  const design = fs.readFileSync(path.join(repoRoot, 'DESIGN.md'), 'utf8')
+  const design = readSource(path.join(repoRoot, 'DESIGN.md'), 'utf8')
   for (const [name, value] of Object.entries(SPACING_TOKENS)) {
     assert.equal(tokens[name], value, `${name} should be ${value}, got ${tokens[name]}`)
     assert.ok(design.includes(name), `DESIGN.md is missing the ${name} registration`)
@@ -217,7 +217,7 @@ function lengthRpx(raw, tokens) {
 // margin/padding 某一边的 rpx；side 为 x 时左右必须相等。没写这一边就是 0。
 // 同一选择器的多条规则按出现顺序层叠（例如减弱动效块里只写 transition 的那条不清掉内边距）。
 function boxSideRpx(file, selector, prop, side, tokens) {
-  const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, file), 'utf8'))
+  const rules = parseWxssRules(readSource(path.join(repoRoot, file), 'utf8'))
     .filter((candidate) => candidate.selectors.includes(selector))
   assert.ok(rules.length > 0, `expected ${selector} in ${file}`)
   const sides = { top: '0', right: '0', bottom: '0', left: '0' }
@@ -280,7 +280,7 @@ test('glass fallback fill has a single token source', () => {
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    const lines = fs.readFileSync(file, 'utf8').split('\n')
+    const lines = readSource(file, 'utf8').split('\n')
     lines.forEach((line, index) => {
       const code = line.replace(/\/\*[\s\S]*?\*\//g, '')
       if (!fallbackPattern.test(code)) return
@@ -309,7 +309,7 @@ const CTA_FILL_SELECTORS = [
 
 test('primary CTA rose fill comes from var(--aurora-pink) only', () => {
   for (const [relative, selector] of CTA_FILL_SELECTORS) {
-    const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
+    const rules = parseWxssRules(readSource(path.join(repoRoot, relative), 'utf8'))
     const rule = rules.find((candidate) => candidate.selectors.includes(selector))
     assert.ok(rule, `expected rule ${selector} in ${relative}`)
     assert.equal(
@@ -335,7 +335,7 @@ const SEGMENTED_CONTROLS = [
 
 test('segmented controls share one outlined-rose selected style', () => {
   for (const [relative, selector] of SEGMENTED_CONTROLS) {
-    const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
+    const rules = parseWxssRules(readSource(path.join(repoRoot, relative), 'utf8'))
     const rule = rules.find((candidate) => candidate.selectors.includes(selector))
     assert.ok(rule, `expected rule ${selector} in ${relative}`)
     for (const [prop, value] of Object.entries(SEGMENTED_SELECTED)) {
@@ -355,7 +355,7 @@ const PRIMARY_BUTTONS = [
 
 test('primary buttons share the rounded-rectangle radius', () => {
   for (const [relative, selector] of PRIMARY_BUTTONS) {
-    const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
+    const rules = parseWxssRules(readSource(path.join(repoRoot, relative), 'utf8'))
     const rule = rules.find((candidate) => candidate.selectors.includes(selector))
     assert.ok(rule, `expected rule ${selector} in ${relative}`)
     assert.equal(
@@ -385,7 +385,7 @@ test('every :active selector is paired with its hover-class in the same rule', (
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    const rules = parseWxssRules(fs.readFileSync(file, 'utf8')).map((rule) => ({
+    const rules = parseWxssRules(readSource(file, 'utf8')).map((rule) => ({
       ...rule,
       selectors: rule.selectors.map(cleanSelector).filter(Boolean)
     }))
@@ -418,13 +418,13 @@ function tapControls(nodes, found = []) {
 
 test('every tappable control carries its own hover-class, painted by an :active rule', () => {
   const activeClasses = new Set(listWxssFiles(repoRoot).flatMap((file) =>
-    parseWxssRules(fs.readFileSync(file, 'utf8'))
+    parseWxssRules(readSource(file, 'utf8'))
       .filter((rule) => rule.selectors.some((selector) => selector.includes(':active')))
       .flatMap((rule) => rule.selectors.flatMap((selector) => selector.match(/\.[\w-]+/g) || []))))
   const violations = []
   for (const file of listWxmlFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    for (const control of tapControls(wxmlElementTree(fs.readFileSync(file, 'utf8')))) {
+    for (const control of tapControls(wxmlElementTree(readSource(file, 'utf8')))) {
       const label = `${relative} <${control.tag} class="${control.attrs.class || ''}">`
       const hover = control.attrs['hover-class'] || ''
       const stem = hover.endsWith('-hover') ? hover.slice(0, -'-hover'.length) : ''
@@ -443,7 +443,7 @@ test('press color does not ride a gradient image', () => {
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    for (const rule of parseWxssRules(fs.readFileSync(file, 'utf8'))) {
+    for (const rule of parseWxssRules(readSource(file, 'utf8'))) {
       if (!rule.selectors.some((selector) => selector.includes(':active'))) continue
       for (const prop of ['background', 'background-image']) {
         const value = rule.decls[prop]
@@ -583,7 +583,7 @@ test('every WXSS fill stays inside the gradient and solid-rose deny-by-default a
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    violations.push(...scanCtaFillDiscipline(relative, fs.readFileSync(file, 'utf8')))
+    violations.push(...scanCtaFillDiscipline(relative, readSource(file, 'utf8')))
   }
   assert.deepEqual(violations, [])
 })
@@ -594,7 +594,7 @@ test('metadata gold in pages comes from var(--aurora-gold), never a literal', ()
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
     if (relative === 'app.wxss') continue
-    const lines = fs.readFileSync(file, 'utf8').split('\n')
+    const lines = readSource(file, 'utf8').split('\n')
     lines.forEach((line, index) => {
       const code = line.replace(/\/\*[\s\S]*?\*\//g, '')
       if (goldLiteral.test(code)) {
@@ -610,14 +610,14 @@ test('metadata gold in pages comes from var(--aurora-gold), never a literal', ()
 // 实色金 token --aurora-gold 保留，只服务预测/区间/确定性及日历元数据。
 test('retired gradient tokens stay out of tokens and screens', () => {
   const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '')
-  const app = stripComments(fs.readFileSync(path.join(repoRoot, 'app.wxss'), 'utf8'))
+  const app = stripComments(readSource(path.join(repoRoot, 'app.wxss'), 'utf8'))
   for (const token of ['--gradient-gold', '--gradient-pink']) {
     assert.equal(app.includes(token), false, `app.wxss should no longer define ${token}`)
     for (const file of listWxssFiles(repoRoot)) {
       const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
       if (relative === 'app.wxss') continue
       assert.equal(
-        stripComments(fs.readFileSync(file, 'utf8')).includes(`var(${token})`),
+        stripComments(readSource(file, 'utf8')).includes(`var(${token})`),
         false,
         `${relative} still references the retired ${token}`
       )
@@ -643,7 +643,7 @@ const INDEX_GOLD_ALLOWLIST = new Set([
 ])
 
 test('day detail record tags use rose and light pink, not gold', () => {
-  const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, 'pages/index/index.wxss'), 'utf8'))
+  const rules = parseWxssRules(readSource(path.join(repoRoot, 'pages/index/index.wxss'), 'utf8'))
   const colorOf = (selector) => {
     const rule = rules.find((item) => item.selectors.includes(selector))
     assert.ok(rule, `expected ${selector}`)
@@ -657,7 +657,7 @@ test('day detail record tags use rose and light pink, not gold', () => {
 })
 
 test('home page reserves gold for prediction, range, certainty, and calendar metadata', () => {
-  const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, 'pages/index/index.wxss'), 'utf8'))
+  const rules = parseWxssRules(readSource(path.join(repoRoot, 'pages/index/index.wxss'), 'utf8'))
   const violations = []
   for (const rule of rules) {
     const body = Object.values(rule.decls).join(';')
@@ -696,7 +696,7 @@ test('every box-shadow/text-shadow color stays inside the DESIGN.md shadow regis
 
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    for (const rule of parseWxssRules(fs.readFileSync(file, 'utf8'))) {
+    for (const rule of parseWxssRules(readSource(file, 'utf8'))) {
       for (const prop of ['box-shadow', 'text-shadow']) {
         const value = rule.decls[prop]
         if (!value || value === 'none') continue
@@ -723,7 +723,7 @@ test('every box-shadow/text-shadow color stays inside the DESIGN.md shadow regis
 
 // 选择器在一份 WXSS 里的声明，同一选择器的各条规则按出现顺序层叠（共享层的结构写在一组，光写在自己那条）
 function declsFor(relative, selector) {
-  const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
+  const rules = parseWxssRules(readSource(path.join(repoRoot, relative), 'utf8'))
     .filter((item) => item.selectors.includes(selector))
   assert.ok(rules.length > 0, `expected ${relative} ${selector}`)
   return Object.assign({}, ...rules.map((rule) => rule.decls))
@@ -735,7 +735,7 @@ test('shadow offsets use rpx and preserve registered 1px hairlines', () => {
   const pxToken = /^-?(?:\d+\.?\d*|\.\d+)px$/
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    for (const rule of parseWxssRules(fs.readFileSync(file, 'utf8'))) {
+    for (const rule of parseWxssRules(readSource(file, 'utf8'))) {
       for (const prop of ['box-shadow', 'text-shadow', 'filter']) {
         const value = rule.decls[prop]
         if (!value || value === 'none') continue
@@ -805,7 +805,7 @@ test('glow stays on primary buttons and the copy control', () => {
     '0 0 16rpx rgba(232,144,158,0.35)'
   )
 
-  const design = fs.readFileSync(path.join(repoRoot, 'DESIGN.md'), 'utf8')
+  const design = readSource(path.join(repoRoot, 'DESIGN.md'), 'utf8')
   assert.match(design, /不可点元素不再发光/)
   assert.match(design, /0 0 18rpx rgba\(240,196,192,0\.32\)/)
 })
@@ -865,7 +865,7 @@ test('glows sit only on the places DESIGN.md registers', () => {
   const found = new Set()
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    for (const rule of parseWxssRules(fs.readFileSync(file, 'utf8'))) {
+    for (const rule of parseWxssRules(readSource(file, 'utf8'))) {
       for (const prop of ['box-shadow', 'text-shadow', 'filter']) {
         const value = rule.decls[prop]
         if (!value || value === 'none' || !shadowLayers(prop, value).some(isGlowLayer)) continue
@@ -875,7 +875,7 @@ test('glows sit only on the places DESIGN.md registers', () => {
   }
   assert.deepEqual([...found].sort(), [...REGISTERED_GLOWS].sort())
 
-  const design = fs.readFileSync(path.join(repoRoot, 'DESIGN.md'), 'utf8')
+  const design = readSource(path.join(repoRoot, 'DESIGN.md'), 'utf8')
   for (const registered of [
     'drop-shadow(0 0 10px rgba(240,196,192,0.3))',
     '0 16rpx 64rpx rgba(232,144,158,0.15)',

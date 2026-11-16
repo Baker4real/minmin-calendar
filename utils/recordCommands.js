@@ -17,6 +17,7 @@ const wxPrompts = require('./wxPrompts')
 const EDIT_KINDS = {
   period: {
     collection: 'periods',
+    dateField: 'startDate',
     draftFields: ['startDate', 'endDate', 'status', 'note', 'flow', 'symptoms'],
     fieldOrder: ['startDate', 'endDate'],
     parseRoute: recordEditRoute.parsePeriodEditOptions,
@@ -81,6 +82,7 @@ const EDIT_KINDS = {
   },
   memory: {
     collection: 'memories',
+    dateField: 'date',
     draftFields: ['date', 'note'],
     fieldOrder: ['date'],
     parseRoute: recordEditRoute.parseMemoryEditOptions,
@@ -108,16 +110,30 @@ function openRecordEditSession({ kind, route, render }) {
   let draftKey = recordDraft.buildDraftKey({ collection: config.collection, id: routeState.id })
   let baseline = recordDraft.pickDraftFields(routeState, config.draftFields)
   const storedDraft = recordDraft.readDraft(storage, draftKey)
+  const restoredDraft = storedDraft && (routeState.isEdit || storedDraft[config.dateField] === routeState[config.dateField])
+    ? storedDraft
+    : null
+  const draftValues = restoredDraft ? recordDraft.pickDraftFields(restoredDraft, config.draftFields) : {}
+  if (kind === 'period' && route.intent === 'complete') {
+    draftValues.status = routeState.status
+    draftValues.endDate = routeState.endDate
+  }
   let draftDiscarded = false
   let deleteConfirming = false
   let savePreparing = false
   let state = {
     ...routeState,
-    ...(storedDraft ? recordDraft.pickDraftFields(storedDraft, config.draftFields) : {}),
+    ...draftValues,
     saving: false,
     deleting: false,
     submitted: false,
-    draftRestored: !!storedDraft,
+    draftRestored: !!restoredDraft,
+    draftNoticeText: restoredDraft
+      ? (routeState.isEdit
+        ? '已恢复上次没保存的修改'
+        : `已恢复 ${util.formatDisplayDate(restoredDraft[config.dateField], { today: today() })} 没填完的内容`)
+      : '',
+    draftDiscardText: routeState.isEdit ? '放弃修改' : '放弃',
     fieldErrors: {}
   }
   if (config.normalizeForm) state = config.normalizeForm(state)
@@ -148,7 +164,7 @@ function openRecordEditSession({ kind, route, render }) {
     recordDraft.syncDraft(storage, draftKey, recordDraft.pickDraftFields(state, config.draftFields), baseline)
   }
 
-  function discardDraft() {
+  function clearDraftAndStopPersistence() {
     draftDiscarded = true
     recordDraft.clearDraft(storage, draftKey)
   }
@@ -164,16 +180,17 @@ function openRecordEditSession({ kind, route, render }) {
         content: '开始日已经落在一条已有经期里。',
         confirmText: '编辑那条',
         cancelText: '仍然新建',
-        success: response => resolve(!!(response && response.confirm)),
-        fail: () => {
-          wxPrompts.present({ mode: 'toast', content: '这次没有完成，请重试' })
-          resolve(null)
-        }
+        success: response => {
+          if (response && response.confirm) resolve(true)
+          else if (response && response.cancel) resolve(false)
+          else resolve(null)
+        },
+        fail: () => resolve(null)
       })
     })
     if (editExisting === null) return { kind: 'cancelled' }
     if (!editExisting) return 'save'
-    discardDraft()
+    persistDraft()
     wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(owner.record) })
     return { kind: 'edit-existing' }
   }
@@ -190,7 +207,7 @@ function openRecordEditSession({ kind, route, render }) {
       isEdit: true
     })
     // 清掉被丢弃的新建草稿，再以真实记录的字段重建身份与基线。
-    discardDraft()
+    clearDraftAndStopPersistence()
     draftKey = recordDraft.buildDraftKey({ collection: config.collection, id: form.id })
     baseline = recordDraft.pickDraftFields(form, config.draftFields)
     recordDraft.clearDraft(storage, draftKey)
@@ -204,9 +221,6 @@ function openRecordEditSession({ kind, route, render }) {
     ? roomRecordsSync.subscribe((_, { calendarChanged }) => { if (calendarChanged) publish() })
     : () => {}
   publish()
-  if (storedDraft) {
-    wxPrompts.present({ mode: 'toast', content: '已恢复上次未完成的输入' })
-  }
   if (config.overlapOwner) loadUnsyncedPeriods()
 
   return {
@@ -219,6 +233,13 @@ function openRecordEditSession({ kind, route, render }) {
         ...update,
         fieldErrors: recordFieldErrors.retainShownFieldErrors(state.fieldErrors, config.validate(next, today()))
       })
+    },
+
+    discardDraft() {
+      if (busy() || deleteConfirming) return
+      recordDraft.clearDraft(storage, draftKey)
+      const form = config.normalizeForm ? config.normalizeForm({ ...routeState }) : { ...routeState }
+      publish({ ...form, draftRestored: false, fieldErrors: {} })
     },
 
     async save() {
@@ -254,7 +275,7 @@ function openRecordEditSession({ kind, route, render }) {
           const record = recordPageSync.getSavedRecord(outcome)
           if (record) applyReopenedRecord(record)
         } else if (outcome.kind === 'success') {
-          discardDraft()
+          clearDraftAndStopPersistence()
         }
         // 保存成功后把记录变化交给共享记录一次：首页、记录 tab 和之后打开的编辑页都从那里读到，不找上一个页面转交
         const change = recordPageSync.savedRecordChange({ collection: config.collection, isEdit, outcome })
@@ -282,7 +303,7 @@ function openRecordEditSession({ kind, route, render }) {
           operation: 'delete'
         })
         if (outcome.kind === 'success') {
-          discardDraft()
+          clearDraftAndStopPersistence()
           roomRecordsSync.applyRecordChange(recordPageSync.deletedRecordChange({ collection: config.collection, id: state.id }))
         }
         return outcome
@@ -305,7 +326,6 @@ function confirmRecordDelete(content) {
     wxPrompts.modal({
       title: '确认删除',
       confirmText: '删除',
-      confirmColor: '#F97373',
       content,
       success: result => resolve(!!(result && result.confirm))
     })

@@ -6,18 +6,24 @@ const { withPageVisibility } = require('../../utils/pageVisibility')
 
 const ROOM_CODE_LENGTH = 6
 
+function normalizeRoomCode(value) {
+  return String(value || '').replace(/\s/g, '').toUpperCase()
+}
+
 function inviteCodeFromLaunchQuery(options) {
   const raw = options && options.roomCode
   if (typeof raw !== 'string') return ''
-  const code = raw.trim().toUpperCase()
+  const code = normalizeRoomCode(raw)
   return code.length === ROOM_CODE_LENGTH ? code : ''
 }
 
 async function restoredRoomNotice() {
   try {
     const client = cloud.createRoomDataClient()
-    const periods = await client.list('periods')
-    const memories = await client.list('memories')
+    const [periods, memories] = await Promise.all([
+      client.list('periods'),
+      client.list('memories')
+    ])
     if (!periods || periods.kind !== 'success' || !memories || memories.kind !== 'success') return ''
     const count = (periods.data || []).length + (memories.data || []).length
     if (count <= 0) return ''
@@ -33,7 +39,7 @@ Page(withPageVisibility({
     safeBottom: safeArea.getSafeBottom(),
     navBarHeight: safeArea.getNavBarHeight(),
     capsuleRight: safeArea.getCapsuleRightInset(),
-    tab: 'create',
+    tab: '',
     bound: false,
     roomCode: '',
     joinCode: '',
@@ -55,18 +61,21 @@ Page(withPageVisibility({
 
   onShow() {
     settingsFlow.consumeRoomLeaveNotice()
-    return this.checkRoom()
+    const returningFromShare = this.inviteSharePending === true
+    this.inviteSharePending = false
+    return this.checkRoom({ returningFromShare })
   },
 
-  async checkRoom() {
+  async checkRoom(options = {}) {
+    const returningFromShare = options.returningFromShare === true
     const room = await roomSession.getVerifiedActiveRoom()
     const inviteCode = this.pendingInviteCode || ''
     this.pendingInviteCode = ''
     if (room.bound) {
       // issue #102：已绑定冷启动直达首页，不再停在绑定页多点一次「进入应用」
       // review #99：重校验清空一次性旗标——「进入应用」只在跳转失败或刚创建房间时出现
-      this.setData({ bound: true, roomCode: room.roomCode, errorMsg: '', needUnbind: false, justCreated: false, checkFailed: false, homeJumpFailed: false, verifying: false })
-      this.goHome()
+      this.setData({ bound: true, roomCode: room.roomCode, errorMsg: '', needUnbind: false, justCreated: returningFromShare ? this.data.justCreated : false, checkFailed: false, homeJumpFailed: false, verifying: false })
+      if (!returningFromShare) this.goHome()
       return
     }
 
@@ -99,7 +108,7 @@ Page(withPageVisibility({
   },
 
   onCodeInput(e) {
-    this.setData({ joinCode: e.detail.value.toUpperCase(), errorMsg: '' })
+    this.setData({ joinCode: normalizeRoomCode(e.detail.value), errorMsg: '' })
   },
 
   async createRoom() {
@@ -108,30 +117,26 @@ Page(withPageVisibility({
     const res = await roomSession.createRoom()
     if (res.code === 0) {
       // issue #102：创建后引导——本次会话内在房间码区域提示「把房间码发给 TA」（onShow 重校验后清除）
-      this.setData({ bound: true, roomCode: res.roomCode, needUnbind: false, justCreated: true })
+      this.setData({ bound: true, roomCode: res.roomCode, needUnbind: false, justCreated: true, loading: false })
       const restoredNotice = await restoredRoomNotice()
       if (restoredNotice) this.setData({ restoredNotice })
     } else {
-      this.setData({ errorMsg: res.msg, needUnbind: res.reason === 'already-in-other-room' })
+      this.setData({ errorMsg: res.msg, needUnbind: res.reason === 'already-in-other-room', loading: false })
     }
-    this.setData({ loading: false })
   },
 
   async joinRoom() {
     if (this.data.loading) return
-    const code = this.data.joinCode
+    const code = normalizeRoomCode(this.data.joinCode)
     if (code.length !== 6) return
     this.setData({ loading: true, errorMsg: '', checkFailed: false })
     const res = await roomSession.joinRoom(code)
     if (res.code === 0) {
-      this.setData({ bound: true, roomCode: res.roomCode, needUnbind: false })
-      // issue #102：加入成功给一次「已和 TA 连上」反馈再进首页；toast 发出即跳转，不等待
-      wx.showToast({ title: '已和 TA 连上' })
+      this.setData({ bound: true, roomCode: res.roomCode, needUnbind: false, loading: false })
       this.goHome()
     } else {
-      this.setData({ errorMsg: res.msg, needUnbind: res.reason === 'already-in-other-room' })
+      this.setData({ errorMsg: res.msg, needUnbind: res.reason === 'already-in-other-room', loading: false })
     }
-    this.setData({ loading: false })
   },
 
   async copyRoomCode() {
@@ -142,6 +147,8 @@ Page(withPageVisibility({
 
   // issue #140：邀请卡标题固定，不含经期或记录；房间码只放在启动首屏的路径参数里
   onShareAppMessage() {
+    // R8：分享返回后的那次 onShow 仍校验房间，但保留建房卡，不自动离开；下一次显示恢复正常。
+    this.inviteSharePending = true
     return {
       title: '邀请你加入我的日历',
       path: `/pages/bind/bind?roomCode=${this.data.roomCode}`

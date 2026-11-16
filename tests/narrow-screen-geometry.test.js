@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 const { listWxssFiles, parseWxssRules } = require('./designTokens')
 const { homeFeedbackCopy } = require('./helpers/homeFeedbackCopy')
 const { createMiniProgram } = require('./helpers/miniProgram')
@@ -35,7 +35,7 @@ const TAB_WXSS = [
 ]
 
 function readRepo(relativePath) {
-  return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
+  return readSource(path.join(repoRoot, relativePath), 'utf8')
 }
 
 function findDecls(rules, selector) {
@@ -119,7 +119,7 @@ function tokenRpx(token, appTokens) {
 test('rules with explicit width and horizontal padding use border-box (no additive overflow)', () => {
   const offenders = []
   for (const file of listWxssFiles(repoRoot)) {
-    for (const rule of parseWxssRules(fs.readFileSync(file, 'utf8'))) {
+    for (const rule of parseWxssRules(readSource(file, 'utf8'))) {
       const width = rule.decls.width
       if (!width || width === 'auto') continue
       if (horizontalPaddingTokens(rule.decls).length === 0) continue

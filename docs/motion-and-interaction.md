@@ -46,7 +46,7 @@
 |---|---|---|---|---|---|---|
 | `pageEnter` | 每页根 `.page` | 页面打开时整页淡入；只动透明度，位移会让固定的背景跟着滚动 | `--duration-enter` 240ms，`--ease-out`，`both` | 不可中断，播完即止；页面不重建不重播 | 照常播完 | none，页面直接出现 |
 | `heroIn` | 绑定页 `.hero-icon` | 绑定页打开时品牌心淡入并轻微放大，无回弹 | 字面 0.6s，`--ease-out`，`both` | 不可中断，播完即止 | 绑定页没有弹层；不可见时照常播完 | none，直接显示 |
-| `heroBloom` | 绑定页 `.hero.hero-bloom .hero-icon::after`（♥ 的回声） | 创建房间成功那一刻（issue #167），♥ 的半透明回声从心上放大到 1.6 倍并淡出，播完即透明；不带字阴影 | `--duration-emphasis` 600ms，`--ease-out`，`both` | 不可中断，播完即止；创建失败不播；再次 `onShow` 校验清掉 `justCreated` 时随类去掉，不重播 | 绑定页没有弹层；不可见时照常播完 | none：回声静止透明，不漾开 |
+| `heroBloom` | 绑定页 `.hero.hero-bloom .hero-icon::after`（♥ 的回声） | 创建房间成功那一刻（issue #167），♥ 的半透明回声从心上放大到 1.6 倍并淡出，播完即透明；不带字阴影 | `--duration-emphasis` 600ms，`--ease-out`，`both` | 不可中断，播完即止；创建失败不播；再次 `onShow` 校验清掉 `justCreated` 时随类去掉，不重播；R8 分享返回的那一次保留建房卡且不自动跳转，下一次显示才恢复 | 绑定页没有弹层；不可见时照常播完 | none：回声静止透明，不漾开 |
 | `bindReveal` | 绑定页 `.bind-reveal`（心下面的标题和说明、房间卡）；刚建好房间时的已绑定卡 `.premium-card.bound-reveal` | 房间状态查完后，标题、说明和绑定内容同一刻从下方 16rpx 淡入；创建房间成功时已绑定卡换下创建表单，同样淡入一次（issue #167） | `--duration-enter` 240ms，`--ease-out`，`both` | 不可中断，挂载一次播一次；已绑定卡那次在再次校验清掉 `justCreated` 后不重播 | 绑定页没有弹层；不可见时照常播完 | none，直接显示 |
 | `dayDetailFade` | 当日弹层 `.day-detail-fade` | 从动作列表切进详情时新内容淡入；直接打开详情不带 | `--duration-state` 200ms，`--ease-out`，`both` | 不可中断；关弹层或换内容时随节点卸下 | 它就在弹层里，照常播 | none，内容直接显示 |
 | `calendarFlipNextA` / `calendarFlipNextB` | `.calendar-days.calendar-flip-next-a`、`-next-b` | 翻到下一月（箭头或左滑）：新月份的格子与标题同一次更新换上，从右滑入 10rpx，透明度 0.5 → 1 | `--duration-enter` 240ms，`--ease-out` | 240ms 内同方向再翻：数据即时换，滑入接着播，不续期；反向：换成上一月方向从头播；播完再翻：a、b 交替从头播；选月、回到今天、未绑定或加载失败画面：取消，即时替换 | 弹层盖着时翻不了月；不可见时照常播完，不重播 | none，即时替换，月份标题文案承载变化 |

@@ -2,6 +2,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const repoRoot = path.join(__dirname, '..')
 
@@ -161,7 +162,7 @@ function ruleHasSolidFallback(decls, tokens) {
 
 function appTokens() {
   // issue #104：绑定页 --bind-* 试点 token 整体退役，玻璃面解析只需 app 级 token
-  return customProperties(fs.readFileSync(path.join(repoRoot, 'app.wxss'), 'utf8'))
+  return customProperties(readSource(path.join(repoRoot, 'app.wxss'), 'utf8'))
 }
 
 function listWxssFiles() {
@@ -277,7 +278,7 @@ test('every backdrop-filter rule keeps an opaque navy or rose fill', () => {
 
   for (const file of listWxssFiles()) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    for (const rule of parseRules(fs.readFileSync(file, 'utf8'))) {
+    for (const rule of parseRules(readSource(file, 'utf8'))) {
       if (!Object.prototype.hasOwnProperty.call(rule.decls, 'backdrop-filter')) continue
       if (ruleHasSolidFallback(rule.decls, tokens)) continue
       missing.push(`${relative} ${rule.selector}`)
@@ -308,7 +309,7 @@ test('a background shorthand may not put a color on a non-final layer', () => {
   const violations = []
   for (const file of listWxssFiles()) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    for (const hit of nonFinalColorLayers(fs.readFileSync(file, 'utf8'))) {
+    for (const hit of nonFinalColorLayers(readSource(file, 'utf8'))) {
       violations.push(`${relative} ${hit}`)
     }
   }

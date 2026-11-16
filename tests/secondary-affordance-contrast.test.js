@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const { contrastGrounds, contrastRatio, surfaceFill } = require('./contrast')
 const { parseWxssRules } = require('./designTokens')
@@ -13,7 +13,7 @@ const { parseWxssRules } = require('./designTokens')
 const repoRoot = path.join(__dirname, '..')
 const MIN_SECONDARY_RATIO = 4.5
 
-const readFile = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
+const readFile = (relativePath) => readSource(path.join(repoRoot, relativePath), 'utf8')
 
 const APP_WXSS = readFile('app.wxss')
 

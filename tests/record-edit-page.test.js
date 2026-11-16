@@ -114,6 +114,23 @@ test('period: legacy draft restores its known dates, labels, flow and selected s
   assert.deepEqual(page.data.symptomGroups.flatMap(group => group.options).filter(option => option.selected).map(option => option.value), ['cramps'])
 })
 
+test('period: completion intent keeps route status and end date while restoring the remaining draft fields', async (t) => {
+  const app = setup(t, { storage: { 'recordDraft:periods:p2': JSON.stringify({
+    startDate: '2026-09-10', endDate: '', status: 'ongoing', note: '草稿备注', flow: 'heavy', symptoms: ['cramps']
+  }) } })
+  const { page } = await openEditor(app, period, {
+    id: 'p2', startDate: '2026-09-10', endDate: '2026-09-20', status: 'known-end',
+    note: '原备注', flow: 'light', symptoms: 'tired', intent: 'complete'
+  })
+  assert.equal(page.data.status, 'known-end')
+  assert.equal(page.data.endDate, '2026-09-20')
+  assert.equal(page.data.startDate, '2026-09-10')
+  assert.equal(page.data.note, '草稿备注')
+  assert.equal(page.data.flow, 'heavy')
+  assert.deepEqual(page.data.symptoms, ['cramps'])
+  assert.equal(page.data.draftRestored, true)
+})
+
 test('period: status hints change without inventing a backfill end; history drives the length warning', async (t) => {
   const app = setup(t)
   cloudRoute(app, period, 'list').reply({ code: 0, data: [
@@ -151,7 +168,7 @@ test('period: errors stay beside their own dates, hide with the field and retain
   assert.equal(app.platformCalls.pageScrollTo[0].selector, '#field-startDate')
   assert.deepEqual(form(page, period), { ...fields, symptoms: ['cramps', 'tired'] })
   assert.equal(page.data.draftRestored, true)
-  assert.equal(app.wx.toasts.length, 1, 'only the restore notice is shown')
+  assert.equal(app.wx.toasts.length, 0, 'the alert row replaces the restore toast')
   app.hide()
   app.show()
   assert.deepEqual(JSON.parse(app.storage['recordDraft:periods:p1']), { ...fields, symptoms: ['cramps', 'tired'] })
@@ -175,7 +192,7 @@ test('period: errors stay beside their own dates, hide with the field and retain
 })
 
 for (const editExisting of [true, false]) {
-  test(`period: overlap choice ${editExisting ? 'opens the real existing editor' : 'still creates'} without duplicate submissions`, async (t) => {
+  test(`period: overlap choice ${editExisting ? 'opens the real existing editor and preserves the new draft' : 'still creates'} without duplicate submissions`, async (t) => {
     const app = setup(t)
     const existing = { _id: 'covered', startDate: '2026-09-01', endDate: '2026-09-05', status: 'known-end' }
     cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
@@ -201,10 +218,43 @@ for (const editExisting of [true, false]) {
       assert.equal(app.currentPage.data.startDate, '2026-09-01')
       assert.equal(app.currentPage.data.endDate, '2026-09-05')
       assert.deepEqual(writes(app), [])
+      assert.deepEqual(JSON.parse(app.storage[draftKey(period)]), {
+        startDate: '2026-09-03', endDate: '2026-09-04', status: 'known-end', note: '', flow: '', symptoms: []
+      }, 'editing the owner keeps the unfinished new-record draft')
     } else {
       assert.deepEqual(writes(app).map(call => call.data), [{ ...period.payload, startDate: '2026-09-03', endDate: '2026-09-04', status: 'known-end', duration: 2 }])
+      assert.equal(app.storage[draftKey(period)], undefined)
     }
-    assert.equal(app.storage[draftKey(period)], undefined)
+  })
+}
+
+for (const close of [
+  { name: 'both result flags are false', result: { confirm: false, cancel: false } },
+  { name: 'the modal fails', result: new Error('showModal:fail dismissed') }
+]) {
+  test(`period: overlap question ${close.name} keeps the form without creating, saving or navigating`, async (t) => {
+    const app = setup(t)
+    const existing = { _id: 'covered', startDate: '2026-09-01', endDate: '2026-09-05', status: 'known-end' }
+    cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
+    cloudRoute(app, period, 'add').reply({ code: 0, record: { _id: 'unexpected', ...period.payload, startDate: '2026-09-03', endDate: '2026-09-04', status: 'known-end', duration: 2, note: '保留输入' } })
+    const { page } = await openEditor(app, period, { startDate: '2026-09-03' })
+    await app.dispatch(page, 'onEndChange', value('2026-09-04'))
+    await app.dispatch(page, 'onNoteInput', value('保留输入'))
+    const originalForm = form(page, period)
+    const navigationCount = app.navigation.length
+    const saving = app.dispatch(page, 'save')
+    await app.settle()
+    assert.equal(app.wx.modals[0].title, '这一天已有经期')
+    app.respond('showModal', 0, close.result)
+    await saving
+    await app.settle()
+    assert.deepEqual(writes(app), [])
+    assert.equal(app.currentPage, page)
+    assert.equal(app.navigation.length, navigationCount)
+    assert.deepEqual(form(page, period), originalForm)
+    assert.equal(page.data.saving, false)
+    assert.equal(page.data.submitted, false)
+    assert.deepEqual(app.wx.toasts, [])
   })
 }
 
@@ -342,7 +392,9 @@ test('period: merge replaces visible labels and draft baseline before the same e
   await app.dispatch(page, 'onNoteInput', value('已有备注'))
   app.hide()
   app.show()
-  assert.equal(app.storage[draftKey(period, 'ongoing')], undefined)
+  assert.deepEqual(JSON.parse(app.storage[draftKey(period, 'ongoing')]), {
+    startDate: '2026-09-01', endDate: '', status: 'ongoing', note: '修改这条记录', flow: 'light', symptoms: ['tired']
+  }, 'returning to the new baseline neither writes nor clears the earlier draft')
   await app.dispatch(page, 'onNoteInput', value('再次保存'))
   cloudRoute(app, period, 'update').reply({ code: 0, record: { ...existing, note: '再次保存' } })
   await app.dispatch(page, 'save')
@@ -393,7 +445,7 @@ for (const exit of ['invalid', 'edit existing', 'still create', 'confirmation fa
     }
     assert.equal(app.currentPage, page)
     if (exit === 'invalid') assert.deepEqual(page.data.fieldErrors, { endDate: '请选择结束日期；还没结束可以选「进行中」' })
-    if (exit === 'confirmation failure') assert.equal(app.wx.toasts.at(-1).title, '这次没有完成，请重试')
+    if (exit === 'confirmation failure') assert.deepEqual(app.wx.toasts, [])
     if (exit === 'still create') {
       await app.dispatch(page, 'save')
       assert.equal(writes(app).length, 1, 'confirmed success remains submitted until return')
@@ -501,7 +553,61 @@ for (const spec of records) {
     assert.equal(app.currentPage, home)
   })
 
-  test(`${spec.kind}: drafts persist on hide and unload, restore only their record, and clear at the baseline`, async (t) => {
+  for (const mode of ['new', 'edit']) {
+    test(`${spec.kind}: ${mode} draft restore notice offers discard and restores route values without a toast`, async (t) => {
+      const routeDate = spec.kind === 'period' && mode === 'new' ? '2025-09-18' : '2026-09-18'
+      const endDate = spec.kind === 'period' && mode === 'new' ? '2025-09-19' : '2026-09-19'
+      const routeForm = spec.kind === 'period'
+        ? { startDate: routeDate, endDate, status: 'known-end', note: '入口初值', flow: 'light', symptoms: ['tired'] }
+        : { date: routeDate, note: '入口初值' }
+      const stored = { ...routeForm, note: '草稿输入', ...(spec.kind === 'period' ? { flow: 'heavy', symptoms: ['cramps'] } : {}) }
+      const id = mode === 'edit' ? 'existing' : 'new'
+      const app = setup(t, { storage: { [draftKey(spec, id)]: JSON.stringify(stored) } })
+      const routeOptions = {
+        ...(mode === 'edit' ? { id } : {}),
+        [spec.dateField]: routeDate,
+        note: routeForm.note,
+        ...(spec.kind === 'period' ? { endDate, status: 'known-end', flow: 'light', symptoms: 'tired' } : {})
+      }
+      const { page } = await openEditor(app, spec, routeOptions)
+      assert.deepEqual(form(page, spec), stored)
+      assert.equal(page.data.draftRestored, true)
+      assert.equal(page.data.draftNoticeText, mode === 'new'
+        ? `已恢复 ${routeDate.startsWith('2025-') ? '2025年9月18日' : '9月18日'} 没填完的内容`
+        : '已恢复上次没保存的修改')
+      assert.equal(page.data.draftDiscardText, mode === 'new' ? '放弃' : '放弃修改')
+      assert.deepEqual(app.wx.toasts, [], 'the alert row replaces the restore toast')
+
+      await app.dispatch(page, 'discardDraft')
+      assert.deepEqual(form(page, spec), routeForm)
+      assert.equal(page.data.draftRestored, false)
+      assert.equal(app.storage[draftKey(spec, id)], undefined)
+      assert.deepEqual(app.wx.toasts, [])
+    })
+  }
+
+  test(`${spec.kind}: new record drafts restore only on the same route date and survive a different-date visit`, async (t) => {
+    const stored = spec.kind === 'period'
+      ? { startDate: '2026-09-18', endDate: '2026-09-19', status: 'known-end', note: '那天的草稿', flow: 'heavy', symptoms: ['cramps'] }
+      : { date: '2026-09-18', note: '那天的草稿' }
+    const app = setup(t, { storage: { [draftKey(spec)]: JSON.stringify(stored) } })
+    const otherRoute = { [spec.dateField]: '2026-09-20' }
+    const { page: otherDate } = await openEditor(app, spec, otherRoute)
+    assert.equal(otherDate.data[spec.dateField], '2026-09-20')
+    assert.equal(otherDate.data.note, '')
+    assert.equal(otherDate.data.draftRestored, false)
+    assert.deepEqual(JSON.parse(app.storage[draftKey(spec)]), stored, 'a different date does not consume the draft')
+    await app.dispatch(otherDate, 'goBack')
+    await app.flush()
+    assert.deepEqual(JSON.parse(app.storage[draftKey(spec)]), stored, 'an unchanged different-date visit neither writes nor clears')
+
+    app.wx.navigateTo({ url: editUrl(spec, { [spec.dateField]: '2026-09-18' }) })
+    await app.settle()
+    assert.deepEqual(form(app.currentPage, spec), stored)
+    assert.equal(app.currentPage.data.draftRestored, true)
+  })
+
+  test(`${spec.kind}: drafts persist on hide and unload, restore only their record, and stay untouched at the baseline`, async (t) => {
     const app = setup(t)
     const route = { id: 'existing', [spec.dateField]: '2026-09-18', note: '原备注', ...(spec.kind === 'period' ? { status: 'ongoing' } : {}) }
     const { home, page } = await openEditor(app, spec, route)
@@ -541,7 +647,7 @@ for (const spec of records) {
     const restored = app.currentPage
     assert.deepEqual(form(restored, spec), { ...expected, note: '卸载前又改了' })
     assert.equal(restored.data.draftRestored, true)
-    assert.equal(app.wx.toasts.at(-1).title, '已恢复上次未完成的输入')
+    assert.deepEqual(app.wx.toasts, [], 'the alert row replaces the restore toast')
     assert.equal(restored.data[spec.kind === 'period' ? 'startDateLabel' : 'dateLabel'], '9月17日')
     if (spec.kind === 'period') {
       assert.deepEqual(restored.data.symptomGroups.flatMap(group => group.options).filter(option => option.selected).map(option => option.value), ['cramps'])
@@ -552,7 +658,7 @@ for (const spec of records) {
     await app.dispatch(restored, 'onNoteInput', value('原备注'))
     await app.dispatch(restored, 'goBack')
     await app.flush()
-    assert.equal(app.storage[draftKey(spec, 'existing')], undefined)
+    assert.deepEqual(JSON.parse(app.storage[draftKey(spec, 'existing')]), { ...expected, note: '卸载前又改了' }, 'an unchanged form neither writes nor clears the stored draft')
     assert.deepEqual(writes(app), [])
   })
 
@@ -689,7 +795,7 @@ for (const spec of records) {
     assert.equal(modal.title, '确认删除')
     assert.equal(modal.content, spec.consequence)
     assert.equal(modal.confirmText, '删除')
-    assert.equal(modal.confirmColor, '#F97373')
+    assert.equal(modal.confirmColor, undefined, 'native delete confirmation uses the platform default color')
     assert.equal(page.data.deleting, false)
     await app.dispatch(page, 'delete')
     assert.equal(app.wx.modals.length, 1)

@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const { meetsContrast } = require('./contrast')
 
@@ -15,7 +15,7 @@ function customProperties(css) {
 }
 
 // issue #104：绑定页 --bind-* 试点 token 整体退役，断言只需解析 app 级 token
-const APP_TOKENS = customProperties(fs.readFileSync(path.join(__dirname, '..', 'app.wxss'), 'utf8'))
+const APP_TOKENS = customProperties(readSource(path.join(__dirname, '..', 'app.wxss'), 'utf8'))
 
 function resolveToken(value) {
   const tokenRef = /^var\((--[a-z0-9-]+)\)$/i.exec(value)
@@ -25,7 +25,7 @@ function resolveToken(value) {
 }
 
 function readStylesheet(relativePath) {
-  return fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8')
+  return readSource(path.join(__dirname, '..', relativePath), 'utf8')
 }
 
 function ruleDeclarations(css, selector) {

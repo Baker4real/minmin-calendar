@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { readSource } = require('./sourceFiles')
 
 const { listWxssFiles, parseWxssRules } = require('./designTokens')
 
@@ -19,7 +19,7 @@ const NAV_TOUCH_RPX = 88
 
 function readAppTokens() {
   const tokens = {}
-  for (const rule of parseWxssRules(fs.readFileSync(path.join(repoRoot, APP_WXSS), 'utf8'))) {
+  for (const rule of parseWxssRules(readSource(path.join(repoRoot, APP_WXSS), 'utf8'))) {
     for (const [prop, value] of Object.entries(rule.decls)) {
       if (prop.startsWith('--')) tokens[prop] = value
     }
@@ -28,7 +28,7 @@ function readAppTokens() {
 }
 
 function ruleDecls(relative, selector) {
-  const rules = parseWxssRules(fs.readFileSync(path.join(repoRoot, relative), 'utf8'))
+  const rules = parseWxssRules(readSource(path.join(repoRoot, relative), 'utf8'))
   const rule = rules.find((candidate) => candidate.selectors.includes(selector))
   assert.ok(rule, `expected rule ${selector} in ${relative}`)
   return rule.decls
@@ -254,7 +254,7 @@ test('the 24rpx calendar-micro role never escapes the home calendar cells', () =
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
     if (relative === APP_WXSS) continue // token definition site
-    if (fs.readFileSync(file, 'utf8').includes('var(--font-size-calendar-micro)')) {
+    if (readSource(file, 'utf8').includes('var(--font-size-calendar-micro)')) {
       assert.equal(
         relative,
         INDEX_WXSS,
@@ -265,7 +265,7 @@ test('the 24rpx calendar-micro role never escapes the home calendar cells', () =
 })
 
 test('system CJK font stack is unchanged and no external font is introduced', () => {
-  const app = fs.readFileSync(path.join(repoRoot, APP_WXSS), 'utf8')
+  const app = readSource(path.join(repoRoot, APP_WXSS), 'utf8')
   assert.match(
     app,
     /font-family:\s*-apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif;/,
@@ -273,7 +273,7 @@ test('system CJK font stack is unchanged and no external font is introduced', ()
   )
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
-    const css = fs.readFileSync(file, 'utf8')
+    const css = readSource(file, 'utf8')
     assert.doesNotMatch(css, /@font-face/, `${relative} must not declare @font-face`)
     assert.doesNotMatch(css, /@import/, `${relative} must not import external font resources`)
     if (relative !== APP_WXSS) {

@@ -1,8 +1,8 @@
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
 const path = require('node:path')
 const { setImmediate: checkpoint } = require('node:timers')
 const { isDeepStrictEqual } = require('node:util')
+const { readSource } = require('../sourceFiles')
 const { evaluateWxmlExpression, wxmlOpeningTags } = require('../wxmlTemplate')
 
 const root = path.resolve(__dirname, '../..')
@@ -137,12 +137,12 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
   function viewContext(page) {
     if (viewContexts.has(page)) return viewContexts.get(page)
     const templatePath = path.join(root, `${page.route}.wxml`)
-    const template = fs.readFileSync(templatePath, 'utf8')
+    const template = readSource(templatePath, 'utf8')
     const modules = {}
     for (const [, attrs, body] of template.matchAll(/<wxs\b([^>]*)>([\s\S]*?)<\/wxs>/g)) {
       const name = /\bmodule=["']([^"']+)["']/.exec(attrs)[1]
       const source = /\bsrc=["']([^"']+)["']/.exec(attrs)
-      const code = source ? fs.readFileSync(path.resolve(path.dirname(templatePath), source[1]), 'utf8') : body
+      const code = source ? readSource(path.resolve(path.dirname(templatePath), source[1]), 'utf8') : body
       const module = { exports: {} }
       new Function('module', 'getDate', code)(module, (...args) => new FakeDate(...args))
       modules[name] = module.exports
@@ -400,7 +400,7 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
     hide() { if (stack.length) life(stack.at(-1), 'onHide') },
     show() { if (stack.length) show(stack.at(-1)) },
     share(page) {
-      const template = fs.readFileSync(path.join(root, `${page.route}.wxml`), 'utf8')
+      const template = readSource(path.join(root, `${page.route}.wxml`), 'utf8')
       assert.match(template, /open-type=["']share["']/)
       return invoke(page, 'onShareAppMessage', { from: 'button' })
     },
