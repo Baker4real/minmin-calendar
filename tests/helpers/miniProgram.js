@@ -368,6 +368,8 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
     getClipboardData: options => platform('getClipboardData', options, { data: clipboard.at(-1) || '' }),
     showLoading: options => platform('showLoading', options, {}),
     hideLoading: options => platform('hideLoading', options, {}),
+    showShareMenu: options => platform('showShareMenu', options, {}),
+    hideShareMenu: options => platform('hideShareMenu', options, {}),
     pageScrollTo: options => platform('pageScrollTo', options, {}),
     stopPullDownRefresh: options => platform('stopPullDownRefresh', options, {}),
     createSelectorQuery: selectorQuery,
