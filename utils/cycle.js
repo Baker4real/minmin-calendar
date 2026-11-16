@@ -104,77 +104,6 @@ function predictNextPeriod(periods, options = {}) {
   return emptyPrediction()
 }
 
-function buildCycleReminders(prediction, periods, options = {}) {
-  if (!prediction || !prediction.canPredict) return []
-
-  const today = options.today || util.formatDate(new Date())
-  if (!isDateString(today)) return []
-
-  if (hasPeriodOnOrAfter(periods, prediction.nextStart)) return []
-
-  const reminders = []
-  const daysToRangeStart = util.daysBetween(util.parseDate(today), util.parseDate(prediction.rangeStart))
-  const daysAfterRangeEnd = util.daysBetween(util.parseDate(prediction.rangeEnd), util.parseDate(today))
-
-  if (today >= prediction.rangeStart && today <= prediction.rangeEnd) {
-    reminders.push({
-      type: 'due',
-      title: '这几天可能开始',
-      text: '如果已经开始，可以记经期',
-      action: 'quickPeriod',
-      date: today
-    })
-  } else if (daysToRangeStart > 0 && daysToRangeStart <= 7) {
-    reminders.push({
-      type: 'upcoming',
-      title: '经期临近',
-      text: `约 ${daysToRangeStart} 天后是可能开始的日子`,
-      action: 'quickPeriod',
-      date: today
-    })
-  } else if (daysAfterRangeEnd > 0 && daysAfterRangeEnd <= 7) {
-    // 推迟只陈述事实，不下「很正常」这类判断（判断留给预测说明的「不是医疗建议」）
-    reminders.push({
-      type: 'overdue',
-      title: '可能开始的日子已过',
-      text: '如果已经开始，可以补记',
-      action: 'quickPeriod',
-      date: today
-    })
-  }
-
-  return reminders
-}
-
-// 超期进行中记录的一次非阻塞完成提示（issue #98）。
-// 预期时长与预测结束日同源：最近已完成时长中位数 → 五天默认；
-// 进行中记录自身与结束日期不详记录的时长恒为 0，天然不进预期计算。
-// 只返回提示对象，绝不写结束日期、绝不关闭状态。
-function buildOngoingCompletionReminder(periods, options = {}) {
-  const ongoing = findOngoingPeriod(periods)
-  if (!ongoing) return null
-
-  const today = options.today || util.formatDate(new Date())
-  const owner = periodCoverage.getPeriodOnDate([ongoing], today, today)
-  if (!owner) return null
-  const runningDays = owner.day
-
-  const expected = expectedPeriodLength(periods)
-  if (runningDays <= expected.days) return null
-
-  return {
-    type: 'ongoing-overdue',
-    title: '经期还未结束',
-    text: `已进行 ${runningDays} 天，超过预期的 ${expected.days} 天，可以补填结束日期`,
-    runningDays,
-    expectedDays: expected.days,
-    expectedSource: expected.source,
-    record: ongoing,
-    recordKey: ongoing._id || ongoing.id || ongoing.startDate || '',
-    date: today
-  }
-}
-
 function buildPeriodPayload({ startDate, endDate = '', status, note = '', flow = '', symptoms = [] }) {
   const normalizedStatus = getPeriodStatus({ status, endDate })
   const range = normalizedStatus === 'known-end'
@@ -359,23 +288,33 @@ function findOngoingPeriod(periods = []) {
   return entry.reason === 'ongoing' ? entry.record : null
 }
 
-// 首页状态行。经期覆盖今天时优先于预测；预测窗口沿用既有预计开始日 ± 波动天数。
-// 推迟只用中性语气，不表示警示。
+// 状态行、预测说明和记录 tab 空态共用这一份预测门槛文案。
+function buildPredictionThresholdText(periods) {
+  return normalizePeriods(periods).length < 2
+    ? '记两次经期后就能估下次'
+    : '最近几次间隔差得多，再记几次就能估'
+}
+
+// 首页唯一状态句。经期覆盖今天时优先于预测；窗口前的倒数独立投影在右侧。
+// 窗口结束后第 1–7 天仍数晚几天，第 8 天起只说上次记录与补记，不让数字继续增长。
 function buildHomeStatusLine(periods, options = {}) {
   const today = isDateString(options.today) ? options.today : util.formatDate(new Date())
   const prediction = options.prediction || predictNextPeriod(periods, { ...options, today })
   const active = periodCoverage.getPeriodOnDate(periods, today, today)
   if (active) {
-    return {
-      status: 'in-period',
-      text: `经期第 ${active.day} 天`,
-      tone: 'default'
+    let text = `经期第 ${active.day} 天`
+    if (active.status === 'ongoing') {
+      const expected = expectedPeriodLength(periods)
+      const overdueDays = active.day - expected.days
+      if (overdueDays > 0) text += ` · 比预期多 ${overdueDays} 天`
     }
+    return { status: 'in-period', text, countdownText: '', tone: 'default' }
   }
   if (!prediction || !prediction.canPredict || !isDateString(prediction.nextStart)) {
     return {
       status: 'insufficient',
-      text: '多记几次后就能预测',
+      text: buildPredictionThresholdText(periods),
+      countdownText: '',
       tone: 'default'
     }
   }
@@ -384,7 +323,8 @@ function buildHomeStatusLine(periods, options = {}) {
     const dateText = util.formatDisplayDate(prediction.nextStart, { today })
     return {
       status: 'before-window',
-      text: `预计 ${dateText} 开始 · 还有 ${days} 天`,
+      text: `预计 ${dateText} 开始`,
+      countdownText: `还有 ${days} 天`,
       tone: 'default'
     }
   }
@@ -392,13 +332,27 @@ function buildHomeStatusLine(periods, options = {}) {
     return {
       status: 'in-window',
       text: '这几天可能开始',
+      countdownText: '',
       tone: 'default'
     }
   }
-  const lateDays = util.daysBetween(util.parseDate(prediction.nextStart), util.parseDate(today))
+  const daysAfterWindow = util.daysBetween(util.parseDate(prediction.rangeEnd), util.parseDate(today))
+  if (daysAfterWindow <= 7) {
+    const lateDays = util.daysBetween(util.parseDate(prediction.nextStart), util.parseDate(today))
+    return {
+      status: 'late',
+      text: `比预计晚 ${lateDays} 天`,
+      countdownText: '',
+      tone: 'neutral'
+    }
+  }
+  const normalized = normalizePeriods(periods)
+  const lastStart = normalized.length ? normalized[normalized.length - 1].startDate : prediction.lastStart
+  const dateText = isDateString(lastStart) ? util.formatDisplayDate(lastStart, { today }) : ''
   return {
-    status: 'late',
-    text: `比预计晚 ${lateDays} 天`,
+    status: 'late-too-long',
+    text: `上次记录 ${dateText} 开始 · 可以补记`,
+    countdownText: '',
     tone: 'neutral'
   }
 }
@@ -522,10 +476,6 @@ function normalizeSymptoms(symptoms) {
   return normalized
 }
 
-function hasPeriodOnOrAfter(periods, dateStr) {
-  return normalizePeriods(periods).some(period => period.startDate >= dateStr)
-}
-
 function weightedMean(values) {
   const weights = values.map((_, index) => index + 1)
   const totalWeight = weights.reduce((sum, weight) => sum + weight, 0)
@@ -571,8 +521,6 @@ module.exports = {
   SYMPTOM_OPTIONS,
   PERIOD_STATUS_OPTIONS,
   predictNextPeriod,
-  buildCycleReminders,
-  buildOngoingCompletionReminder,
   describeKnownPeriodLength,
   buildPeriodPayload,
   getPeriodStatus,
@@ -581,6 +529,7 @@ module.exports = {
   decidePeriodRecordForDate,
   buildPeriodQuickAction,
   buildHomeStatusLine,
+  buildPredictionThresholdText,
   periodStatusHint,
   projectPeriodRange,
   getPeriodDuration,

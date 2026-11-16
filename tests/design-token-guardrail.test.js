@@ -302,7 +302,6 @@ const CTA_FILL_SELECTORS = [
   ['pages/bind/bind.wxss', '.copy-btn'],
   // issue #145：创建/加入是分段控件，选中态不走实色填充。issue #137：选月确认按钮已退役。
   ['pages/index/index.wxss', '.quick-btn'],
-  ['pages/index/index.wxss', '.reminder-action'],
   ['pages/index/index.wxss', '.jump-option.active'],
   ['pages/index/index.wxss', '.copy-recap']
 ]
@@ -345,11 +344,10 @@ test('segmented controls share one outlined-rose selected style', () => {
 })
 
 // issue #145：主按钮只有一种形状，圆角矩形 --radius-md。
-// 选月确认、复制小结、提醒卡上的玫瑰操作是现在的胶囊；复制键与重试小按钮不是主按钮。
+// 复制键与重试小按钮不是主按钮。
 const PRIMARY_BUTTONS = [
   ['app.wxss', '.btn-premium'],
   ['pages/index/index.wxss', '.quick-btn'],
-  ['pages/index/index.wxss', '.reminder-action'],
   ['pages/index/index.wxss', '.copy-recap']
 ]
 
@@ -504,7 +502,6 @@ const SOLID_ROSE_FILL_ALLOWLIST = new Set(
   [
     // 状态点/日历标记/卡片 rail：装饰性玫瑰实色小块，非可操作填充
     ['pages/index/index.wxss', '.sync-pill.syncing .sync-dot'],
-    ['pages/index/index.wxss', '.reminder-card.due .reminder-rail'],
     ['pages/index/index.wxss', '.detail-rail'],
     ['pages/memory/memory.wxss', '.list-item::before']
   ].map(([file, selector]) => `${file}::${selector}`)
@@ -634,7 +631,6 @@ const INDEX_GOLD_ALLOWLIST = new Set([
   '.predict-mark',
   '.calendar-days.calendar-emphasis-predict-a .predict-mark::after',
   '.calendar-days.calendar-emphasis-predict-b .predict-mark::after',
-  '.reminder-rail',
   '.predict-date',
   '.detail-meaning.predict',
   '.detail-meaning.holiday',
@@ -752,10 +748,6 @@ test('glow stays on primary buttons and the copy control', () => {
   assert.equal(heart, '0 0 18rpx rgba(240,196,192,0.32)')
 
   assert.equal(
-    declsFor('pages/index/index.wxss', '.reminder-rail')['box-shadow'],
-    '0 0 14rpx rgba(212,165,116,0.36)'
-  )
-  assert.equal(
     declsFor('pages/index/index.wxss', '.detail-rail')['box-shadow'],
     '0 0 16rpx rgba(232,144,158,0.35)'
   )
@@ -780,8 +772,6 @@ const REGISTERED_GLOWS = [
   'pages/period/edit/edit.wxss .flow-chip.active',
   'pages/period/edit/edit.wxss .symptom-chip.active',
   // 承载状态色的 rail
-  'pages/index/index.wxss .reminder-rail',
-  'pages/index/index.wxss .reminder-card.due .reminder-rail',
   'pages/index/index.wxss .detail-rail',
   'pages/index/index.wxss .memory-detail .detail-rail',
   // 情感装饰

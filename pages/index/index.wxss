@@ -14,7 +14,6 @@
 }
 .content-refreshing .calendar-grid,
 .content-refreshing .month-summary,
-.content-refreshing .reminder-card,
 .content-refreshing .empty-guide,
 .content-refreshing .quick-actions {
   opacity: 0.94;
@@ -302,8 +301,9 @@
   height: 88rpx;
   display: flex;
   align-items: center;
+  gap: 8rpx;
   box-sizing: border-box;
-  padding: 0 8rpx;
+  padding: 0;
   color: var(--text-primary);
   transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
@@ -311,13 +311,32 @@
   color: var(--text-secondary);
 }
 .home-status-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-control);
+  line-height: var(--line-height-body);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-status-countdown {
+  flex: none;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+.home-status-arrow {
+  flex: none;
+  width: 16rpx;
+  font-size: 32rpx;
+  line-height: 1;
+  text-align: center;
+  color: var(--text-secondary);
 }
 .home-status:active,
 .home-status.home-status-hover {
@@ -781,91 +800,6 @@
 .month-summary.month-summary-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.06);
-}
-
-/* ===== Cycle Reminders ===== */
-/* 提醒行直接压在极光上：底是海军回退，7.5% 淡白在 ::before 平涂层上（issue #163），
-   否则极光最亮处透上来，次要说明掉到 4.5:1 以下。按压着色落在 ::before 的 background-color 上 */
-.reminder-card {
-  position: relative;
-  z-index: 0;
-  width: 100%;
-  min-height: 88rpx;
-  margin-top: 16rpx;
-  display: flex;
-  align-items: center;
-  gap: 18rpx;
-  padding: 18rpx 20rpx;
-  background: var(--glass-fallback);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: var(--radius-md);
-  box-shadow: 0 6px 24px rgba(0,0,0,0.13);
-  box-sizing: border-box;
-  transition: border-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
-}
-/* 平涂层的结构在 app.wxss「平涂层」，这里只写颜色 */
-.reminder-card::before {
-  background-color: rgba(255,255,255,0.075);
-}
-/* 平涂层盖不到描边带：按下时描边和平涂层一起提亮（issue #166） */
-.reminder-card:active,
-.reminder-card.reminder-card-hover {
-  transform: scale(0.98);
-  border-color: rgba(255,255,255,0.17);
-}
-.reminder-card:active::before,
-.reminder-card.reminder-card-hover::before {
-  background-color: rgba(255,255,255,0.12);
-}
-.reminder-rail {
-  width: 6rpx;
-  align-self: stretch;
-  min-height: 52rpx;
-  border-radius: var(--radius-full);
-  background: var(--aurora-gold);
-  box-shadow: 0 0 14rpx rgba(212,165,116,0.36);
-}
-.reminder-card.due .reminder-rail {
-  background: #E8909E;
-  box-shadow: 0 0 14rpx rgba(232,144,158,0.4);
-}
-.reminder-card.overdue .reminder-rail {
-  background: #FFFFFF;
-  box-shadow: none;
-}
-.reminder-copy {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4rpx;
-}
-.reminder-title {
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-assist);
-  color: rgba(255,255,255,0.88);
-}
-.reminder-text {
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-assist);
-  color: var(--text-secondary);
-  line-height: var(--line-height-assist);
-}
-/* 按标签宽度排：长说明句由 .reminder-copy 折行吸收，操作钮不收缩、不折行 */
-.reminder-action {
-  flex-shrink: 0;
-  min-width: 72rpx;
-  height: 60rpx;
-  line-height: 60rpx;
-  padding: 0 var(--space-xs);
-  white-space: nowrap;
-  box-sizing: border-box;
-  text-align: center;
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-control);
-  color: #0A0E27;
-  background: var(--aurora-pink);
 }
 
 /* ===== Quick Actions — 首屏主操作：实色玫瑰填充 + 画布海军字 ===== */
@@ -1781,7 +1715,6 @@
   .skeleton-month-bar,
   .skeleton-week-cell,
   .skeleton-cell,
-  .reminder-card,
   .quick-btn,
   .copy-recap,
   .no-room-icon {

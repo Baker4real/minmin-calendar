@@ -244,10 +244,6 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
     assert.equal(item.attrs['aria-role'], 'button')
   }
 
-  // 周期提醒卡：朗读标题与说明，并说明点按动作
-  const reminder = byHandler('onReminderTap', 'reminder-card')
-  assert.equal(reminder.attrs['aria-role'], 'button')
-  assert.equal(reminder.attrs['aria-label'], '{{item.title}}，{{item.text}}，点按记录')
 })
 
 // issue #134：遮罩和面板是兄弟。遮罩单独作为「关闭」朗读，面板里的控件不包在这个按钮里。
@@ -482,7 +478,7 @@ test('a sheet silences the page behind it, and every trigger returns with that p
   }
 })
 
-test('home status line, month summary and the ongoing reminder read as named buttons', () => {
+test('home status line and month summary read as named buttons without reminder controls', () => {
   const elements = elementsOf('pages/index/index.wxml')
   const statusLine = elements.find((element) =>
     element.attrs.bindtap === 'openPredictionSheet' && element.classes.includes('home-status'))
@@ -490,17 +486,10 @@ test('home status line, month summary and the ongoing reminder read as named but
 
   assert.ok(statusLine, 'expected the status line to open the prediction sheet')
   assert.equal(statusLine.attrs['aria-role'], 'button')
-  assert.equal(statusLine.attrs['aria-label'], '{{homeStatus.text}}')
+  assert.equal(statusLine.attrs['aria-label'], '{{homeStatus.ariaLabel}}')
   assert.ok(summary, 'expected the month summary row')
   assert.equal(summary.attrs['aria-role'], 'button')
-
-  // 卡内超期进行中提醒保留原有动作与朗读名
-  const ongoing = elements.find((element) => element.attrs.bindtap === 'onOngoingReminderTap')
-  assert.equal(ongoing.attrs['aria-role'], 'button')
-  assert.equal(
-    ongoing.attrs['aria-label'],
-    '{{ongoingCompletionReminder.title}}，{{ongoingCompletionReminder.text}}，点按去补填'
-  )
+  assert.equal(elements.some(element => /reminder-card/.test(element.attrs.class || '')), false)
 })
 
 test('bind page controls are named, tab switch exposes checked state, inert states read as disabled', () => {

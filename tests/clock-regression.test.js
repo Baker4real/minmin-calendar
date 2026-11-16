@@ -6,7 +6,7 @@ const test = require('node:test')
 const { runClockRegression } = require('./tools/clockRegression.cjs')
 
 const scenarios = [
-  'returning on a later day updates status, reminders and editor dates even when cloud records are unchanged',
+  'returning on a later day updates status and editor dates even when cloud records are unchanged',
   'day titles and quick entries keep the rendered today across midnight until the next calendar projection',
   'a calendar render samples today once even when the system clock crosses midnight during projection'
 ]

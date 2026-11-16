@@ -27,12 +27,10 @@ const IN_CELL_MICRO_SELECTORS = [
 const OUT_CELL_CAPTION_SELECTORS = [
   '.sync-text',
   '.week-cell',
-  '.home-status-text',
+  '.home-status-countdown',
   '.month-summary-text',
   '.back-today',
   '.nav-tool',
-  '.reminder-text',
-  '.reminder-action',
   '.sheet-subtitle',
   '.sheet-action-desc',
   '.jump-section-title',

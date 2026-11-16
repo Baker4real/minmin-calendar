@@ -3,7 +3,6 @@ const roomRecordsSync = require('../../utils/roomRecordsSync')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const wxPrompts = require('../../utils/wxPrompts')
 const recordEditRoute = require('../../utils/recordEditRoute')
-const recordDraft = require('../../utils/recordDraft')
 const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 const { computeCalendarRowHeight } = require('../../utils/calendarRowHeight')
 const safeArea = require('../../utils/safeArea')
@@ -18,8 +17,6 @@ const { homepageSheetData, homepageSheets } = require('./homepageSheets')
 
 // 与 pages/settings/settings.js 共享同一存储键；写入方在设置页
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
-// issue #98：超期进行中记录的一次性完成提示标记；经 utils/recordDraft.js 的 createWxDraftStorage 本地存储接缝读写
-const ONGOING_REMINDER_STORAGE_KEY = 'ongoingPeriodReminderShown'
 const SYNC_STATUS_CLEAR_DELAY = 1600
 const JUMP_YEAR_MIN = 2001
 const JUMP_YEAR_MAX = 2035
@@ -188,11 +185,7 @@ Page(withPageVisibility({
     if (today !== this._calendarToday) {
       this.applyHomeCalendarState({ today }, { fields: { calendarDensity } })
     } else {
-      const reminder = this.unseenOngoingCompletionReminder(this.data.ongoingCompletionReminder)
-      this.setData(this.withCalendarGeometry({
-        calendarDensity,
-        ongoingCompletionReminder: reminder
-      }), () => this.markOngoingReminderShown(reminder))
+      this.setData(this.withCalendarGeometry({ calendarDensity }))
     }
     this.refreshReducedMotion()
     return this.loadRecords()
@@ -323,12 +316,10 @@ Page(withPageVisibility({
     this._dayDetailsByDate = state.dayDetailsByDate
     this._periodQuickAction = state.periodQuickAction
     this._memoryQuickAction = state.memoryQuickAction
-    const reminder = this.unseenOngoingCompletionReminder(state.ongoingCompletionReminder)
 
     const update = {
       ...fields,
       ...calendarRenderState(state),
-      ongoingCompletionReminder: reminder,
       ...monthNavState(year, month),
       year,
       month,
@@ -337,7 +328,7 @@ Page(withPageVisibility({
     if (this.data.selectedDate && this.data.dayActionsMounted) {
       Object.assign(update, this.selectedDayState(this.data.selectedDate))
     }
-    this.setData(this.withCalendarGeometry(update), () => this.markOngoingReminderShown(reminder))
+    this.setData(this.withCalendarGeometry(update))
   },
 
   prevMonth() {
@@ -623,45 +614,10 @@ Page(withPageVisibility({
   quickPeriod() {
     this.openProjectedEntry(this._periodQuickAction)
   },
-  onReminderTap(e) {
-    const reminder = this.data.cycleReminders[e.currentTarget.dataset.index]
-    if (reminder) this.openProjectedEntry(reminder.periodAction)
-  },
-
-  // issue #129：同一条记录只提示一次，但渲染本身不记「已提醒」。
-  // 用户点过它，或首页在显示过它之后被离开，才经本地存储接缝持久化。
-  // 提示绝不写结束日期、绝不关闭状态，点击只打开同一条记录补填。
-  unseenOngoingCompletionReminder(reminder) {
-    if (!reminder) return null
-    const storage = recordDraft.createWxDraftStorage(wx)
-    if (storage.get(ONGOING_REMINDER_STORAGE_KEY) === reminder.recordKey) return null
-    return reminder
-  },
-
-  markOngoingReminderShown(reminder) {
-    // 候选提交到可见日历后才算显示过；持久化仍等离开或点击。
-    const current = this.data.ongoingCompletionReminder
-    if (reminder && current && current.recordKey === reminder.recordKey &&
-        !this.data.pageHidden && this.data.hasLoadedHomeData && !this.data.noRoom) {
-      this._ongoingReminderShownKey = reminder.recordKey
-    }
-  },
-
-  persistOngoingReminderSeen() {
-    const recordKey = this._ongoingReminderShownKey
-    if (!recordKey) return
-    const storage = recordDraft.createWxDraftStorage(wx)
-    if (storage.get(ONGOING_REMINDER_STORAGE_KEY) !== recordKey) {
-      storage.set(ONGOING_REMINDER_STORAGE_KEY, recordKey)
-    }
-    this._ongoingReminderShownKey = ''
-  },
-
   // page-hidden 由 withPageVisibility 在这里跑完之后才挂。issue #167：记录成功反馈要在那之前收掉，
   // 反馈在 page-hidden 下按住不播，先挂 page-hidden 会让 ♥ 和色带在离场途中消失
   onHide() {
     this.clearRecordFeedback()
-    this.persistOngoingReminderSeen()
     this.dismissSeenPartnerWelcome()
   },
 
@@ -671,15 +627,7 @@ Page(withPageVisibility({
   },
 
   onUnload() {
-    this.persistOngoingReminderSeen()
     if (this._unsubscribeRecords) this._unsubscribeRecords()
-  },
-
-  onOngoingReminderTap() {
-    const reminder = this.data.ongoingCompletionReminder
-    if (!reminder || !reminder.record) return
-    this.persistOngoingReminderSeen()
-    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(reminder.record) })
   },
   quickMemory() {
     this.openProjectedEntry(this._memoryQuickAction)

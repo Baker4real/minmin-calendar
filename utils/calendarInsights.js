@@ -8,15 +8,15 @@ const CONFIDENCE_COPY = {
   low: '记录还不多，仅供参考'
 }
 
-function buildPredictionExplanation(prediction) {
+function buildPredictionExplanation(prediction, periods = []) {
   if (!prediction || !prediction.canPredict) {
-    const lines = ['至少需要连续的经期记录，预测才会更稳定']
+    const summary = cycle.buildPredictionThresholdText(periods)
     return {
       available: false,
       title: '预测说明',
-      summary: '记录足够后会显示下次预测',
-      lines,
-      lineItems: buildTextItems(lines, 'prediction')
+      summary,
+      lines: [],
+      lineItems: []
     }
   }
 

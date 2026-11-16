@@ -547,42 +547,69 @@ test('the ongoing quick-period label wraps only at its spaces and two lines stay
   assert.ok(boxRpx <= rpxNumber(button, 'min-height'), `two label lines need ${boxRpx.toFixed(1)}rpx, more than the ${rpxNumber(button, 'min-height')}rpx button`)
 })
 
-// 提醒行右侧的玫瑰操作钮（「去补填」「记录」）按标签宽度排，不被长说明句挤窄、不折行（430px 运行时截图里
-// 「去补填」溢出底板）；挤压由说明列吸收、自行折行。320px 下说明列仍能单行放下最长的提醒标题，标签不缩字号
-test('the reminder action keeps its label width beside long reminder copy and the copy stays readable at 320px', () => {
-  const wxml = readRepo('pages/index/index.wxml')
-  const labels = [...wxml.matchAll(/class="reminder-action">([^<]+)<\/text>/g)].map(match => match[1])
-  assert.deepEqual([...labels].sort(), ['去补填', '记录'].sort())
-
+// 首页状态句只有一行：按 750rpx 设计宽核算每种状态的最长真实文案，含跨年日期、右侧倒数和行尾箭头。
+// CJK 与标点按 1em、数字按 0.6em、空格按 0.5em 的上界口径；不通过缩字号或省略事实吸收。
+test('every longest home status form fits one line and the 88rpx ledger stays unchanged', () => {
+  const cycle = require('../utils/cycle')
+  const { buildHomeCalendarState } = require('../utils/homeCalendarState')
+  const { CALENDAR_LEDGER } = require('../utils/calendarRowHeight')
   const appTokens = readAppTokens()
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
-  const action = findDecls(rules, '.reminder-action')
-  const copy = findDecls(rules, '.reminder-copy')
-  const card = findDecls(rules, '.reminder-card')
-  assert.equal(action['flex-shrink'], '0', 'the action never shrinks below its label')
-  assert.equal(action['white-space'], 'nowrap', 'the action label stays on one line')
-  assert.equal(action.width, undefined, 'the action is as wide as its label, not a fixed width')
-  assert.equal(action['font-size'], 'var(--font-size-caption)')
-  assert.equal(copy.flex, '1', 'the copy column takes the remaining width')
-  assert.equal(copy['min-width'], '0', 'the copy column may narrow and wrap instead of pushing the action')
+  const sticky = findDecls(rules, '.home-sticky')
+  const status = findDecls(rules, '.home-status')
+  const main = findDecls(rules, '.home-status-text')
+  const countdown = findDecls(rules, '.home-status-countdown')
+  const arrow = findDecls(rules, '.home-status-arrow')
+  assert.equal(rpxNumber(status, 'height'), 88)
+  assert.equal(CALENDAR_LEDGER.firstScreenRpx.stickySpacer, 218)
+  assert.equal(main['font-size'], 'var(--font-size-body-lg)')
+  assert.equal(main['font-weight'], 'var(--font-weight-control)')
+  assert.equal(main['white-space'], 'nowrap')
+  assert.equal(countdown['font-size'], 'var(--font-size-caption)')
+  assert.equal(countdown['white-space'], 'nowrap')
 
-  // 操作钮 = 标签（caption，每字 1em）+ 左右内边距，底板在标签两侧都留出空隙
-  const captionRpx = parseFloat(appTokens['--font-size-caption'])
-  const actionPadRpx = tokenRpx(horizontalPaddingTokens(action)[0] || '0', appTokens)
-  assert.ok(actionPadRpx > 0, 'the rose plate leaves room on both sides of its label')
-  const actionRpx = Math.max(...labels.map(label => Array.from(label).length * captionRpx + 2 * actionPadRpx))
+  const predictable = [
+    { startDate: '2026-05-18', endDate: '2026-05-22' },
+    { startDate: '2026-06-15', endDate: '2026-06-19' },
+    { startDate: '2026-07-13', endDate: '2026-07-17' }
+  ]
+  const forms = [
+    cycle.buildHomeStatusLine([{ startDate: '2026-01-01', status: 'ongoing' }], { today: '2026-04-30' }),
+    cycle.buildHomeStatusLine([], { today: '2026-08-01' }),
+    cycle.buildHomeStatusLine([
+      { startDate: '2026-06-01', endDate: '2026-06-05' },
+      { startDate: '2026-06-08', endDate: '2026-06-10' }
+    ], { today: '2026-08-01' }),
+    cycle.buildHomeStatusLine([], {
+      today: '2026-12-01',
+      prediction: { canPredict: true, nextStart: '2027-12-30', rangeStart: '2027-12-28', rangeEnd: '2028-01-01' }
+    }),
+    cycle.buildHomeStatusLine(predictable, { today: '2026-08-10' }),
+    cycle.buildHomeStatusLine(predictable, {
+      today: '2026-08-18',
+      prediction: { canPredict: true, nextStart: '2026-08-03', rangeStart: '2026-08-02', rangeEnd: '2026-08-11' }
+    }),
+    cycle.buildHomeStatusLine([
+      { startDate: '2025-11-01', endDate: '2025-11-05' },
+      { startDate: '2025-12-01', endDate: '2025-12-05' },
+      { startDate: '2025-12-29', endDate: '2026-01-02' }
+    ], {
+      today: '2027-01-28',
+      prediction: { canPredict: true, lastStart: '2025-12-29', nextStart: '2027-01-17', rangeStart: '2027-01-16', rangeEnd: '2027-01-20' }
+    }),
+    buildHomeCalendarState({ year: 2026, month: 7, today: '2026-08-01', periodsSynced: false }).homeStatus
+  ]
 
-  // 320px 下说明列 = 视口 − 页边距 − 卡片内边距与描边 − 色条 − 两处间距 − 操作钮
-  const pxToRpx = px => px * 750 / 320
-  const columnRpx = 750 - 2 * parseFloat(horizontalPaddingTokens(findDecls(rules, '.content'))[0]) -
-    2 * parseFloat(horizontalPaddingTokens(card)[0]) - 2 * pxToRpx(borderPx(card)) -
-    rpxNumber(findDecls(rules, '.reminder-rail'), 'width') - 2 * rpxNumber(card, 'gap') - actionRpx
-  // User-visible copy fixtures: prediction/reminder behavior is covered at the
-  // projection and platform seams; this guard measures their geometry only.
-  const titles = ['这几天可能开始', '经期临近', '可能开始的日子已过', '经期还未结束']
-  for (const title of titles) {
-    const titleRpx = Array.from(title).length * captionRpx
-    assert.ok(titleRpx <= columnRpx, `「${title}」 needs ${titleRpx}rpx, more than the ${columnRpx.toFixed(1)}rpx copy column at 320px`)
+  const mainFont = parseFloat(appTokens['--font-size-body-lg'])
+  const countdownFont = parseFloat(appTokens['--font-size-caption'])
+  const widthRpx = (copy, fontRpx) => [...copy].reduce((sum, ch) => sum + (/\d/.test(ch) ? 0.6 : ch === ' ' ? 0.5 : 1), 0) * fontRpx
+  const availableRpx = 750 - 2 * parseFloat(horizontalPaddingTokens(sticky)[0]) - 2 * parseFloat(horizontalPaddingTokens(status)[0] || '0')
+  const gapRpx = rpxNumber(status, 'gap')
+  const arrowRpx = rpxNumber(arrow, 'width')
+  for (const form of forms) {
+    const requiredRpx = widthRpx(form.text, mainFont) +
+      (form.countdownText ? widthRpx(form.countdownText, countdownFont) + gapRpx : 0) + gapRpx + arrowRpx
+    assert.ok(requiredRpx <= availableRpx, `${form.status}「${form.text} ${form.countdownText}」 needs ${requiredRpx.toFixed(1)}rpx, more than ${availableRpx.toFixed(1)}rpx`)
   }
 })
 

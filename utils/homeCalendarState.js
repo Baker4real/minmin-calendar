@@ -57,7 +57,7 @@ const CALENDAR_LEGEND_ITEMS = [
 const UNSYNCED_PERIODS_TEXT = '经期未同步，暂不预测'
 
 // periodsSynced / memoriesSynced：该集合在这个房间里是否成功同步过一次。投影在这里统一解释未同步：
-// 本地标记、记录详情与小结保留；经期不报第几天、不预测、不出完成提醒；任一集合未同步都保留小结入口。
+// 本地标记、记录详情与小结保留；经期不报第几天、不预测；任一集合未同步都保留小结入口。
 // recordChange：这次投影带来的那条记录变化 { collection, mode, record, before }（before 是变化前的那个集合），
 // 投影据此给出记录成功反馈 recordFeedback（日期 → memory / period，issue #167）；没有变化就是空表
 function buildHomeCalendarState({
@@ -95,10 +95,10 @@ function buildHomeCalendarState({
     prediction,
     today
   })
-  let homeStatus = cycle.buildHomeStatusLine(periods, { today, prediction })
-  let predictionExplanation = calendarInsights.buildPredictionExplanation(prediction)
+  let homeStatus = withHomeStatusAria(cycle.buildHomeStatusLine(periods, { today, prediction }))
+  let predictionExplanation = calendarInsights.buildPredictionExplanation(prediction, periods)
   if (!periodsSynced) {
-    homeStatus = { status: 'unsynced', text: UNSYNCED_PERIODS_TEXT, tone: 'neutral' }
+    homeStatus = withHomeStatusAria({ status: 'unsynced', text: UNSYNCED_PERIODS_TEXT, countdownText: '', tone: 'neutral' })
     const lines = ['经期同步后再按记录估算']
     predictionExplanation = {
       available: false,
@@ -127,20 +127,22 @@ function buildHomeCalendarState({
     periodQuickAriaLabel: quickEntry.ariaLabel,
     periodQuickAction: quickEntry.action,
     memoryQuickAction: { url: recordEditRoute.buildMemoryEditUrl({ date: today }) },
-    ongoingCompletionReminder: periodsSynced ? cycle.buildOngoingCompletionReminder(periods, { today }) : null,
     legendItems: CALENDAR_LEGEND_ITEMS,
     periodBandSample: PERIOD_BAND_SAMPLE,
     predictionExplanation,
     homeStatus,
     monthSummaryLine: monthlyRecap.summaryLine,
-    cycleReminders: cycle.buildCycleReminders(prediction, periods, { today }).map(reminder => ({
-      ...reminder,
-      periodAction: buildPeriodEntry(periods, reminder.date, today)
-    })),
     monthlyRecap,
     days,
     recordFeedback: buildRecordFeedback(days, recordChange, { periods, memories, today }),
     dayDetailsByDate: buildDayDetailsByDate(days, periods, memories, today, roomPaired)
+  }
+}
+
+function withHomeStatusAria(homeStatus) {
+  return {
+    ...homeStatus,
+    ariaLabel: [homeStatus.text, homeStatus.countdownText, '点按查看预测说明'].filter(Boolean).join('，')
   }
 }
 

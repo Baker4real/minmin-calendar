@@ -421,7 +421,7 @@ test('a stale first period snapshot never replaces the locally saved period, and
   assert.equal(app.rendered(home).syncStatusText, '已同步')
 })
 
-test('F2: a locally saved ongoing period stays unsynced everywhere until a complete list restores counts and reminders', async t => {
+test('F2: a locally saved ongoing period stays unsynced until a complete list restores its status and counts', async t => {
   const app = homeApp(t)
   const p = listRoute(app, 'periods').reject(new Error('network down'))
   const home = app.launch('/pages/index/index')
@@ -439,8 +439,8 @@ test('F2: a locally saved ongoing period stays unsynced everywhere until a compl
   assert.equal(app.rendered(home).homeStatus.text, '经期未同步，暂不预测')
   assert.equal(app.rendered(home).periodQuickLabel, '记结束')
   assert.equal(app.rendered(home).periodQuickAriaLabel, '记结束')
-  assert.equal(app.rendered(home).ongoingCompletionReminder, null)
-  assert.deepEqual(app.rendered(home).cycleReminders, [])
+  assert.equal(Object.hasOwn(app.rendered(home), 'ongoingCompletionReminder'), false)
+  assert.equal(Object.hasOwn(app.rendered(home), 'cycleReminders'), false)
   assert.equal(app.rendered(home).monthSummaryLine, '本月 经期未同步 · 欢乐时光 0 条')
   const today = app.rendered(home).days.find(day => day.date === '2026-06-26')
   assert.equal(today.isPeriod, true)
@@ -454,22 +454,19 @@ test('F2: a locally saved ongoing period stays unsynced everywhere until a compl
   assert.equal(app.storage.ongoingPeriodReminderShown, undefined)
   app.show()
   await app.settle()
-  assert.equal(app.rendered(home).ongoingCompletionReminder, null)
+  assert.equal(Object.hasOwn(app.rendered(home), 'ongoingCompletionReminder'), false)
 
   p.reply(success([saved]))
   await app.dispatch(home, 'retryRefresh')
   await app.settle()
   const synced = app.rendered(home)
-  assert.equal(synced.homeStatus.text, '经期第 7 天')
+  assert.equal(synced.homeStatus.text, '经期第 7 天 · 比预期多 2 天')
   assert.equal(synced.periodQuickLabel, '经期第 7 天 · 记结束')
   assert.equal(synced.days.find(day => day.date === '2026-06-26').ariaLabel, '6月26日 周五 五月十二 今天 经期第7天 经期进行中')
   assert.equal(synced.monthSummaryLine, '本月 经期 7 天 · 欢乐时光 0 条')
-  assert.equal(synced.ongoingCompletionReminder.text, '已进行 7 天，超过预期的 5 天，可以补填结束日期')
+  assert.equal(Object.hasOwn(synced, 'ongoingCompletionReminder'), false)
+  assert.equal(Object.hasOwn(synced, 'cycleReminders'), false)
   assert.equal(app.storage.ongoingPeriodReminderShown, undefined)
-  await app.dispatch(home, 'onOngoingReminderTap')
-  await app.settle()
-  assert.equal(app.storage.ongoingPeriodReminderShown, 'local-live')
-  assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?id=local-live&startDate=2026-06-20&status=ongoing')
 })
 
 test('a partial failure preserves a saved period until retry confirms it; a total failure keeps a retry after the pill hides', async t => {

@@ -54,6 +54,15 @@ function setup(t, { segment = 'period', ...options } = {}) {
   return app
 }
 
+test('period empty state uses the current action label and cycle prediction threshold', async (t) => {
+  const app = setup(t)
+  const page = app.launch(route)
+  await app.flush()
+  assert.equal(page.data.periodQuickLabel, '＋ 记经期')
+  assert.equal(page.data.predictionThresholdText, '记两次经期后就能估下次')
+  assert.ok(draws(page.data, node => node.classes.includes('empty-state') && !node.classes.includes('load-failed')))
+})
+
 const segments = [
   { segment: 'period', collection: 'periods', loading: 'loading', failed: 'loadFailed', loaded: 'hasLoaded', retry: 'loadData', listClass: 'period-year-list', record: { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05' } },
   { segment: 'memory', collection: 'memories', loading: 'memoryLoading', failed: 'memoryLoadFailed', loaded: 'memoryHasLoaded', retry: 'loadMemoryData', listClass: 'memory-month-list', record: { _id: 'm1', date: '2026-06-01', note: '测试记录' } }

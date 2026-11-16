@@ -232,23 +232,3 @@ test('picker and settings menu arrows ride the secondary text token, not the dec
     )
   }
 })
-
-test('the late reminder rail uses registered neutral white and stays readable', () => {
-  const rail = declarationsFor('pages/index/index.wxss', '.reminder-card.overdue .reminder-rail')
-  assert.equal(rail.background, '#FFFFFF')
-  assert.equal(rail['box-shadow'], 'none')
-  assert.equal(/F97373|249\s*,\s*115\s*,\s*115/.test(JSON.stringify(rail)), false)
-
-  // 提醒行是通栏行：背景 → 海军回退 → ::before 上的淡白平涂层（issue #163）
-  const index = readFile('pages/index/index.wxss')
-  for (const ground of GROUNDS) {
-    let surface = applySurface(ground, surfaceFill(index, '.reminder-card'))
-    surface = applySurface(surface, surfaceFill(index, '.reminder-card::before'))
-    const ratio = contrastRatio('#FFFFFF', toHex(surface))
-    assert.ok(ratio >= MIN_SECONDARY_RATIO, `neutral rail on the reminder card is ${ratio.toFixed(2)}:1`)
-  }
-
-  const design = readFile('DESIGN.md')
-  assert.equal(design.includes('| 逾期提醒 |'), false)
-  assert.match(design, /overdueRailColor:\s*"#FFFFFF"/)
-})

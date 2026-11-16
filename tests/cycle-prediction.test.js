@@ -86,51 +86,6 @@ test('predictNextPeriod ignores records with impossible calendar dates', () => {
   })
 })
 
-test('buildCycleReminders returns upcoming and overdue reminder states', () => {
-  assert.equal(typeof cycle.predictNextPeriod, 'function')
-  assert.equal(typeof cycle.buildCycleReminders, 'function')
-
-  const periods = [
-    period('2026-05-18', '2026-05-22'),
-    period('2026-06-15', '2026-06-19'),
-    period('2026-07-13', '2026-07-17')
-  ]
-  const prediction = cycle.predictNextPeriod(periods)
-
-  assert.deepEqual(cycle.buildCycleReminders(prediction, periods, { today: '2026-08-06' }), [
-    {
-      type: 'upcoming',
-      title: '经期临近',
-      text: '约 3 天后是可能开始的日子',
-      action: 'quickPeriod',
-      date: '2026-08-06'
-    }
-  ])
-
-  assert.deepEqual(cycle.buildCycleReminders(prediction, periods, { today: '2026-08-09' }), [
-    {
-      type: 'due',
-      title: '这几天可能开始',
-      text: '如果已经开始，可以记经期',
-      action: 'quickPeriod',
-      date: '2026-08-09'
-    }
-  ])
-
-  // 推迟提醒只陈述事实（窗口已过、可以补记），不下「很正常」这类判断；点按仍走记经期
-  const late = cycle.buildCycleReminders(prediction, periods, { today: '2026-08-13' })
-  assert.deepEqual(late, [
-    {
-      type: 'overdue',
-      title: '可能开始的日子已过',
-      text: '如果已经开始，可以补记',
-      action: 'quickPeriod',
-      date: '2026-08-13'
-    }
-  ])
-  assert.equal(`${late[0].title}；${late[0].text}`, '可能开始的日子已过；如果已经开始，可以补记')
-})
-
 test('period duration is the inclusive day count when stored duration conflicts with the dates', () => {
   assert.equal(typeof cycle.getPeriodDuration, 'function')
 
@@ -506,77 +461,6 @@ test('prediction never writes a predicted end date back onto period records', ()
   assert.notEqual(periods[2].endDate, prediction.nextEnd)
 })
 
-test('buildOngoingCompletionReminder uses the recent completed-duration median as the threshold', () => {
-  const periods = [
-    period('2026-05-01', '2026-05-03'), // 3 天
-    period('2026-06-01', '2026-06-05'), // 5 天
-    period('2026-07-01', '2026-07-08'), // 8 天
-    { _id: 'p-ongoing', startDate: '2026-08-01', endDate: '', status: 'ongoing', duration: 0 }
-  ]
-
-  // 中位数 5：第 5 天（08-05）仍未「超过」，第 6 天（08-06）超过 → 提示
-  assert.equal(cycle.buildOngoingCompletionReminder(periods, { today: '2026-08-05' }), null)
-  const reminded = cycle.buildOngoingCompletionReminder(periods, { today: '2026-08-06' })
-  assert.equal(reminded.expectedDays, 5)
-  assert.equal(reminded.expectedSource, 'history')
-  assert.equal(reminded.runningDays, 6)
-})
-
-test('buildOngoingCompletionReminder falls back to the five-day default without completed history', () => {
-  // 无已完成历史：只有结束日期不详与进行中，存库 duration 9 不被当作完成时长
-  const periods = [
-    { startDate: '2026-08-01', endDate: '', status: 'unknown-end', duration: 9 },
-    { _id: 'p-ongoing', startDate: '2026-08-05', endDate: '', status: 'ongoing', duration: 9 }
-  ]
-
-  // 默认 5 天：第 5 天（08-09）未超过，第 6 天（08-10）超过 → 提示
-  assert.equal(cycle.buildOngoingCompletionReminder(periods, { today: '2026-08-09' }), null)
-  const reminded = cycle.buildOngoingCompletionReminder(periods, { today: '2026-08-10' })
-  assert.equal(reminded.expectedDays, 5)
-  assert.equal(reminded.expectedSource, 'default')
-  assert.equal(reminded.recordKey, 'p-ongoing')
-
-  // 只有这条进行中记录（自身存库 duration 99）：无已完成历史仍落默认档，自身不参与计算
-  const only = [{ _id: 'p1', startDate: '2026-09-20', endDate: '', status: 'ongoing', duration: 99 }]
-  const remindedAlone = cycle.buildOngoingCompletionReminder(only, { today: '2026-09-26' })
-  assert.equal(remindedAlone.expectedDays, 5)
-  assert.equal(remindedAlone.expectedSource, 'default')
-  assert.equal(remindedAlone.runningDays, 7)
-})
-
-test('no completion reminder without an ongoing record or before exceeding the expected duration', () => {
-  const completed = [period('2026-06-01', '2026-06-05')]
-  assert.equal(cycle.buildOngoingCompletionReminder(completed, { today: '2026-06-10' }), null)
-  assert.equal(cycle.buildOngoingCompletionReminder([], { today: '2026-06-10' }), null)
-
-  // 进行中第 5 天恰好等于默认预期 5 天：未「超过」不提示
-  const ongoing = [{ _id: 'p1', startDate: '2026-06-01', endDate: '', status: 'ongoing' }]
-  assert.equal(cycle.buildOngoingCompletionReminder(ongoing, { today: '2026-06-05' }), null)
-
-  // 没有 _id 的进行中记录用开始日作为一次性标记的键
-  const idLess = [{ startDate: '2026-06-01', endDate: '', status: 'ongoing' }]
-  const keyed = cycle.buildOngoingCompletionReminder(idLess, { today: '2026-06-08' })
-  assert.equal(keyed.recordKey, '2026-06-01')
-})
-
-test('the completion reminder never writes an end date or closes the ongoing record', () => {
-  const periods = [
-    period('2026-06-01', '2026-06-05'),
-    { _id: 'p-ongoing', startDate: '2026-06-20', endDate: '', status: 'ongoing', duration: 0 }
-  ]
-  const snapshot = JSON.parse(JSON.stringify(periods))
-
-  const reminder = cycle.buildOngoingCompletionReminder(periods, { today: '2026-06-30' })
-
-  assert.ok(reminder, 'expected the overdue reminder')
-  assert.deepEqual(periods, snapshot)
-  assert.equal(periods[1].endDate, '')
-  assert.equal(periods[1].status, 'ongoing')
-  assert.equal(periods[1].duration, 0)
-  // 提示携带的是原记录引用本身，供页面打开同一条记录，不含任何写入
-  assert.equal(reminder.record, periods[1])
-})
-
 test('describeKnownPeriodLength counts inclusive days and flags spans past the completion-reminder threshold', () => {
   assert.equal(typeof cycle.describeKnownPeriodLength, 'function')
 
@@ -713,107 +597,95 @@ test('buildSymptomOptions groups every symptom into body or mood-and-sleep', () 
   assert.equal(flattened.find(option => option.value === 'cramps').selected, false)
 })
 
-test('home status line says which day of the current period it is', () => {
+test('home status line counts ongoing and finished periods that include today', () => {
   assert.equal(typeof cycle.buildHomeStatusLine, 'function')
-
-  const periods = [
+  assert.deepEqual(cycle.buildHomeStatusLine([
     period('2026-05-18', '2026-05-22'),
     period('2026-06-15', '2026-06-19'),
     { startDate: '2026-07-13', endDate: '', status: 'ongoing' }
-  ]
-
-  assert.deepEqual(cycle.buildHomeStatusLine(periods, { today: '2026-07-15' }), {
-    status: 'in-period',
-    text: '经期第 3 天',
-    tone: 'default'
+  ], { today: '2026-07-15' }), {
+    status: 'in-period', text: '经期第 3 天', countdownText: '', tone: 'default'
   })
-})
-
-test('home status line counts a finished period that still includes today', () => {
-  const periods = [
+  assert.deepEqual(cycle.buildHomeStatusLine([
     period('2026-05-18', '2026-05-22'),
     period('2026-06-15', '2026-06-19'),
     period('2026-08-08', '2026-08-12')
-  ]
-
-  assert.deepEqual(cycle.buildHomeStatusLine(periods, { today: '2026-08-10' }), {
-    status: 'in-period',
-    text: '经期第 3 天',
-    tone: 'default'
+  ], { today: '2026-08-10' }), {
+    status: 'in-period', text: '经期第 3 天', countdownText: '', tone: 'default'
   })
 })
 
-test('home status line counts down to the predicted start before the window', () => {
-  const periods = [
+test('home status line covers period duration, countdown, late boundaries and unified thresholds', () => {
+  const predictable = [
     period('2026-05-18', '2026-05-22'),
     period('2026-06-15', '2026-06-19'),
     period('2026-07-13', '2026-07-17')
   ]
-
-  assert.deepEqual(cycle.buildHomeStatusLine(periods, { today: '2026-08-01' }), {
-    status: 'before-window',
-    text: '预计 8月10日 开始 · 还有 9 天',
-    tone: 'default'
+  const ongoing = [{ _id: 'live', startDate: '2026-07-13', endDate: '', status: 'ongoing' }]
+  assert.deepEqual(cycle.buildHomeStatusLine(ongoing, { today: '2026-07-17' }), {
+    status: 'in-period', text: '经期第 5 天', countdownText: '', tone: 'default'
   })
-})
+  assert.deepEqual(cycle.buildHomeStatusLine(ongoing, { today: '2026-07-18' }), {
+    status: 'in-period', text: '经期第 6 天 · 比预期多 1 天', countdownText: '', tone: 'default'
+  })
 
-test('home status line uses the shared date format when the predicted start is next year', () => {
+  const medianHistory = [
+    period('2026-05-01', '2026-05-03'),
+    period('2026-06-01', '2026-06-05'),
+    period('2026-07-01', '2026-07-08'),
+    { _id: 'median-live', startDate: '2026-08-01', endDate: '', status: 'ongoing' }
+  ]
+  assert.equal(cycle.buildHomeStatusLine(medianHistory, { today: '2026-08-05' }).text, '经期第 5 天')
+  assert.equal(cycle.buildHomeStatusLine(medianHistory, { today: '2026-08-06' }).text, '经期第 6 天 · 比预期多 1 天')
+
+  assert.deepEqual(cycle.buildHomeStatusLine(predictable, { today: '2026-08-01' }), {
+    status: 'before-window', text: '预计 8月10日 开始', countdownText: '还有 9 天', tone: 'default'
+  })
   assert.deepEqual(cycle.buildHomeStatusLine([], {
     today: '2026-12-01',
-    prediction: {
-      canPredict: true,
-      nextStart: '2027-01-05',
-      rangeStart: '2027-01-03',
-      rangeEnd: '2027-01-07'
-    }
+    prediction: { canPredict: true, nextStart: '2027-01-05', rangeStart: '2027-01-03', rangeEnd: '2027-01-07' }
   }), {
-    status: 'before-window',
-    text: '预计 2027年1月5日 开始 · 还有 35 天',
-    tone: 'default'
+    status: 'before-window', text: '预计 2027年1月5日 开始', countdownText: '还有 35 天', tone: 'default'
   })
-})
-
-test('home status line says the period may start once today is inside the window', () => {
-  const periods = [
-    period('2026-05-18', '2026-05-22'),
-    period('2026-06-15', '2026-06-19'),
-    period('2026-07-13', '2026-07-17')
-  ]
-
-  assert.deepEqual(cycle.buildHomeStatusLine(periods, { today: '2026-08-10' }), {
-    status: 'in-window',
-    text: '这几天可能开始',
-    tone: 'default'
+  assert.deepEqual(cycle.buildHomeStatusLine(predictable, { today: '2026-08-10' }), {
+    status: 'in-window', text: '这几天可能开始', countdownText: '', tone: 'default'
   })
-})
 
-test('home status line says how many days late in a neutral tone after the window', () => {
-  const periods = [
-    period('2026-05-18', '2026-05-22'),
-    period('2026-06-15', '2026-06-19'),
-    period('2026-07-13', '2026-07-17')
-  ]
-
-  assert.deepEqual(cycle.buildHomeStatusLine(periods, { today: '2026-08-12' }), {
-    status: 'late',
-    text: '比预计晚 2 天',
-    tone: 'neutral'
+  // 预计 8月10日，窗口到 8月11日：窗口后第 1 / 7 天仍数晚几天，第 8 天改为上次记录。
+  assert.deepEqual(cycle.buildHomeStatusLine(predictable, { today: '2026-08-12' }), {
+    status: 'late', text: '比预计晚 2 天', countdownText: '', tone: 'neutral'
   })
-})
+  assert.deepEqual(cycle.buildHomeStatusLine(predictable, { today: '2026-08-18' }), {
+    status: 'late', text: '比预计晚 8 天', countdownText: '', tone: 'neutral'
+  })
+  assert.deepEqual(cycle.buildHomeStatusLine(predictable, { today: '2026-08-19' }), {
+    status: 'late-too-long', text: '上次记录 7月13日 开始 · 可以补记', countdownText: '', tone: 'neutral'
+  })
+  assert.deepEqual(cycle.buildHomeStatusLine([
+    period('2025-11-01', '2025-11-05'),
+    period('2025-12-01', '2025-12-05'),
+    period('2025-12-29', '2026-01-02')
+  ], {
+    today: '2027-01-28',
+    prediction: { canPredict: true, lastStart: '2025-12-29', nextStart: '2027-01-17', rangeStart: '2027-01-16', rangeEnd: '2027-01-20' }
+  }), {
+    status: 'late-too-long', text: '上次记录 2025年12月29日 开始 · 可以补记', countdownText: '', tone: 'neutral'
+  })
 
-test('home status line asks for more records when a prediction is not possible', () => {
-  assert.deepEqual(
-    cycle.buildHomeStatusLine([period('2026-06-01', '2026-06-05')], { today: '2026-08-01' }),
-    {
-      status: 'insufficient',
-      text: '多记几次后就能预测',
-      tone: 'default'
-    }
-  )
+  assert.equal(cycle.buildPredictionThresholdText([]), '记两次经期后就能估下次')
+  assert.equal(cycle.buildPredictionThresholdText([period('2026-06-01', '2026-06-05')]), '记两次经期后就能估下次')
+  assert.equal(cycle.buildPredictionThresholdText([
+    period('2026-06-01', '2026-06-05'),
+    period('2026-06-08', '2026-06-10')
+  ]), '最近几次间隔差得多，再记几次就能估')
   assert.deepEqual(cycle.buildHomeStatusLine([], { today: '2026-08-01' }), {
-    status: 'insufficient',
-    text: '多记几次后就能预测',
-    tone: 'default'
+    status: 'insufficient', text: '记两次经期后就能估下次', countdownText: '', tone: 'default'
+  })
+  assert.deepEqual(cycle.buildHomeStatusLine([
+    period('2026-06-01', '2026-06-05'),
+    period('2026-06-08', '2026-06-10')
+  ], { today: '2026-08-01' }), {
+    status: 'insufficient', text: '最近几次间隔差得多，再记几次就能估', countdownText: '', tone: 'default'
   })
 })
 

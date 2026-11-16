@@ -407,10 +407,9 @@ page {
 /* ===== 平涂层（issue #163、#166）=====
    压在极光上的行和按钮，底是海军回退 var(--glass-fallback)，淡白或淡红只是 ::before 上的平涂层
    （宿主自己带 position: relative 与 z-index: 0）：铺满内边距盒、跟宿主同一个圆角、不拦点按，按压加深这一层，
-   background-color 和按压同一拍。平涂层盖不到描边带，宿主按下时描边同色提亮。首页刷新重试行与提醒行、
+   background-color 和按压同一拍。平涂层盖不到描边带，宿主按下时描边同色提亮。首页刷新重试行、
    记录 tab 的刷新失败重试行、绑定页校验失败重试共用这一层，各页只写平涂色和按下的颜色 */
 .refresh-retry::before,
-.reminder-card::before,
 .list-retry::before,
 .error-retry::before {
   content: '';
@@ -581,7 +580,6 @@ page {
   .quick-btn::before,
   .copy-recap::before,
   .refresh-retry::before,
-  .reminder-card::before,
   .list-retry::before,
   .error-retry::before,
   .sheet-body,

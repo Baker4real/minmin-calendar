@@ -92,7 +92,7 @@ test('period list failure retry is a recognizable operation, distinct from the q
   // 真空态仍是安静说明：不带重试按钮，也不可点；失败期间不显示断言式空态句（!loadFailed）
   const emptyBlock = /wx:elif="\{\{periods\.length === 0 && !loading && !loadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
   assert.ok(emptyBlock, 'expected the genuine empty state block')
-  assert.match(emptyBlock[1], /经期开始那天点「＋ 记经期」，记两次以上就能预测下次/)
+  assert.match(emptyBlock[1], /经期开始那天点「\{\{periodQuickLabel\}\}」；\{\{predictionThresholdText\}\}/)
   assert.doesNotMatch(emptyBlock[1], /点上面按钮新增/)
   assert.doesNotMatch(emptyBlock[1], /retry-btn|bindtap/)
 
