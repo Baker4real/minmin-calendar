@@ -392,7 +392,9 @@ const SHEET_MOTION_TWINS = {
   '.help-slide.sheet-open': '.sheet-slide.sheet-open',
   '.help-mask': '.day-sheet-mask',
   '.help-mask.sheet-open': '.day-sheet-mask.sheet-open',
-  '.help-slide.sheet-open .sheet-body': '.sheet-slide.sheet-open .sheet-body'
+  '.help-slide.sheet-open .sheet-body': '.sheet-slide.sheet-open .sheet-body',
+  '.confirmation-mask': '.day-sheet-mask',
+  '.confirmation-mask.sheet-open': '.day-sheet-mask.sheet-open'
 }
 // 全仓唯一允许写进 transition 第四段的延迟：弹层内容块进场晚标题一拍（issue #166）
 const STAGGER_DELAY = 'var(--delay-stagger)'
@@ -619,7 +621,10 @@ const BLUR_RADIUS_CAP_PX = 20
 const MASK_BLUR_CAP_PX = 8
 const BLURRED_SURFACES = {
   'pages/index/index.wxss': ['.day-sheet-mask'],
-  'pages/settings/settings.wxss': ['.help-mask']
+  'pages/settings/settings.wxss': ['.help-mask'],
+  'pages/shared/confirmation-sheet.wxss': ['.confirmation-mask'],
+  'pages/period/edit/edit.wxss': ['.confirmation-mask'],
+  'pages/memory/edit/edit.wxss': ['.confirmation-mask']
 }
 
 test('blurred surfaces stay among the registered ones and within the radius caps', () => {
@@ -927,7 +932,8 @@ test('a sheet unmounts when its --duration-exit transition ends', async (t) => {
 const PAGE_HIDDEN_EXEMPT = { 'pages/memory/memory': 'compat route closed by its own switchTab' }
 
 function rootClassAttribute(page) {
-  const root = /^<view\b[^>]*\bclass="([^"]*)"/.exec(readRepo(`${page}.wxml`))
+  // 共享 import 展开后只留下一个换行；页面根仍是第一个元素。
+  const root = /^\s*<view\b[^>]*\bclass="([^"]*)"/.exec(readRepo(`${page}.wxml`))
   assert.ok(root, `${page}.wxml starts with the page root`)
   return root[1]
 }

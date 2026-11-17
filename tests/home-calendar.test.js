@@ -69,6 +69,24 @@ test('cloud records render the calendar, summary and the selected day detail', a
   assert.equal(app.wx.modals.length, 0)
 })
 
+test('navbar legend button and one-time partner welcome both open the legend directly', async t => {
+  const app = homeApp(t, { storage: { roomCode: 'ROOM01', partnerWelcome: 'pending' } })
+  const home = await launch(app)
+  assert.equal(tagWith('nav-tool').attrs.bindtap, 'openLegendSheet')
+  await tap(app, home, tagWith('nav-tool').attrs.bindtap)
+  assert.equal(sheet(app, home, 'infoSheet').name, '日历图例')
+  assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-open')
+  await closeSheet(app, home, 'infoSheet')
+
+  assert.equal(visible('partner-welcome', app.rendered(home)), true)
+  assert.equal(tagWith('partner-welcome').attrs.bindtap, 'openLegendSheet')
+  await tap(app, home, tagWith('partner-welcome').attrs.bindtap)
+  assert.equal(sheet(app, home, 'infoSheet').name, '日历图例')
+  assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-open')
+  assert.equal(home.data.toolsMenuVisible, undefined)
+  assert.equal(home.data.infoSheetHandoff, undefined)
+})
+
 // #195: a record change reaches Home only from a confirmed save or delete in a real editor opened from
 // Home (confirmInEditor), which hides Home until the editor returns. The editor hands over the cloud's canonical record.
 // A confirmed save returns to Home on its timer, and Home refreshes as it shows.
@@ -121,12 +139,11 @@ function renderedSheet(data, id) {
     mounted,
     pose: mounted ? renderedClasses.find(value => ['sheet-open', 'sheet-closed', 'sheet-leaving'].includes(value)) : 'unmounted',
     name: renderWxmlAttribute(panel.attrs['aria-label'], data),
-    maskName: renderWxmlAttribute(mask.attrs['aria-label'], data),
-    handoff: renderWxmlClasses(mask.attrs.class, data).includes('sheet-handoff')
+    maskName: renderWxmlAttribute(mask.attrs['aria-label'], data)
   }
 }
-const openers = { monthPicker: 'openMonthPicker', dayActions: 'onDayTap', toolsMenu: 'openMonthMenu', infoSheet: 'openPredictionSheet' }
-const closers = { monthPicker: 'closeMonthPicker', dayActions: 'closeDayActions', toolsMenu: 'closeMonthMenu', infoSheet: 'closeInfoSheet' }
+const openers = { monthPicker: 'openMonthPicker', dayActions: 'onDayTap', infoSheet: 'openPredictionSheet' }
+const closers = { monthPicker: 'closeMonthPicker', dayActions: 'closeDayActions', infoSheet: 'closeInfoSheet' }
 async function openSheet(app, home, id) { await tap(app, home, openers[id], id === 'dayActions' ? { date: '2026-06-10' } : {}) }
 async function closeSheet(app, home, id) { await tap(app, home, closers[id]); await app.advance(200); app.commit(home) }
 async function selectMonth(app, home, year, month) {
@@ -330,7 +347,7 @@ test('empty rooms show the first-record guide and records supply status, recap a
 })
 
 for (const ongoing of [false, true]) {
-  test(`quick and dated period entries ${ongoing ? 'complete the ongoing record only from the quick entry or earlier blank notice' : 'edit coverage or create for the selected day'}`, async t => {
+  test(`quick and dated period entries ${ongoing ? 'complete from the quick entry and backfill earlier blank days' : 'edit coverage or create for the selected day'}`, async t => {
     const app = homeApp(t, { periods: [period('p1', '2026-06-01', '2026-06-05'), ...(ongoing ? [period('p2', '2026-06-20', '', 'ongoing')] : [])] })
     const home = await launch(app)
     assert.equal(attr('quick-btn', 'aria-label', app.rendered(home)), ongoing ? '经期第 7 天 · 记结束' : '记经期')
@@ -351,33 +368,22 @@ for (const ongoing of [false, true]) {
     await day(app, home, '2026-06-10')
     detail = app.rendered(home).selectedDayDetail
     assert.equal(detail.actions.some(item => item.key === 'memory'), true)
-    if (ongoing) {
-      assert.equal(detail.actions.some(item => item.key === 'period'), false)
-      assert.equal(visible('ongoing-period-notice', app.rendered(home)), true)
-      assert.deepEqual(detail.ongoingNotice, {
-        title: '这次经期还在进行中',
-        text: '记了结束才能补记别的',
-        actionLabel: '记结束'
-      })
-      await tap(app, home, 'onDayActionTap', { action: 'completePeriod' })
-      assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
-      assert.equal(app.rendered(app.currentPage).status, 'known-end')
-      assert.equal(app.rendered(app.currentPage).endDate, '2026-06-26')
-    } else {
-      assert.equal(visible('ongoing-period-notice', app.rendered(home)), false)
-      const action = detail.actions.find(item => item.key === 'period')
-      assert.ok(action)
-      await tap(app, home, 'onDayActionTap', { action: action.key })
-      assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?startDate=2026-06-10')
-    }
+    assert.equal(Object.hasOwn(detail, 'ongoingNotice'), false)
+    const action = detail.actions.find(item => item.key === 'period')
+    assert.ok(action)
+    assert.equal(action.label, '补记经期')
+    await tap(app, home, 'onDayActionTap', { action: action.key })
+    assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?startDate=2026-06-10')
+    assert.equal(app.rendered(app.currentPage).status, 'known-end')
+    assert.equal(app.rendered(app.currentPage).endDate, '')
     await back(app)
     await app.advance(200)
-    assert.deepEqual(app.wx.toasts.map(item => item.title), ongoing ? Array(2).fill('已有进行中的经期，继续编辑它') : [])
+    assert.deepEqual(app.wx.toasts.map(item => item.title), [])
     assert.equal(app.cloud.calls.some(call => call.name === 'dataOp' && call.data.action !== 'list'), false)
   })
 }
 
-test('all home period entries choose the latest ongoing record without a completion reminder', async t => {
+test('home period entries complete the latest ongoing record and backfill earlier days without notices', async t => {
   const app = homeApp(t, { periods: [
     period('old-live', '2026-06-10', '', 'ongoing'),
     period('latest-live', '2026-06-20', '', 'ongoing'),
@@ -390,11 +396,11 @@ test('all home period entries choose the latest ongoing record without a complet
   assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
   await back(app)
   await day(app, home, '2026-06-03')
-  await tap(app, home, 'onDayActionTap', { action: 'completePeriod' })
-  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
-  assert.deepEqual(app.wx.toasts.map(item => item.title), [
-    '已有进行中的经期，继续编辑它', '已有进行中的经期，继续编辑它'
-  ])
+  await tap(app, home, 'onDayActionTap', { action: 'period' })
+  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?startDate=2026-06-03')
+  assert.equal(app.rendered(app.currentPage).status, 'known-end')
+  assert.equal(app.rendered(app.currentPage).endDate, '')
+  assert.deepEqual(app.wx.toasts.map(item => item.title), [])
   assert.equal(app.cloud.calls.some(call => call.name === 'dataOp' && call.data.action !== 'list'), false)
 })
 
@@ -690,10 +696,10 @@ for (const reducedMotion of [false, true]) {
 test('system back closes sheets in priority order and remains intercepted through leave', async t => {
   const app = homeApp(t)
   const home = await launch(app)
-  for (const id of ['dayActions', 'toolsMenu', 'monthPicker', 'infoSheet']) await openSheet(app, home, id)
+  for (const id of ['dayActions', 'monthPicker', 'infoSheet']) await openSheet(app, home, id)
   const guard = tags.find(tag => tag.attrs.bindbeforeleave === 'onSheetSystemBack')
   const guardMounted = () => Boolean(expression(guard.attrs['wx:if'], app.rendered(home)))
-  const order = ['infoSheet', 'monthPicker', 'toolsMenu', 'dayActions']
+  const order = ['infoSheet', 'monthPicker', 'dayActions']
   for (let index = 0; index < order.length; index += 1) {
     assert.equal(guardMounted(), true)
     app.dispatch(home, 'onSheetSystemBack')
@@ -710,19 +716,14 @@ test('system back closes sheets in priority order and remains intercepted throug
   assert.deepEqual(app.navigation.map(call => call.method), ['reLaunch'])
 })
 
-test('overlapping handoff and repeated system back keep lower sheets covered until their own leave', async t => {
+test('overlapping sheets and repeated system back keep lower sheets covered until their own leave', async t => {
   const app = homeApp(t, { autoCommit: false, periods: [period('p1', '2026-04-28', '2026-05-02'), period('p2', '2026-05-26', '2026-05-30')] })
   const home = await launch(app)
   const tabCalls = app.tabBar.calls.length
-  for (const id of ['dayActions', 'monthPicker', 'toolsMenu']) await openSheet(app, home, id)
-  app.dispatch(home, 'onMonthMenuTap', event({ action: 'prediction' }))
+  for (const id of ['dayActions', 'monthPicker', 'infoSheet']) await openSheet(app, home, id)
   app.commit(home)
-  assert.equal(sheet(app, home, 'toolsMenu').pose, 'unmounted')
-  assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-closed')
-  assert.equal(sheet(app, home, 'infoSheet').handoff, true)
-  for (const id of ['monthPicker', 'dayActions']) assert.equal(sheet(app, home, id).pose, 'sheet-open')
+  for (const id of ['infoSheet', 'monthPicker', 'dayActions']) assert.equal(sheet(app, home, id).pose, 'sheet-open')
   assert.equal(classes('page', app.rendered(home)).includes('page-obscured'), true)
-  await app.settle(); app.commit(home)
 
   app.dispatch(home, 'onSheetSystemBack')
   app.dispatch(home, 'onSheetSystemBack')
@@ -735,7 +736,7 @@ test('overlapping handoff and repeated system back keep lower sheets covered unt
   assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-leaving')
   assert.equal(sheet(app, home, 'dayActions').pose, 'sheet-open')
   await app.advance(200); app.commit(home)
-  for (const id of ['infoSheet', 'monthPicker', 'toolsMenu']) assert.equal(sheet(app, home, id).pose, 'unmounted')
+  for (const id of ['infoSheet', 'monthPicker']) assert.equal(sheet(app, home, id).pose, 'unmounted')
   assert.equal(classes('page', app.rendered(home)).includes('page-obscured'), true)
   assert.equal(app.tabBar.visible, false)
 
@@ -754,36 +755,28 @@ test('overlapping handoff and repeated system back keep lower sheets covered unt
   assert.deepEqual(app.navigation.map(call => call.method), ['reLaunch'])
 })
 
-test('tool menu hands off to named content without an uncovered frame and recap can reopen during leave', async t => {
+test('information sheets open directly as named content and recap can reopen during leave', async t => {
   const app = homeApp(t, { autoCommit: false })
   const home = await launch(app)
   const monthBefore = [app.rendered(home).year, app.rendered(home).month]
   await tap(app, home, 'openPredictionSheet')
-  assert.equal(sheet(app, home, 'infoSheet').handoff, false)
   assert.equal(sheet(app, home, 'infoSheet').name, '预测说明')
   await tap(app, home, 'closeInfoSheet')
   await tap(app, home, 'openMonthlyRecap')
   assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-open')
   assert.equal(sheet(app, home, 'infoSheet').name, '本月小结')
   await closeSheet(app, home, 'infoSheet')
-  for (const [action, name] of [['legend', '日历图例'], ['prediction', '预测说明'], ['recap', '本月小结']]) {
-    await openSheet(app, home, 'toolsMenu')
-    app.dispatch(home, 'onMonthMenuTap', event({ action }))
-    app.commit(home)
-    assert.equal(sheet(app, home, 'toolsMenu').mounted, false)
-    assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-closed')
-    assert.equal(sheet(app, home, 'infoSheet').handoff, true)
+  for (const [handler, name] of [['openLegendSheet', '日历图例'], ['openPredictionSheet', '预测说明'], ['openMonthlyRecap', '本月小结']]) {
+    await tap(app, home, handler)
+    assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-open')
     assert.equal(sheet(app, home, 'infoSheet').name, name)
     assert.equal(sheet(app, home, 'infoSheet').maskName, `关闭${name}`)
     assert.equal(classes('page', app.rendered(home)).includes('page-obscured'), true)
     assert.equal(app.tabBar.visible, false)
-    await app.settle(); app.commit(home)
-    assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-open')
-    if (action === 'legend') assert.ok(app.rendered(home).legendItems.some(item => item.title === '欢乐时光'))
-    if (action === 'prediction') assert.ok(app.rendered(home).predictionExplanation.summary)
+    if (handler === 'openLegendSheet') assert.ok(app.rendered(home).legendItems.some(item => item.title === '欢乐时光'))
+    if (handler === 'openPredictionSheet') assert.ok(app.rendered(home).predictionExplanation.summary)
     await tap(app, home, 'closeInfoSheet')
     assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-leaving')
-    assert.equal(sheet(app, home, 'infoSheet').handoff, false)
     assert.equal(sheet(app, home, 'infoSheet').name, name)
     await app.advance(200); app.commit(home)
     assert.equal(sheet(app, home, 'infoSheet').mounted, false)
@@ -1051,10 +1044,9 @@ test('closing real prediction content emphasizes only predicted days and does no
     assert.equal(calendarAnimation(app, home, 'emphasis'), `calendar-emphasis-predict-${token}`)
     await app.advance(200)
   }
-  for (const action of ['legend', 'recap']) {
+  for (const handler of ['openLegendSheet', 'openMonthlyRecap']) {
     await tap(app, home, 'nextMonth'); await tap(app, home, 'prevMonth')
-    await openSheet(app, home, 'toolsMenu')
-    await tap(app, home, 'onMonthMenuTap', { action })
+    await tap(app, home, handler)
     await closeSheet(app, home, 'infoSheet')
     assert.equal(calendarAnimation(app, home, 'emphasis'), '')
   }

@@ -245,6 +245,24 @@ test('settings clear-local-data uses warning-red text and warning-red border bef
   assert.equal(declarationOf('app.wxss', '.btn-danger', 'border'), `1px solid ${WARNING_RED_BORDER}`)
 })
 
+test('confirmation danger action keeps warning-red text above 4.5:1 on every dark panel surface', () => {
+  const color = declarationOf('app.wxss', '.btn-danger', 'color')
+  assert.equal(color, WARNING_RED)
+  const base = layerPaint(declarationOf('app.wxss', '.btn-danger', 'background'))
+  const tints = [
+    ['default', '.btn-danger::before'],
+    ['pressed', '.btn-danger.btn-danger-hover::before']
+  ]
+  for (const panel of stackSurfaces([['pages/shared/confirmation-sheet.wxss', '.confirmation-panel']])) {
+    for (const [state, selector] of tints) {
+      const tint = layerPaint(surfaceFill(readSource('app.wxss'), selector))
+      const button = composite(composite(panel, base, base.a), tint, tint.a)
+      const ratio = contrastOn(layerPaint(color), button)
+      assert.ok(ratio >= 4.5, `${state} danger action on ${toHex(panel)} is ${ratio.toFixed(2)}:1, below 4.5:1`)
+    }
+  }
+})
+
 test('edit-form field errors reuse the one warning red and clear 4.5:1 on the form card', () => {
   // issue #156：字段错误是警示红族的一种形态，不另立一种红；红字直接落在表单玻璃卡上
   // 两个编辑页共用 app.wxss 的同一条规则

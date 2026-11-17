@@ -418,29 +418,6 @@ Page(withPageVisibility({
     homepageSheets(this).dragCancel(detail)
   },
 
-  // 工具菜单承接图例 / 预测说明 / 本月小结，入口在顶栏「工具」。
-  openMonthMenu() {
-    homepageSheets(this).open('toolsMenu')
-  },
-
-  closeMonthMenu() {
-    homepageSheets(this).close('toolsMenu')
-  },
-
-  onMonthMenuTap(e) {
-    const action = e.currentTarget.dataset.action
-    const sheets = homepageSheets(this)
-    if (action === 'legend') {
-      sheets.handoff('toolsMenu', 'infoSheet', infoSheetContent('legend'))
-    } else if (action === 'prediction') {
-      sheets.handoff('toolsMenu', 'infoSheet', infoSheetContent('prediction'))
-    } else if (action === 'recap') {
-      sheets.handoff('toolsMenu', 'infoSheet', infoSheetContent('recap', {
-        monthlyRecap: this.data.monthlyRecap
-      }))
-    }
-  },
-
   getSavedCalendarDensity() {
     try {
       const density = wx.getStorageSync(CALENDAR_DENSITY_STORAGE_KEY)
@@ -565,12 +542,6 @@ Page(withPageVisibility({
       return
     }
     const detail = this._dayDetail(date)
-    if (action === 'completePeriod') {
-      if (!detail.ongoingNotice || !detail.periodAction) return
-      this.closeDayActions()
-      this.openProjectedEntry(detail.periodAction)
-      return
-    }
     if (!detail.actions.some(item => item.key === action)) return
     const entry = action === 'period' ? detail.periodAction : action === 'memory' ? detail.memoryAction : null
     if (!entry) return
@@ -630,7 +601,6 @@ Page(withPageVisibility({
 
   openProjectedEntry(entry) {
     if (!entry) return
-    if (entry.notice) wx.showToast({ title: entry.notice, icon: 'none' })
     wx.navigateTo({ url: entry.url })
   },
   quickPeriod() {

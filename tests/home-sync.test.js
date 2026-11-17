@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
-const { listCalls, listed, markedDates } = require('./helpers/recordPages')
+const { confirmDelete, listCalls, listed, markedDates } = require('./helpers/recordPages')
 
 // #171: real pages, platform responses and rendered data only. Calendar/sheet
 // interaction cases remain in index-page.test.js for #172.
@@ -472,8 +472,7 @@ test('a late snapshot cannot resurrect a memory deleted through its day detail; 
   await app.dispatch(home, 'onDayRecordTap', { currentTarget: { dataset: { kind: 'memory', id: old._id } } })
   await app.settle()
   app.cloud.when({ name: 'dataOp', data: { action: 'remove', collection: 'memories', id: old._id } }).reply({ code: 0 })
-  app.respondNext('showModal', { confirm: true })
-  await app.dispatch(app.currentPage, 'delete')
+  await confirmDelete(app)
   await app.advance(1000)
   assert.equal(app.currentPage, home)
   assertCalendar(app, home, ['2026-06-01'], [])

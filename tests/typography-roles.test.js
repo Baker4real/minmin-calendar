@@ -53,7 +53,11 @@ const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'pages/bind/bind.wxss', selector: '.code-input', kind: 'display', value: '40rpx' },
   { file: 'pages/settings/settings.wxss', selector: '.menu-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/settings/settings.wxss', selector: '.room-code-value', kind: 'display', value: '36rpx' },
-  { file: 'pages/settings/settings.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' }
+  { file: 'pages/settings/settings.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
+  // #209：共享确认面板的同一枚 ×；@import 展开后的调用页也各登记一次
+  { file: 'pages/shared/confirmation-sheet.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
+  { file: 'pages/period/edit/edit.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
+  { file: 'pages/memory/edit/edit.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' }
 ]
 
 function readAppTokens() {

@@ -37,7 +37,7 @@ test('record list pages show load-failed retry copy and hide period stats while 
   assert.doesNotMatch(memoryWxml, /加载失败，点按重试/)
   assert.match(periodWxml, /欢乐时光加载失败/)
   // 首次加载失败不显示确信的 0：数字只在未失败或曾成功加载时呈现，否则落到 -- 占位
-  assert.match(periodWxml, /wx:if="\{\{!loading && \(!loadFailed \|\| hasLoaded\)\}\}"[^>]*class="cycle-num">\{\{periods\.length\}\}/)
+  assert.match(periodWxml, /wx:if="\{\{!loading && \(!loadFailed \|\| hasLoaded\)\}\}"[^>]*class="cycle-num">\{\{periodCount\}\}/)
   assert.match(periodWxml, /wx:elif="\{\{!loading\}\}"[^>]*class="cycle-num">--</)
   assert.match(periodWxml, /class="cycle-label">平均周期</)
   assert.match(periodWxml, /wx:if="\{\{!loading && avgCycle\}\}" class="cycle-num">\{\{avgCycle\}\} 天</)
@@ -90,7 +90,7 @@ test('period list failure retry is a recognizable operation, distinct from the q
   assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 真空态仍是安静说明：不带重试按钮，也不可点；失败期间不显示断言式空态句（!loadFailed）
-  const emptyBlock = /wx:elif="\{\{periods\.length === 0 && !loading && !loadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
+  const emptyBlock = /wx:elif="\{\{periodCount === 0 && !loading && !loadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
   assert.ok(emptyBlock, 'expected the genuine empty state block')
   assert.match(emptyBlock[1], /经期开始那天点「\{\{periodQuickLabel\}\}」；\{\{predictionThresholdText\}\}/)
   assert.doesNotMatch(emptyBlock[1], /点上面按钮新增/)
@@ -140,7 +140,7 @@ test('record tab memory segment mirrors the standalone memory list state contrac
   assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 空列表说明保持安静：没有按钮、不可点；失败期间不显示断言式空态句
-  const emptyBlock = /wx:elif="\{\{memories\.length === 0 && !memoryLoading && !memoryLoadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
+  const emptyBlock = /wx:elif="\{\{memoryCount === 0 && !memoryLoading && !memoryLoadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
   assert.ok(emptyBlock, 'expected the memory segment empty state block')
   assert.match(emptyBlock[1], /想记的那天点「＋ 记欢乐时光」，写一句就留在日历上/)
   assert.doesNotMatch(emptyBlock[1], /点上面按钮新增/)
@@ -197,7 +197,7 @@ test('record tab memory segment renders month cards with the grouped row contrac
   // ISO 日期仍留在行数据里供编辑跳转
   assert.match(
     periodWxml,
-    /wx:if="\{\{group\.expanded\}\}" wx:for="\{\{group\.records\}\}" wx:key="_id" bindtap="editMemory" data-id="\{\{item\._id\}\}" aria-role="button" aria-label="\{\{item\.ariaLabel\}\}"/
+    /<block wx:if="\{\{group\.expanded\}\}">\s*<view class="list-item" wx:for="\{\{group\.records\}\}" wx:key="_id" bindtap="editMemory" data-id="\{\{item\._id\}\}" aria-role="button" aria-label="\{\{item\.ariaLabel\}\}"/
   )
   assert.match(periodWxml, /class="memory-date">\{\{item\.dayLabel\}\}/)
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}" class="memory-note">\{\{item\.note\}\}/)
@@ -373,6 +373,19 @@ test('record lists preview long notes as one clamped line without displacing lat
   assert.match(periodWxss, /\.item-left\s*\{[^}]*min-width:\s*0[^}]*\}/)
   assert.match(memoryWxss, /\.memory-left\s*\{[^}]*min-width:\s*0[^}]*\}/)
   assert.match(memoryWxss, /\.memory-info\s*\{[^}]*min-width:\s*0[^}]*\}/)
+})
+
+test('both edit pages reuse the shared confirmation sheet, back guard and reduced-motion probe', () => {
+  for (const kind of ['period', 'memory']) {
+    const wxml = readPageFile(`pages/${kind}/edit/edit.wxml`)
+    const wxss = readPageFile(`pages/${kind}/edit/edit.wxss`)
+    assert.match(wxml, /class="reduced-motion-probe" aria-hidden="true"/)
+    assert.match(wxml, /class="confirmation-mask sheet-\{\{confirmationPhase\}\}" bindtap="onConfirmationMask"/)
+    assert.match(wxml, /class="sheet-close" bindtap="onConfirmationClose"/)
+    assert.match(wxml, /class="btn-danger confirmation-action"[^>]*hover-class="btn-danger-hover"/)
+    assert.match(wxml, /bindbeforeleave="onSheetSystemBack"/)
+    assert.match(wxss, /\.confirmation-panel\s*\{/, `${kind} must import the shared confirmation styles`)
+  }
 })
 
 function readPageFile(relativePath) {

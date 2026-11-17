@@ -261,9 +261,7 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   // （区间与状态或日期与备注摘要，配对后加作者），模板只绑定
   for (const action of elements.filter((element) => element.attrs.bindtap === 'onDayActionTap')) {
     assert.equal(action.attrs['aria-role'], 'button')
-    assert.equal(action.attrs['aria-label'], action.classes.includes('ongoing-completion-action')
-      ? '{{selectedDayDetail.ongoingNotice.actionLabel}}'
-      : '{{item.label}}')
+    assert.equal(action.attrs['aria-label'], '{{item.label}}')
   }
   for (const row of elements.filter((element) => element.attrs.bindtap === 'onDayRecordTap')) {
     assert.equal(row.attrs['aria-label'], '{{item.ariaLabel}}')
@@ -279,13 +277,11 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(copyRecap.attrs['aria-role'], 'button')
   assert.equal(copyRecap.attrs['aria-label'], '复制小结')
 
-  // 图例 / 预测说明 / 小结收进月份标题旁的「…」菜单（issue #105）：触发器与菜单项都是命名按钮
-  assert.equal(byHandler('openMonthMenu', 'nav-tool').attrs['aria-role'], 'button')
-  assert.equal(byHandler('openMonthMenu', 'nav-tool').attrs['aria-label'], '打开工具菜单')
-  assert.equal(byHandler('closeMonthMenu', 'day-sheet-mask').attrs['aria-label'], '关闭工具菜单')
-  for (const item of elements.filter((element) => element.attrs.bindtap === 'onMonthMenuTap')) {
-    assert.equal(item.attrs['aria-role'], 'button')
-  }
+  // 顶栏与一次性欢迎条都直接打开图例，两个入口都有明确的按钮语义（issue #215）
+  assert.equal(byHandler('openLegendSheet', 'nav-tool').attrs['aria-role'], 'button')
+  assert.equal(byHandler('openLegendSheet', 'nav-tool').attrs['aria-label'], '打开日历图例')
+  assert.equal(byHandler('openLegendSheet', 'partner-welcome').attrs['aria-role'], 'button')
+  assert.equal(byHandler('openLegendSheet', 'partner-welcome').attrs['aria-label'], '已和 TA 连上。点按打开日历图例')
 
 })
 
@@ -380,7 +376,14 @@ const SHEET_PAGES = [
     slideClass: 'help-slide',
     titleRowClass: 'help-head',
     titleClass: 'help-title'
-  }
+  },
+  ...['period', 'memory'].map(kind => ({
+    file: `pages/${kind}/edit/edit.wxml`,
+    maskClass: 'confirmation-mask',
+    slideClass: 'sheet-slide',
+    titleRowClass: 'sheet-drag-zone',
+    titleClass: 'sheet-title'
+  }))
 ]
 
 function sheetHosts(forest, maskClass) {
@@ -450,12 +453,19 @@ const SHEET_TRIGGERS = {
   'pages/index/index.wxml': [
     ['openMonthPicker', 'month-title-trigger'],
     ['onDayTap', 'day-cell'],
-    ['openMonthMenu', 'nav-tool'],
+    ['openLegendSheet', 'nav-tool'],
+    ['openLegendSheet', 'partner-welcome'],
     ['openPredictionSheet', 'home-status'],
     ['openMonthlyRecap', 'month-summary']
   ],
   'pages/settings/settings.wxml': [
     ['openHelp', 'menu-item']
+  ],
+  'pages/period/edit/edit.wxml': [
+    ['delete', 'btn-danger']
+  ],
+  'pages/memory/edit/edit.wxml': [
+    ['delete', 'btn-danger']
   ]
 }
 
@@ -507,18 +517,6 @@ test('a sheet silences the page behind it, and every trigger returns with that p
     }
   }
 
-  // 图例、预测说明、本月小结从工具菜单交接：入口在「工具菜单」面板里，原触发器是顶栏「工具」
-  const entries = []
-  walk(wxmlElementTree(readPage('pages/index/index.wxml')), (node) => {
-    if (node.attrs.bindtap === 'onMonthMenuTap') entries.push(node)
-  })
-  assert.ok(entries.length > 0, 'expected the tool menu entries')
-  for (const entry of entries) {
-    let panel = entry
-    while (panel && !(panel.parent && panel.parent.classes.includes('sheet-slide'))) panel = panel.parent
-    assert.ok(panel, `${entry.attrs['aria-label']} lives inside a sheet panel`)
-    assert.equal(panel.attrs['aria-label'], '工具菜单')
-  }
 })
 
 test('home status line and month summary read as named buttons without reminder controls', () => {
