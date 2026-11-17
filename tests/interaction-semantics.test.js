@@ -261,9 +261,7 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   // （区间与状态或日期与备注摘要，配对后加作者），模板只绑定
   for (const action of elements.filter((element) => element.attrs.bindtap === 'onDayActionTap')) {
     assert.equal(action.attrs['aria-role'], 'button')
-    assert.equal(action.attrs['aria-label'], action.classes.includes('ongoing-completion-action')
-      ? '{{selectedDayDetail.ongoingNotice.actionLabel}}'
-      : '{{item.label}}')
+    assert.equal(action.attrs['aria-label'], '{{item.label}}')
   }
   for (const row of elements.filter((element) => element.attrs.bindtap === 'onDayRecordTap')) {
     assert.equal(row.attrs['aria-label'], '{{item.ariaLabel}}')

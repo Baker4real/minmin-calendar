@@ -94,7 +94,7 @@ for (const scenario of firstScreenCases) {
           assert.equal(state.periodQuickAction.url, scenario.name === 'ongoing'
             ? '/pages/period/edit/edit?id=live&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete'
             : '/pages/period/edit/edit?startDate=2026-06-26')
-          assert.equal(state.periodQuickAction.notice, scenario.name === 'ongoing' ? '已有进行中的经期，继续编辑它' : '')
+          assert.equal(Object.hasOwn(state.periodQuickAction, 'notice'), false)
           assert.equal(state.memoryQuickAction.url, '/pages/memory/edit/edit?date=2026-06-26')
           const aria = periodsSynced ? scenario.aria : scenario.aria.replace(/经期第\d+天/, '经期记录')
           const day = state.days.find(item => item.date === '2026-06-26')
@@ -163,7 +163,7 @@ for (const periodsSynced of [false, true]) {
   }
 }
 
-test('homeCalendarState uses record rows on covered days and a persistent completion notice on earlier blank days', () => {
+test('homeCalendarState uses record rows on covered days and backfill actions without a notice on earlier blank days', () => {
   const state = buildHomeCalendarState({
     year: 2026,
     month: 5,
@@ -180,18 +180,18 @@ test('homeCalendarState uses record rows on covered days and a persistent comple
   assert.ok(covered.periods[0].ariaLabel.startsWith('编辑这次经期'))
   assert.ok(covered.periods[0].ariaLabel.includes('6月1日–6月5日'))
   assert.deepEqual(covered.actions, [{ key: 'memory', label: '补记欢乐时光' }])
-  assert.equal(covered.ongoingNotice, null)
+  assert.equal(Object.hasOwn(covered, 'ongoingNotice'), false)
   assert.equal(covered.periodAction.url, '/pages/period/edit/edit?id=finished&startDate=2026-06-01&endDate=2026-06-05&status=known-end')
 
   const earlierBlank = state.dayDetailsByDate['2026-06-10']
   assert.deepEqual(earlierBlank.periods, [])
-  assert.deepEqual(earlierBlank.actions, [{ key: 'memory', label: '补记欢乐时光' }])
-  assert.deepEqual(earlierBlank.ongoingNotice, {
-    title: '这次经期还在进行中',
-    text: '记了结束才能补记别的',
-    actionLabel: '记结束'
-  })
-  assert.equal(earlierBlank.periodAction.url, '/pages/period/edit/edit?id=ongoing&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
+  assert.deepEqual(earlierBlank.actions, [
+    { key: 'period', label: '补记经期' },
+    { key: 'memory', label: '补记欢乐时光' }
+  ])
+  assert.equal(Object.hasOwn(earlierBlank, 'ongoingNotice'), false)
+  assert.equal(earlierBlank.periodAction.url, '/pages/period/edit/edit?startDate=2026-06-10')
+  assert.equal(Object.hasOwn(earlierBlank.periodAction, 'notice'), false)
   assert.equal(earlierBlank.futureNotice, null)
 
   const today = state.dayDetailsByDate['2026-06-26']
@@ -200,7 +200,7 @@ test('homeCalendarState uses record rows on covered days and a persistent comple
 
   const future = state.dayDetailsByDate['2026-06-27']
   assert.deepEqual(future.actions, [])
-  assert.equal(future.ongoingNotice, null)
+  assert.equal(Object.hasOwn(future, 'ongoingNotice'), false)
   assert.equal(future.futureNotice.title, '未来日期不能新增记录')
 })
 
