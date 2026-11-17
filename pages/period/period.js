@@ -156,7 +156,6 @@ Page(withPageVisibility({
   addPeriod() {
     const entry = this._periodQuickAction
     if (!entry) return
-    if (entry.notice) wx.showToast({ title: entry.notice, icon: 'none' })
     wx.navigateTo({ url: entry.url })
   },
 

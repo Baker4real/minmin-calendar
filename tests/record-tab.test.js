@@ -936,7 +936,7 @@ test('record tab period entry matches the home projection with and without an on
   await app.settle()
   assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
   assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?id=p2&startDate=2026-10-18&endDate=2026-10-20&status=known-end&intent=complete')
-  assert.equal(app.wx.toasts.at(-1).title, home.periodQuickAction.notice)
+  assert.deepEqual(app.wx.toasts, [])
   assert.equal(app.currentPage.data.status, 'known-end')
   assert.equal(app.currentPage.data.endDate, '2026-10-20')
   await app.dispatch(app.currentPage, 'goBack')
@@ -954,7 +954,7 @@ test('record tab period entry matches the home projection with and without an on
   assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
   assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?startDate=2026-10-20')
   assert.equal(app.currentPage.data.startDate, '2026-10-20')
-  assert.equal(app.wx.toasts.length, 1)
+  assert.equal(app.wx.toasts.length, 0)
   assert.match(tabWxml, /bindtap="addPeriod"[^>]*aria-label="\{\{periodQuickAriaLabel\}\}"[^>]*>\{\{periodQuickLabel\}\}<\/view>/)
 })
 
@@ -976,7 +976,7 @@ test('record tab chooses the latest ongoing record, then creates today even when
   assert.equal(app.currentPage.data.id, 'latest-live')
   assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
   assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?id=latest-live&startDate=2026-10-15&endDate=2026-10-20&status=known-end&intent=complete')
-  assert.equal(app.wx.toasts.at(-1).title, home.periodQuickAction.notice)
+  assert.deepEqual(app.wx.toasts, [])
   list(app, 'periods').reply({ code: 0, data: [closedToday] })
   await app.dispatch(app.currentPage, 'goBack')
   await app.flush()
@@ -988,7 +988,7 @@ test('record tab chooses the latest ongoing record, then creates today even when
   assert.equal(app.currentPage.data.startDate, '2026-10-20')
   assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
   assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?startDate=2026-10-20')
-  assert.equal(app.wx.toasts.length, 1)
+  assert.equal(app.wx.toasts.length, 0)
 })
 
 test('memory rows open the chosen same-day or older record by id, while missing ids do nothing', async (t) => {
