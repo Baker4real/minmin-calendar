@@ -115,12 +115,17 @@ async function prepare(t, { operation, record }, failure, { missingModal = false
     await app.settle()
     return { app, page }
   }
-  // These are user confirmations, preceding the Room access failure prompt.
-  if (operation === 'delete' || operation === 'export') app.respondNext('showModal', { confirm: true })
+  // Export still has a native user confirmation; delete uses the shared sheet before its failure prompt.
+  if (operation === 'export') app.respondNext('showModal', { confirm: true })
   if (failedModal) app.respondNext('showModal', new Error('showModal:fail unavailable'))
   const pending = app.dispatch(page, operation === 'export' ? 'exportData' : operation === 'delete' ? 'delete' : 'save')
   if (missingModal) delete app.wx.showModal
   await app.settle()
+  if (operation === 'delete') {
+    await app.dispatch(page, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
+    await app.advance(200)
+    await app.settle()
+  }
   return { app, page, pending }
 }
 
@@ -219,8 +224,7 @@ for (const scenario of scenarios) {
 
 const confirmations = [
   { name: 'export', route: '/pages/settings/settings', event: 'exportData' },
-  { name: 'period deletion', route: `/pages/period/edit/edit?${new URLSearchParams(records[0].fields)}`, event: 'delete' },
-  { name: 'memory deletion', route: `/pages/memory/edit/edit?${new URLSearchParams(records[1].fields)}`, event: 'delete' },
+  // #209：删除确认已是应用内面板，不再经过原生 missing/failed showModal 分支。
   { name: 'leave', route: '/pages/settings/settings', event: 'unbind' },
   { name: 'cache resync', route: '/pages/settings/settings', event: 'clearData' },
   { name: 'overlap', route: '/pages/period/edit/edit?startDate=2026-06-20&endDate=2026-06-23', event: 'save' }

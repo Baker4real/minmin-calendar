@@ -78,7 +78,14 @@ const EDIT_KINDS = {
     successTitle: '保存成功',
     mergedTitle: '已打开进行中的经期',
     mergedContent: '房间里已有一条进行中的经期，已为你打开它',
-    confirmContent: '删除后你们两人的日历都会移除这条经期记录，且不可恢复'
+    confirmName: '删除经期确认',
+    confirmTitle: '删除这条经期？',
+    confirmDate(state, today) {
+      if (state.status === 'known-end' && state.endDate && state.endDate !== state.startDate) {
+        return util.formatDisplayDateRange(state.startDate, state.endDate, { today })
+      }
+      return util.formatDisplayDate(state.startDate, { today })
+    }
   },
   memory: {
     collection: 'memories',
@@ -96,12 +103,20 @@ const EDIT_KINDS = {
     describeForm: ({ date }, today) => ({ dateLabel: util.formatDisplayDate(date, { today }) }),
     successTitle: '已存进你们的欢乐时光',
     successIcon: 'none',
-    confirmContent: '删除后你们两人的日历都会移除这条欢乐时光，且不可恢复'
+    confirmName: '删除欢乐时光确认',
+    confirmTitle: '删除这条欢乐时光？',
+    confirmDate: ({ date }, today) => util.formatDisplayDate(date, { today })
   }
 }
 
+const DELETE_CONSEQUENCE = '删除后你们两人的日历里都会移除'
+const DELETE_ACTIONS = [
+  { id: 'confirm', text: '删除', kind: 'danger' },
+  { id: 'cancel', text: '取消', kind: 'secondary' }
+]
+
 // The render callback is the only form output. No Page or page.data enters a session.
-function openRecordEditSession({ kind, route, render }) {
+function openRecordEditSession({ kind, route, render, confirmDelete }) {
   const config = EDIT_KINDS[kind]
   if (!config) throw new Error(`Unsupported record kind: ${kind}`)
   const today = () => util.formatDate(new Date())
@@ -291,8 +306,14 @@ function openRecordEditSession({ kind, route, render }) {
       if (busy() || deleteConfirming) return
       deleteConfirming = true
       try {
-        const confirmed = await confirmRecordDelete(config.confirmContent)
-        if (!confirmed) return { kind: 'cancelled' }
+        const confirmed = await confirmDelete({
+          name: config.confirmName,
+          title: config.confirmTitle,
+          dateText: config.confirmDate(state, today()),
+          content: DELETE_CONSEQUENCE,
+          actions: DELETE_ACTIONS
+        })
+        if (confirmed !== 'confirm') return { kind: 'cancelled' }
         const client = cloud.createRoomDataClient()
         const outcome = await runCommand({
           wxApi: wx,
@@ -318,18 +339,6 @@ function openRecordEditSession({ kind, route, render }) {
       unsubscribe()
     }
   }
-}
-
-function confirmRecordDelete(content) {
-  // 确认之前不进入删除忙碌态；缺少 API 或失败由 adapter 回落为取消。
-  return new Promise(resolve => {
-    wxPrompts.modal({
-      title: '确认删除',
-      confirmText: '删除',
-      content,
-      success: result => resolve(!!(result && result.confirm))
-    })
-  })
 }
 
 async function runCommand(options) {

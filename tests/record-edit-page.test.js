@@ -2,6 +2,7 @@ const assert = require('node:assert/strict')
 const path = require('node:path')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
+const { confirmDelete } = require('./helpers/recordPages')
 const { readSource } = require('./sourceFiles')
 const { renderWxmlAttribute, wxmlOpeningTags } = require('./wxmlTemplate')
 
@@ -13,10 +14,10 @@ const records = [
   { kind: 'period', collection: 'periods', dateField: 'startDate', changeDate: 'onStartChange', quick: 'quickPeriod', marker: 'isPeriod',
     fields: { startDate: '2026-09-20', endDate: '', status: 'ongoing', note: '', flow: '', symptoms: [] },
     payload: { startDate: '2026-09-20', endDate: '', status: 'ongoing', note: '', duration: 0, flow: '', symptoms: [] },
-    success: '保存成功', consequence: '删除后你们两人的日历都会移除这条经期记录，且不可恢复' },
+    success: '保存成功', deleteTitle: '删除这条经期？' },
   { kind: 'memory', collection: 'memories', dateField: 'date', changeDate: 'onDateChange', quick: 'quickMemory', marker: 'isMemory',
     fields: { date: '2026-09-20', note: '' }, payload: { date: '2026-09-20', note: '' },
-    success: '已存进你们的欢乐时光', consequence: '删除后你们两人的日历都会移除这条欢乐时光，且不可恢复' }
+    success: '已存进你们的欢乐时光', deleteTitle: '删除这条欢乐时光？' }
 ]
 const period = records[0]
 const cloudRoute = (app, spec, action) => app.cloud.when({ name: 'dataOp', data: { action, collection: spec.collection } })
@@ -232,9 +233,8 @@ test('period: errors stay beside their own dates, hide with the field and retain
     assert.deepEqual(page.data.fieldErrors, { endDate: message })
     assert.deepEqual(writes(app), [])
   }
-  app.respondNext('showModal', { confirm: true })
   cloudRoute(app, period, 'remove').reply({ code: 0 })
-  await app.dispatch(page, 'delete')
+  await confirmDelete(app, page)
   assert.equal(writes(app).length, 1, 'validation does not prevent deleting the record')
   assert.equal(app.storage['recordDraft:periods:p1'], undefined)
 })
@@ -834,36 +834,53 @@ for (const spec of records) {
     assert.equal(JSON.parse(app.storage[draftKey(spec)]).note, '失败后仍保留')
   })
 
-  test(`${spec.kind}: delete confirms once, cancels cleanly, locks during the write and removes home on confirmation`, async (t) => {
+  test(`${spec.kind}: delete uses the shared sheet with its date and consequence, and only the danger action removes the record`, async (t) => {
     const app = setup(t)
-    const saved = { _id: 'deleted', ...spec.payload }
+    const fields = spec.kind === 'period'
+      ? { ...spec.fields, startDate: '2026-09-18', endDate: '2026-09-20', status: 'known-end' }
+      : spec.fields
+    const saved = { _id: 'deleted', ...fields }
     cloudRoute(app, spec, 'list').reply({ code: 0, data: [saved] })
-    const { home, page } = await openEditor(app, spec, { id: 'deleted', ...spec.fields })
+    const { home, page } = await openEditor(app, spec, { id: 'deleted', ...fields })
     await app.dispatch(page, 'onNoteInput', value('删除前的草稿'))
     app.hide()
     app.show()
     const cancelled = app.dispatch(page, 'delete')
     await app.settle()
-    const modal = app.wx.modals[0]
-    assert.equal(modal.title, '确认删除')
-    assert.equal(modal.content, spec.consequence)
-    assert.equal(modal.confirmText, '删除')
-    assert.equal(modal.confirmColor, undefined, 'native delete confirmation uses the platform default color')
+    assert.equal(page.data.confirmationTitle, spec.deleteTitle)
+    if (spec.kind === 'period') assert.match(page.data.confirmationDateText, /^9月18日.*9月20日$/)
+    else assert.equal(page.data.confirmationDateText, '9月20日')
+    assert.equal(page.data.confirmationContent, '删除后你们两人的日历里都会移除')
+    assert.deepEqual(page.data.confirmationActions, [
+      { id: 'confirm', text: '删除', kind: 'danger' },
+      { id: 'cancel', text: '取消', kind: 'secondary' }
+    ])
+    assert.equal(page.data.confirmationPhase, 'open')
+    assert.equal(page.data.pageObscured, true)
     assert.equal(page.data.deleting, false)
+    assert.equal(app.wx.modals.length, 0, 'delete confirmation must not call native showModal')
     await app.dispatch(page, 'delete')
-    assert.equal(app.wx.modals.length, 1)
-    app.respond('showModal', 0, { confirm: false, cancel: true })
+    assert.equal(page.data.confirmationMounted, true)
+    await app.dispatch(page, 'onConfirmationAction', dataset({ action: 'cancel' }))
+    await app.advance(200)
     await cancelled
+    assert.equal(page.data.confirmationMounted, false)
+    assert.equal(page.data.pageObscured, false)
     assert.deepEqual(writes(app), [])
     assert.equal(cell(home)[spec.marker], true)
+
     const pending = cloudRoute(app, spec, 'remove').defer()
     const deleting = app.dispatch(page, 'delete')
-    app.respond('showModal', 1, { confirm: true })
+    await app.settle()
+    await app.dispatch(page, 'onConfirmationAction', dataset({ action: 'confirm' }))
+    assert.equal(page.data.confirmationPhase, 'leaving')
+    assert.deepEqual(writes(app), [], 'closing the sheet does not itself delete')
+    await app.advance(200)
     await app.settle()
     assert.equal(app.rendered(page).deleting, true)
     await app.dispatch(page, 'delete')
     await app.dispatch(page, 'save')
-    assert.equal(app.wx.modals.length, 2)
+    assert.equal(app.wx.modals.length, 0)
     assert.equal(writes(app).length, 1)
     assert.equal(cell(home)[spec.marker], true)
     pending.resolve({ code: 0 })
@@ -889,6 +906,44 @@ for (const spec of records) {
     await app.flush()
     assert.equal(app.currentPage.data.segment, spec.kind)
     assert.equal(app.storage.recordTabSegment, undefined)
+  })
+
+  test(`${spec.kind}: mask, close, drag and system back all cancel delete without native confirmation`, async (t) => {
+    const app = setup(t)
+    const saved = { _id: 'kept', ...spec.payload }
+    cloudRoute(app, spec, 'list').reply({ code: 0, data: [saved] })
+    const { home, page } = await openEditor(app, spec, { id: 'kept', ...spec.fields })
+    const closes = [
+      { name: 'mask', handler: 'onConfirmationMask' },
+      { name: 'close button', handler: 'onConfirmationClose' },
+      { name: 'drag' },
+      { name: 'system back', handler: 'onSheetSystemBack' }
+    ]
+    for (const close of closes) {
+      const cancelled = app.dispatch(page, 'delete')
+      await app.settle()
+      assert.equal(page.data.confirmationPhase, 'open', `${close.name} starts from an open panel`)
+      if (close.name === 'drag') {
+        const currentTarget = { dataset: { sheet: 'confirmation' } }
+        const touch = { identifier: 1, pageX: 100, pageY: 100 }
+        app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
+        app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
+        await app.advance(100)
+        app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
+      } else {
+        await app.dispatch(page, close.handler, close.event)
+      }
+      assert.equal(page.data.confirmationPhase, 'leaving', `${close.name} uses the shared exit`)
+      assert.deepEqual(writes(app), [], `${close.name} must not delete while leaving`)
+      await app.advance(200)
+      await cancelled
+      assert.equal(page.data.confirmationMounted, false, `${close.name} unmounts the panel`)
+      assert.equal(page.data.pageObscured, false, `${close.name} restores the background`)
+      assert.equal(cell(home)[spec.marker], true, `${close.name} keeps the calendar record`)
+    }
+    assert.equal(app.wx.modals.length, 0)
+    assert.equal(app.currentPage, page)
+    assert.equal(app.navigation.filter(item => item.method === 'navigateBack').length, 0)
   })
 
   test(`${spec.kind}: save from home stays busy once, applies the canonical record, and returns on the fake clock`, async (t) => {
