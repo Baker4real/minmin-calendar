@@ -126,7 +126,7 @@ Page(withPageVisibility({
     calendarFlip: '',
     // 一次性状态强调（today-a/today-b/predict-a/predict-b），只跟着触发它的那次日历提交（issue #165）
     calendarEmphasis: '',
-    // 记录成功反馈：日期 → memory / period，只跟着那次记录变化的日历提交，首页隐藏时收掉（issue #167）
+    // 记录反馈：日期 → memory / period / both，只跟着那次变化的日历提交，首页隐藏时收掉（issue #167、#222）
     recordFeedback: {},
     ...calendarRenderState(INITIAL_HOME_STATE),
     ...calendarGeometry({
@@ -182,8 +182,16 @@ Page(withPageVisibility({
     const today = util.formatDate(new Date())
     const calendarDensity = this.getSavedCalendarDensity()
     // 隔日回来时所有日期内容一起更新；同日静默刷新保留当前投影的反馈与动画。
-    if (today !== this._calendarToday) {
-      this.applyHomeCalendarState({ today }, { fields: { calendarDensity } })
+    // 隐藏期间的新到记录只在这次可见投影里消费一次（#222）。先跑 Room 归属检查，
+    // 让换房清空照常发布，旧 Room 的日历和待播 id 都不会留到这次显示。
+    roomRecordsSync.readCurrentRoom()
+    const newRecordIds = roomRecordsSync.consumeNewRecordIds()
+    const sameDay = today === this._calendarToday
+    if (!sameDay || newRecordIds.length) {
+      this.applyHomeCalendarState({ today, newRecordIds }, {
+        fields: { calendarDensity },
+        preserveRecordFeedback: sameDay
+      })
     } else {
       this.setData(this.withCalendarGeometry({ calendarDensity }))
     }
@@ -278,9 +286,14 @@ Page(withPageVisibility({
       roomStatusActionText: '',
       roomStatusAction: ''
     })
+    const newRecordIds = this.data.pageHidden ? [] : roomRecordsSync.consumeNewRecordIds()
     // 编辑页交给共享记录的记录变化（#195）：只有读到过记录的日历才播记录成功反馈，首次加载中的不播
-    if (calendarChanged) this.applyHomeCalendarState({ recordChange: state.hasLoadedRecords ? recordChange : null }, { fields })
-    else this.setData(this.withCalendarGeometry(fields))
+    if (calendarChanged) {
+      this.applyHomeCalendarState({
+        recordChange: state.hasLoadedRecords ? recordChange : null,
+        newRecordIds
+      }, { fields })
+    } else this.setData(this.withCalendarGeometry(fields))
     if (state.pill) this.showSyncStatus(state.pill.text, state.pill)
     else this.hideSyncStatus()
     this.revealPendingPartnerWelcome()
@@ -294,7 +307,7 @@ Page(withPageVisibility({
   // overrides 决定投影：年月、今天，以及这次的记录变化（recordChange：投影据此给出记录成功反馈，
   // 随渲染数据一起提交，issue #167）。第二个参数是跟日历同一次提交的其他东西：flip / emphasis 是这次带的
   // 一次性记号（见 _calendarMarks），fields 是其他字段（选月面板），不覆盖投影和记号
-  applyHomeCalendarState(overrides = {}, { flip, emphasis, fields = {} } = {}) {
+  applyHomeCalendarState(overrides = {}, { flip, emphasis, fields = {}, preserveRecordFeedback = false } = {}) {
     const hasOwn = (key) => Object.prototype.hasOwnProperty.call(overrides, key)
     const { collections, roomPaired } = roomRecordsSync.getState()
     const year = hasOwn('year') ? overrides.year : this.data.year
@@ -310,7 +323,8 @@ Page(withPageVisibility({
       roomPaired,
       periodsSynced: collections.periods.synced,
       memoriesSynced: collections.memories.synced,
-      recordChange: hasOwn('recordChange') ? overrides.recordChange : null
+      recordChange: hasOwn('recordChange') ? overrides.recordChange : null,
+      newRecordIds: hasOwn('newRecordIds') ? overrides.newRecordIds : []
     })
     this._calendarToday = today
     this._dayDetailsByDate = state.dayDetailsByDate
@@ -324,6 +338,10 @@ Page(withPageVisibility({
       year,
       month,
       ...this._calendarMarks({ flip, emphasis })
+    }
+    // A remote arrival queued before an editor save must not erase that later save's feedback on return.
+    if (preserveRecordFeedback) {
+      update.recordFeedback = { ...state.recordFeedback, ...this.data.recordFeedback }
     }
     if (this.data.selectedDate && this.data.dayActionsMounted) {
       Object.assign(update, this.selectedDayState(this.data.selectedDate))

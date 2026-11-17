@@ -1083,6 +1083,53 @@ test('a saved memory blooms on return, confirmation refresh preserves it, later 
   assert.deepEqual(feedback(app, home), [])
 })
 
+test('a pending partner arrival and a later saved memory both bloom on the same Home return', async t => {
+  const app = homeApp(t, { roomStatus: 'paired' })
+  const home = await launch(app)
+  app.wx.navigateTo({ url: '/pages/memory/edit/edit?date=2026-06-10' })
+  await app.settle()
+  const edit = app.currentPage
+  const partner = { ...memory('partner', '2026-06-18'), createdByMe: false }
+  listRoute(app, 'periods').reply(listed([], 'paired'))
+  listRoute(app, 'memories').reply(listed([partner], 'paired'))
+  await home.onPullDownRefresh()
+  await app.settle()
+  assert.deepEqual(feedback(app, home), [])
+
+  const saved = { ...memory('own', '2026-06-10'), createdByMe: true }
+  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'memories' } })
+    .reply({ code: 0, id: saved._id, record: saved })
+  await app.dispatch(edit, 'onNoteInput', { detail: { value: '一起晚饭' } })
+  await app.dispatch(edit, 'save')
+  await app.settle()
+  assert.deepEqual(feedback(app, home), [['2026-06-10', 'record-feedback-memory']])
+
+  listRoute(app, 'memories').reply(listed([partner, saved], 'paired'))
+  await returnHome(app)
+  assert.deepEqual(feedback(app, home), [
+    ['2026-06-10', 'record-feedback-memory'],
+    ['2026-06-18', 'record-feedback-memory']
+  ])
+})
+
+test('same-day partner period and memory reuse both appearance effects', async t => {
+  const app = homeApp(t, { roomStatus: 'paired' })
+  const home = await launch(app)
+  listRoute(app, 'periods').reply(listed([
+    { ...period('partner-p', '2026-06-10', '2026-06-11'), createdByMe: false }
+  ], 'paired'))
+  listRoute(app, 'memories').reply(listed([
+    { ...memory('partner-m', '2026-06-10'), createdByMe: false }
+  ], 'paired'))
+  await home.onPullDownRefresh()
+  await app.settle()
+  assert.deepEqual(feedback(app, home), [
+    ['2026-06-10', 'record-feedback-memory'],
+    ['2026-06-10', 'record-feedback-period'],
+    ['2026-06-11', 'record-feedback-period']
+  ])
+})
+
 const earlier = period('p1', '2026-06-01', '2026-06-03')
 const ongoing = period('p2', '2026-06-24', '', 'ongoing')
 const unknownEnd = period('p3', '2026-06-08', '', 'unknown-end')

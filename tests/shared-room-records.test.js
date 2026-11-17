@@ -231,6 +231,36 @@ for (const [entry, failed] of [['createRoom', 'memories'], ['joinRoom', 'periods
   })
 }
 
+test('switching Rooms drops pending partner arrivals without rendering them into the next Room', async t => {
+  const app = homeApp(t)
+  const home = await launchRoomA(app)
+  app.hide()
+  listRoute(app, 'periods', A).reply(listed([period('a-p', '2026-06-01', { createdByMe: true })], 'paired'))
+  listRoute(app, 'memories', A).reply(listed([
+    memory('a-m', '2026-06-02', { createdByMe: false }),
+    memory('a-new', '2026-06-15', { createdByMe: false })
+  ], 'paired'))
+  await home.onPullDownRefresh()
+  await app.settle()
+  assert.deepEqual(app.rendered(home).recordFeedback, {})
+
+  app.wx.setStorageSync('roomCode', B)
+  listRoute(app, 'periods', B).reply(listed([period('b-p', '2026-06-20', { createdByMe: false })], 'paired'))
+  listRoute(app, 'memories', B).reply(listed([memory('b-m', '2026-06-12', { createdByMe: false })], 'paired'))
+  const frames = home.setDataCalls.length
+  app.show()
+  app.commit(home)
+  assert.deepEqual(marked(app, home, 'isMemory'), [], 'Room A is cleared before Room B answers')
+  await app.settle()
+  assert.equal(home.setDataCalls.slice(frames).some(patch => (
+    patch.recordFeedback && patch.recordFeedback['2026-06-15']
+  )), false, 'Room A never lights during the Room B show')
+  assert.deepEqual(home.setDataCalls.slice(frames).filter(showsRoomA), [], 'no Room A calendar survives the ownership checkpoint')
+  assert.deepEqual(app.rendered(home).recordFeedback, {}, 'the first load of Room B is not an arrival')
+  assert.deepEqual(marked(app, home, 'isPeriod'), ['2026-06-20'])
+  assert.deepEqual(marked(app, home, 'isMemory'), ['2026-06-12'])
+})
+
 test('a load still in flight for the previous Room is not shared with the next Room and never lands in it', async t => {
   const app = homeApp(t)
   listRoute(app, 'periods', A).reply(listed([period('a-p', '2026-06-01', { createdByMe: true })], 'waiting'))
