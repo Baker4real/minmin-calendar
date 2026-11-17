@@ -207,6 +207,7 @@ test('a confirmed edit reaches the real home through the shared records before t
   app.wx.switchTab({ url: '/pages/period/period' })
   await app.flush()
   assert.equal(app.currentPage.data.segment, 'memory')
+  await app.dispatch(app.currentPage, 'toggleMonth', { currentTarget: { dataset: { key: '2026-06' } } })
   assert.equal(app.currentPage.data.memoryGroups[0].records[0].note, '测试记录')
   assert.equal(app.storage.recordTabSegment, undefined)
 })

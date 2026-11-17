@@ -302,7 +302,7 @@ module.exports = {
       </view>
 
       <view class="sheet-body">
-      <view wx:if="{{(selectedDayDetail.meanings && selectedDayDetail.meanings.length) || selectedDayDetail.futureNotice || selectedDayDetail.ongoingNotice}}" class="detail-meaning-list">
+      <view wx:if="{{(selectedDayDetail.meanings && selectedDayDetail.meanings.length) || selectedDayDetail.futureNotice}}" class="detail-meaning-list">
         <view
           wx:for="{{selectedDayDetail.meanings}}"
           wx:key="key"
@@ -315,22 +315,6 @@ module.exports = {
         <view wx:if="{{selectedDayDetail.futureNotice}}" class="day-detail-empty future-notice">
           <text class="detail-empty-title">{{selectedDayDetail.futureNotice.title}}</text>
           <text class="detail-empty-desc">{{selectedDayDetail.futureNotice.text}}</text>
-        </view>
-        <view wx:if="{{selectedDayDetail.ongoingNotice}}" class="day-detail-empty ongoing-period-notice">
-          <text class="detail-empty-title">{{selectedDayDetail.ongoingNotice.title}}</text>
-          <text class="detail-empty-desc">{{selectedDayDetail.ongoingNotice.text}}</text>
-          <view
-            class="sheet-action ongoing-completion-action"
-            data-action="completePeriod"
-            bindtap="onDayActionTap"
-            aria-role="button"
-            aria-label="{{selectedDayDetail.ongoingNotice.actionLabel}}"
-            hover-class="sheet-action-hover"
-          >
-            <view class="sheet-action-copy">
-              <text class="sheet-action-title">{{selectedDayDetail.ongoingNotice.actionLabel}}</text>
-            </view>
-          </view>
         </view>
       </view>
 

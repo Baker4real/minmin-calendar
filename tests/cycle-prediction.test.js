@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict')
 const test = require('node:test')
+const recordEditRoute = require('../utils/recordEditRoute')
 
 let cycle = {}
 try {
@@ -256,7 +257,7 @@ test('findOngoingPeriod returns the ongoing record and projectPeriodRange never 
   assert.equal(cycle.projectPeriodRange({ startDate: '2026-09-30', status: 'ongoing' }, '2026-09-24'), null)
 })
 
-test('periodCoverage entry destinations open the owning record, block earlier blank days, or create by date', () => {
+test('periodCoverage entry destinations create an ended empty-end record before ongoing start and open covered owners', () => {
   assert.equal(typeof cycle.decidePeriodRecordForDate, 'function')
 
   const today = '2026-06-26'
@@ -269,44 +270,47 @@ test('periodCoverage entry destinations open the owning record, block earlier bl
   assert.equal(covered.reason, 'coverage')
   assert.equal(covered.record._id, 'finished')
   assert.equal(covered.startDate, '2026-06-01')
-  assert.equal(covered.notice, '')
+  assert.equal(Object.hasOwn(covered, 'notice'), false)
 
   const duringOngoing = cycle.decidePeriodRecordForDate([finished, ongoing], '2026-06-22', { today })
   assert.equal(duringOngoing.action, 'open')
   assert.equal(duringOngoing.reason, 'ongoing')
   assert.equal(duringOngoing.record._id, 'ongoing')
+  assert.equal(Object.hasOwn(duringOngoing, 'notice'), false)
 
-  // 第一步：进行中开始日之前的空白日不新建，给常驻说明和记结束入口。
+  // 进行中开始日之前的未覆盖日按所选日新建，沿用过去日期的已结束、空结束日默认值。
   const earlierBlank = cycle.decidePeriodRecordForDate([finished, ongoing], '2026-06-10', { today })
-  assert.equal(earlierBlank.action, 'open')
-  assert.equal(earlierBlank.reason, 'ongoing')
-  assert.equal(earlierBlank.record._id, 'ongoing')
-  assert.equal(earlierBlank.startDate, '2026-06-20')
-  assert.equal(earlierBlank.notice, '已有进行中的经期，继续编辑它')
-  assert.deepEqual(earlierBlank.ongoingNotice, {
-    title: '这次经期还在进行中',
-    text: '记了结束才能补记别的',
-    actionLabel: '记结束'
-  })
+  assert.deepEqual(
+    {
+      action: earlierBlank.action,
+      startDate: earlierBlank.startDate,
+      record: earlierBlank.record
+    },
+    { action: 'create', startDate: '2026-06-10', record: null }
+  )
+  assert.equal(Object.hasOwn(earlierBlank, 'notice'), false)
+  assert.equal(Object.hasOwn(earlierBlank, 'ongoingNotice'), false)
+  const form = recordEditRoute.parsePeriodEditOptions({ startDate: earlierBlank.startDate }, { today })
+  assert.equal(form.status, 'known-end')
+  assert.equal(form.endDate, '')
 
   const insideFinished = cycle.decidePeriodRecordForDate([finished], '2026-06-03', { today })
   assert.equal(insideFinished.action, 'open')
   assert.equal(insideFinished.record._id, 'finished')
-  assert.equal(insideFinished.notice, '')
+  assert.equal(Object.hasOwn(insideFinished, 'notice'), false)
 
   const freeDay = cycle.decidePeriodRecordForDate([finished], '2026-06-10', { today })
   assert.deepEqual(
     {
       action: freeDay.action,
       startDate: freeDay.startDate,
-      notice: freeDay.notice,
       record: freeDay.record
     },
-    { action: 'create', startDate: '2026-06-10', notice: '', record: null }
+    { action: 'create', startDate: '2026-06-10', record: null }
   )
 })
 
-test('period record projection crosses months, keeps an unknown end on its start day, and reopens an ongoing record from outside its projection', () => {
+test('period record projection crosses months and keeps an unknown end on its start day', () => {
   const today = '2026-06-26'
   const crossMonth = {
     _id: 'cross',
@@ -325,12 +329,6 @@ test('period record projection crosses months, keeps an unknown end on its start
   assert.equal(cycle.decidePeriodRecordForDate([unknownEnd], '2026-08-12', { today }).record._id, 'unknown')
   assert.equal(cycle.decidePeriodRecordForDate([unknownEnd], '2026-08-13', { today }).action, 'create')
   assert.equal(cycle.decidePeriodRecordForDate([unknownEnd], '2026-09-12', { today }).action, 'create')
-
-  const ongoing = { _id: 'ongoing', startDate: '2026-05-28', endDate: '', status: 'ongoing' }
-  const outsideProjection = cycle.decidePeriodRecordForDate([ongoing], '2026-04-01', { today })
-  assert.equal(outsideProjection.action, 'open')
-  assert.equal(outsideProjection.record._id, 'ongoing')
-  assert.equal(outsideProjection.notice, '已有进行中的经期，继续编辑它')
 })
 
 test('decoratePeriod exposes ongoing and unknown-end status copy instead of a blank date', () => {
