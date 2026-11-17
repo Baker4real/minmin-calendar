@@ -41,6 +41,9 @@
 /* 三列统一标签在上、数字在下，间距落在数字上 */
 .cycle-num {
   display: block;
+  box-sizing: border-box;
+  height: 52.8rpx;
+  line-height: 52.8rpx;
   margin-top: var(--space-xs);
   font-size: 44rpx;
   font-weight: var(--font-weight-control);
@@ -84,7 +87,7 @@
 
 .year-toggle {
   font-size: var(--font-size-caption);
-  color: #E8909E;
+  color: var(--text-secondary);
 }
 .period-year-title:active,
 .period-year-title.period-year-title-hover {
@@ -148,11 +151,11 @@
   background: var(--glass-bg);
   border: 1px solid rgba(255,255,255,0.1);
 }
-/* 经量标签 = 编辑页选中芯片的玫瑰角色；症状标签保持上面的中性样式 */
+/* 经量标签 = 分段选中态的弱态玫瑰角色；症状标签保持上面的中性样式（issue #225） */
 .item-tag.flow {
-  color: #0A0E27;
-  background: rgba(232,144,158,0.92);
-  border-color: rgba(232,144,158,0.95);
+  color: #E8909E;
+  background: rgba(232,144,158,0.08);
+  border-color: rgba(232,144,158,0.45);
 }
 .item-right {
   display: flex;
@@ -170,7 +173,7 @@
   border-radius: var(--radius-md);
 }
 /* 进行中/结束日期不详：状态文案占住时长位置。
-   胶囊用海军字叠 92% 玫瑰，与经量标签同一对色，列表卡合成面上 ≥4.5:1（issue #143） */
+   胶囊保留海军字叠 92% 玫瑰的实色强调，列表卡合成面上 ≥4.5:1（issue #143、#225） */
 .item-duration.ongoing {
   color: #0A0E27;
   background: rgba(232,144,158,0.92);
@@ -338,7 +341,7 @@
 .memory-heart {
   font-size: 36rpx;
   color: #F0C4C0;
-  filter: drop-shadow(0 0 10px rgba(240,196,192,0.3));
+  text-shadow: 0 0 10px rgba(240,196,192,0.3);
 }
 .memory-date {
   font-size: var(--font-size-body);
