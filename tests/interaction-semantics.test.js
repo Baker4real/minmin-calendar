@@ -378,7 +378,14 @@ const SHEET_PAGES = [
     slideClass: 'help-slide',
     titleRowClass: 'help-head',
     titleClass: 'help-title'
-  }
+  },
+  ...['period', 'memory'].map(kind => ({
+    file: `pages/${kind}/edit/edit.wxml`,
+    maskClass: 'confirmation-mask',
+    slideClass: 'sheet-slide',
+    titleRowClass: 'sheet-drag-zone',
+    titleClass: 'sheet-title'
+  }))
 ]
 
 function sheetHosts(forest, maskClass) {
@@ -454,6 +461,12 @@ const SHEET_TRIGGERS = {
   ],
   'pages/settings/settings.wxml': [
     ['openHelp', 'menu-item']
+  ],
+  'pages/period/edit/edit.wxml': [
+    ['delete', 'btn-danger']
+  ],
+  'pages/memory/edit/edit.wxml': [
+    ['delete', 'btn-danger']
   ]
 }
 

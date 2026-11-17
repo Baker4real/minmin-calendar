@@ -20,7 +20,7 @@
 // design-system-radius / design-system-font-size / design-system-color 多数由此产生，先按伪影处理；
 // dark-glow、cramped-padding、nested-cards、side-tab、low-contrast 才是要逐条核对的信号。
 
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -168,6 +168,11 @@ export function generateImpeccableShims({ outDir, viewport = 390 } = {}) {
   for (const route of app.pages) {
     const wxmlRel = `${route}.wxml`
     const wxssRel = `${route}.wxss`
+    // sourceFiles 会把 import/template 展开进页面；这里同步登记共享模板的覆盖来源。
+    const rawWxml = readFileSync(path.join(repoRoot, wxmlRel), 'utf8')
+    for (const match of rawWxml.matchAll(/<import\b([^>]*)\/\s*>/gi)) {
+      inlined.add(includePath(match[1], wxmlRel))
+    }
     const body = convertWxml(read(wxmlRel), wxmlRel, inlined)
     let pageCss = ''
     try {

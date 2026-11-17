@@ -43,6 +43,7 @@ test('WXML targets are converted into explicit HTML coverage before detection', 
   assert.equal(report.coverage.scanKind, 'wxml-shim')
   assert.equal(report.coverage.generatedHtml, routes.length)
   assert.ok(report.coverage.inlinedWxml.includes('pages/shared/aurora.wxml'))
+  assert.ok(report.coverage.inlinedWxml.includes('pages/shared/confirmation-sheet.wxml'))
   assert.equal(report.coverage.sourceWxml, wxmlCount)
   assert.equal(wxmlCount, routes.length + report.coverage.inlinedWxml.length, 'every WXML is a route page or an inlined fragment')
   assert.deepEqual(report.coverage.extensions, ['.wxml', '.wxss'])
@@ -55,6 +56,8 @@ test('WXML targets are converted into explicit HTML coverage before detection', 
   const includers = routes.filter(route => fs.readFileSync(path.join(repo, `${route}.wxml`), 'utf8').includes('src="/pages/shared/aurora.wxml"'))
   const withAurora = shims.filter(html => /<div class="aurora"[^>]*data-src="pages\/shared\/aurora\.wxml:\d+"/.test(html))
   assert.equal(withAurora.length, includers.length, 'the aurora markup lands in every page that includes it, traced back to the fragment')
+  const withConfirmation = shims.filter(html => html.includes('class="confirmation-host"'))
+  assert.equal(withConfirmation.length, 2, 'both edit-page shims include the imported confirmation template')
 })
 
 test('a target without recognizable WXML fails closed instead of reporting a clean scan', t => {
