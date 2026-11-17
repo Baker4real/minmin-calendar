@@ -72,7 +72,7 @@ module.exports = {
   <include src="/pages/shared/aurora.wxml" />
 
   <view aria-hidden="{{pageObscured}}" class="nav-bar header-gradient">
-    <view class="nav-tool" hover-class="nav-tool-hover" bindtap="openMonthMenu" aria-role="button" aria-label="打开工具菜单">工具</view>
+    <view class="nav-tool" hover-class="nav-tool-hover" bindtap="openLegendSheet" aria-role="button" aria-label="打开日历图例">图例</view>
     <!-- 同步胶囊挂载期间占用标题槽：吸顶的月份标题和状态行始终可见（issue #120、#151） -->
     <view wx:if="{{syncStatusMounted}}" class="sync-pill sync-{{syncStatusPhase}} {{refreshing ? 'syncing' : ''}}" aria-role="status" aria-label="{{syncStatusText}}">
       <view class="sync-dot"></view>
@@ -136,8 +136,8 @@ module.exports = {
       </view>
     </view>
     <view class="home-sticky-spacer {{showBackToToday ? 'with-back-today' : ''}}"></view>
-    <!-- 一次性配对欢迎条：吸顶占位之后的正常文档流，固定的月份导航和状态行盖不住；高度计入日历行高（issue #149） -->
-    <text wx:if="{{partnerWelcome}}" class="partner-welcome">已和 TA 连上。经期是玫瑰色带，♥ 是欢乐时光，「预」是下次可能开始的日子。</text>
+    <!-- 一次性配对欢迎条：吸顶占位之后的正常文档流；整条直达图例，高度计入日历行高（issue #149、#215） -->
+    <view wx:if="{{partnerWelcome}}" class="partner-welcome" hover-class="partner-welcome-hover" bindtap="openLegendSheet" aria-role="button" aria-label="已和 TA 连上。点按打开日历图例">已和 TA 连上。玫瑰色带是经期，♥ 是欢乐时光，「预」是可能开始的日子。点这里或左上角「图例」随时再看</view>
 
     <!-- 刷新失败重试句：正常文档流放在月份导航与日历之间，不遮月份标题；留驻到重试成功（issue #79） -->
     <view wx:if="{{refreshRetryVisible}}" class="refresh-retry" bindtap="retryRefresh" aria-role="button" aria-label="{{refreshRetryLabel}}" hover-class="refresh-retry-hover">
@@ -406,56 +406,8 @@ module.exports = {
     </view>
   </view>
 
-  <!-- issue #105：月份工具菜单——图例 / 预测说明 / 本月小结的常驻入口从工具条收进这里，sheet 本体复用 -->
-  <view wx:if="{{toolsMenuMounted}}" class="sheet-host">
-    <view class="day-sheet-mask sheet-{{toolsMenuPhase}}" bindtap="closeMonthMenu" aria-role="button" aria-label="关闭工具菜单" hover-class="day-sheet-mask-hover"></view>
-    <view class="sheet-slide sheet-slide-toolsMenu sheet-{{toolsMenuPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.toolsMenu}}">
-    <view class="day-action-sheet safe-bottom" catchtap="noop" aria-label="工具菜单">
-      <view class="sheet-drag-zone" data-sheet="toolsMenu" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}">
-      <view class="sheet-handle"></view>
-      <view class="sheet-head">
-        <view class="sheet-date-copy">
-          <text class="sheet-title">工具</text>
-          <text class="sheet-subtitle">{{year}}年{{month + 1}}月</text>
-        </view>
-        <view class="sheet-close" bindtap="closeMonthMenu" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">×</view>
-      </view>
-      </view>
-
-      <view class="sheet-body">
-      <view class="sheet-actions">
-        <view class="sheet-action" data-action="legend" bindtap="onMonthMenuTap" aria-role="button" aria-label="打开日历图例" hover-class="sheet-action-hover">
-          <text class="sheet-action-icon detail-tone">?</text>
-          <view class="sheet-action-copy">
-            <text class="sheet-action-title">图例</text>
-            <text class="sheet-action-desc">日历标记的含义</text>
-          </view>
-          <text class="sheet-action-arrow">›</text>
-        </view>
-        <view class="sheet-action" data-action="prediction" bindtap="onMonthMenuTap" aria-role="button" aria-label="查看经期预测" hover-class="sheet-action-hover">
-          <text class="sheet-action-icon detail-tone">预</text>
-          <view class="sheet-action-copy">
-            <text class="sheet-action-title">预测说明</text>
-            <text class="sheet-action-desc">下次经期怎么算出来的</text>
-          </view>
-          <text class="sheet-action-arrow">›</text>
-        </view>
-        <view class="sheet-action" data-action="recap" bindtap="onMonthMenuTap" aria-role="button" aria-label="查看本月小结" hover-class="sheet-action-hover">
-          <text class="sheet-action-icon detail-tone">月</text>
-          <view class="sheet-action-copy">
-            <text class="sheet-action-title">本月小结</text>
-            <text class="sheet-action-desc">经期与欢乐时光的回顾</text>
-          </view>
-          <text class="sheet-action-arrow">›</text>
-        </view>
-      </view>
-      </view>
-    </view>
-    </view>
-  </view>
-
   <view wx:if="{{infoSheetMounted}}" class="sheet-host calendar-info-sheet">
-    <view class="day-sheet-mask sheet-{{infoSheetPhase}}{{infoSheetHandoff ? ' sheet-handoff' : ''}}" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭{{infoSheetName}}" hover-class="day-sheet-mask-hover"></view>
+    <view class="day-sheet-mask sheet-{{infoSheetPhase}}" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭{{infoSheetName}}" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-infoSheet sheet-{{infoSheetPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.infoSheet}}">
     <view class="day-action-sheet calendar-info-panel safe-bottom" catchtap="noop" aria-label="{{infoSheetName}}">
       <view class="sheet-drag-zone" data-sheet="infoSheet" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}">
@@ -485,6 +437,7 @@ module.exports = {
             <text class="legend-text">{{item.text}}</text>
           </view>
         </view>
+        <text class="explain-line legend-help">更多用法请前往「设置 → 使用说明」。</text>
       </view>
 
       <view wx:elif="{{infoSheetMode == 'prediction'}}" class="prediction-explanation">

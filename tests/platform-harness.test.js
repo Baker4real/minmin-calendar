@@ -121,7 +121,7 @@ for (const field of ['confirmText', 'cancelText']) {
 }
 
 test('real WXS bindings drive month swipes and sheet drags through the page interface', async (t) => {
-  const app = createMiniProgram({ storage: { roomCode: 'ROOM01' }, selectors: { '.sheet-slide-toolsMenu': { height: 400 } } })
+  const app = createMiniProgram({ storage: { roomCode: 'ROOM01' }, selectors: { '.sheet-slide-monthPicker': { height: 400 } } })
   t.after(() => app.teardown())
   app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01' } })
   app.cloud.when('dataOp').reply({ code: 0, data: [] })
@@ -132,15 +132,15 @@ test('real WXS bindings drive month swipes and sheet drags through the page inte
   app.dispatch(page, 'monthSwipe.touchEnd', { changedTouches: [touch(50, 100)] })
   await app.flush()
   assert.equal(page.data.month, 6)
-  await app.dispatch(page, 'openMonthMenu')
+  await app.dispatch(page, 'openMonthPicker')
   await app.settle()
-  assert.equal(page.data.toolsMenuVisible, true)
-  const currentTarget = { dataset: { sheet: 'toolsMenu' } }
+  assert.equal(page.data.monthPickerVisible, true)
+  const currentTarget = { dataset: { sheet: 'monthPicker' } }
   app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch(100, 100)] })
   await app.advance(100)
   app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [touch(100, 300)] })
   await app.flush()
-  assert.equal(page.data.toolsMenuVisible, false)
+  assert.equal(page.data.monthPickerVisible, false)
   assert.equal(app.tabBar.visible, true)
 })
 
