@@ -547,12 +547,6 @@ Page(withPageVisibility({
       return
     }
     const detail = this._dayDetail(date)
-    if (action === 'completePeriod') {
-      if (!detail.ongoingNotice || !detail.periodAction) return
-      this.closeDayActions()
-      this.openProjectedEntry(detail.periodAction)
-      return
-    }
     if (!detail.actions.some(item => item.key === action)) return
     const entry = action === 'period' ? detail.periodAction : action === 'memory' ? detail.memoryAction : null
     if (!entry) return
@@ -612,7 +606,6 @@ Page(withPageVisibility({
 
   openProjectedEntry(entry) {
     if (!entry) return
-    if (entry.notice) wx.showToast({ title: entry.notice, icon: 'none' })
     wx.navigateTo({ url: entry.url })
   },
   quickPeriod() {

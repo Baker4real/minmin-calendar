@@ -156,7 +156,7 @@ function buildPeriodQuickEntry(periods, { today, periodsSynced = true } = {}) {
     mode: quickAction.mode,
     action: quickAction.mode === 'complete'
       ? buildPeriodEntry(periods, today, today, { completeOngoing: true })
-      : { url: recordEditRoute.buildPeriodEditUrl({ startDate: today }), notice: '' }
+      : { url: recordEditRoute.buildPeriodEditUrl({ startDate: today }) }
   }
 }
 
@@ -315,8 +315,7 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
       meanings,
       periods: periodDetails,
       memories: memoryDetails,
-      actions: buildDayRecordActions(day, today, day.isPeriod || Boolean(periodAction && periodAction.ongoingNotice)),
-      ongoingNotice: periodAction && periodAction.ongoingNotice ? periodAction.ongoingNotice : null,
+      actions: buildDayRecordActions(day, today, day.isPeriod),
       futureNotice: buildFutureDayNotice(day, today),
       empty: !meanings.length && !periodDetails.length && !memoryDetails.length
     }
@@ -329,13 +328,10 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
 function buildPeriodEntry(periods, date, today, { completeOngoing = false } = {}) {
   const decision = periodCoverage.decidePeriodRecordForDate(periods, date, { today })
   const record = decision.action === 'open' ? decision.record : { startDate: decision.startDate }
-  const entry = {
+  return {
     url: recordEditRoute.buildPeriodEditUrl(record,
-      completeOngoing && decision.reason === 'ongoing' ? { intent: 'complete', today } : undefined),
-    notice: decision.notice
+      completeOngoing && decision.reason === 'ongoing' ? { intent: 'complete', today } : undefined)
   }
-  if (decision.ongoingNotice) entry.ongoingNotice = decision.ongoingNotice
-  return entry
 }
 
 function withAuthorLabel(row, authorLabel) {

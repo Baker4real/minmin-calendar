@@ -330,7 +330,7 @@ test('empty rooms show the first-record guide and records supply status, recap a
 })
 
 for (const ongoing of [false, true]) {
-  test(`quick and dated period entries ${ongoing ? 'complete the ongoing record only from the quick entry or earlier blank notice' : 'edit coverage or create for the selected day'}`, async t => {
+  test(`quick and dated period entries ${ongoing ? 'complete from the quick entry and backfill earlier blank days' : 'edit coverage or create for the selected day'}`, async t => {
     const app = homeApp(t, { periods: [period('p1', '2026-06-01', '2026-06-05'), ...(ongoing ? [period('p2', '2026-06-20', '', 'ongoing')] : [])] })
     const home = await launch(app)
     assert.equal(attr('quick-btn', 'aria-label', app.rendered(home)), ongoing ? '经期第 7 天 · 记结束' : '记经期')
@@ -351,33 +351,22 @@ for (const ongoing of [false, true]) {
     await day(app, home, '2026-06-10')
     detail = app.rendered(home).selectedDayDetail
     assert.equal(detail.actions.some(item => item.key === 'memory'), true)
-    if (ongoing) {
-      assert.equal(detail.actions.some(item => item.key === 'period'), false)
-      assert.equal(visible('ongoing-period-notice', app.rendered(home)), true)
-      assert.deepEqual(detail.ongoingNotice, {
-        title: '这次经期还在进行中',
-        text: '记了结束才能补记别的',
-        actionLabel: '记结束'
-      })
-      await tap(app, home, 'onDayActionTap', { action: 'completePeriod' })
-      assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=p2&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
-      assert.equal(app.rendered(app.currentPage).status, 'known-end')
-      assert.equal(app.rendered(app.currentPage).endDate, '2026-06-26')
-    } else {
-      assert.equal(visible('ongoing-period-notice', app.rendered(home)), false)
-      const action = detail.actions.find(item => item.key === 'period')
-      assert.ok(action)
-      await tap(app, home, 'onDayActionTap', { action: action.key })
-      assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?startDate=2026-06-10')
-    }
+    assert.equal(Object.hasOwn(detail, 'ongoingNotice'), false)
+    const action = detail.actions.find(item => item.key === 'period')
+    assert.ok(action)
+    assert.equal(action.label, '补记经期')
+    await tap(app, home, 'onDayActionTap', { action: action.key })
+    assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?startDate=2026-06-10')
+    assert.equal(app.rendered(app.currentPage).status, 'known-end')
+    assert.equal(app.rendered(app.currentPage).endDate, '')
     await back(app)
     await app.advance(200)
-    assert.deepEqual(app.wx.toasts.map(item => item.title), ongoing ? Array(2).fill('已有进行中的经期，继续编辑它') : [])
+    assert.deepEqual(app.wx.toasts.map(item => item.title), [])
     assert.equal(app.cloud.calls.some(call => call.name === 'dataOp' && call.data.action !== 'list'), false)
   })
 }
 
-test('all home period entries choose the latest ongoing record without a completion reminder', async t => {
+test('home period entries complete the latest ongoing record and backfill earlier days without notices', async t => {
   const app = homeApp(t, { periods: [
     period('old-live', '2026-06-10', '', 'ongoing'),
     period('latest-live', '2026-06-20', '', 'ongoing'),
@@ -390,11 +379,11 @@ test('all home period entries choose the latest ongoing record without a complet
   assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
   await back(app)
   await day(app, home, '2026-06-03')
-  await tap(app, home, 'onDayActionTap', { action: 'completePeriod' })
-  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?id=latest-live&startDate=2026-06-20&endDate=2026-06-26&status=known-end&intent=complete')
-  assert.deepEqual(app.wx.toasts.map(item => item.title), [
-    '已有进行中的经期，继续编辑它', '已有进行中的经期，继续编辑它'
-  ])
+  await tap(app, home, 'onDayActionTap', { action: 'period' })
+  assert.equal(navigation(app).at(-1), '/pages/period/edit/edit?startDate=2026-06-03')
+  assert.equal(app.rendered(app.currentPage).status, 'known-end')
+  assert.equal(app.rendered(app.currentPage).endDate, '')
+  assert.deepEqual(app.wx.toasts.map(item => item.title), [])
   assert.equal(app.cloud.calls.some(call => call.name === 'dataOp' && call.data.action !== 'list'), false)
 })
 

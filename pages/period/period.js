@@ -196,11 +196,9 @@ Page(withPageVisibility({
       const record = findRecordById('periods', decision.record && (decision.record._id || decision.record.id))
       if (!record) return
       entry = {
-        url: recordEditRoute.buildPeriodEditUrl(record, { intent: 'complete', today }),
-        notice: decision.notice
+        url: recordEditRoute.buildPeriodEditUrl(record, { intent: 'complete', today })
       }
     }
-    if (entry.notice) wx.showToast({ title: entry.notice, icon: 'none' })
     wx.navigateTo({ url: entry.url })
   },
 
