@@ -1,3 +1,5 @@
+@import '../../shared/confirmation-sheet.wxss';
+
 /* ===== Aurora Bloom: Period Edit ===== */
 /* 导航标题不可点：中性文字色（共享基类在 app.wxss，页面侧覆盖颜色，issue #77） */
 .nav-title {

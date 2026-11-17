@@ -31,6 +31,17 @@ function createSheetLifecycle({ visibleKey, mountedKey, phaseKey, decorate }) {
       return Boolean(page.data[mountedKey])
     },
 
+    // 页面卸载等调用方需要取消尚未完成的进出，并取得「已经不在树上」的数据。
+    dismissPatch() {
+      generation += 1
+      clearExitTimer()
+      return {
+        [visibleKey]: false,
+        [mountedKey]: false,
+        [phaseKey]: 'closed'
+      }
+    },
+
     open(page, extra = {}) {
       const ticket = ++generation
       clearExitTimer()

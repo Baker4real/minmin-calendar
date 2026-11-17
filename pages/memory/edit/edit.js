@@ -1,4 +1,6 @@
 const recordCommands = require('../../../utils/recordCommands')
+const { confirmationSheet, confirmationSheetData } = require('../../../utils/confirmationSheet')
+const { probeReducedMotion } = require('../../../utils/sheetLifecycle')
 const safeArea = require('../../../utils/safeArea')
 const { withPageVisibility } = require('../../../utils/pageVisibility')
 
@@ -7,14 +9,16 @@ Page(withPageVisibility({
     safeTop: safeArea.getSafeTop(),
     safeBottom: safeArea.getSafeBottom(),
     navBarHeight: safeArea.getNavBarHeight(),
-    capsuleRight: safeArea.getCapsuleRightInset()
+    capsuleRight: safeArea.getCapsuleRightInset(),
+    ...confirmationSheetData()
   },
 
   onLoad(options) {
     this._editSession = recordCommands.openRecordEditSession({
       kind: 'memory',
       route: options,
-      render: state => this.setData(state)
+      render: state => this.setData(state),
+      confirmDelete: confirmation => confirmationSheet(this).open(confirmation)
     })
   },
 
@@ -24,6 +28,11 @@ Page(withPageVisibility({
 
   onUnload() {
     this._editSession.onUnload()
+    confirmationSheet(this).unload()
+  },
+
+  onReady() {
+    probeReducedMotion(this)
   },
 
   onDateChange(e) {
@@ -48,5 +57,25 @@ Page(withPageVisibility({
 
   delete() {
     return this._editSession.delete()
+  },
+
+  onConfirmationAction(e) {
+    confirmationSheet(this).action(e.currentTarget.dataset.action)
+  },
+
+  onConfirmationMask() {
+    confirmationSheet(this).cancel()
+  },
+
+  onConfirmationClose() {
+    confirmationSheet(this).cancel()
+  },
+
+  onSheetDragRelease(detail) {
+    confirmationSheet(this).dragRelease(detail)
+  },
+
+  onSheetSystemBack() {
+    confirmationSheet(this).systemBack()
   }
 }))

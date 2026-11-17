@@ -1,0 +1,41 @@
+<template name="confirmationSheet">
+  <view class="reduced-motion-probe" aria-hidden="true"></view>
+  <view wx:if="{{confirmationMounted}}" class="confirmation-host">
+    <view class="confirmation-mask sheet-{{confirmationPhase}}" bindtap="onConfirmationMask" aria-role="button" aria-label="关闭{{confirmationName}}" hover-class="confirmation-mask-hover"></view>
+    <view class="sheet-slide sheet-slide-confirmation sheet-{{confirmationPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{confirmationDragClear}}">
+      <view class="confirmation-panel safe-bottom" catchtap="noop" aria-label="{{confirmationName}}">
+        <view class="sheet-drag-zone" data-sheet="confirmation" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
+          <view class="sheet-handle" aria-hidden="true"></view>
+          <view class="sheet-head">
+            <view class="sheet-date-copy">
+              <text class="sheet-title">{{confirmationTitle}}</text>
+            </view>
+            <view class="sheet-close" bindtap="onConfirmationClose" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">×</view>
+          </view>
+        </view>
+        <view class="sheet-body">
+          <text wx:if="{{confirmationDateText}}" class="confirmation-date">{{confirmationDateText}}</text>
+          <text class="confirmation-copy">{{confirmationContent}}</text>
+          <view class="confirmation-actions">
+            <block wx:for="{{confirmationActions}}" wx:key="id">
+              <view wx:if="{{item.kind === 'danger'}}" class="btn-danger confirmation-action" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="btn-danger-hover">{{item.text}}</view>
+              <view wx:elif="{{item.kind === 'primary'}}" class="btn-premium confirmation-action" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="btn-premium-hover">{{item.text}}</view>
+              <view wx:else class="confirmation-secondary confirmation-action" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="confirmation-secondary-hover">{{item.text}}</view>
+            </block>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+  <!-- 弹层还在时拦住系统返回；关闭本层而不是离开编辑页。 -->
+  <page-container
+    wx:if="{{sheetExitGuard}}"
+    show="{{true}}"
+    overlay="{{false}}"
+    duration="0"
+    z-index="1"
+    position="bottom"
+    custom-style="height:0;width:0;overflow:hidden;opacity:0;pointer-events:none;background:transparent;"
+    bindbeforeleave="onSheetSystemBack"
+  ></page-container>
+</template>
