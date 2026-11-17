@@ -18,7 +18,7 @@ Page(withPageVisibility({
       kind: 'memory',
       route: options,
       render: state => this.setData(state),
-      confirmDelete: confirmation => confirmationSheet(this).open(confirmation)
+      confirm: confirmation => confirmationSheet(this).open(confirmation)
     })
   },
 

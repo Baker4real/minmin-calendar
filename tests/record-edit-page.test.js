@@ -239,28 +239,43 @@ test('period: errors stay beside their own dates, hide with the field and retain
   assert.equal(app.storage['recordDraft:periods:p1'], undefined)
 })
 
-for (const editExisting of [true, false]) {
-  test(`period: overlap choice ${editExisting ? 'opens the real existing editor and preserves the new draft' : 'still creates'} without duplicate submissions`, async (t) => {
+for (const choice of [
+  { action: 'edit', name: 'edit opens the real existing editor and preserves the new draft' },
+  { action: 'create', name: 'create saves the new record' },
+  { action: 'cancel', name: 'cancel keeps the form without creating or navigating' }
+]) {
+  test(`period: overlap panel ${choice.name} without duplicate submissions`, async (t) => {
     const app = setup(t)
     const existing = { _id: 'covered', startDate: '2026-09-01', endDate: '2026-09-05', status: 'known-end' }
     cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
+    cloudRoute(app, period, 'add').reply({ code: 0, record: { _id: 'new', ...period.payload, startDate: '2026-09-03', endDate: '2026-09-04', status: 'known-end', duration: 2 } })
     const { page } = await openEditor(app, period, { startDate: '2026-09-03' })
     await app.dispatch(page, 'onEndChange', value('2026-09-04'))
     app.hide()
     app.show()
+    const originalForm = form(page, period)
+    const navigationCount = app.navigation.length
     const saving = app.dispatch(page, 'save')
     await app.settle()
-    assert.equal(app.wx.modals[0].title, '这一天已有经期')
-    assert.equal(app.wx.modals[0].confirmText, '编辑那条')
-    assert.equal(app.wx.modals[0].cancelText, '仍然新建')
+    assert.equal(page.data.confirmationTitle, '这一天已有经期')
+    assert.equal(page.data.confirmationContent, '开始日落在 9月1日 开始的那次经期里；仍然新建会另存一条，这几天会被两条经期覆盖')
+    assert.deepEqual(page.data.confirmationActions, [
+      { id: 'edit', text: '编辑那条', kind: 'primary' },
+      { id: 'create', text: '仍然新建', kind: 'secondary' },
+      { id: 'cancel', text: '取消', kind: 'secondary' }
+    ])
+    assert.equal(page.data.confirmationPhase, 'open')
+    assert.deepEqual(app.wx.modals, [], 'overlap confirmation must not call native showModal')
     await app.dispatch(page, 'save')
-    assert.equal(app.wx.modals.length, 1)
+    assert.equal(page.data.confirmationMounted, true)
     assert.deepEqual(writes(app), [])
-    cloudRoute(app, period, 'add').reply({ code: 0, record: { _id: 'new', ...period.payload, startDate: '2026-09-03', endDate: '2026-09-04', status: 'known-end', duration: 2 } })
-    app.respond('showModal', 0, { confirm: editExisting, cancel: !editExisting })
+    await app.dispatch(page, 'onConfirmationAction', dataset({ action: choice.action }))
+    assert.equal(page.data.confirmationPhase, 'leaving')
+    assert.deepEqual(writes(app), [], 'closing the panel does not itself save')
+    await app.advance(200)
     await saving
     await app.settle()
-    if (editExisting) {
+    if (choice.action === 'edit') {
       assert.notEqual(app.currentPage, page)
       assert.equal(app.currentPage.data.isEdit, true)
       assert.equal(app.currentPage.data.startDate, '2026-09-01')
@@ -269,42 +284,65 @@ for (const editExisting of [true, false]) {
       assert.deepEqual(JSON.parse(app.storage[draftKey(period)]), {
         startDate: '2026-09-03', endDate: '2026-09-04', status: 'known-end', note: '', flow: '', symptoms: []
       }, 'editing the owner keeps the unfinished new-record draft')
-    } else {
+    } else if (choice.action === 'create') {
       assert.deepEqual(writes(app).map(call => call.data), [{ ...period.payload, startDate: '2026-09-03', endDate: '2026-09-04', status: 'known-end', duration: 2 }])
       assert.equal(app.storage[draftKey(period)], undefined)
+    } else {
+      assert.deepEqual(writes(app), [])
+      assert.equal(app.currentPage, page)
+      assert.equal(app.navigation.length, navigationCount)
+      assert.deepEqual(form(page, period), originalForm)
+      assert.equal(page.data.saving, false)
+      assert.equal(page.data.submitted, false)
+      assert.deepEqual(app.wx.toasts, [])
     }
   })
 }
 
-for (const close of [
-  { name: 'both result flags are false', result: { confirm: false, cancel: false } },
-  { name: 'the modal fails', result: new Error('showModal:fail dismissed') }
-]) {
-  test(`period: overlap question ${close.name} keeps the form without creating, saving or navigating`, async (t) => {
-    const app = setup(t)
-    const existing = { _id: 'covered', startDate: '2026-09-01', endDate: '2026-09-05', status: 'known-end' }
-    cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
-    cloudRoute(app, period, 'add').reply({ code: 0, record: { _id: 'unexpected', ...period.payload, startDate: '2026-09-03', endDate: '2026-09-04', status: 'known-end', duration: 2, note: '保留输入' } })
-    const { page } = await openEditor(app, period, { startDate: '2026-09-03' })
-    await app.dispatch(page, 'onEndChange', value('2026-09-04'))
-    await app.dispatch(page, 'onNoteInput', value('保留输入'))
-    const originalForm = form(page, period)
-    const navigationCount = app.navigation.length
+test('period: overlap panel mask, close, drag and system back all cancel without native confirmation', async (t) => {
+  const app = setup(t)
+  const existing = { _id: 'covered', startDate: '2026-09-01', endDate: '2026-09-05', status: 'known-end' }
+  cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
+  const { page } = await openEditor(app, period, { startDate: '2026-09-03' })
+  await app.dispatch(page, 'onEndChange', value('2026-09-04'))
+  await app.dispatch(page, 'onNoteInput', value('保留输入'))
+  const originalForm = form(page, period)
+  const navigationCount = app.navigation.length
+  const closes = [
+    { name: 'mask', handler: 'onConfirmationMask' },
+    { name: 'close button', handler: 'onConfirmationClose' },
+    { name: 'drag' },
+    { name: 'system back', handler: 'onSheetSystemBack' }
+  ]
+  for (const close of closes) {
     const saving = app.dispatch(page, 'save')
     await app.settle()
-    assert.equal(app.wx.modals[0].title, '这一天已有经期')
-    app.respond('showModal', 0, close.result)
+    assert.equal(page.data.confirmationPhase, 'open', `${close.name} starts from an open panel`)
+    if (close.name === 'drag') {
+      const currentTarget = { dataset: { sheet: 'confirmation' } }
+      const touch = { identifier: 1, pageX: 100, pageY: 100 }
+      app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
+      app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
+      await app.advance(100)
+      app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
+    } else {
+      await app.dispatch(page, close.handler)
+    }
+    assert.equal(page.data.confirmationPhase, 'leaving', `${close.name} uses the shared exit`)
+    assert.deepEqual(writes(app), [], `${close.name} must not save while leaving`)
+    await app.advance(200)
     await saving
-    await app.settle()
-    assert.deepEqual(writes(app), [])
+    assert.equal(page.data.confirmationMounted, false, `${close.name} unmounts the panel`)
+    assert.equal(page.data.pageObscured, false, `${close.name} restores the background`)
     assert.equal(app.currentPage, page)
     assert.equal(app.navigation.length, navigationCount)
     assert.deepEqual(form(page, period), originalForm)
     assert.equal(page.data.saving, false)
     assert.equal(page.data.submitted, false)
     assert.deepEqual(app.wx.toasts, [])
-  })
-}
+  }
+  assert.deepEqual(app.wx.modals, [])
+})
 
 const overlapOwners = [
   { name: 'ongoing beats later completed', records: [
@@ -340,11 +378,15 @@ for (const scenario of overlapOwners) {
       assert.equal(cell(home, '2026-09-18').isUnknownEndPeriod, scenario.status === 'unknown-end')
       const saved = { _id: 'new-overlap', ...period.payload, startDate: '2026-09-18', status: 'unknown-end' }
       cloudRoute(app, period, 'add').reply({ code: 0, record: saved })
-      app.respondNext('showModal', { confirm: editExisting, cancel: !editExisting })
-      await app.dispatch(page, 'save')
+      const saving = app.dispatch(page, 'save')
       await app.settle()
-      assert.equal(app.wx.modals[0].confirmText, '编辑那条')
-      assert.equal(app.wx.modals[0].cancelText, '仍然新建')
+      assert.equal(page.data.confirmationTitle, '这一天已有经期')
+      assert.deepEqual(page.data.confirmationActions.map(action => action.id), ['edit', 'create', 'cancel'])
+      assert.deepEqual(app.wx.modals, [])
+      await app.dispatch(page, 'onConfirmationAction', dataset({ action: editExisting ? 'edit' : 'create' }))
+      await app.advance(200)
+      await saving
+      await app.settle()
       if (editExisting) {
         assert.equal(app.currentPage.data.id, scenario.owner)
         assert.equal(app.currentPage.data.status, scenario.status)
@@ -456,7 +498,7 @@ test('period: merge replaces visible labels and draft baseline before the same e
   assert.equal(app.storage[draftKey(period, 'ongoing')], undefined)
 })
 
-for (const exit of ['invalid', 'edit existing', 'still create', 'confirmation failure']) {
+for (const exit of ['invalid', 'edit existing', 'still create', 'cancel']) {
   test(`period: delayed preflight ${exit} releases saving and preserves the correct outcome guard`, async (t) => {
     const app = setup(t)
     periodsUnread(app)
@@ -469,18 +511,20 @@ for (const exit of ['invalid', 'edit existing', 'still create', 'confirmation fa
     await app.settle()
     assert.equal(app.rendered(page).saving, true)
     const existing = { _id: 'covered', startDate: '2026-09-18', status: 'ongoing' }
-    if (exit === 'confirmation failure') app.respondNext('showModal', new Error('showModal:fail unavailable'))
     history.resolve({ code: 0, data: exit === 'invalid' ? [] : [existing] })
     await app.settle()
-    if (exit === 'edit existing' || exit === 'still create') {
+    if (exit !== 'invalid') {
       assert.equal(app.rendered(page).saving, true, 'the overlap question is part of this save')
       await app.dispatch(page, 'onNoteInput', value('询问时不能修改'))
       await app.dispatch(page, 'save')
       await app.dispatch(page, 'delete')
       assert.equal(page.data.note, '保存前的备注')
-      assert.equal(app.wx.modals.length, 1)
+      assert.equal(page.data.confirmationPhase, 'open')
+      assert.deepEqual(app.wx.modals, [])
       assert.deepEqual(writes(app), [])
-      app.respond('showModal', 0, { confirm: exit === 'edit existing', cancel: exit === 'still create' })
+      const action = { 'edit existing': 'edit', 'still create': 'create', cancel: 'cancel' }[exit]
+      await app.dispatch(page, 'onConfirmationAction', dataset({ action }))
+      await app.advance(200)
     }
     await saving
     await app.settle()
@@ -495,7 +539,7 @@ for (const exit of ['invalid', 'edit existing', 'still create', 'confirmation fa
     }
     assert.equal(app.currentPage, page)
     if (exit === 'invalid') assert.deepEqual(page.data.fieldErrors, { endDate: '请选择结束日期；还没结束可以选「进行中」' })
-    if (exit === 'confirmation failure') assert.deepEqual(app.wx.toasts, [])
+    if (exit === 'cancel') assert.deepEqual(app.wx.toasts, [])
     if (exit === 'still create') {
       await app.dispatch(page, 'save')
       assert.equal(writes(app).length, 1, 'confirmed success remains submitted until return')
@@ -1094,10 +1138,14 @@ test('period: a period saved here and not yet confirmed by a list counts for the
   await app.settle()
   const next = app.currentPage
   assert.equal(next.data.periodLengthHint, '比你通常的 3 天长，确认一下结束日？')
-  app.respondNext('showModal', { confirm: true })
-  await app.dispatch(next, 'save')
+  const saving = app.dispatch(next, 'save')
   await app.settle()
-  assert.equal(app.wx.modals.at(-1).title, '这一天已有经期')
+  assert.equal(next.data.confirmationTitle, '这一天已有经期')
+  assert.deepEqual(app.wx.modals, [])
+  await app.dispatch(next, 'onConfirmationAction', dataset({ action: 'edit' }))
+  await app.advance(200)
+  await saving
+  await app.settle()
   assert.equal(app.currentPage.data.id, 'local')
   assert.deepEqual(writes(app).map(call => call.action), ['add'])
   refresh.resolve({ code: 0, data: [saved] })
@@ -1109,8 +1157,13 @@ test('period: a save in the editor opened through the overlap question reaches h
   const existing = { _id: 'covered', startDate: '2026-09-01', endDate: '2026-09-05', status: 'known-end' }
   cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
   const { home, page } = await openEditor(app, period, { startDate: '2026-09-03' })
-  app.respondNext('showModal', { confirm: true })
-  await app.dispatch(page, 'save')
+  const saving = app.dispatch(page, 'save')
+  await app.settle()
+  assert.equal(page.data.confirmationTitle, '这一天已有经期')
+  assert.deepEqual(app.wx.modals, [])
+  await app.dispatch(page, 'onConfirmationAction', dataset({ action: 'edit' }))
+  await app.advance(200)
+  await saving
   await app.settle()
   const owner = app.currentPage
   assert.equal(owner.data.id, 'covered')
