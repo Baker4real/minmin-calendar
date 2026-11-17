@@ -1,6 +1,7 @@
 const util = require('../../utils/util')
 const cycle = require('../../utils/cycle')
 const { buildPeriodQuickEntry } = require('../../utils/homeCalendarState')
+const periodCoverage = require('../../utils/periodCoverage')
 const recordPageSync = require('../../utils/recordPageSync')
 const recordEditRoute = require('../../utils/recordEditRoute')
 const memoryMonthGroups = require('../../utils/memoryMonthGroups')
@@ -12,7 +13,7 @@ const { restoreTabBarOnShow } = require('../../utils/sheetLifecycle')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 
 Page(withPageVisibility({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), segment: 'period', periods: [], periodGroups: [], periodQuickLabel: '＋ 记经期', periodQuickAriaLabel: '记经期', predictionThresholdText: '记两次经期后就能估下次', avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memories: [], memoryGroups: [], memoryLoading: true, memoryLoadFailed: false, memoryHasLoaded: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), segment: 'period', periodCount: 0, periodGroups: [], periodQuickLabel: '＋ 记经期', periodQuickAriaLabel: '记经期', predictionThresholdText: '记两次经期后就能估下次', avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memoryCount: 0, memoryGroups: [], memoryLoading: true, memoryLoadFailed: false, memoryHasLoaded: false },
 
   // 欢乐时光月份卡的展开选择（issue #109）：页面内存按月份键记「用户点过卡头」的月份，
   // 值为 memoryMonthGroups.EXPANDED / COLLAPSED；没点过的月份默认收起。
@@ -20,6 +21,9 @@ Page(withPageVisibility({
   memoryMonthChoices: {},
   periodMonthChoices: {},
   periodYearChoices: {},
+  _recordsDirty: false,
+  _renderedToday: '',
+  _pendingSegment: '',
 
   // 全应用共用一份 Room 记录（#194）：加载时订阅、卸载时退订，订阅回调只更新渲染数据
   onLoad() {
@@ -34,10 +38,10 @@ Page(withPageVisibility({
     // 本页没有弹层：别的页面在弹层开着时被卸载留下的隐藏 tabBar，在这里交还
     restoreTabBarOnShow(this)
     this.consumeSegmentIntent()
-    // 先请共享记录加载：它先按本机当前的房间码核对归属，换了 Room 就先清空，再按今天画一次手里的记录
-    // （进行中经期的天数随日期走）；已读到过这个 Room 的记录时这次是静默刷新，显示时不等云应答
+    // 先请共享记录加载：它先按本机当前的房间码核对归属，换了 Room 就先清空。
+    // 只有记录脏标记或 Today 样本变化才重画行；无变化的再次显示不多发一份分组（#224）。
     const loaded = this.loadRecords()
-    this.renderRecords(roomRecordsSync.getState(), { calendarChanged: true })
+    this.renderRecords(roomRecordsSync.getState())
     return loaded
   },
 
@@ -63,7 +67,7 @@ Page(withPageVisibility({
   },
 
   // 共享记录发布的记录变化（编辑页保存/删除成功后交给它的那一次，#195）：落到被改动记录所属分段、
-  // 展开保存结果所在月份，与这次变化的行同一次渲染
+  // 展开保存结果所在月份；可见时同行渲染，隐藏时留到下次显示一起补上
   landOnRecordChange(change) {
     if (change.collection === 'memories') {
       // 保存后自动展开（issue #109）：新增/修改把记录所在月份设为展开，
@@ -114,70 +118,131 @@ Page(withPageVisibility({
   // 两个分段渲染共享记录：已同步的集合直接显示；未同步的不显示空态，给失败画面与重试，手里已保存的记录照常列出，
   // 经期条数和平均值显示占位；曾同步、最近一次刷新失败的保留列表并给行内重试。
   // 行只在显示时、记录或配对变化时（calendarChanged）和落到一次记录变化时重画，记录作者随同一次渲染给出；
-  // 点按入口也只认渲染出来的行
+  // 点按入口按 id 回读共享记录，不从页面保存另一份记录副本
   renderRecords(state, { calendarChanged = false, recordChange = null } = {}) {
+    if (recordChange) {
+      const landing = this.landOnRecordChange(recordChange)
+      this._pendingSegment = landing.segment
+    }
+    if (calendarChanged || recordChange) this._recordsDirty = true
+    // 隐藏期间只保留脏标记和展开选择；onShow 用共享记录的最新状态补画（#224）。
+    if (this.data.pageHidden) return
+    const today = util.formatDate(new Date())
+    const drawRows = this._recordsDirty || this._renderedToday !== today
     const update = {
       ...segmentState(state, 'periods', { loading: 'loading', loaded: 'hasLoaded', failed: 'loadFailed' }),
       ...segmentState(state, 'memories', { loading: 'memoryLoading', loaded: 'memoryHasLoaded', failed: 'memoryLoadFailed' }),
       ...periodStats(state.collections.periods)
     }
-    if (recordChange) Object.assign(update, this.landOnRecordChange(recordChange))
-    if (calendarChanged || recordChange) Object.assign(update, this.recordRows(state))
-    this.setData(update)
+    if (this._pendingSegment) {
+      update.segment = this._pendingSegment
+      this._pendingSegment = ''
+    }
+    if (drawRows) Object.assign(update, this.recordRows(state))
+    const patch = changedFields(this.data, update)
+    if (Object.keys(patch).length) this.setData(patch)
+    if (drawRows) {
+      this._recordsDirty = false
+      this._renderedToday = today
+    }
   },
 
   recordRows(state) {
     const today = util.formatDate(new Date())
-    const paired = state.roomPaired
     const quickEntry = buildPeriodQuickEntry(state.collections.periods.records, {
       today,
       periodsSynced: state.collections.periods.synced
     })
-    this._periodQuickAction = quickEntry.action
-    const periods = [...state.collections.periods.records]
-      .sort((a, b) => b.startDate.localeCompare(a.startDate))
-      .map(period => withAuthorLabel(cycle.decoratePeriod(period, { today }), paired))
-    const memories = [...state.collections.memories.records].sort((a, b) => b.date.localeCompare(a.date))
     return {
-      periods,
-      periodGroups: buildPeriodGroups(periods, this.periodMonthChoices, this.periodYearChoices),
+      periodCount: state.collections.periods.records.length,
+      periodGroups: this.periodProjection(state),
       periodQuickLabel: quickEntry.mode === 'add' ? '＋ 记经期' : quickEntry.label,
       periodQuickAriaLabel: quickEntry.ariaLabel,
       predictionThresholdText: cycle.buildPredictionThresholdText(state.collections.periods.records),
-      memories,
-      // 欢乐时光月份分组（issue #108）；展开状态由页面内存的手动选择推导（issue #109）：没点过的月份收起
-      memoryGroups: memoryMonthGroups.applyMemoryMonthExpansion(
-        memoryMonthGroups.buildMemoryMonthGroups(memories.map(memory => withAuthorLabel(memory, paired)), { today }),
-        this.memoryMonthChoices
-      )
+      memoryCount: state.collections.memories.records.length,
+      memoryGroups: this.memoryProjection(state)
     }
   },
 
+  periodProjection(state) {
+    const today = util.formatDate(new Date())
+    const periods = [...state.collections.periods.records]
+      .sort((a, b) => b.startDate.localeCompare(a.startDate))
+      .map(period => withAuthorLabel(cycle.decoratePeriod(period, { today }), state.roomPaired))
+    return buildPeriodGroups(periods, this.periodMonthChoices, this.periodYearChoices)
+  },
+
+  memoryProjection(state) {
+    const today = util.formatDate(new Date())
+    const memories = [...state.collections.memories.records]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map(memory => withAuthorLabel(memory, state.roomPaired))
+    // 欢乐时光月份分组（issue #108）；展开状态由页面内存的手动选择推导（issue #109）：没点过的月份收起。
+    // 收起的月份只保留卡头，rows 不随 setData 下发（#224）。
+    return memoryMonthGroups.applyMemoryMonthExpansion(
+      memoryMonthGroups.buildMemoryMonthGroups(memories, { today }),
+      this.memoryMonthChoices
+    ).map(group => group.expanded ? group : { ...group, records: [] })
+  },
+
   addPeriod() {
-    const entry = this._periodQuickAction
-    if (!entry) return
+    const state = roomRecordsSync.readCurrentRoom()
+    const periods = state.collections.periods.records
+    const today = util.formatDate(new Date())
+    const quickEntry = buildPeriodQuickEntry(periods, { today, periodsSynced: state.collections.periods.synced })
+    let entry = quickEntry.action
+    if (quickEntry.mode === 'complete') {
+      const decision = periodCoverage.decidePeriodRecordForDate(periods, today, { today })
+      const record = findRecordById('periods', decision.record && (decision.record._id || decision.record.id))
+      if (!record) return
+      entry = {
+        url: recordEditRoute.buildPeriodEditUrl(record, { intent: 'complete', today }),
+        notice: decision.notice
+      }
+    }
     if (entry.notice) wx.showToast({ title: entry.notice, icon: 'none' })
     wx.navigateTo({ url: entry.url })
   },
 
   togglePeriodYear(e) {
     const key = e.currentTarget.dataset.key
-    const year = this.data.periodGroups.find(group => group.key === key)
-    if (!year) return
+    const yearIndex = this.data.periodGroups.findIndex(group => group.key === key)
+    if (yearIndex < 0) return
+    const year = this.data.periodGroups[yearIndex]
     this.periodYearChoices = { ...this.periodYearChoices, [key]: !year.expanded }
-    this.setData({ periodGroups: buildPeriodGroups(this.data.periods, this.periodMonthChoices, this.periodYearChoices) })
+    const next = this.periodProjection(roomRecordsSync.readCurrentRoom())[yearIndex]
+    const root = `periodGroups[${yearIndex}]`
+    const patch = {
+      [`${root}.expanded`]: next.expanded,
+      [`${root}.toggleLabel`]: next.toggleLabel,
+      [`${root}.ariaLabel`]: next.ariaLabel
+    }
+    next.months.forEach((month, monthIndex) => {
+      const before = year.months[monthIndex].records
+      if (before.length || month.records.length) patch[`${root}.months[${monthIndex}].records`] = month.records
+    })
+    this.setData(patch)
   },
 
   togglePeriodMonth(e) {
     const key = e.currentTarget.dataset.key
-    const month = this.data.periodGroups.flatMap(year => year.months).find(group => group.key === key)
-    if (!month) return
+    const yearIndex = this.data.periodGroups.findIndex(year => year.months.some(group => group.key === key))
+    if (yearIndex < 0) return
+    const monthIndex = this.data.periodGroups[yearIndex].months.findIndex(group => group.key === key)
+    const month = this.data.periodGroups[yearIndex].months[monthIndex]
     this.periodMonthChoices = { ...this.periodMonthChoices, [key]: !month.expanded }
-    this.setData({ periodGroups: buildPeriodGroups(this.data.periods, this.periodMonthChoices, this.periodYearChoices) })
+    const next = this.periodProjection(roomRecordsSync.readCurrentRoom())[yearIndex].months[monthIndex]
+    const root = `periodGroups[${yearIndex}].months[${monthIndex}]`
+    this.setData({
+      [`${root}.expanded`]: next.expanded,
+      [`${root}.toggleLabel`]: next.toggleLabel,
+      [`${root}.ariaLabel`]: next.ariaLabel,
+      [`${root}.records`]: next.records
+    })
   },
 
   editPeriod(e) {
-    const record = this.data.periods.find(period => period._id === e.currentTarget.dataset.id)
+    const record = findRecordById('periods', e.currentTarget.dataset.id)
     if (!record) return
     wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(record) })
   },
@@ -188,8 +253,8 @@ Page(withPageVisibility({
   },
 
   editMemory(e) {
-    // 分组后行不再对应扁平下标：按记录 id 找到被点的那条（issue #108）
-    const record = this.data.memories.find(memory => memory._id === e.currentTarget.dataset.id)
+    // 页面不持有记录副本：按行里的 id 从共享记录取被点的那条（#224）。
+    const record = findRecordById('memories', e.currentTarget.dataset.id)
     if (!record) return
     wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl(record) })
   },
@@ -198,18 +263,27 @@ Page(withPageVisibility({
   // 手动选择记进页面内存，重载/切分段后仍保留；不写本地存储
   toggleMonth(e) {
     const key = e.currentTarget.dataset.key
-    const groups = this.data.memoryGroups
-    const target = groups.find(group => group.key === key)
-    if (!target) return
+    const index = this.data.memoryGroups.findIndex(group => group.key === key)
+    if (index < 0) return
+    const target = this.data.memoryGroups[index]
     this.memoryMonthChoices = {
       ...this.memoryMonthChoices,
       [key]: target.expanded ? memoryMonthGroups.COLLAPSED : memoryMonthGroups.EXPANDED
     }
+    const next = this.memoryProjection(roomRecordsSync.readCurrentRoom())[index]
+    const root = `memoryGroups[${index}]`
     this.setData({
-      memoryGroups: memoryMonthGroups.applyMemoryMonthExpansion(groups, this.memoryMonthChoices)
+      [`${root}.expanded`]: next.expanded,
+      [`${root}.toggleLabel`]: next.toggleLabel,
+      [`${root}.ariaLabel`]: next.ariaLabel,
+      [`${root}.records`]: next.records
     })
   }
 }))
+
+function changedFields(data, update) {
+  return Object.fromEntries(Object.entries(update).filter(([key, value]) => !Object.is(data[key], value)))
+}
 
 // 一个分段的状态：首次加载中画骨架；未同步的分段遇到任何一次加载（重试、下拉、显示时的刷新）也画骨架，另一段已同步
 // 让这次加载静默时，被点的重试仍看得见在读（决定 23）。没有加载在跑时，未同步（读取失败，或 Room 被拦下）给失败画面
@@ -261,15 +335,22 @@ function buildPeriodGroups(periods, choices, yearChoices) {
       const expanded = choices[key] !== false
       const toggleLabel = expanded ? '收起' : '展开'
       month = {
-        key, title, expanded, toggleLabel,
+        key, title, expanded, toggleLabel, count: 0,
         ariaLabel: `${yearKey}年${title}，${expanded ? '已展开' : '已收起'}，${toggleLabel}经期记录`,
         records: []
       }
       year.months.push(month)
     }
-    month.records.push(record)
+    month.count += 1
+    if (year.expanded && month.expanded) month.records.push(record)
   }
   return years
+}
+
+function findRecordById(collection, id) {
+  if (!id) return null
+  return roomRecordsSync.readCurrentRoom().collections[collection].records
+    .find(record => (record._id || record.id) === id) || null
 }
 
 // 记录作者随列表的同一次渲染给出：共享记录的配对状态是已配对时带「我记的 / TA 记的」，未配对或状态未知时不带
