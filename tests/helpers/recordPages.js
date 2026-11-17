@@ -40,7 +40,7 @@ async function confirmDelete(app, page = app.currentPage) {
 }
 
 // 在真实编辑页里确认一次保存或删除（#195：记录变化只从编辑页来），云端按 write 回复这条记录。
-// 删除走共享面板；云端合并到已有进行中（reopened）的归属询问仍保留原生确认。
+// 删除与开始日归属走共享面板；云端合并到已有进行中（reopened）的说明仍保留原生知悉弹窗。
 async function confirmInEditor(app, change, { query = editorQuery(change), write = change.mode, reopened = false } = {}) {
   const { collection, mode, record } = change
   app.cloud.when({ name: 'dataOp', data: { action: write, collection } })

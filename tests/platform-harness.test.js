@@ -90,20 +90,20 @@ for (const field of ['confirmText', 'cancelText']) {
     const failures = []
     const completions = []
     const options = {
-      title: '按钮长度边界', confirmText: '编辑那条', cancelText: '仍然新建',
+      title: '按钮长度边界', confirmText: '去绑定', cancelText: '取消',
       success: result => successes.push(result),
       fail: result => failures.push(result),
       complete: result => completions.push(result)
     }
     const confirmed = { confirm: true, cancel: false }
     app.wx.showModal(options)
-    assert.equal(app.wx.modals.length, 1, 'four Chinese characters remain answerable')
+    assert.equal(app.wx.modals.length, 1, 'short native failure actions remain answerable')
     app.respond('showModal', 0, confirmed)
     assert.deepEqual(successes, [confirmed])
     assert.deepEqual(failures, [])
 
     app.respondNext('showModal', confirmed)
-    app.wx.showModal({ ...options, [field]: field === 'confirmText' ? '去编辑那条' : '仍然新建它' })
+    app.wx.showModal({ ...options, [field]: field === 'confirmText' ? '去绑定房间' : '取消并返回' })
     assert.equal(app.wx.modals.length, 1, 'an invalid native modal is never displayed')
     assert.throws(() => app.respond('showModal', 1, confirmed), /rejected before display/)
     await app.settle()
