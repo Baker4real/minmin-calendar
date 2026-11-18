@@ -20,7 +20,8 @@ const FIRST_SCREEN_RPX = {
   gridPadding: 12,
   quickActions: 114
 }
-const FIRST_SCREEN_BORDER_PX = 6
+// 月份导航上下 2px + R5 吸顶底边 1px + 周头上下 2px + 网格上下 2px。
+const FIRST_SCREEN_BORDER_PX = 7
 
 // 格内纵向槽位，自上而下：每行是上外边距 + 盒高。最后一行装标记，「预」胶囊比它高时向下垂出。
 // full：日期、农历、节日/调休、标记，顶对齐；经期色带借用农历行后的绝对定位槽。

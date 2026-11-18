@@ -251,14 +251,15 @@ button.home-share-invite {
   box-sizing: border-box;
   padding: 0 24rpx;
   background: #0A0E27;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
 }
-/* 占位 = 月份导航 130 + 状态行 88（+「回到今天」88），另加月份导航 1px 上下描边，下方第一行不被吸顶区盖住 */
+/* 占位 = 月份导航 130 + 状态行 88（+「回到今天」88），另加月份导航 1px 上下描边与 R5 吸顶底边 1px，下方第一行不被吸顶区盖住 */
 .home-sticky-spacer {
-  height: calc(218rpx + 2px);
+  height: calc(218rpx + 3px);
   flex-shrink: 0;
 }
 .home-sticky-spacer.with-back-today {
-  height: calc(306rpx + 2px);
+  height: calc(306rpx + 3px);
 }
 .back-today {
   height: 88rpx;

@@ -317,6 +317,11 @@ test('quick record actions keep period primary and memory button-ghost with read
   assert.match(ruleBody(wxss, '.quick-text'), /font-size:\s*var\(--font-size-body\)/)
 })
 
+test('R5 sticky separator is a 1px white 8% bottom hairline', () => {
+  const sticky = ruleBody(readIndexWxss(), '.home-sticky')
+  assert.match(sticky, /border-bottom:\s*1px solid rgba\(255,\s*255,\s*255,\s*0\.08\)/)
+})
+
 test('compact density preserves the thicker band and allows scrolling on a short 6-row month', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
   const wxss = readIndexWxss()

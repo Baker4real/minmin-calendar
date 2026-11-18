@@ -116,6 +116,22 @@ test('month title and today stay rose', () => {
     "today's date stays rose")
 })
 
+test('R5 sticky hairline composites white 8% beyond the observed 8-channel trigger', () => {
+  const file = 'pages/index/index.wxss'
+  const declared = exactDeclaration(file, '.home-sticky', 'border-bottom')
+  assert.match(declared, /^1px solid\s+/)
+  const stroke = strokeColor(declared)
+  assert.deepEqual([stroke.r, stroke.g, stroke.b].map(channel => Math.round(channel * 255)), [255, 255, 255])
+  assert.equal(stroke.a, 0.08)
+  const sticky = cssColor(exactDeclaration(file, '.home-sticky', 'background'))
+  const line = composite(sticky, stroke, stroke.a)
+  for (const [name, groundValue] of contrastGrounds(readSource('app.wxss'))) {
+    const ground = hex(groundValue)
+    const deltas = ['r', 'g', 'b'].map(channel => Math.abs(line[channel] - ground[channel]) * 255)
+    assert.ok(deltas.some(delta => delta > 8), `${name} still satisfies the R5 hairline trigger: ${deltas.map(delta => delta.toFixed(2)).join(', ')}`)
+  }
+})
+
 test('period band stays a translucent rose and lunar text on it clears 4.5:1', () => {
   const band = declarationOf('pages/index/index.wxss', '.period-band', 'background')
   const parsed = /^rgba\(\s*232\s*,\s*144\s*,\s*158\s*,\s*(0\.\d+)\s*\)$/.exec(band)

@@ -286,20 +286,20 @@ test('joint ledger: 320/375/390 × both densities × 5/6 rows × back-to-today n
     { width: 390, screen: 844, tabBar: 83, nav: 91 }
   ]
   // [行高 px, 清爽密度是否合并信息行, 记录入口是否在首屏]。
-  // 完整密度要 159rpx 一行：320、375 上 5 行也放不下；390 上 5 行刚好放下，6 行靠滚动。
+  // 完整密度要 159rpx 一行：320、375 上 5 行也放不下；390 上当月 5 行刚好放下，R5 发丝线占 1px 后带「回到今天」的 5 行与 6 行靠滚动。
   // 清爽色带加厚后，375 上6行带「回到今天」及320上6行的最矮情形靠滚动；其他组合按可用高度合并。
   const expected = {
-    '320:compact:5:0': [56.37, true, true],
-    '320:compact:5:1': [48.86, true, true],
-    '320:compact:6:0': [46.98, true, true],
+    '320:compact:5:0': [56.17, true, true],
+    '320:compact:5:1': [48.66, true, true],
+    '320:compact:6:0': [46.81, true, true],
     '320:compact:6:1': [46.08, true, false],
     '320:full:5:0': [67.84, false, false],
     '320:full:5:1': [67.84, false, false],
     '320:full:6:0': [67.84, false, false],
     '320:full:6:1': [67.84, false, false],
-    '375:compact:5:0': [70.4, true, true],
-    '375:compact:5:1': [61.6, true, true],
-    '375:compact:6:0': [58.66, true, true],
+    '375:compact:5:0': [70.2, true, true],
+    '375:compact:5:1': [61.4, true, true],
+    '375:compact:6:0': [58.5, true, true],
     '375:compact:6:1': [54, true, false],
     '375:full:5:0': [79.5, false, false],
     '375:full:5:1': [79.5, false, false],
@@ -307,10 +307,10 @@ test('joint ledger: 320/375/390 × both densities × 5/6 rows × back-to-today n
     '375:full:6:1': [79.5, false, false],
     '390:compact:5:0': [76.96, false, true],
     '390:compact:5:1': [76.96, false, true],
-    '390:compact:6:0': [76.52, false, true],
-    '390:compact:6:1': [68.89, true, true],
+    '390:compact:6:0': [76.35, false, true],
+    '390:compact:6:1': [68.72, true, true],
     '390:full:5:0': [83.2, false, true],
-    '390:full:5:1': [82.68, false, true],
+    '390:full:5:1': [82.68, false, false],
     '390:full:6:0': [82.68, false, false],
     '390:full:6:1': [82.68, false, false]
   }
@@ -386,7 +386,7 @@ test('a calendar row never drops below the cell content minimum; full density sc
 test('compact density merges the holiday row into the mark row only when the standard stack does not fit', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
   // 375×667：页高 619、顶栏 64，6 行且显示「回到今天」。首屏 = 吸顶占位 306 + 周头 50 + 网格内边距 12 + 记录入口 114
-  // = 482rpx = 241px，另有 6px 描边：每行可用 (619 − 64 − 247) / 6 = 51.33px = 102.67rpx。
+  // = 482rpx = 241px，R5 后另有 7px 描边：每行可用 (619 − 64 − 248) / 6 = 51.16px。
   // 常规清爽格加上2+12rpx经期槽后需要146rpx = 73px，放不下；
   // 合并后8 + 日期38 + 色带2+12 + 信息2+42 + 底4 = 108rpx = 54px，仍需自然滚动。
   const short = computeCalendarRowHeight({
@@ -402,7 +402,7 @@ test('compact density merges the holiday row into the mark row only when the sta
   assert.equal(short.heightPx, 54)
   assert.equal(short.actionsFit, false)
 
-  // 390×844 当月：每行可用 (761 − 91 − 210.88) / 6 = 76.52px = 147.15rpx，常规清爽格放得下，不合并，行高76.52px低于148rpx上限
+  // 390×844 当月：R5 后首屏描边为 7px，每行可用 (761 − 91 − 211.88) / 6 = 76.35px，常规清爽格放得下，不合并，行高低于148rpx上限
   const roomy = computeCalendarRowHeight({
     viewportWidth: 390,
     viewportHeight: 761,
@@ -412,7 +412,7 @@ test('compact density merges the holiday row into the mark row only when the sta
   })
   assert.equal(roomy.infoMerged, false)
   assert.equal(roomy.contentMinPx, 75.92)
-  assert.equal(roomy.heightPx, 76.52)
+  assert.equal(roomy.heightPx, 76.35)
   assert.equal(roomy.actionsFit, true)
 })
 
@@ -456,8 +456,8 @@ test('a month merges only when every day fits its holiday tag and marks on one l
   }
 })
 
-function borderPx(decls) {
-  const match = /^(\d+(?:\.\d+)?)px\b/.exec(String(decls.border || ''))
+function borderPx(decls, property = 'border') {
+  const match = /^(\d+(?:\.\d+)?)px\b/.exec(String(decls[property] || ''))
   assert.ok(match, 'expected a px border shorthand')
   return Number(match[1])
 }
@@ -472,18 +472,21 @@ test('the first-screen ledger is the CSS flow above the record actions', async (
   const ledger = CALENDAR_LEDGER.firstScreenRpx
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
   const monthNav = findDecls(rules, '.month-nav')
+  const sticky = findDecls(rules, '.home-sticky')
   const week = findDecls(rules, '.week-header')
   const grid = findDecls(rules, '.calendar-grid')
 
-  // 吸顶区 = 月份导航（外边距 + 内边距 + 88rpx 控件）+ 状态行；占位再加月份导航 1px 上下描边，下方内容不被盖住
+  // 吸顶区 = 月份导航（外边距 + 内边距 + 88rpx 控件）+ 状态行；占位再加月份导航 1px 上下描边与 R5 吸顶底边，下方内容不被盖住
   const monthNavBox = verticalMarginRpx(monthNav) + verticalPaddingRpx(monthNav) + rpxNumber(findDecls(rules, '.nav-btn'), 'height')
   assert.equal(ledger.stickySpacer, monthNavBox + rpxNumber(findDecls(rules, '.home-status'), 'height'))
   assert.equal(ledger.backToToday, rpxNumber(findDecls(rules, '.back-today'), 'height'))
   const navBorder = 2 * borderPx(monthNav)
-  assert.equal(findDecls(rules, '.home-sticky-spacer').height, `calc(${ledger.stickySpacer}rpx + ${navBorder}px)`)
+  const stickyBorder = borderPx(sticky, 'border-bottom')
+  const spacerBorder = navBorder + stickyBorder
+  assert.equal(findDecls(rules, '.home-sticky-spacer').height, `calc(${ledger.stickySpacer}rpx + ${spacerBorder}px)`)
   assert.equal(
     findDecls(rules, '.home-sticky-spacer.with-back-today').height,
-    `calc(${ledger.stickySpacer + ledger.backToToday}rpx + ${navBorder}px)`
+    `calc(${ledger.stickySpacer + ledger.backToToday}rpx + ${spacerBorder}px)`
   )
 
   // 行内重试行：border-box 的最小高 + 下外边距；最长的失败文案在 320px 下也只占一行
@@ -510,8 +513,8 @@ test('the first-screen ledger is the CSS flow above the record actions', async (
   assert.equal(ledger.quickActions, rpxNumber(findDecls(rules, '.quick-actions'), 'margin-top') + rpxNumber(quickBtn, 'min-height'))
   assert.equal(ledger.partnerWelcome, 103.2)
 
-  // 月份导航、周头、日历网格各有 1px 上下描边
-  assert.equal(CALENDAR_LEDGER.firstScreenBorderPx, navBorder + 2 * borderPx(week) + 2 * borderPx(grid))
+  // 月份导航、周头、日历网格各有 1px 上下描边；R5 再给吸顶区底部增加 1px
+  assert.equal(CALENDAR_LEDGER.firstScreenBorderPx, navBorder + stickyBorder + 2 * borderPx(week) + 2 * borderPx(grid))
 })
 
 // issue #159：进行中经期的记录入口「经期第 N 天 · 记结束」一行放不下。连写的中文不拆开，只在文案里的空格处折行，
@@ -683,15 +686,15 @@ test('the prediction summary starts the window clause on its own line and each c
 // issue #151 的行内重试行（首次加载只有一个集合失败时也会出现）同样在吸顶占位之后的文档流里，占首屏高度
 test('the inline sync-retry row is an explicit input of the first-screen ledger', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
-  // 375×667 当月 6 行：首屏 394rpx + 6px 描边 = 203px，每行 (619 − 64 − 203) / 6 = 58.66px（合并信息行）。
-  // 重试行 = 最小高 88 + 下外边距 8 = 96rpx = 48px：每行 (619 − 64 − 251) / 6 = 50.66px，低于加厚色带后的合并最小54px。
-  // 再显示「回到今天」88rpx：每行只剩 43.33px，行高停在54px，记录入口移出首屏。
+  // 375×667 当月 6 行：R5 后首屏 394rpx + 7px 描边 = 204px，每行 (619 − 64 − 204) / 6 = 58.5px（合并信息行）。
+  // 重试行 = 最小高 88 + 下外边距 8 = 96rpx = 48px：每行 (619 − 64 − 252) / 6 = 50.5px，低于加厚色带后的合并最小54px。
+  // 再显示「回到今天」88rpx：每行只剩 43.16px，行高停在54px，记录入口移出首屏。
   const base = { viewportWidth: 375, viewportHeight: 619, navBarHeightPx: 64, density: 'compact', days: monthDays(6) }
   const plain = computeCalendarRowHeight(base)
   const retry = computeCalendarRowHeight({ ...base, showRefreshRetry: true })
   const retryAway = computeCalendarRowHeight({ ...base, showRefreshRetry: true, showBackToToday: true })
 
-  assert.deepEqual([plain.heightPx, plain.infoMerged, plain.actionsFit], [58.66, true, true])
+  assert.deepEqual([plain.heightPx, plain.infoMerged, plain.actionsFit], [58.5, true, true])
   assert.deepEqual([retry.heightPx, retry.infoMerged, retry.actionsFit], [54, true, false])
   assert.deepEqual([retryAway.heightPx, retryAway.contentMinPx, retryAway.actionsFit], [54, 54, false])
 })
@@ -703,12 +706,12 @@ test('the one-time partner welcome bar is an explicit input of the calendar row-
   // 页高 = 手机高度 − 底栏；without / with 是不显示 / 显示欢迎条时的行高，fits 是显示时记录入口是否仍在首屏。
   // 放不下时行高停在内容最小高度（清爽合并108rpx与44px取大、完整 159rpx），记录入口靠滚动触达（issue #153）。
   const samples = [
-    { width: 390, height: 761, nav: 91, density: 'compact', rows: 6, showBackToToday: false, without: 76.52, with: 67.57, fits: true },
+    { width: 390, height: 761, nav: 91, density: 'compact', rows: 6, showBackToToday: false, without: 76.35, with: 67.4, fits: true },
     { width: 390, height: 761, nav: 91, density: 'full', rows: 5, showBackToToday: false, without: 83.2, with: 82.68, fits: false },
-    { width: 375, height: 619, nav: 64, density: 'compact', rows: 6, showBackToToday: false, without: 58.66, with: 54, fits: false },
+    { width: 375, height: 619, nav: 64, density: 'compact', rows: 6, showBackToToday: false, without: 58.5, with: 54, fits: false },
     { width: 375, height: 619, nav: 64, density: 'compact', rows: 6, showBackToToday: true, without: 54, with: 54, fits: false, plainFits: false },
-    { width: 320, height: 520, nav: 64, density: 'compact', rows: 5, showBackToToday: false, without: 56.37, with: 47.57, fits: true },
-    { width: 320, height: 520, nav: 64, density: 'compact', rows: 6, showBackToToday: false, without: 46.98, with: 46.08, fits: false }
+    { width: 320, height: 520, nav: 64, density: 'compact', rows: 5, showBackToToday: false, without: 56.17, with: 47.37, fits: true },
+    { width: 320, height: 520, nav: 64, density: 'compact', rows: 6, showBackToToday: false, without: 46.81, with: 46.08, fits: false }
   ]
 
   for (const sample of samples) {
