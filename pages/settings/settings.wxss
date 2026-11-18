@@ -1,4 +1,5 @@
 @import '../shared/confirmation-sheet.wxss';
+@import '../shared/room-code.wxss';
 
 /* ===== Aurora Bloom: Settings ===== */
 /* 第一组离顶栏 24rpx，与记录页、编辑页的首块顶距同一角色（issue #164） */
@@ -240,63 +241,13 @@ button.settings-share-invite {
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
 }
-.room-code-value {
-  font-size: 36rpx;
-  font-weight: var(--font-weight-control);
-  letter-spacing: var(--letter-spacing-room-code);
+/* 展示样式与绑定页共用 shared/room-code.wxss；这里只保留设置页上下布局。 */
+.room-code-content .room-code-value {
   text-indent: var(--letter-spacing-room-code);
   margin-top: 4rpx;
-  line-height: var(--line-height-assist);
-  color: #E8909E;
-  word-break: break-all;
-  font-variant-numeric: tabular-nums;
-}
-.room-code-value.muted {
-  color: var(--text-secondary);
-  font-weight: var(--font-weight-body);
-  letter-spacing: 0;
-  text-indent: 0;
 }
 
-/* Copy Button — 实色玫瑰 */
-.copy-btn {
-  flex-shrink: 0;
-  min-height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  white-space: nowrap;
-  background: var(--aurora-pink);
-  color: #0A0E27;
-  padding: 0 28rpx;
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-control);
-  position: relative;
-  transition: transform var(--duration-press) var(--ease-out);
-}
-/* 柔光层同 .btn-premium（issue #166）：按下沉到 0.5，和缩放同一拍 */
-.copy-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: var(--radius-sm);
-  box-shadow: 0 8rpx 30rpx rgba(232,144,158,0.28);
-  transition: opacity var(--duration-press) ease;
-  pointer-events: none;
-}
-.copy-btn:active,
-.copy-btn.copy-btn-hover {
-  transform: scale(0.94);
-}
-.copy-btn:active::before,
-.copy-btn.copy-btn-hover::before {
-  opacity: 0.5;
-}
+/* 复制键样式与绑定页共用 shared/room-code.wxss（#232）。 */
 
 /* 拿不到房间码时的下一步操作（issue #79）：重试/去绑定。
    弱态玫瑰描边按钮（与密度选项同族的弱选中态），不做第二颗实色主按钮；
@@ -382,8 +333,6 @@ button.settings-share-invite {
   .reduced-motion-probe {
     width: 1px;
   }
-  .copy-btn,
-  .copy-btn::before,
   .density-option,
   .room-action-btn,
   .menu-item,
