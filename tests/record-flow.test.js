@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { readSource } = require('./sourceFiles')
@@ -81,11 +82,13 @@ test('record tab preserves author and accessible row bindings, pull refresh, and
 })
 
 test('legacy memory route keeps only the navbar style its markup renders', () => {
+  const raw = readRawPageFile('pages/memory/memory.wxml')
   const wxml = readPageFile('pages/memory/memory.wxml')
   const wxss = readPageFile('pages/memory/memory.wxss')
-  assert.match(wxml, /<view class="nav-bar header-gradient">/)
-  assert.match(wxml, /<view class="nav-title">欢乐时光<\/view>/)
-  assert.deepEqual(parseWxssRules(wxss).flatMap(rule => rule.selectors), ['.nav-title'])
+  assert.match(raw, /variant: 'placeholder', title: '欢乐时光'/)
+  assert.match(wxml, /<view class="nav-bar header-gradient" aria-hidden="\{\{pageObscured\}\}">/)
+  assert.match(wxml, /<view wx:elif="\{\{title\}\}" class="nav-title">\{\{title\}\}<\/view>/)
+  assert.deepEqual(parseWxssRules(wxss).flatMap(rule => rule.selectors), [])
 })
 
 test('period list failure retry is a recognizable operation, distinct from the quiet empty note', () => {
@@ -246,8 +249,11 @@ test('record edit pages isolate delete loading, constrain period dates, and cap 
 test('record edit templates use action titles, paired authors, and the required form structure', () => {
   const periodWxml = readPageFile('pages/period/edit/edit.wxml')
   const memoryWxml = readPageFile('pages/memory/edit/edit.wxml')
+  for (const file of ['pages/period/edit/edit.wxml', 'pages/memory/edit/edit.wxml']) {
+    assert.match(readRawPageFile(file), /variant: 'back', title: pageTitle/)
+  }
   for (const wxml of [periodWxml, memoryWxml]) {
-    assert.match(wxml, /<view class="nav-title">\{\{pageTitle\}\}<\/view>/)
+    assert.match(wxml, /<view wx:elif="\{\{title\}\}" class="nav-title">\{\{title\}\}<\/view>/)
     assert.doesNotMatch(wxml, /新增经期|新增欢乐时光/)
     assert.match(wxml, /<view wx:if="\{\{authorLabel\}\}" class="record-author">\{\{authorLabel\}\}<\/view>/)
   }
@@ -431,4 +437,8 @@ test('both edit pages reuse the shared confirmation sheet, back guard and reduce
 
 function readPageFile(relativePath) {
   return readSource(path.join(__dirname, '..', relativePath), 'utf8')
+}
+
+function readRawPageFile(relativePath) {
+  return fs.readFileSync(path.join(__dirname, '..', relativePath), 'utf8')
 }

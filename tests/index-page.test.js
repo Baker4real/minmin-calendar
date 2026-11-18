@@ -236,12 +236,12 @@ test('navbar legend entry opens the legend directly and stays distinct from the 
   assert.doesNotMatch(monthNav, /openMonthMenu|month-menu-trigger|…/)
   assert.match(monthNav, /bindtap="prevMonth"/)
   assert.match(monthNav, /bindtap="nextMonth"/)
-  const wxss = readIndexWxss()
+  const wxss = readSource(path.join(repoRoot, 'pages/shared/nav-bar.wxss'), 'utf8')
   const tool = ruleBody(wxss, '.nav-tool')
   assert.match(tool, /height:\s*88rpx/)
   assert.match(tool, /border-radius:\s*var\(--radius-md\)/)
   assert.doesNotMatch(tool, /border-radius:\s*var\(--radius-circle\)/)
-  assert.match(ruleBody(wxss, '.nav-btn'), /border-radius:\s*var\(--radius-circle\)/)
+  assert.match(ruleBody(readIndexWxss(), '.nav-btn'), /border-radius:\s*var\(--radius-circle\)/)
 })
 
 test('homepage retires the tools menu and keeps direct prediction, recap and help destinations', () => {

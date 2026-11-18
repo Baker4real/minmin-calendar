@@ -69,7 +69,12 @@ function declarationOf(relativePath, selector, property) {
 }
 
 test('non-interactive titles use the neutral text color, not rose', () => {
-  // 导航标题：每个渲染 nav-title 的页面都在页面侧覆盖为中性（共享基类在 app.wxss）
+  // 导航标题只有共享基类的一处中性白；六个有标题的页面不再各自覆盖。
+  assert.equal(
+    declarationOf('pages/shared/nav-bar.wxss', '.nav-title', 'color'),
+    NEUTRAL_TITLE_COLOR,
+    'the shared nav title must be neutral'
+  )
   const NAV_TITLE_PAGES = [
     'pages/index/index.wxss',
     'pages/period/period.wxss',
@@ -79,11 +84,7 @@ test('non-interactive titles use the neutral text color, not rose', () => {
     'pages/settings/settings.wxss'
   ]
   for (const file of NAV_TITLE_PAGES) {
-    assert.equal(
-      declarationOf(file, '.nav-title', 'color'),
-      NEUTRAL_TITLE_COLOR,
-      `${file} nav title must be neutral`
-    )
+    assert.equal(wxssRuleBody(file, '.nav-title'), null, `${file} must not override the shared nav title`)
   }
 
   // 未绑定标题、绑定页大标题、选月年份数字

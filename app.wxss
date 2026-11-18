@@ -1,3 +1,5 @@
+@import './pages/shared/nav-bar.wxss';
+
 /* ===== Aurora Bloom: Rose + Glassmorphism ===== */
 page {
   /* Aurora Dark Theme */
@@ -176,95 +178,7 @@ page {
   to { opacity: 1; }
 }
 
-/* ===== Custom Nav Bar ===== */
-.nav-bar {
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  height: var(--nav-bar-height, calc(env(safe-area-inset-top, 44px) + 44px));
-  padding-top: var(--safe-top, env(safe-area-inset-top, 44px));
-  padding-right: var(--capsule-right, 96px);
-  padding-bottom: 0;
-  padding-left: 30rpx;
-}
-.nav-title {
-  flex: 1;
-  text-align: center;
-  font-size: var(--font-size-title);
-  font-weight: var(--font-weight-title);
-  color: #E8909E;
-}
-.nav-back {
-  width: 88rpx;
-  height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  padding: 0;
-  text-align: center;
-  font-size: 46rpx;
-  line-height: 1;
-  color: rgba(255,255,255,0.94);
-  text-shadow: 0 2rpx 10rpx rgba(10,14,39,0.35);
-  transition: transform var(--duration-press) var(--ease-out);
-  position: relative;
-  z-index: 11;
-}
-.nav-back-surface {
-  position: absolute;
-  top: 10rpx;
-  right: 10rpx;
-  bottom: 10rpx;
-  left: 10rpx;
-  border-radius: var(--radius-card);
-  background: var(--glass-fallback);
-  border: 1px solid rgba(232,144,158,0.28);
-  box-shadow:
-    0 6rpx 18rpx rgba(10,14,39,0.18),
-    inset 0 1rpx 0 rgba(255,255,255,0.18);
-  transition: border-color var(--duration-press) ease;
-  z-index: 0;
-}
-.nav-back-surface::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  border-radius: var(--radius-card);
-  background-color: rgba(255,255,255,0.09);
-  transition: background-color var(--duration-press) ease;
-  pointer-events: none;
-  z-index: -1;
-}
-.nav-back-icon {
-  position: relative;
-  z-index: 1;
-  display: block;
-  line-height: 1;
-  transform: translateY(-1rpx);
-}
-.nav-back:active,
-.nav-back.nav-back-hover {
-  transform: scale(0.94);
-}
-/* 按下：缩放、描边、底色同一拍变化；投影不换，随按钮一起缩（issue #166） */
-.nav-back:active .nav-back-surface,
-.nav-back.nav-back-hover .nav-back-surface {
-  border-color: rgba(232,144,158,0.42);
-}
-.nav-back:active .nav-back-surface::before,
-.nav-back.nav-back-hover .nav-back-surface::before {
-  background-color: rgba(255,255,255,0.14);
-}
-.nav-placeholder { width: 88rpx; }
+/* ===== Shared navbar lives in pages/shared/nav-bar.wxss ===== */
 
 /* ===== Premium Card (Glass) ===== */
 .premium-card {
@@ -481,41 +395,7 @@ button.share-invite::after {
   color: #F97373;
 }
 
-/* ===== Header Gradient ===== */
-.header-gradient {
-  background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  overflow: hidden;
-  z-index: 10;
-}
-.header-gradient::before {
-  content: '';
-  pointer-events: none;
-  position: absolute;
-  top: -40%;
-  right: -30%;
-  width: 400rpx;
-  height: 400rpx;
-  background: radial-gradient(circle, rgba(232,144,158,0.2) 0%, transparent 60%);
-  border-radius: var(--radius-circle);
-  animation: float 8s ease-in-out infinite alternate;
-}
-.header-gradient::after {
-  content: '';
-  pointer-events: none;
-  position: absolute;
-  bottom: -20%;
-  left: -10%;
-  width: 200rpx;
-  height: 200rpx;
-  background: radial-gradient(circle, rgba(196,160,210,0.1) 0%, transparent 60%);
-  border-radius: var(--radius-circle);
-  animation: float 6s ease-in-out infinite alternate-reverse;
-}
-@keyframes float {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(20rpx, -20rpx) scale(1.1); }
-}
+/* ===== Header gradient lives in the shared navbar stylesheet ===== */
 
 /* ===== 常驻装饰暂停（issue #118 → #163）=====
    弹层开着时页面根带 page-obscured，页面不可见（onHide 到下一次 onShow）时带 page-hidden。
@@ -523,12 +403,8 @@ button.share-invite::after {
    只暂停、不写 animation: none（那会丢掉当前帧）；状态指示（syncDotPulse、skeletonPulse）照常播放。
    色团写它们共有的 .aurora-bloom（共享标记里每个色团都带这个类），增减色团不用改这里。 */
 .page.page-obscured .aurora-bloom,
-.page.page-obscured .header-gradient::before,
-.page.page-obscured .header-gradient::after,
 .page.page-obscured .no-room-icon,
 .page.page-hidden .aurora-bloom,
-.page.page-hidden .header-gradient::before,
-.page.page-hidden .header-gradient::after,
 .page.page-hidden .no-room-icon {
   animation-play-state: paused;
 }
@@ -552,10 +428,7 @@ button.share-invite::after {
   transition: opacity var(--duration-state) ease;
 }
 
-/* 共享顶栏：--safe-top、--nav-bar-height、--capsule-right、--safe-bottom
-   由页面根节点内联注入（utils/safeArea.js）。顶栏固定，内容从顶栏底边开始。
-   env() 在部分 Android 设备解析为 0，仅作兜底 */
-.safe-top { padding-top: var(--nav-bar-height, calc(env(safe-area-inset-top, 44px) + 44px)); }
+/* --safe-bottom 由页面根节点内联注入（utils/safeArea.js）；顶栏安全区在共享顶栏样式里。 */
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 20rpx); }
 
 /* ===== Input Placeholder ===== */
@@ -570,9 +443,7 @@ button.share-invite::after {
    页面声明的写在本页文件末尾的减弱动效块里。 */
 @media (prefers-reduced-motion: reduce) {
   .page,
-  .aurora-bloom,
-  .header-gradient::before,
-  .header-gradient::after {
+  .aurora-bloom {
     animation: none;
   }
   .premium-card,
@@ -589,9 +460,6 @@ button.share-invite::after {
   .btn-danger,
   .btn-danger::before,
   .nav-btn,
-  .nav-back,
-  .nav-back-surface,
-  .nav-back-surface::before,
   .calendar-grid {
     animation: none;
     transition: none;

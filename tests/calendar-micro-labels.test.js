@@ -458,8 +458,9 @@ test('in-cell informational micro text stays at or above the 24rpx floor', () =>
 
 test('captions outside calendar cells stay at or above the 26rpx floor', () => {
   const wxss = readWxss()
+  const sharedNavbar = readSource(APP_WXSS_PATH, 'utf8')
   for (const selector of OUT_CELL_CAPTION_SELECTORS) {
-    const size = declarationRpx(ruleBody(wxss, selector), 'font-size')
+    const size = declarationRpx(ruleBody(selector === '.nav-tool' ? sharedNavbar : wxss, selector), 'font-size')
     assert.ok(
       size >= DESIGN_CAPTION_RPX,
       `${selector} font-size ${size}rpx is below the caption floor ${DESIGN_CAPTION_RPX}rpx`

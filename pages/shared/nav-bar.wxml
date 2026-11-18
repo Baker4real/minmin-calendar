@@ -1,0 +1,16 @@
+<template name="sharedNavbar">
+  <view class="nav-bar header-gradient" aria-hidden="{{pageObscured}}">
+    <view wx:if="{{variant === 'home'}}" class="nav-tool" hover-class="nav-tool-hover" bindtap="openLegendSheet" aria-role="button" aria-label="打开日历图例">图例</view>
+    <view wx:elif="{{variant === 'back'}}" class="nav-back" hover-class="nav-back-hover" bindtap="goBack" aria-role="button" aria-label="返回">
+      <view class="nav-back-surface"></view>
+      <text class="nav-back-icon">‹</text>
+    </view>
+    <view wx:else class="nav-placeholder"></view>
+    <!-- The home sync pill replaces the title only while it is mounted. -->
+    <view wx:if="{{syncStatusMounted}}" class="sync-pill sync-{{syncStatusPhase}} {{refreshing ? 'syncing' : ''}}" aria-role="status" aria-label="{{syncStatusText}}">
+      <view class="sync-dot"></view>
+      <text class="sync-text">{{syncStatusText}}</text>
+    </view>
+    <view wx:elif="{{title}}" class="nav-title">{{title}}</view>
+  </view>
+</template>

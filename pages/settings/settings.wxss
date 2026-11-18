@@ -185,10 +185,7 @@ button.settings-share-invite {
   overflow-wrap: anywhere;
 }
 
-/* 导航标题不可点：中性文字色（共享基类在 app.wxss，页面侧覆盖颜色，issue #77） */
-.nav-title {
-  color: rgba(255,255,255,0.92);
-}
+/* 导航标题使用 pages/shared/nav-bar.wxss 的中性白。 */
 
 /* 页底危险区：解除绑定在点之前就是危险样式（issue #77 / #139）——警告红字 + 警告红描边，
    与 .btn-danger 同族同红，不是第二种红；导出保持上面的普通行 */

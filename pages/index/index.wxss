@@ -2,11 +2,7 @@
 .page {
   overflow: hidden;
 }
-/* 导航标题不可点：中性文字色（共享基类在 app.wxss，页面侧覆盖颜色，issue #77）；
-   月份标题 .month-title 保持玫瑰——它本身是打开选月的控件 */
-.nav-title {
-  color: rgba(255,255,255,0.92);
-}
+/* 导航标题使用共享顶栏的中性白；月份标题 .month-title 保持玫瑰，因为它打开选月。 */
 .content {
   padding: 0 24rpx 30rpx;
   position: relative;
@@ -278,29 +274,7 @@ button.home-share-invite {
   background-color: rgba(255,255,255,0.1);
 }
 
-/* 顶栏左侧图例入口：矩形文字钮，不跟月份箭头共用圆钮。 */
-.nav-tool {
-  min-width: 88rpx;
-  height: 88rpx;
-  padding: 0 8rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255,255,255,0.28);
-  background: transparent;
-  color: rgba(255,255,255,0.92);
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-control);
-  line-height: 1;
-  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
-}
-.nav-tool:active,
-.nav-tool.nav-tool-hover {
-  transform: scale(0.96);
-  background: rgba(255,255,255,0.12);
-}
+/* 顶栏图例入口的样式在 pages/shared/nav-bar.wxss。 */
 
 /* 月份导航和状态行固定在顶栏下。页面根有 overflow:hidden，sticky 不可靠。 */
 .home-sticky {
@@ -1753,7 +1727,6 @@ button.home-share-invite {
   .calendar-days.calendar-flip-next-b,
   .calendar-days.calendar-flip-prev-a,
   .calendar-days.calendar-flip-prev-b,
-  .nav-tool,
   .partner-welcome,
   .back-today,
   .home-status,

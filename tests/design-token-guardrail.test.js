@@ -464,6 +464,8 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['app.wxss', '.aurora-bloom-lavender'],
     ['app.wxss', '.header-gradient::before'],
     ['app.wxss', '.header-gradient::after'],
+    ['pages/shared/nav-bar.wxss', '.header-gradient::before'],
+    ['pages/shared/nav-bar.wxss', '.header-gradient::after'],
     ['app.wxss', '.premium-card::after'],
     ['pages/index/index.wxss', '.month-nav::before'],
     ['pages/index/index.wxss', '.calendar-jump-sheet'],
@@ -478,6 +480,7 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     // 平涂 tint 图像层叠在海军回退上。不是装饰渐变，也不是 CTA 填充。
     ['app.wxss', '.premium-card'],
     ['app.wxss', '.header-gradient'],
+    ['pages/shared/nav-bar.wxss', '.header-gradient'],
     ['pages/index/index.wxss', '.sync-pill'],
     ['pages/index/index.wxss', '.month-nav'],
     ['pages/index/index.wxss', '.nav-btn:active'],

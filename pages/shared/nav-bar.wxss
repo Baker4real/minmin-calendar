@@ -1,0 +1,171 @@
+/* Shared fixed navbar for all seven pages. */
+.nav-bar {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  height: var(--nav-bar-height, calc(env(safe-area-inset-top, 44px) + 44px));
+  padding-top: var(--safe-top, env(safe-area-inset-top, 44px));
+  padding-right: var(--capsule-right, 96px);
+  padding-bottom: 0;
+  padding-left: 30rpx;
+}
+.nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-title);
+  color: rgba(255,255,255,0.92);
+}
+.nav-back {
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0;
+  text-align: center;
+  font-size: 46rpx;
+  line-height: 1;
+  color: rgba(255,255,255,0.94);
+  text-shadow: 0 2rpx 10rpx rgba(10,14,39,0.35);
+  transition: transform var(--duration-press) var(--ease-out);
+  position: relative;
+  z-index: 11;
+}
+.nav-back-surface {
+  position: absolute;
+  top: 10rpx;
+  right: 10rpx;
+  bottom: 10rpx;
+  left: 10rpx;
+  border-radius: var(--radius-card);
+  background: var(--glass-fallback);
+  border: 1px solid rgba(232,144,158,0.28);
+  box-shadow:
+    0 6rpx 18rpx rgba(10,14,39,0.18),
+    inset 0 1rpx 0 rgba(255,255,255,0.18);
+  transition: border-color var(--duration-press) ease;
+  z-index: 0;
+}
+.nav-back-surface::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: var(--radius-card);
+  background-color: rgba(255,255,255,0.09);
+  transition: background-color var(--duration-press) ease;
+  pointer-events: none;
+  z-index: -1;
+}
+.nav-back-icon {
+  position: relative;
+  z-index: 1;
+  display: block;
+  line-height: 1;
+  transform: translateY(-1rpx);
+}
+.nav-back:active,
+.nav-back.nav-back-hover {
+  transform: scale(0.94);
+}
+.nav-back:active .nav-back-surface,
+.nav-back.nav-back-hover .nav-back-surface {
+  border-color: rgba(232,144,158,0.42);
+}
+.nav-back:active .nav-back-surface::before,
+.nav-back.nav-back-hover .nav-back-surface::before {
+  background-color: rgba(255,255,255,0.14);
+}
+.nav-placeholder { width: 88rpx; }
+
+/* Home legend: a rectangular text action, not a month-arrow circle. */
+.nav-tool {
+  min-width: 88rpx;
+  height: 88rpx;
+  padding: 0 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255,255,255,0.28);
+  background: transparent;
+  color: rgba(255,255,255,0.92);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-control);
+  line-height: 1;
+  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
+}
+.nav-tool:active,
+.nav-tool.nav-tool-hover {
+  transform: scale(0.96);
+  background: rgba(255,255,255,0.12);
+}
+
+.header-gradient {
+  background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  overflow: hidden;
+  z-index: 10;
+}
+.header-gradient::before {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  top: -40%;
+  right: -30%;
+  width: 400rpx;
+  height: 400rpx;
+  background: radial-gradient(circle, rgba(232,144,158,0.2) 0%, transparent 60%);
+  border-radius: var(--radius-circle);
+  animation: float 8s ease-in-out infinite alternate;
+}
+.header-gradient::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  bottom: -20%;
+  left: -10%;
+  width: 200rpx;
+  height: 200rpx;
+  background: radial-gradient(circle, rgba(196,160,210,0.1) 0%, transparent 60%);
+  border-radius: var(--radius-circle);
+  animation: float 6s ease-in-out infinite alternate-reverse;
+}
+@keyframes float {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(20rpx, -20rpx) scale(1.1); }
+}
+
+.page.page-obscured .header-gradient::before,
+.page.page-obscured .header-gradient::after,
+.page.page-hidden .header-gradient::before,
+.page.page-hidden .header-gradient::after {
+  animation-play-state: paused;
+}
+
+/* The page root injects these values from utils/safeArea.js. */
+.safe-top { padding-top: var(--nav-bar-height, calc(env(safe-area-inset-top, 44px) + 44px)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .header-gradient::before,
+  .header-gradient::after {
+    animation: none;
+  }
+  .nav-back,
+  .nav-back-surface,
+  .nav-back-surface::before,
+  .nav-tool {
+    animation: none;
+    transition: none;
+  }
+}

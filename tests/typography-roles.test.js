@@ -31,6 +31,7 @@ const FONT_ROLE_TOKENS = {
 // display = 展示型大数字/大字，单点登记。新增例外必须在此登记 file + selector + 当前值，登记即评审。
 const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'app.wxss', selector: '.nav-back', kind: 'glyph', value: '46rpx' },
+  { file: 'pages/shared/nav-bar.wxss', selector: '.nav-back', kind: 'glyph', value: '46rpx' },
   { file: 'pages/index/index.wxss', selector: '.month-title-caret', kind: 'glyph', value: '24rpx' },
   { file: 'pages/index/index.wxss', selector: '.nav-btn', kind: 'glyph', value: '42rpx' },
   { file: 'pages/index/index.wxss', selector: '.quick-icon', kind: 'glyph', value: '32rpx' },
@@ -189,7 +190,7 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/index/index.wxss', '.home-status-countdown', 'assist'],
   ['pages/index/index.wxss', '.month-summary-text', 'assist'],
   ['pages/index/index.wxss', '.back-today', 'control'],
-  ['pages/index/index.wxss', '.nav-tool', 'control'],
+  ['pages/shared/nav-bar.wxss', '.nav-tool', 'control'],
   ['pages/index/index.wxss', '.quick-text', 'control'],
   ['pages/index/index.wxss', '.empty-guide-text', 'assist'],
   ['pages/index/index.wxss', '.no-room-desc', 'assist'],
