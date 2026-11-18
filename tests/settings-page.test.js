@@ -656,6 +656,28 @@ test('settings writes calendar density only when the selection changes', async (
   assert.deepEqual(densityWrites, ['full', 'compact'])
 })
 
+test('settings help explains marks, period states, completion and both room-return paths', async (t) => {
+  const app = settingsApp(t)
+  const page = app.launch('/pages/settings/settings')
+  await app.settle()
+  await app.dispatch(page, 'openHelp')
+  await app.settle()
+  assert.equal(page.data.helpPhase, 'open')
+
+  const template = readSource(path.join(__dirname, '../pages/settings/settings.wxml'), 'utf8')
+  const helpStart = template.indexOf('class="help-sheet')
+  assert.ok(helpStart !== -1, 'expected the settings help template')
+  const help = template.slice(helpStart)
+  const expectedCopy = [
+    '日历标记的意思，请点首页左上角的「图例」查看。',
+    '经期有「进行中」「结束日期不详」「已结束」三种状态。',
+    '过去漏记的经期可以补记；进行中的经期结束后，用「记结束」填上结束日期。',
+    '解除绑定后，TA 还在房间里时，用房间码加入；房间里只剩你时，房间会归档，记录还在；在绑定页点「我来建房间」恢复。'
+  ]
+  for (const copy of expectedCopy) assert.ok(help.includes(copy), `help should explain: ${copy}`)
+  assert.doesNotMatch(help, /点「创建」[^。]*恢复/)
+})
+
 test('help opens after render, silences settings, keeps tabs hidden through exit and cancels exit on reopen', async (t) => {
   const app = settingsApp(t)
   const page = app.launch('/pages/settings/settings')
