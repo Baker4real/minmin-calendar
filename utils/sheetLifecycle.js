@@ -1,7 +1,6 @@
 // 底部弹层进出。页面数据状态：closed → open → leaving → closed。
 // 进场分两拍（先挂上关闭姿态，下一次渲染再打开），CSS transition 才能从中途反向。
 // 离场对齐 --duration-exit，到点卸载，不听 transitionend。
-// 交接把来源弹层在同一次 setData 里直接卸下，目标遮罩带交接标记挂载，面板仍从底边升起。
 
 const SHEET_EXIT_MS = 200
 
@@ -13,7 +12,7 @@ function nextRender(fn) {
   setTimeout(fn, 0)
 }
 
-function createSheetLifecycle({ visibleKey, mountedKey, phaseKey, handoffKey, decorate }) {
+function createSheetLifecycle({ visibleKey, mountedKey, phaseKey, decorate }) {
   let generation = 0
   let exitTimer = null
 
@@ -21,10 +20,6 @@ function createSheetLifecycle({ visibleKey, mountedKey, phaseKey, handoffKey, de
     if (exitTimer === null) return
     clearTimeout(exitTimer)
     exitTimer = null
-  }
-
-  function mark(active) {
-    return handoffKey ? { [handoffKey]: active } : {}
   }
 
   function commit(page, patch) {
@@ -36,23 +31,21 @@ function createSheetLifecycle({ visibleKey, mountedKey, phaseKey, handoffKey, de
       return Boolean(page.data[mountedKey])
     },
 
-    // 取消尚未完成的进场或离场，并给出「已经不在树上」的数据。调用方把它并进同一次 setData。
+    // 页面卸载等调用方需要取消尚未完成的进出，并取得「已经不在树上」的数据。
     dismissPatch() {
       generation += 1
       clearExitTimer()
       return {
         [visibleKey]: false,
         [mountedKey]: false,
-        [phaseKey]: 'closed',
-        ...mark(false)
+        [phaseKey]: 'closed'
       }
     },
 
-    open(page, extra = {}, options = {}) {
+    open(page, extra = {}) {
       const ticket = ++generation
       clearExitTimer()
-      const dismissed = typeof options.dismiss === 'function' ? options.dismiss() : {}
-      const patch = { ...extra, ...dismissed, ...mark(Boolean(options.handoff)) }
+      const patch = { ...extra }
       const mounted = Boolean(page.data[mountedKey])
       const phase = page.data[phaseKey]
       if (mounted && phase === 'leaving') {
@@ -80,8 +73,7 @@ function createSheetLifecycle({ visibleKey, mountedKey, phaseKey, handoffKey, de
         ...extra,
         [visibleKey]: false,
         [mountedKey]: true,
-        [phaseKey]: 'leaving',
-        ...mark(false)
+        [phaseKey]: 'leaving'
       })
       exitTimer = setTimeout(() => {
         exitTimer = null
@@ -92,14 +84,6 @@ function createSheetLifecycle({ visibleKey, mountedKey, phaseKey, handoffKey, de
       }, SHEET_EXIT_MS)
     }
   }
-}
-
-function handoffSheet(page, from, to, extra = {}) {
-  if (!from.isMounted(page)) {
-    to.open(page, extra)
-    return
-  }
-  to.open(page, extra, { handoff: true, dismiss: () => from.dismissPatch() })
 }
 
 function readReducedMotionProbe(width) {
@@ -151,13 +135,11 @@ function restoreTabBarOnShow(page) {
 }
 
 // 一页里的底部弹层共用一套遮挡规则。打开或离场才算遮挡，进场第一拍仍是 closed，页面还没被盖住。
-// 交接标记例外：遮罩已经完全不透明，装饰继续暂停。遮挡期间藏起原生 tabBar，
-// 还有弹层挂载时留着系统返回拦截（sheetExitGuard）。
-function sheetPageDecorator({ phaseKeys, mountedKeys, handoffKeys = [] }) {
+// 遮挡期间藏起原生 tabBar，还有弹层挂载时留着系统返回拦截（sheetExitGuard）。
+function sheetPageDecorator({ phaseKeys, mountedKeys }) {
   return function decorate(page, patch) {
     const next = { ...page.data, ...patch }
-    const phaseCovered = phaseKeys.some((key) => next[key] === 'open' || next[key] === 'leaving')
-    const pageObscured = phaseCovered || handoffKeys.some((key) => next[key] === true)
+    const pageObscured = phaseKeys.some((key) => next[key] === 'open' || next[key] === 'leaving')
     syncSheetTabBar(page, pageObscured)
     return { ...patch, pageObscured, sheetExitGuard: mountedKeys.some((key) => Boolean(next[key])) }
   }
@@ -203,7 +185,6 @@ module.exports = {
   createSheetLifecycle,
   sheetPageDecorator,
   settingsHelpSheet,
-  handoffSheet,
   dismissSheetOnSystemBack,
   probeReducedMotion,
   readReducedMotionProbe,

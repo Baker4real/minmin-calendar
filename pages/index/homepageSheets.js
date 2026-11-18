@@ -1,7 +1,6 @@
 const {
   createSheetLifecycle,
   sheetPageDecorator,
-  handoffSheet,
   dismissSheetOnSystemBack
 } = require('../../utils/sheetLifecycle')
 
@@ -10,11 +9,10 @@ function leaveSheet(page, lifecycle, extra) {
 }
 
 // 行顺序就是系统返回优先级。拖拽使用同一个 name，关闭按钮、拖拽与系统返回共用 close。
-// 生命周期键只有固定后缀：<name>Visible / <name>Mounted / <name>Phase / <name>Handoff。
+// 生命周期键只有固定后缀：<name>Visible / <name>Mounted / <name>Phase。
 const registry = [
   {
     name: 'infoSheet',
-    handoff: true,
     close(page, lifecycle, extra) {
       lifecycle.leave(page, () => {
         page.setData({ infoSheetMode: '', infoSheetName: '' })
@@ -22,7 +20,6 @@ const registry = [
     }
   },
   { name: 'monthPicker', close: leaveSheet },
-  { name: 'toolsMenu', close: leaveSheet },
   {
     name: 'dayActions',
     close(page, lifecycle, extra) {
@@ -43,14 +40,12 @@ const registry = [
   ...entry,
   visibleKey: `${entry.name}Visible`,
   mountedKey: `${entry.name}Mounted`,
-  phaseKey: `${entry.name}Phase`,
-  handoffKey: entry.handoff ? `${entry.name}Handoff` : undefined
+  phaseKey: `${entry.name}Phase`
 }))
 
 const decorate = sheetPageDecorator({
   phaseKeys: registry.map(entry => entry.phaseKey),
-  mountedKeys: registry.map(entry => entry.mountedKey),
-  handoffKeys: registry.filter(entry => entry.handoffKey).map(entry => entry.handoffKey)
+  mountedKeys: registry.map(entry => entry.mountedKey)
 })
 
 function homepageSheetData() {
@@ -59,7 +54,6 @@ function homepageSheetData() {
     data[entry.visibleKey] = false
     data[entry.mountedKey] = false
     data[entry.phaseKey] = 'closed'
-    if (entry.handoffKey) data[entry.handoffKey] = false
     data.sheetDragClear[entry.name] = { token: 0, action: '' }
   }
   return data
@@ -88,9 +82,6 @@ function homepageSheets(page) {
       },
       close(name) {
         close(find(name))
-      },
-      handoff(from, to, extra) {
-        handoffSheet(page, find(from).lifecycle, find(to).lifecycle, extra)
       },
       dragRelease(detail) {
         const entry = detail && find(detail.sheet)

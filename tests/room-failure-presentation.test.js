@@ -224,10 +224,9 @@ for (const scenario of scenarios) {
 
 const confirmations = [
   { name: 'export', route: '/pages/settings/settings', event: 'exportData' },
-  // #209：删除确认已是应用内面板，不再经过原生 missing/failed showModal 分支。
+  // #209/#210：删除与归属确认已是应用内面板，不再经过原生 missing/failed showModal 分支。
   { name: 'leave', route: '/pages/settings/settings', event: 'unbind' },
-  { name: 'cache resync', route: '/pages/settings/settings', event: 'clearData' },
-  { name: 'overlap', route: '/pages/period/edit/edit?startDate=2026-06-20&endDate=2026-06-23', event: 'save' }
+  { name: 'cache resync', route: '/pages/settings/settings', event: 'clearData' }
 ]
 for (const confirmation of confirmations) {
   for (const unavailable of ['missing', 'failed']) {
@@ -236,10 +235,6 @@ for (const confirmation of confirmations) {
       t.after(() => app.teardown())
       recover(app)
       app.cloud.when('leaveRoom').reply({ code: 0 })
-      if (confirmation.name === 'overlap') {
-        app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'periods' } })
-          .reply({ code: 0, data: [{ _id: 'covered', startDate: '2026-06-19', endDate: '2026-06-24' }] })
-      }
       const page = app.launch(confirmation.route)
       await app.settle()
       const roomCalls = app.cloud.calls.filter(call => call.name === 'getMyRoom').length
@@ -247,11 +242,7 @@ for (const confirmation of confirmations) {
       else app.respondNext('showModal', new Error('showModal:fail unavailable'))
       const pending = app.dispatch(page, confirmation.event)
       await app.settle()
-      if (confirmation.name === 'overlap') {
-        assert.deepEqual(app.wx.toasts, [], 'an unavailable overlap question is a no-op')
-      } else {
-        assert.ok(app.wx.toasts.length, 'unavailable confirmation must leave visible feedback')
-      }
+      assert.ok(app.wx.toasts.length, 'unavailable confirmation must leave visible feedback')
       assert.equal(app.currentPage, page)
       assert.equal(app.cloud.calls.filter(call => call.name === 'leaveRoom').length, 0)
       assert.equal(writes(app).length, 0)

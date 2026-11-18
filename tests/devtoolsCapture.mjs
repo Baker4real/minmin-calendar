@@ -14,7 +14,7 @@
 //     node tests/devtoolsCapture.mjs --ws ws://127.0.0.1:9420 --pages pages/period/period --tap-text 欢乐时光
 //   PowerShell 下逗号列表要加引号，否则会被拆成数组。
 // 具名状态（--states，逗号分隔，all = 全部；home:month+N / home:month-N 按需翻月）：
-//   home、home:bottom、home:month-picker、home:day、home:day-detail、home:tools、home:legend、
+//   home、home:bottom、home:month-picker、home:day、home:day-detail、home:legend、
 //   home:prediction、home:recap、records:period、records:memory、period:new、memory:new、settings、
 //   bind:create、bind:join、bind:join-filled、bind:created、bind:check-failed。
 //   bind:* 先临时 mock wx.switchTab 挡住已绑定时的自动跳转，再用 setData 切换视图态，房间码用假值
@@ -151,12 +151,6 @@ async function home() {
   return goto('/pages/index/index', 3000)
 }
 
-async function homeTool(label) {
-  const page = await home()
-  await tapSelector(page, '.nav-tool')
-  await tapText(page, '.sheet-action', label)
-}
-
 async function bindView(data) {
   await withTimeout(miniProgram.mockWxMethod('switchTab', { errMsg: 'switchTab:ok' }), 10000, 'mock switchTab')
   try {
@@ -190,10 +184,9 @@ const STATES = {
     // 有记录的今天会直接打开详情，不再经过「查看详情」。
     await tapSelector(await home(), '.day-cell.today')
   },
-  'home:tools': async () => { await tapSelector(await home(), '.nav-tool') },
-  'home:legend': async () => { await homeTool('图例') },
-  'home:prediction': async () => { await homeTool('预测说明') },
-  'home:recap': async () => { await homeTool('本月小结') },
+  'home:legend': async () => { await tapSelector(await home(), '.nav-tool') },
+  'home:prediction': async () => { await tapSelector(await home(), '.home-status') },
+  'home:recap': async () => { await tapSelector(await home(), '.month-summary') },
   'records:period': async () => { await tapText(await goto('/pages/period/period', 3000), '.segment-option', '经期', 1500) },
   'records:memory': async () => { await tapText(await goto('/pages/period/period', 3000), '.segment-option', '欢乐时光', 2500) },
   'period:new': async () => { await goto('/pages/period/edit/edit', 2000) },

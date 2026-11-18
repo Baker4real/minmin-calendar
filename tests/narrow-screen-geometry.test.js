@@ -729,15 +729,15 @@ test('the one-time partner welcome bar is an explicit input of the calendar row-
   }
 })
 
-// issue #149：欢迎条挂在吸顶占位之后、日历之前的正常文档流里，固定的月份导航和状态行盖不住它；
-// 它的盒高（两行 caption × 正文行高，加上下外边距）就是行高账本里的那一项。
-test('the partner welcome bar flows below the sticky spacer and its box matches the ledger entry', () => {
+// issue #149、#215：可点欢迎条挂在吸顶占位之后、日历之前的正常文档流里，固定的月份导航和状态行盖不住它；
+// 文案按 750rpx 设计宽度静态核算为恰好两行；上下 padding 让整条盒高进入触控区和行高账本。
+test('the clickable partner welcome copy fits two rpx lines and its box matches the ledger entry', () => {
   const { CALENDAR_LEDGER } = require('../utils/calendarRowHeight')
   const wxml = readRepo('pages/index/index.wxml')
-  const welcome = /<text wx:if="\{\{partnerWelcome\}\}" class="partner-welcome">([^<]+)<\/text>/.exec(wxml)
+  const welcome = /<view wx:if="\{\{partnerWelcome\}\}" class="partner-welcome"[^>]*bindtap="openLegendSheet"[^>]*>([^<]+)<\/view>/.exec(wxml)
   const spacerAt = wxml.indexOf('class="home-sticky-spacer')
   const calendarAt = wxml.indexOf('class="calendar-swipe"')
-  assert.ok(welcome, 'expected the one-time welcome text')
+  assert.ok(welcome, 'expected the one-time clickable welcome text')
   assert.ok(
     spacerAt !== -1 && spacerAt < welcome.index && welcome.index < calendarAt,
     'welcome bar must sit after the sticky spacer and before the calendar, not under the fixed month nav'
@@ -750,11 +750,14 @@ test('the partner welcome bar flows below the sticky spacer and its box matches 
   assert.equal(bar['font-size'], 'var(--font-size-caption)')
   assert.equal(bar['line-height'], 'var(--line-height-body)')
   const margin = splitCssTokens(bar.margin).map(token => parseFloat(token))
-  assert.equal(margin.length, 3, 'margin is top / horizontal / bottom')
+  const padding = splitCssTokens(bar.padding).map(token => parseFloat(token))
+  assert.equal(margin.length, 2, 'margin is vertical / horizontal')
+  assert.equal(padding.length, 3, 'padding is top / horizontal / bottom')
   const fontRpx = parseFloat(appTokens['--font-size-caption'])
   const lineHeight = Number(appTokens['--line-height-body'])
 
-  // 文案恰好两行：CJK 与全角标点 1em；拉丁字母 0.5–0.7em、空格 0.25–0.5em、♥ 0.5–1em 取上下界
+  // 文案恰好两行：CJK 与全角标点 1em；拉丁字母 0.5–0.7em、空格 0.25–0.5em、♥ 0.5–1em 取上下界。
+  // 超长时缩短说明文字，caption 字号不变。
   const contentPadRpx = parseFloat(horizontalPaddingTokens(findDecls(rules, '.content'))[0])
   const lineEm = (750 - 2 * contentPadRpx - 2 * margin[1]) / fontRpx
   let minEm = 0
@@ -764,8 +767,9 @@ test('the partner welcome bar flows below the sticky spacer and its box matches 
   }
   assert.ok(minEm > lineEm && maxEm <= 2 * lineEm, `welcome copy ${minEm}–${maxEm}em must wrap to exactly two ${lineEm.toFixed(2)}em lines`)
 
-  const boxRpx = margin[0] + 2 * fontRpx * lineHeight + margin[2]
+  const boxRpx = padding[0] + 2 * fontRpx * lineHeight + padding[2]
   assert.ok(Math.abs(boxRpx - 103.2) < 1e-9, `welcome box ${boxRpx}rpx`)
+  assert.ok(boxRpx * 320 / 750 >= 44, 'the whole welcome box remains a 44px touch target at 320px')
   assert.equal(CALENDAR_LEDGER.firstScreenRpx.partnerWelcome, 103.2, 'ledger entry must equal the rendered welcome box')
 })
 
@@ -1115,8 +1119,8 @@ test('shared navbar is fixed, reserves the capsule, and content starts at the ba
   const index = readRepo('pages/index/index.wxml')
   assert.match(
     index,
-    /class="nav-bar header-gradient">\s*<view class="nav-tool"[^>]*>工具<\/view>/,
-    'home puts the tools entry in the navbar left slot'
+    /class="nav-bar header-gradient">\s*<view class="nav-tool"[^>]*>图例<\/view>/,
+    'home puts the legend entry in the navbar left slot'
   )
   assert.doesNotMatch(index, /class="nav-placeholder"/)
   assert.match(readRepo('pages/period/period.wxml'), /nav-title">记录</)

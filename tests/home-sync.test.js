@@ -123,6 +123,133 @@ test('unchanged and reordered background responses keep the calendar quiet', asy
   assertCalendar(app, home, ['2026-06-01', '2026-06-20'], ['2026-06-02', '2026-06-12'])
 })
 
+test('only newly arriving partner records in a previously synced paired Room play current-month feedback once', async t => {
+  const app = homeApp(t)
+  const oldPeriod = { ...period('old-p', '2026-06-01'), createdByMe: false }
+  const oldMemory = { ...memory('old-m', '2026-06-02'), createdByMe: false }
+  const p = listRoute(app, 'periods').reply(listed([oldPeriod], 'paired'))
+  const m = listRoute(app, 'memories').reply(listed([oldMemory], 'paired'))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  assert.deepEqual(app.rendered(home).recordFeedback, {}, 'the first complete load is not a new arrival')
+
+  p.reply(listed([
+    oldPeriod,
+    { ...period('own-p', '2026-06-03'), createdByMe: true },
+    { ...period('partner-p', '2026-06-10'), createdByMe: false },
+    period('unknown-author-p', '2026-06-11')
+  ], 'paired'))
+  m.reply(listed([
+    oldMemory,
+    { ...memory('own-m', '2026-06-04'), createdByMe: true },
+    { ...memory('partner-m', '2026-06-12'), createdByMe: false },
+    { ...memory('other-month-m', '2026-05-12'), createdByMe: false }
+  ], 'paired'))
+  await home.onPullDownRefresh()
+  await app.settle()
+  assert.deepEqual(app.rendered(home).recordFeedback, {
+    '2026-06-10': 'period',
+    '2026-06-12': 'memory'
+  })
+
+  await app.dispatch(home, 'nextMonth')
+  await app.dispatch(home, 'prevMonth')
+  await home.onPullDownRefresh()
+  await app.settle()
+  assert.deepEqual(app.rendered(home).recordFeedback, {}, 'consumed arrivals do not play again')
+  await app.dispatch(home, 'prevMonth')
+  assert.deepEqual(app.rendered(home).recordFeedback, {}, 'an arrival outside the viewed month is not replayed later')
+})
+
+test('a hidden Home retains arrivals across loads until show, then drops records outside that viewed month', async t => {
+  const app = homeApp(t)
+  const oldPeriod = { ...period('old-p', '2026-06-01'), createdByMe: false }
+  const oldMemory = { ...memory('old-m', '2026-06-02'), createdByMe: false }
+  const partnerPeriod = { ...period('partner-p', '2026-06-10'), createdByMe: false }
+  const partnerMemory = { ...memory('partner-m', '2026-06-12'), createdByMe: false }
+  const p = listRoute(app, 'periods').reply(listed([oldPeriod], 'paired'))
+  const m = listRoute(app, 'memories').reply(listed([oldMemory], 'paired'))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+
+  app.hide()
+  p.reply(listed([oldPeriod, partnerPeriod], 'paired'))
+  await home.onPullDownRefresh()
+  await app.settle()
+  m.reply(listed([
+    oldMemory,
+    partnerMemory,
+    { ...memory('other-month-m', '2026-05-12'), createdByMe: false }
+  ], 'paired'))
+  await home.onPullDownRefresh()
+  await app.settle()
+  assert.deepEqual(app.rendered(home).recordFeedback, {}, 'nothing plays while Home is hidden')
+
+  app.show()
+  await app.settle()
+  assert.deepEqual(app.rendered(home).recordFeedback, {
+    '2026-06-10': 'period',
+    '2026-06-12': 'memory'
+  })
+  await app.dispatch(home, 'prevMonth')
+  await app.settle()
+  assert.deepEqual([app.rendered(home).year, app.rendered(home).month], [2026, 4])
+  assert.deepEqual(app.rendered(home).recordFeedback, {}, 'the other-month arrival was consumed without a later replay')
+})
+
+test('a collection first synced on a later load does not treat its initial partner records as arrivals', async t => {
+  const app = homeApp(t)
+  const oldPeriod = { ...period('old-p', '2026-06-01'), createdByMe: false }
+  const partnerPeriod = { ...period('partner-p', '2026-06-10'), createdByMe: false }
+  const firstMemory = { ...memory('first-m', '2026-06-12'), createdByMe: false }
+  const secondMemory = { ...memory('second-m', '2026-06-14'), createdByMe: false }
+  const p = listRoute(app, 'periods').reply(listed([oldPeriod], 'paired'))
+  const m = listRoute(app, 'memories').reject(new Error('network down'))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+
+  p.reply(listed([oldPeriod, partnerPeriod], 'paired'))
+  m.reply(listed([firstMemory], 'paired'))
+  await app.dispatch(home, 'retryRefresh')
+  await app.settle()
+  assert.deepEqual(app.rendered(home).recordFeedback, {
+    '2026-06-10': 'period'
+  }, 'only the previously synced periods can publish an arrival')
+
+  p.reply(listed([oldPeriod, partnerPeriod], 'paired'))
+  m.reply(listed([firstMemory, secondMemory], 'paired'))
+  await home.onPullDownRefresh()
+  await app.settle()
+  assert.deepEqual(app.rendered(home).recordFeedback, {
+    '2026-06-14': 'memory'
+  }, 'the next memory load has a synced baseline')
+})
+
+test('new partner records stay quiet while the Room is waiting', async t => {
+  const app = homeApp(t)
+  const oldMemory = { ...memory('old-m', '2026-06-02'), createdByMe: false }
+  const waitingMemory = { ...memory('waiting-m', '2026-06-10'), createdByMe: false }
+  const pairedMemory = { ...memory('paired-m', '2026-06-12'), createdByMe: false }
+  const p = listRoute(app, 'periods').reply(listed([], 'waiting'))
+  const m = listRoute(app, 'memories').reply(listed([oldMemory], 'waiting'))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+
+  p.reply(listed([], 'waiting'))
+  m.reply(listed([oldMemory, waitingMemory], 'waiting'))
+  await home.onPullDownRefresh()
+  await app.settle()
+  assert.deepEqual(app.rendered(home).recordFeedback, {})
+
+  p.reply(listed([], 'paired'))
+  m.reply(listed([oldMemory, waitingMemory, pairedMemory], 'paired'))
+  await home.onPullDownRefresh()
+  await app.settle()
+  assert.deepEqual(app.rendered(home).recordFeedback, {
+    '2026-06-12': 'memory'
+  }, 'pairing does not make an older waiting-room record newly arrived')
+})
+
 test('first-load network failure offers a retry that clears the failure screen and loads records', async t => {
   const app = homeApp(t)
   listRoute(app, 'periods').reject(new Error('network down'))
