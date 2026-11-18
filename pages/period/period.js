@@ -151,7 +151,8 @@ Page(withPageVisibility({
     const today = util.formatDate(new Date())
     const quickEntry = buildPeriodQuickEntry(state.collections.periods.records, {
       today,
-      periodsSynced: state.collections.periods.synced
+      periodsSynced: state.collections.periods.synced,
+      roomPaired: state.roomPaired
     })
     return {
       periodCount: state.collections.periods.records.length,
@@ -189,14 +190,14 @@ Page(withPageVisibility({
     const state = roomRecordsSync.readCurrentRoom()
     const periods = state.collections.periods.records
     const today = util.formatDate(new Date())
-    const quickEntry = buildPeriodQuickEntry(periods, { today, periodsSynced: state.collections.periods.synced })
+    const quickEntry = buildPeriodQuickEntry(periods, { today, periodsSynced: state.collections.periods.synced, roomPaired: state.roomPaired })
     let entry = quickEntry.action
     if (quickEntry.mode === 'complete') {
       const decision = periodCoverage.decidePeriodRecordForDate(periods, today, { today })
       const record = findRecordById('periods', decision.record && (decision.record._id || decision.record.id))
       if (!record) return
       entry = {
-        url: recordEditRoute.buildPeriodEditUrl(record, { intent: 'complete', today })
+        url: recordEditRoute.buildPeriodEditUrl(withAuthorLabel(record, state.roomPaired), { intent: 'complete', today })
       }
     }
     wx.navigateTo({ url: entry.url })
@@ -242,7 +243,7 @@ Page(withPageVisibility({
   editPeriod(e) {
     const record = findRecordById('periods', e.currentTarget.dataset.id)
     if (!record) return
-    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(record) })
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(withAuthorLabel(record, roomRecordsSync.getState().roomPaired)) })
   },
 
   addMemory() {
@@ -254,7 +255,7 @@ Page(withPageVisibility({
     // 页面不持有记录副本：按行里的 id 从共享记录取被点的那条（#224）。
     const record = findRecordById('memories', e.currentTarget.dataset.id)
     if (!record) return
-    wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl(record) })
+    wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl(withAuthorLabel(record, roomRecordsSync.getState().roomPaired)) })
   },
 
   // 点月份卡头：切换该月展开/收起，立即生效、无动画、不跳转（issue #109）。

@@ -1,4 +1,5 @@
 const util = require('../../utils/util')
+const cycle = require('../../utils/cycle')
 const roomRecordsSync = require('../../utils/roomRecordsSync')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const wxPrompts = require('../../utils/wxPrompts')
@@ -86,8 +87,7 @@ function emptyDayDetail() {
     meanings: [],
     periods: [],
     memories: [],
-    actions: [],
-    empty: true
+    actions: []
   }
 }
 
@@ -582,10 +582,6 @@ Page(withPageVisibility({
     const date = this.data.selectedDate
     if (!date) return
 
-    if (action === 'detail') {
-      this.showDayDetail(date)
-      return
-    }
     const detail = this._dayDetail(date)
     if (!detail.actions.some(item => item.key === action)) return
     const entry = action === 'period' ? detail.periodAction : action === 'memory' ? detail.memoryAction : null
@@ -600,13 +596,16 @@ Page(withPageVisibility({
     const recordId = e.currentTarget.dataset.id
     if (!recordId) return
     const collection = kind === 'memory' ? 'memories' : 'periods'
-    const record = roomRecordsSync.getState().collections[collection].records.find(item => (item._id || item.id) === recordId)
+    const recordsState = roomRecordsSync.getState()
+    const record = recordsState.collections[collection].records.find(item => (item._id || item.id) === recordId)
     if (!record) return
+    const authorLabel = cycle.recordAuthorLabel(record, { paired: recordsState.roomPaired })
+    const routedRecord = authorLabel ? { ...record, authorLabel } : record
     this.closeDayActions()
     wx.navigateTo({
       url: kind === 'memory'
-        ? recordEditRoute.buildMemoryEditUrl(record)
-        : recordEditRoute.buildPeriodEditUrl(record)
+        ? recordEditRoute.buildMemoryEditUrl(routedRecord)
+        : recordEditRoute.buildPeriodEditUrl(routedRecord)
     })
   },
 

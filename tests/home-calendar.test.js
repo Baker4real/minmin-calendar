@@ -42,6 +42,11 @@ function tagWith(className) {
   return tag
 }
 function attr(className, name, data) { return renderWxmlAttribute(tagWith(className).attrs[name], data) }
+function text(className, data) {
+  const match = wxml.match(new RegExp(`<text class="${className}">([\\s\\S]*?)</text>`))
+  assert.ok(match, `expected .${className} text in WXML`)
+  return renderWxmlAttribute(match[1], data)
+}
 function classes(className, data) {
   // An unset optional WXML flag renders as false on the platform.
   return renderWxmlClasses(tagWith(className).attrs.class, { pageHidden: false, ...data })
@@ -507,15 +512,27 @@ test('real day rows open their own editor and blank days offer dated actions', a
   assert.equal(navigation(app).at(-1), '/pages/memory/edit/edit?date=2026-06-26')
 })
 
+test('blank day actions reject the retired detail action and show no empty record state', async t => {
+  const app = homeApp(t)
+  const home = await launch(app)
+  await day(app, home, '2026-06-10')
+  assert.equal(app.rendered(home).daySheetMode, 'actions')
+
+  await tap(app, home, 'onDayActionTap', { action: 'detail' })
+  assert.equal(app.rendered(home).daySheetMode, 'actions')
+  assert.equal(visible('day-detail-list', app.rendered(home)), false)
+  assert.equal(visible('day-detail-empty', app.rendered(home)), false)
+})
+
 test('future dates keep holiday and workday meanings with a persistent no-record notice', async t => {
   const app = homeApp(t)
   const home = await launch(app)
   const notice = { title: '未来日期不能新增记录', text: '到了这一天，再来记经期或欢乐时光' }
   for (const [date, year, month, meanings, subtitle] of [
     ['2026-06-30', 2026, 5, [], null],
-    ['2026-09-25', 2026, 8, ['中秋。'], '八月十五 · 中秋'],
-    ['2026-09-20', 2026, 8, ['官方调休上班日。'], null],
-    ['2026-10-01', 2026, 9, ['国庆。'], '八月廿一 · 国庆']
+    ['2026-09-25', 2026, 8, ['法定假日，按官方安排放假'], '八月十五 · 中秋'],
+    ['2026-09-20', 2026, 8, ['这天是周末，按官方安排调成上班'], null],
+    ['2026-10-01', 2026, 9, ['法定假日，按官方安排放假'], '八月廿一 · 国庆']
   ]) {
     await selectMonth(app, home, year, month)
     await day(app, home, date)
@@ -955,6 +972,38 @@ function assertCalendarFrames(before, patches) {
     assert.equal(first, expected, 'each platform render frame pairs its month title with the same month grid')
   }
 }
+
+test('month picker year browsing preserves the active month and one month selection commits once', async t => {
+  const app = homeApp(t, { now: '2026-11-08T12:00:00+08:00' })
+  const home = await launch(app)
+  await tap(app, home, 'openMonthPicker')
+  const activeDays = app.rendered(home).days
+  const framesBeforeBrowsing = calendarFrames(home)
+
+  await tap(app, home, 'shiftJumpYear', { delta: 1 })
+  const browsing = app.rendered(home)
+  assert.equal(browsing.jumpYear, 2027)
+  assert.deepEqual([browsing.year, browsing.month], [2026, 10])
+  assert.deepEqual(browsing.days, activeDays)
+  assert.equal(calendarFrames(home), framesBeforeBrowsing, 'browsing a year must not submit a calendar month')
+  assert.equal(text('sheet-subtitle', browsing), '2026年11月')
+  assert.equal(classes('jump-option', { ...browsing, item: { value: 10 } }).includes('active'), false)
+  assert.equal(attr('jump-option', 'aria-checked', { ...browsing, item: { value: 10 } }), 'false')
+
+  await tap(app, home, 'selectJumpMonth', { month: 2 })
+  assert.deepEqual([app.rendered(home).year, app.rendered(home).month], [2027, 2])
+  assert.equal(calendarFrames(home), framesBeforeBrowsing + 1, 'one selection submits exactly one whole month')
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-leaving')
+  assert.equal(classes('jump-option', { ...app.rendered(home), item: { value: 2 } }).includes('active'), true)
+})
+
+test('month button accessible name includes the active year and month', async t => {
+  const app = homeApp(t, { now: '2026-11-08T12:00:00+08:00' })
+  const home = await launch(app)
+  assert.equal(attr('month-title-trigger', 'aria-label', app.rendered(home)), '2026年11月，选择年份和月份')
+  await tap(app, home, 'nextMonth')
+  assert.equal(attr('month-title-trigger', 'aria-label', app.rendered(home)), '2026年12月，选择年份和月份')
+})
 
 test('month selection, arrows, year rollover and back-to-today commit a matching title and grid', async t => {
   const app = homeApp(t, { autoCommit: false, now: '2026-11-08T12:00:00+08:00' })

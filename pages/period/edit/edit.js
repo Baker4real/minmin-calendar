@@ -1,4 +1,5 @@
 const recordCommands = require('../../../utils/recordCommands')
+const cycle = require('../../../utils/cycle')
 const { confirmationSheet, confirmationSheetData } = require('../../../utils/confirmationSheet')
 const { probeReducedMotion } = require('../../../utils/sheetLifecycle')
 const safeArea = require('../../../utils/safeArea')
@@ -10,6 +11,9 @@ Page(withPageVisibility({
     safeBottom: safeArea.getSafeBottom(),
     navBarHeight: safeArea.getNavBarHeight(),
     capsuleRight: safeArea.getCapsuleRightInset(),
+    statusOptions: cycle.PERIOD_STATUS_OPTIONS.map(item => ({ ...item, hint: cycle.periodStatusHint(item.value) })),
+    flowOptions: cycle.FLOW_OPTIONS,
+    symptomGroups: cycle.buildSymptomOptions(),
     ...confirmationSheetData()
   },
 

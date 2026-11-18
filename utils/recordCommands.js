@@ -17,6 +17,11 @@ const wxPrompts = require('./wxPrompts')
 const EDIT_KINDS = {
   period: {
     collection: 'periods',
+    pageTitle(state, intent) {
+      if (intent === 'complete') return '记结束'
+      if (state.isEdit) return '编辑经期'
+      return state.startDate < state.maxDate ? '补记经期' : '记经期'
+    },
     dateField: 'startDate',
     draftFields: ['startDate', 'endDate', 'status', 'note', 'flow', 'symptoms'],
     fieldOrder: ['startDate', 'endDate'],
@@ -66,9 +71,7 @@ const EDIT_KINDS = {
       return {
         startDateLabel: util.formatDisplayDate(state.startDate, { today }),
         endDateLabel: util.formatDisplayDate(state.endDate, { today }),
-        flowOptions: cycle.FLOW_OPTIONS,
-        statusOptions: cycle.PERIOD_STATUS_OPTIONS,
-        symptomGroups: cycle.buildSymptomOptions(state.symptoms),
+        selectedSymptoms: Object.fromEntries(state.symptoms.map(value => [value, true])),
         statusHint: cycle.periodStatusHint(state.status),
         periodDayCountText: summary.text,
         periodLengthHint: summary.hint
@@ -89,6 +92,10 @@ const EDIT_KINDS = {
   },
   memory: {
     collection: 'memories',
+    pageTitle(state) {
+      if (state.isEdit) return '编辑欢乐时光'
+      return state.date < state.maxDate ? '补记欢乐时光' : '记欢乐时光'
+    },
     dateField: 'date',
     draftFields: ['date', 'note'],
     fieldOrder: ['date'],
@@ -110,6 +117,12 @@ const EDIT_KINDS = {
 }
 
 const DELETE_CONSEQUENCE = '删除后你们两人的日历里都会移除'
+function deleteContent(authorLabel) {
+  const authorSentence = authorLabel === 'TA 记的'
+    ? '这条是 TA 记的'
+    : authorLabel === '我记的' ? '这条是你记的' : ''
+  return [authorSentence, DELETE_CONSEQUENCE].filter(Boolean).join('；')
+}
 const DELETE_ACTIONS = [
   { id: 'confirm', text: '删除', kind: 'danger' },
   { id: 'cancel', text: '取消', kind: 'secondary' }
@@ -139,6 +152,7 @@ function openRecordEditSession({ kind, route, render, confirm }) {
   let state = {
     ...routeState,
     ...draftValues,
+    pageTitle: config.pageTitle(routeState, route.intent),
     saving: false,
     deleting: false,
     submitted: false,
@@ -202,11 +216,13 @@ function openRecordEditSession({ kind, route, render, confirm }) {
     if (choice === 'create') return 'save'
     if (choice !== 'edit') return { kind: 'cancelled' }
     persistDraft()
-    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(owner.record) })
+    const authorLabel = cycle.recordAuthorLabel(owner.record, { paired: roomRecordsSync.readCurrentRoom().roomPaired })
+    wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(authorLabel ? { ...owner.record, authorLabel } : owner.record) })
     return { kind: 'edit-existing' }
   }
 
   function applyReopenedRecord(record) {
+    const authorLabel = cycle.recordAuthorLabel(record, { paired: roomRecordsSync.readCurrentRoom().roomPaired })
     const form = config.normalizeForm({
       id: record._id,
       startDate: record.startDate || '',
@@ -215,7 +231,8 @@ function openRecordEditSession({ kind, route, render, confirm }) {
       note: record.note || '',
       flow: record.flow || '',
       symptoms: Array.isArray(record.symptoms) ? record.symptoms : [],
-      isEdit: true
+      isEdit: true,
+      ...(authorLabel ? { authorLabel } : {})
     })
     // 清掉被丢弃的新建草稿，再以真实记录的字段重建身份与基线。
     clearDraftAndStopPersistence()
@@ -223,7 +240,7 @@ function openRecordEditSession({ kind, route, render, confirm }) {
     baseline = recordDraft.pickDraftFields(form, config.draftFields)
     recordDraft.clearDraft(storage, draftKey)
     draftDiscarded = false
-    publish({ ...form, draftRestored: false, fieldErrors: {} })
+    publish({ ...form, pageTitle: config.pageTitle(form), draftRestored: false, fieldErrors: {} })
   }
 
   // 经期会话先订阅再画第一次：订阅时共享记录按本机当前的房间码核对归属，上一个 Room 的经期不进提示；
@@ -306,11 +323,12 @@ function openRecordEditSession({ kind, route, render, confirm }) {
           name: config.confirmName,
           title: config.confirmTitle,
           dateText: config.confirmDate(state, today()),
-          content: DELETE_CONSEQUENCE,
+          content: deleteContent(state.authorLabel),
           actions: DELETE_ACTIONS
         })
         if (confirmed !== 'confirm') return { kind: 'cancelled' }
         const client = cloud.createRoomDataClient()
+        publish({ deleting: true })
         const outcome = await runCommand({
           wxApi: wx,
           render: publish,
@@ -352,8 +370,6 @@ async function runCommand(options) {
     refetch,
     reconcile
   } = options
-
-  render({ [loadingKey]: true })
 
   let outcome
   try {
