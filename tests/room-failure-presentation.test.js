@@ -224,9 +224,8 @@ for (const scenario of scenarios) {
 }
 
 const confirmations = [
-  // #209/#213：删除、导出与重新同步的共享面板取消路径由页面行为测试覆盖。
-  { name: 'leave', route: '/pages/settings/settings', event: 'unbind' },
-  { name: 'overlap', route: '/pages/period/edit/edit?startDate=2026-06-20&endDate=2026-06-23', event: 'save' }
+  // #209/#210/#213：删除、归属、导出与重新同步的共享面板取消路径由页面行为测试覆盖。
+  { name: 'leave', route: '/pages/settings/settings', event: 'unbind' }
 ]
 for (const confirmation of confirmations) {
   for (const unavailable of ['missing', 'failed']) {
@@ -235,29 +234,18 @@ for (const confirmation of confirmations) {
       t.after(() => app.teardown())
       recover(app)
       app.cloud.when('leaveRoom').reply({ code: 0 })
-      if (confirmation.name === 'overlap') {
-        app.cloud.when({ name: 'dataOp', data: { action: 'list', collection: 'periods' } })
-          .reply({ code: 0, data: [{ _id: 'covered', startDate: '2026-06-19', endDate: '2026-06-24' }] })
-      }
       const page = app.launch(confirmation.route)
       await app.settle()
-      const roomCalls = app.cloud.calls.filter(call => call.name === 'getMyRoom').length
       if (unavailable === 'missing') delete app.wx.showModal
       else app.respondNext('showModal', new Error('showModal:fail unavailable'))
       const pending = app.dispatch(page, confirmation.event)
       await app.settle()
-      if (confirmation.name === 'overlap') {
-        assert.deepEqual(app.wx.toasts, [], 'an unavailable overlap question is a no-op')
-      } else {
-        assert.ok(app.wx.toasts.length, 'unavailable confirmation must leave visible feedback')
-      }
+      assert.ok(app.wx.toasts.length, 'unavailable confirmation must leave visible feedback')
       assert.equal(app.currentPage, page)
       assert.equal(app.cloud.calls.filter(call => call.name === 'leaveRoom').length, 0)
       assert.equal(writes(app).length, 0)
       assert.deepEqual(app.files, [])
       assert.deepEqual(app.clipboard, [])
-      if (confirmation.name === 'export') assert.equal(dataCalls(app).length, 0)
-      if (confirmation.name === 'cache resync') assert.equal(app.cloud.calls.filter(call => call.name === 'getMyRoom').length, roomCalls)
       await pending
       await app.settle()
       assert.equal(app.storage.roomCode, 'ROOM01')

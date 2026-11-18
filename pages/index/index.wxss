@@ -71,12 +71,19 @@
 
 .partner-welcome {
   display: block;
-  margin: 8rpx 24rpx 12rpx;
+  margin: 0 24rpx;
+  padding: 8rpx 0 12rpx;
+  box-sizing: border-box;
   text-align: center;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.85);
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.partner-welcome:active,
+.partner-welcome.partner-welcome-hover {
+  transform: scale(0.98);
 }
 
 /* 刷新失败重试句（issue #79）：已加载后的后台刷新失败留驻的可点行。
@@ -232,7 +239,7 @@
   background-color: rgba(255,255,255,0.1);
 }
 
-/* 顶栏左侧工具入口：矩形文字钮，不跟月份箭头共用圆钮。 */
+/* 顶栏左侧图例入口：矩形文字钮，不跟月份箭头共用圆钮。 */
 .nav-tool {
   min-width: 88rpx;
   height: 88rpx;
@@ -1114,10 +1121,6 @@
   opacity: 1;
   transition: opacity var(--duration-enter) var(--ease-out);
 }
-.day-sheet-mask.sheet-handoff {
-  opacity: 1;
-  transition: none;
-}
 .day-sheet-mask.sheet-leaving {
   pointer-events: none;
 }
@@ -1698,6 +1701,7 @@
   .calendar-days.calendar-flip-prev-a,
   .calendar-days.calendar-flip-prev-b,
   .nav-tool,
+  .partner-welcome,
   .back-today,
   .home-status,
   .month-summary,

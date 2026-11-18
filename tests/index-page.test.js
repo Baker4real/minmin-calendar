@@ -62,11 +62,15 @@ test('the unbound heart art is reserved for bind states, not load failures', () 
   assert.match(wxml, /bindtap="handleRoomStatusAction"[^>]*aria-label="\{\{roomStatusActionText\}\}"/)
 })
 
-test('partner welcome keeps its calendar marker explanation', () => {
-  assert.match(readIndexWxml(), /已和 TA 连上。经期是玫瑰色带，♥ 是欢乐时光，「预」是下次可能开始的日子。/)
+test('partner welcome explains the calendar marks and the whole row opens the legend', () => {
+  const wxml = readIndexWxml()
+  const welcome = /<view wx:if="\{\{partnerWelcome\}\}" class="partner-welcome"[^>]*bindtap="openLegendSheet"[^>]*aria-role="button"[^>]*aria-label="已和 TA 连上。点按打开日历图例"[^>]*>([^<]+)<\/view>/.exec(wxml)
+  assert.ok(welcome, 'expected the whole welcome row to open the legend')
+  assert.equal(welcome[1], '已和 TA 连上。玫瑰色带是经期，♥ 是欢乐时光，「预」是可能开始的日子。点这里或左上角「图例」随时再看')
+  assert.match(welcome[0], /hover-class="partner-welcome-hover"/)
 })
 
-test('homepage stacks navbar tools, sticky month and status, calendar, record actions, summary, then the empty guide', () => {
+test('homepage stacks navbar legend, sticky month and status, calendar, record actions, summary, then the empty guide', () => {
   const wxml = readIndexWxml()
   const positions = ['class="nav-tool"', 'class="home-sticky"', 'class="month-nav"', 'class="home-status', 'class="week-header"', 'class="calendar-grid', 'class="quick-actions"', 'class="month-summary"', 'class="empty-guide"'].map(value => wxml.indexOf(value))
   assert.ok(positions.every(value => value !== -1))
@@ -170,14 +174,14 @@ test('status line and month summary press with the shared scale-down and reduced
   assert.match(reduced, /\.month-summary\b/)
 })
 
-test('navbar tools entry is distinct from the month arrows', () => {
+test('navbar legend entry opens the legend directly and stays distinct from the month arrows', () => {
   const wxml = readIndexWxml()
   const nav = wxml.slice(wxml.indexOf('class="nav-bar'), wxml.indexOf('class="no-room"'))
   const monthNav = wxml.slice(wxml.indexOf('class="month-nav"'), wxml.indexOf('class="home-status'))
   assert.match(nav, /class="nav-tool"/)
-  assert.match(nav, /bindtap="openMonthMenu"/)
-  assert.match(nav, /aria-label="打开工具菜单"/)
-  assert.match(nav, />工具<\/view>/)
+  assert.match(nav, /bindtap="openLegendSheet"/)
+  assert.match(nav, /aria-label="打开日历图例"/)
+  assert.match(nav, />图例<\/view>/)
   assert.doesNotMatch(monthNav, /openMonthMenu|month-menu-trigger|…/)
   assert.match(monthNav, /bindtap="prevMonth"/)
   assert.match(monthNav, /bindtap="nextMonth"/)
@@ -189,16 +193,15 @@ test('navbar tools entry is distinct from the month arrows', () => {
   assert.match(ruleBody(wxss, '.nav-btn'), /border-radius:\s*var\(--radius-circle\)/)
 })
 
-test('month tools menu reuses the existing legend, prediction, and recap sheets', () => {
+test('homepage retires the tools menu and keeps direct prediction, recap and help destinations', () => {
   const wxml = readIndexWxml()
-  const menuStart = wxml.indexOf('wx:if="{{toolsMenuMounted}}"')
-  const menuEnd = wxml.indexOf('wx:if="{{infoSheetMounted}}"')
-  assert.ok(menuStart !== -1 && menuEnd > menuStart)
-  const menuBlock = wxml.slice(menuStart, menuEnd)
-  assert.match(menuBlock, /bindtap="closeMonthMenu"[^>]*aria-role="button"[^>]*aria-label="关闭工具菜单"/)
-  assert.deepEqual([...menuBlock.matchAll(/data-action="(legend|prediction|recap)"[^>]*bindtap="onMonthMenuTap"/g)].map(match => match[1]), ['legend', 'prediction', 'recap'])
-  for (const name of ['打开日历图例', '查看经期预测', '查看本月小结']) assert.ok(menuBlock.includes(`aria-label="${name}"`))
+  assert.doesNotMatch(wxml, /toolsMenu|openMonthMenu|closeMonthMenu|onMonthMenuTap|infoSheetHandoff|sheet-handoff/)
+  assert.match(wxml, /class="home-status[^"]*"[\s\S]*?bindtap="openPredictionSheet"/)
+  assert.match(wxml, /class="month-summary"[\s\S]*?bindtap="openMonthlyRecap"/)
   for (const name of ['legend-list', 'prediction-explanation', 'monthly-recap']) assert.ok(wxml.includes(`class="${name}"`))
+  const legendStart = wxml.indexOf('class="legend-list"')
+  const legend = wxml.slice(legendStart, wxml.indexOf('class="prediction-explanation"', legendStart))
+  assert.match(legend, /更多用法请前往「设置 → 使用说明」。/)
 })
 
 test('quick record buttons keep the calendar marks, rose fill, readable labels and touch height', () => {
@@ -255,7 +258,7 @@ test('homepage sheets keep mounted phases, inert leave, layer order and system b
   assert.match(wxml, /wx:if="\{\{monthPickerMounted\}\}"/)
   assert.match(wxml, /sheet-\{\{monthPickerPhase\}\}/)
   assert.match(wxml, /wx:if="\{\{dayActionsMounted\}\}"[\s\S]*?sheet-\{\{dayActionsPhase\}\}/)
-  assert.match(wxml, /wx:if="\{\{toolsMenuMounted\}\}"[\s\S]*?sheet-\{\{toolsMenuPhase\}\}/)
+  assert.doesNotMatch(wxml, /toolsMenuMounted|toolsMenuPhase/)
   assert.match(wxml, /wx:if="\{\{infoSheetMounted\}\}"[\s\S]*?sheet-\{\{infoSheetPhase\}\}/)
   assert.match(ruleBody(wxss, '.day-sheet-mask.sheet-leaving'), /pointer-events:\s*none/)
   assert.match(ruleBody(wxss, '.sheet-slide.sheet-leaving'), /pointer-events:\s*none/)
@@ -271,10 +274,9 @@ test('homepage sheets keep mounted phases, inert leave, layer order and system b
   assert.match(container[0], /\bduration="0"/)
   assert.match(container[0], /\bz-index="1"/)
   assert.match(wxml.slice(0, wxml.indexOf('>')), /class="page safe-top \{\{pageObscured \? 'page-obscured' : ''\}\} \{\{pageHidden \? 'page-hidden' : ''\}\}"/)
-  assert.match(wxml, /infoSheetHandoff/)
-  assert.match(wxml, /sheet-handoff/)
+  assert.doesNotMatch(wxml, /infoSheetHandoff|sheet-handoff/)
   const cancellations = wxml.match(/bindtouchcancel="\{\{sheetDrag\.touchCancel\}\}"/g) || []
-  assert.equal(cancellations.length, 4)
+  assert.equal(cancellations.length, 3)
 })
 
 test('month jump sheet uses a bounded year stepper and immediate month selection', () => {

@@ -10,6 +10,7 @@ const A = 'ROOM01'
 const B = 'ROOM02'
 const period = (id, date, extra = {}) => ({ _id: id, startDate: date, endDate: date, status: 'known-end', ...extra })
 const memory = (id, date, extra = {}) => ({ _id: id, date, note: '', ...extra })
+const tabPeriodRows = view => view.periodGroups.flatMap(year => year.months.flatMap(group => group.records))
 
 function homeApp(t, options = {}) {
   const app = createMiniProgram({ storage: { roomCode: A }, ...options })
@@ -103,8 +104,14 @@ for (const rebound of [null, B]) {
 }
 
 function tabShowsRoomA(patch) {
-  const rows = [...(patch.periods || []), ...(patch.memoryGroups || []).flatMap(group => group.records)]
-  return rows.some(row => row._id === 'a-p' || row._id === 'a-m')
+  const groupRows = [
+    ...(patch.periodGroups || []).flatMap(year => year.months.flatMap(group => group.records)),
+    ...(patch.memoryGroups || []).flatMap(group => group.records)
+  ]
+  const pathRows = Object.entries(patch)
+    .filter(([key]) => key.endsWith('.records'))
+    .flatMap(([, records]) => records)
+  return [...groupRows, ...pathRows].some(row => row._id === 'a-p' || row._id === 'a-m')
 }
 
 // #194: the record tab lives on as a tab page while Settings moves the device to another Room.
@@ -114,7 +121,7 @@ test('a live record tab shows none of the previous Room once the device holds an
   app.wx.switchTab({ url: '/pages/period/period' })
   await app.settle()
   const tab = app.currentPage
-  assert.deepEqual(app.rendered(tab).periods.map(row => [row._id, row.authorLabel]), [['a-p', '我记的']])
+  assert.deepEqual(tabPeriodRows(app.rendered(tab)).map(row => [row._id, row.authorLabel]), [['a-p', '我记的']])
   app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: A, status: 'paired' } })
   app.wx.switchTab({ url: '/pages/settings/settings' })
   await app.settle()
@@ -136,7 +143,7 @@ test('a live record tab shows none of the previous Room once the device holds an
   assert.equal(app.currentPage, tab)
   const view = app.rendered(tab)
   // Room B brought back no pairing, so Room A's pairing does not name the author either.
-  assert.deepEqual(view.periods.map(row => [row._id, row.authorLabel]), [['b-p', undefined]])
+  assert.deepEqual(tabPeriodRows(view).map(row => [row._id, row.authorLabel]), [['b-p', undefined]])
   assert.deepEqual(view.memoryGroups, [])
   assert.equal(view.memoryLoadFailed, true)
   assert.equal(view.memoryHasLoaded, false)
@@ -212,7 +219,7 @@ for (const [entry, failed] of [['createRoom', 'memories'], ['joinRoom', 'periods
     await launchRoomA(app)
     app.wx.switchTab({ url: '/pages/period/period' })
     await app.settle()
-    assert.deepEqual(app.rendered(app.currentPage).periods.map(row => row._id), ['a-p'])
+    assert.deepEqual(tabPeriodRows(app.rendered(app.currentPage)).map(row => row._id), ['a-p'])
     const bind = await leaveFromSettings(app)
     // Room A's one period lasts one day and Room B's three: a three-day range is longer only than Room A's.
     listRoute(app, 'periods', B).reply(listed([period('b-p', '2026-06-20', { endDate: '2026-06-22', createdByMe: true })]))
@@ -223,8 +230,10 @@ for (const [entry, failed] of [['createRoom', 'memories'], ['joinRoom', 'periods
     app.wx.switchTab({ url: '/pages/period/period' })
     await app.settle()
     const tab = app.currentPage
+    await app.dispatch(tab, 'toggleMonth', { currentTarget: { dataset: { key: '2026-06' } } })
+    await app.settle()
     const view = app.rendered(tab)
-    assert.deepEqual(view.periods.map(row => row._id), failed === 'periods' ? [] : ['b-p'])
+    assert.deepEqual(tabPeriodRows(view).map(row => row._id), failed === 'periods' ? [] : ['b-p'])
     assert.deepEqual(view.memoryGroups.flatMap(group => group.records.map(row => row._id)), failed === 'memories' ? [] : ['b-m'])
     assert.equal(view[failed === 'periods' ? 'loadFailed' : 'memoryLoadFailed'], true)
     assert.deepEqual(tab.setDataCalls.filter(tabShowsRoomA), [], 'no frame of the tab carries Room A')
@@ -236,6 +245,36 @@ for (const [entry, failed] of [['createRoom', 'memories'], ['joinRoom', 'periods
     assert.equal(app.rendered(edit).periodLengthHint, '', 'Room A\'s one-day period is no history here')
   })
 }
+
+test('switching Rooms drops pending partner arrivals without rendering them into the next Room', async t => {
+  const app = homeApp(t)
+  const home = await launchRoomA(app)
+  app.hide()
+  listRoute(app, 'periods', A).reply(listed([period('a-p', '2026-06-01', { createdByMe: true })], 'paired'))
+  listRoute(app, 'memories', A).reply(listed([
+    memory('a-m', '2026-06-02', { createdByMe: false }),
+    memory('a-new', '2026-06-15', { createdByMe: false })
+  ], 'paired'))
+  await home.onPullDownRefresh()
+  await app.settle()
+  assert.deepEqual(app.rendered(home).recordFeedback, {})
+
+  app.wx.setStorageSync('roomCode', B)
+  listRoute(app, 'periods', B).reply(listed([period('b-p', '2026-06-20', { createdByMe: false })], 'paired'))
+  listRoute(app, 'memories', B).reply(listed([memory('b-m', '2026-06-12', { createdByMe: false })], 'paired'))
+  const frames = home.setDataCalls.length
+  app.show()
+  app.commit(home)
+  assert.deepEqual(marked(app, home, 'isMemory'), [], 'Room A is cleared before Room B answers')
+  await app.settle()
+  assert.equal(home.setDataCalls.slice(frames).some(patch => (
+    patch.recordFeedback && patch.recordFeedback['2026-06-15']
+  )), false, 'Room A never lights during the Room B show')
+  assert.deepEqual(home.setDataCalls.slice(frames).filter(showsRoomA), [], 'no Room A calendar survives the ownership checkpoint')
+  assert.deepEqual(app.rendered(home).recordFeedback, {}, 'the first load of Room B is not an arrival')
+  assert.deepEqual(marked(app, home, 'isPeriod'), ['2026-06-20'])
+  assert.deepEqual(marked(app, home, 'isMemory'), ['2026-06-12'])
+})
 
 test('a load still in flight for the previous Room is not shared with the next Room and never lands in it', async t => {
   const app = homeApp(t)

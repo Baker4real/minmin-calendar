@@ -116,7 +116,7 @@ const DELETE_ACTIONS = [
 ]
 
 // The render callback is the only form output. No Page or page.data enters a session.
-function openRecordEditSession({ kind, route, render, confirmDelete }) {
+function openRecordEditSession({ kind, route, render, confirm }) {
   const config = EDIT_KINDS[kind]
   if (!config) throw new Error(`Unsupported record kind: ${kind}`)
   const today = () => util.formatDate(new Date())
@@ -189,22 +189,18 @@ function openRecordEditSession({ kind, route, render, confirmDelete }) {
     await loadUnsyncedPeriods()
     const owner = config.overlapOwner(heldPeriods(), state.startDate, today())
     if (!owner) return 'save'
-    const editExisting = await new Promise(resolve => {
-      wxPrompts.modal({
-        title: '这一天已有经期',
-        content: '开始日已经落在一条已有经期里。',
-        confirmText: '编辑那条',
-        cancelText: '仍然新建',
-        success: response => {
-          if (response && response.confirm) resolve(true)
-          else if (response && response.cancel) resolve(false)
-          else resolve(null)
-        },
-        fail: () => resolve(null)
-      })
+    const choice = await confirm({
+      name: '经期开始日归属确认',
+      title: '这一天已有经期',
+      content: `开始日落在 ${util.formatDisplayDate(owner.record.startDate, { today: today() })} 开始的那次经期里；仍然新建会另存一条，这几天会被两条经期覆盖`,
+      actions: [
+        { id: 'edit', text: '编辑那条', kind: 'primary' },
+        { id: 'create', text: '仍然新建', kind: 'secondary' },
+        { id: 'cancel', text: '取消', kind: 'secondary' }
+      ]
     })
-    if (editExisting === null) return { kind: 'cancelled' }
-    if (!editExisting) return 'save'
+    if (choice === 'create') return 'save'
+    if (choice !== 'edit') return { kind: 'cancelled' }
     persistDraft()
     wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(owner.record) })
     return { kind: 'edit-existing' }
@@ -306,7 +302,7 @@ function openRecordEditSession({ kind, route, render, confirmDelete }) {
       if (busy() || deleteConfirming) return
       deleteConfirming = true
       try {
-        const confirmed = await confirmDelete({
+        const confirmed = await confirm({
           name: config.confirmName,
           title: config.confirmTitle,
           dateText: config.confirmDate(state, today()),

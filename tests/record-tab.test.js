@@ -13,12 +13,23 @@ const list = (app, collection) => app.cloud.when({ name: 'dataOp', data: { actio
 const writes = (page, key) => page.setDataCalls.filter(patch => key in patch).map(patch => patch[key])
 const groupAuthors = groups => groups.flatMap(group => group.records.map(row => row.authorLabel))
 const periodGroupAuthors = years => years.flatMap(year => groupAuthors(year.months))
-const memoryRowIds = page => page.data.memoryGroups.flatMap(group => group.records.map(row => row._id))
+const periodRows = page => {
+  const data = page.data || page
+  return data.periodGroups.flatMap(year => year.months.flatMap(group => group.records))
+}
+const memoryRowIds = page => {
+  const data = page.data || page
+  return data.memoryGroups.flatMap(group => group.records.map(row => row._id))
+}
+const rowsFor = (page, segment) => segment === 'period'
+  ? periodRows(page)
+  : (page.data || page).memoryGroups.flatMap(group => group.records)
 
 // Whether the tab's WXML draws an element for the rendered data: its own wx:if / wx:elif holds, no earlier branch
 // of its chain holds (WXML draws one branch per chain), and the same goes for every element around it.
 // Ask only about the segment on screen: the memory segment is a bare wx:else, which the tree does not read.
 const tabWxml = readSource(path.join(__dirname, '../pages/period/period.wxml'), 'utf8')
+const tabWxss = readSource(path.join(__dirname, '../pages/period/period.wxss'), 'utf8')
 const tabTemplate = wxmlElementTree(tabWxml)
 const allElements = nodes => nodes.flatMap(node => [node, ...allElements(node.children)])
 function holds(node, data) {
@@ -63,6 +74,43 @@ test('period empty state uses the current action label and cycle prediction thre
   assert.ok(draws(page.data, node => node.classes.includes('empty-state') && !node.classes.includes('load-failed')))
 })
 
+test('period overview reserves three fixed-height number slots throughout loading', async (t) => {
+  const app = setup(t)
+  const pending = list(app, 'periods').defer()
+  const page = app.launch(route)
+  await app.settle()
+  assert.equal(page.data.loading, true)
+  assert.ok(draws(page.data, node => node.classes.includes('cycle-card')))
+  const placeholders = allElements(tabTemplate).filter(node => node.classes.includes('cycle-num-placeholder'))
+  assert.equal(placeholders.length, 3)
+  for (const placeholder of placeholders) {
+    assert.ok(draws(page.data, node => node === placeholder), 'each loading number slot is drawn')
+    assert.equal(placeholder.attrs['aria-hidden'], 'true')
+  }
+  const numberRule = /\.cycle-num\s*\{[^}]*\}/.exec(tabWxss)
+  assert.ok(numberRule, 'the shared loaded and loading number style exists')
+  assert.match(numberRule[0], /height:\s*52\.8rpx/)
+  assert.match(numberRule[0], /line-height:\s*52\.8rpx/)
+  pending.resolve({ code: 0, data: [] })
+  await app.flush()
+})
+
+test('confirmed empty periods hide the overview and put the guide directly below the add action', async (t) => {
+  const app = setup(t)
+  const page = app.launch(route)
+  await app.flush()
+  assert.equal(page.data.hasLoaded, true)
+  assert.equal(page.data.periodCount, 0)
+  assert.equal(draws(page.data, node => node.classes.includes('cycle-card')), false)
+  const add = allElements(tabTemplate).find(node => node.attrs.bindtap === 'addPeriod')
+  const guide = allElements(tabTemplate).find(node => node.classes.includes('empty-state') && !node.classes.includes('load-failed'))
+  assert.ok(add && guide)
+  const siblings = add.parent.children
+  const following = siblings.slice(siblings.indexOf(add) + 1)
+  const nextVisible = following.find(node => draws(page.data, candidate => candidate === node))
+  assert.equal(nextVisible, guide, 'the empty guide is the first visible block after the add action')
+})
+
 const segments = [
   { segment: 'period', collection: 'periods', loading: 'loading', failed: 'loadFailed', loaded: 'hasLoaded', retry: 'loadData', listClass: 'period-year-list', record: { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05' } },
   { segment: 'memory', collection: 'memories', loading: 'memoryLoading', failed: 'memoryLoadFailed', loaded: 'memoryHasLoaded', retry: 'loadMemoryData', listClass: 'memory-month-list', record: { _id: 'm1', date: '2026-06-01', note: '测试记录' } }
@@ -86,7 +134,9 @@ test('after Home has read the records, the tab shows them with authors before it
   const tab = app.currentPage
   assert.equal(tab.route, 'pages/period/period')
   assert.equal(app.rendered(tab).loading, false)
-  assert.deepEqual(app.rendered(tab).periods.map(row => [row._id, row.authorLabel]), [['p-mine', '我记的'], ['p-theirs', 'TA 记的']])
+  assert.deepEqual(periodRows(app.rendered(tab)).map(row => [row._id, row.authorLabel]), [['p-mine', '我记的'], ['p-theirs', 'TA 记的']])
+  await app.dispatch(tab, 'toggleMonth', dataset({ key: '2026-09' }))
+  await app.settle()
   assert.deepEqual(groupAuthors(app.rendered(tab).memoryGroups), ['我记的'])
   assert.deepEqual(listCalls(app).map(call => call.data.collection), ['periods', 'memories', 'periods', 'memories'])
 
@@ -97,7 +147,7 @@ test('after Home has read the records, the tab shows them with authors before it
   ] })
   memories.resolve({ code: 0, roomStatus: 'paired', data: [{ _id: 'mine', date: '2026-09-18', note: '散步', createdByMe: true }] })
   await app.settle()
-  assert.deepEqual(app.rendered(tab).periods.map(row => [row._id, row.authorLabel]), [['p-new', 'TA 记的'], ['p-mine', '我记的'], ['p-theirs', 'TA 记的']])
+  assert.deepEqual(periodRows(app.rendered(tab)).map(row => [row._id, row.authorLabel]), [['p-new', 'TA 记的'], ['p-mine', '我记的'], ['p-theirs', 'TA 记的']])
   assert.deepEqual(listCalls(app).length, 4)
   assert.equal(roomLookups(app), 0)
 })
@@ -169,6 +219,7 @@ test('a save from Home is listed on the record tab before any refresh answers', 
   const tab = app.currentPage
   assert.equal(tab.route, 'pages/period/period')
   assert.equal(tab.data.segment, 'memory')
+  await app.dispatch(tab, 'toggleMonth', dataset({ key: '2026-10' }))
   assert.deepEqual(memoryRowIds(tab), ['m-home'])
   assert.equal(listCalls(app).length, 4, 'the tab shares Home\'s refresh')
   periods.resolve({ code: 0, data: [] })
@@ -210,7 +261,8 @@ for (const spec of segments) {
     await app.flush()
     assert.equal(page.data[spec.failed], false)
     assert.equal(page.data[spec.loaded], true)
-    assert.equal(page.data[spec.collection][0]._id, spec.record._id)
+    if (spec.segment === 'memory') await app.dispatch(page, 'toggleMonth', dataset({ key: spec.record.date.slice(0, 7) }))
+    assert.equal(rowsFor(page, spec.segment)[0]._id, spec.record._id)
   })
 }
 
@@ -231,17 +283,22 @@ for (const spec of segments) {
     assert.equal(page.data[spec.failed], true)
     assert.equal(page.data[spec.loaded], false)
     assert.equal(page.data[spec.loading], false)
-    assert.deepEqual(page.data[spec.collection], [])
-    if (spec.segment === 'period') assert.deepEqual([page.data.avgCycle, page.data.avgDuration], [null, null])
+    assert.deepEqual(rowsFor(page, spec.segment), [])
+    if (spec.segment === 'period') {
+      assert.deepEqual([page.data.avgCycle, page.data.avgDuration], [null, null])
+      assert.ok(draws(page.data, node => node.classes.includes('cycle-num') && node.attrs['wx:elif'] === '{{!loading}}'),
+        'a first read failure keeps the -- overview placeholders')
+    }
     assert.equal(page.data[other.failed], false)
     assert.equal(page.data[other.loaded], true)
-    assert.equal(page.data[other.collection][0]._id, other.record._id)
+    assert.equal(page.data[other.segment === 'period' ? 'periodCount' : 'memoryCount'], 1)
     list(app, spec.collection).reply({ code: 0, data: [spec.record] })
     await app.dispatch(page, spec.retry)
     await app.flush()
     assert.equal(page.data[spec.failed], false)
     assert.equal(page.data[spec.loaded], true)
-    assert.equal(page.data[spec.collection][0]._id, spec.record._id)
+    if (spec.segment === 'memory') await app.dispatch(page, 'toggleMonth', dataset({ key: spec.record.date.slice(0, 7) }))
+    assert.equal(rowsFor(page, spec.segment)[0]._id, spec.record._id)
     assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(2))
   })
 
@@ -283,6 +340,15 @@ for (const spec of segments) {
       assert.equal(page.data[spec.loading], false)
       assert.deepEqual(page.data[spec.segment === 'period' ? 'periods' : 'memoryGroups'], before)
       assert.deepEqual([page.data.avgCycle, page.data.avgDuration], stats)
+      if (spec.segment === 'period') {
+        if (records.length) {
+          assert.ok(draws(page.data, node => node.classes.includes('cycle-num') && node.attrs['wx:if'] === '{{!loading && (!loadFailed || hasLoaded)}}'),
+            'a refresh failure keeps the previous period count visible')
+        } else {
+          assert.equal(draws(page.data, node => node.classes.includes('cycle-card')), false,
+            'a confirmed empty overview stays hidden through a later refresh failure')
+        }
+      }
       assert.equal(page.data[other.failed], false)
       assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(3))
       list(app, spec.collection).reply({ code: 0, data: records })
@@ -315,6 +381,7 @@ test('a memory saved during the very first load does not leave the segment faile
   assert.equal(page.data.memoryLoadFailed, false)
   assert.equal(page.data.memoryHasLoaded, true)
   assert.equal(page.data.memoryLoading, false)
+  await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-09' }))
   assert.deepEqual(memoryRowIds(page), ['m-new', 'm-old', 'm-older'])
   assert.deepEqual(writes(page, 'memoryLoadFailed').filter(Boolean), [], 'no frame shows the memories as failed')
   assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(2))
@@ -343,7 +410,7 @@ for (const spec of segments) {
     assert.deepEqual([data[spec.loading], data[spec.failed], data[spec.loaded]], [false, true, false])
     assert.ok(draws(data, node => node.classes.includes('load-failed') && node.attrs.bindtap === spec.retry), 'the failure card and its retry stay')
     assert.ok(draws(data, node => node.classes.includes(spec.listClass)), 'the list is drawn under the failure card')
-    assert.deepEqual(spec.segment === 'period' ? data.periods.map(row => row._id) : memoryRowIds(page), ['saved-here'])
+    assert.deepEqual(spec.segment === 'period' ? periodRows(data).map(row => row._id) : memoryRowIds(page), ['saved-here'])
     if (spec.segment === 'period') assert.deepEqual([data.avgCycle, data.avgDuration], [null, null])
     assert.deepEqual(app.wx.modals, [])
   })
@@ -387,6 +454,7 @@ test('legacy memory route redirects to the real record tab and opens its memory 
   await app.flush()
   assert.equal(app.currentPage.route, 'pages/period/period')
   assert.equal(app.currentPage.data.segment, 'memory')
+  await app.dispatch(app.currentPage, 'toggleMonth', dataset({ key: '2026-06' }))
   assert.equal(app.currentPage.data.memoryGroups[0].records[0].note, '测试记录')
   assert.equal(app.storage.recordTabSegment, undefined)
   assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(1))
@@ -451,10 +519,10 @@ for (const scenario of periodCases) {
     list(app, 'periods').reply({ code: 0, data: scenario.records })
     const page = app.launch(route)
     await app.flush()
-    if (scenario.rows) assert.deepEqual(page.data.periods.map(row => [row._id, row.dateLabel, row.durationText]), scenario.rows)
+    if (scenario.rows) assert.deepEqual(periodRows(page).map(row => [row._id, row.dateLabel, row.durationText]), scenario.rows)
     assert.equal(page.data.avgDuration, scenario.duration)
     if ('cycle' in scenario) assert.equal(page.data.avgCycle, scenario.cycle)
-    assert.equal(page.data.periods.length, scenario.records.length)
+    assert.equal(page.data.periodCount, scenario.records.length)
   })
 }
 
@@ -474,10 +542,11 @@ for (const status of ['paired', 'waiting', null, 'archived']) {
     ]))
     const page = app.launch(route)
     await app.flush()
-    assert.deepEqual(page.data.periods.map(row => row.authorLabel), status === 'paired' ? ['我记的', 'TA 记的', undefined] : [undefined, undefined, undefined])
-    assert.equal(page.data.periods[0].flowLabel, '量多')
-    assert.deepEqual(page.data.periods[0].symptomLabels, ['痛经'])
+    assert.deepEqual(periodRows(page).map(row => row.authorLabel), status === 'paired' ? ['我记的', 'TA 记的', undefined] : [undefined, undefined, undefined])
+    assert.equal(periodRows(page)[0].flowLabel, '量多')
+    assert.deepEqual(periodRows(page)[0].symptomLabels, ['痛经'])
     await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
+    await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-09' }))
     const rows = page.data.memoryGroups.flatMap(group => group.records)
     assert.deepEqual(rows.map(row => row.ariaLabel), status === 'paired' ? [
       '编辑欢乐时光，9月18日，散步，我记的', '编辑欢乐时光，9月18日，TA 记的', '编辑欢乐时光，9月2日，旧记录'
@@ -485,7 +554,7 @@ for (const status of ['paired', 'waiting', null, 'archived']) {
   })
 }
 
-test('each record tab show reads both lists once, looks no Room up, and rows carry authors in their first render', async (t) => {
+test('each record tab show reads both lists once, looks no Room up, and an unchanged show adds no row renders', async (t) => {
   const app = setup(t)
   list(app, 'periods').reply({ code: 0, roomStatus: 'paired', data: [
     { _id: 'p-mine', startDate: '2026-09-01', endDate: '2026-09-03', createdByMe: true },
@@ -500,15 +569,17 @@ test('each record tab show reads both lists once, looks no Room up, and rows car
   assert.deepEqual(app.cloud.calls.map(call => [call.name, call.data.action, call.data.collection]), [['dataOp', 'list', 'periods'], ['dataOp', 'list', 'memories']])
   // Only row renders count: the first show starts with nothing to list.
   const rowWrites = key => writes(page, key).filter(rows => rows.length)
-  assert.deepEqual(rowWrites('periods').map(rows => rows.map(row => row.authorLabel)), [['我记的', 'TA 记的']])
   assert.deepEqual(rowWrites('periodGroups').map(periodGroupAuthors), [['我记的', 'TA 记的']])
-  assert.deepEqual(rowWrites('memoryGroups').map(groupAuthors), [['我记的', 'TA 记的']])
+  assert.deepEqual(rowWrites('memoryGroups').map(groups => groups.map(group => group.count)), [[2]])
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
+  await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-09' }))
+  assert.deepEqual(groupAuthors(page.data.memoryGroups), ['我记的', 'TA 记的'])
   app.hide()
   app.show()
   await app.flush()
   assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(2))
-  assert.deepEqual(rowWrites('memoryGroups').map(groupAuthors), [['我记的', 'TA 记的'], ['我记的', 'TA 记的']], 'one row render per show; an unchanged refresh adds none')
+  assert.equal(rowWrites('periodGroups').length, 1, 'an unchanged show adds no period row render')
+  assert.equal(rowWrites('memoryGroups').length, 1, 'an unchanged show adds no memory group render')
   assert.equal(roomLookups(app), 0)
 })
 
@@ -520,6 +591,7 @@ test('without a new status the tab keeps the Room\'s last pairing, while another
   const page = app.launch(route)
   await app.flush()
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
+  await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-09' }))
   await app.flush()
   assert.deepEqual(groupAuthors(page.data.memoryGroups), ['我记的'], 'same Room: the periods list already said paired')
   // This device now holds another Room whose lists bring back no status.
@@ -548,13 +620,16 @@ test('memory month cards sort across years, preserve same-day records and match 
   list(app, 'memories').reply({ code: 0, data: records })
   const page = app.launch(route)
   await app.flush()
-  const groups = page.data.memoryGroups
+  let groups = page.data.memoryGroups
   assert.deepEqual(groups.map(group => [group.key, group.title]), [
     ['2026-10', '2026年10月 · 3 条'], ['2026-09', '2026年9月 · 1 条'], ['2025-12', '2025年12月 · 1 条']
   ])
+  assert.equal(groups[0].ariaLabel, '2026年10月，3 条欢乐时光，海边散步，已收起')
+  await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-10' }))
+  await app.dispatch(page, 'toggleMonth', dataset({ key: '2025-12' }))
+  groups = page.data.memoryGroups
   assert.deepEqual(groups[0].records.map(row => [row._id, row.dayLabel]), [['a1', '10月8日'], ['a2', '10月8日'], ['first', '10月1日']])
   assert.equal(groups[0].records[1].note, '')
-  assert.equal(groups[0].ariaLabel, '2026年10月，3 条欢乐时光，海边散步，已收起')
   assert.equal(groups[2].records[0].dayLabel, '2025年12月31日')
   const { buildHomeCalendarState } = require('../utils/homeCalendarState')
   const projection = buildHomeCalendarState({ year: 2026, month: 9, today: '2026-10-20', periods: [], memories: records })
@@ -581,7 +656,7 @@ test('period year and month groups use the start month once, newest first, while
     ['2024年', [['2024-12', '12月', ['cross-year']]]]
   ])
   const rows = page.data.periodGroups.flatMap(year => year.months.flatMap(month => month.records))
-  assert.deepEqual(rows, page.data.periods)
+  assert.equal(page.data.periodCount, records.length)
   assert.deepEqual(rows.map(row => row.durationText), ['进行中', '5天', '结束日期不详', '2天', '1天', '6天'])
   assert.equal(rows[0].authorLabel, '我记的')
   assert.equal(rows[1].authorLabel, 'TA 记的')
@@ -721,7 +796,7 @@ test('period saves expand their destination month, moves remove empty years, and
     await app.flush()
   }
   assert.deepEqual(page.data.periodGroups, [])
-  assert.deepEqual(page.data.periods, [])
+  assert.deepEqual(periodRows(page), [])
 })
 
 test('period add into a collapsed February and move from March to February expand the saved month', async (t) => {
@@ -854,7 +929,7 @@ test('a Room repair that fails stays retryable inside the segments, without a pr
   await app.dispatch(page, 'loadData')
   await app.flush()
   assert.equal(page.data.loadFailed, false)
-  assert.equal(page.data.periods[0]._id, 'p1')
+  assert.equal(periodRows(page)[0]._id, 'p1')
   assert.equal(app.storage.roomCode, 'ROOM01')
   assert.equal(listCalls(app).length, 4)
 })
@@ -940,7 +1015,7 @@ test('record tab period entry matches the home projection with and without an on
   await app.settle()
   assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
   assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?id=p2&startDate=2026-10-18&endDate=2026-10-20&status=known-end&intent=complete')
-  assert.equal(app.wx.toasts.at(-1).title, home.periodQuickAction.notice)
+  assert.deepEqual(app.wx.toasts, [])
   assert.equal(app.currentPage.data.status, 'known-end')
   assert.equal(app.currentPage.data.endDate, '2026-10-20')
   await app.dispatch(app.currentPage, 'goBack')
@@ -958,7 +1033,7 @@ test('record tab period entry matches the home projection with and without an on
   assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
   assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?startDate=2026-10-20')
   assert.equal(app.currentPage.data.startDate, '2026-10-20')
-  assert.equal(app.wx.toasts.length, 1)
+  assert.equal(app.wx.toasts.length, 0)
   assert.match(tabWxml, /bindtap="addPeriod"[^>]*aria-label="\{\{periodQuickAriaLabel\}\}"[^>]*>\{\{periodQuickLabel\}\}<\/view>/)
 })
 
@@ -972,7 +1047,7 @@ test('record tab chooses the latest ongoing record, then creates today even when
   list(app, 'periods').reply({ code: 0, data: records })
   const page = app.launch(route)
   await app.flush()
-  assert.equal(page.data.periods.length, 3)
+  assert.equal(page.data.periodCount, 3)
   let home = buildHomeCalendarState({ year: 2026, month: 9, today: '2026-10-20', periods: records })
   assert.equal(page.data.periodQuickLabel, '经期第 6 天 · 记结束')
   assert.equal(page.data.periodQuickLabel, home.periodQuickLabel)
@@ -980,7 +1055,7 @@ test('record tab chooses the latest ongoing record, then creates today even when
   assert.equal(app.currentPage.data.id, 'latest-live')
   assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
   assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?id=latest-live&startDate=2026-10-15&endDate=2026-10-20&status=known-end&intent=complete')
-  assert.equal(app.wx.toasts.at(-1).title, home.periodQuickAction.notice)
+  assert.deepEqual(app.wx.toasts, [])
   list(app, 'periods').reply({ code: 0, data: [closedToday] })
   await app.dispatch(app.currentPage, 'goBack')
   await app.flush()
@@ -992,7 +1067,7 @@ test('record tab chooses the latest ongoing record, then creates today even when
   assert.equal(app.currentPage.data.startDate, '2026-10-20')
   assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
   assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?startDate=2026-10-20')
-  assert.equal(app.wx.toasts.length, 1)
+  assert.equal(app.wx.toasts.length, 0)
 })
 
 test('memory rows open the chosen same-day or older record by id, while missing ids do nothing', async (t) => {
@@ -1022,7 +1097,7 @@ test('memory rows open the chosen same-day or older record by id, while missing 
 
 for (const spec of segments) {
   for (const action of ['add', 'remove']) {
-    test(`${spec.segment}: confirmed ${action} lands the segment before return and refreshes once on return`, async (t) => {
+    test(`${spec.segment}: confirmed ${action} lands the segment on return and refreshes once`, async (t) => {
       const other = spec.segment === 'period' ? 'memory' : 'period'
       const app = setup(t, { segment: other })
       const page = app.launch(route)
@@ -1049,14 +1124,14 @@ for (const spec of segments) {
       pending.resolve({ code: 0, id: record._id, record })
       await mutation
       assert.equal(app.currentPage, edit, 'the editor stays until the return timer')
-      assert.equal(page.data.segment, spec.segment)
+      assert.equal(page.data.segment, other, 'the hidden tab waits for its next show before landing')
       assert.equal(app.storage.recordTabSegment, spec.segment)
       const beforeReturn = listCalls(app).length
       list(app, spec.collection).reply({ code: 0, data: action === 'remove' ? [] : [record] })
       await app.flush()
       assert.equal(app.currentPage, page)
       assert.equal(page.data.segment, spec.segment)
-      assert.equal(page.data[spec.collection].length, action === 'remove' ? 0 : 1)
+      assert.equal(page.data[spec.segment === 'period' ? 'periodCount' : 'memoryCount'], action === 'remove' ? 0 : 1)
       assert.equal(listCalls(app).length, beforeReturn + 2)
       assert.equal(app.storage.recordTabSegment, undefined)
       await app.dispatch(page, 'selectSegment', dataset({ segment: other }))
@@ -1120,4 +1195,164 @@ test('deleting rows through the editor removes an emptied month and retains othe
     assert.equal(app.currentPage, page)
     assert.deepEqual(expansion(page), id === 'sep2' ? [['2026-10', true], ['2026-09', false]] : [['2026-10', true]])
   }
+})
+
+test('record tab sends counts and groups without flat arrays or collapsed month rows', async (t) => {
+  const app = setup(t, { segment: 'memory' })
+  list(app, 'periods').reply({ code: 0, data: [
+    { _id: 'p2', startDate: '2026-10-01', endDate: '2026-10-05' },
+    { _id: 'p1', startDate: '2026-09-01', endDate: '2026-09-05' }
+  ] })
+  list(app, 'memories').reply({ code: 0, data: [
+    { _id: 'm2', date: '2026-10-08', note: '散步' },
+    { _id: 'm1', date: '2026-09-18', note: '晚餐' }
+  ] })
+  const page = app.launch(route)
+  await app.flush()
+  assert.equal(Object.hasOwn(page.data, 'periods'), false)
+  assert.equal(Object.hasOwn(page.data, 'memories'), false)
+  assert.equal(page.data.periodCount, 2)
+  assert.equal(page.data.memoryCount, 2)
+  assert.deepEqual(periodRows(page).map(row => row._id), ['p2', 'p1'])
+  assert.deepEqual(memoryRowIds(page), [])
+  assert.ok(page.setDataCalls.every(patch => !('periods' in patch) && !('memories' in patch)))
+})
+
+test('month and year folding update only target paths and add or remove only visible rows', async (t) => {
+  const app = setup(t, { segment: 'memory' })
+  list(app, 'periods').reply({ code: 0, data: [
+    { _id: 'p-oct', startDate: '2026-10-01', endDate: '2026-10-05' },
+    { _id: 'p-sep', startDate: '2026-09-01', endDate: '2026-09-05' }
+  ] })
+  list(app, 'memories').reply({ code: 0, data: [
+    { _id: 'm-oct', date: '2026-10-08', note: '散步' },
+    { _id: 'm-sep', date: '2026-09-18', note: '晚餐' }
+  ] })
+  const page = app.launch(route)
+  await app.flush()
+
+  page.setDataCalls.length = 0
+  await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-10' }))
+  assert.equal(page.setDataCalls.length, 1)
+  const memoryExpand = page.setDataCalls[0]
+  assert.equal('memoryGroups' in memoryExpand, false)
+  assert.deepEqual(memoryExpand['memoryGroups[0].records'].map(row => row._id), ['m-oct'])
+  assert.ok(Object.keys(memoryExpand).every(key => key.startsWith('memoryGroups[0].')))
+  assert.deepEqual(page.data.memoryGroups[1].records, [])
+
+  page.setDataCalls.length = 0
+  await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-10' }))
+  assert.equal(page.setDataCalls[0]['memoryGroups[0].records'].length, 0)
+  assert.equal('memoryGroups' in page.setDataCalls[0], false)
+
+  await app.dispatch(page, 'selectSegment', dataset({ segment: 'period' }))
+  page.setDataCalls.length = 0
+  await app.dispatch(page, 'togglePeriodMonth', dataset({ key: '2026-10' }))
+  assert.equal(page.setDataCalls.length, 1)
+  const periodCollapse = page.setDataCalls[0]
+  assert.equal('periodGroups' in periodCollapse, false)
+  assert.deepEqual(periodCollapse['periodGroups[0].months[0].records'], [])
+  assert.ok(Object.keys(periodCollapse).every(key => key.startsWith('periodGroups[0].months[0].')))
+
+  page.setDataCalls.length = 0
+  await app.dispatch(page, 'togglePeriodMonth', dataset({ key: '2026-10' }))
+  assert.deepEqual(page.setDataCalls[0]['periodGroups[0].months[0].records'].map(row => row._id), ['p-oct'])
+  assert.equal('periodGroups[0].months[1].records' in page.setDataCalls[0], false)
+
+  page.setDataCalls.length = 0
+  await app.dispatch(page, 'togglePeriodYear', dataset({ key: '2026' }))
+  const yearCollapse = page.setDataCalls[0]
+  assert.equal(yearCollapse['periodGroups[0].expanded'], false)
+  assert.deepEqual(yearCollapse['periodGroups[0].months[0].records'], [])
+  assert.deepEqual(yearCollapse['periodGroups[0].months[1].records'], [])
+  assert.equal('periodGroups' in yearCollapse, false)
+
+  page.setDataCalls.length = 0
+  await app.dispatch(page, 'togglePeriodYear', dataset({ key: '2026' }))
+  const yearExpand = page.setDataCalls[0]
+  assert.equal(yearExpand['periodGroups[0].expanded'], true)
+  assert.deepEqual(yearExpand['periodGroups[0].months[0].records'].map(row => row._id), ['p-oct'])
+  assert.deepEqual(yearExpand['periodGroups[0].months[1].records'].map(row => row._id), ['p-sep'])
+})
+
+test('collapsed row guards sit on wrappers outside the period and memory wx:for rows', () => {
+  for (const handler of ['editPeriod', 'editMemory']) {
+    const row = allElements(tabTemplate).find(node => node.attrs.bindtap === handler && node.classes.includes('list-item'))
+    assert.ok(row, `${handler} row exists`)
+    assert.equal(row.attrs['wx:if'], undefined, `${handler} row has no same-node collapse guard`)
+    assert.equal(row.parent.attrs['wx:if'], '{{group.expanded}}')
+    assert.equal(row.parent.attrs['wx:for'], undefined)
+  }
+})
+
+test('hidden record changes wait for show and redraw once, while an unchanged show sends no projection', async (t) => {
+  const app = setup(t)
+  const initial = [{ _id: 'm1', date: '2026-10-08', note: '散步' }]
+  list(app, 'memories').reply({ code: 0, data: initial })
+  const page = app.launch(route)
+  await app.flush()
+  await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
+  await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-10' }))
+  app.hide()
+  page.setDataCalls.length = 0
+
+  const added = { _id: 'm2', date: '2026-10-09', note: '新记录' }
+  require('../utils/roomRecordsSync').applyRecordChange({ collection: 'memories', mode: 'add', record: added })
+  assert.equal(page.setDataCalls.length, 0, 'a hidden tab receives no setData')
+  assert.equal(page.data.segment, 'memory')
+
+  list(app, 'memories').reply({ code: 0, data: [added, ...initial] })
+  app.show()
+  await app.flush()
+  assert.equal(writes(page, 'memoryGroups').length, 1, 'the hidden change is painted once on show')
+  assert.deepEqual(memoryRowIds(page), ['m2', 'm1'])
+
+  app.hide()
+  page.setDataCalls.length = 0
+  app.show()
+  await app.flush()
+  const unchangedShowWrites = page.setDataCalls.filter(patch => Object.keys(patch).some(key => key !== 'pageHidden'))
+  assert.deepEqual(unchangedShowWrites, [], 'unchanged records and Today send no page projection')
+})
+
+test('onShow redraws ongoing rows only when Today advances', async (t) => {
+  const app = setup(t)
+  const periods = [{ _id: 'live', startDate: '2026-10-18', status: 'ongoing' }]
+  list(app, 'periods').reply({ code: 0, data: periods })
+  const page = app.launch(route)
+  await app.flush()
+  assert.equal(periodRows(page)[0].durationText, '进行中')
+  assert.equal(page.data.periodQuickLabel, '经期第 3 天 · 记结束')
+
+  app.hide()
+  await app.advance(24 * 60 * 60 * 1000)
+  page.setDataCalls.length = 0
+  app.show()
+  await app.flush()
+  assert.equal(writes(page, 'periodGroups').length, 1)
+  assert.equal(page.data.periodQuickLabel, '经期第 4 天 · 记结束')
+  assert.equal(periodRows(page)[0].rangeSummary.includes('10月21日'), true)
+
+  app.hide()
+  app.show()
+  await app.flush()
+  assert.equal(writes(page, 'periodGroups').length, 1, 'the same Today adds no row render')
+})
+
+test('period quick entry resolves the current ongoing record by id instead of a cached action', async (t) => {
+  const app = setup(t)
+  list(app, 'periods').reply({ code: 0, data: [{ _id: 'live', startDate: '2026-10-18', status: 'ongoing', note: '旧值' }] })
+  const page = app.launch(route)
+  await app.flush()
+  app.hide()
+  require('../utils/roomRecordsSync').applyRecordChange({
+    collection: 'periods', mode: 'update',
+    record: { _id: 'live', startDate: '2026-10-19', status: 'ongoing', note: '共享记录里的新值' }
+  })
+  await app.dispatch(page, 'addPeriod')
+  assert.equal(app.currentPage.data.id, 'live')
+  assert.equal(app.currentPage.data.startDate, '2026-10-19')
+  assert.equal(app.currentPage.data.note, '共享记录里的新值')
+  assert.equal(app.currentPage.data.status, 'known-end')
+  assert.equal(app.currentPage.data.endDate, '2026-10-20')
 })

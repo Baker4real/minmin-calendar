@@ -872,7 +872,7 @@ test('glows sit only on the places DESIGN.md registers', () => {
 
   const design = readSource(path.join(repoRoot, 'DESIGN.md'), 'utf8')
   for (const registered of [
-    'drop-shadow(0 0 10px rgba(240,196,192,0.3))',
+    'text-shadow: 0 0 10px rgba(240,196,192,0.3)',
     '0 16rpx 64rpx rgba(232,144,158,0.15)',
     '`.jump-option.active`',
     '经期编辑页选中的状态、经量和症状芯片'
