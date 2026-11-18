@@ -21,6 +21,17 @@ test('buildPeriodEditUrl builds add and edit routes with encoded optional fields
   }), '/pages/period/edit/edit?id=p1&startDate=2026-06-01&endDate=2026-06-05&note=%E7%96%BC%E7%97%9B%20%26%20%E4%BC%91%E6%81%AF&flow=heavy&symptoms=cramps%2Cheadache')
 })
 
+test('edit routes carry the paired author label into the edit form state', () => {
+  const periodUrl = route.buildPeriodEditUrl({ id: 'p-partner', startDate: '2026-06-01', authorLabel: 'TA 记的' })
+  assert.match(periodUrl, /[?&]authorLabel=TA%20%E8%AE%B0%E7%9A%84(?:&|$)/)
+  assert.equal(route.parsePeriodEditOptions(Object.fromEntries(new URL(periodUrl, 'https://example.test').searchParams), { today: '2026-06-26' }).authorLabel, 'TA 记的')
+
+  const memoryUrl = route.buildMemoryEditUrl({ id: 'm-mine', date: '2026-06-03', authorLabel: '我记的' })
+  assert.match(memoryUrl, /[?&]authorLabel=%E6%88%91%E8%AE%B0%E7%9A%84(?:&|$)/)
+  assert.equal(route.parseMemoryEditOptions(Object.fromEntries(new URL(memoryUrl, 'https://example.test').searchParams), { today: '2026-06-26' }).authorLabel, '我记的')
+  assert.equal(route.parseMemoryEditOptions({ id: 'm-unpaired', date: '2026-06-03', createdByMe: false }, { today: '2026-06-26' }).authorLabel, undefined)
+})
+
 test('buildPeriodEditUrl carries the explicit status and omits the end date for incomplete records', () => {
   assert.equal(
     route.buildPeriodEditUrl({ id: 'p2', startDate: '2026-09-20', endDate: '', status: 'ongoing' }),

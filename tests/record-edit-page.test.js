@@ -55,6 +55,56 @@ async function openEditor(app, spec, options = {}) {
   return { home, page: app.currentPage }
 }
 
+test('edit pages name new, backfill, completion and existing-record actions', async (t) => {
+  for (const spec of records) {
+    const noun = spec.kind === 'period' ? '经期' : '欢乐时光'
+    const scenarios = [
+      { name: 'today', options: {}, title: `记${noun}` },
+      { name: 'past', options: { [spec.dateField]: '2026-09-18' }, title: `补记${noun}` },
+      { name: 'existing', options: { id: 'existing', ...spec.fields }, title: `编辑${noun}` }
+    ]
+    if (spec.kind === 'period') scenarios.push({ name: 'completion', options: { id: 'existing', ...spec.fields, intent: 'complete', endDate: '2026-09-20', status: 'known-end' }, title: '记结束' })
+    for (const scenario of scenarios) {
+      await t.test(`${spec.kind}: ${scenario.name}`, async (t) => {
+        const app = setup(t)
+        const { page } = await openEditor(app, spec, scenario.options)
+        assert.equal(page.data.pageTitle, scenario.title)
+      })
+    }
+  }
+})
+
+test('paired entries show the routed author and delete confirmation sentence; unpaired entries omit both', async (t) => {
+  for (const spec of records) {
+    for (const paired of [true, false]) {
+      await t.test(`${spec.kind}: ${paired ? 'paired' : 'unpaired'}`, async (t) => {
+        const app = setup(t)
+        const fields = spec.kind === 'period'
+          ? { ...spec.fields, startDate: '2026-09-18', endDate: '2026-09-20', status: 'known-end' }
+          : spec.fields
+        const saved = { _id: 'authored', ...fields, createdByMe: false }
+        cloudRoute(app, spec, 'list').reply({ code: 0, data: [saved], roomStatus: paired ? 'paired' : 'waiting' })
+        const home = app.launch(homeRoute)
+        await app.flush()
+        await app.dispatch(home, 'onDayTap', dataset({ date: '2026-09-20' }))
+        await app.settle()
+        await app.dispatch(home, 'onDayRecordTap', dataset({ kind: spec.kind, id: 'authored' }))
+        await app.settle()
+        const page = app.currentPage
+        assert.equal(page.data.authorLabel, paired ? 'TA 记的' : undefined)
+        const cancelled = app.dispatch(page, 'delete')
+        await app.settle()
+        assert.equal(page.data.confirmationContent, paired
+          ? '这条是 TA 记的；删除后你们两人的日历里都会移除'
+          : '删除后你们两人的日历里都会移除')
+        await app.dispatch(page, 'onConfirmationAction', dataset({ action: 'cancel' }))
+        await app.advance(200)
+        await cancelled
+      })
+    }
+  }
+})
+
 test('period: a legacy malformed end is unknown in both the calendar and the real editor', async (t) => {
   const app = setup(t)
   cloudRoute(app, period, 'list').reply({ code: 0, data: [
@@ -115,6 +165,20 @@ for (const status of ['known-end', 'unknown-end']) {
   })
 }
 
+test('period: constant options are initial page data, not session render patches', async (t) => {
+  const app = setup(t)
+  const { page } = await openEditor(app, period)
+  assert.deepEqual(page.data.statusOptions.map(item => item.value), ['ongoing', 'unknown-end', 'known-end'])
+  assert.deepEqual(page.data.flowOptions.map(item => item.value), ['light', 'normal', 'heavy'])
+  assert.deepEqual(page.data.symptomGroups.flatMap(group => group.options).map(item => item.value), ['cramps', 'headache', 'tired', 'acne', 'mood', 'sleep', 'cravings'])
+  const constantKeys = ['statusOptions', 'flowOptions', 'symptomGroups']
+  assert.equal(page.setDataCalls.some(patch => constantKeys.some(key => key in patch)), false)
+  await app.dispatch(page, 'selectFlow', dataset({ value: 'heavy' }))
+  await app.dispatch(page, 'toggleSymptom', dataset({ value: 'cramps' }))
+  assert.equal(page.setDataCalls.some(patch => constantKeys.some(key => key in patch)), false)
+  assert.deepEqual(page.data.selectedSymptoms, { cramps: true })
+})
+
 test('period: legacy draft restores its known dates, labels, flow and selected symptoms', async (t) => {
   const app = setup(t, { storage: { 'recordDraft:periods:legacy': JSON.stringify({ startDate: '2026-09-02', endDate: '2026-09-04', note: '旧草稿', flow: 'light', symptoms: ['cramps'] }) } })
   const { page } = await openEditor(app, period, { id: 'legacy', startDate: '2026-09-01', endDate: '2026-09-03' })
@@ -122,7 +186,7 @@ test('period: legacy draft restores its known dates, labels, flow and selected s
   assert.equal(page.data.startDateLabel, '9月2日')
   assert.equal(page.data.endDateLabel, '9月4日')
   assert.equal(page.data.draftRestored, true)
-  assert.deepEqual(page.data.symptomGroups.flatMap(group => group.options).filter(option => option.selected).map(option => option.value), ['cramps'])
+  assert.deepEqual(Object.keys(page.data.selectedSymptoms || {}).filter(key => page.data.selectedSymptoms[key]), ['cramps'])
 })
 
 test('date fields read the same current and cross-year display dates, then append their errors', async (t) => {
@@ -178,6 +242,19 @@ test('period: completion intent keeps route status and end date while restoring 
   assert.equal(page.data.flow, 'heavy')
   assert.deepEqual(page.data.symptoms, ['cramps'])
   assert.equal(page.data.draftRestored, true)
+})
+
+test('period: status option screen-reader names include each option consequence', async (t) => {
+  const app = setup(t)
+  const { page } = await openEditor(app, period)
+  const template = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
+  const option = wxmlOpeningTags(template).find(tag => tag.attrs['aria-role'] === 'radio' && tag.attrs.bindtap === 'selectStatus')
+  assert.ok(option)
+  assert.deepEqual(page.data.statusOptions.map(item => renderWxmlAttribute(option.attrs['aria-label'], { item })), [
+    '经期状态 进行中，进行中可稍后补结束日期',
+    '经期状态 结束日期不详，结束日不清楚，日历只标开始那天',
+    '经期状态 已结束，选好结束日期，这次经期才有确定的天数'
+  ])
 })
 
 test('period: status hints change without inventing a backfill end; history drives the length warning', async (t) => {
@@ -427,7 +504,7 @@ test('period: merged save replaces the form, updates home once and moves drafts 
   assert.equal(app.storage[draftKey(period)], undefined)
   assert.equal(app.storage.recordTabSegment, 'period')
   assert.equal(cell(home, '2026-09-01').isPeriod, true)
-  assert.deepEqual(page.data.symptomGroups.flatMap(group => group.options).filter(option => option.selected).map(option => option.value), ['tired'])
+  assert.deepEqual(Object.keys(page.data.selectedSymptoms || {}).filter(key => page.data.selectedSymptoms[key]), ['tired'])
   await app.advance(1000)
   assert.equal(app.currentPage, page, 'merge explains and stays open instead of returning')
   await app.dispatch(page, 'selectStatus', dataset({ value: 'known-end' }))
@@ -551,6 +628,19 @@ for (const exit of ['invalid', 'edit existing', 'still create', 'cancel']) {
 }
 
 for (const spec of records) {
+  test(`${spec.kind}: one save publishes the saving state exactly once`, async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, spec)
+    const pending = cloudRoute(app, spec, 'add').defer()
+    const saving = app.dispatch(page, 'save')
+    await app.settle()
+    const savingWrites = page.setDataCalls.filter(patch => patch.saving === true).length
+    pending.resolve({ code: 0, record: { _id: 'saved', ...spec.payload } })
+    await saving
+    await app.settle()
+    assert.equal(savingWrites, 1)
+  })
+
   test(`${spec.kind}: saving is visible from the tap through preflight and keeps the tapped form stable`, async (t) => {
     const app = setup(t)
     if (spec.kind === 'period') periodsUnread(app)
@@ -744,7 +834,7 @@ for (const spec of records) {
     assert.deepEqual(app.wx.toasts, [], 'the alert row replaces the restore toast')
     assert.equal(restored.data[spec.kind === 'period' ? 'startDateLabel' : 'dateLabel'], '9月17日')
     if (spec.kind === 'period') {
-      assert.deepEqual(restored.data.symptomGroups.flatMap(group => group.options).filter(option => option.selected).map(option => option.value), ['cramps'])
+      assert.deepEqual(Object.keys(restored.data.selectedSymptoms || {}).filter(key => restored.data.selectedSymptoms[key]), ['cramps'])
       await app.dispatch(restored, 'selectFlow', dataset({ value: 'heavy' }))
       await app.dispatch(restored, 'toggleSymptom', dataset({ value: 'cramps' }))
     }

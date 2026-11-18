@@ -16,6 +16,13 @@
   padding: 36rpx;
   box-sizing: border-box;
 }
+.record-author {
+  margin-bottom: 24rpx;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  color: var(--text-secondary);
+}
 
 /* Form Items */
 .form-item {
