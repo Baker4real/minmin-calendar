@@ -1665,40 +1665,47 @@ button.home-share-invite {
 .copy-recap.copy-recap-hover {
   transform: scale(0.98);
 }
-/* 骨架和 .content、.no-room 一样画在极光固定层之上（issue #163） */
+/* 骨架复用真实 .content 页边距、吸顶占位、周头和网格；只有父容器脉冲（issue #239） */
 .calendar-skeleton {
   position: relative;
   z-index: 1;
-  padding: 10rpx 0 0;
-}
-.skeleton-month-bar,
-.skeleton-week-cell,
-.skeleton-cell {
-  background: rgba(255,255,255,0.08);
-  border-radius: var(--radius-md);
+  padding: 0 24rpx 30rpx;
+  pointer-events: none;
   animation: skeletonPulse 2.4s ease-in-out infinite;
 }
-.skeleton-month-bar {
+.skeleton-status-bar {
   height: 88rpx;
-  margin: 10rpx 0 8rpx;
-}
-.skeleton-week {
-  display: flex;
-  gap: 8rpx;
-  margin-bottom: 8rpx;
 }
 .skeleton-week-cell {
-  flex: 1;
-  height: 36rpx;
+  height: 34rpx;
 }
-.skeleton-grid {
+.skeleton-days {
   display: flex;
   flex-wrap: wrap;
 }
 .skeleton-cell {
   width: 14.28%;
-  height: 88rpx;
+  height: var(--calendar-row-height, 148rpx);
+  padding: 4rpx 0;
   box-sizing: border-box;
+}
+.calendar-density-compact .skeleton-cell {
+  padding-bottom: 12rpx;
+}
+.calendar-info-merged .skeleton-cell {
+  padding: 8rpx 0 4rpx;
+}
+.skeleton-control,
+.skeleton-month-title,
+.skeleton-status-bar,
+.skeleton-week-cell,
+.skeleton-cell {
+  background: rgba(255,255,255,0.08);
+}
+.skeleton-status-bar,
+.skeleton-week-cell,
+.skeleton-cell {
+  border-radius: var(--radius-md);
 }
 @keyframes skeletonPulse {
   0%, 100% { opacity: 1; }
@@ -1747,9 +1754,7 @@ button.home-share-invite {
   .back-today,
   .home-status,
   .month-summary,
-  .skeleton-month-bar,
-  .skeleton-week-cell,
-  .skeleton-cell,
+  .calendar-skeleton,
   .quick-btn,
   .copy-recap,
   .no-room-icon {

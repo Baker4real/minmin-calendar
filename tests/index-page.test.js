@@ -299,6 +299,29 @@ test('compact density preserves the thicker band and allows scrolling on a short
   assert.ok(row.heightPx <= 74)
 })
 
+test('home skeleton mirrors the real content margins, sticky slot and ledger row height', () => {
+  const wxml = readIndexWxml()
+  const opening = /<view\s+wx:elif="\{\{loading && !hasLoadedHomeData\}\}"[^>]*>/.exec(wxml)
+  assert.ok(opening, 'expected the cold-loading skeleton')
+  assert.match(opening[0], /class="[^"]*content[^"]*calendar-skeleton/)
+  assert.match(opening[0], /aria-role="status"/)
+  assert.match(opening[0], /aria-label="正在加载"/)
+  const skeleton = wxml.slice(opening.index, wxml.indexOf('<view wx:else class="content', opening.index))
+  assert.match(skeleton, /class="home-sticky skeleton-sticky"/)
+  assert.match(skeleton, /class="skeleton-sticky-spacer home-sticky-spacer/)
+  const grid = /<view\s+class="skeleton-grid calendar-grid[^"]*"[^>]*>/.exec(skeleton)
+  assert.ok(grid, 'expected the skeleton to occupy the real calendar grid')
+  assert.match(grid[0], /style="--calendar-row-height: \{\{calendarRowHeightPx\}\}px"/)
+  assert.match(skeleton, /wx:for="\{\{days\}\}"/)
+
+  const wxss = readIndexWxss()
+  assert.match(ruleBody(wxss, '.calendar-skeleton'), /padding:\s*0 24rpx/)
+  assert.match(ruleBody(wxss, '.skeleton-cell'), /height:\s*var\(--calendar-row-height/)
+  const pulseRules = [...wxss.matchAll(/([^{}@]+)\{[^{}]*animation:\s*skeletonPulse[^{}]*\}/g)]
+  assert.equal(pulseRules.length, 1, 'only the skeleton parent pulses')
+  assert.match(pulseRules[0][1], /\.calendar-skeleton/)
+})
+
 test('a disabled month arrow is dimmed and does not press', () => {
   const wxss = readIndexWxss()
   const opacity = Number(/opacity:\s*([\d.]+)/.exec(ruleBody(wxss, '.nav-btn.disabled'))?.[1])
