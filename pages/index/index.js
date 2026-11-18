@@ -65,11 +65,21 @@ function calendarGeometry({ viewport = DEFAULT_PAGE_VIEWPORT, days, density, nav
   return { calendarRowHeightPx: row.heightPx, calendarInfoMerged: row.infoMerged }
 }
 
+const DAY_CELL_TEMPLATE_FIELDS = new Set([
+  'ariaLabel', 'date', 'day', 'holidayName', 'isEmpty', 'isHoliday', 'isMemory', 'isPeriod',
+  'isPredict', 'isToday', 'isWorkday', 'lunarCellText', 'periodOpenEnd', 'periodSegment'
+])
+
 function calendarRenderState(state) {
-  const render = { ...state }
+  const render = {
+    ...state,
+    days: state.days.map(day => Object.fromEntries(Object.entries(day).filter(([key]) => DAY_CELL_TEMPLATE_FIELDS.has(key))))
+  }
   delete render.dayDetailsByDate
   delete render.periodQuickAction
   delete render.memoryQuickAction
+  delete render.legendItems
+  delete render.periodBandSample
   return render
 }
 
@@ -95,6 +105,7 @@ Page(withPageVisibility({
   _dayDetailsByDate: INITIAL_HOME_STATE.dayDetailsByDate,
   _periodQuickAction: INITIAL_HOME_STATE.periodQuickAction,
   _memoryQuickAction: INITIAL_HOME_STATE.memoryQuickAction,
+  _hasPrediction: INITIAL_HOME_STATE.days.some(day => day.isPredict),
   // 正在播的那段翻月滑入 { direction, startedAt }（issue #165）；挂在格子层上的类名记号是 data.calendarFlip
   _flipRun: null,
   // 首次 onShow 没有弹层且 tabBar 已恢复时量一次；此后所有日历提交共用这份视口（#239）
@@ -134,6 +145,9 @@ Page(withPageVisibility({
     // 记录反馈：日期 → memory / period / both，只跟着那次变化的日历提交，首页隐藏时收掉（issue #167、#222）
     recordFeedback: {},
     ...calendarRenderState(INITIAL_HOME_STATE),
+    // 图例和经期色带样本是常量，只随初始 data 提供；日历提交不重复携带（#240）。
+    legendItems: INITIAL_HOME_STATE.legendItems,
+    periodBandSample: INITIAL_HOME_STATE.periodBandSample,
     ...calendarGeometry({
       days: INITIAL_HOME_STATE.days,
       density: 'compact',
@@ -375,6 +389,7 @@ Page(withPageVisibility({
     this._dayDetailsByDate = state.dayDetailsByDate
     this._periodQuickAction = state.periodQuickAction
     this._memoryQuickAction = state.memoryQuickAction
+    this._hasPrediction = state.days.some(day => day.isPredict)
 
     const update = {
       ...fields,
@@ -547,9 +562,9 @@ Page(withPageVisibility({
   // issue #165：关掉预测说明时把当月的「预」点亮一次，说明讲的就是这几天。只认开着的预测说明被关掉，
   // 离场途中的重复关闭不算；当月没有「预」就没有可亮的
   _predictionEmphasisPatch() {
-    const { infoSheetMode, infoSheetMounted, infoSheetPhase, days } = this.data
+    const { infoSheetMode, infoSheetMounted, infoSheetPhase } = this.data
     if (infoSheetMode !== 'prediction' || !infoSheetMounted || infoSheetPhase === 'leaving') return {}
-    if (!(days || []).some(day => day.isPredict)) return {}
+    if (!this._hasPrediction) return {}
     return { calendarEmphasis: nextCalendarToken(this.data.calendarEmphasis, 'predict') }
   },
 
