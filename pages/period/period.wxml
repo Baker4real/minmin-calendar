@@ -25,7 +25,8 @@
     </view>
 
     <view wx:if="{{segment === 'period'}}">
-      <view class="cycle-card">
+      <!-- 首次加载与首次失败仍保留概览；确认同步成功且为零条时撤掉，让空态紧跟新增按钮。 -->
+      <view wx:if="{{loading || !hasLoaded || periodCount > 0}}" class="cycle-card">
         <text class="card-label">周期概览</text>
         <view class="cycle-stats">
           <view class="cycle-item">
@@ -33,16 +34,19 @@
             <!-- 首次加载失败时不给确信的 0；已成功加载过则保留上次的数字 -->
             <text wx:if="{{!loading && (!loadFailed || hasLoaded)}}" class="cycle-num">{{periodCount}}</text>
             <text wx:elif="{{!loading}}" class="cycle-num">--</text>
+            <text wx:else class="cycle-num cycle-num-placeholder" aria-hidden="true"></text>
           </view>
           <view class="cycle-item">
             <text class="cycle-label">平均周期</text>
             <text wx:if="{{!loading && avgCycle}}" class="cycle-num">{{avgCycle}} 天</text>
             <text wx:elif="{{!loading}}" class="cycle-num">--</text>
+            <text wx:else class="cycle-num cycle-num-placeholder" aria-hidden="true"></text>
           </view>
           <view class="cycle-item">
             <text class="cycle-label">平均持续</text>
             <text wx:if="{{!loading && avgDuration}}" class="cycle-num">{{avgDuration}} 天</text>
             <text wx:elif="{{!loading}}" class="cycle-num">--</text>
+            <text wx:else class="cycle-num cycle-num-placeholder" aria-hidden="true"></text>
           </view>
         </view>
       </view>

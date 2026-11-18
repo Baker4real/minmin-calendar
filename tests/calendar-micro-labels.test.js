@@ -43,6 +43,7 @@ const OUT_CELL_CAPTION_SELECTORS = [
   '.legend-text',
   '.explain-line',
   '.recap-summary',
+  '.recap-main',
   '.recap-highlight'
 ]
 const SECONDARY_TEXT_ALPHA = 0.6

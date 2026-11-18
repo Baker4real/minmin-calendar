@@ -275,9 +275,31 @@ test('edit-form field errors reuse the one warning red and clear 4.5:1 on the fo
   }
 })
 
-test('the light heart stays the happy-time color on memory rows', () => {
+test('the light heart stays the happy-time color and uses text glow on memory rows', () => {
   assert.equal(wxssRuleBody('pages/settings/settings.wxss', '.menu-heart'), null)
   assert.equal(declarationOf('pages/memory/memory.wxss', '.memory-heart', 'color'), LIGHT_HEART)
+  assert.equal(declarationOf('pages/period/period.wxss', '.memory-heart', 'color'), LIGHT_HEART)
+  assert.equal(declarationOf('pages/period/period.wxss', '.memory-heart', 'text-shadow'), '0 0 10px rgba(240,196,192,0.3)')
+  assert.equal(declarationOf('pages/period/period.wxss', '.memory-heart', 'filter'), undefined)
+})
+
+test('year and month expansion labels share the secondary text color', () => {
+  for (const selector of ['.year-toggle', '.month-toggle']) {
+    assert.equal(declarationOf('pages/period/period.wxss', selector, 'color'), 'var(--text-secondary)')
+  }
+})
+
+test('list flow tag rose text clears 4.5:1 on its quiet tint over the list card', () => {
+  const file = 'pages/period/period.wxss'
+  const color = declarationOf(file, '.item-tag.flow', 'color')
+  assert.equal(color, ROSE)
+  assert.equal(declarationOf(file, '.item-tag.flow', 'border-color'), 'rgba(232,144,158,0.45)')
+  const fill = cssColor(declarationOf(file, '.item-tag.flow', 'background'))
+  for (const card of stackSurfaces([['app.wxss', '.premium-card']])) {
+    const surface = composite(card, fill, fill.a)
+    const ratio = contrastRatio(color, toHex(surface))
+    assert.ok(ratio >= 4.5, `list flow tag ${color} on ${toHex(surface)} is ${ratio.toFixed(2)}:1, below 4.5:1`)
+  }
 })
 
 test('in-progress duration chip text clears 4.5:1 on the list-card composite', () => {

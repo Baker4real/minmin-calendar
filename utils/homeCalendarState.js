@@ -97,7 +97,7 @@ function buildHomeCalendarState({
     today
   })
   let homeStatus = withHomeStatusAria(cycle.buildHomeStatusLine(periods, { today, prediction }))
-  let predictionExplanation = calendarInsights.buildPredictionExplanation(prediction, periods)
+  let predictionExplanation = calendarInsights.buildPredictionExplanation(prediction, periods, { today })
   if (!periodsSynced) {
     homeStatus = withHomeStatusAria({ status: 'unsynced', text: UNSYNCED_PERIODS_TEXT, countdownText: '', tone: 'neutral' })
     const lines = ['经期同步后再按记录估算']

@@ -1615,12 +1615,16 @@ button.home-share-invite {
 .recap-summary {
   display: block;
   min-width: 0;
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-assist);
-  line-height: var(--line-height-assist);
-  letter-spacing: var(--letter-spacing-assist);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
   color: rgba(255,255,255,0.82);
   overflow-wrap: anywhere;
+}
+.recap-main {
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
 }
 .recap-highlights {
   display: flex;
@@ -1630,10 +1634,9 @@ button.home-share-invite {
 .recap-highlight {
   display: block;
   min-width: 0;
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-assist);
-  line-height: var(--line-height-assist);
-  letter-spacing: var(--letter-spacing-assist);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
   color: rgba(255,255,255,0.78);
   overflow-wrap: anywhere;
 }

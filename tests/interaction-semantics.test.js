@@ -377,6 +377,13 @@ const SHEET_PAGES = [
     titleRowClass: 'help-head',
     titleClass: 'help-title'
   },
+  {
+    file: 'pages/settings/settings.wxml',
+    maskClass: 'confirmation-mask',
+    slideClass: 'sheet-slide',
+    titleRowClass: 'sheet-drag-zone',
+    titleClass: 'sheet-title'
+  },
   ...['period', 'memory'].map(kind => ({
     file: `pages/${kind}/edit/edit.wxml`,
     maskClass: 'confirmation-mask',
@@ -471,6 +478,7 @@ const SHEET_TRIGGERS = {
 
 test('a sheet silences the page behind it, and every trigger returns with that page', () => {
   for (const { file, maskClass } of SHEET_PAGES) {
+    const maskClasses = SHEET_PAGES.filter(sheet => sheet.file === file).map(sheet => sheet.maskClass)
     const forest = wxmlElementTree(readPage(file))
     const root = forest.find((node) => node.classes.includes('page'))
     assert.ok(root, `${file}: expected the page root`)
@@ -480,7 +488,7 @@ test('a sheet silences the page behind it, and every trigger returns with that p
     const regions = []
     for (const child of root.children) {
       if (child.tag === 'wxs' || child.tag === 'page-container') continue
-      if (child.children.some((node) => node.classes.includes(maskClass))) {
+      if (child.children.some((node) => maskClasses.some(mask => node.classes.includes(mask)))) {
         hosts.push(child)
         continue
       }
@@ -493,7 +501,8 @@ test('a sheet silences the page behind it, and every trigger returns with that p
       )
     }
     assert.ok(regions.length >= 2, `${file}: expected the navbar and the content to be background regions`)
-    assert.equal(hosts.length, sheetHosts(forest, maskClass).length, `${file}: every sheet host sits at the page root`)
+    const expectedHosts = maskClasses.reduce((total, mask) => total + sheetHosts(forest, mask).length, 0)
+    assert.equal(hosts.length, expectedHosts, `${file}: every sheet host sits at the page root`)
     for (const host of hosts) {
       assert.equal(host.attrs['aria-hidden'], undefined, `${file}: a sheet host is never hidden with the page`)
     }
@@ -577,7 +586,7 @@ test('record list rows, retry affordances and settings menu entries announce the
 
   assert.equal(byHandler(settings, 'copyRoomCode', 'copy-btn').attrs['aria-label'], '复制房间码')
   assert.equal(byHandler(settings, 'exportData', 'menu-item').attrs['aria-label'], '导出数据')
-  assert.equal(byHandler(settings, 'clearData', 'menu-item').attrs['aria-label'], '重新同步房间')
+  assert.equal(byHandler(settings, 'clearData', 'room-action-btn').attrs['aria-label'], '重新同步房间')
   assert.equal(byHandler(settings, 'openHelp', 'menu-item').attrs['aria-label'], '使用说明')
 
   // 密度偏好是单选：选中态用 aria-checked 表达（与 active 类同条件，由选中态镜像测试兜底）

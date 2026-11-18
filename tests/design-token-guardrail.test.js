@@ -472,10 +472,11 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/index/index.wxss', '.month-nav::before'],
     ['pages/index/index.wxss', '.calendar-jump-sheet'],
     ['pages/index/index.wxss', '.day-action-sheet'],
-    // #209：共享确认面板；展开 @import 后的两个调用页也按各自文件身份核对同一条规则
+    // #209：共享确认面板；展开 @import 后的调用页也按各自文件身份核对同一条规则
     ['pages/shared/confirmation-sheet.wxss', '.confirmation-panel'],
     ['pages/period/edit/edit.wxss', '.confirmation-panel'],
     ['pages/memory/edit/edit.wxss', '.confirmation-panel'],
+    ['pages/settings/settings.wxss', '.confirmation-panel'],
     ['pages/period/period.wxss', '.cycle-card'],
     // 平涂 tint 图像层叠在海军回退上。不是装饰渐变，也不是 CTA 填充。
     ['app.wxss', '.premium-card'],
@@ -871,7 +872,7 @@ test('glows sit only on the places DESIGN.md registers', () => {
 
   const design = readSource(path.join(repoRoot, 'DESIGN.md'), 'utf8')
   for (const registered of [
-    'drop-shadow(0 0 10px rgba(240,196,192,0.3))',
+    'text-shadow: 0 0 10px rgba(240,196,192,0.3)',
     '0 16rpx 64rpx rgba(232,144,158,0.15)',
     '`.jump-option.active`',
     '经期编辑页选中的状态、经量和症状芯片'
