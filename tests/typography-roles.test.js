@@ -40,6 +40,7 @@ const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'pages/index/index.wxss', selector: '.sheet-action-icon', kind: 'glyph', value: '26rpx' },
   { file: 'pages/index/index.wxss', selector: '.sheet-action-arrow', kind: 'glyph', value: '42rpx' },
   { file: 'pages/index/index.wxss', selector: '.home-status-arrow', kind: 'glyph', value: '32rpx' },
+  { file: 'pages/index/index.wxss', selector: '.detail-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/period/period.wxss', selector: '.item-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/period/period.wxss', selector: '.cycle-num', kind: 'display', value: '44rpx' },
   { file: 'pages/period/period.wxss', selector: '.memory-heart', kind: 'glyph', value: '36rpx' },

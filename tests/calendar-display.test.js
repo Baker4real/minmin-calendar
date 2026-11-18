@@ -7,6 +7,7 @@ const { TOUCH_FLOOR_RPX, parseWxssRules } = require('./designTokens')
 
 const chinaHolidays = require('../utils/chinaHolidays')
 const util = require('../utils/util')
+const { buildHomeCalendarState } = require('../utils/homeCalendarState')
 
 test('formatDisplayDate writes a date in the current year as month and day', () => {
   assert.equal(util.formatDisplayDate('2026-06-24', { today: '2026-10-10' }), '6月24日')
@@ -160,6 +161,34 @@ test('getChineseDateMeta does not infer adjusted workdays beyond published holid
       isWorkday: false
     }
   )
+})
+
+test('calendar day meanings explain estimates and the holiday publication boundary', () => {
+  const predicted = buildHomeCalendarState({
+    year: 2026,
+    month: 5,
+    today: '2026-06-26',
+    periods: [
+      { startDate: '2026-04-28', endDate: '2026-05-02' },
+      { startDate: '2026-05-26', endDate: '2026-05-30' }
+    ]
+  })
+  assert.deepEqual(predicted.dayDetailsByDate['2026-06-26'].meanings.map(item => item.text), [
+    '按之前的记录估的，前后几天都有可能。'
+  ])
+
+  const published = buildHomeCalendarState({ year: 2027, month: 0, today: '2027-01-20' })
+  assert.deepEqual(published.dayDetailsByDate['2027-01-03'].meanings.map(item => item.text), [
+    '法定假日，按官方安排放假'
+  ])
+  assert.deepEqual(published.dayDetailsByDate['2027-01-31'].meanings.map(item => item.text), [
+    '这天是周末，按官方安排调成上班'
+  ])
+
+  const unpublished = buildHomeCalendarState({ year: 2028, month: 4, today: '2028-05-20' })
+  assert.deepEqual(unpublished.dayDetailsByDate['2028-05-01'].meanings.map(item => item.text), [
+    '节日按历法标出，放假和调休等官方公布后更新'
+  ])
 })
 
 test('published holiday data covers the current runtime year', () => {

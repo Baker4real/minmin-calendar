@@ -1,4 +1,5 @@
 const util = require('../../utils/util')
+const cycle = require('../../utils/cycle')
 const roomRecordsSync = require('../../utils/roomRecordsSync')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const wxPrompts = require('../../utils/wxPrompts')
@@ -7,6 +8,8 @@ const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 const { computeCalendarRowHeight } = require('../../utils/calendarRowHeight')
 const safeArea = require('../../utils/safeArea')
 const roomPresence = require('../../utils/roomPresence')
+const roomSession = require('../../utils/room')
+const { buildRoomShareCard } = require('../../utils/roomShare')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 const {
   createSheetLifecycle,
@@ -31,6 +34,8 @@ const INITIAL_HOME_STATE = buildHomeCalendarState({
   month: INITIAL_VIEW_DATE.getMonth(),
   today: util.formatDate(INITIAL_VIEW_DATE)
 })
+const DEFAULT_PAGE_VIEWPORT = { viewportWidth: 390, viewportHeight: 761 }
+
 function readPageViewport() {
   try {
     if (typeof wx !== 'undefined' && wx && typeof wx.getWindowInfo === 'function') {
@@ -46,8 +51,7 @@ function readPageViewport() {
 }
 
 // 行高与清爽密度是否合并信息行只从 utils/calendarRowHeight.js 的几何账本一次求出（issue #153）
-function calendarGeometry({ days, density, navBarHeightPx, showBackToToday, showPartnerWelcome = false, showRefreshRetry = false }) {
-  const viewport = readPageViewport()
+function calendarGeometry({ viewport = DEFAULT_PAGE_VIEWPORT, days, density, navBarHeightPx, showBackToToday, showPartnerWelcome = false, showRefreshRetry = false }) {
   const row = computeCalendarRowHeight({
     viewportWidth: viewport.viewportWidth,
     viewportHeight: viewport.viewportHeight,
@@ -83,8 +87,7 @@ function emptyDayDetail() {
     meanings: [],
     periods: [],
     memories: [],
-    actions: [],
-    empty: true
+    actions: []
   }
 }
 
@@ -94,6 +97,8 @@ Page(withPageVisibility({
   _memoryQuickAction: INITIAL_HOME_STATE.memoryQuickAction,
   // 正在播的那段翻月滑入 { direction, startedAt }（issue #165）；挂在格子层上的类名记号是 data.calendarFlip
   _flipRun: null,
+  // 首次 onShow 没有弹层且 tabBar 已恢复时量一次；此后所有日历提交共用这份视口（#239）
+  _pageViewport: null,
 
   data: {
     safeTop: safeArea.getSafeTop(),
@@ -135,7 +140,6 @@ Page(withPageVisibility({
       navBarHeightPx: safeArea.getNavBarHeight(),
       showBackToToday: INITIAL_HOME_STATE.showBackToToday
     }),
-    skeletonCells: Array.from({ length: 35 }, (_, index) => index),
     infoSheetMode: '',
     infoSheetName: '',
     daySheetMode: 'actions',
@@ -156,6 +160,8 @@ Page(withPageVisibility({
     syncStatusMounted: false,
     syncStatusPhase: 'closed',
     noRoom: false,
+    roomStatus: '',
+    partnerInvite: false,
     partnerWelcome: false,
     roomStatusTitle: '',
     roomStatusDesc: '',
@@ -165,18 +171,16 @@ Page(withPageVisibility({
 
   onLoad() {
     this.refreshReducedMotion()
-    const now = new Date()
-    // 全应用共用一份 Room 记录（#193）：加载时订阅、卸载时退订，订阅回调只更新渲染数据
+    this.syncRoomSharing('')
+    // 全应用共用一份 Room 记录（#193）：加载时订阅、卸载时退订，订阅回调只更新渲染数据。
+    // 冷显示先保留骨架；已有快照或首次数据到达时才由 onShow / 订阅提交一次整月（#239）。
     this._unsubscribeRecords = roomRecordsSync.subscribe((state, change) => this.renderRecordsSync(state, change))
-    this.applyHomeCalendarState({
-      year: now.getFullYear(),
-      month: now.getMonth(),
-      today: util.formatDate(now)
-    }, { fields: { calendarDensity: this.getSavedCalendarDensity() } })
   },
 
   onShow() {
     restoreTabBarOnShow(this)
+    if (!this._pageViewport) this._pageViewport = readPageViewport()
+    this.syncRoomSharing(this.data.roomStatus)
     // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效，行高按新密度同一次重算。
     // 记录加载在这次调用里同步开始；配对状态随两份列表一起带回，不另查房间（#191）。
     const today = util.formatDate(new Date())
@@ -184,10 +188,14 @@ Page(withPageVisibility({
     // 隔日回来时所有日期内容一起更新；同日静默刷新保留当前投影的反馈与动画。
     // 隐藏期间的新到记录只在这次可见投影里消费一次（#222）。先跑 Room 归属检查，
     // 让换房清空照常发布，旧 Room 的日历和待播 id 都不会留到这次显示。
-    roomRecordsSync.readCurrentRoom()
-    const newRecordIds = roomRecordsSync.consumeNewRecordIds()
+    const recordsState = roomRecordsSync.readCurrentRoom()
+    const revealSnapshot = !this.data.hasLoadedHomeData && recordsState.hasLoadedRecords
+    const newRecordIds = revealSnapshot ? [] : roomRecordsSync.consumeNewRecordIds()
     const sameDay = today === this._calendarToday
-    if (!sameDay || newRecordIds.length) {
+    if (revealSnapshot) {
+      // Launch 已预载好时，首个整月提交同时带上可见状态，不再先提交一帧隐藏日历（#239）。
+      this.renderRecordsSync(recordsState, { calendarChanged: true, recordChange: null }, { calendarDensity })
+    } else if (recordsState.hasLoadedRecords && (!sameDay || newRecordIds.length)) {
       this.applyHomeCalendarState({ today, newRecordIds }, {
         fields: { calendarDensity },
         preserveRecordFeedback: sameDay
@@ -199,6 +207,22 @@ Page(withPageVisibility({
     return this.loadRecords()
   },
 
+  onShareAppMessage() {
+    return buildRoomShareCard({
+      roomCode: roomSession.getRoomCode(),
+      roomStatus: this.data.roomStatus
+    })
+  },
+
+  syncRoomSharing(roomStatus) {
+    if (this.data.pageHidden) return
+    const enabled = roomStatus === 'waiting' && Boolean(roomSession.getRoomCode())
+    if (this._shareMenuEnabled === enabled) return
+    this._shareMenuEnabled = enabled
+    if (enabled) wx.showShareMenu({ menus: ['shareAppMessage'] })
+    else wx.hideShareMenu()
+  },
+
   // 首页发起的每次加载都经这里，前台还是静默刷新由共享记录自己判断（#193）
   loadRecords() {
     return roomRecordsSync.load().then(result => {
@@ -207,25 +231,26 @@ Page(withPageVisibility({
     })
   },
 
-  // 提示只依据这次加载返回的结果，且只在首页仍在前台时给：「TA 已加入」只认这次列表带回的配对状态，由 roomPresence
-  // 判定只提示一次；没带回状态（读取失败、旧版 dataOp 或换了 Room 而作废）就不喂旧值。加载回来时首页已被切走或盖住，
-  // 就既不提示也不把这次变化记为已见，下次首页显示时的加载再带回它、再提示（决定 24）。显示、下拉、重试共用一次在途
-  // 加载时由 claimPrompt 只提示一次
+  // 提示只依据这次加载返回的结果，且只在首页仍在前台时给。创建者 waiting → paired 与加入者共用
+  // 同一个一次性欢迎标记，首页不再弹「TA 已加入」toast；设置页仍保留自己的提示。加载回来时首页已被切走或盖住，
+  // 就既不标记也不把这次变化记为已见，下次首页显示时的加载再带回它、再展示欢迎。显示、下拉、重试共用一次在途
+  // 加载时由 claimPrompt 只处理一次。
   presentLoadResult(result) {
     if (!result || !result.roomStatus || this.data.pageHidden) return
     if (!roomRecordsSync.claimPrompt(result)) return
-    if (roomPresence.rememberRoomStatus(result.roomStatus)) {
-      wx.showToast({ title: 'TA 已加入', icon: 'none' })
+    if (roomPresence.rememberRoomStatus(result.roomStatus) && !this.data.partnerWelcome) {
+      roomPresence.markPartnerWelcomePending()
+      this.revealPendingPartnerWelcome()
     }
   },
 
   // 一次性配对欢迎（issue #149）：日历能显示时才挂上欢迎条，行高同一次 setData 计入它；
   // 渲染回调确认欢迎条已提交到视图层后才记为看过。骨架屏、失败或未绑定画面时保持待显示。
   revealPendingPartnerWelcome() {
-    if (this.data.partnerWelcome || !this.data.hasLoadedHomeData || this.data.noRoom) return
+    if (this.data.partnerWelcome || this.data.partnerInvite || !this.data.hasLoadedHomeData || this.data.noRoom) return
     if (!roomPresence.isPartnerWelcomePending()) return
     this.setData(
-      this.withCalendarGeometry({ partnerWelcome: true }),
+      this.withCalendarGeometry({ partnerWelcome: true, partnerInvite: false }),
       () => {
         roomPresence.markPartnerWelcomeSeen()
         this._partnerWelcomeSeen = true
@@ -238,7 +263,10 @@ Page(withPageVisibility({
   dismissSeenPartnerWelcome() {
     if (!this.data.partnerWelcome || !this._partnerWelcomeSeen) return
     this._partnerWelcomeSeen = false
-    this.setData(this.withCalendarGeometry({ partnerWelcome: false }))
+    this.setData(this.withCalendarGeometry({
+      partnerWelcome: false,
+      partnerInvite: this.data.roomStatus === 'waiting'
+    }))
   },
 
   // 日历几何的唯一出口（issue #153）：改动日期格、密度、顶栏、「回到今天」、欢迎条或行内重试行的 setData
@@ -248,11 +276,12 @@ Page(withPageVisibility({
     return {
       ...patch,
       ...calendarGeometry({
+        viewport: this._pageViewport || DEFAULT_PAGE_VIEWPORT,
         days: next.days,
         density: next.calendarDensity,
         navBarHeightPx: next.navBarHeight,
         showBackToToday: next.showBackToToday,
-        showPartnerWelcome: next.partnerWelcome,
+        showPartnerWelcome: next.partnerWelcome || next.partnerInvite,
         showRefreshRetry: next.refreshRetryVisible
       })
     }
@@ -266,21 +295,30 @@ Page(withPageVisibility({
     probeReducedMotion(this)
   },
 
-  renderRecordsSync(state, { calendarChanged, recordChange }) {
+  renderRecordsSync(state, { calendarChanged, recordChange }, extraFields = {}) {
+    const hadLoadedHomeData = this.data.hasLoadedHomeData
+    const shouldProjectCalendarChange = calendarChanged && (state.hasLoadedRecords || hadLoadedHomeData)
     const fields = {
+      ...extraFields,
       loading: state.loading,
       refreshing: state.refreshing,
       hasLoadedHomeData: state.hasLoadedRecords,
+      roomStatus: state.roomStatus,
+      partnerInvite: false,
       ...state.retry
     }
+    this.syncRoomSharing(state.roomStatus)
     if (state.blockedOutcome) {
       this.applyRoomStatusOutcome(state.blockedOutcome, fields)
       // 换了 Room 而清空的记录：行内 Room 状态先盖住日历，再把日历换成清空后的样子，背后不留上一个 Room（#193）
-      if (calendarChanged) this.applyHomeCalendarState()
+      if (shouldProjectCalendarChange) this.applyHomeCalendarState()
       return
     }
+    const partnerWelcome = this.data.partnerWelcome && state.roomStatus !== 'waiting'
     Object.assign(fields, {
       noRoom: false,
+      partnerWelcome,
+      partnerInvite: state.roomStatus === 'waiting' && !partnerWelcome,
       roomStatusTitle: '',
       roomStatusDesc: '',
       roomStatusActionText: '',
@@ -288,12 +326,19 @@ Page(withPageVisibility({
     })
     const newRecordIds = this.data.pageHidden ? [] : roomRecordsSync.consumeNewRecordIds()
     // 编辑页交给共享记录的记录变化（#195）：只有读到过记录的日历才播记录成功反馈，首次加载中的不播
-    if (calendarChanged) {
+    if (shouldProjectCalendarChange) {
+      // onLoad 不再先投整月；首次可见时仍从本次显示的当前年月开始，跨月重开也不沿用注册时的旧月。
+      const firstReveal = !hadLoadedHomeData
+      const now = firstReveal ? new Date() : null
       this.applyHomeCalendarState({
-        recordChange: state.hasLoadedRecords ? recordChange : null,
+        ...(firstReveal ? { year: now.getFullYear(), month: now.getMonth(), today: util.formatDate(now) } : {}),
+        recordChange,
         newRecordIds
       }, { fields })
-    } else this.setData(this.withCalendarGeometry(fields))
+    } else {
+      // 首次加载中的本地变化只更新骨架状态；可见快照到达后再一次投影整月（#239）。
+      this.setData(this.withCalendarGeometry(fields))
+    }
     if (state.pill) this.showSyncStatus(state.pill.text, state.pill)
     else this.hideSyncStatus()
     this.revealPendingPartnerWelcome()
@@ -537,10 +582,6 @@ Page(withPageVisibility({
     const date = this.data.selectedDate
     if (!date) return
 
-    if (action === 'detail') {
-      this.showDayDetail(date)
-      return
-    }
     const detail = this._dayDetail(date)
     if (!detail.actions.some(item => item.key === action)) return
     const entry = action === 'period' ? detail.periodAction : action === 'memory' ? detail.memoryAction : null
@@ -555,13 +596,16 @@ Page(withPageVisibility({
     const recordId = e.currentTarget.dataset.id
     if (!recordId) return
     const collection = kind === 'memory' ? 'memories' : 'periods'
-    const record = roomRecordsSync.getState().collections[collection].records.find(item => (item._id || item.id) === recordId)
+    const recordsState = roomRecordsSync.getState()
+    const record = recordsState.collections[collection].records.find(item => (item._id || item.id) === recordId)
     if (!record) return
+    const authorLabel = cycle.recordAuthorLabel(record, { paired: recordsState.roomPaired })
+    const routedRecord = authorLabel ? { ...record, authorLabel } : record
     this.closeDayActions()
     wx.navigateTo({
       url: kind === 'memory'
-        ? recordEditRoute.buildMemoryEditUrl(record)
-        : recordEditRoute.buildPeriodEditUrl(record)
+        ? recordEditRoute.buildMemoryEditUrl(routedRecord)
+        : recordEditRoute.buildPeriodEditUrl(routedRecord)
     })
   },
 

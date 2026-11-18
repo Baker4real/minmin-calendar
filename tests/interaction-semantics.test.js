@@ -245,6 +245,7 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(byHandler('nextMonth', 'nav-btn').attrs['aria-label'], '下一个月')
   assert.equal(byHandler('quickPeriod', 'quick-btn').attrs['aria-label'], '{{periodQuickAriaLabel}}')
   assert.equal(byHandler('quickMemory', 'quick-btn').attrs['aria-label'], '记欢乐时光')
+  assert.equal(byHandler('openMonthPicker', 'month-title-trigger').attrs['aria-label'], '{{year}}年{{month + 1}}月，选择年份和月份')
 
   // 弹层遮罩本身是可点的「关闭」操作，必须带角色与可读名称；信息弹层按当前内容命名（issue #155）
   assert.equal(byHandler('closeMonthPicker', 'day-sheet-mask').attrs['aria-label'], '关闭月份选择')
@@ -283,6 +284,46 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(byHandler('openLegendSheet', 'partner-welcome').attrs['aria-role'], 'button')
   assert.equal(byHandler('openLegendSheet', 'partner-welcome').attrs['aria-label'], '已和 TA 连上。点按打开日历图例')
 
+})
+
+test('day detail record rows show edit arrows while meaning blocks stay borderless without arrows', () => {
+  const file = 'pages/index/index.wxml'
+  const elements = elementsOf(file)
+  const rows = elements.filter((element) => element.attrs.bindtap === 'onDayRecordTap')
+  const arrows = elements.filter((element) => element.classes.includes('detail-arrow'))
+
+  assert.equal(rows.length, 2)
+  assert.equal(arrows.length, 2)
+  for (const row of rows) {
+    assert.equal(row.attrs['hover-class'], 'day-detail-row-hover')
+    assert.ok(row.children.some((child) => child.classes.includes('detail-arrow')))
+  }
+  for (const arrow of arrows) {
+    assert.equal(arrow.parent.attrs.bindtap, 'onDayRecordTap')
+    assert.equal(arrow.attrs['aria-hidden'], 'true')
+  }
+  assert.equal((readPage(file).match(/<text class="detail-arrow" aria-hidden="true">›<\/text>/g) || []).length, 2)
+  assertPressScaleInBand('pages/index/index.wxss', '.day-detail-row')
+
+  const detailArrow = declsOf('pages/index/index.wxss', '.detail-arrow')
+  const recordArrow = declsOf('pages/period/period.wxss', '.item-arrow')
+  assert.equal(detailArrow['font-size'], recordArrow['font-size'])
+  assert.equal(detailArrow.color, recordArrow.color)
+
+  const meanings = elements.filter((element) => element.classes.includes('detail-meaning'))
+  assert.ok(meanings.length > 0)
+  for (const meaning of meanings) {
+    assert.equal(meaning.attrs.bindtap, undefined)
+    assert.equal(meaning.children.some((child) => child.classes.includes('detail-arrow')), false)
+  }
+  const meaningRules = parseWxssRules(readSource(path.join(repoRoot, 'pages/index/index.wxss'), 'utf8'))
+    .filter((rule) => rule.selectors.some((selector) =>
+      selector === '.detail-meaning' || selector.startsWith('.detail-meaning.')))
+  assert.ok(meaningRules.length > 0)
+  for (const rule of meaningRules) {
+    assert.equal(rule.decls.border, undefined, `${rule.selectors.join(', ')} has no outline`)
+    assert.equal(rule.decls['border-color'], undefined, `${rule.selectors.join(', ')} has no border color`)
+  }
 })
 
 // issue #134：遮罩和面板是兄弟。遮罩单独作为「关闭」朗读，面板里的控件不包在这个按钮里。

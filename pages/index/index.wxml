@@ -89,13 +89,24 @@ module.exports = {
     <view class="btn-premium" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}" hover-class="btn-premium-hover">{{roomStatusActionText}}</view>
   </view>
 
-  <view wx:elif="{{loading && !hasLoadedHomeData}}" class="calendar-skeleton" aria-label="正在加载" aria-hidden="{{pageObscured}}">
-    <view class="skeleton-month-bar"></view>
-    <view class="skeleton-week">
-      <view class="skeleton-week-cell" wx:for="{{[0, 1, 2, 3, 4, 5, 6]}}" wx:key="*this"></view>
+  <view wx:elif="{{loading && !hasLoadedHomeData}}" class="content calendar-skeleton" aria-role="status" aria-label="正在加载" aria-hidden="{{pageObscured}}">
+    <!-- 骨架复用真实页边距、吸顶占位、周头和网格；唯一动画挂在整个父容器上（issue #239） -->
+    <view class="home-sticky skeleton-sticky" aria-hidden="true">
+      <view class="month-nav skeleton-month-bar">
+        <view class="nav-btn skeleton-control"></view>
+        <view class="skeleton-month-title"></view>
+        <view class="nav-btn skeleton-control"></view>
+      </view>
+      <view class="skeleton-status-bar"></view>
     </view>
-    <view class="skeleton-grid">
-      <view class="skeleton-cell" wx:for="{{skeletonCells}}" wx:key="*this"></view>
+    <view class="skeleton-sticky-spacer home-sticky-spacer"></view>
+    <view class="week-header skeleton-week" aria-hidden="true">
+      <view class="week-cell skeleton-week-cell" wx:for="{{[0, 1, 2, 3, 4, 5, 6]}}" wx:key="*this"></view>
+    </view>
+    <view class="skeleton-grid calendar-grid calendar-density-{{calendarDensity}}{{calendarInfoMerged ? ' calendar-info-merged' : ''}}" style="--calendar-row-height: {{calendarRowHeightPx}}px" aria-hidden="true">
+      <view class="skeleton-days">
+        <view class="skeleton-cell" wx:for="{{days}}" wx:key="index"></view>
+      </view>
     </view>
   </view>
 
@@ -107,7 +118,7 @@ module.exports = {
           class="month-title month-title-trigger"
           bindtap="openMonthPicker"
           aria-role="button"
-          aria-label="选择年份和月份"
+          aria-label="{{year}}年{{month + 1}}月，选择年份和月份"
           hover-class="month-title-trigger-hover"
         >
           <text>{{year}}年{{month + 1}}月</text>
@@ -136,6 +147,14 @@ module.exports = {
       </view>
     </view>
     <view class="home-sticky-spacer {{showBackToToday ? 'with-back-today' : ''}}"></view>
+    <!-- 等待邀请与一次性欢迎共用同一个正常文档流槽位和日历账本项（issue #219） -->
+    <view wx:if="{{partnerInvite}}" class="partner-invite">
+      <view class="partner-invite-copy">
+        <text class="partner-invite-title">TA 还没加入</text>
+        <text class="partner-invite-desc">发个邀请，TA 加入后你们看的是同一本日历</text>
+      </view>
+      <button class="btn-premium share-invite home-share-invite" open-type="share" hover-class="share-invite-hover" aria-role="button" aria-label="发邀请">发邀请</button>
+    </view>
     <!-- 一次性配对欢迎条：吸顶占位之后的正常文档流；整条直达图例，高度计入日历行高（issue #149、#215） -->
     <view wx:if="{{partnerWelcome}}" class="partner-welcome" hover-class="partner-welcome-hover" bindtap="openLegendSheet" aria-role="button" aria-label="已和 TA 连上。点按打开日历图例">已和 TA 连上。玫瑰色带是经期，♥ 是欢乐时光，「预」是可能开始的日子。点这里或左上角「图例」随时再看</view>
 
@@ -229,7 +248,7 @@ module.exports = {
       <view class="sheet-head">
         <view class="sheet-date-copy">
           <text class="sheet-title">选择月份</text>
-          <text class="sheet-subtitle">{{jumpYear}}年{{jumpMonth + 1}}月</text>
+          <text class="sheet-subtitle">{{year}}年{{month + 1}}月</text>
         </view>
         <view class="sheet-close" bindtap="closeMonthPicker" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">×</view>
       </view>
@@ -271,14 +290,14 @@ module.exports = {
         <text class="jump-section-title">月份</text>
         <view class="jump-month-grid" aria-role="radiogroup" aria-label="月份">
           <view
-            class="jump-option month-option {{item.value == jumpMonth ? 'active' : ''}}"
+            class="jump-option month-option {{jumpYear == year && item.value == jumpMonth ? 'active' : ''}}"
             wx:for="{{jumpMonths}}"
             wx:key="value"
             data-month="{{item.value}}"
             bindtap="selectJumpMonth"
             aria-role="radio"
             aria-label="选择{{item.label}}"
-            aria-checked="{{item.value == jumpMonth}}" hover-class="jump-option-hover">{{item.label}}</view>
+            aria-checked="{{jumpYear == year && item.value == jumpMonth}}" hover-class="jump-option-hover">{{item.label}}</view>
         </view>
       </view>
       </view>
@@ -319,11 +338,6 @@ module.exports = {
       </view>
 
       <view wx:if="{{daySheetMode == 'detail'}}" class="day-detail-list {{dayDetailFade ? 'day-detail-fade' : ''}}">
-        <view wx:if="{{selectedDayDetail.empty}}" class="day-detail-empty">
-          <text class="detail-empty-title">当天无记录</text>
-          <text class="detail-empty-desc">可以从这里补一条经期或欢乐时光</text>
-        </view>
-
         <view
           wx:for="{{selectedDayDetail.periods}}"
           wx:key="key"
@@ -342,6 +356,7 @@ module.exports = {
             <text wx:if="{{item.metaText}}" class="detail-meta">{{item.metaText}}</text>
             <text wx:if="{{item.authorLabel}}" class="detail-meta">{{item.authorLabel}}</text>
           </view>
+          <text class="detail-arrow" aria-hidden="true">›</text>
         </view>
 
         <view
@@ -361,6 +376,7 @@ module.exports = {
             <text class="detail-main">{{item.note}}</text>
             <text wx:if="{{item.authorLabel}}" class="detail-meta">{{item.authorLabel}}</text>
           </view>
+          <text class="detail-arrow" aria-hidden="true">›</text>
         </view>
       </view>
 

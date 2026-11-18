@@ -42,6 +42,11 @@ function tagWith(className) {
   return tag
 }
 function attr(className, name, data) { return renderWxmlAttribute(tagWith(className).attrs[name], data) }
+function text(className, data) {
+  const match = wxml.match(new RegExp(`<text class="${className}">([\\s\\S]*?)</text>`))
+  assert.ok(match, `expected .${className} text in WXML`)
+  return renderWxmlAttribute(match[1], data)
+}
 function classes(className, data) {
   // An unset optional WXML flag renders as false on the platform.
   return renderWxmlClasses(tagWith(className).attrs.class, { pageHidden: false, ...data })
@@ -69,8 +74,81 @@ test('cloud records render the calendar, summary and the selected day detail', a
   assert.equal(app.wx.modals.length, 0)
 })
 
+test('cold display submits only skeleton geometry until one whole-month frame reveals the calendar', async t => {
+  const app = homeApp(t, { autoCommit: false, roomStatus: 'paired' })
+  const pendingPeriods = listRoute(app, 'periods').defer()
+  const pendingMemories = listRoute(app, 'memories').defer()
+  const home = await launch(app)
+
+  assert.equal(app.rendered(home).loading, true)
+  assert.equal(app.rendered(home).hasLoadedHomeData, false)
+  assert.equal(calendarFrames(home), 0, 'the skeleton must not submit a whole month')
+  const skeletonRowHeight = app.rendered(home).calendarRowHeightPx
+
+  pendingPeriods.resolve(listed([], 'paired'))
+  pendingMemories.resolve(listed([], 'paired'))
+  await app.settle()
+  app.commit(home)
+  await app.settle()
+  app.commit(home)
+
+  assert.equal(calendarFrames(home), 1, 'the first records snapshot reveals one whole month')
+  const reveal = home.setDataCalls.find(patch => 'days' in patch)
+  assert.equal(reveal.loading, false)
+  assert.equal(reveal.hasLoadedHomeData, true)
+  assert.ok(reveal.days.length > 0)
+  assert.equal(reveal.calendarRowHeightPx, skeletonRowHeight, 'the skeleton used the revealed month geometry')
+})
+
+test('first show measures the viewport once and later commits reuse it while sheets are open', async t => {
+  const app = homeApp(t, { roomStatus: 'paired' })
+  await launch(app) // Warm safe-area caches; the next Home isolates calendar viewport reads.
+
+  const readWindowInfo = app.wx.getWindowInfo
+  let viewportReads = 0
+  app.wx.getWindowInfo = () => {
+    viewportReads++
+    return readWindowInfo()
+  }
+  const home = await launch(app)
+  assert.equal(calendarFrames(home), 1, 'an existing snapshot also reveals one whole month')
+  assert.equal(viewportReads, 1, 'first show measures the calendar viewport once')
+  const firstRowHeight = app.rendered(home).calendarRowHeightPx
+  assert.equal(firstRowHeight, 74)
+
+  app.wx.getWindowInfo = () => {
+    viewportReads++
+    return { ...readWindowInfo(), windowHeight: 619, screenHeight: 619 }
+  }
+  await tap(app, home, 'openMonthPicker')
+  app.hide()
+  app.show()
+  await app.settle()
+  app.commit(home)
+  assert.equal(app.rendered(home).monthPickerMounted, true)
+  assert.equal(app.rendered(home).calendarRowHeightPx, firstRowHeight)
+
+  await tap(app, home, 'selectJumpMonth', { month: 7 })
+  await app.advance(200)
+  app.commit(home)
+  await tap(app, home, 'nextMonth')
+  assert.equal(app.rendered(home).calendarRowHeightPx, firstRowHeight)
+  assert.equal(viewportReads, 1, 'sheet, show, jump and arrow commits never remeasure the viewport')
+})
+
+test('a preloaded snapshot on a later month still reveals the current month once', async t => {
+  const app = homeApp(t, { roomStatus: 'paired' })
+  await launch(app)
+  await app.advance(5 * 24 * 60 * 60 * 1000)
+
+  const home = await launch(app)
+  assert.deepEqual([app.rendered(home).year, app.rendered(home).month], [2026, 6])
+  assert.equal(app.rendered(home).days.find(item => item.date).date, '2026-07-01')
+  assert.equal(calendarFrames(home), 1)
+})
+
 test('navbar legend button and one-time partner welcome both open the legend directly', async t => {
-  const app = homeApp(t, { storage: { roomCode: 'ROOM01', partnerWelcome: 'pending' } })
+  const app = homeApp(t, { roomStatus: 'paired', storage: { roomCode: 'ROOM01', partnerWelcome: 'pending' } })
   const home = await launch(app)
   assert.equal(tagWith('nav-tool').attrs.bindtap, 'openLegendSheet')
   await tap(app, home, tagWith('nav-tool').attrs.bindtap)
@@ -193,8 +271,8 @@ for (const roomStatus of ['paired', 'waiting', null, 'archived']) {
       memories: [{ ...memory('m1', '2026-06-02', '散步'), createdByMe: false }, { ...memory('m2', '2026-06-02'), createdByMe: true }]
     })
     const home = await launch(app)
-    // The opening frame plus one frame for both lists: pairing needs no Room lookup and no second render.
-    assert.equal(calendarFrames(home), 2)
+    // The cold skeleton submits no month; both lists reveal one frame with pairing and no Room lookup.
+    assert.equal(calendarFrames(home), 1)
     assert.equal(roomLookups(app), 0)
     await day(app, home, '2026-06-02')
     const detail = app.rendered(home).selectedDayDetail
@@ -434,15 +512,27 @@ test('real day rows open their own editor and blank days offer dated actions', a
   assert.equal(navigation(app).at(-1), '/pages/memory/edit/edit?date=2026-06-26')
 })
 
+test('blank day actions reject the retired detail action and show no empty record state', async t => {
+  const app = homeApp(t)
+  const home = await launch(app)
+  await day(app, home, '2026-06-10')
+  assert.equal(app.rendered(home).daySheetMode, 'actions')
+
+  await tap(app, home, 'onDayActionTap', { action: 'detail' })
+  assert.equal(app.rendered(home).daySheetMode, 'actions')
+  assert.equal(visible('day-detail-list', app.rendered(home)), false)
+  assert.equal(visible('day-detail-empty', app.rendered(home)), false)
+})
+
 test('future dates keep holiday and workday meanings with a persistent no-record notice', async t => {
   const app = homeApp(t)
   const home = await launch(app)
   const notice = { title: '未来日期不能新增记录', text: '到了这一天，再来记经期或欢乐时光' }
   for (const [date, year, month, meanings, subtitle] of [
     ['2026-06-30', 2026, 5, [], null],
-    ['2026-09-25', 2026, 8, ['中秋。'], '八月十五 · 中秋'],
-    ['2026-09-20', 2026, 8, ['官方调休上班日。'], null],
-    ['2026-10-01', 2026, 9, ['国庆。'], '八月廿一 · 国庆']
+    ['2026-09-25', 2026, 8, ['法定假日，按官方安排放假'], '八月十五 · 中秋'],
+    ['2026-09-20', 2026, 8, ['这天是周末，按官方安排调成上班'], null],
+    ['2026-10-01', 2026, 9, ['法定假日，按官方安排放假'], '八月廿一 · 国庆']
   ]) {
     await selectMonth(app, home, year, month)
     await day(app, home, date)
@@ -579,10 +669,11 @@ test('settings density changes resize a real six-row calendar on return before c
   assert.equal(app.currentPage, home)
   assert.ok(classes('calendar-grid', app.rendered(home)).includes('calendar-density-compact'))
   assert.ok(classes('calendar-grid', app.rendered(home)).includes('calendar-info-merged'))
-  assert.equal(attr('calendar-grid', 'style', app.rendered(home)), '--calendar-row-height: 55.33px')
+  assert.equal(app.rendered(home).partnerInvite, true, 'the waiting invitation keeps using the shared slot during the density change')
+  assert.equal(attr('calendar-grid', 'style', app.rendered(home)), '--calendar-row-height: 54px')
   pending.resolve(success([]))
   await app.settle()
-  assert.equal(attr('calendar-grid', 'style', app.rendered(home)), '--calendar-row-height: 55.33px')
+  assert.equal(attr('calendar-grid', 'style', app.rendered(home)), '--calendar-row-height: 54px')
   app.wx.setStorageSync('calendarDensity', 'invalid')
   app.hide(); app.show(); await app.settle()
   assert.ok(classes('calendar-grid', app.rendered(home)).includes('calendar-density-compact'))
@@ -881,6 +972,38 @@ function assertCalendarFrames(before, patches) {
     assert.equal(first, expected, 'each platform render frame pairs its month title with the same month grid')
   }
 }
+
+test('month picker year browsing preserves the active month and one month selection commits once', async t => {
+  const app = homeApp(t, { now: '2026-11-08T12:00:00+08:00' })
+  const home = await launch(app)
+  await tap(app, home, 'openMonthPicker')
+  const activeDays = app.rendered(home).days
+  const framesBeforeBrowsing = calendarFrames(home)
+
+  await tap(app, home, 'shiftJumpYear', { delta: 1 })
+  const browsing = app.rendered(home)
+  assert.equal(browsing.jumpYear, 2027)
+  assert.deepEqual([browsing.year, browsing.month], [2026, 10])
+  assert.deepEqual(browsing.days, activeDays)
+  assert.equal(calendarFrames(home), framesBeforeBrowsing, 'browsing a year must not submit a calendar month')
+  assert.equal(text('sheet-subtitle', browsing), '2026年11月')
+  assert.equal(classes('jump-option', { ...browsing, item: { value: 10 } }).includes('active'), false)
+  assert.equal(attr('jump-option', 'aria-checked', { ...browsing, item: { value: 10 } }), 'false')
+
+  await tap(app, home, 'selectJumpMonth', { month: 2 })
+  assert.deepEqual([app.rendered(home).year, app.rendered(home).month], [2027, 2])
+  assert.equal(calendarFrames(home), framesBeforeBrowsing + 1, 'one selection submits exactly one whole month')
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-leaving')
+  assert.equal(classes('jump-option', { ...app.rendered(home), item: { value: 2 } }).includes('active'), true)
+})
+
+test('month button accessible name includes the active year and month', async t => {
+  const app = homeApp(t, { now: '2026-11-08T12:00:00+08:00' })
+  const home = await launch(app)
+  assert.equal(attr('month-title-trigger', 'aria-label', app.rendered(home)), '2026年11月，选择年份和月份')
+  await tap(app, home, 'nextMonth')
+  assert.equal(attr('month-title-trigger', 'aria-label', app.rendered(home)), '2026年12月，选择年份和月份')
+})
 
 test('month selection, arrows, year rollover and back-to-today commit a matching title and grid', async t => {
   const app = homeApp(t, { autoCommit: false, now: '2026-11-08T12:00:00+08:00' })

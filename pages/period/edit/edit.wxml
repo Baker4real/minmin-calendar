@@ -7,12 +7,12 @@
       <view class="nav-back-surface"></view>
       <text class="nav-back-icon">‹</text>
     </view>
-    <view wx:if="{{isEdit}}" class="nav-title">编辑经期</view>
-    <view wx:else class="nav-title">新增经期</view>
+    <view class="nav-title">{{pageTitle}}</view>
   </view>
 
   <view class="content" aria-hidden="{{pageObscured}}">
     <view class="premium-card">
+      <view wx:if="{{authorLabel}}" class="record-author">{{authorLabel}}</view>
       <view wx:if="{{draftRestored}}" class="draft-notice" aria-role="alert">
         <text>{{draftNoticeText}} · </text>
         <text class="draft-discard" hover-class="draft-discard-hover" bindtap="discardDraft" aria-role="button" aria-label="{{draftDiscardText}}">{{draftDiscardText}}</text>
@@ -28,10 +28,7 @@
         <text wx:if="{{fieldErrors.startDate}}" class="field-error" aria-role="alert">{{fieldErrors.startDate}}</text>
       </view>
       <view class="form-item">
-        <view class="form-label-row">
-          <text class="form-label">经期状态</text>
-          <text class="form-hint">{{statusHint}}</text>
-        </view>
+        <text class="form-label">经期状态</text>
         <view class="flow-options" aria-role="radiogroup" aria-label="经期状态">
           <view
             wx:for="{{statusOptions}}"
@@ -40,16 +37,17 @@
             data-value="{{item.value}}"
             bindtap="selectStatus"
             aria-role="radio"
-            aria-label="经期状态 {{item.label}}"
+            aria-label="经期状态 {{item.label}}，{{item.hint}}"
             aria-checked="{{status === item.value}}"
             aria-disabled="{{saving}}" hover-class="flow-chip-hover">{{item.label}}</view>
         </view>
+        <text class="form-hint status-hint" aria-role="status">{{statusHint}}</text>
       </view>
       <view class="form-item" wx:if="{{status === 'known-end'}}" id="field-endDate">
         <text class="form-label">结束日期</text>
         <picker mode="date" value="{{endDate}}" start="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onEndChange" aria-role="button" aria-disabled="{{saving}}" aria-label="结束日期，{{endDate ? endDateLabel + '，点按修改' : '还没选，点按选择'}}{{fieldErrors.endDate ? '，' + fieldErrors.endDate : ''}}">
           <view class="form-picker{{saving ? ' disabled' : ''}}" hover-class="form-picker-hover">
-            <text>{{endDateLabel}}</text>
+            <text class="{{endDate ? '' : 'input-placeholder'}}">{{endDate ? endDateLabel : '选择结束日期'}}</text>
             <text class="form-picker-arrow">›</text>
           </view>
         </picker>
@@ -57,6 +55,9 @@
         <text wx:if="{{periodDayCountText}}" class="form-hint period-length-hint">{{periodDayCountText}}</text>
         <text wx:if="{{periodLengthHint}}" class="form-hint period-length-hint">{{periodLengthHint}}</text>
       </view>
+    </view>
+    <view class="premium-card optional-card">
+      <view class="form-section-title">选填</view>
       <view class="form-item">
         <view class="form-label-row">
           <text class="form-label">经量</text>
@@ -91,12 +92,12 @@
             <view
               wx:for="{{group.options}}"
               wx:key="value"
-              class="symptom-chip {{item.selected ? 'active' : ''}}{{saving ? ' disabled' : ''}}"
+              class="symptom-chip {{selectedSymptoms[item.value] ? 'active' : ''}}{{saving ? ' disabled' : ''}}"
               data-value="{{item.value}}"
               bindtap="toggleSymptom"
               aria-role="checkbox"
               aria-label="症状 {{item.label}}"
-              aria-checked="{{item.selected}}"
+              aria-checked="{{selectedSymptoms[item.value]}}"
               aria-disabled="{{saving}}" hover-class="symptom-chip-hover">{{item.label}}</view>
           </view>
         </view>

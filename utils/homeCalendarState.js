@@ -3,6 +3,7 @@ const cycle = require('./cycle')
 const periodCoverage = require('./periodCoverage')
 const calendarInsights = require('./calendarInsights')
 const recordEditRoute = require('./recordEditRoute')
+const { hasPublishedHolidayYear } = require('./chinaHolidays')
 
 // 单日经期色带样本：图例「经期记录」和首页「记经期」、当日弹层的经期动作画的是同一段色带（issue #159）
 const PERIOD_BAND_SAMPLE = {
@@ -118,7 +119,7 @@ function buildHomeCalendarState({
       monthlyRecap.predictionSummary, ...monthlyRecap.highlights].filter(Boolean).join('\n')
   }
 
-  const quickEntry = buildPeriodQuickEntry(periods, { today, periodsSynced })
+  const quickEntry = buildPeriodQuickEntry(periods, { today, periodsSynced, roomPaired })
   const feedbackChanges = newRecordIds.map(({ collection, id }) => ({
     collection,
     mode: 'add',
@@ -155,7 +156,7 @@ function withHomeStatusAria(homeStatus) {
 }
 
 // 首页与记录 tab 共用同一个经期快捷入口投影。没有进行中时始终按今天新建；有进行中时打开同一条并带记结束意图。
-function buildPeriodQuickEntry(periods, { today, periodsSynced = true } = {}) {
+function buildPeriodQuickEntry(periods, { today, periodsSynced = true, roomPaired = false } = {}) {
   const quickAction = cycle.buildPeriodQuickAction(periods, { today })
   const label = periodsSynced ? quickAction.label : quickAction.mode === 'complete' ? '记结束' : '记经期'
   return {
@@ -163,7 +164,7 @@ function buildPeriodQuickEntry(periods, { today, periodsSynced = true } = {}) {
     ariaLabel: label,
     mode: quickAction.mode,
     action: quickAction.mode === 'complete'
-      ? buildPeriodEntry(periods, today, today, { completeOngoing: true })
+      ? buildPeriodEntry(periods, today, today, { completeOngoing: true, roomPaired })
       : { url: recordEditRoute.buildPeriodEditUrl({ startDate: today }) }
   }
 }
@@ -321,7 +322,7 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
     const meanings = buildDayMeanings(day).filter(isDayDetailSentence)
 
     const isFuture = day.date > today
-    const periodAction = isFuture ? null : buildPeriodEntry(periods, day.date, today, { completeOngoing: true })
+    const periodAction = isFuture ? null : buildPeriodEntry(periods, day.date, today, { completeOngoing: true, roomPaired })
     details[day.date] = {
       title: util.formatDisplayDate(day.date, { today, withWeekday: true }),
       subtitle: [day.lunarText, day.holidayName].filter(Boolean).join(' · '),
@@ -332,8 +333,7 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
       periods: periodDetails,
       memories: memoryDetails,
       actions: buildDayRecordActions(day, today, day.isPeriod),
-      futureNotice: buildFutureDayNotice(day, today),
-      empty: !meanings.length && !periodDetails.length && !memoryDetails.length
+      futureNotice: buildFutureDayNotice(day, today)
     }
   })
 
@@ -341,11 +341,12 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
 }
 
 // 按日期的经期入口只转译归属 module 的完整落点，路由默认值由 recordEditRoute 持有。
-function buildPeriodEntry(periods, date, today, { completeOngoing = false } = {}) {
+function buildPeriodEntry(periods, date, today, { completeOngoing = false, roomPaired = false } = {}) {
   const decision = periodCoverage.decidePeriodRecordForDate(periods, date, { today })
   const record = decision.action === 'open' ? decision.record : { startDate: decision.startDate }
+  const routedRecord = withAuthorLabel(record, cycle.recordAuthorLabel(record, { paired: roomPaired }))
   return {
-    url: recordEditRoute.buildPeriodEditUrl(record,
+    url: recordEditRoute.buildPeriodEditUrl(routedRecord,
       completeOngoing && decision.reason === 'ongoing' ? { intent: 'complete', today } : undefined)
   }
 }
@@ -485,20 +486,22 @@ function buildDayMeanings(day = {}) {
     meanings.push({
       key: 'predict',
       title: '下次可能开始的日子',
-      text: '这一天是下次可能开始的日子。'
+      text: '按之前的记录估的，前后几天都有可能。'
     })
   }
   if (day.holidayName) {
     meanings.push({
       key: 'holiday',
       title: '节日',
-      text: `${day.holidayName}。`
+      text: hasPublishedHolidayYear(util.parseDate(day.date).getFullYear())
+        ? '法定假日，按官方安排放假'
+        : '节日按历法标出，放假和调休等官方公布后更新'
     })
   } else if (day.isWorkday) {
     meanings.push({
       key: 'workday',
       title: '调休上班',
-      text: '官方调休上班日。'
+      text: '这天是周末，按官方安排调成上班'
     })
   }
   return meanings
