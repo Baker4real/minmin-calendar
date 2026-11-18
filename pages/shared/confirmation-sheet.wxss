@@ -188,9 +188,6 @@
 }
 .confirmation-secondary {
   min-height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 20rpx 28rpx;
   border-radius: var(--radius-md);
   font-size: var(--font-size-body);

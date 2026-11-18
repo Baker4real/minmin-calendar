@@ -25,7 +25,7 @@ test('bind bound screen puts the copy button in the same row as the room code, a
   const wxml = readPageFile('pages/bind/bind.wxml')
   const boundCard = sliceBetween(wxml, 'wx:if="{{bound}}"', 'wx:else')
 
-  const copyButton = /class="copy-btn"[^>]*bindtap="copyRoomCode"/.exec(boundCard)
+  const copyButton = /class="copy-btn button-primary"[^>]*bindtap="copyRoomCode"/.exec(boundCard)
   assert.ok(copyButton, 'bound card must expose a copy button')
   assert.match(boundCard, /aria-label="复制房间码"/)
 
@@ -45,7 +45,7 @@ test('bind bound screen puts the copy button in the same row as the room code, a
   // 不再是复制键独占的居中行；#232：两页的房间码共用 shared/room-code.wxss 的同一个类。
   assert.match(
     boundCard,
-    /<view class="[^"]*">\s*<text class="room-code-value"[^>]*>[^<]*<\/text>\s*<view class="copy-btn"[^>]*bindtap="copyRoomCode"[^>]*>[^<]*<\/view>\s*<\/view>/,
+    /<view class="[^"]*">\s*<text class="room-code-value"[^>]*>[^<]*<\/text>\s*<view class="copy-btn button-primary"[^>]*bindtap="copyRoomCode"[^>]*>[^<]*<\/view>\s*<\/view>/,
     'the copy button must sit in the same row container as the room code'
   )
   const sharedRoomCode = findRule(readPageFile('pages/shared/room-code.wxss'), '.room-code-value')
@@ -58,7 +58,7 @@ test('bind bound screen puts the copy button in the same row as the room code, a
 
   assert.match(
     boundCard,
-    /class="btn-premium"[^>]*bindtap="goHome"[^>]*aria-label="进入应用"/,
+    /class="btn-premium button-primary"[^>]*bindtap="goHome"[^>]*aria-label="进入应用"/,
     '进入应用 stays on the bound screen as the jump-failure main button'
   )
   // issue #102：解除绑定移到设置页房间卡，已绑定卡不再有解绑入口；
@@ -72,7 +72,7 @@ test('bind bound screen puts the copy button in the same row as the room code, a
   const unboundCard = wxml.slice(wxml.indexOf('wx:else', wxml.indexOf('wx:if="{{bound}}"')) + 'wx:else'.length)
   assert.doesNotMatch(
     unboundCard,
-    /class="copy-btn"/,
+    /class="copy-btn/,
     'copy button belongs to the bound screen, not the create/join form'
   )
 })
@@ -855,7 +855,7 @@ test('created room blooms once, failed creation does not bloom, and rechecking c
   app.cloud.when('createRoom').reply({ code: 0, room: { roomCode: 'ROOM05' } })
   await app.dispatch(page, 'createRoom')
   assert.deepEqual(renderedClasses('hero', page.data), ['hero', 'hero-bloom'])
-  assert.deepEqual(renderedClasses('premium-card', page.data, boundCard), ['premium-card', 'bound-reveal'])
+  assert.deepEqual(renderedClasses('premium-card', page.data, boundCard), ['premium-card', 'glass-surface', 'bound-reveal'])
   assert.deepEqual(boundCardActions(page.data), [{ tier: 'primary', label: '发给 TA', action: 'share' }, { tier: 'secondary', label: '进入应用', action: 'goHome' }])
   app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM05' } })
   app.hide()
@@ -863,7 +863,7 @@ test('created room blooms once, failed creation does not bloom, and rechecking c
   await app.settle()
   assert.equal(page.data.bound, true)
   assert.deepEqual(renderedClasses('hero', page.data), ['hero'])
-  assert.deepEqual(renderedClasses('premium-card', page.data, boundCard), ['premium-card'])
+  assert.deepEqual(renderedClasses('premium-card', page.data, boundCard), ['premium-card', 'glass-surface'])
   const css = readPageFile('pages/bind/bind.wxss')
   const frames = /@keyframes heroBloom\s*\{([\s\S]*?)\n\}/.exec(css)
   assert.ok(frames)

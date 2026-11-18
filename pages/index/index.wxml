@@ -79,13 +79,13 @@ module.exports = {
     <view wx:if="{{roomStatusAction == 'bind'}}" class="no-room-icon" aria-hidden="true">♥</view>
     <text class="no-room-title">{{roomStatusTitle}}</text>
     <text class="no-room-desc">{{roomStatusDesc}}</text>
-    <view class="btn-premium" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}" hover-class="btn-premium-hover">{{roomStatusActionText}}</view>
+    <view class="btn-premium button-primary" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}" hover-class="btn-premium-hover">{{roomStatusActionText}}</view>
   </view>
 
   <view wx:elif="{{loading && !hasLoadedHomeData}}" class="content calendar-skeleton" aria-role="status" aria-label="正在加载" aria-hidden="{{pageObscured}}">
     <!-- 骨架复用真实页边距、吸顶占位、周头和网格；唯一动画挂在整个父容器上（issue #239） -->
     <view class="home-sticky skeleton-sticky" aria-hidden="true">
-      <view class="month-nav skeleton-month-bar">
+      <view class="month-nav glass-surface skeleton-month-bar">
         <view class="nav-btn skeleton-control"></view>
         <view class="skeleton-month-title"></view>
         <view class="nav-btn skeleton-control"></view>
@@ -105,7 +105,7 @@ module.exports = {
 
   <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}" aria-hidden="{{pageObscured}}">
     <view class="home-sticky">
-      <view class="month-nav">
+      <view class="month-nav glass-surface">
         <view class="nav-btn {{prevMonthDisabled ? 'disabled' : ''}}" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月" aria-disabled="{{prevMonthDisabled}}">‹</view>
         <view
           class="month-title month-title-trigger"
@@ -146,7 +146,7 @@ module.exports = {
         <text class="partner-invite-title">TA 还没加入</text>
         <text class="partner-invite-desc">发个邀请，TA 加入后你们看的是同一本日历</text>
       </view>
-      <button class="btn-premium share-invite home-share-invite" open-type="share" hover-class="share-invite-hover" aria-role="button" aria-label="发邀请">发邀请</button>
+      <button class="btn-premium share-invite home-share-invite button-primary" open-type="share" hover-class="share-invite-hover" aria-role="button" aria-label="发邀请">发邀请</button>
     </view>
     <!-- 一次性配对欢迎条：吸顶占位之后的正常文档流；整条直达图例，高度计入日历行高（issue #149、#215） -->
     <view wx:if="{{partnerWelcome}}" class="partner-welcome" hover-class="partner-welcome-hover" bindtap="openLegendSheet" aria-role="button" aria-label="已和 TA 连上。点按打开日历图例">已和 TA 连上。玫瑰色带是经期，♥ 是欢乐时光，「预」是可能开始的日子。点这里或左上角「图例」随时再看</view>
@@ -204,14 +204,14 @@ module.exports = {
 
     <!-- 首页记录入口：图标用日历图例的单日经期色带与欢乐时光浅色心（海军圆盘承载），不用表情 -->
     <view class="quick-actions">
-      <view class="quick-btn" bindtap="quickPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-class="quick-btn-hover">
+      <view class="quick-btn button-primary" bindtap="quickPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-class="quick-btn-hover">
         <view class="quick-icon sample-plate">
           <template is="periodBandSample" data="{{...periodBandSample, calendarDensity: calendarDensity}}" />
         </view>
         <text class="quick-text">{{periodQuickLabel}}</text>
       </view>
       <view class="quick-ghost-surface">
-        <view class="quick-btn btn-ghost" bindtap="quickMemory" aria-role="button" aria-label="记欢乐时光" hover-class="btn-ghost-hover">
+        <view class="quick-btn btn-ghost button-outline" bindtap="quickMemory" aria-role="button" aria-label="记欢乐时光" hover-class="btn-ghost-hover">
           <text class="quick-icon memory-tone">♥</text>
           <text class="quick-text">记欢乐时光</text>
         </view>

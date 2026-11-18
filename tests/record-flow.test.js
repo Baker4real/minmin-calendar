@@ -167,7 +167,7 @@ test('record tab memory segment mirrors the standalone memory list state contrac
     'both segments explain the refresh failure with the same retry row text')
 
   // 欢乐时光骨架是圆点变体（经期侧是 pill，形态差异刻意保留），复用已注册的 skeletonPulse
-  assert.match(periodWxml, /wx:if="\{\{memoryLoading\}\}" class="skeleton-card"/)
+  assert.match(periodWxml, /wx:if="\{\{memoryLoading\}\}" class="skeleton-card glass-surface"/)
   assert.match(periodWxml, /class="skeleton-dot"/)
   const dotRule = /\.skeleton-dot\s*\{[^}]*skeletonPulse[^}]*\}/.exec(periodWxss)
   assert.ok(dotRule, 'expected the base .skeleton-dot rule')
@@ -182,7 +182,7 @@ test('record tab memory segment renders month cards with the grouped row contrac
   const periodWxss = readPageFile('pages/period/period.wxss')
 
   // 月份卡：复用 app 级玻璃卡 premium-card，列表分支遍历分组数组
-  assert.match(periodWxml, /class="premium-card month-card" wx:for="\{\{memoryGroups\}\}" wx:key="key"/)
+  assert.match(periodWxml, /class="premium-card glass-surface month-card" wx:for="\{\{memoryGroups\}\}" wx:key="key"/)
 
   // 卡头（issue #109）：点按切换展开/收起，按 button 朗读，aria-expanded 与展开状态同条件绑定；
   // 右侧是文字「展开/收起」（不用 ›/⌄ 字形），随状态由分组数据绑定
@@ -231,8 +231,8 @@ test('record edit pages isolate delete loading, constrain period dates, and cap 
   assert.match(memoryEditWxml, /wx:if="\{\{!saving && !deleting && !submitted\}\}"/)
   assert.match(periodEditWxml, /wx:elif="\{\{saving\}\}"[^>]*>保存中\.\.\./)
   assert.match(memoryEditWxml, /wx:elif="\{\{saving\}\}"[^>]*>保存中\.\.\./)
-  assert.match(periodEditWxml, /wx:else class="btn-premium disabled"[^>]*>保存</)
-  assert.match(memoryEditWxml, /wx:else class="btn-premium disabled"[^>]*>保存</)
+  assert.match(periodEditWxml, /wx:else class="btn-premium disabled button-primary"[^>]*>保存</)
+  assert.match(memoryEditWxml, /wx:else class="btn-premium disabled button-primary"[^>]*>保存</)
   assert.match(periodEditWxml, /end="\{\{maxDate\}\}"/)
   assert.match(periodEditWxml, /start="\{\{startDate\}\}"/)
   // 结束日期选择器只在已知结束状态出现；开始日期选择器上限为今天
@@ -256,7 +256,7 @@ test('record edit templates use action titles, paired authors, and the required 
     assert.match(wxml, /<view wx:if="\{\{authorLabel\}\}" class="record-author">\{\{authorLabel\}\}<\/view>/)
   }
 
-  const cards = [...periodWxml.matchAll(/<view class="premium-card(?: optional-card)?">/g)]
+  const cards = [...periodWxml.matchAll(/<view class="premium-card glass-surface(?: optional-card)?">/g)]
   assert.equal(cards.length, 2, 'period required and optional fields live in two cards')
   const required = periodWxml.slice(cards[0].index, cards[1].index)
   const optional = periodWxml.slice(cards[1].index, periodWxml.indexOf('<view class="btns">'))
@@ -390,7 +390,7 @@ test('edit templates keep save and delete disabled after submission until return
     const wxml = readPageFile(relativePath)
     assert.match(wxml, /wx:if="\{\{!saving && !deleting && !submitted\}\}"[^>]*bindtap="save"[^>]*>保存</)
     assert.match(wxml, /wx:elif="\{\{saving\}\}"[^>]*>保存中\.\.\.</)
-    assert.match(wxml, /wx:else class="btn-premium disabled"[^>]*aria-disabled="true"[^>]*>保存</)
+    assert.match(wxml, /wx:else class="btn-premium disabled button-primary"[^>]*aria-disabled="true"[^>]*>保存</)
     assert.doesNotMatch(wxml, /submitted[^>]*>保存中/)
     assert.match(wxml, /wx:if="\{\{isEdit && !deleting && !saving && !submitted\}\}"[^>]*bindtap="delete"[^>]*>删除此记录</)
     assert.match(wxml, /wx:elif="\{\{isEdit && deleting\}\}"[^>]*>删除中\.\.\.</)
@@ -435,7 +435,7 @@ test('both edit pages reuse the shared confirmation sheet, back guard and reduce
     assert.match(wxml, /class="reduced-motion-probe" aria-hidden="true"/)
     assert.match(wxml, /class="day-sheet-mask sheet-\{\{confirmationPhase\}\}" bindtap="onConfirmationMask"/)
     assert.match(wxml, /class="sheet-close" bindtap="onConfirmationClose"/)
-    assert.match(wxml, /class="btn-danger confirmation-action"[^>]*hover-class="btn-danger-hover"/)
+    assert.match(wxml, /class="btn-danger confirmation-action button-danger"[^>]*hover-class="btn-danger-hover"/)
     assert.match(wxml, /bindbeforeleave="onSheetSystemBack"/)
     assert.match(wxss, /\.confirmation-panel\s*\{/, `${kind} must import the shared confirmation styles`)
   }

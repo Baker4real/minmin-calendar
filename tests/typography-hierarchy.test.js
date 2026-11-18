@@ -218,7 +218,7 @@ test('caption family shares the caption token and the 1.4 line-height policy', (
 test('box-centered caption controls keep single-line box geometry', () => {
   const tokens = readAppTokens()
 
-  const copyBtn = ruleDecls(SETTINGS_WXSS, '.copy-btn')
+  const copyBtn = { ...ruleDecls(APP_WXSS, '.button-primary'), ...ruleDecls(SETTINGS_WXSS, '.copy-btn') }
   assert.equal(copyBtn['font-size'], 'var(--font-size-caption)')
   assert.equal(copyBtn.display, 'flex')
   assert.equal(copyBtn['align-items'], 'center')

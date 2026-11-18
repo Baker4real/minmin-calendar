@@ -7,7 +7,7 @@
   <template is="sharedNavbar" data="{{variant: 'back', title: pageTitle, pageObscured: pageObscured}}" />
 
   <view class="content" aria-hidden="{{pageObscured}}">
-    <view class="premium-card">
+    <view class="premium-card glass-surface">
       <view wx:if="{{authorLabel}}" class="record-author">{{authorLabel}}</view>
       <view wx:if="{{draftRestored}}" class="draft-notice" aria-role="alert">
         <text>{{draftNoticeText}} · </text>
@@ -33,7 +33,7 @@
         <text wx:if="{{periodLengthHint}}" class="form-hint period-length-hint">{{periodLengthHint}}</text>
       </view>
     </view>
-    <view class="premium-card optional-card">
+    <view class="premium-card glass-surface optional-card">
       <view class="form-section-title">选填</view>
       <view class="form-item">
         <view class="form-label-row">

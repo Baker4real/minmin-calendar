@@ -22,7 +22,7 @@ function numberDecl(body, property) {
 test('the refresh retry sentence is a tappable in-flow row below the month title', () => {
   const wxml = readIndexWxml()
   const contentIndex = wxml.indexOf('wx:else class="content')
-  const monthNavIndex = wxml.indexOf('class="month-nav"')
+  const monthNavIndex = wxml.indexOf('class="month-nav glass-surface"')
   const retryIndex = wxml.indexOf('class="refresh-retry"')
   const weekHeaderIndex = wxml.indexOf('class="week-header"')
   assert.ok(retryIndex !== -1)
@@ -70,7 +70,7 @@ test('waiting invitation has two copy lines and a native share button beside the
   assert.match(invite, /class="partner-invite"/)
   assert.match(invite, /class="partner-invite-title">TA 还没加入<\/text>/)
   assert.match(invite, /class="partner-invite-desc">发个邀请，TA 加入后你们看的是同一本日历<\/text>/)
-  assert.match(invite, /class="btn-premium share-invite home-share-invite"/)
+  assert.match(invite, /class="btn-premium share-invite home-share-invite button-primary"/)
   assert.match(invite, /open-type="share"/)
   assert.match(invite, /hover-class="share-invite-hover"/)
   assert.match(invite, /aria-role="button"/)
@@ -93,7 +93,7 @@ test('partner welcome explains the calendar marks and the whole row opens the le
 
 test('homepage stacks navbar legend, sticky month and status, calendar, record actions, summary, then the empty guide', () => {
   const wxml = readIndexWxml()
-  const positions = ['class="nav-tool"', 'class="home-sticky"', 'class="month-nav"', 'class="home-status', 'class="week-header"', 'class="calendar-grid', 'class="quick-actions"', 'class="month-summary"', 'class="empty-guide"'].map(value => wxml.indexOf(value))
+  const positions = ['class="nav-tool"', 'class="home-sticky"', 'class="month-nav glass-surface"', 'class="home-status', 'class="week-header"', 'class="calendar-grid', 'class="quick-actions"', 'class="month-summary"', 'class="empty-guide"'].map(value => wxml.indexOf(value))
   assert.ok(positions.every(value => value !== -1))
   assert.ok(positions.every((value, index) => index === 0 || positions[index - 1] < value))
   assert.match(wxml, /class="home-sticky"[\s\S]*position:\s*fixed|class="home-sticky"/)
@@ -144,7 +144,7 @@ test('empty-state guide text meets the secondary-text contrast floor on its comp
 test('homepage status line is one named row with countdown and arrow, without reminder rows', () => {
   const wxml = readIndexWxml()
   const sticky = wxml.slice(wxml.indexOf('class="home-sticky"'), wxml.indexOf('class="home-sticky-spacer'))
-  assert.match(sticky, /class="month-nav"/)
+  assert.match(sticky, /class="month-nav glass-surface"/)
   assert.match(sticky, /wx:if="\{\{showBackToToday\}\}"/)
   assert.match(sticky, /class="back-today"/)
   assert.match(sticky, /bindtap="openPredictionSheet"/)
@@ -228,7 +228,7 @@ test('status line and month summary press with the shared scale-down and reduced
 test('navbar legend entry opens the legend directly and stays distinct from the month arrows', () => {
   const wxml = readIndexWxml()
   const nav = wxml.slice(wxml.indexOf('class="nav-bar'), wxml.indexOf('class="no-room"'))
-  const monthNav = wxml.slice(wxml.indexOf('class="month-nav"'), wxml.indexOf('class="home-status'))
+  const monthNav = wxml.slice(wxml.indexOf('class="month-nav glass-surface"'), wxml.indexOf('class="home-status'))
   assert.match(nav, /class="nav-tool"/)
   assert.match(nav, /bindtap="openLegendSheet"/)
   assert.match(nav, /aria-label="打开日历图例"/)
@@ -293,8 +293,8 @@ test('quick record actions keep period primary and memory button-ghost with read
   assert.match(button, /color:\s*#0A0E27/i)
   assert.match(ruleBody(wxss, '.quick-text'), /color:\s*#0A0E27/i)
   const quick = wxml.slice(wxml.indexOf('class="quick-actions"'), wxml.indexOf('class="month-summary"'))
-  assert.match(quick, /class="quick-btn" bindtap="quickPeriod"/)
-  assert.match(quick, /class="quick-ghost-surface">\s*<view class="quick-btn btn-ghost" bindtap="quickMemory"/)
+  assert.match(quick, /class="quick-btn button-primary" bindtap="quickPeriod"/)
+  assert.match(quick, /class="quick-ghost-surface">\s*<view class="quick-btn btn-ghost button-outline" bindtap="quickMemory"/)
   assert.match(ruleBody(wxss, '.quick-ghost-surface'), /background:\s*#0A0E27/i)
   assert.match(quick.slice(0, quick.indexOf('bindtap="quickMemory"')), /class="quick-icon sample-plate">\s*<view class="action-sample day-cell \{\{cellClass\}\} calendar-density-\{\{calendarDensity\}\}">\s*<view wx:for="\{\{parts\}\}" wx:for-item="part" wx:key="className" class="\{\{part\.className\}\}"><\/view>/)
   assert.match(quick, /class="quick-icon memory-tone">♥<\/text>/)

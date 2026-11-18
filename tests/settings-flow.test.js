@@ -1008,7 +1008,7 @@ test('settings room-code card swaps the dead sentence for tappable retry and go-
   assert.match(card, />去绑定<\//)
 
   // 有房间码时仍只有复制控件；操作行与复制互斥
-  assert.match(card, /wx:if="\{\{roomCode\}\}" class="copy-btn"/)
+  assert.match(card, /wx:if="\{\{roomCode\}\}" class="copy-btn button-primary"/)
 })
 
 test('settings room actions are rose tappable rows with the shared small-action treatment', () => {
@@ -1038,7 +1038,7 @@ test('settings room group keeps copy and retry, and does not host unbind', () =>
   assert.ok(cardStart !== -1 && cardEnd > cardStart, 'expected the room-code card')
   const card = wxml.slice(cardStart, cardEnd)
 
-  assert.match(card, /wx:if="\{\{roomCode\}\}" class="copy-btn"/)
+  assert.match(card, /wx:if="\{\{roomCode\}\}" class="copy-btn button-primary"/)
   assert.doesNotMatch(card, /bindtap="unbind"|解除绑定/)
 })
 
@@ -1054,7 +1054,7 @@ test('settings page leads with room info in named groups and keeps unbind in the
   const room = wxml.slice(wxml.indexOf('>房间<'), wxml.indexOf('>日历显示<'))
   assert.match(room, /class="menu-item room-code-item/)
   assert.match(room, /bindtap="copyRoomCode"/)
-  assert.match(room, /class="room-action-btn resync-room-btn" bindtap="clearData"/)
+  assert.match(room, /class="room-action-btn resync-room-btn button-outline" bindtap="clearData"/)
   assert.doesNotMatch(room, /bindtap="unbind"/)
 
   const calendar = wxml.slice(wxml.indexOf('>日历显示<'), wxml.indexOf('>数据<'))
@@ -1072,7 +1072,7 @@ test('settings page leads with room info in named groups and keeps unbind in the
   const dangerAt = wxml.indexOf('settings-danger-zone')
   assert.ok(dangerAt > aboutAt, 'the danger zone sits after the about group')
   const danger = wxml.slice(dangerAt)
-  assert.match(danger, /wx:if="\{\{roomCode\}\}" class="menu-item danger" hover-class="danger-hover" bindtap="unbind"/)
+  assert.match(danger, /wx:if="\{\{roomCode\}\}" class="menu-item danger button-danger" hover-class="danger-hover" bindtap="unbind"/)
   assert.match(danger, />解除绑定<\//)
   assert.doesNotMatch(wxml.slice(0, dangerAt), /bindtap="unbind"/)
 

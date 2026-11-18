@@ -8,29 +8,29 @@
   <view class="content" aria-hidden="{{pageObscured}}">
     <view class="settings-group">
       <text class="settings-group-title">房间</text>
-      <view class="premium-card">
+      <view class="premium-card glass-surface">
         <view class="menu-item room-code-item non-interactive">
           <view class="room-code-content">
             <text class="room-code-label">我的房间码</text>
             <text class="room-code-value {{roomCode ? '' : 'muted'}}">{{roomCodeDisplay || roomCode || '未绑定'}}</text>
           </view>
-          <view wx:if="{{roomCode}}" class="copy-btn" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码" hover-class="copy-btn-hover">复制</view>
+          <view wx:if="{{roomCode}}" class="copy-btn button-primary" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码" hover-class="copy-btn-hover">复制</view>
         </view>
         <view wx:if="{{roomMemberLabel}}" class="menu-item non-interactive">
           <text class="menu-text">{{roomMemberLabel}}</text>
         </view>
-        <button wx:if="{{roomStatus === 'waiting' && roomCode}}" class="btn-premium share-invite settings-share-invite" open-type="share" hover-class="share-invite-hover" aria-role="button" aria-label="再发邀请">再发邀请</button>
-        <view wx:if="{{roomCode}}" class="room-action-btn resync-room-btn" bindtap="clearData" aria-role="button" aria-label="重新同步房间" hover-class="room-action-btn-hover">重新同步房间</view>
+        <button wx:if="{{roomStatus === 'waiting' && roomCode}}" class="btn-premium share-invite settings-share-invite button-primary" open-type="share" hover-class="share-invite-hover" aria-role="button" aria-label="再发邀请">再发邀请</button>
+        <view wx:if="{{roomCode}}" class="room-action-btn resync-room-btn button-outline" bindtap="clearData" aria-role="button" aria-label="重新同步房间" hover-class="room-action-btn-hover">重新同步房间</view>
         <view wx:if="{{roomCodeLoaded && !roomCode}}" class="room-code-actions">
-          <view class="room-action-btn" bindtap="retryRoomResolve" aria-role="button" aria-label="重试获取房间码" hover-class="room-action-btn-hover">重试</view>
-          <view class="room-action-btn" bindtap="goBind" aria-role="button" aria-label="去绑定房间" hover-class="room-action-btn-hover">去绑定</view>
+          <view class="room-action-btn button-outline" bindtap="retryRoomResolve" aria-role="button" aria-label="重试获取房间码" hover-class="room-action-btn-hover">重试</view>
+          <view class="room-action-btn button-outline" bindtap="goBind" aria-role="button" aria-label="去绑定房间" hover-class="room-action-btn-hover">去绑定</view>
         </view>
       </view>
     </view>
 
     <view class="settings-group">
       <text class="settings-group-title">日历显示</text>
-      <view class="premium-card">
+      <view class="premium-card glass-surface">
         <text class="density-menu-desc">清爽只看日期与标记（含节日和调休），完整另外显示农历</text>
         <view class="density-control" aria-role="radiogroup" aria-label="日历信息密度">
           <view
@@ -57,7 +57,7 @@
 
     <view class="settings-group">
       <text class="settings-group-title">数据</text>
-      <view class="premium-card">
+      <view class="premium-card glass-surface">
         <view class="menu-item" bindtap="exportData" aria-role="button" aria-label="导出数据" hover-class="menu-item-hover">
           <text class="menu-text">导出数据</text>
           <text class="menu-arrow">›</text>
@@ -67,7 +67,7 @@
 
     <view class="settings-group">
       <text class="settings-group-title">关于</text>
-      <view class="premium-card">
+      <view class="premium-card glass-surface">
         <view class="menu-item non-interactive">
           <text class="menu-text">版本</text>
           <text class="settings-version">v1.0.0</text>
@@ -80,7 +80,7 @@
     </view>
 
     <view class="settings-danger-zone">
-      <view wx:if="{{roomCode}}" class="menu-item danger" hover-class="danger-hover" bindtap="unbind" aria-role="button" aria-label="解除绑定">
+      <view wx:if="{{roomCode}}" class="menu-item danger button-danger" hover-class="danger-hover" bindtap="unbind" aria-role="button" aria-label="解除绑定">
         <text class="menu-text">解除绑定</text>
         <text class="menu-arrow">›</text>
       </view>

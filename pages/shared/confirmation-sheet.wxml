@@ -191,7 +191,7 @@
     >{{item.text}}</text>
     <view
       wx:if="{{predictionExplanation.periodAction}}"
-      class="btn-premium prediction-period-action"
+      class="btn-premium prediction-period-action button-primary"
       bindtap="quickPeriod"
       aria-role="button"
       aria-label="{{predictionExplanation.periodAction.label}}"
@@ -210,7 +210,7 @@
         class="recap-highlight"
       >{{item.text}}</text>
     </view>
-    <view class="copy-recap" bindtap="copyMonthlyRecap" aria-role="button" aria-label="复制小结" hover-class="copy-recap-hover">复制小结</view>
+    <view class="copy-recap button-primary" bindtap="copyMonthlyRecap" aria-role="button" aria-label="复制小结" hover-class="copy-recap-hover">复制小结</view>
   </view>
 </template>
 
@@ -228,9 +228,9 @@
   <text class="confirmation-copy">{{confirmationContent}}</text>
   <view class="confirmation-actions">
     <block wx:for="{{confirmationActions}}" wx:key="id">
-      <view wx:if="{{item.kind === 'danger'}}" class="btn-danger confirmation-action" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="btn-danger-hover">{{item.text}}</view>
-      <view wx:elif="{{item.kind === 'primary'}}" class="btn-premium confirmation-action" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="btn-premium-hover">{{item.text}}</view>
-      <view wx:else class="confirmation-secondary confirmation-action" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="confirmation-secondary-hover">{{item.text}}</view>
+      <view wx:if="{{item.kind === 'danger'}}" class="btn-danger confirmation-action button-danger" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="btn-danger-hover">{{item.text}}</view>
+      <view wx:elif="{{item.kind === 'primary'}}" class="btn-premium confirmation-action button-primary" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="btn-premium-hover">{{item.text}}</view>
+      <view wx:else class="confirmation-secondary confirmation-action button-outline" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="confirmation-secondary-hover">{{item.text}}</view>
     </block>
   </view>
 </template>

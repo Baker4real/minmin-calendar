@@ -7,7 +7,7 @@
   <template is="sharedNavbar" data="{{variant: 'back', title: pageTitle, pageObscured: pageObscured}}" />
 
   <view class="content" aria-hidden="{{pageObscured}}">
-    <view class="premium-card">
+    <view class="premium-card glass-surface">
       <view wx:if="{{authorLabel}}" class="record-author">{{authorLabel}}</view>
       <view wx:if="{{draftRestored}}" class="draft-notice" aria-role="alert">
         <text>{{draftNoticeText}} · </text>

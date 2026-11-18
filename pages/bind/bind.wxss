@@ -167,9 +167,6 @@
 /* 刚创建房间时的次操作「进入应用」（issue #149）：DESIGN.md button-ghost——透明底、玫瑰描边和玫瑰字，
    居中胶囊，视觉权重低于整宽实底的「发给 TA」，不加投影。上下 12px 内边距让 320px 宽下触控高度仍 ≥44px */
 .btn-ghost {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: fit-content;
   margin: 0 auto;
   padding: 12px 28px;

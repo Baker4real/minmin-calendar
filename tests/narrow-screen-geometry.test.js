@@ -625,7 +625,7 @@ test('every longest home status form fits one line and the 88rpx ledger stays un
 test('the homepage room-status button keeps the 88rpx touch size in both axes for every action label', () => {
   const wxml = readRepo('pages/index/index.wxml')
   const roomStatus = wxml.slice(wxml.indexOf('class="no-room"'), wxml.indexOf('</view>', wxml.indexOf('bindtap="handleRoomStatusAction"')))
-  assert.match(roomStatus, /class="btn-premium" bindtap="handleRoomStatusAction"/, 'the room-status action is the rose main button')
+  assert.match(roomStatus, /class="btn-premium button-primary" bindtap="handleRoomStatusAction"/, 'the room-status action is the rose main button')
 
   const appTokens = readAppTokens()
   const button = findDecls(parseWxssRules(readRepo('pages/index/index.wxss')), '.no-room .btn-premium')

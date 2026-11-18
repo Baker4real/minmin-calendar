@@ -137,8 +137,6 @@ button.home-share-invite {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
   border-radius: var(--radius-card);
   margin: 10rpx 0 8rpx;
-  position: relative;
-  overflow: hidden;
 }
 .month-nav::before {
   content: '';
@@ -806,16 +804,12 @@ button.home-share-invite {
   /* 320px 宽上可点高度 ≥44px：104rpx ≈ 44.4px@320px（与 compact 日历格同换算），不缩字号 */
   min-height: 104rpx;
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 12rpx;
   padding: 14rpx 24rpx;
   background: var(--aurora-pink);
   color: #0A0E27;
   border-radius: var(--radius-md);
   border: 1px solid rgba(255,255,255,0.16);
-  position: relative;
   transition: transform var(--duration-press) var(--ease-out);
 }
 /* 柔光层同 .btn-premium（issue #166，结构和按下沉到 0.5 在 app.wxss「柔光层」）：这里只写光的大小 */
@@ -1434,9 +1428,6 @@ button.home-share-invite {
 }
 .copy-recap {
   min-height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   margin-top: 4rpx;
   box-sizing: border-box;
   padding: 0 28rpx;
@@ -1446,7 +1437,6 @@ button.home-share-invite {
   white-space: nowrap;
   color: #0A0E27;
   background: var(--aurora-pink);
-  position: relative;
   transition: transform var(--duration-press) var(--ease-out);
 }
 /* 柔光层同 .btn-premium（issue #166，结构和按下沉到 0.5 在 app.wxss「柔光层」）：这里只写光的大小 */

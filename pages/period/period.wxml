@@ -24,7 +24,7 @@
 
     <view wx:if="{{segment === 'period'}}">
       <!-- 首次加载与首次失败仍保留概览；确认同步成功且为零条时撤掉，让空态紧跟新增按钮。 -->
-      <view wx:if="{{loading || !hasLoaded || periodCount > 0}}" class="cycle-card">
+      <view wx:if="{{loading || !hasLoaded || periodCount > 0}}" class="cycle-card glass-surface">
         <text class="card-label">周期概览</text>
         <view class="cycle-stats">
           <view class="cycle-item">
@@ -49,7 +49,7 @@
         </view>
       </view>
 
-      <view class="btn-premium" bindtap="addPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-class="btn-premium-hover">{{periodQuickLabel}}</view>
+      <view class="btn-premium button-primary" bindtap="addPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-class="btn-premium-hover">{{periodQuickLabel}}</view>
 
       <!-- 未同步（从未读取成功）：重试是可识别的操作，不是与空列表一样的安静说明；
            本机已保存、还没同步的记录照常列在它下面（#194） -->
@@ -64,7 +64,7 @@
             <text class="year-toggle">{{yearGroup.toggleLabel}}</text>
           </view>
           <view wx:if="{{yearGroup.expanded}}">
-          <view class="premium-card month-card" wx:for="{{yearGroup.months}}" wx:key="key" wx:for-item="group">
+          <view class="premium-card glass-surface month-card" wx:for="{{yearGroup.months}}" wx:key="key" wx:for-item="group">
             <view class="month-header" bindtap="togglePeriodMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-class="month-header-hover">
               <text class="month-header-text">{{group.title}}</text>
               <text class="month-toggle">{{group.toggleLabel}}</text>
@@ -101,7 +101,7 @@
         <text class="list-retry-text">刷新失败，正在显示上次的内容</text>
       </view>
 
-      <view wx:if="{{loading}}" class="skeleton-card">
+      <view wx:if="{{loading}}" class="skeleton-card glass-surface">
         <view class="skeleton-item" wx:for="{{[0, 1, 2]}}" wx:key="*this">
           <view class="skeleton-body">
             <view class="skeleton-line skeleton-line-title"></view>
@@ -113,7 +113,7 @@
     </view>
 
     <view wx:else>
-      <view class="btn-premium" bindtap="addMemory" aria-role="button" aria-label="记欢乐时光" hover-class="btn-premium-hover">＋ 记欢乐时光</view>
+      <view class="btn-premium button-primary" bindtap="addMemory" aria-role="button" aria-label="记欢乐时光" hover-class="btn-premium-hover">＋ 记欢乐时光</view>
 
       <!-- 未同步（从未读取成功）：重试是可识别的操作，不是与空列表一样的安静说明；
            本机已保存、还没同步的记录照常列在它下面（#194） -->
@@ -124,7 +124,7 @@
       <!-- 欢乐时光月份分组（issue #108）：每月一张玻璃卡，卡头写年月与条数；
            点卡头切换展开/收起，默认全部收起（2026-11-14 取代 #143 的最近三个月默认展开），收起时组内行不渲染 -->
       <view wx:if="{{memoryCount > 0 && !memoryLoading}}" class="memory-month-list">
-        <view class="premium-card month-card" wx:for="{{memoryGroups}}" wx:key="key" wx:for-item="group">
+        <view class="premium-card glass-surface month-card" wx:for="{{memoryGroups}}" wx:key="key" wx:for-item="group">
           <view class="month-header" bindtap="toggleMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-class="month-header-hover">
             <view class="month-header-main">
               <text class="month-header-text">{{group.title}}</text>
@@ -158,7 +158,7 @@
         <text class="list-retry-text">刷新失败，正在显示上次的内容</text>
       </view>
 
-      <view wx:if="{{memoryLoading}}" class="skeleton-card">
+      <view wx:if="{{memoryLoading}}" class="skeleton-card glass-surface">
         <view class="skeleton-item" wx:for="{{[0, 1, 2]}}" wx:key="*this">
           <view class="skeleton-dot"></view>
           <view class="skeleton-body">

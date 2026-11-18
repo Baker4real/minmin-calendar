@@ -1,4 +1,5 @@
 @import './pages/shared/nav-bar.wxss';
+@import './pages/shared/glass-buttons.wxss';
 
 /* ===== Aurora Bloom: Rose + Glassmorphism ===== */
 page {
@@ -186,8 +187,6 @@ page {
   border-radius: var(--radius-card);
   border: 1px solid rgba(255,255,255,0.12);
   box-shadow: 0 16rpx 64rpx rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
-  position: relative;
-  overflow: hidden;
   color: var(--text-primary);
 }
 .premium-card::after {
@@ -198,9 +197,6 @@ page {
 }
 /* ===== Premium Button — 实色玫瑰，不再常驻发光 ===== */
 .btn-premium {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 12rpx;
   background: var(--aurora-pink);
   color: #0A0E27;
@@ -209,7 +205,6 @@ page {
   font-size: var(--font-size-button);
   font-weight: var(--font-weight-control);
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-state) ease;
-  position: relative;
 }
 /* 柔光层（issue #166）：玫瑰实色按钮的光画在 ::before 上，不画在按钮本身（按钮自己带 position: relative）。
    柔光层铺满按钮、跟按钮同一个圆角、不拦点按；按下时透明度沉到 0.5，和缩放同一拍（box-shadow 不能过渡，
@@ -291,8 +286,6 @@ button.share-invite::after {
 
 /* ===== Danger Button — 柔红，与玫瑰体系同族 ===== */
 .btn-danger {
-  position: relative;
-  z-index: 0;
   background: var(--glass-fallback);
   color: #F97373;
   text-align: center;
@@ -304,17 +297,9 @@ button.share-invite::after {
   transition: border-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
 .btn-danger::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
   border-radius: var(--radius-md);
   background-color: var(--glass-bg);
   transition: background-color var(--duration-press) ease;
-  pointer-events: none;
-  z-index: -1;
 }
 /* 平涂层盖不到描边带：按下时描边同色提亮，和红色平涂层一起亮（issue #166） */
 .btn-danger:active,
