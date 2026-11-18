@@ -86,8 +86,7 @@ function emptyDayDetail() {
     meanings: [],
     periods: [],
     memories: [],
-    actions: [],
-    empty: true
+    actions: []
   }
 }
 
@@ -570,10 +569,6 @@ Page(withPageVisibility({
     const date = this.data.selectedDate
     if (!date) return
 
-    if (action === 'detail') {
-      this.showDayDetail(date)
-      return
-    }
     const detail = this._dayDetail(date)
     if (!detail.actions.some(item => item.key === action)) return
     const entry = action === 'period' ? detail.periodAction : action === 'memory' ? detail.memoryAction : null

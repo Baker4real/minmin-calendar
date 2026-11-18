@@ -434,15 +434,27 @@ test('real day rows open their own editor and blank days offer dated actions', a
   assert.equal(navigation(app).at(-1), '/pages/memory/edit/edit?date=2026-06-26')
 })
 
+test('blank day actions reject the retired detail action and show no empty record state', async t => {
+  const app = homeApp(t)
+  const home = await launch(app)
+  await day(app, home, '2026-06-10')
+  assert.equal(app.rendered(home).daySheetMode, 'actions')
+
+  await tap(app, home, 'onDayActionTap', { action: 'detail' })
+  assert.equal(app.rendered(home).daySheetMode, 'actions')
+  assert.equal(visible('day-detail-list', app.rendered(home)), false)
+  assert.equal(visible('day-detail-empty', app.rendered(home)), false)
+})
+
 test('future dates keep holiday and workday meanings with a persistent no-record notice', async t => {
   const app = homeApp(t)
   const home = await launch(app)
   const notice = { title: '未来日期不能新增记录', text: '到了这一天，再来记经期或欢乐时光' }
   for (const [date, year, month, meanings, subtitle] of [
     ['2026-06-30', 2026, 5, [], null],
-    ['2026-09-25', 2026, 8, ['中秋。'], '八月十五 · 中秋'],
-    ['2026-09-20', 2026, 8, ['官方调休上班日。'], null],
-    ['2026-10-01', 2026, 9, ['国庆。'], '八月廿一 · 国庆']
+    ['2026-09-25', 2026, 8, ['法定假日，按官方安排放假'], '八月十五 · 中秋'],
+    ['2026-09-20', 2026, 8, ['这天是周末，按官方安排调成上班'], null],
+    ['2026-10-01', 2026, 9, ['法定假日，按官方安排放假'], '八月廿一 · 国庆']
   ]) {
     await selectMonth(app, home, year, month)
     await day(app, home, date)

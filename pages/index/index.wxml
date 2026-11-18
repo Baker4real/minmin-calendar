@@ -327,11 +327,6 @@ module.exports = {
       </view>
 
       <view wx:if="{{daySheetMode == 'detail'}}" class="day-detail-list {{dayDetailFade ? 'day-detail-fade' : ''}}">
-        <view wx:if="{{selectedDayDetail.empty}}" class="day-detail-empty">
-          <text class="detail-empty-title">当天无记录</text>
-          <text class="detail-empty-desc">可以从这里补一条经期或欢乐时光</text>
-        </view>
-
         <view
           wx:for="{{selectedDayDetail.periods}}"
           wx:key="key"
@@ -350,6 +345,7 @@ module.exports = {
             <text wx:if="{{item.metaText}}" class="detail-meta">{{item.metaText}}</text>
             <text wx:if="{{item.authorLabel}}" class="detail-meta">{{item.authorLabel}}</text>
           </view>
+          <text class="detail-arrow" aria-hidden="true">›</text>
         </view>
 
         <view
@@ -369,6 +365,7 @@ module.exports = {
             <text class="detail-main">{{item.note}}</text>
             <text wx:if="{{item.authorLabel}}" class="detail-meta">{{item.authorLabel}}</text>
           </view>
+          <text class="detail-arrow" aria-hidden="true">›</text>
         </view>
       </view>
 
