@@ -21,7 +21,7 @@ const ALLOWED_IMAGES = {
   'docs/evidence/issue-149/bind-created-share-primary-430x932.png': '刚创建房间：「发给 TA」是主按钮、「进入应用」是次按钮；房间码 ABC123 是替身码',
   'docs/evidence/issue-149/bind-bound-enter-primary-430x932.png': '已绑定房间且跳首页失败：「进入应用」是主按钮；房间码 ABC123 是替身码',
   'docs/evidence/issue-150/export-confirm-430x932.png': '导出确认弹窗的文案，没有记录数据',
-  'docs/evidence/issue-150/export-copied-toast-430x932.png': '选「复制 JSON」后的「已复制到剪贴板」提示（模拟复制），背后是设置页，没有记录数据',
+  'docs/evidence/issue-150/export-copied-toast-430x932.png': '选「复制成文字」后的「已复制到剪贴板」提示（模拟复制），背后是设置页，没有记录数据',
   'docs/evidence/issue-151/periods-failed-retry-row-430x932.png': '只有经期同步失败时的行内重试，没有记录数据',
   'docs/evidence/issue-151/periods-failed-nav-pill-430x932.png': '同步胶囊占据顶栏标题位，月份与状态行完整；替身房间，状态行没有记录数据',
   'docs/evidence/issue-151/periods-unsynced-prediction-sheet-430x932.png': '经期从未同步时预测说明只说暂不预测，没有记录数据',

@@ -52,13 +52,7 @@ function consumeRoomLeaveNotice() {
   wxApi.showToast({ title: '已解除绑定', icon: 'none' })
 }
 
-// issue #150：分享失败后的选择；「取消」是系统操作菜单自带的取消键
-const SHARE_FAILURE_ACTIONS = [
-  { label: '重试分享', choice: 'retry' },
-  { label: '复制 JSON', choice: 'copy' }
-]
-const SHARE_FAILURE_ALERT = '分享没有完成。选「复制 JSON」会把全部经期和欢乐时光放进剪贴板。'
-
+// issue #150：分享失败后的选择由共享确认面板承载；所有取消路径都只结束流程。
 function copyRoomCode(options = {}) {
   const wxApi = resolveWxApi(options)
   const roomCode = normalizeRoomCode(options.roomCode)
@@ -98,7 +92,7 @@ async function exportRecordsAsJson(options = {}) {
   const hideLoading = createLoadingGuard(wxApi)
 
   if (options.confirmBeforeExport) {
-    const confirmation = await confirmExport({ wx: wxApi })
+    const confirmation = await confirmExport({ confirm: options.confirm })
     if (confirmation.kind !== 'confirmed') {
       return confirmation
     }
@@ -128,7 +122,8 @@ async function exportRecordsAsJson(options = {}) {
     return await shareExportJson({
       wxApi,
       filePath,
-      json
+      json,
+      confirm: options.confirm
     })
   } catch (error) {
     hideLoading()
@@ -140,28 +135,44 @@ async function exportRecordsAsJson(options = {}) {
   }
 }
 
-function clearLocalCache(options = {}) {
+async function confirmResync(options = {}) {
+  if (typeof options.confirm !== 'function') return { kind: 'cancelled' }
+  const action = await options.confirm({
+    name: '重新同步房间',
+    title: '重新同步房间？',
+    content: '重新从云端读一次你所在的房间，不会删除任何记录',
+    actions: [
+      { id: 'confirm', text: '重新同步', kind: 'primary' },
+      { id: 'cancel', text: '取消', kind: 'secondary' }
+    ]
+  })
+  return { kind: action === 'confirm' ? 'confirmed' : 'cancelled' }
+}
+
+async function clearLocalCache(options = {}) {
   const wxApi = resolveWxApi(options)
   const roomSession = options.roomSession || roomSessionApi
 
   roomSession.clearLocalRoom()
-  showToast(wxApi, { title: '已清除本机房间码' })
-  return roomSession.getActiveRoom().then(room => ({ kind: 'success', room }))
+  const room = await roomSession.getActiveRoom()
+  if (room && (room.kind === 'success' || room.kind === 'no-room')) {
+    showToast(wxApi, { title: '已重新同步' })
+  }
+  return { kind: 'success', room }
 }
 
-function confirmExport(options = {}) {
-  const wxApi = resolveWxApi(options)
-  return new Promise(resolve => {
-    wxPrompts.modal({
-      title: '导出数据',
-      content: '会导出全部经期和欢乐时光。建议发到「文件传输助手」保存。目前还不能导入恢复。',
-      confirmText: '开始导出',
-      cancelText: '取消',
-      success: result => {
-        resolve(result && result.confirm ? { kind: 'confirmed' } : { kind: 'cancelled' })
-      }
-    }, wxApi)
+async function confirmExport(options = {}) {
+  if (typeof options.confirm !== 'function') return { kind: 'cancelled' }
+  const action = await options.confirm({
+    name: '导出数据',
+    title: '导出数据',
+    content: '会导出全部经期和欢乐时光。建议发到「文件传输助手」保存。目前还不能导入恢复。',
+    actions: [
+      { id: 'confirm', text: '开始导出', kind: 'primary' },
+      { id: 'cancel', text: '取消', kind: 'secondary' }
+    ]
   })
+  return { kind: action === 'confirm' ? 'confirmed' : 'cancelled' }
 }
 
 function createRoomDataClient(cloud, roomSession) {
@@ -192,8 +203,8 @@ function createLoadingGuard(wxApi) {
   }
 }
 
-// issue #150：分享失败只得到可识别的 share-failed，剪贴板只在用户明确选「复制 JSON」后写入
-async function shareExportJson({ wxApi, filePath, json }) {
+// issue #150：分享失败只得到可识别的 share-failed，剪贴板只在用户明确选「复制成文字」后写入
+async function shareExportJson({ wxApi, filePath, json, confirm }) {
   const shared = await shareFile(wxApi, filePath)
   if (shared === 'shared') {
     showToast(wxApi, { title: '导出成功' })
@@ -204,9 +215,9 @@ async function shareExportJson({ wxApi, filePath, json }) {
     return { kind: 'cancelled', filePath }
   }
 
-  const choice = await chooseAfterShareFailure(wxApi)
+  const choice = await chooseAfterShareFailure(confirm)
   if (choice === 'retry') {
-    return shareExportJson({ wxApi, filePath, json })
+    return shareExportJson({ wxApi, filePath, json, confirm })
   }
   if (choice === 'copy') {
     try {
@@ -221,19 +232,19 @@ async function shareExportJson({ wxApi, filePath, json }) {
   return { kind: 'share-failed', filePath }
 }
 
-// 点蒙层在新版微信不会关闭菜单，取消分支不承载业务，只结束流程
-function chooseAfterShareFailure(wxApi) {
-  return new Promise(resolve => {
-    wxApi.showActionSheet({
-      alertText: SHARE_FAILURE_ALERT,
-      itemList: SHARE_FAILURE_ACTIONS.map(action => action.label),
-      success: result => {
-        const action = SHARE_FAILURE_ACTIONS[result && result.tapIndex]
-        resolve(action ? action.choice : 'cancel')
-      },
-      fail: () => resolve('cancel')
-    })
+async function chooseAfterShareFailure(confirm) {
+  if (typeof confirm !== 'function') return 'cancel'
+  const action = await confirm({
+    name: '分享没有完成',
+    title: '分享没有完成',
+    content: '选「复制成文字」会把全部经期和欢乐时光放进剪贴板',
+    actions: [
+      { id: 'retry', text: '重试分享', kind: 'primary' },
+      { id: 'copy', text: '复制成文字', kind: 'secondary' },
+      { id: 'cancel', text: '取消', kind: 'secondary' }
+    ]
   })
+  return action === 'retry' || action === 'copy' ? action : 'cancel'
 }
 
 function shareFile(wxApi, filePath) {
@@ -325,5 +336,6 @@ module.exports = {
   copyRoomCode,
   exportRecordsAsJson,
   clearLocalCache,
+  confirmResync,
   confirmExport
 }
