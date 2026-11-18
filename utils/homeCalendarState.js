@@ -3,6 +3,7 @@ const cycle = require('./cycle')
 const periodCoverage = require('./periodCoverage')
 const calendarInsights = require('./calendarInsights')
 const recordEditRoute = require('./recordEditRoute')
+const { hasPublishedHolidayYear } = require('./chinaHolidays')
 
 // 单日经期色带样本：图例「经期记录」和首页「记经期」、当日弹层的经期动作画的是同一段色带（issue #159）
 const PERIOD_BAND_SAMPLE = {
@@ -332,8 +333,7 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
       periods: periodDetails,
       memories: memoryDetails,
       actions: buildDayRecordActions(day, today, day.isPeriod),
-      futureNotice: buildFutureDayNotice(day, today),
-      empty: !meanings.length && !periodDetails.length && !memoryDetails.length
+      futureNotice: buildFutureDayNotice(day, today)
     }
   })
 
@@ -485,20 +485,22 @@ function buildDayMeanings(day = {}) {
     meanings.push({
       key: 'predict',
       title: '下次可能开始的日子',
-      text: '这一天是下次可能开始的日子。'
+      text: '按之前的记录估的，前后几天都有可能。'
     })
   }
   if (day.holidayName) {
     meanings.push({
       key: 'holiday',
       title: '节日',
-      text: `${day.holidayName}。`
+      text: hasPublishedHolidayYear(util.parseDate(day.date).getFullYear())
+        ? '法定假日，按官方安排放假'
+        : '节日按历法标出，放假和调休等官方公布后更新'
     })
   } else if (day.isWorkday) {
     meanings.push({
       key: 'workday',
       title: '调休上班',
-      text: '官方调休上班日。'
+      text: '这天是周末，按官方安排调成上班'
     })
   }
   return meanings

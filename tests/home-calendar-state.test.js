@@ -131,7 +131,7 @@ for (const scenario of firstScreenCases) {
           assert.deepEqual(detail.memories.map(item => item.note), hasMemory ? ['散步'] : [])
           assert.deepEqual(detail.actions.map(item => item.label), scenario.count ? ['记欢乐时光'] : ['记经期', '记欢乐时光'])
           assert.equal(detail.futureNotice, null)
-          assert.equal(detail.empty, !scenario.count && !hasMemory)
+          assert.equal(Object.hasOwn(detail, 'empty'), false)
           const future = state.dayDetailsByDate['2026-06-27']
           assert.equal(future.isFuture, true)
           assert.deepEqual(future.actions, [])
@@ -162,7 +162,7 @@ for (const periodsSynced of [false, true]) {
         ? ['2026-06-20', '2026-06-21', '2026-06-22', '2026-06-23', '2026-06-24', '2026-06-25', '2026-06-26'] : [])
       assert.equal(state.predictionExplanation.summary, periodsSynced ? '预计 6月23日 开始，\n前后 3 天是可能开始的窗口' : '经期未同步，暂不预测')
       assert.equal(Object.hasOwn(state, 'cycleReminders'), false)
-      assert.deepEqual(state.dayDetailsByDate['2026-06-26'].meanings.map(item => item.text), periodsSynced ? ['这一天是下次可能开始的日子。'] : [])
+      assert.deepEqual(state.dayDetailsByDate['2026-06-26'].meanings.map(item => item.text), periodsSynced ? ['按之前的记录估的，前后几天都有可能。'] : [])
       assert.equal(state.monthSummaryLine, `本月 ${periodsSynced ? '经期 0 天' : '经期未同步'} · ${memoriesSynced ? '欢乐时光 0 条' : '欢乐时光未同步'}`)
     })
   }
@@ -396,7 +396,7 @@ test('buildHomeCalendarState returns fallback prediction state and explicit day 
   assert.equal(detail.memories.length, 1)
   assert.match(detail.memories[0].key, /^memory:fallback:/)
   assert.equal(detail.memories[0].note, '一起散步')
-  assert.equal(detail.empty, false)
+  assert.equal(Object.hasOwn(detail, 'empty'), false)
 })
 
 test('buildHomeCalendarState reuses cycle and insight helpers for predictable records', () => {
@@ -547,7 +547,7 @@ test('buildHomeCalendarState expresses a period day inside the prediction window
     state.dayDetailsByDate['2026-08-11'].meanings.map(item => [item.key, item.title]),
     [['predict', '下次可能开始的日子']]
   )
-  assert.match(state.dayDetailsByDate['2026-08-11'].meanings[0].text, /下次可能开始的日子/)
+  assert.equal(state.dayDetailsByDate['2026-08-11'].meanings[0].text, '按之前的记录估的，前后几天都有可能。')
   assert.doesNotMatch(state.dayDetailsByDate['2026-08-11'].meanings[0].text, /预测区间/)
 
   assert.deepEqual(segmentRow(state, '2026-08-08', '2026-08-11'), [
@@ -595,7 +595,7 @@ test('buildHomeCalendarState aligns missing endDate period markers with detail r
   ])
   assert.deepEqual(detail.actions, [])
   assert.deepEqual(detail.memories, [])
-  assert.equal(detail.empty, false)
+  assert.equal(Object.hasOwn(detail, 'empty'), false)
 })
 
 test('buildHomeCalendarState projects an ongoing period from its start through today only', () => {
@@ -912,7 +912,7 @@ test('buildHomeCalendarState shows an unknown-end period only in its start month
   assert.equal(september.days.some(day => day.isPredict), false)
 })
 
-test('buildHomeCalendarState does not show an empty state when a date only has meanings', () => {
+test('buildHomeCalendarState keeps dated record actions without an unreachable empty-detail projection', () => {
   const state = buildHomeCalendarState({
     year: 2026,
     month: 7,
@@ -925,7 +925,7 @@ test('buildHomeCalendarState does not show an empty state when a date only has m
   assert.deepEqual(todayDetail.meanings, [])
   assert.deepEqual(todayDetail.periods, [])
   assert.deepEqual(todayDetail.memories, [])
-  assert.equal(todayDetail.empty, true)
+  assert.equal(Object.hasOwn(todayDetail, 'empty'), false)
   assert.deepEqual(todayDetail.actions, [
     { key: 'period', label: '记经期' },
     { key: 'memory', label: '记欢乐时光' }
@@ -933,7 +933,7 @@ test('buildHomeCalendarState does not show an empty state when a date only has m
 
   const plainDetail = state.dayDetailsByDate['2026-08-11']
   assert.deepEqual(plainDetail.meanings, [])
-  assert.equal(plainDetail.empty, true)
+  assert.equal(Object.hasOwn(plainDetail, 'empty'), false)
 })
 
 test('buildHomeCalendarState gives duplicate detail rows unique render keys', () => {
@@ -1130,7 +1130,7 @@ test('buildHomeCalendarState keeps long holiday names complete for screen reader
   )
   assert.equal(
     commemorationDetail.meanings[0].text,
-    '抗日战争暨世界反法西斯战争胜利70周年纪念日。'
+    '法定假日，按官方安排放假'
   )
 
   const combined = buildHomeCalendarState({ year: 2020, month: 9, today: '2020-10-01' })
@@ -1140,7 +1140,7 @@ test('buildHomeCalendarState keeps long holiday names complete for screen reader
   assert.equal(nationalDay.ariaLabel, '10月1日 周四 八月十五 今天 国庆/中秋')
   const combinedDetail = combined.dayDetailsByDate['2020-10-01']
   assert.deepEqual(combinedDetail.meanings.map(item => item.key), ['holiday'])
-  assert.equal(combinedDetail.meanings[0].text, '国庆/中秋。')
+  assert.equal(combinedDetail.meanings[0].text, '法定假日，按官方安排放假')
 })
 
 test('calendar cells show the lunar day, and the first day of a lunar month shows the month name', () => {
@@ -1441,6 +1441,40 @@ test('homepage prediction excludes an unknown-end record from duration but marks
   assert.equal(state.monthlyRecap.highlights[0], '经期：8月10日，结束日期不详')
 })
 
+test('day detail explains prediction, published and unpublished holidays, and adjusted workdays', () => {
+  const predicted = buildHomeCalendarState({
+    year: 2026,
+    month: 8,
+    periods: [
+      period('2026-05-08', '2026-05-12'),
+      period('2026-06-05', '2026-06-09'),
+      period('2026-07-03', '2026-07-07'),
+      period('2026-07-31', '2026-08-04'),
+      period('2026-08-28', '2026-09-01')
+    ],
+    memories: [],
+    today: '2026-09-22'
+  })
+  assert.deepEqual(predicted.dayDetailsByDate['2026-09-24'].meanings.map(item => item.text), [
+    '按之前的记录估的，前后几天都有可能。'
+  ])
+
+  const published = buildHomeCalendarState({ year: 2026, month: 8, today: '2026-09-22' })
+  assert.deepEqual(published.dayDetailsByDate['2026-09-25'].meanings.map(item => item.text), [
+    '法定假日，按官方安排放假'
+  ])
+
+  const unpublished = buildHomeCalendarState({ year: 2028, month: 4, today: '2028-05-20' })
+  assert.deepEqual(unpublished.dayDetailsByDate['2028-05-01'].meanings.map(item => item.text), [
+    '节日按历法标出，放假和调休等官方公布后更新'
+  ])
+
+  const january = buildHomeCalendarState({ year: 2026, month: 0, today: '2026-01-01' })
+  assert.deepEqual(january.dayDetailsByDate['2026-01-04'].meanings.map(item => item.text), [
+    '这天是周末，按官方安排调成上班'
+  ])
+})
+
 test('day detail names record actions by date and keeps workday sentences', () => {
   const past = buildHomeCalendarState({
     year: 2026,
@@ -1457,7 +1491,7 @@ test('day detail names record actions by date and keeps workday sentences', () =
   const january = buildHomeCalendarState({ year: 2026, month: 0, today: '2026-01-01' })
   const workday = january.dayDetailsByDate['2026-01-04']
   assert.deepEqual(workday.meanings.map(item => [item.key, item.title, item.text]), [
-    ['workday', '调休上班', '官方调休上班日。']
+    ['workday', '调休上班', '这天是周末，按官方安排调成上班']
   ])
   assert.deepEqual(workday.actions, [])
 })
@@ -1491,7 +1525,7 @@ test('a future day explains why it cannot be recorded and keeps its prediction a
   assert.deepEqual(predicted.futureNotice, futureNotice)
 
   const holiday = state.dayDetailsByDate['2026-09-27']
-  assert.deepEqual(holiday.meanings.map(item => item.text), ['中秋。'])
+  assert.deepEqual(holiday.meanings.map(item => item.text), ['法定假日，按官方安排放假'])
   assert.deepEqual(holiday.actions, [])
   assert.deepEqual(holiday.futureNotice, futureNotice)
 

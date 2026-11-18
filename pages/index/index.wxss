@@ -1362,20 +1362,6 @@
   padding: 16rpx 18rpx;
   border-radius: var(--radius-md);
   background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-}
-.detail-meaning.today {
-  border-color: rgba(232,144,158,0.3);
-}
-.detail-meaning.period {
-  border-color: rgba(232,144,158,0.24);
-}
-.detail-meaning.memory {
-  border-color: rgba(240,196,192,0.24);
-}
-.detail-meaning.predict,
-.detail-meaning.holiday {
-  border-color: rgba(212,165,116,0.24);
 }
 .detail-meaning.predict .detail-meaning-title,
 .detail-meaning.holiday .detail-meaning-title {
@@ -1418,6 +1404,13 @@
   display: flex;
   flex-direction: column;
   gap: 8rpx;
+}
+.detail-arrow {
+  flex: 0 0 auto;
+  align-self: center;
+  font-size: 32rpx;
+  color: var(--text-secondary);
+  line-height: 1;
 }
 .detail-title {
   display: block;

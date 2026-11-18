@@ -152,6 +152,7 @@ test('day sheet record actions and details retain their visible and accessible b
   assert.match(wxml, /bindtap="onDayRecordTap"/)
   assert.doesNotMatch(wxml, /查看详情/)
   assert.doesNotMatch(wxml, /data-action="detail"/)
+  assert.doesNotMatch(wxml, /当天无记录|selectedDayDetail\.empty/)
   assert.match(wxml, /\{\{selectedDayDetail\.futureNotice\.title\}\}/)
   assert.match(wxml, /\{\{selectedDayDetail\.futureNotice\.text\}\}/)
   const detail = wxml.slice(wxml.indexOf("daySheetMode == 'detail'"), wxml.indexOf('compact-actions'))
