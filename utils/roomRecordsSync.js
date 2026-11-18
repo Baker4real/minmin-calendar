@@ -63,6 +63,7 @@ function createRoomRecordsSync() {
         synced: collections[collection].synced,
         pending: collections[collection].pendingRevision !== null
       }])),
+      roomStatus: listedRoom.roomStatus,
       roomPaired: listedRoom.roomStatus === 'paired',
       newRecordIds: newRecordIds.map(entry => ({ ...entry })),
       hasLoadedRecords,
