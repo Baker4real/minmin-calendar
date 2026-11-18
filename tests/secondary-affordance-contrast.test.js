@@ -156,7 +156,7 @@ const CASES = [
   { file: 'pages/period/period.wxss', selector: '.item-arrow', surfaces: [['app.wxss', '.premium-card']], note: '经期列表行箭头' },
   // issue #109：月份卡头「展开/收起」是文字型次级可点入口（不用 ›/⌄ 字形，见 DESIGN.md 登记）
   { file: 'pages/period/period.wxss', selector: '.month-toggle', surfaces: [['app.wxss', '.premium-card']], note: '欢乐时光月份卡展开/收起入口' },
-  { file: 'pages/memory/memory.wxss', selector: '.memory-arrow', surfaces: [['app.wxss', '.premium-card']], note: '欢乐时光列表行箭头' },
+  { file: 'pages/period/period.wxss', selector: '.memory-arrow', surfaces: [['app.wxss', '.premium-card']], note: '欢乐时光列表行箭头' },
   { file: 'pages/index/index.wxss', selector: '.sheet-action-arrow', surfaces: [['pages/index/index.wxss', '.day-action-sheet'], ['pages/index/index.wxss', '.sheet-action']], note: '弹层操作行箭头' },
   { file: 'pages/index/index.wxss', selector: '.sheet-close', surfaces: [['pages/index/index.wxss', '.day-action-sheet']], note: '弹层关闭按钮' },
   // issue #154：设置「使用说明」面板是玻璃卡，关闭键叠在卡面上
@@ -165,8 +165,7 @@ const CASES = [
   { file: 'pages/index/index.wxss', selector: '.nav-btn', surfaces: [['pages/index/index.wxss', '.home-sticky'], ['pages/index/index.wxss', '.month-nav']], note: '月份前后切换箭头' },
   { file: 'app.wxss', selector: '.nav-back', surfaces: [['app.wxss', '.nav-back-surface']], note: '导航返回箭头' },
   { file: 'pages/index/index.wxss', selector: '.month-title-caret', surfaces: [['pages/index/index.wxss', '.home-sticky'], ['pages/index/index.wxss', '.month-nav'], ['pages/index/index.wxss', '.month-title-trigger']], note: '月份选择器 caret' },
-  { file: 'pages/period/period.wxss', selector: '.empty-state', surfaces: [], note: '经期列表加载失败重试入口' },
-  { file: 'pages/memory/memory.wxss', selector: '.empty-state', surfaces: [], note: '欢乐时光加载失败重试入口' },
+  { file: 'pages/period/period.wxss', selector: '.empty-state', surfaces: [], note: '记录 tab 加载失败重试入口' },
   // 绑定页条目按收敛后的 Aurora 海军面验收（issue #104）：紫域画布/紫卡覆盖已删，
   // 卡片表面与其他页面同源——app 级 .premium-card（白玻璃 + 海军实底回退）
   { file: 'pages/bind/bind.wxss', selector: '.bound-code', surfaces: [['app.wxss', '.premium-card']], note: '绑定页房间码展示文本' },

@@ -6,7 +6,6 @@ const { readSource } = require('./sourceFiles')
 const WXSS_PATH = path.join(__dirname, '..', 'pages/index/index.wxss')
 const APP_WXSS_PATH = path.join(__dirname, '..', 'app.wxss')
 const PERIOD_WXSS_PATH = path.join(__dirname, '..', 'pages/period/period.wxss')
-const MEMORY_WXSS_PATH = path.join(__dirname, '..', 'pages/memory/memory.wxss')
 const APP_TOKENS = Object.fromEntries(
   [...readSource(APP_WXSS_PATH, 'utf8').matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/gi)]
     .map((match) => [`--${match[1]}`, match[2].trim()])
@@ -459,8 +458,9 @@ test('in-cell informational micro text stays at or above the 24rpx floor', () =>
 
 test('captions outside calendar cells stay at or above the 26rpx floor', () => {
   const wxss = readWxss()
+  const sharedNavbar = readSource(APP_WXSS_PATH, 'utf8')
   for (const selector of OUT_CELL_CAPTION_SELECTORS) {
-    const size = declarationRpx(ruleBody(wxss, selector), 'font-size')
+    const size = declarationRpx(ruleBody(selector === '.nav-tool' ? sharedNavbar : wxss, selector), 'font-size')
     assert.ok(
       size >= DESIGN_CAPTION_RPX,
       `${selector} font-size ${size}rpx is below the caption floor ${DESIGN_CAPTION_RPX}rpx`
@@ -482,7 +482,7 @@ test('tappable arrows reach the body-secondary contrast level', () => {
   // 列表页箭头与正文次级信息共用 --text-secondary
   for (const [file, selector] of [
     [PERIOD_WXSS_PATH, '.item-arrow'],
-    [MEMORY_WXSS_PATH, '.memory-arrow']
+    [PERIOD_WXSS_PATH, '.memory-arrow']
   ]) {
     const body = ruleBody(readSource(file, 'utf8'), selector)
     assert.match(body, /color:\s*var\(--text-secondary\)/, `${selector} should use --text-secondary`)

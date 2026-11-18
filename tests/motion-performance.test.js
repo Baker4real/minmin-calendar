@@ -267,12 +267,10 @@ const CONTINUOUS_ANIMATIONS = {
   auroraLavender: 'decorative',
   float: 'decorative',
   pulse: 'decorative',
-  spin: 'functional',
   syncDotPulse: 'functional',
-  skeletonPulse: 'functional',
-  loadingPulse: 'reduced-motion'
+  skeletonPulse: 'functional'
 }
-const RETIRED_ANIMATIONS = ['orbRotate', 'bounceIn', 'auroraPulse', 'orbFloat']
+const RETIRED_ANIMATIONS = ['orbRotate', 'bounceIn', 'auroraPulse', 'orbFloat', 'spin', 'loadingPulse']
 const DECORATIVE_CYCLE_SEC = [6, 12]
 
 // 共享极光标记里和每个类同在一个元素上的类。色团元素都带 aurora-bloom 和自己的色名类，
@@ -601,11 +599,11 @@ test('infinite animations stay inside the registered registry with slow decorati
   assert.deepEqual(violations, [])
 })
 
-test('retired second-layer / bounce animations and the month-change dim stay gone', () => {
+test('retired decoration, loading and month-change animations stay gone', () => {
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
     const masked = maskComments(readSource(file, 'utf8'))
-    for (const name of RETIRED_ANIMATIONS) {
+    for (const name of [...RETIRED_ANIMATIONS, 'loading-view', 'loading-spinner']) {
       assert.equal(masked.includes(name), false, `${relative} should not define or reference ${name}`)
     }
   }
@@ -724,18 +722,6 @@ test('every transition switches instantly under reduced motion', () => {
     }
   }
   assert.deepEqual(violations, [])
-})
-
-test('loading keeps an opacity-only pulse under reduced motion instead of going silent', () => {
-  const app = analyzeFile(readRepo('app.wxss'))
-  const replacements = parseAnimationShorthand(declsOf(app, '.loading-spinner', { reduced: true }).animation || '')
-  assert.ok(replacements.length > 0, 'the spinner is replaced, not silenced')
-  for (const { name, infinite } of replacements) {
-    assert.equal(infinite, true, `${name} keeps pulsing while loading`)
-    const props = app.keyframes[name]
-    assert.ok(props, `expected @keyframes ${name} in app.wxss`)
-    assert.deepEqual([...props], ['opacity'], `${name} must be opacity-only (movement-free)`)
-  }
 })
 
 // 微信逻辑层没有 matchMedia：有弹层的页面放一个探针，减弱动效下它变宽，tabBar 的隐藏和恢复据此不播动画

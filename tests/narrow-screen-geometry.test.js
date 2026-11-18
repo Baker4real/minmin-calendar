@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { readSource } = require('./sourceFiles')
@@ -24,7 +25,6 @@ const ALL_PAGES = [
 ]
 const NON_TAB_WXSS = [
   'pages/bind/bind.wxss',
-  'pages/memory/memory.wxss',
   'pages/memory/edit/edit.wxss',
   'pages/period/edit/edit.wxss'
 ]
@@ -36,6 +36,10 @@ const TAB_WXSS = [
 
 function readRepo(relativePath) {
   return readSource(path.join(repoRoot, relativePath), 'utf8')
+}
+
+function readRawRepo(relativePath) {
+  return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
 }
 
 function findDecls(rules, selector) {
@@ -934,7 +938,8 @@ test('sheets scroll within a bounded height and are never clipped by the mask', 
   // 图例/预测/月小结面板复用 .day-action-sheet 的 overflow-y，自身只收紧高度
   const infoVh = Number(/(\d+(?:\.\d+)?)vh/.exec(infoPanel['max-height'] || '0')[1])
   assert.ok(infoVh > 0 && infoVh < 100, '.calendar-info-panel needs a sub-viewport max-height')
-  assert.match(wxml, /class="day-action-sheet calendar-info-panel safe-bottom"/)
+  assert.match(wxml, /class="day-action-sheet calendar-info-panel"/)
+  assert.doesNotMatch(wxml, /class="[^"]*\bsafe-bottom\b/, 'home sheets use their own safe-area padding, not the overridden global class')
 
   // 父级不裁切：遮罩全屏 flex-end，无 overflow 裁切；页面入场只淡入（transform 会把 fixed 弹层拖进裁剪域）
   assert.ok(!/overflow\s*:\s*hidden/.test(mask.overflow || ''), 'sheet mask must not clip the sheet')
@@ -1163,6 +1168,25 @@ function loadSafeArea(wxMock) {
 }
 
 test('shared navbar is fixed, reserves the capsule, and content starts at the bar bottom', () => {
+  const sharedTemplate = readRawRepo('pages/shared/nav-bar.wxml')
+  assert.match(sharedTemplate, /<template name="sharedNavbar">/)
+  assert.match(sharedTemplate, /wx:if="\{\{variant === 'home'\}\}" class="nav-tool"[^>]*bindtap="openLegendSheet"/)
+  assert.match(sharedTemplate, /wx:elif="\{\{variant === 'back'\}\}" class="nav-back"[^>]*bindtap="goBack"/)
+  assert.match(sharedTemplate, /wx:else class="nav-placeholder"/)
+  assert.match(sharedTemplate, /wx:elif="\{\{title\}\}" class="nav-title">\{\{title\}\}<\/view>/)
+  assert.match(readRawRepo('app.wxss'), /@import '\.\/pages\/shared\/nav-bar\.wxss';/)
+
+  const expectedWiring = new Map([
+    ['pages/bind/bind', ['placeholder', "title: ''"]],
+    ['pages/index/index', ['home', "title: '美少女的日历'"]],
+    ['pages/memory/memory', ['placeholder', "title: '欢乐时光'"]],
+    ['pages/memory/edit/edit', ['back', 'title: pageTitle']],
+    ['pages/period/period', ['placeholder', "title: '记录'"]],
+    ['pages/period/edit/edit', ['back', 'title: pageTitle']],
+    ['pages/settings/settings', ['placeholder', "title: '设置'"]]
+  ])
+  assert.deepEqual([...expectedWiring.keys()].sort(), [...ALL_PAGES].sort())
+
   const rules = parseWxssRules(readRepo('app.wxss'))
   const nav = findDecls(rules, '.nav-bar')
   const safeTop = findDecls(rules, '.safe-top')
@@ -1182,31 +1206,19 @@ test('shared navbar is fixed, reserves the capsule, and content starts at the ba
   assert.match(safeTop['padding-top'], /var\(--nav-bar-height/)
 
   for (const pagePath of ALL_PAGES) {
+    const raw = readRawRepo(`${pagePath}.wxml`)
+    assert.equal(raw.split('<import src="/pages/shared/nav-bar.wxml" />').length - 1, 1, `${pagePath} imports the one navbar template`)
+    const calls = [...raw.matchAll(/<template is="sharedNavbar" data="\{\{([\s\S]*?)\}\}" \/>/g)]
+    assert.equal(calls.length, 1, `${pagePath} instantiates the navbar once`)
+    const [variant, title] = expectedWiring.get(pagePath)
+    assert.ok(calls[0][1].includes(`variant: '${variant}'`), `${pagePath} uses the ${variant} left variant`)
+    assert.ok(calls[0][1].includes(title), `${pagePath} passes its title binding`)
+
     const wxml = readRepo(`${pagePath}.wxml`)
     assert.match(wxml, /class="[^"]*\bnav-bar\b/, `${pagePath} must use the shared navbar`)
     assert.match(wxml, /--nav-bar-height:\s*\{\{navBarHeight\}\}px/, `${pagePath} must inject navbar height`)
     assert.match(wxml, /--capsule-right:\s*\{\{capsuleRight\}\}px/, `${pagePath} must inject the capsule slot`)
-    if (wxml.includes('class="nav-back"')) {
-      assert.match(
-        wxml,
-        /class="nav-bar header-gradient">\s*<view class="nav-back"/,
-        `${pagePath} back button must live in the navbar`
-      )
-    }
   }
-
-  const index = readRepo('pages/index/index.wxml')
-  assert.match(
-    index,
-    /class="nav-bar header-gradient">\s*<view class="nav-tool"[^>]*>图例<\/view>/,
-    'home puts the legend entry in the navbar left slot'
-  )
-  assert.doesNotMatch(index, /class="nav-placeholder"/)
-  assert.match(readRepo('pages/period/period.wxml'), /nav-title">记录</)
-  assert.match(readRepo('pages/settings/settings.wxml'), /nav-title">设置</)
-  assert.doesNotMatch(readRepo('pages/period/period.wxml'), /nav-back/)
-  assert.doesNotMatch(readRepo('pages/settings/settings.wxml'), /nav-back/)
-  assert.doesNotMatch(readRepo('pages/index/index.wxml'), /nav-back/)
 
   const design = readRepo('DESIGN.md')
   const geometry = design.slice(design.indexOf('窄屏几何与安全区'), design.indexOf('阴影登记'))
@@ -1223,7 +1235,7 @@ test('the sync pill takes the navbar title slot, clear of the sticky month title
   assert.ok(navStart !== -1 && navEnd !== -1, 'expected the home navbar ahead of the page states')
   assert.match(
     wxml.slice(navStart, navEnd),
-    /<view wx:if="\{\{syncStatusMounted\}\}" class="sync-pill [^"]*"[\s\S]*?<\/view>\s*<view wx:else class="nav-title">美少女的日历<\/view>/,
+    /<view wx:if="\{\{syncStatusMounted\}\}" class="sync-pill [^"]*"[\s\S]*?<\/view>\s*<view wx:elif="\{\{title\}\}" class="nav-title">\{\{title\}\}<\/view>/,
     'the mounted pill replaces the app title in the navbar'
   )
   assert.equal(wxml.split('class="sync-pill').length, 2, 'the navbar holds the only sync pill')
@@ -1244,7 +1256,7 @@ test('the sync pill takes the navbar title slot, clear of the sticky month title
   // 标题槽 = 视口 − 顶栏左内边距 − 工具钮 − 胶囊占位；胶囊 = 左右内边距 + 描边 + 圆点 + 间距 + 文案（caption，每字 1em）
   const pxToRpx = px => px * 750 / 320
   const slotRpx = 750 - rpxNumber(findDecls(appRules, '.nav-bar'), 'padding-left') -
-    rpxNumber(findDecls(rules, '.nav-tool'), 'min-width') - pxToRpx(94)
+    rpxNumber(findDecls(appRules, '.nav-tool'), 'min-width') - pxToRpx(94)
   const chromeRpx = 2 * parseFloat(horizontalPaddingTokens(pill)[0]) + 2 * pxToRpx(borderPx(pill)) +
     rpxNumber(findDecls(rules, '.sync-dot'), 'width') + rpxNumber(pill, 'gap')
   assert.equal(findDecls(rules, '.sync-text')['font-size'], 'var(--font-size-caption)')

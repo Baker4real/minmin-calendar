@@ -69,7 +69,12 @@ function declarationOf(relativePath, selector, property) {
 }
 
 test('non-interactive titles use the neutral text color, not rose', () => {
-  // 导航标题：每个渲染 nav-title 的页面都在页面侧覆盖为中性（共享基类在 app.wxss）
+  // 导航标题只有共享基类的一处中性白；六个有标题的页面不再各自覆盖。
+  assert.equal(
+    declarationOf('pages/shared/nav-bar.wxss', '.nav-title', 'color'),
+    NEUTRAL_TITLE_COLOR,
+    'the shared nav title must be neutral'
+  )
   const NAV_TITLE_PAGES = [
     'pages/index/index.wxss',
     'pages/period/period.wxss',
@@ -79,11 +84,7 @@ test('non-interactive titles use the neutral text color, not rose', () => {
     'pages/settings/settings.wxss'
   ]
   for (const file of NAV_TITLE_PAGES) {
-    assert.equal(
-      declarationOf(file, '.nav-title', 'color'),
-      NEUTRAL_TITLE_COLOR,
-      `${file} nav title must be neutral`
-    )
+    assert.equal(wxssRuleBody(file, '.nav-title'), null, `${file} must not override the shared nav title`)
   }
 
   // 未绑定标题、绑定页大标题、选月年份数字
@@ -96,7 +97,7 @@ test('non-interactive titles use the neutral text color, not rose', () => {
   )
 
   // 加载失败标题：无独立颜色声明，继承 .empty-state 的中性白（不是玫瑰）
-  for (const file of ['pages/period/period.wxss', 'pages/memory/memory.wxss']) {
+  for (const file of ['pages/period/period.wxss']) {
     assert.equal(wxssRuleBody(file, '.load-failed-text'), null,
       `${file} load-failed title must not override the neutral empty-state color`)
     const emptyText = layerPaint(declarationOf(file, '.empty-state', 'color'))
@@ -303,7 +304,6 @@ test('edit-form field errors reuse the one warning red and clear 4.5:1 on the fo
 
 test('the light heart stays the happy-time color and uses text glow on memory rows', () => {
   assert.equal(wxssRuleBody('pages/settings/settings.wxss', '.menu-heart'), null)
-  assert.equal(declarationOf('pages/memory/memory.wxss', '.memory-heart', 'color'), LIGHT_HEART)
   assert.equal(declarationOf('pages/period/period.wxss', '.memory-heart', 'color'), LIGHT_HEART)
   assert.equal(declarationOf('pages/period/period.wxss', '.memory-heart', 'text-shadow'), '0 0 10px rgba(240,196,192,0.3)')
   assert.equal(declarationOf('pages/period/period.wxss', '.memory-heart', 'filter'), undefined)

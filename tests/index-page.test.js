@@ -110,6 +110,18 @@ test('homepage stacks navbar legend, sticky month and status, calendar, record a
   assert.doesNotMatch(wxml, /任意一天/)
 })
 
+test('day-cell template reads only its render fields, not projection-only metadata', () => {
+  const wxml = readIndexWxml()
+  const start = wxml.indexOf('class="day-cell {{item.')
+  const end = wxml.indexOf('<!-- 首页记录入口', start)
+  assert.ok(start >= 0 && end > start)
+  const fields = [...new Set([...wxml.slice(start, end).matchAll(/\bitem\.([A-Za-z][A-Za-z0-9]*)/g)].map(match => match[1]))].sort()
+  assert.deepEqual(fields, [
+    'ariaLabel', 'date', 'day', 'holidayName', 'isEmpty', 'isHoliday', 'isMemory', 'isPeriod',
+    'isPredict', 'isToday', 'isWorkday', 'lunarCellText', 'periodOpenEnd', 'periodSegment'
+  ])
+})
+
 test('empty-state guide text meets the secondary-text contrast floor on its composed surface', () => {
   const { contrastRatio } = require('./contrast')
   const appWxss = readSource(path.join(repoRoot, 'app.wxss'), 'utf8')
@@ -224,12 +236,12 @@ test('navbar legend entry opens the legend directly and stays distinct from the 
   assert.doesNotMatch(monthNav, /openMonthMenu|month-menu-trigger|…/)
   assert.match(monthNav, /bindtap="prevMonth"/)
   assert.match(monthNav, /bindtap="nextMonth"/)
-  const wxss = readIndexWxss()
+  const wxss = readSource(path.join(repoRoot, 'pages/shared/nav-bar.wxss'), 'utf8')
   const tool = ruleBody(wxss, '.nav-tool')
   assert.match(tool, /height:\s*88rpx/)
   assert.match(tool, /border-radius:\s*var\(--radius-md\)/)
   assert.doesNotMatch(tool, /border-radius:\s*var\(--radius-circle\)/)
-  assert.match(ruleBody(wxss, '.nav-btn'), /border-radius:\s*var\(--radius-circle\)/)
+  assert.match(ruleBody(readIndexWxss(), '.nav-btn'), /border-radius:\s*var\(--radius-circle\)/)
 })
 
 test('homepage retires the tools menu and keeps direct prediction, recap and help destinations', () => {

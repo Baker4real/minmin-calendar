@@ -1,10 +1,9 @@
 <import src="/pages/shared/confirmation-sheet.wxml" />
+<import src="/pages/shared/nav-bar.wxml" />
 <view class="page safe-top {{pageObscured ? 'page-obscured' : ''}} {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
   <include src="/pages/shared/aurora.wxml" />
   <wxs module="sheetDrag" src="../../utils/sheetDrag.wxs"></wxs>
-  <view class="nav-bar header-gradient" aria-hidden="{{pageObscured}}">
-    <view class="nav-placeholder"></view>
-  </view>
+  <template is="sharedNavbar" data="{{variant: 'placeholder', title: '', pageObscured: pageObscured}}" />
   <view class="content" aria-hidden="{{pageObscured}}">
     <!-- issue #167：刚建好房间时 hero-bloom 让品牌心向外漾开一次 -->
     <view class="hero {{justCreated ? 'hero-bloom' : ''}}">

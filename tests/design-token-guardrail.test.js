@@ -159,12 +159,10 @@ const PAGE_RHYTHM_SITES = [
   ['gutter', 'pages/index/index.wxss', '.content', 'padding', 'x'],
   ['gutter', 'pages/index/index.wxss', '.home-sticky', 'padding', 'x'],
   ['gutter', 'pages/period/period.wxss', '.content', 'padding', 'x'],
-  ['gutter', 'pages/memory/memory.wxss', '.content', 'padding', 'x'],
   ['gutter', 'pages/settings/settings.wxss', '.content', 'padding', 'x'],
   ['gutter', 'pages/period/edit/edit.wxss', '.content', 'padding', 'x'],
   ['gutter', 'pages/memory/edit/edit.wxss', '.content', 'padding', 'x'],
   ['firstBlock', 'pages/period/period.wxss', '.segment-control', 'margin', 'top'],
-  ['firstBlock', 'pages/memory/memory.wxss', '.btn-premium', 'margin', 'top'],
   ['firstBlock', 'pages/settings/settings.wxss', '.content', 'padding', 'top'],
   ['firstBlock', 'pages/period/edit/edit.wxss', '.content', 'padding', 'top'],
   ['firstBlock', 'pages/memory/edit/edit.wxss', '.content', 'padding', 'top'],
@@ -172,7 +170,6 @@ const PAGE_RHYTHM_SITES = [
   ['blockGap', 'pages/period/period.wxss', '.cycle-card', 'margin', 'bottom'],
   ['blockGap', 'pages/period/period.wxss', '.btn-premium', 'margin', 'bottom'],
   ['blockGap', 'pages/period/period.wxss', '.month-card', 'margin', 'bottom'],
-  ['blockGap', 'pages/memory/memory.wxss', '.btn-premium', 'margin', 'bottom'],
   ['blockGap', 'pages/period/edit/edit.wxss', '.btns', 'margin', 'top'],
   ['blockGap', 'pages/memory/edit/edit.wxss', '.btns', 'margin', 'top'],
   ['rowInset', 'pages/period/period.wxss', '.list-item', 'padding', 'x'],
@@ -180,7 +177,6 @@ const PAGE_RHYTHM_SITES = [
   ['rowInset', 'pages/period/period.wxss', '.month-header', 'padding', 'x'],
   // 刷新失败重试行站在列表行的位置上（经期与欢乐时光两段同一条行），按列表行的内边距
   ['rowInset', 'pages/period/period.wxss', '.list-retry', 'padding', 'x'],
-  ['rowInset', 'pages/memory/memory.wxss', '.list-item', 'padding', 'x'],
   ['rowInset', 'pages/settings/settings.wxss', '.menu-item', 'padding', 'x'],
   ['rowInset', 'pages/settings/settings.wxss', '.density-menu-desc', 'padding', 'x'],
   ['rowInset', 'pages/settings/settings.wxss', '.density-control', 'margin', 'x'],
@@ -468,6 +464,8 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['app.wxss', '.aurora-bloom-lavender'],
     ['app.wxss', '.header-gradient::before'],
     ['app.wxss', '.header-gradient::after'],
+    ['pages/shared/nav-bar.wxss', '.header-gradient::before'],
+    ['pages/shared/nav-bar.wxss', '.header-gradient::after'],
     ['app.wxss', '.premium-card::after'],
     ['pages/index/index.wxss', '.month-nav::before'],
     ['pages/index/index.wxss', '.calendar-jump-sheet'],
@@ -482,6 +480,7 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     // 平涂 tint 图像层叠在海军回退上。不是装饰渐变，也不是 CTA 填充。
     ['app.wxss', '.premium-card'],
     ['app.wxss', '.header-gradient'],
+    ['pages/shared/nav-bar.wxss', '.header-gradient'],
     ['pages/index/index.wxss', '.sync-pill'],
     ['pages/index/index.wxss', '.month-nav'],
     ['pages/index/index.wxss', '.nav-btn:active'],
@@ -497,8 +496,6 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/period/period.wxss', '.empty-state'],
     ['pages/period/edit/edit.wxss', '.form-picker'],
     ['pages/period/edit/edit.wxss', '.form-input'],
-    ['pages/memory/memory.wxss', '.skeleton-card'],
-    ['pages/memory/memory.wxss', '.empty-state'],
     ['pages/memory/edit/edit.wxss', '.form-picker'],
     ['pages/memory/edit/edit.wxss', '.form-input']
   ].map(([file, selector]) => `${file}::${selector}`)
@@ -508,8 +505,7 @@ const SOLID_ROSE_FILL_ALLOWLIST = new Set(
   [
     // 状态点/日历标记/卡片 rail：装饰性玫瑰实色小块，非可操作填充
     ['pages/index/index.wxss', '.sync-pill.syncing .sync-dot'],
-    ['pages/index/index.wxss', '.detail-rail'],
-    ['pages/memory/memory.wxss', '.list-item::before']
+    ['pages/index/index.wxss', '.detail-rail']
   ].map(([file, selector]) => `${file}::${selector}`)
 )
 
@@ -776,7 +772,7 @@ test('sheet body copy and date ranges keep word integrity with anywhere fallback
   }
 })
 
-// issue #146：辉光只留在主按钮和复制键上。月份导航、加载圈、同步点不发光；
+// issue #146：辉光只留在主按钮和复制键上。月份导航、同步点不发光；
 // 绑定页爱心只留一层字阴影。提醒和详情的彩色 rail 继续承载状态色。
 // issue #166：主按钮和复制键的玫瑰光画在 ::before 柔光层上，按钮本身不带阴影（按压契约见 motion-performance）。
 test('glow stays on primary buttons and the copy control', () => {
@@ -792,7 +788,6 @@ test('glow stays on primary buttons and the copy control', () => {
 
   const monthNav = declsFor('pages/index/index.wxss', '.month-nav')['box-shadow'] || ''
   assert.doesNotMatch(monthNav, /232,\s*144,\s*158/)
-  assert.equal(declsFor('app.wxss', '.loading-spinner')['box-shadow'], undefined)
   assert.equal(declsFor('pages/index/index.wxss', '.sync-dot')['box-shadow'], undefined)
 
   const heart = declsFor('pages/bind/bind.wxss', '.hero-icon')['text-shadow']
@@ -828,7 +823,6 @@ const REGISTERED_GLOWS = [
   // 情感装饰
   'pages/bind/bind.wxss .hero-icon',
   'pages/period/period.wxss .memory-heart',
-  'pages/memory/memory.wxss .memory-heart',
   'pages/period/period.wxss .cycle-card'
 ]
 const ELEVATION_RGB = new Set(['0,0,0', '10,14,39', '255,255,255'])

@@ -166,9 +166,11 @@ function memoryEditAriaLabel({ dateText, note, authorLabel }) {
   return ['编辑欢乐时光', dateText, recordNoteSummary(note), authorLabel].filter(Boolean).join('，')
 }
 
-function decoratePeriod(period, { today } = {}) {
+function decoratePeriod(period, { today, projectedRange } = {}) {
   const status = getPeriodStatus(period)
-  const range = status === 'known-end' ? projectPeriodRange(period, today) : null
+  const range = status === 'known-end'
+    ? (projectedRange === undefined ? projectPeriodRange(period, today) : projectedRange)
+    : null
   const symptoms = normalizeSymptoms(period.symptoms)
   const symptomLabels = symptoms.map(value => SYMPTOM_LABELS[value])
   const flowLabel = FLOW_LABELS[period.flow] || ''

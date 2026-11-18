@@ -60,7 +60,7 @@ test('bind bound screen puts the copy button in the same row as the room code, a
     'the bound card no longer offers unbind; it lives on the settings room card'
   )
 
-  const unboundCard = wxml.slice(wxml.indexOf('wx:else') + 'wx:else'.length)
+  const unboundCard = wxml.slice(wxml.indexOf('wx:else', wxml.indexOf('wx:if="{{bound}}"')) + 'wx:else'.length)
   assert.doesNotMatch(
     unboundCard,
     /class="copy-btn"/,

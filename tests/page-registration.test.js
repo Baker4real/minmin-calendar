@@ -17,9 +17,10 @@ test('period record tab has no back button and the standalone memory page stays 
     'the standalone memory page stays registered as a compat route'
   )
 
-  // tab 页不画返回键：导航模型与其他 tab 一致
-  const wxml = readSource(path.join(repoRoot, 'pages/period/period.wxml'), 'utf8')
-  assert.equal(wxml.includes('nav-back'), false, 'record tab must not paint a back button')
+  // tab 页选择共享顶栏的占位变体，不画返回键：导航模型与其他 tab 一致
+  const wxml = fs.readFileSync(path.join(repoRoot, 'pages/period/period.wxml'), 'utf8')
+  assert.match(wxml, /variant: 'placeholder'/)
+  assert.doesNotMatch(wxml, /variant: 'back'/)
 })
 
 test('record tab segments period and memory lists behind one radio group', () => {
@@ -41,8 +42,10 @@ test('record tab segments period and memory lists behind one radio group', () =>
   assert.match(wxml, /memoryLoading/)
   assert.match(wxml, /memoryHasLoaded/)
 
-  // 导航标题不再与分段重名
-  assert.match(wxml, /nav-title">记录</)
+  // 导航标题通过共享模板传入，不与分段控件重复维护
+  const raw = fs.readFileSync(path.join(repoRoot, 'pages/period/period.wxml'), 'utf8')
+  assert.match(raw, /title: '记录'/)
+  assert.match(wxml, /class="nav-title">\{\{title\}\}</)
 })
 
 // 首页加载与同步行为统一由 home-sync.test.js 经共享平台 harness 覆盖（#171）。

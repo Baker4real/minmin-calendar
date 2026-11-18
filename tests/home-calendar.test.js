@@ -107,6 +107,28 @@ test('cold display submits only skeleton geometry until one whole-month frame re
   assert.equal(reveal.calendarRowHeightPx, skeletonRowHeight, 'the skeleton used the revealed month geometry')
 })
 
+test('whole-month commits include only fields referenced by the day-cell template', async t => {
+  const app = homeApp(t, { periods: [period('p1', '2026-06-01', '2026-06-03')], memories: [memory('m1', '2026-06-02', '散步')] })
+  const home = await launch(app)
+  const templateStart = wxml.indexOf('class="day-cell {{item.')
+  const templateEnd = wxml.indexOf('<!-- 首页记录入口', templateStart)
+  assert.ok(templateStart >= 0 && templateEnd > templateStart)
+  const templateFields = new Set([...wxml.slice(templateStart, templateEnd).matchAll(/\bitem\.([A-Za-z][A-Za-z0-9]*)/g)].map(match => match[1]))
+  assert.ok(templateFields.has('periodOpenEnd'))
+
+  function assertTemplateOnly(days) {
+    assert.ok(days.some(day => !day.isEmpty))
+    for (const day of days) {
+      for (const key of Object.keys(day)) assert.ok(templateFields.has(key), `unexpected day-cell field: ${key}`)
+    }
+  }
+
+  assertTemplateOnly(app.rendered(home).days)
+  assertTemplateOnly(home.setDataCalls.find(patch => 'days' in patch).days)
+  await tap(app, home, 'nextMonth')
+  assertTemplateOnly(home.setDataCalls.filter(patch => 'days' in patch).at(-1).days)
+})
+
 test('first show measures the viewport once and later commits reuse it while sheets are open', async t => {
   const app = homeApp(t, { roomStatus: 'paired' })
   await launch(app) // Warm safe-area caches; the next Home isolates calendar viewport reads.
@@ -170,6 +192,32 @@ test('navbar legend button and one-time partner welcome both open the legend dir
   assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-open')
   assert.equal(home.data.toolsMenuVisible, undefined)
   assert.equal(home.data.infoSheetHandoff, undefined)
+})
+
+test('legend entries and band samples stay in initial data instead of calendar commits', async t => {
+  const app = homeApp(t, { roomStatus: 'paired' })
+  const home = await launch(app)
+  assert.equal(home.data.legendItems.length, 6)
+  assert.deepEqual(home.data.periodBandSample, {
+    cellClass: 'period period-single',
+    parts: [{ kind: 'band', className: 'period-band', text: '' }]
+  })
+
+  function assertNoConstantResubmission() {
+    for (const patch of home.setDataCalls) {
+      assert.equal(Object.hasOwn(patch, 'legendItems'), false)
+      assert.equal(Object.hasOwn(patch, 'periodBandSample'), false)
+    }
+  }
+
+  assertNoConstantResubmission()
+  await tap(app, home, 'nextMonth')
+  assert.equal(home.setDataCalls.filter(patch => 'days' in patch).length, 2)
+  assertNoConstantResubmission()
+  await tap(app, home, 'openLegendSheet')
+  assert.equal(sheet(app, home, 'infoSheet').name, '日历图例')
+  assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-open')
+  assertNoConstantResubmission()
 })
 
 // #195: a record change reaches Home only from a confirmed save or delete in a real editor opened from
@@ -366,7 +414,7 @@ for (const scenario of ownershipScreens) {
     assert.equal(attr('quick-btn', 'aria-label', data), scenario.quick)
     const item = data.days.find(day => day.date === scenario.date)
     assert.ok(attr('day-cell', 'aria-label', { ...data, item }).endsWith(scenario.aria))
-    assert.equal(item.isUnknownEndPeriod, false)
+    assert.equal(Object.hasOwn(item, 'isUnknownEndPeriod'), false)
     assert.equal(data.monthSummaryLine, scenario.recap)
     await tap(app, home, 'openMonthlyRecap')
     assert.equal(app.rendered(home).monthlyRecap.summaryLine, scenario.recap)

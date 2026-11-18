@@ -236,7 +236,6 @@ const PAGE_CAPTION_MATRIX = {
   [SETTINGS_WXSS]: ['.settings-group-title', '.room-code-label', '.copy-btn', '.density-option'],
   'pages/period/period.wxss': ['.card-label', '.cycle-label', '.item-note', '.item-tag', '.item-duration', '.memory-note', '.segment-option'],
   [PERIOD_EDIT_WXSS]: ['.form-label', '.form-hint', '.symptom-group-label', '.flow-chip', '.symptom-chip'],
-  'pages/memory/memory.wxss': ['.memory-note'],
   'pages/memory/edit/edit.wxss': ['.form-label']
 }
 

@@ -31,6 +31,7 @@ const FONT_ROLE_TOKENS = {
 // display = 展示型大数字/大字，单点登记。新增例外必须在此登记 file + selector + 当前值，登记即评审。
 const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'app.wxss', selector: '.nav-back', kind: 'glyph', value: '46rpx' },
+  { file: 'pages/shared/nav-bar.wxss', selector: '.nav-back', kind: 'glyph', value: '46rpx' },
   { file: 'pages/index/index.wxss', selector: '.month-title-caret', kind: 'glyph', value: '24rpx' },
   { file: 'pages/index/index.wxss', selector: '.nav-btn', kind: 'glyph', value: '42rpx' },
   { file: 'pages/index/index.wxss', selector: '.quick-icon', kind: 'glyph', value: '32rpx' },
@@ -46,8 +47,6 @@ const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'pages/period/period.wxss', selector: '.memory-heart', kind: 'glyph', value: '36rpx' },
   { file: 'pages/period/period.wxss', selector: '.memory-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/period/edit/edit.wxss', selector: '.form-picker-arrow', kind: 'glyph', value: '32rpx' },
-  { file: 'pages/memory/memory.wxss', selector: '.memory-heart', kind: 'glyph', value: '36rpx' },
-  { file: 'pages/memory/memory.wxss', selector: '.memory-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/memory/edit/edit.wxss', selector: '.form-picker-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-icon', kind: 'glyph', value: '120rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-title', kind: 'display', value: '48rpx' },
@@ -191,7 +190,7 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/index/index.wxss', '.home-status-countdown', 'assist'],
   ['pages/index/index.wxss', '.month-summary-text', 'assist'],
   ['pages/index/index.wxss', '.back-today', 'control'],
-  ['pages/index/index.wxss', '.nav-tool', 'control'],
+  ['pages/shared/nav-bar.wxss', '.nav-tool', 'control'],
   ['pages/index/index.wxss', '.quick-text', 'control'],
   ['pages/index/index.wxss', '.empty-guide-text', 'assist'],
   ['pages/index/index.wxss', '.no-room-desc', 'assist'],
@@ -250,9 +249,6 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/period/edit/edit.wxss', '.symptom-group-label', 'assist'],
   ['pages/period/edit/edit.wxss', '.flow-chip', 'control'],
   ['pages/period/edit/edit.wxss', '.symptom-chip', 'control'],
-  ['pages/memory/memory.wxss', '.memory-date', 'body'],
-  ['pages/memory/memory.wxss', '.memory-note', 'assist'],
-  ['pages/memory/memory.wxss', '.empty-state', 'body'],
   ['pages/memory/edit/edit.wxss', '.form-label', 'assist'],
   ['pages/memory/edit/edit.wxss', '.form-picker', 'body'],
   ['pages/memory/edit/edit.wxss', '.form-input', 'body']
@@ -278,7 +274,6 @@ const TABULAR_NUMERIC = [
   ['pages/period/period.wxss', '.item-date'],
   ['pages/period/period.wxss', '.item-duration'],
   ['pages/period/period.wxss', '.month-header-text'],
-  ['pages/memory/memory.wxss', '.memory-date'],
   ['pages/settings/settings.wxss', '.room-code-value'],
   ['pages/bind/bind.wxss', '.bound-code']
 ]
@@ -312,8 +307,7 @@ const BODY_LINE_HEIGHT = [
   ['pages/index/index.wxss', '.recap-main'],
   ['pages/index/index.wxss', '.recap-highlight'],
   ['pages/index/index.wxss', '.detail-main'],
-  ['pages/period/period.wxss', '.empty-state'],
-  ['pages/memory/memory.wxss', '.empty-state']
+  ['pages/period/period.wxss', '.empty-state']
 ]
 
 function ruleMap(relative) {

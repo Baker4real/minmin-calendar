@@ -67,6 +67,10 @@ Page(withPageVisibility({
     this._editSession.discardDraft()
   },
 
+  openStartDateOwner() {
+    return this._editSession.openStartDateOwner()
+  },
+
   goBack() {
     wx.navigateBack()
   },
