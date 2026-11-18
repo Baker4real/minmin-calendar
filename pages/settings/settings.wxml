@@ -87,7 +87,7 @@
     </view>
   </view>
 
-  <template is="sharedBottomSheet" data="{{sheetId: 'help', sheetMounted: helpMounted, sheetPhase: helpPhase, sheetHostClass: '', sheetPanelClass: 'help-sheet', sheetName: '使用说明', sheetTitle: '使用说明', sheetSubtitle: '', maskHandler: 'closeHelp', closeHandler: 'closeHelp', bodyTemplate: 'settingsHelpSheetBody', sheetDragClear: helpDragClear, body: {}}}" />
-  <template is="sharedBottomSheet" data="{{sheetId: 'confirmation', sheetMounted: confirmationMounted, sheetPhase: confirmationPhase, sheetHostClass: '', sheetPanelClass: 'confirmation-panel', sheetName: confirmationName, sheetTitle: confirmationTitle, sheetSubtitle: '', maskHandler: 'onConfirmationMask', closeHandler: 'onConfirmationClose', bodyTemplate: 'confirmationSheetBody', sheetDragClear: confirmationDragClear, body: {confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions}}}" />
+  <template is="sharedBottomSheet" data="{{sheetId: 'help', sheetMounted: helpMounted, sheetPhase: helpPhase, sheetHostClass: '', sheetPanelClass: 'help-sheet', sheetName: '使用说明', sheetTitle: '使用说明', sheetSubtitle: '', maskHandler: 'closeHelp', closeHandler: 'closeHelp', bodyTemplate: 'settingsHelpSheetBody', sheetDragClear: helpDragClear}}" />
+  <template is="sharedBottomSheet" data="{{sheetId: 'confirmation', sheetMounted: confirmationMounted, sheetPhase: confirmationPhase, sheetHostClass: '', sheetPanelClass: 'confirmation-panel', sheetName: confirmationName, sheetTitle: confirmationTitle, sheetSubtitle: '', maskHandler: 'onConfirmationMask', closeHandler: 'onConfirmationClose', bodyTemplate: 'confirmationSheetBody', sheetDragClear: confirmationDragClear, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions}}" />
   <template is="sharedSheetPage" data="{{sheetExitGuard: sheetExitGuard}}" />
 </view>

@@ -14,7 +14,7 @@
           </view>
         </view>
         <view class="sheet-body">
-          <template is="{{bodyTemplate}}" data="{{...body}}" />
+          <template is="{{bodyTemplate}}" data="{{year: year, month: month, jumpYear: jumpYear, jumpMonth: jumpMonth, jumpYearAtMin: jumpYearAtMin, jumpYearAtMax: jumpYearAtMax, jumpMonths: jumpMonths, selectedDayDetail: selectedDayDetail, daySheetMode: daySheetMode, dayDetailFade: dayDetailFade, periodBandSample: periodBandSample, calendarDensity: calendarDensity, infoSheetMode: infoSheetMode, predictionExplanation: predictionExplanation, monthlyRecap: monthlyRecap, legendItems: legendItems, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions}}" />
         </view>
       </view>
     </view>

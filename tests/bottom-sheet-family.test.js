@@ -62,3 +62,22 @@ test('settings help adopts home sheet geometry while month and day keep their vi
   assert.match(shared.background, /rgba\(232,144,158,0\.12\)/)
   assert.match(shared.background, /rgba\(18,22,61,0\.94\)/)
 })
+
+test('shared bottom sheet calls keep template data flat for the WXML compiler', () => {
+  for (const [file] of pages) {
+    const raw = fs.readFileSync(path.join(repoRoot, file), 'utf8')
+    const invocations = wxmlOpeningTags(raw).filter(tag => tag.tag === 'template' && tag.attrs.is === 'sharedBottomSheet')
+    for (const tag of invocations) {
+      assert.doesNotMatch(tag.attrs.data || '', /\bbody\s*:\s*\{/, `${file} must not nest an object literal in template data`)
+    }
+  }
+
+  const shared = fs.readFileSync(path.join(repoRoot, 'pages/shared/confirmation-sheet.wxml'), 'utf8')
+  const forwarded = [
+    'year', 'month', 'jumpYear', 'jumpMonth', 'jumpYearAtMin', 'jumpYearAtMax', 'jumpMonths',
+    'selectedDayDetail', 'daySheetMode', 'dayDetailFade', 'periodBandSample', 'calendarDensity',
+    'infoSheetMode', 'predictionExplanation', 'monthlyRecap', 'legendItems',
+    'confirmationDateText', 'confirmationContent', 'confirmationActions'
+  ]
+  for (const field of forwarded) assert.ok(shared.includes(`${field}: ${field}`), `${field} is forwarded to the selected body template`)
+})
