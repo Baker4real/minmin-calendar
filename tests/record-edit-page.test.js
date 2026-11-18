@@ -316,6 +316,78 @@ test('period: errors stay beside their own dates, hide with the field and retain
   assert.equal(app.storage['recordDraft:periods:p1'], undefined)
 })
 
+test('period: new start date shows its owning period inline only while covered', async (t) => {
+  const app = setup(t)
+  const existing = { _id: 'covered', startDate: '2026-09-01', endDate: '2026-09-05', status: 'known-end' }
+  cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
+  const { page } = await openEditor(app, period, { startDate: '2026-09-03' })
+  assert.equal(page.data.startDateOwnerText, '这一天已在 9月1日 开始的那次经期里')
+
+  const template = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
+  const startField = template.slice(template.indexOf('id="field-startDate"'), template.indexOf('id="field-endDate"'))
+  assert.match(startField, /<view wx:if="\{\{startDateOwnerText\}\}" class="form-hint start-date-owner">[\s\S]*\{\{startDateOwnerText\}\}/)
+
+  await app.dispatch(page, 'onStartChange', value('2026-09-06'))
+  assert.equal(page.data.startDateOwnerText, '')
+  await app.dispatch(page, 'onStartChange', value('2026-09-04'))
+  assert.equal(page.data.startDateOwnerText, '这一天已在 9月1日 开始的那次经期里')
+
+  app.wx.navigateTo({ url: editUrl(period, { id: existing._id, ...existing }) })
+  await app.settle()
+  assert.equal(app.currentPage.data.isEdit, true)
+  assert.equal(app.currentPage.data.startDateOwnerText, '')
+})
+
+test('period: inline owner uses the existing cross-year display date', async (t) => {
+  const app = setup(t)
+  const existing = { _id: 'cross-year', startDate: '2025-12-28', endDate: '2026-01-03', status: 'known-end' }
+  cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
+  const { page } = await openEditor(app, period, { startDate: '2026-01-02' })
+  assert.equal(page.data.startDateOwnerText, '这一天已在 2025年12月28日 开始的那次经期里')
+})
+
+test('period: opening the inline owner matches editing that owner and preserves the new draft', async (t) => {
+  const app = setup(t)
+  const existing = { _id: 'covered', startDate: '2026-09-01', endDate: '2026-09-05', status: 'known-end', createdByMe: false }
+  cloudRoute(app, period, 'list').reply({ code: 0, data: [existing], roomStatus: 'paired' })
+  const { page } = await openEditor(app, period, { startDate: '2026-09-03' })
+  await app.dispatch(page, 'onEndChange', value('2026-09-04'))
+  await app.dispatch(page, 'onNoteInput', value('保留新建草稿'))
+
+  const template = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
+  const openAction = wxmlOpeningTags(template).find(tag => tag.attrs.bindtap === 'openStartDateOwner')
+  assert.ok(openAction, 'the inline owner exposes an open action')
+  assert.equal(openAction.attrs['aria-role'], 'button')
+  assert.equal(openAction.attrs['aria-label'], '打开那条')
+  assert.equal(openAction.attrs['hover-class'], 'start-date-owner-action-hover')
+  assert.match(template, /bindtap="openStartDateOwner"[^>]*>打开那条<\/text>/)
+
+  await app.dispatch(page, 'openStartDateOwner')
+  await app.settle()
+  const inlineUrl = app.navigation.at(-1).url
+  assert.notEqual(app.currentPage, page)
+  assert.equal(app.currentPage.data.id, existing._id)
+  assert.equal(app.currentPage.data.isEdit, true)
+  assert.equal(app.currentPage.data.authorLabel, 'TA 记的')
+  assert.deepEqual(JSON.parse(app.storage[draftKey(period)]), {
+    startDate: '2026-09-03', endDate: '2026-09-04', status: 'known-end', note: '保留新建草稿', flow: '', symptoms: []
+  })
+
+  await app.dispatch(app.currentPage, 'goBack')
+  await app.settle()
+  assert.equal(app.currentPage, page)
+  assert.equal(page.data.note, '保留新建草稿')
+  const saving = app.dispatch(page, 'save')
+  await app.settle()
+  assert.equal(page.data.confirmationTitle, '这一天已有经期')
+  await app.dispatch(page, 'onConfirmationAction', dataset({ action: 'edit' }))
+  await app.advance(200)
+  await saving
+  await app.settle()
+  assert.equal(app.navigation.at(-1).url, inlineUrl, 'inline and confirmation actions build the same destination')
+  assert.equal(app.currentPage.data.id, existing._id)
+})
+
 for (const choice of [
   { action: 'edit', name: 'edit opens the real existing editor and preserves the new draft' },
   { action: 'create', name: 'create saves the new record' },

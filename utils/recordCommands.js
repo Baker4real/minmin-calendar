@@ -68,8 +68,12 @@ const EDIT_KINDS = {
         endDate: state.status === 'known-end' ? state.endDate : '',
         periods
       })
+      const owner = state.isEdit ? null : periodCoverage.getPeriodOnDate(periods, state.startDate, today)
       return {
         startDateLabel: util.formatDisplayDate(state.startDate, { today }),
+        startDateOwnerText: owner
+          ? `这一天已在 ${util.formatDisplayDate(owner.record.startDate, { today })} 开始的那次经期里`
+          : '',
         endDateLabel: util.formatDisplayDate(state.endDate, { today }),
         selectedSymptoms: Object.fromEntries(state.symptoms.map(value => [value, true])),
         statusHint: cycle.periodStatusHint(state.status),
@@ -215,6 +219,10 @@ function openRecordEditSession({ kind, route, render, confirm }) {
     })
     if (choice === 'create') return 'save'
     if (choice !== 'edit') return { kind: 'cancelled' }
+    return openPeriodOwner(owner)
+  }
+
+  function openPeriodOwner(owner) {
     persistDraft()
     const authorLabel = cycle.recordAuthorLabel(owner.record, { paired: roomRecordsSync.readCurrentRoom().roomPaired })
     wx.navigateTo({ url: recordEditRoute.buildPeriodEditUrl(authorLabel ? { ...owner.record, authorLabel } : owner.record) })
@@ -261,6 +269,12 @@ function openRecordEditSession({ kind, route, render, confirm }) {
         ...update,
         fieldErrors: recordFieldErrors.retainShownFieldErrors(state.fieldErrors, config.validate(next, today()))
       })
+    },
+
+    openStartDateOwner() {
+      if (state.isEdit || busy() || deleteConfirming || !config.overlapOwner) return
+      const owner = config.overlapOwner(heldPeriods(), state.startDate, today())
+      if (owner) return openPeriodOwner(owner)
     },
 
     discardDraft() {
