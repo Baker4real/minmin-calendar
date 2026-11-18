@@ -117,7 +117,7 @@ function buildHomeCalendarState({
       monthlyRecap.predictionSummary, ...monthlyRecap.highlights].filter(Boolean).join('\n')
   }
 
-  const quickEntry = buildPeriodQuickEntry(periods, { today, periodsSynced })
+  const quickEntry = buildPeriodQuickEntry(periods, { today, periodsSynced, roomPaired })
 
   const todayDate = util.parseDate(today)
   return {
@@ -147,7 +147,7 @@ function withHomeStatusAria(homeStatus) {
 }
 
 // 首页与记录 tab 共用同一个经期快捷入口投影。没有进行中时始终按今天新建；有进行中时打开同一条并带记结束意图。
-function buildPeriodQuickEntry(periods, { today, periodsSynced = true } = {}) {
+function buildPeriodQuickEntry(periods, { today, periodsSynced = true, roomPaired = false } = {}) {
   const quickAction = cycle.buildPeriodQuickAction(periods, { today })
   const label = periodsSynced ? quickAction.label : quickAction.mode === 'complete' ? '记结束' : '记经期'
   return {
@@ -155,7 +155,7 @@ function buildPeriodQuickEntry(periods, { today, periodsSynced = true } = {}) {
     ariaLabel: label,
     mode: quickAction.mode,
     action: quickAction.mode === 'complete'
-      ? buildPeriodEntry(periods, today, today, { completeOngoing: true })
+      ? buildPeriodEntry(periods, today, today, { completeOngoing: true, roomPaired })
       : { url: recordEditRoute.buildPeriodEditUrl({ startDate: today }) }
   }
 }
@@ -305,7 +305,7 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
     const meanings = buildDayMeanings(day).filter(isDayDetailSentence)
 
     const isFuture = day.date > today
-    const periodAction = isFuture ? null : buildPeriodEntry(periods, day.date, today, { completeOngoing: true })
+    const periodAction = isFuture ? null : buildPeriodEntry(periods, day.date, today, { completeOngoing: true, roomPaired })
     details[day.date] = {
       title: util.formatDisplayDate(day.date, { today, withWeekday: true }),
       subtitle: [day.lunarText, day.holidayName].filter(Boolean).join(' · '),
@@ -325,11 +325,12 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
 }
 
 // 按日期的经期入口只转译归属 module 的完整落点，路由默认值由 recordEditRoute 持有。
-function buildPeriodEntry(periods, date, today, { completeOngoing = false } = {}) {
+function buildPeriodEntry(periods, date, today, { completeOngoing = false, roomPaired = false } = {}) {
   const decision = periodCoverage.decidePeriodRecordForDate(periods, date, { today })
   const record = decision.action === 'open' ? decision.record : { startDate: decision.startDate }
+  const routedRecord = withAuthorLabel(record, cycle.recordAuthorLabel(record, { paired: roomPaired }))
   return {
-    url: recordEditRoute.buildPeriodEditUrl(record,
+    url: recordEditRoute.buildPeriodEditUrl(routedRecord,
       completeOngoing && decision.reason === 'ongoing' ? { intent: 'complete', today } : undefined)
   }
 }

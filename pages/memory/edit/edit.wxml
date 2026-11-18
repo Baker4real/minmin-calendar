@@ -7,12 +7,12 @@
       <view class="nav-back-surface"></view>
       <text class="nav-back-icon">‹</text>
     </view>
-    <view wx:if="{{isEdit}}" class="nav-title">编辑欢乐时光</view>
-    <view wx:else class="nav-title">新增欢乐时光</view>
+    <view class="nav-title">{{pageTitle}}</view>
   </view>
 
   <view class="content" aria-hidden="{{pageObscured}}">
     <view class="premium-card">
+      <view wx:if="{{authorLabel}}" class="record-author">{{authorLabel}}</view>
       <view wx:if="{{draftRestored}}" class="draft-notice" aria-role="alert">
         <text>{{draftNoticeText}} · </text>
         <text class="draft-discard" hover-class="draft-discard-hover" bindtap="discardDraft" aria-role="button" aria-label="{{draftDiscardText}}">{{draftDiscardText}}</text>
@@ -28,8 +28,8 @@
         <text wx:if="{{fieldErrors.date}}" class="field-error" aria-role="alert">{{fieldErrors.date}}</text>
       </view>
       <view class="form-item">
-        <text class="form-label">备注</text>
-        <textarea class="form-input" placeholder-class="input-placeholder" placeholder="记录这一天的欢乐时光..." value="{{note}}" bindinput="onNoteInput" maxlength="500" auto-height disabled="{{saving}}" aria-label="备注"/>
+        <text class="form-label">内容</text>
+        <textarea class="form-input" placeholder-class="input-placeholder" placeholder="记录这一天的欢乐时光..." value="{{note}}" bindinput="onNoteInput" maxlength="500" auto-height disabled="{{saving}}" aria-label="内容"/>
       </view>
     </view>
 

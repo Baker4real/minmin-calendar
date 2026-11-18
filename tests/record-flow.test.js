@@ -230,8 +230,39 @@ test('record edit pages isolate delete loading, constrain period dates, and cap 
   assert.match(periodEditWxml, /aria-label="经期状态/)
   assert.match(periodEditWxml, /maxlength="500"/)
   assert.match(memoryEditWxml, /maxlength="500"/)
-  assert.match(memoryEditWxml, /wx:if="\{\{isEdit\}\}"[\s\S]*编辑欢乐时光/)
-  assert.match(memoryEditWxml, /wx:else[\s\S]*新增欢乐时光/)
+})
+
+test('record edit templates use action titles, paired authors, and the required form structure', () => {
+  const periodWxml = readPageFile('pages/period/edit/edit.wxml')
+  const memoryWxml = readPageFile('pages/memory/edit/edit.wxml')
+  for (const wxml of [periodWxml, memoryWxml]) {
+    assert.match(wxml, /<view class="nav-title">\{\{pageTitle\}\}<\/view>/)
+    assert.doesNotMatch(wxml, /新增经期|新增欢乐时光/)
+    assert.match(wxml, /<view wx:if="\{\{authorLabel\}\}" class="record-author">\{\{authorLabel\}\}<\/view>/)
+  }
+
+  const cards = [...periodWxml.matchAll(/<view class="premium-card(?: optional-card)?">/g)]
+  assert.equal(cards.length, 2, 'period required and optional fields live in two cards')
+  const required = periodWxml.slice(cards[0].index, cards[1].index)
+  const optional = periodWxml.slice(cards[1].index, periodWxml.indexOf('<view class="btns">'))
+  for (const label of ['开始日期', '经期状态', '结束日期']) assert.match(required, new RegExp(`>${label}<`))
+  assert.doesNotMatch(required, />经量<|>症状<|>备注</)
+  assert.match(optional, /class="form-section-title">选填<\/view>/)
+  for (const label of ['经量', '症状', '备注']) assert.match(optional, new RegExp(`>${label}<`))
+  assert.match(optional, /\{\{selectedSymptoms\[item\.value\] \? 'active' : ''\}\}/)
+  assert.doesNotMatch(optional, /item\.selected/)
+
+  const statusOptions = required.indexOf('wx:for="{{statusOptions}}"')
+  const statusHint = required.indexOf('{{statusHint}}')
+  const endDate = required.indexOf('id="field-endDate"')
+  assert.ok(statusOptions !== -1 && statusOptions < statusHint && statusHint < endDate, 'the current status consequence follows its options')
+  assert.match(required, /class="form-hint status-hint" aria-role="status">\{\{statusHint\}\}/)
+  assert.match(required, /aria-label="经期状态 \{\{item\.label\}\}，\{\{item\.hint\}\}"/)
+  assert.match(required, /<text class="\{\{endDate \? '' : 'input-placeholder'\}\}">\{\{endDate \? endDateLabel : '选择结束日期'\}\}<\/text>/)
+
+  assert.match(memoryWxml, /<text class="form-label">内容<\/text>/)
+  assert.match(memoryWxml, /<textarea[^>]*aria-label="内容"/)
+  assert.doesNotMatch(memoryWxml, /<text class="form-label">备注<\/text>|aria-label="备注"/)
 })
 
 test('record edit templates keep fields and delete locked while saving', () => {
@@ -304,7 +335,7 @@ test('period edit fields run start, status, end date, flow, symptoms, then note'
 
 test('period edit binds status and length hints beside their fields', () => {
   const wxml = readPageFile('pages/period/edit/edit.wxml')
-  assert.match(wxml, /经期状态[\s\S]*class="form-hint">\{\{statusHint\}\}/)
+  assert.match(wxml, /经期状态[\s\S]*class="form-hint status-hint" aria-role="status">\{\{statusHint\}\}/)
   const endLabel = wxml.indexOf('结束日期')
   const dayText = wxml.indexOf('{{periodDayCountText}}')
   const lengthHint = wxml.indexOf('{{periodLengthHint}}')

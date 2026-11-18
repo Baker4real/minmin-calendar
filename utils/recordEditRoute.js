@@ -19,7 +19,8 @@ function buildPeriodEditUrl(record = {}, context = {}) {
     note: record.note || '',
     flow: record.flow || '',
     symptoms: Array.isArray(record.symptoms) ? record.symptoms.join(',') : '',
-    intent: completing ? 'complete' : ''
+    intent: completing ? 'complete' : '',
+    authorLabel: record.authorLabel || ''
   })
 }
 
@@ -34,6 +35,7 @@ function parsePeriodEditOptions(options = {}, context = {}) {
   const status = isEdit || options.status === recordStatus
     ? recordStatus
     : (startDate < today ? 'known-end' : 'ongoing')
+  const authorLabel = decodeOption(options.authorLabel, { fallback: 'raw' })
   return {
     id: options.id || '',
     startDate,
@@ -43,6 +45,7 @@ function parsePeriodEditOptions(options = {}, context = {}) {
     flow: options.flow || '',
     symptoms,
     isEdit,
+    ...(authorLabel ? { authorLabel } : {}),
     maxDate: today
   }
 }
@@ -51,17 +54,20 @@ function buildMemoryEditUrl(record = {}) {
   return buildUrl(MEMORY_EDIT_PATH, {
     id: record.id || record._id || '',
     date: record.date || '',
-    note: record.note || ''
+    note: record.note || '',
+    authorLabel: record.authorLabel || ''
   })
 }
 
 function parseMemoryEditOptions(options = {}, context = {}) {
   const today = context.today || ''
+  const authorLabel = decodeOption(options.authorLabel, { fallback: 'raw' })
   return {
     id: options.id || '',
     date: options.date || today,
     note: decodeOption(options.note, { fallback: 'raw' }),
     isEdit: !!options.id,
+    ...(authorLabel ? { authorLabel } : {}),
     maxDate: today
   }
 }
