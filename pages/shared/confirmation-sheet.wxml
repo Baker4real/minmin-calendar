@@ -1,33 +1,29 @@
-<template name="confirmationSheet">
-  <view class="reduced-motion-probe" aria-hidden="true"></view>
-  <view wx:if="{{confirmationMounted}}" class="confirmation-host">
-    <view class="confirmation-mask sheet-{{confirmationPhase}}" bindtap="onConfirmationMask" aria-role="button" aria-label="关闭{{confirmationName}}" hover-class="confirmation-mask-hover"></view>
-    <view class="sheet-slide sheet-slide-confirmation sheet-{{confirmationPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{confirmationDragClear}}">
-      <view class="confirmation-panel safe-bottom" catchtap="noop" aria-label="{{confirmationName}}">
-        <view class="sheet-drag-zone" data-sheet="confirmation" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchEnd}}">
+<template name="sharedBottomSheet">
+  <view wx:if="{{sheetMounted}}" class="sheet-host {{sheetHostClass}}">
+    <view class="day-sheet-mask sheet-{{sheetPhase}}" bindtap="{{maskHandler}}" aria-role="button" aria-label="关闭{{sheetName}}" hover-class="day-sheet-mask-hover"></view>
+    <view class="sheet-slide sheet-slide-{{sheetId}} sheet-{{sheetPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear}}">
+      <view class="day-action-sheet {{sheetPanelClass}}" catchtap="noop" aria-label="{{sheetName}}">
+        <view class="sheet-drag-zone" data-sheet="{{sheetId}}" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}">
           <view class="sheet-handle" aria-hidden="true"></view>
           <view class="sheet-head">
             <view class="sheet-date-copy">
-              <text class="sheet-title">{{confirmationTitle}}</text>
+              <text class="sheet-title">{{sheetTitle}}</text>
+              <text wx:if="{{sheetSubtitle}}" class="sheet-subtitle">{{sheetSubtitle}}</text>
             </view>
-            <view class="sheet-close" bindtap="onConfirmationClose" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">×</view>
+            <view class="sheet-close" bindtap="{{closeHandler}}" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">×</view>
           </view>
         </view>
         <view class="sheet-body">
-          <text wx:if="{{confirmationDateText}}" class="confirmation-date">{{confirmationDateText}}</text>
-          <text class="confirmation-copy">{{confirmationContent}}</text>
-          <view class="confirmation-actions">
-            <block wx:for="{{confirmationActions}}" wx:key="id">
-              <view wx:if="{{item.kind === 'danger'}}" class="btn-danger confirmation-action" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="btn-danger-hover">{{item.text}}</view>
-              <view wx:elif="{{item.kind === 'primary'}}" class="btn-premium confirmation-action" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="btn-premium-hover">{{item.text}}</view>
-              <view wx:else class="confirmation-secondary confirmation-action" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="confirmation-secondary-hover">{{item.text}}</view>
-            </block>
-          </view>
+          <template is="{{bodyTemplate}}" data="{{...body}}" />
         </view>
       </view>
     </view>
   </view>
-  <!-- 弹层还在时拦住系统返回；关闭本层而不是离开编辑页。 -->
+</template>
+
+<!-- 每页只挂一份：探测系统减弱动效，并在任一弹层卸载前拦截系统返回。 -->
+<template name="sharedSheetPage">
+  <view class="reduced-motion-probe" aria-hidden="true"></view>
   <page-container
     wx:if="{{sheetExitGuard}}"
     show="{{true}}"
@@ -38,4 +34,210 @@
     custom-style="height:0;width:0;overflow:hidden;opacity:0;pointer-events:none;background:transparent;"
     bindbeforeleave="onSheetSystemBack"
   ></page-container>
+</template>
+
+<template name="monthPickerSheetBody">
+  <view
+    class="jump-today"
+    bindtap="jumpToToday"
+    aria-role="button"
+    aria-label="回到今天所在月份" hover-class="jump-today-hover">
+    <text class="jump-today-label">回到今天</text>
+    <text class="jump-today-date">定位到当前月份</text>
+  </view>
+
+  <view class="jump-section">
+    <text class="jump-section-title">年份</text>
+    <view class="jump-year-stepper">
+      <view
+        class="jump-year-step {{jumpYearAtMin ? 'disabled' : ''}}"
+        data-delta="-1"
+        bindtap="shiftJumpYear"
+        aria-role="button"
+        aria-label="上一年"
+        aria-disabled="{{jumpYearAtMin}}" hover-class="jump-year-step-hover">‹</view>
+      <text class="jump-year-value">{{jumpYear}}年</text>
+      <view
+        class="jump-year-step {{jumpYearAtMax ? 'disabled' : ''}}"
+        data-delta="1"
+        bindtap="shiftJumpYear"
+        aria-role="button"
+        aria-label="下一年"
+        aria-disabled="{{jumpYearAtMax}}" hover-class="jump-year-step-hover">›</view>
+    </view>
+  </view>
+
+  <view class="jump-section">
+    <text class="jump-section-title">月份</text>
+    <view class="jump-month-grid" aria-role="radiogroup" aria-label="月份">
+      <view
+        class="jump-option {{jumpYear == year && item.value == jumpMonth ? 'active' : ''}}"
+        wx:for="{{jumpMonths}}"
+        wx:key="value"
+        data-month="{{item.value}}"
+        bindtap="selectJumpMonth"
+        aria-role="radio"
+        aria-label="选择{{item.label}}"
+        aria-checked="{{jumpYear == year && item.value == jumpMonth}}" hover-class="jump-option-hover">{{item.label}}</view>
+    </view>
+  </view>
+</template>
+
+<template name="dayActionsSheetBody">
+  <view wx:if="{{(selectedDayDetail.meanings && selectedDayDetail.meanings.length) || selectedDayDetail.futureNotice}}" class="detail-meaning-list">
+    <view
+      wx:for="{{selectedDayDetail.meanings}}"
+      wx:key="key"
+      class="detail-meaning {{item.key}}"
+    >
+      <text class="detail-meaning-title">{{item.title}}</text>
+      <text class="detail-meaning-text">{{item.text}}</text>
+    </view>
+    <view wx:if="{{selectedDayDetail.futureNotice}}" class="day-detail-empty future-notice">
+      <text class="detail-empty-title">{{selectedDayDetail.futureNotice.title}}</text>
+      <text class="detail-empty-desc">{{selectedDayDetail.futureNotice.text}}</text>
+    </view>
+  </view>
+
+  <view wx:if="{{daySheetMode == 'detail'}}" class="day-detail-list {{dayDetailFade ? 'day-detail-fade' : ''}}">
+    <view
+      wx:for="{{selectedDayDetail.periods}}"
+      wx:key="key"
+      class="day-detail-row period-detail"
+      data-kind="period"
+      data-id="{{item.recordId}}"
+      bindtap="onDayRecordTap"
+      aria-role="button"
+      aria-label="{{item.ariaLabel}}"
+      hover-class="day-detail-row-hover"
+    >
+      <view class="detail-rail"></view>
+      <view class="detail-copy">
+        <text class="detail-title">经期</text>
+        <text class="detail-main">{{item.range}}</text>
+        <text wx:if="{{item.metaText}}" class="detail-meta">{{item.metaText}}</text>
+        <text wx:if="{{item.authorLabel}}" class="detail-meta">{{item.authorLabel}}</text>
+      </view>
+      <text class="detail-arrow" aria-hidden="true">›</text>
+    </view>
+
+    <view
+      wx:for="{{selectedDayDetail.memories}}"
+      wx:key="key"
+      class="day-detail-row memory-detail"
+      data-kind="memory"
+      data-id="{{item.recordId}}"
+      bindtap="onDayRecordTap"
+      aria-role="button"
+      aria-label="{{item.ariaLabel}}"
+      hover-class="day-detail-row-hover"
+    >
+      <view class="detail-rail"></view>
+      <view class="detail-copy">
+        <text class="detail-title">欢乐时光</text>
+        <text class="detail-main">{{item.note}}</text>
+        <text wx:if="{{item.authorLabel}}" class="detail-meta">{{item.authorLabel}}</text>
+      </view>
+      <text class="detail-arrow" aria-hidden="true">›</text>
+    </view>
+  </view>
+
+  <view wx:if="{{selectedDayDetail.actions && selectedDayDetail.actions.length}}" class="sheet-actions {{daySheetMode == 'detail' ? 'compact-actions' : ''}}">
+    <view
+      wx:for="{{selectedDayDetail.actions}}"
+      wx:key="key"
+      class="sheet-action {{daySheetMode == 'detail' ? 'compact' : ''}}"
+      data-action="{{item.key}}"
+      bindtap="onDayActionTap"
+      aria-role="button"
+      aria-label="{{item.label}}"
+      hover-class="sheet-action-hover"
+    >
+      <view wx:if="{{item.key == 'period'}}" class="sheet-action-icon sample-plate">
+        <template is="periodBandSample" data="{{...periodBandSample, calendarDensity: calendarDensity}}" />
+      </view>
+      <text wx:else class="sheet-action-icon memory-tone">♥</text>
+      <view class="sheet-action-copy">
+        <text class="sheet-action-title">{{item.label}}</text>
+      </view>
+      <text wx:if="{{daySheetMode != 'detail'}}" class="sheet-action-arrow">›</text>
+    </view>
+  </view>
+</template>
+
+<template name="infoSheetBody">
+  <view wx:if="{{infoSheetMode == 'legend'}}" class="legend-list">
+    <view wx:for="{{legendItems}}" wx:key="key" class="legend-row">
+      <view class="legend-sample day-cell {{item.cellClass}} calendar-density-{{calendarDensity}}">
+        <block wx:for="{{item.parts}}" wx:for-item="part" wx:key="className">
+          <view wx:if="{{part.kind == 'band' || part.kind == 'num' || part.kind == 'mark'}}" class="{{part.className}}">{{part.text}}</view>
+          <text wx:elif="{{part.kind == 'tag'}}" class="{{part.className}}">{{part.text}}</text>
+        </block>
+      </view>
+      <view class="legend-copy">
+        <text class="legend-title">{{item.title}}</text>
+        <text class="legend-text">{{item.text}}</text>
+      </view>
+    </view>
+    <text class="explain-line legend-help">更多用法请前往「设置 → 使用说明」。</text>
+  </view>
+
+  <view wx:elif="{{infoSheetMode == 'prediction'}}" class="prediction-explanation">
+    <text class="prediction-summary">{{predictionExplanation.summary}}</text>
+    <text
+      wx:for="{{predictionExplanation.lineItems}}"
+      wx:key="key"
+      class="explain-line"
+    >{{item.text}}</text>
+    <view
+      wx:if="{{predictionExplanation.periodAction}}"
+      class="btn-premium prediction-period-action"
+      bindtap="quickPeriod"
+      aria-role="button"
+      aria-label="{{predictionExplanation.periodAction.label}}"
+      hover-class="btn-premium-hover"
+    >{{predictionExplanation.periodAction.label}}</view>
+  </view>
+
+  <view wx:elif="{{infoSheetMode == 'recap' && monthlyRecap}}" class="monthly-recap">
+    <text class="recap-summary recap-main">{{monthlyRecap.periodSummary}}</text>
+    <text class="recap-summary">{{monthlyRecap.memorySummary}}</text>
+    <text class="recap-summary">{{monthlyRecap.predictionSummary}}</text>
+    <view wx:if="{{monthlyRecap.highlightItems.length}}" class="recap-highlights">
+      <text
+        wx:for="{{monthlyRecap.highlightItems}}"
+        wx:key="key"
+        class="recap-highlight"
+      >{{item.text}}</text>
+    </view>
+    <view class="copy-recap" bindtap="copyMonthlyRecap" aria-role="button" aria-label="复制小结" hover-class="copy-recap-hover">复制小结</view>
+  </view>
+</template>
+
+<template name="settingsHelpSheetBody">
+  <text class="help-copy">房间是你们两个人共用的日历。把房间码发给对方，对方加入后就能一起看同一份经期和欢乐时光。</text>
+  <text class="help-copy">日历标记的意思，请点首页左上角的「图例」查看。</text>
+  <text class="help-copy">经期有「进行中」「结束日期不详」「已结束」三种状态。</text>
+  <text class="help-copy">过去漏记的经期可以补记；进行中的经期结束后，用「记结束」填上结束日期。</text>
+  <text class="help-copy">解除绑定后，TA 还在房间里时，用房间码加入；房间里只剩你时，房间会归档，记录还在；在绑定页点「我来建房间」恢复。</text>
+  <text class="help-copy">预测是根据已有记录做的估算，不是医疗建议。</text>
+</template>
+
+<template name="confirmationSheetBody">
+  <text wx:if="{{confirmationDateText}}" class="confirmation-date">{{confirmationDateText}}</text>
+  <text class="confirmation-copy">{{confirmationContent}}</text>
+  <view class="confirmation-actions">
+    <block wx:for="{{confirmationActions}}" wx:key="id">
+      <view wx:if="{{item.kind === 'danger'}}" class="btn-danger confirmation-action" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="btn-danger-hover">{{item.text}}</view>
+      <view wx:elif="{{item.kind === 'primary'}}" class="btn-premium confirmation-action" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="btn-premium-hover">{{item.text}}</view>
+      <view wx:else class="confirmation-secondary confirmation-action" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="confirmation-secondary-hover">{{item.text}}</view>
+    </block>
+  </view>
+</template>
+
+<!-- 记经期动作的图标：首页记录入口与当日动作共用同一段单日色带。 -->
+<template name="periodBandSample">
+  <view class="action-sample day-cell {{cellClass}} calendar-density-{{calendarDensity}}">
+    <view wx:for="{{parts}}" wx:for-item="part" wx:key="className" class="{{part.className}}"></view>
+  </view>
 </template>

@@ -43,7 +43,7 @@ function tagWith(className) {
 }
 function attr(className, name, data) { return renderWxmlAttribute(tagWith(className).attrs[name], data) }
 function text(className, data) {
-  const match = wxml.match(new RegExp(`<text class="${className}">([\\s\\S]*?)</text>`))
+  const match = wxml.match(new RegExp(`<text\\b[^>]*class="${className}"[^>]*>([\\s\\S]*?)</text>`))
   assert.ok(match, `expected .${className} text in WXML`)
   return renderWxmlAttribute(match[1], data)
 }

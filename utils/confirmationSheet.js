@@ -1,11 +1,39 @@
 // 每页一个应用内确认面板；进出、遮挡与 tabBar 由 sheetLifecycle 统一驱动。
 // open 返回 Promise：业务动作给出它的 id，所有取消路径都返回 null。
-const { createSheetLifecycle, sheetPageDecorator, dismissSheetOnSystemBack } = require('./sheetLifecycle')
+const { createSheetLifecycle, sheetPageDecorator, decideSheetDragRelease, dismissSheetOnSystemBack } = require('./sheetLifecycle')
 
 const decorate = sheetPageDecorator({
   phaseKeys: ['confirmationPhase'],
   mountedKeys: ['confirmationMounted']
 })
+
+// #209 的小注册表同时承接非首页的确认与使用说明：拖动、触摸取消和系统返回都走同一个 close。
+function registeredSheetInteractions(page, { name, phaseKey, dragClearKey, close, isMounted }) {
+  const dragClearPatch = (detailPage, action) => ({
+    [dragClearKey]: { token: detailPage.data[dragClearKey].token + 1, action }
+  })
+  return {
+    dragRelease(detailPage, detail) {
+      if (!detail || detail.sheet !== name || detailPage.data[phaseKey] !== 'open') return
+      const action = decideSheetDragRelease(detail.displacement, detail.elapsed, detail.panelHeight)
+      const extra = dragClearPatch(detailPage, action)
+      if (action === 'close') close(detailPage, extra)
+      else detailPage.setData(extra)
+    },
+    dragCancel(detailPage, detail) {
+      if (!detail || detail.sheet !== name || detailPage.data[phaseKey] !== 'open') return
+      detailPage.setData(dragClearPatch(detailPage, 'reset'))
+    },
+    systemBack(detailPage) {
+      dismissSheetOnSystemBack(detailPage, {
+        dismissTop: () => {
+          if (detailPage.data[phaseKey] !== 'leaving') close(detailPage, {})
+        },
+        isMounted: () => isMounted(detailPage)
+      })
+    }
+  }
+}
 
 function confirmationSheetData() {
   return {
@@ -61,6 +89,14 @@ function confirmationSheet(page) {
     }, extra)
   }
 
+  const interactions = registeredSheetInteractions(page, {
+    name: 'confirmation',
+    phaseKey: 'confirmationPhase',
+    dragClearKey: 'confirmationDragClear',
+    close: (detailPage, extra) => finish(null, extra),
+    isMounted: detailPage => lifecycle.isMounted(detailPage)
+  })
+
   page._confirmationSheet = {
     open({ name, title, dateText = '', content, actions }) {
       // 离场途中打开另一项确认时，旧询问按取消结束，不留下悬挂的调用。
@@ -83,21 +119,13 @@ function confirmationSheet(page) {
       finish(null)
     },
     dragRelease(detail) {
-      if (!detail || detail.sheet !== 'confirmation' || page.data.confirmationPhase !== 'open') return
-      const action = decideDragRelease(detail.displacement, detail.elapsed, detail.panelHeight)
-      const extra = {
-        confirmationDragClear: { token: page.data.confirmationDragClear.token + 1, action }
-      }
-      if (action === 'close') finish(null, extra)
-      else page.setData(extra)
+      interactions.dragRelease(page, detail)
+    },
+    dragCancel(detail) {
+      interactions.dragCancel(page, detail)
     },
     systemBack() {
-      dismissSheetOnSystemBack(page, {
-        dismissTop: () => {
-          if (page.data.confirmationPhase !== 'leaving') finish(null)
-        },
-        isMounted: () => lifecycle.isMounted(page)
-      })
+      interactions.systemBack(page)
     },
     unload() {
       lifecycle.dismissPatch()
@@ -107,11 +135,35 @@ function confirmationSheet(page) {
   return page._confirmationSheet
 }
 
-function decideDragRelease(displacement, elapsed, panelHeight) {
-  if (!(displacement > 0)) return 'reset'
-  const pastDistance = panelHeight > 0 && displacement > panelHeight * 0.25
-  const pastSpeed = elapsed > 0 && displacement / elapsed > 0.11
-  return pastDistance || pastSpeed ? 'close' : 'reset'
+// 设置「使用说明」没有 Promise 结果，但复用同一个非首页小注册表与生命周期。
+function settingsHelpSheet(page) {
+  if (!page._settingsHelpSheet) {
+    const lifecycle = createSheetLifecycle({
+      visibleKey: 'helpOpen',
+      mountedKey: 'helpMounted',
+      phaseKey: 'helpPhase',
+      decorate: sheetPageDecorator({
+        phaseKeys: ['helpPhase'],
+        mountedKeys: ['helpMounted']
+      })
+    })
+    const interactions = registeredSheetInteractions(page, {
+      name: 'help',
+      phaseKey: 'helpPhase',
+      dragClearKey: 'helpDragClear',
+      close: (detailPage, extra) => lifecycle.leave(detailPage, undefined, extra),
+      isMounted: detailPage => lifecycle.isMounted(detailPage)
+    })
+    page._settingsHelpSheet = {
+      open: lifecycle.open,
+      leave: lifecycle.leave,
+      isMounted: lifecycle.isMounted,
+      dragRelease: interactions.dragRelease,
+      dragCancel: interactions.dragCancel,
+      systemBack: interactions.systemBack
+    }
+  }
+  return page._settingsHelpSheet
 }
 
-module.exports = { confirmationSheetData, confirmationSheet }
+module.exports = { confirmationSheetData, confirmationSheet, settingsHelpSheet }

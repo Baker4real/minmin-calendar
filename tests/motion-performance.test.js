@@ -383,17 +383,6 @@ function activeSetsProperty(files, target, prop) {
   return false
 }
 
-// issue #154：设置「使用说明」弹层的面板与遮罩沿用首页弹层的进出时长；
-// issue #166：内容块的错相也是同一套
-const SHEET_MOTION_TWINS = {
-  '.help-slide': '.sheet-slide',
-  '.help-slide.sheet-open': '.sheet-slide.sheet-open',
-  '.help-mask': '.day-sheet-mask',
-  '.help-mask.sheet-open': '.day-sheet-mask.sheet-open',
-  '.help-slide.sheet-open .sheet-body': '.sheet-slide.sheet-open .sheet-body',
-  '.confirmation-mask': '.day-sheet-mask',
-  '.confirmation-mask.sheet-open': '.day-sheet-mask.sheet-open'
-}
 // 全仓唯一允许写进 transition 第四段的延迟：弹层内容块进场晚标题一拍（issue #166）
 const STAGGER_DELAY = 'var(--delay-stagger)'
 
@@ -402,7 +391,7 @@ const STAGGER_DELAY = 'var(--delay-stagger)'
 // 「动效与性能边界」写了每档 token 的角色。换档先改那几条文档再改这里。
 function sheetMotionExpectation(selector, prop) {
   const spaced = selector.replace(/\s+/g, ' ').trim()
-  const normalized = SHEET_MOTION_TWINS[spaced] || spaced
+  const normalized = spaced
   if (normalized === '.sheet-body' && (prop === 'opacity' || prop === 'transform')) {
     return { duration: 'var(--duration-exit)', easing: 'var(--ease-out)' }
   }
@@ -619,11 +608,11 @@ const BLUR_RADIUS_CAP_PX = 20
 const MASK_BLUR_CAP_PX = 8
 const BLURRED_SURFACES = {
   'pages/index/index.wxss': ['.day-sheet-mask'],
-  'pages/settings/settings.wxss': ['.help-mask', '.confirmation-mask'],
-  'pages/bind/bind.wxss': ['.confirmation-mask'],
-  'pages/shared/confirmation-sheet.wxss': ['.confirmation-mask'],
-  'pages/period/edit/edit.wxss': ['.confirmation-mask'],
-  'pages/memory/edit/edit.wxss': ['.confirmation-mask']
+  'pages/settings/settings.wxss': ['.day-sheet-mask'],
+  'pages/bind/bind.wxss': ['.day-sheet-mask'],
+  'pages/shared/confirmation-sheet.wxss': ['.day-sheet-mask'],
+  'pages/period/edit/edit.wxss': ['.day-sheet-mask'],
+  'pages/memory/edit/edit.wxss': ['.day-sheet-mask']
 }
 
 test('blurred surfaces stay among the registered ones and within the radius caps', () => {

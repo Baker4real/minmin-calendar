@@ -195,7 +195,7 @@ test('day sheet record actions and details retain their visible and accessible b
   const actionsAt = wxml.indexOf('selectedDayDetail.actions')
   const detailAt = wxml.indexOf("daySheetMode == 'detail'")
   assert.ok(subtitleAt !== -1 && actionsAt !== -1 && detailAt !== -1 && subtitleAt < actionsAt && subtitleAt < detailAt)
-  assert.match(wxml, /class="sheet-title">\{\{selectedDateLabel\}\}<\/text>\s*<text class="sheet-subtitle">/)
+  assert.match(wxml, /class="sheet-title">\{\{selectedDateLabel\}\}<\/text>\s*<text\b[^>]*class="sheet-subtitle"[^>]*>/)
   assert.match(wxml.slice(detailAt, detailAt + 240), /dayDetailFade/)
   assert.match(wxml.slice(detailAt, detailAt + 240), /day-detail-fade/)
 })

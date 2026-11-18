@@ -56,8 +56,8 @@ test('WXML targets are converted into explicit HTML coverage before detection', 
   const includers = routes.filter(route => fs.readFileSync(path.join(repo, `${route}.wxml`), 'utf8').includes('src="/pages/shared/aurora.wxml"'))
   const withAurora = shims.filter(html => /<div class="aurora"[^>]*data-src="pages\/shared\/aurora\.wxml:\d+"/.test(html))
   assert.equal(withAurora.length, includers.length, 'the aurora markup lands in every page that includes it, traced back to the fragment')
-  const withConfirmation = shims.filter(html => html.includes('class="confirmation-host"'))
-  assert.equal(withConfirmation.length, 4, 'both edit pages, settings and bind include the imported confirmation template')
+  const withBottomSheets = shims.filter(html => html.includes('class="sheet-host'))
+  assert.equal(withBottomSheets.length, 5, 'home, both edit pages, settings and bind include the shared bottom-sheet shell')
 })
 
 test('a target without recognizable WXML fails closed instead of reporting a clean scan', t => {

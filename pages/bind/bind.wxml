@@ -68,5 +68,6 @@
     <view wx:if="{{checkFailed}}" class="error-retry" bindtap="retryCheck" aria-role="button" aria-label="重试" hover-class="error-retry-hover">重试</view>
     </view>
   </view>
-  <template is="confirmationSheet" data="{{confirmationName: confirmationName, confirmationTitle: confirmationTitle, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions, confirmationMounted: confirmationMounted, confirmationPhase: confirmationPhase, confirmationDragClear: confirmationDragClear, sheetExitGuard: sheetExitGuard}}" />
+  <template is="sharedBottomSheet" data="{{sheetId: 'confirmation', sheetMounted: confirmationMounted, sheetPhase: confirmationPhase, sheetHostClass: '', sheetPanelClass: 'confirmation-panel', sheetName: confirmationName, sheetTitle: confirmationTitle, sheetSubtitle: '', maskHandler: 'onConfirmationMask', closeHandler: 'onConfirmationClose', bodyTemplate: 'confirmationSheetBody', sheetDragClear: confirmationDragClear, body: {confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions}}}" />
+  <template is="sharedSheetPage" data="{{sheetExitGuard: sheetExitGuard}}" />
 </view>

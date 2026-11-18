@@ -163,28 +163,17 @@ function dismissSheetOnSystemBack(page, { dismissTop, isMounted }) {
   })
 }
 
-const settingsHelpPatch = sheetPageDecorator({
-  phaseKeys: ['helpPhase'],
-  mountedKeys: ['helpMounted']
-})
-
-// issue #154：设置页「使用说明」与首页弹层同一生命周期、同一遮挡规则。
-function settingsHelpSheet(page) {
-  if (!page._settingsHelpSheet) {
-    page._settingsHelpSheet = createSheetLifecycle({
-      visibleKey: 'helpOpen',
-      mountedKey: 'helpMounted',
-      phaseKey: 'helpPhase',
-      decorate: settingsHelpPatch
-    })
-  }
-  return page._settingsHelpSheet
+function decideSheetDragRelease(displacement, elapsed, panelHeight) {
+  if (!(displacement > 0)) return 'reset'
+  const pastDistance = panelHeight > 0 && displacement > panelHeight * 0.25
+  const pastSpeed = elapsed > 0 && displacement / elapsed > 0.11
+  return pastDistance || pastSpeed ? 'close' : 'reset'
 }
 
 module.exports = {
   createSheetLifecycle,
   sheetPageDecorator,
-  settingsHelpSheet,
+  decideSheetDragRelease,
   dismissSheetOnSystemBack,
   probeReducedMotion,
   readReducedMotionProbe,

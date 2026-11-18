@@ -99,6 +99,10 @@ Page(withPageVisibility({
     confirmationSheet(this).dragRelease(detail)
   },
 
+  onSheetDragCancel(detail) {
+    confirmationSheet(this).dragCancel(detail)
+  },
+
   onSheetSystemBack() {
     confirmationSheet(this).systemBack()
   }

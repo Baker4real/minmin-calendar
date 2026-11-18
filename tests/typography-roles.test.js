@@ -514,7 +514,7 @@ const TITLE_LINE_HEIGHT = [
   ['pages/index/index.wxss', '.sheet-action-title'],
   ['pages/index/index.wxss', '.legend-title'],
   ['pages/index/index.wxss', '.quick-text'],
-  ['pages/settings/settings.wxss', '.help-title'],
+  ['pages/settings/settings.wxss', '.sheet-title'],
   ['pages/bind/bind.wxss', '.hero-title']
 ]
 

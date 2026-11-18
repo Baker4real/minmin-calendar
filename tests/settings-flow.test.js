@@ -899,7 +899,7 @@ test('settings about group shows the version once and opens a short help sheet',
   assert.match(about, /bindtap="openHelp"/)
   assert.match(about, /aria-label="使用说明"/)
 
-  const helpStart = wxml.indexOf('class="help-sheet')
+  const helpStart = wxml.indexOf('class="day-action-sheet help-sheet')
   assert.ok(helpStart !== -1, 'expected the help sheet')
   const help = wxml.slice(helpStart)
   assert.match(help, /房间是你们两个人共用的日历/)
@@ -911,8 +911,8 @@ test('settings about group shows the version once and opens a short help sheet',
 test('settings help binds lifecycle, accessibility and system-back state in WXML', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
   assert.match(wxml, /wx:if="\{\{helpMounted\}\}"/)
-  assert.match(wxml, /class="help-mask sheet-\{\{helpPhase\}\}"/)
-  assert.match(wxml, /class="help-slide sheet-\{\{helpPhase\}\}"/)
+  assert.match(wxml, /class="day-sheet-mask sheet-\{\{helpPhase\}\}" bindtap="closeHelp"/)
+  assert.match(wxml, /class="sheet-slide sheet-slide-help sheet-\{\{helpPhase\}\}"/)
   const container = /<page-container\b[^>]*>/.exec(wxml)
   assert.ok(container)
   assert.match(container[0], /wx:if="\{\{sheetExitGuard\}\}"/)

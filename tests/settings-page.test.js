@@ -602,7 +602,7 @@ test('settings help explains marks, period states, completion and both room-retu
   assert.equal(page.data.helpPhase, 'open')
 
   const template = readSource(path.join(__dirname, '../pages/settings/settings.wxml'), 'utf8')
-  const helpStart = template.indexOf('class="help-sheet')
+  const helpStart = template.indexOf('class="day-action-sheet help-sheet')
   assert.ok(helpStart !== -1, 'expected the settings help template')
   const help = template.slice(helpStart)
   const expectedCopy = [
@@ -718,6 +718,56 @@ test('system back closes help and keeps settings in place during repeated back e
   assert.equal(page.data.sheetExitGuard, false)
   assert.equal(app.currentPage, page)
   assert.equal(app.navigation.length, 1)
+})
+
+test('settings help closes from a downward drag without leaving settings', async (t) => {
+  const app = settingsApp(t)
+  const page = app.launch('/pages/settings/settings')
+  await app.settle()
+  await app.dispatch(page, 'openHelp')
+  await app.settle()
+
+  const currentTarget = { dataset: { sheet: 'help' } }
+  const touch = { identifier: 1, pageX: 100, pageY: 100 }
+  app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
+  app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 240 }] })
+  await app.advance(100)
+  app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 240 }] })
+
+  assert.equal(page.data.helpPhase, 'leaving')
+  assert.equal(page.data.helpMounted, true)
+  assert.equal(page.data.sheetExitGuard, true)
+  await app.advance(199)
+  assert.equal(page.data.helpMounted, true)
+  await app.advance(1)
+  assert.equal(page.data.helpPhase, 'closed')
+  assert.equal(page.data.helpMounted, false)
+  assert.equal(page.data.sheetExitGuard, false)
+  assert.equal(app.tabBar.visible, true)
+  assert.equal(app.currentPage, page)
+  assert.equal(app.navigation.length, 1)
+})
+
+test('settings help touchcancel resets the drag without closing', async (t) => {
+  const app = settingsApp(t)
+  const page = app.launch('/pages/settings/settings')
+  await app.settle()
+  await app.dispatch(page, 'openHelp')
+  await app.settle()
+
+  const currentTarget = { dataset: { sheet: 'help' } }
+  const touch = { identifier: 1, pageX: 100, pageY: 100 }
+  app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
+  app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 180 }] })
+  assert.equal(app.viewStyle(page, '.sheet-slide-help').transform, 'translateY(80px)')
+  app.dispatch(page, 'sheetDrag.touchCancel', { currentTarget, changedTouches: [{ ...touch, pageY: 180 }] })
+
+  assert.equal(page.data.helpPhase, 'open')
+  assert.equal(page.data.helpMounted, true)
+  assert.deepEqual(page.data.helpDragClear, { token: 1, action: 'reset' })
+  await app.advance(16)
+  assert.equal(app.viewStyle(page, '.sheet-slide-help').transform, '')
+  assert.equal(app.tabBar.visible, false)
 })
 
 function settingsInviteVisible(data) {

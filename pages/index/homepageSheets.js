@@ -1,6 +1,7 @@
 const {
   createSheetLifecycle,
   sheetPageDecorator,
+  decideSheetDragRelease,
   dismissSheetOnSystemBack
 } = require('../../utils/sheetLifecycle')
 
@@ -108,13 +109,6 @@ function homepageSheets(page) {
     }
   }
   return page._homepageSheets
-}
-
-function decideSheetDragRelease(displacement, elapsed, panelHeight) {
-  if (!(displacement > 0)) return 'reset'
-  const pastDistance = panelHeight > 0 && displacement > panelHeight * 0.25
-  const pastSpeed = elapsed > 0 && displacement / elapsed > 0.11
-  return pastDistance || pastSpeed ? 'close' : 'reset'
 }
 
 module.exports = { homepageSheetData, homepageSheets }

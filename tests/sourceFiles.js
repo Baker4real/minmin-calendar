@@ -76,7 +76,88 @@ function templateDefinitions(file, root, stack = []) {
   return definitions
 }
 
-function expandWxmlFragment(source, currentFile, definitions, root, stack, templateStack, expandIncludes) {
+function literalTemplateVariables(data) {
+  const variables = {}
+  for (const match of (data || '').matchAll(/\b([A-Za-z_$][\w$]*)\s*:\s*(['"])([^'"]*)\2/g)) {
+    variables[match[1]] = match[3]
+  }
+  return variables
+}
+
+function splitTemplateFields(source) {
+  const parts = []
+  let start = 0
+  let quote = ''
+  let escaped = false
+  let depth = 0
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index]
+    if (quote) {
+      if (escaped) escaped = false
+      else if (char === '\\') escaped = true
+      else if (char === quote) quote = ''
+      continue
+    }
+    if (char === "'" || char === '"') quote = char
+    else if (char === '{' || char === '[' || char === '(') depth += 1
+    else if (char === '}' || char === ']' || char === ')') depth -= 1
+    else if (char === ',' && depth === 0) {
+      parts.push(source.slice(start, index))
+      start = index + 1
+    }
+  }
+  parts.push(source.slice(start))
+  return parts
+}
+
+function templateFieldSeparator(source) {
+  let quote = ''
+  let escaped = false
+  let depth = 0
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index]
+    if (quote) {
+      if (escaped) escaped = false
+      else if (char === '\\') escaped = true
+      else if (char === quote) quote = ''
+      continue
+    }
+    if (char === "'" || char === '"') quote = char
+    else if (char === '{' || char === '[' || char === '(') depth += 1
+    else if (char === '}' || char === ']' || char === ')') depth -= 1
+    else if (char === ':' && depth === 0) return index
+  }
+  return -1
+}
+
+function templateFields(data) {
+  const fields = {}
+  const source = (data || '').trim().replace(/^\{\{/, '').replace(/\}\}$/, '').trim()
+  for (const part of splitTemplateFields(source)) {
+    const separator = templateFieldSeparator(part)
+    if (separator < 0) continue
+    const key = part.slice(0, separator).trim()
+    if (/^[A-Za-z_$][\w$]*$/.test(key)) fields[key] = part.slice(separator + 1).trim()
+  }
+  return fields
+}
+
+function nestedTemplateFields(expression) {
+  const source = (expression || '').trim().replace(/^\{/, '').replace(/\}$/, '')
+  return templateFields(source)
+}
+
+function substituteTemplateScope(source, fields) {
+  return source.replace(/\{\{\s*([A-Za-z_$][\w$]*)\s*\}\}/g, (match, key) => {
+    if (key === 'bodyTemplate' || !Object.hasOwn(fields, key)) return match
+    const expression = fields[key]
+    const quoted = /^(?:'([^']*)'|"([^"]*)")$/.exec(expression)
+    if (quoted) return quoted[1] ?? quoted[2]
+    return `{{${expression}}}`
+  })
+}
+
+function expandWxmlFragment(source, currentFile, definitions, root, stack, templateStack, expandIncludes, templateVariables = {}, inheritedFields = {}) {
   let expanded = transform(source, '.wxml', /<include\b([^>]*)\/\s*>/gi, match => {
     if (!expandIncludes) return match[0]
     const reference = attribute(match[1], 'src')
@@ -86,20 +167,38 @@ function expandWxmlFragment(source, currentFile, definitions, root, stack, templ
   })
 
   expanded = transform(expanded, '.wxml', /<template\b([^>]*)\/\s*>/gi, match => {
-    const name = attribute(match[1], 'is')
-    if (!name) return match[0]
+    const requestedName = attribute(match[1], 'is')
+    if (!requestedName) return match[0]
+    const data = attribute(match[1], 'data')
+    const variables = {
+      ...templateVariables,
+      ...literalTemplateVariables(data)
+    }
+    const dynamicName = /^\{\{\s*([A-Za-z_$][\w$]*)\s*\}\}$/.exec(requestedName)
+    const name = dynamicName ? variables[dynamicName[1]] : requestedName
     const definition = definitions.get(name)
-    if (!definition) throw new Error(`Unknown WXML template "${name}" in ${currentFile}`)
+    if (!definition) throw new Error(`Unknown WXML template "${requestedName}" in ${currentFile}`)
     const identity = `${definition.file}#${name}`
     assertNoCycle(templateStack, identity)
+    const ownFields = templateFields(data)
+    const scopeFields = ownFields.bodyTemplate
+      ? ownFields
+      : /\.\.\.\s*body\b/.test(data || '') && inheritedFields.body
+        ? nestedTemplateFields(inheritedFields.body)
+        : {}
+    const body = Object.keys(scopeFields).length
+      ? substituteTemplateScope(definition.body, scopeFields)
+      : definition.body
     return expandWxmlFragment(
-      definition.body,
+      body,
       definition.file,
       definitions,
       root,
       stack,
       [...templateStack, identity],
-      expandIncludes
+      expandIncludes,
+      variables,
+      scopeFields
     )
   })
   return expanded

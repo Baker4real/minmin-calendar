@@ -476,6 +476,18 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/index/index.wxss', '.month-nav::before'],
     ['pages/index/index.wxss', '.calendar-jump-sheet'],
     ['pages/index/index.wxss', '.day-action-sheet'],
+    ['pages/index/index.wxss', '.confirmation-panel'],
+    // #235：同一份底部 Sheet 基础面板与选月修饰，展开到每个调用页仍按页面身份核对。
+    ['pages/shared/confirmation-sheet.wxss', '.day-action-sheet'],
+    ['pages/shared/confirmation-sheet.wxss', '.calendar-jump-sheet'],
+    ['pages/period/edit/edit.wxss', '.day-action-sheet'],
+    ['pages/period/edit/edit.wxss', '.calendar-jump-sheet'],
+    ['pages/memory/edit/edit.wxss', '.day-action-sheet'],
+    ['pages/memory/edit/edit.wxss', '.calendar-jump-sheet'],
+    ['pages/settings/settings.wxss', '.day-action-sheet'],
+    ['pages/settings/settings.wxss', '.calendar-jump-sheet'],
+    ['pages/bind/bind.wxss', '.day-action-sheet'],
+    ['pages/bind/bind.wxss', '.calendar-jump-sheet'],
     // #209：共享确认面板；展开 @import 后的调用页也按各自文件身份核对同一条规则
     ['pages/shared/confirmation-sheet.wxss', '.confirmation-panel'],
     ['pages/period/edit/edit.wxss', '.confirmation-panel'],

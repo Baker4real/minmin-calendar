@@ -433,7 +433,7 @@ test('both edit pages reuse the shared confirmation sheet, back guard and reduce
     const wxml = readPageFile(`pages/${kind}/edit/edit.wxml`)
     const wxss = readPageFile(`pages/${kind}/edit/edit.wxss`)
     assert.match(wxml, /class="reduced-motion-probe" aria-hidden="true"/)
-    assert.match(wxml, /class="confirmation-mask sheet-\{\{confirmationPhase\}\}" bindtap="onConfirmationMask"/)
+    assert.match(wxml, /class="day-sheet-mask sheet-\{\{confirmationPhase\}\}" bindtap="onConfirmationMask"/)
     assert.match(wxml, /class="sheet-close" bindtap="onConfirmationClose"/)
     assert.match(wxml, /class="btn-danger confirmation-action"[^>]*hover-class="btn-danger-hover"/)
     assert.match(wxml, /bindbeforeleave="onSheetSystemBack"/)

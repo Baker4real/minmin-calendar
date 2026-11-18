@@ -236,7 +236,7 @@ test('five radio groups expose radiogroup while page and sheet titles avoid unsu
   }
 
   const titleClasses = new Set([
-    'nav-title', 'hero-title', 'bound-status', 'no-room-title', 'sheet-title', 'help-title'
+    'nav-title', 'hero-title', 'bound-status', 'no-room-title', 'sheet-title'
   ])
   for (const file of PAGE_WXML) {
     const titles = elementsOf(file).filter((element) =>
@@ -366,24 +366,26 @@ test('sheet mask and panel are siblings so only the mask is announced as close',
   }
 })
 
-// issue #154：设置「使用说明」同首页弹层的结构——遮罩单独朗读为「关闭使用说明」，
-// 面板标题行里有可见的「×」关闭键（读屏名「关闭」），触控尺寸不低于 88rpx。
+// issue #154 / #235：设置「使用说明」与首页共用遮罩和标题行；
+// 遮罩单独朗读为「关闭使用说明」，可见的「×」关闭键触控尺寸不低于 88rpx。
 test('settings help keeps a separately named mask and a visible close in its title row', () => {
-  const masks = elementsOf('pages/settings/settings.wxml').filter((node) => node.classes.includes('help-mask'))
-  assert.ok(masks.length > 0, 'expected the help mask in settings.wxml')
+  const masks = elementsOf('pages/settings/settings.wxml').filter((node) =>
+    node.classes.includes('day-sheet-mask') && node.attrs['aria-label'] === '关闭使用说明')
+  assert.equal(masks.length, 1, 'expected one help mask in settings.wxml')
 
   for (const mask of masks) {
     assert.equal(mask.attrs['aria-role'], 'button')
-    assert.equal(mask.attrs['aria-label'], '关闭使用说明')
     assert.equal(mask.children.length, 0, 'the mask must not wrap the help panel')
 
     const host = mask.parent
     assert.ok(host, 'the mask needs a sibling panel')
     assert.equal(host.attrs['aria-role'], undefined)
     assert.equal(host.attrs['aria-label'], undefined)
-    const panel = host.children.find((child) => child.classes.includes('help-slide'))
-    assert.ok(panel, 'the help panel should be the mask sibling')
-    assert.equal(panel.attrs['aria-role'], undefined)
+    const slide = host.children.find((child) => child.classes.includes('sheet-slide-help'))
+    assert.ok(slide, 'the help panel should be the mask sibling')
+    assert.equal(slide.attrs['aria-role'], undefined)
+    const panel = slide.children.find((child) => child.classes.includes('help-sheet'))
+    assert.ok(panel, 'the help sheet keeps its content modifier')
 
     const closes = []
     walk(panel.children, (node) => {
@@ -393,21 +395,20 @@ test('settings help keeps a separately named mask and a visible close in its tit
     for (const close of closes) {
       assert.equal(close.attrs['aria-role'], 'button')
       assert.equal(close.attrs['aria-label'], '关闭')
-      assert.ok(
-        close.parent.children.some((node) => node.classes.includes('help-title')),
-        'the close sits in the title row'
-      )
+      const titleRowClasses = []
+      walk(close.parent.children, (node) => titleRowClasses.push(...node.classes))
+      assert.ok(titleRowClasses.includes('sheet-title'), 'the close sits in the title row')
     }
   }
 
-  const close = declsOf('pages/settings/settings.wxss', '.sheet-close')
+  const close = declsOf('pages/shared/confirmation-sheet.wxss', '.sheet-close')
   for (const side of ['width', 'height']) {
     assert.ok(
       rpx(close[side]) >= TOUCH_FLOOR_RPX,
       `the help close ${side} is ${close[side] || '(missing)'}, below the ${TOUCH_FLOOR_RPX}rpx touch floor`
     )
   }
-  assertPressScaleInBand('pages/settings/settings.wxss', '.sheet-close')
+  assertPressScaleInBand('pages/shared/confirmation-sheet.wxss', '.sheet-close')
 })
 
 // ===== issue #155：首页弹层与设置帮助的读屏模态契约 =====
@@ -426,21 +427,14 @@ const SHEET_PAGES = [
   },
   {
     file: 'pages/settings/settings.wxml',
-    maskClass: 'help-mask',
-    slideClass: 'help-slide',
-    titleRowClass: 'help-head',
-    titleClass: 'help-title'
-  },
-  {
-    file: 'pages/settings/settings.wxml',
-    maskClass: 'confirmation-mask',
+    maskClass: 'day-sheet-mask',
     slideClass: 'sheet-slide',
     titleRowClass: 'sheet-drag-zone',
     titleClass: 'sheet-title'
   },
   ...['period', 'memory'].map(kind => ({
     file: `pages/${kind}/edit/edit.wxml`,
-    maskClass: 'confirmation-mask',
+    maskClass: 'day-sheet-mask',
     slideClass: 'sheet-slide',
     titleRowClass: 'sheet-drag-zone',
     titleClass: 'sheet-title'

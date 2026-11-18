@@ -50,3 +50,15 @@ test('WXML guardrails see nodes substituted from an imported template definition
   assert.ok(wxmlOpeningTags(expanded).some(node => node.classes.includes('shared-action')))
   assert.deepEqual(findOffPaletteHexesInInlineStyles(expanded).map(violation => violation.normalized), ['#654321'])
 })
+
+test('WXML guardrails expand the body template selected by the shared shell data', (t) => {
+  const files = fixture(t)
+  files.write('shared/sheet.wxml', '<template name="sharedSheet"><view class="sheet-body"><template is="{{bodyTemplate}}" data="{{...body}}" /></view></template><template name="helpBody"><text class="help-copy">Help</text></template><template name="confirmationBody"><text class="confirmation-copy">Confirm</text></template>')
+  const page = files.write('page.wxml', '<import src="./shared/sheet.wxml" />\n<template is="sharedSheet" data="{{bodyTemplate: \'helpBody\', body: {}}}" />')
+
+  const expanded = readExpandedSource(page, { root: files.root })
+  const nodes = wxmlOpeningTags(expanded)
+  assert.ok(nodes.some(node => node.classes.includes('sheet-body')))
+  assert.ok(nodes.some(node => node.classes.includes('help-copy')))
+  assert.equal(nodes.some(node => node.classes.includes('confirmation-copy')), false)
+})

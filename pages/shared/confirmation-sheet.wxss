@@ -1,5 +1,5 @@
-/* 应用内确认面板：与首页底部弹层同族，由 confirmationSheet + sheetLifecycle 驱动。 */
-.confirmation-host {
+/* 全部底部弹层的共享几何与标题 chrome；正文样式仍归各页面。 */
+.sheet-host {
   position: fixed;
   top: 0;
   right: 0;
@@ -12,7 +12,13 @@
   box-sizing: border-box;
   pointer-events: none;
 }
-.confirmation-mask {
+.sheet-host.month-jump-mask {
+  z-index: 62;
+}
+.sheet-host.calendar-info-sheet {
+  z-index: 64;
+}
+.day-sheet-mask {
   position: absolute;
   top: 0;
   right: 0;
@@ -26,7 +32,7 @@
   opacity: 0;
   transition: opacity var(--duration-exit) var(--ease-out);
 }
-.confirmation-mask::after {
+.day-sheet-mask::after {
   content: '';
   position: absolute;
   top: 0;
@@ -37,15 +43,15 @@
   transition: background-color var(--duration-press) ease;
   pointer-events: none;
 }
-.confirmation-mask:active::after,
-.confirmation-mask.confirmation-mask-hover::after {
+.day-sheet-mask:active::after,
+.day-sheet-mask.day-sheet-mask-hover::after {
   background-color: rgba(10,14,39,0.28);
 }
-.confirmation-mask.sheet-open {
+.day-sheet-mask.sheet-open {
   opacity: 1;
   transition: opacity var(--duration-enter) var(--ease-out);
 }
-.confirmation-mask.sheet-leaving,
+.day-sheet-mask.sheet-leaving,
 .sheet-slide.sheet-leaving {
   pointer-events: none;
 }
@@ -66,6 +72,7 @@
 .sheet-slide.sheet-open.sheet-reset {
   transition: transform var(--duration-exit) var(--ease-out);
 }
+.day-action-sheet,
 .confirmation-panel {
   width: 100%;
   max-height: 82vh;
@@ -81,6 +88,16 @@
   box-shadow:
     0 -18rpx 48rpx rgba(0,0,0,0.34),
     inset 0 1rpx 0 rgba(255,255,255,0.18);
+}
+.calendar-jump-sheet {
+  max-height: 86vh;
+  padding-bottom: calc(24rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  background:
+    linear-gradient(160deg, rgba(232,144,158,0.14), rgba(196,160,210,0.08) 45%, rgba(18,22,61,0.96) 100%),
+    rgba(18,22,61,0.96);
+}
+.calendar-info-panel {
+  max-height: 84vh;
 }
 .sheet-handle {
   width: 70rpx;
@@ -99,6 +116,9 @@
 .sheet-date-copy {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
 }
 .sheet-title {
   display: block;
@@ -108,6 +128,17 @@
   line-height: var(--line-height-title);
   color: rgba(255,255,255,0.92);
   word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.sheet-subtitle {
+  display: block;
+  min-width: 0;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  letter-spacing: var(--letter-spacing-assist);
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.78);
   overflow-wrap: anywhere;
 }
 .sheet-close {
@@ -143,6 +174,7 @@
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
 }
 .confirmation-actions {
   display: flex;
@@ -185,9 +217,9 @@
   .reduced-motion-probe {
     width: 1px;
   }
-  .confirmation-mask,
-  .confirmation-mask::after,
-  .confirmation-mask.sheet-open,
+  .day-sheet-mask,
+  .day-sheet-mask::after,
+  .day-sheet-mask.sheet-open,
   .sheet-slide,
   .sheet-slide.sheet-open,
   .sheet-slide.sheet-open.sheet-reset,

@@ -140,7 +140,7 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
     const templatePath = path.join(root, `${page.route}.wxml`)
     const template = readSource(templatePath, 'utf8')
     const rawTemplate = fs.readFileSync(templatePath, 'utf8')
-    const sharedHandlers = [...rawTemplate.matchAll(/\b(?:tapHandler|changeHandler):\s*'([^']+)'/g)].map(match => match[1])
+    const sharedHandlers = [...rawTemplate.matchAll(/\b(?:tapHandler|changeHandler|maskHandler|closeHandler):\s*'([^']+)'/g)].map(match => match[1])
     const modules = {}
     for (const [, attrs, body] of template.matchAll(/<wxs\b([^>]*)>([\s\S]*?)<\/wxs>/g)) {
       const name = /\bmodule=["']([^"']+)["']/.exec(attrs)[1]

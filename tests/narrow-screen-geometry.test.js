@@ -926,8 +926,8 @@ test('calendar cell content stacks fit inside the cell at both densities (date s
 test('sheets scroll within a bounded height and are never clipped by the mask', () => {
   const wxml = readRepo('pages/index/index.wxml')
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
-  const jumpSheet = findDecls(rules, '.calendar-jump-sheet')
   const daySheet = findDecls(rules, '.day-action-sheet')
+  const jumpSheet = { ...daySheet, ...findDecls(rules, '.calendar-jump-sheet') }
   const infoPanel = findDecls(rules, '.calendar-info-panel')
   const mask = findDecls(rules, '.day-sheet-mask')
 
@@ -951,15 +951,16 @@ test('sheets scroll within a bounded height and are never clipped by the mask', 
   assert.doesNotMatch(pageEnter[1], /transform/)
 })
 
-// issue #154：设置「使用说明」面板同样有滚动边界，字号放大或文案变长时标题行的关闭键不被顶出屏幕
+// issue #154 / #235：设置「使用说明」直接复用共享面板与宿主的滚动边界，
+// 字号放大或文案变长时标题行的关闭键不被顶出屏幕。
 test('the settings help sheet scrolls within the bottom-sheet height band so its close stays on screen', () => {
   const rules = parseWxssRules(readRepo('pages/settings/settings.wxss'))
-  const sheet = findDecls(rules, '.help-sheet')
+  const sheet = findDecls(rules, '.day-action-sheet')
   const maxVh = /^(\d+(?:\.\d+)?)vh$/.exec(sheet['max-height'] || '')
-  assert.ok(maxVh, '.help-sheet needs a viewport-relative max-height')
-  assert.ok(Number(maxVh[1]) >= 82 && Number(maxVh[1]) <= 86, `.help-sheet max-height ${maxVh[1]}vh is outside 82–86vh`)
-  assert.equal(sheet['overflow-y'], 'auto', '.help-sheet must scroll when content grows')
-  for (const host of ['.help-layer', '.help-slide']) {
+  assert.ok(maxVh, 'the shared help sheet needs a viewport-relative max-height')
+  assert.ok(Number(maxVh[1]) >= 82 && Number(maxVh[1]) <= 86, `shared help max-height ${maxVh[1]}vh is outside 82–86vh`)
+  assert.equal(sheet['overflow-y'], 'auto', 'the shared help sheet must scroll when content grows')
+  for (const host of ['.sheet-host', '.sheet-slide']) {
     assert.doesNotMatch(findDecls(rules, host).overflow || '', /hidden/, `${host} must not clip the sheet`)
   }
 })

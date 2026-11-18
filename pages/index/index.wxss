@@ -1,3 +1,4 @@
+@import '../shared/confirmation-sheet.wxss';
 @import '../shared/retry-row.wxss';
 
 /* ===== Aurora Bloom: Index ===== */
@@ -937,25 +938,6 @@ button.home-share-invite {
 }
 
 /* ===== Calendar Month Jump Sheet ===== */
-.sheet-host.month-jump-mask {
-  z-index: 62;
-}
-.calendar-jump-sheet {
-  width: 100%;
-  max-height: 86vh;
-  overflow-y: auto;
-  padding: 18rpx 22rpx 24rpx;
-  padding-bottom: calc(24rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
-  box-sizing: border-box;
-  background:
-    linear-gradient(160deg, rgba(232,144,158,0.14), rgba(196,160,210,0.08) 45%, rgba(18,22,61,0.96) 100%),
-    rgba(18,22,61,0.96);
-  border: 1px solid rgba(255,255,255,0.16);
-  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-lg) var(--radius-lg);
-  box-shadow:
-    0 -18rpx 48rpx rgba(0,0,0,0.34),
-    inset 0 1rpx 0 rgba(255,255,255,0.18);
-}
 .jump-section {
   margin-top: 18rpx;
 }
@@ -1082,155 +1064,7 @@ button.home-share-invite {
   box-shadow: 0 12rpx 28rpx rgba(232,144,158,0.18);
 }
 
-/* ===== Day Action Sheet ===== */
-/* issue #134：遮罩与面板是兄弟。宿主只负责铺满与叠层，自己不是关闭控件。 */
-.sheet-host {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 60;
-  display: flex;
-  align-items: flex-end;
-  padding: 0 20rpx 0;
-  box-sizing: border-box;
-  pointer-events: none;
-}
-.day-sheet-mask {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  pointer-events: auto;
-  box-sizing: border-box;
-  background: rgba(10,14,39,0.88);
-  /* 全屏遮罩 blur 压到 modal-overlay 登记的 8px：88% 不透明底上更大 blur 不可见，纯 GPU 开销（issue #58） */
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  opacity: 0;
-  transition: opacity var(--duration-exit) var(--ease-out);
-}
-.day-sheet-mask::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  background-color: rgba(10,14,39,0);
-  transition: background-color var(--duration-press) ease;
-  pointer-events: none;
-}
-.day-sheet-mask:active::after,
-.day-sheet-mask.day-sheet-mask-hover::after {
-  background-color: rgba(10,14,39,0.28);
-}
-.day-sheet-mask.sheet-open {
-  opacity: 1;
-  transition: opacity var(--duration-enter) var(--ease-out);
-}
-.day-sheet-mask.sheet-leaving {
-  pointer-events: none;
-}
-.sheet-slide.sheet-leaving {
-  pointer-events: none;
-}
-.sheet-slide {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  padding-bottom: 20rpx;
-  box-sizing: border-box;
-  pointer-events: auto;
-  transform: translateY(100%);
-  transition: transform var(--duration-exit) var(--ease-out);
-}
-.sheet-slide.sheet-open {
-  transform: translateY(0);
-  transition: transform var(--duration-sheet) var(--ease-out);
-}
-.sheet-slide.sheet-open.sheet-reset {
-  transition: transform var(--duration-exit) var(--ease-out);
-}
-/* 标题与内容错相（issue #166）：内容块 .sheet-body 晚标题一拍跟上，规则在 app.wxss「弹层内容块」 */
-.day-action-sheet {
-  width: 100%;
-  max-height: 82vh;
-  overflow-y: auto;
-  padding: 18rpx 22rpx 22rpx;
-  padding-bottom: calc(22rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
-  box-sizing: border-box;
-  background:
-    linear-gradient(160deg, rgba(232,144,158,0.12), rgba(196,160,210,0.08) 42%, rgba(18,22,61,0.94) 100%),
-    rgba(18,22,61,0.94);
-  border: 1px solid rgba(255,255,255,0.16);
-  border-radius: var(--radius-xl) var(--radius-xl) var(--radius-lg) var(--radius-lg);
-  box-shadow:
-    0 -18rpx 48rpx rgba(0,0,0,0.34),
-    inset 0 1rpx 0 rgba(255,255,255,0.18);
-}
-.sheet-handle {
-  width: 70rpx;
-  height: 8rpx;
-  margin: 0 auto 20rpx;
-  border-radius: var(--radius-full);
-  background: rgba(255,255,255,0.22);
-}
-.sheet-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20rpx;
-  margin-bottom: 20rpx;
-}
-.sheet-date-copy {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6rpx;
-}
-.sheet-title {
-  display: block;
-  min-width: 0;
-  font-size: var(--font-size-title);
-  font-weight: var(--font-weight-title);
-  line-height: var(--line-height-title);
-  color: rgba(255,255,255,0.92);
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-.sheet-subtitle {
-  display: block;
-  min-width: 0;
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-assist);
-  line-height: var(--line-height-assist);
-  letter-spacing: var(--letter-spacing-assist);
-  font-variant-numeric: tabular-nums;
-  color: rgba(255,255,255,0.78);
-  overflow-wrap: anywhere;
-}
-.sheet-close {
-  flex: 0 0 auto;
-  width: 88rpx;
-  height: 88rpx;
-  line-height: 84rpx;
-  text-align: center;
-  border-radius: var(--radius-circle);
-  font-size: 46rpx;
-  color: rgba(255,255,255,0.92);
-  background: var(--glass-bg);
-  border: 1px solid rgba(255,255,255,0.12);
-  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
-}
-.sheet-close:active,
-.sheet-close.sheet-close-hover {
-  transform: scale(0.96);
-  background: rgba(255,255,255,0.14);
-}
+/* ===== Day Action Sheet Content ===== */
 .sheet-actions {
   display: flex;
   flex-direction: column;
@@ -1466,13 +1300,7 @@ button.home-share-invite {
   justify-content: center;
 }
 
-/* ===== Calendar Info Sheet ===== */
-.sheet-host.calendar-info-sheet {
-  z-index: 64;
-}
-.calendar-info-panel {
-  max-height: 84vh;
-}
+/* ===== Calendar Info Sheet Content ===== */
 .legend-list,
 .prediction-explanation,
 .monthly-recap {
@@ -1686,28 +1514,10 @@ button.home-share-invite {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
 }
-.reduced-motion-probe {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
 @media (prefers-reduced-motion: reduce) {
-  .reduced-motion-probe {
-    width: 1px;
-  }
-  .day-sheet-mask.sheet-open,
-  .sheet-slide.sheet-open,
-  .sheet-slide.sheet-open.sheet-reset,
-  .sheet-slide,
   .sync-pill,
   .sync-pill.sync-open,
   .sync-pill.syncing .sync-dot,
-  .day-sheet-mask,
-  .day-sheet-mask::after,
-  .day-action-sheet,
-  .calendar-jump-sheet,
   .month-title-trigger,
   .nav-btn,
   .nav-btn::before,
@@ -1716,7 +1526,6 @@ button.home-share-invite {
   .jump-today,
   .sheet-action,
   .day-detail-row,
-  .sheet-close,
   .day-detail-fade,
   .day-cell,
   .calendar-days.calendar-flip-next-a,

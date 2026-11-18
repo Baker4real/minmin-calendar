@@ -6,13 +6,11 @@ const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const settingsFlow = require('../../utils/settingsFlow')
 const safeArea = require('../../utils/safeArea')
 const {
-  settingsHelpSheet,
-  dismissSheetOnSystemBack,
   probeReducedMotion,
   restoreTabBarOnShow
 } = require('../../utils/sheetLifecycle')
 const { withPageVisibility } = require('../../utils/pageVisibility')
-const { confirmationSheet, confirmationSheetData } = require('../../utils/confirmationSheet')
+const { confirmationSheet, confirmationSheetData, settingsHelpSheet } = require('../../utils/confirmationSheet')
 
 // 与 pages/index/index.js 共享同一存储键；首页 onShow 重读本偏好
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
@@ -40,6 +38,7 @@ function settingsInitialData() {
     helpOpen: false,
     helpMounted: false,
     helpPhase: 'closed',
+    helpDragClear: { token: 0, action: '' },
     pageObscured: false,
     sheetExitGuard: false,
     ...confirmationSheetData()
@@ -165,7 +164,19 @@ Page(withPageVisibility({
   },
 
   onSheetDragRelease(detail) {
+    if (detail && detail.sheet === 'help') {
+      settingsHelpSheet(this).dragRelease(this, detail)
+      return
+    }
     confirmationSheet(this).dragRelease(detail)
+  },
+
+  onSheetDragCancel(detail) {
+    if (detail && detail.sheet === 'help') {
+      settingsHelpSheet(this).dragCancel(this, detail)
+      return
+    }
+    confirmationSheet(this).dragCancel(detail)
   },
 
   // 系统返回先关最上层面板，走同一条离场，不离开设置页。
@@ -174,10 +185,7 @@ Page(withPageVisibility({
       confirmationSheet(this).systemBack()
       return
     }
-    dismissSheetOnSystemBack(this, {
-      dismissTop: () => this.closeHelp(),
-      isMounted: () => settingsHelpSheet(this).isMounted(this)
-    })
+    settingsHelpSheet(this).systemBack(this)
   },
 
   noop() {}
