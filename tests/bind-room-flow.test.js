@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const path = require('node:path')
 const test = require('node:test')
@@ -18,6 +19,7 @@ const { evaluateWxmlExpression, renderWxmlAttribute, renderWxmlClasses, wxmlOpen
 const repoRoot = path.join(__dirname, '..')
 
 const readPageFile = (relativePath) => readSource(path.join(repoRoot, relativePath), 'utf8')
+const readRawPageFile = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
 
 test('bind bound screen puts the copy button in the same row as the room code, ahead of the enter-app main button', () => {
   const wxml = readPageFile('pages/bind/bind.wxml')
@@ -35,17 +37,24 @@ test('bind bound screen puts the copy button in the same row as the room code, a
   )
   assert.doesNotMatch(
     boundCard,
-    /class="bound-code"[^>]*\s(?:bindtap|aria-role|aria-label)=/,
+    /class="room-code-value"[^>]*\s(?:bindtap|aria-role|aria-label)=/,
     'the room code text must stay plain display text, not a control'
   )
 
   // issue #83：复制键紧贴房间码正后方，两者同处一个行容器（容器开→房间码→复制键→容器闭），
-  // 不再是复制键独占的居中行
+  // 不再是复制键独占的居中行；#232：两页的房间码共用 shared/room-code.wxss 的同一个类。
   assert.match(
     boundCard,
-    /<view class="[^"]*">\s*<text class="bound-code"[^>]*>[^<]*<\/text>\s*<view class="copy-btn"[^>]*bindtap="copyRoomCode"[^>]*>[^<]*<\/view>\s*<\/view>/,
+    /<view class="[^"]*">\s*<text class="room-code-value"[^>]*>[^<]*<\/text>\s*<view class="copy-btn"[^>]*bindtap="copyRoomCode"[^>]*>[^<]*<\/view>\s*<\/view>/,
     'the copy button must sit in the same row container as the room code'
   )
+  const sharedRoomCode = findRule(readPageFile('pages/shared/room-code.wxss'), '.room-code-value')
+  assert.equal(sharedRoomCode['font-size'], 'var(--font-size-title)')
+  assert.equal(sharedRoomCode.color, 'var(--text-primary)')
+  assert.equal(sharedRoomCode['letter-spacing'], 'var(--letter-spacing-room-code)')
+  for (const file of ['pages/bind/bind.wxss', 'pages/settings/settings.wxss']) {
+    assert.deepEqual(findRule(readPageFile(file), '.room-code-value'), sharedRoomCode, `${file} uses the shared room-code rule`)
+  }
 
   assert.match(
     boundCard,
@@ -68,37 +77,31 @@ test('bind bound screen puts the copy button in the same row as the room code, a
   )
 })
 
-// issue #78 像素同款契约重建（issue #104，DESIGN.md「试点不推广」节登记）：绑定页整页收敛回
-// Aurora 后，两页复制键回归同一色域与同一形态——fill/label/radius/padding/shadow 逐属性全等，
-// 锚定设置页 .copy-btn（设置页侧零改动）。
+// issue #78 像素同款契约重建（issue #104，DESIGN.md「试点不推广」节登记）；#232 将两页规则
+// 收进 shared/room-code.wxss，继续核对 fill/label/radius/padding/shadow，并补上唯一的 flex-shrink。
 test('bind and settings copy buttons are the same rose small button pixel-for-pixel (issue #78)', () => {
-  const bindRule = findRule(readPageFile('pages/bind/bind.wxss'), '.copy-btn')
-  const settingsRule = findRule(readPageFile('pages/settings/settings.wxss'), '.copy-btn')
+  const sharedCss = readPageFile('pages/shared/room-code.wxss')
+  const sharedRule = findRule(sharedCss, '.copy-btn')
 
-  // 契约五属性：fill / label / radius / padding / shadow，两页逐值全等。
-  // 玫瑰光从 issue #166 起画在 ::before 柔光层上，按钮本身不带阴影
-  for (const prop of ['background', 'color', 'border-radius', 'padding', 'box-shadow']) {
-    assert.equal(bindRule[prop], settingsRule[prop], `copy button ${prop} must match the settings anchor`)
+  // #232：契约五属性和 flex-shrink 只保留共享来源；页面原始文件只 import，不再各写一份。
+  assert.equal(sharedRule.background, 'var(--aurora-pink)')
+  assert.equal(sharedRule.color, '#0A0E27')
+  assert.equal(sharedRule['border-radius'], 'var(--radius-sm)')
+  assert.equal(sharedRule.padding, '0 28rpx')
+  assert.equal(sharedRule['box-shadow'], undefined)
+  assert.equal(sharedRule['flex-shrink'], '0')
+  assert.equal(sharedRule['min-height'], '88rpx')
+  for (const file of ['pages/bind/bind.wxss', 'pages/settings/settings.wxss']) {
+    assert.match(readRawPageFile(file), /@import '\.\.\/shared\/room-code\.wxss';/)
+    const localCopyRules = parseWxssRules(readRawPageFile(file)).filter(rule => rule.selectors.some(selector => selector.startsWith('.copy-btn')))
+    assert.deepEqual(localCopyRules, [], `${file} must not keep a local copy-button rule`)
+    assert.deepEqual(findRule(readPageFile(file), '.copy-btn'), sharedRule, `${file} expands to the one shared copy-button rule`)
   }
-  assert.equal(settingsRule.background, 'var(--aurora-pink)')
-  assert.equal(settingsRule.color, '#0A0E27')
-  assert.equal(settingsRule['border-radius'], 'var(--radius-sm)')
-  assert.equal(settingsRule.padding, '0 28rpx')
-  assert.equal(settingsRule['box-shadow'], undefined)
-  const bindGlow = findRule(readPageFile('pages/bind/bind.wxss'), '.copy-btn::before')
-  const settingsGlow = findRule(readPageFile('pages/settings/settings.wxss'), '.copy-btn::before')
-  assert.equal(settingsGlow['box-shadow'], '0 8rpx 30rpx rgba(232,144,158,0.28)')
-  assert.equal(bindGlow['box-shadow'], settingsGlow['box-shadow'], 'copy button glow must match the settings anchor')
 
-  // 88rpx 触控高度、按下缩放和按下时柔光沉下去的程度在两页同样同款
-  assert.equal(bindRule['min-height'], '88rpx')
-  assert.equal(settingsRule['min-height'], '88rpx')
-  const bindActive = findRule(readPageFile('pages/bind/bind.wxss'), '.copy-btn:active')
-  const settingsActive = findRule(readPageFile('pages/settings/settings.wxss'), '.copy-btn:active')
-  assert.equal(bindActive.transform, settingsActive.transform)
-  const bindPressedGlow = findRule(readPageFile('pages/bind/bind.wxss'), '.copy-btn:active::before')
-  const settingsPressedGlow = findRule(readPageFile('pages/settings/settings.wxss'), '.copy-btn:active::before')
-  assert.equal(bindPressedGlow.opacity, settingsPressedGlow.opacity)
+  const sharedGlow = findRule(sharedCss, '.copy-btn::before')
+  assert.equal(sharedGlow['box-shadow'], '0 8rpx 30rpx rgba(232,144,158,0.28)')
+  assert.equal(findRule(sharedCss, '.copy-btn:active').transform, 'scale(0.94)')
+  assert.equal(findRule(sharedCss, '.copy-btn:active::before').opacity, '0.5')
 })
 
 // issue #104：粉胶囊/粉幽灵页面级覆盖整体移除——绑定页主按钮回 app 级玫瑰基类，
@@ -238,23 +241,20 @@ test('page templates do not put a br tag inside a text node', () => {
 })
 
 test('copy buttons press instantly under reduced motion on both bind and settings', () => {
-  // .copy-btn 不在 app.wxss 全局 reduced-motion 名单里，两个页面必须在各自页面侧登记：
-  // RM 下移除 transform 过渡，按下立即缩放，不做 0.2s 动画式按压
-  for (const file of ['pages/bind/bind.wxss', 'pages/settings/settings.wxss']) {
-    const css = readPageFile(file)
-    const rmStart = css.lastIndexOf('@media (prefers-reduced-motion: reduce)')
-    assert.ok(rmStart !== -1, `${file} must register a prefers-reduced-motion block`)
-    assert.match(
-      css.slice(rmStart),
-      /\.copy-btn[^{]*\{[^}]*transition:\s*none/,
-      `${file} reduced-motion block must neutralize the copy button transform transition`
-    )
-    assert.match(
-      css.slice(rmStart),
-      /\.copy-btn::before[^{]*\{[^}]*transition:\s*none/,
-      `${file} reduced-motion block must make the copy button glow switch instantly`
-    )
-  }
+  // #232：两页经 @import 共用这一段；RM 下移除 transform 与柔光过渡，按下立即到位。
+  const css = readPageFile('pages/shared/room-code.wxss')
+  const rmStart = css.lastIndexOf('@media (prefers-reduced-motion: reduce)')
+  assert.ok(rmStart !== -1, 'shared room-code styles must register a prefers-reduced-motion block')
+  assert.match(
+    css.slice(rmStart),
+    /\.copy-btn[^{]*\{[^}]*transition:\s*none/,
+    'shared reduced-motion block must neutralize the copy button transform transition'
+  )
+  assert.match(
+    css.slice(rmStart),
+    /\.copy-btn::before[^{]*\{[^}]*transition:\s*none/,
+    'shared reduced-motion block must make the copy button glow switch instantly'
+  )
 })
 
 test('bind page exposes same-screen unbind for create and join refused by another room', async (t) => {

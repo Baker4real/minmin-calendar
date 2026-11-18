@@ -205,7 +205,7 @@ issue #86–#89 的绑定页紫粉试点（深紫画布、紫玻璃 tint、粉�
 
 已绑定卡的主次（issue #149）：刚创建房间时「发给 TA」（原生分享按钮，整宽玫瑰实底）是唯一主操作；「进入应用」是幽灵次按钮 `.btn-ghost`——透明底、1.5px 玫瑰描边、玫瑰字、内容宽居中胶囊，按下缩到 0.95，无投影，减弱动效下无过渡；玫瑰字在卡片合成面上 ≥4.5:1，上下 12px 内边距让 320px 宽下触控高度 ≥44px。刚创建后点它而跳转失败，主次不变。只有已有房间的首页跳转失败时，「进入应用」才以 `.btn-premium` 主按钮出现作为恢复。护栏：`tests/bind-room-flow.test.js`、`tests/secondary-affordance-contrast.test.js`、`tests/narrow-screen-geometry.test.js`。
 
-#78 同款契约重建（issue #104）：绑定页与设置页复制键回归同一色域与同一形态（玫瑰底 `var(--aurora-pink)`、海军字 `#0A0E27`、`--radius-sm`、`padding: 0 28rpx`、玫瑰辉光投影 `0 8rpx 30rpx rgba(232,144,158,0.28)`，issue #166 起画在 `::before` 柔光层上，按下同样沉到 0.5），像素同款契约按原「重建条件」恢复——`tests/bind-room-flow.test.js` 恢复两页 fill/label/radius/padding/shadow 全等断言，锚定设置页 `.copy-btn`（设置页侧零改动），在此重新登记。
+#78 同款契约重建（issue #104；#232 收为单一共享来源）：绑定页与设置页复制键使用 `pages/shared/room-code.wxss` 的同一份 `.copy-btn` 样式——玫瑰底 `var(--aurora-pink)`、海军字 `#0A0E27`、`--radius-sm`、`padding: 0 28rpx`、玫瑰辉光投影 `0 8rpx 30rpx rgba(232,144,158,0.28)`（issue #166 起画在 `::before` 柔光层上，按下同样沉到 0.5），并带 `flex-shrink: 0`。两页不再各留一份复制键规则；`tests/bind-room-flow.test.js` 继续核对 fill/label/radius/padding/shadow 全等。
 
 ## Typography
 
@@ -234,7 +234,7 @@ frontmatter 的 `typography` 与下表同值，写成 375px 设计宽下的名�
 | `--font-size-button` | `30rpx` | 主按钮 | `.btn-premium`、`.btn-danger` |
 | `--font-size-input` | `32rpx` | 输入文字 | `.form-input`、`.form-picker` |
 
-主按钮角色（30rpx）只属于主按钮族；sheet 确认、复制等小操作文字按正文/caption 角色，不另立按钮字号。glyph/display 例外清单（`.nav-back` 46rpx、`.sheet-close` 46rpx、箭头 42/32rpx、emoji 图标、`.cycle-num` 44rpx、`.hero-title` 48rpx、`.code-input` 40rpx、`.room-code-value` 36rpx 等）是收敛过程中登记的单点，issue #164 逐项复核后保留：字形随容器几何，展示型大字不是阅读文字。新增例外必须先登记。
+主按钮角色（30rpx）只属于主按钮族；sheet 确认、复制等小操作文字按正文/caption 角色，不另立按钮字号。glyph/display 例外清单（`.nav-back` 46rpx、`.sheet-close` 46rpx、箭头 42/32rpx、emoji 图标、`.cycle-num` 44rpx、`.hero-title` 48rpx、`.code-input` 40rpx 等）是收敛过程中登记的单点，issue #164 逐项复核后保留：字形随容器几何，展示型大字不是阅读文字。新增例外必须先登记。房间码自 #232 起不再是 display 例外，两页共用 `--font-size-title`。
 
 ### 共享文字字重、行高与字距（issue #62）
 
@@ -259,7 +259,7 @@ frontmatter 的 `typography` 与下表同值，写成 375px 设计宽下的名�
 
 等宽数字（`font-variant-numeric: tabular-nums`）用在三类文字上：日历日期、统计数字和房间码；翻月就换数字的行（月份标题、状态行、本月小结、弹层副标题、选月年份）；成列扫读的数字（记录列表的日期、时长胶囊、欢乐时光月份卡头）。数字变了不改字宽，也不推动后面的字（issue #164）。登记表是 `tests/typography-roles.test.js` 的 `TABULAR_NUMERIC`；房间码输入框是原生输入控件，不在表里。
 
-房间码（`.room-code-value`、`.bound-code`）同样走控件字重 600 与 `tabular-nums`，字距只用 `--letter-spacing-room-code`。无码占位 `.room-code-value.muted` 回到正文 400，字距复位为 0。`.code-input` 是输入文字，字重 400，字距只用 `--letter-spacing-code-input`。它的盒高和行高都是 88rpx，纵向 padding 为 0，六位码在框内完整可见并水平居中；输入框通栏，与上方说明和下方主按钮对齐。占位符走同一行高。
+房间码在设置页与绑定页共用 `pages/shared/room-code.wxss` 的 `.room-code-value`：标题档 `--font-size-title`、主文字色 `var(--text-primary)`、控件字重 600、`tabular-nums` 与 `--letter-spacing-room-code`，不可点所以不用玫瑰色。无码占位 `.room-code-value.muted` 回到正文 400，字距复位为 0。`.code-input` 是输入文字，字重 400，字距只用 `--letter-spacing-code-input`。它的盒高和行高都是 88rpx，纵向 padding 为 0，六位码在框内完整可见并水平居中；输入框通栏，与上方说明和下方主按钮对齐。占位符走同一行高。
 
 流式辅助说明在有水平余量时使用 `--letter-spacing-assist`。格内农历、节日/调休/预测文字、单字周标题、按钮标签和标题保持自然字距，不靠加字距或缩小字号制造轻盈。胶囊盒高和日历格留白不在本角色表里改。完整密度的格内农历只显示日名，农历初一显示月名（含闰月，如「闰四月」）；完整农历字符串留在日历格无障碍名称和日详情副标题。格内仍单行、不用省略号。清爽密度不显示农历。
 

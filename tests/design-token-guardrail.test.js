@@ -813,6 +813,7 @@ const REGISTERED_GLOWS = [
   'pages/index/index.wxss .copy-recap::before',
   'pages/settings/settings.wxss .copy-btn::before',
   'pages/bind/bind.wxss .copy-btn::before',
+  'pages/shared/room-code.wxss .copy-btn::before',
   // 选中态的静态玫瑰光
   'pages/index/index.wxss .jump-option.active',
   'pages/period/edit/edit.wxss .flow-chip.active',

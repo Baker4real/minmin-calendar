@@ -52,7 +52,6 @@ const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'pages/bind/bind.wxss', selector: '.hero-title', kind: 'display', value: '48rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.code-input', kind: 'display', value: '40rpx' },
   { file: 'pages/settings/settings.wxss', selector: '.menu-arrow', kind: 'glyph', value: '32rpx' },
-  { file: 'pages/settings/settings.wxss', selector: '.room-code-value', kind: 'display', value: '36rpx' },
   { file: 'pages/settings/settings.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
   // #209：共享确认面板的同一枚 ×；@import 展开后的调用页也各登记一次
   { file: 'pages/shared/confirmation-sheet.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
@@ -224,7 +223,7 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/bind/bind.wxss', '.info-text', 'assist'],
   ['pages/bind/bind.wxss', '.code-input', 'body'],
   ['pages/bind/bind.wxss', '.bound-status', 'body'],
-  ['pages/bind/bind.wxss', '.bound-code', 'control'],
+  ['pages/bind/bind.wxss', '.room-code-value', 'control'],
   ['pages/bind/bind.wxss', '.error-msg', 'assist'],
   ['pages/settings/settings.wxss', '.settings-group-title', 'assist'],
   ['pages/settings/settings.wxss', '.menu-text', 'body'],
@@ -275,7 +274,7 @@ const TABULAR_NUMERIC = [
   ['pages/period/period.wxss', '.item-duration'],
   ['pages/period/period.wxss', '.month-header-text'],
   ['pages/settings/settings.wxss', '.room-code-value'],
-  ['pages/bind/bind.wxss', '.bound-code']
+  ['pages/bind/bind.wxss', '.room-code-value']
 ]
 
 const ASSIST_TRACKING = [
@@ -469,7 +468,7 @@ test('assist tracking is one token, and tight or single-character text stays nat
     'var(--letter-spacing-room-code)'
   )
   assert.equal(
-    declsOf('pages/bind/bind.wxss', '.bound-code')['letter-spacing'],
+    declsOf('pages/bind/bind.wxss', '.room-code-value')['letter-spacing'],
     'var(--letter-spacing-room-code)'
   )
   assert.equal(

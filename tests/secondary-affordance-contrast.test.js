@@ -168,7 +168,7 @@ const CASES = [
   { file: 'pages/period/period.wxss', selector: '.empty-state', surfaces: [], note: '记录 tab 加载失败重试入口' },
   // 绑定页条目按收敛后的 Aurora 海军面验收（issue #104）：紫域画布/紫卡覆盖已删，
   // 卡片表面与其他页面同源——app 级 .premium-card（白玻璃 + 海军实底回退）
-  { file: 'pages/bind/bind.wxss', selector: '.bound-code', surfaces: [['app.wxss', '.premium-card']], note: '绑定页房间码展示文本' },
+  { file: 'pages/bind/bind.wxss', selector: '.room-code-value', surfaces: [['app.wxss', '.premium-card']], note: '绑定页房间码展示文本' },
   // issue #104：成功标题回到主色玫瑰 #E8909E（DESIGN.md「成功态用主色玫瑰」），
   // 在海军卡合成面上钉住 ≥4.5:1
   { file: 'pages/bind/bind.wxss', selector: '.bound-status', surfaces: [['app.wxss', '.premium-card']], note: '绑定页已绑定成功标题' },
