@@ -395,6 +395,7 @@ test('non-key grouping labels keep their quieter tier and still clear 4.5:1', ()
 // var(--glass-fallback) 上，淡白或淡红只是上面的一层平涂。上面关键辅助文字表里登记过的不重复。
 const TEXT_ON_AURORA = [
   { file: 'pages/index/index.wxss', selector: '.partner-welcome', stacks: [[]], note: '首页配对欢迎条' },
+  { file: 'pages/index/index.wxss', selector: '.partner-invite', stacks: [[]], note: '首页等待邀请条' },
   { file: 'pages/index/index.wxss', selector: '.month-summary', stacks: [[]], note: '首页本月小结行' },
   { file: 'pages/index/index.wxss', selector: '.refresh-retry-text', stacks: [[['pages/index/index.wxss', '.refresh-retry'], ['pages/index/index.wxss', '.refresh-retry::before']]], note: '首页刷新失败重试行' },
   { file: 'pages/index/index.wxss', selector: '.empty-guide-text', stacks: [[['pages/index/index.wxss', '.empty-guide']]], note: '首页空态引导' },

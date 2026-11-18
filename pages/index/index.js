@@ -7,6 +7,8 @@ const { buildHomeCalendarState } = require('../../utils/homeCalendarState')
 const { computeCalendarRowHeight } = require('../../utils/calendarRowHeight')
 const safeArea = require('../../utils/safeArea')
 const roomPresence = require('../../utils/roomPresence')
+const roomSession = require('../../utils/room')
+const { buildRoomShareCard } = require('../../utils/roomShare')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 const {
   createSheetLifecycle,
@@ -156,6 +158,8 @@ Page(withPageVisibility({
     syncStatusMounted: false,
     syncStatusPhase: 'closed',
     noRoom: false,
+    roomStatus: '',
+    partnerInvite: false,
     partnerWelcome: false,
     roomStatusTitle: '',
     roomStatusDesc: '',
@@ -165,6 +169,7 @@ Page(withPageVisibility({
 
   onLoad() {
     this.refreshReducedMotion()
+    this.syncRoomSharing('')
     const now = new Date()
     // 全应用共用一份 Room 记录（#193）：加载时订阅、卸载时退订，订阅回调只更新渲染数据
     this._unsubscribeRecords = roomRecordsSync.subscribe((state, change) => this.renderRecordsSync(state, change))
@@ -177,6 +182,7 @@ Page(withPageVisibility({
 
   onShow() {
     restoreTabBarOnShow(this)
+    this.syncRoomSharing(this.data.roomStatus)
     // 密度偏好在设置页切换；返回首页（tab onShow）时重读即刻生效，行高按新密度同一次重算。
     // 记录加载在这次调用里同步开始；配对状态随两份列表一起带回，不另查房间（#191）。
     const today = util.formatDate(new Date())
@@ -199,6 +205,22 @@ Page(withPageVisibility({
     return this.loadRecords()
   },
 
+  onShareAppMessage() {
+    return buildRoomShareCard({
+      roomCode: roomSession.getRoomCode(),
+      roomStatus: this.data.roomStatus
+    })
+  },
+
+  syncRoomSharing(roomStatus) {
+    if (this.data.pageHidden) return
+    const enabled = roomStatus === 'waiting' && Boolean(roomSession.getRoomCode())
+    if (this._shareMenuEnabled === enabled) return
+    this._shareMenuEnabled = enabled
+    if (enabled) wx.showShareMenu({ menus: ['shareAppMessage'] })
+    else wx.hideShareMenu()
+  },
+
   // 首页发起的每次加载都经这里，前台还是静默刷新由共享记录自己判断（#193）
   loadRecords() {
     return roomRecordsSync.load().then(result => {
@@ -207,25 +229,26 @@ Page(withPageVisibility({
     })
   },
 
-  // 提示只依据这次加载返回的结果，且只在首页仍在前台时给：「TA 已加入」只认这次列表带回的配对状态，由 roomPresence
-  // 判定只提示一次；没带回状态（读取失败、旧版 dataOp 或换了 Room 而作废）就不喂旧值。加载回来时首页已被切走或盖住，
-  // 就既不提示也不把这次变化记为已见，下次首页显示时的加载再带回它、再提示（决定 24）。显示、下拉、重试共用一次在途
-  // 加载时由 claimPrompt 只提示一次
+  // 提示只依据这次加载返回的结果，且只在首页仍在前台时给。创建者 waiting → paired 与加入者共用
+  // 同一个一次性欢迎标记，首页不再弹「TA 已加入」toast；设置页仍保留自己的提示。加载回来时首页已被切走或盖住，
+  // 就既不标记也不把这次变化记为已见，下次首页显示时的加载再带回它、再展示欢迎。显示、下拉、重试共用一次在途
+  // 加载时由 claimPrompt 只处理一次。
   presentLoadResult(result) {
     if (!result || !result.roomStatus || this.data.pageHidden) return
     if (!roomRecordsSync.claimPrompt(result)) return
-    if (roomPresence.rememberRoomStatus(result.roomStatus)) {
-      wx.showToast({ title: 'TA 已加入', icon: 'none' })
+    if (roomPresence.rememberRoomStatus(result.roomStatus) && !this.data.partnerWelcome) {
+      roomPresence.markPartnerWelcomePending()
+      this.revealPendingPartnerWelcome()
     }
   },
 
   // 一次性配对欢迎（issue #149）：日历能显示时才挂上欢迎条，行高同一次 setData 计入它；
   // 渲染回调确认欢迎条已提交到视图层后才记为看过。骨架屏、失败或未绑定画面时保持待显示。
   revealPendingPartnerWelcome() {
-    if (this.data.partnerWelcome || !this.data.hasLoadedHomeData || this.data.noRoom) return
+    if (this.data.partnerWelcome || this.data.partnerInvite || !this.data.hasLoadedHomeData || this.data.noRoom) return
     if (!roomPresence.isPartnerWelcomePending()) return
     this.setData(
-      this.withCalendarGeometry({ partnerWelcome: true }),
+      this.withCalendarGeometry({ partnerWelcome: true, partnerInvite: false }),
       () => {
         roomPresence.markPartnerWelcomeSeen()
         this._partnerWelcomeSeen = true
@@ -238,7 +261,10 @@ Page(withPageVisibility({
   dismissSeenPartnerWelcome() {
     if (!this.data.partnerWelcome || !this._partnerWelcomeSeen) return
     this._partnerWelcomeSeen = false
-    this.setData(this.withCalendarGeometry({ partnerWelcome: false }))
+    this.setData(this.withCalendarGeometry({
+      partnerWelcome: false,
+      partnerInvite: this.data.roomStatus === 'waiting'
+    }))
   },
 
   // 日历几何的唯一出口（issue #153）：改动日期格、密度、顶栏、「回到今天」、欢迎条或行内重试行的 setData
@@ -252,7 +278,7 @@ Page(withPageVisibility({
         density: next.calendarDensity,
         navBarHeightPx: next.navBarHeight,
         showBackToToday: next.showBackToToday,
-        showPartnerWelcome: next.partnerWelcome,
+        showPartnerWelcome: next.partnerWelcome || next.partnerInvite,
         showRefreshRetry: next.refreshRetryVisible
       })
     }
@@ -271,16 +297,22 @@ Page(withPageVisibility({
       loading: state.loading,
       refreshing: state.refreshing,
       hasLoadedHomeData: state.hasLoadedRecords,
+      roomStatus: state.roomStatus,
+      partnerInvite: false,
       ...state.retry
     }
+    this.syncRoomSharing(state.roomStatus)
     if (state.blockedOutcome) {
       this.applyRoomStatusOutcome(state.blockedOutcome, fields)
       // 换了 Room 而清空的记录：行内 Room 状态先盖住日历，再把日历换成清空后的样子，背后不留上一个 Room（#193）
       if (calendarChanged) this.applyHomeCalendarState()
       return
     }
+    const partnerWelcome = this.data.partnerWelcome && state.roomStatus !== 'waiting'
     Object.assign(fields, {
       noRoom: false,
+      partnerWelcome,
+      partnerInvite: state.roomStatus === 'waiting' && !partnerWelcome,
       roomStatusTitle: '',
       roomStatusDesc: '',
       roomStatusActionText: '',

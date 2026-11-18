@@ -40,6 +40,29 @@ async function dayAuthors(app, page, date) {
   return [...detail.periods, ...detail.memories].map(item => item.authorLabel || '')
 }
 
+test('shared records expose pairing as unknown, waiting and paired and clear it for another Room', async t => {
+  const app = homeApp(t)
+  const roomRecordsSync = require('../utils/roomRecordsSync')
+  assert.equal(roomRecordsSync.getState().roomStatus, '', 'no list has supplied a pairing status')
+  const periods = listRoute(app, 'periods', A).reply(listed([], 'waiting'))
+  const memories = listRoute(app, 'memories', A).reply(listed([], 'waiting'))
+  app.launch('/pages/index/index')
+  await app.settle()
+  assert.equal(roomRecordsSync.getState().roomStatus, 'waiting')
+
+  periods.reply(listed([], 'paired'))
+  memories.reply(listed([], 'paired'))
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.equal(roomRecordsSync.getState().roomStatus, 'paired')
+  assert.equal(roomRecordsSync.getState().roomPaired, true)
+
+  app.wx.setStorageSync('roomCode', B)
+  assert.equal(roomRecordsSync.readCurrentRoom().roomStatus, '', 'a different Room starts unknown')
+  assert.equal(roomRecordsSync.getState().roomPaired, false)
+})
+
 test('a new Home instance shows the shared records at once and refreshes them silently', async t => {
   const app = homeApp(t)
   listRoute(app, 'periods', A).reply(listed([period('a-p', '2026-06-01')]))

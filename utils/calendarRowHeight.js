@@ -7,12 +7,12 @@
 const ROW_CAP_RPX = { full: 160, compact: 148 }
 const ROW_FLOOR_PX = 44
 
-// 首屏文档流，自上而下：吸顶区占位、可选的欢迎条与行内重试、周头、网格上下内边距、记录入口。
+// 首屏文档流，自上而下：吸顶区占位、可选的欢迎/邀请共用槽位与行内重试、周头、网格上下内边距、记录入口。
 // 吸顶区（月份导航 130 + 状态行 88，不在当月时另加「回到今天」88）本身 position: fixed，滚动时留在顶栏下。
 const FIRST_SCREEN_RPX = {
   stickySpacer: 218,
   backToToday: 88,
-  // 一次性配对欢迎条：caption 26rpx × 正文行高 1.6 的两行，加上下外边距 8 + 12
+  // 一次性配对欢迎条与等待邀请条共用：caption 26rpx × 正文行高 1.6 的两行，加上下 padding 8 + 12
   partnerWelcome: 103.2,
   // 行内同步重试行：最小高 88 + 下外边距 8，文案一行
   refreshRetry: 96,
