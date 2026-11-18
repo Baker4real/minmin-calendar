@@ -1008,7 +1008,7 @@ test('another quiet show can reverse sync-pill entry before the render callback 
 })
 
 // August 2026 has six actual calendar rows. At 375 x 619 the existing
-// geometry contract is 55.33px without an extra row, 54px with welcome/retry.
+// geometry contract after the R5 1px sticky border is 55.16px without an extra row, 54px with welcome/retry.
 for (const banner of ['welcome', 'retry']) {
   test(`${banner} reserves calendar space and gives it back when cleared`, async t => {
     const app = homeApp(t, {
@@ -1036,7 +1036,7 @@ for (const banner of ['welcome', 'retry']) {
       await app.settle()
       assertRetry(app, home, null)
     }
-    assert.equal(app.rendered(home).calendarRowHeightPx, 55.33)
+    assert.equal(app.rendered(home).calendarRowHeightPx, 55.16)
     if (banner === 'retry') {
       listRoute(app, 'periods').reject(new Error('network down'))
       m.reject(new Error('network down'))
