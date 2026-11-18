@@ -4,7 +4,6 @@ const { buildRoomShareCard } = require('../../utils/roomShare')
 const roomPresence = require('../../utils/roomPresence')
 const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const settingsFlow = require('../../utils/settingsFlow')
-const wxPrompts = require('../../utils/wxPrompts')
 const safeArea = require('../../utils/safeArea')
 const {
   settingsHelpSheet,
@@ -13,6 +12,7 @@ const {
   restoreTabBarOnShow
 } = require('../../utils/sheetLifecycle')
 const { withPageVisibility } = require('../../utils/pageVisibility')
+const { confirmationSheet, confirmationSheetData } = require('../../utils/confirmationSheet')
 
 // 与 pages/index/index.js 共享同一存储键；首页 onShow 重读本偏好
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
@@ -41,7 +41,8 @@ function settingsInitialData() {
     helpMounted: false,
     helpPhase: 'closed',
     pageObscured: false,
-    sheetExitGuard: false
+    sheetExitGuard: false,
+    ...confirmationSheetData()
   }
 }
 
@@ -63,6 +64,10 @@ Page(withPageVisibility({
     probeReducedMotion(this)
   },
 
+  onUnload() {
+    confirmationSheet(this).unload()
+  },
+
   // 房间码解析：同步失败或未绑定都停在这张卡上，由重试/去绑定操作接续（issue #79）
   async resolveRoom() {
     const room = await roomSession.getVerifiedActiveRoom()
@@ -81,6 +86,7 @@ Page(withPageVisibility({
   setCalendarDensity(e) {
     const density = e.currentTarget.dataset.density
     if (density !== 'compact' && density !== 'full') return
+    if (density === this.data.calendarDensity) return
     this.setData({ calendarDensity: density })
     try {
       wx.setStorageSync(CALENDAR_DENSITY_STORAGE_KEY, density)
@@ -116,7 +122,8 @@ Page(withPageVisibility({
     const result = await settingsFlow.exportRecordsAsJson({
       cloud,
       roomSession,
-      confirmBeforeExport: true
+      confirmBeforeExport: true,
+      confirm: panel => confirmationSheet(this).open(panel)
     })
     const displayState = roomAccessOutcome.buildRoomDisplayStateFromAccessOutcome(result)
     if (displayState) {
@@ -124,17 +131,14 @@ Page(withPageVisibility({
     }
   },
 
-  clearData() {
-    wxPrompts.modal({
-      title: '重新同步房间',
-      content: '只会清掉本机缓存的房间码，再重新获取。不会删除记录，也不会退出房间。',
-      success: async (res) => {
-        if (res.confirm) {
-          const result = await settingsFlow.clearLocalCache({ roomSession })
-          syncActiveRoom(this, result.room)
-        }
-      }
+  async clearData() {
+    const confirmation = await settingsFlow.confirmResync({
+      confirm: panel => confirmationSheet(this).open(panel)
     })
+    if (confirmation.kind !== 'confirmed') return confirmation
+    const result = await settingsFlow.clearLocalCache({ roomSession })
+    syncActiveRoom(this, result.room)
+    return result
   },
 
   openHelp() {
@@ -145,8 +149,28 @@ Page(withPageVisibility({
     settingsHelpSheet(this).leave(this)
   },
 
-  // 系统返回先关掉帮助，走同一条离场，不离开设置页（同首页 issue #134）
+  onConfirmationAction(e) {
+    confirmationSheet(this).action(e.currentTarget.dataset.action)
+  },
+
+  onConfirmationMask() {
+    confirmationSheet(this).cancel()
+  },
+
+  onConfirmationClose() {
+    confirmationSheet(this).cancel()
+  },
+
+  onSheetDragRelease(detail) {
+    confirmationSheet(this).dragRelease(detail)
+  },
+
+  // 系统返回先关最上层面板，走同一条离场，不离开设置页。
   onSheetSystemBack() {
+    if (this.data.confirmationMounted) {
+      confirmationSheet(this).systemBack()
+      return
+    }
     dismissSheetOnSystemBack(this, {
       dismissTop: () => this.closeHelp(),
       isMounted: () => settingsHelpSheet(this).isMounted(this)

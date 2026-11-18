@@ -284,6 +284,11 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
     if (options.complete) track(options.complete(response))
   }
   function platform(method, options = {}, defaultResult) {
+    if (method === 'showToast' && options.icon !== 'none') {
+      const width = Array.from(String(options.title || ''))
+        .reduce((total, char) => total + (char.codePointAt(0) <= 0x7f ? 0.5 : 1), 0)
+      assert.ok(width <= 7, `showToast title exceeds 7 weighted characters: ${width}`)
+    }
     const history = platformCalls[method] || (platformCalls[method] = [])
     history.push(options)
     // 原生 showModal 拒绝超长按钮文案；#181 的真实 UI 失败暴露了此前替身的遗漏。
