@@ -1,6 +1,7 @@
 @import '../shared/confirmation-sheet.wxss';
 @import '../shared/room-code.wxss';
 @import '../shared/segmented-control.wxss';
+@import '../shared/retry-row.wxss';
 
 /* ===== Aurora Bloom: Bind Page ===== */
 
@@ -211,40 +212,9 @@
   border-radius: var(--radius-sm);
   border: 1px solid rgba(249,115,115,0.24);
 }
-/* 校验失败的可点重试（issue #102）：警示红族轻量按钮，按下叠同族更深 tint（无 transform 过渡） */
-/* 与错误条同族：海军回退上叠 10% 红，按下换成 18% 红（平涂层在 ::before，issue #163）。
-   海军回退比画布亮，24% 红按下时红字只剩约 4.4:1 */
+/* 校验失败重试与首页、记录 tab 共用 shared/retry-row.wxss（#234）；本页只留与错误条的间距。 */
 .error-retry {
-  position: relative;
-  z-index: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 88rpx;
-  padding: 0 48rpx;
-  box-sizing: border-box;
   margin-top: 16rpx;
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-control);
-  line-height: var(--line-height-assist);
-  color: #F97373;
-  background: var(--glass-fallback);
-  border: 1px solid rgba(249,115,115,0.24);
-  border-radius: var(--radius-sm);
-  transition: border-color var(--duration-press) ease;
-}
-/* 平涂层盖不到描边带：按下时描边同色提亮，和红色平涂层一起亮（issue #166） */
-.error-retry:active,
-.error-retry.error-retry-hover {
-  border-color: rgba(249,115,115,0.32);
-}
-/* 平涂层的结构在 app.wxss「平涂层」，这里只写颜色 */
-.error-retry::before {
-  background-color: rgba(249,115,115,0.1);
-}
-.error-retry:active::before,
-.error-retry.error-retry-hover::before {
-  background-color: rgba(249,115,115,0.18);
 }
 
 /* 减弱动效：本页声明的动画和过渡都在这里覆盖，写在文件末尾才压得住它们（app.wxss 的同名覆盖会被本页规则盖过）。
@@ -252,7 +222,6 @@
    政策见 DESIGN.md「动效与性能边界」——按压 = 即时 scale + 既有底色变化 */
 @media (prefers-reduced-motion: reduce) {
   .btn-ghost,
-  .error-retry,
   .bind-reveal,
   .hero-icon {
     animation: none;

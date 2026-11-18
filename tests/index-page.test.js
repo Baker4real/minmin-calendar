@@ -36,7 +36,7 @@ test('the refresh retry sentence is a tappable in-flow row below the month title
   assert.match(retryBlock, /aria-role="button"/)
   const wxss = readIndexWxss()
   assert.doesNotMatch(ruleBody(wxss, '.refresh-retry'), /position:\s*(fixed|absolute)/)
-  assert.match(ruleBody(wxss, '.refresh-retry-text'), /color:\s*#E8909E/i)
+  assert.match(ruleBody(wxss, '.refresh-retry'), /color:\s*#E8909E/i)
 })
 
 test('the sync pill stays a non-tappable status and the retry row is the only recovery entry', () => {

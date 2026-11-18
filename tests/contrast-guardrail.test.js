@@ -445,21 +445,21 @@ const TEXT_ON_AURORA = [
   { file: 'pages/index/index.wxss', selector: '.partner-welcome', stacks: [[]], note: '首页配对欢迎条' },
   { file: 'pages/index/index.wxss', selector: '.partner-invite', stacks: [[]], note: '首页等待邀请条' },
   { file: 'pages/index/index.wxss', selector: '.month-summary', stacks: [[]], note: '首页本月小结行' },
-  { file: 'pages/index/index.wxss', selector: '.refresh-retry-text', stacks: [[['pages/index/index.wxss', '.refresh-retry'], ['pages/index/index.wxss', '.refresh-retry::before']]], note: '首页刷新失败重试行' },
+  { file: 'pages/shared/retry-row.wxss', selector: '.refresh-retry', stacks: [[['pages/index/index.wxss', '.refresh-retry'], ['pages/index/index.wxss', '.refresh-retry::before']]], note: '首页刷新失败重试行' },
   { file: 'pages/index/index.wxss', selector: '.empty-guide-text', stacks: [[['pages/index/index.wxss', '.empty-guide']]], note: '首页空态引导' },
   { file: 'pages/index/index.wxss', selector: '.no-room-title', stacks: [[]], note: '未绑定与加载失败标题' },
   { file: 'pages/period/period.wxss', selector: '.segment-option', stacks: [[['pages/period/period.wxss', '.segment-control']]], note: '记录 tab 分段未选项' },
   { file: 'pages/period/period.wxss', selector: '.segment-option.active', stacks: [[['pages/period/period.wxss', '.segment-control'], ['pages/period/period.wxss', '.segment-option.active']]], note: '记录 tab 分段选中项' },
-  { file: 'pages/period/period.wxss', selector: '.list-retry-text', stacks: [[['pages/period/period.wxss', '.list-retry'], ['pages/period/period.wxss', '.list-retry::before']]], note: '记录 tab 刷新失败重试行' },
+  { file: 'pages/shared/retry-row.wxss', selector: '.list-retry', stacks: [[['pages/period/period.wxss', '.list-retry'], ['pages/period/period.wxss', '.list-retry::before']]], note: '记录 tab 刷新失败重试行' },
   { file: 'pages/settings/settings.wxss', selector: '.settings-group-title', stacks: [[]], note: '设置分组标题' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-title', stacks: [[]], note: '绑定页大标题' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-desc', stacks: [[]], note: '绑定页说明' },
   { file: 'pages/bind/bind.wxss', selector: '.error-msg', stacks: [[['pages/bind/bind.wxss', '.error-msg']]], note: '绑定页错误条' },
-  { file: 'pages/bind/bind.wxss', selector: '.error-retry', stacks: [[['pages/bind/bind.wxss', '.error-retry'], ['pages/bind/bind.wxss', '.error-retry::before']]], note: '绑定页校验失败重试' },
+  { file: 'pages/shared/retry-row.wxss', selector: '.error-retry', stacks: [[['pages/bind/bind.wxss', '.error-retry'], ['pages/bind/bind.wxss', '.error-retry::before']]], note: '绑定页校验失败重试' },
   // 这几条行按下时平涂层加深，按下的那一刻文字也要读得清
-  { file: 'pages/index/index.wxss', selector: '.refresh-retry-text', stacks: [[['pages/index/index.wxss', '.refresh-retry'], ['pages/index/index.wxss', '.refresh-retry.refresh-retry-hover::before']]], note: '首页刷新失败重试行（按下）' },
-  { file: 'pages/bind/bind.wxss', selector: '.error-retry', stacks: [[['pages/bind/bind.wxss', '.error-retry'], ['pages/bind/bind.wxss', '.error-retry.error-retry-hover::before']]], note: '绑定页校验失败重试（按下）' },
-  { file: 'pages/period/period.wxss', selector: '.list-retry-text', stacks: [[['pages/period/period.wxss', '.list-retry'], ['pages/period/period.wxss', '.list-retry.list-retry-hover::before']]], note: '记录 tab 刷新失败重试行（按下）' }
+  { file: 'pages/shared/retry-row.wxss', selector: '.refresh-retry', stacks: [[['pages/index/index.wxss', '.refresh-retry'], ['pages/index/index.wxss', '.refresh-retry.refresh-retry-hover::before']]], note: '首页刷新失败重试行（按下）' },
+  { file: 'pages/shared/retry-row.wxss', selector: '.error-retry', stacks: [[['pages/bind/bind.wxss', '.error-retry'], ['pages/bind/bind.wxss', '.error-retry.error-retry-hover::before']]], note: '绑定页校验失败重试（按下）' },
+  { file: 'pages/shared/retry-row.wxss', selector: '.list-retry', stacks: [[['pages/period/period.wxss', '.list-retry'], ['pages/period/period.wxss', '.list-retry.list-retry-hover::before']]], note: '记录 tab 刷新失败重试行（按下）' }
 ]
 
 test('text on the aurora and on translucent rows clears 4.5:1 at the aurora brightest point', () => {

@@ -1,0 +1,55 @@
+/* issue #234：首页、记录 tab 与绑定页的刷新重试统一为首页同形的整行玫瑰句。
+   app.wxss「平涂层」提供 ::before 的结构；这里只拥有重试行的外观与按压值，页面只留位置外边距。 */
+.refresh-retry,
+.list-retry,
+.error-retry {
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0 0 8rpx;
+  padding: 0 28rpx;
+  border-radius: var(--radius-md);
+  background: var(--glass-fallback);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #E8909E;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-control);
+  line-height: var(--line-height-assist);
+  transition: border-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
+}
+.refresh-retry::before,
+.list-retry::before,
+.error-retry::before {
+  background-color: rgba(255,255,255,0.05);
+}
+.refresh-retry:active,
+.refresh-retry.refresh-retry-hover,
+.list-retry:active,
+.list-retry.list-retry-hover,
+.error-retry:active,
+.error-retry.error-retry-hover {
+  transform: scale(0.98);
+  border-color: rgba(255,255,255,0.14);
+}
+.refresh-retry:active::before,
+.refresh-retry.refresh-retry-hover::before,
+.list-retry:active::before,
+.list-retry.list-retry-hover::before,
+.error-retry:active::before,
+.error-retry.error-retry-hover::before {
+  background-color: rgba(255,255,255,0.09);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .refresh-retry,
+  .list-retry,
+  .error-retry {
+    animation: none;
+    transition: none;
+  }
+}

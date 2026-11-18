@@ -130,15 +130,12 @@ test('period list keeps last data on refresh failure and offers retry in the lis
     /wx:if="\{\{loadFailed && hasLoaded && !loading\}\}" class="list-retry" bindtap="loadData" aria-role="button" aria-label="刷新失败，点按重试"/
   )
   assert.match(periodWxml, /class="list-retry-text">刷新失败，正在显示上次的内容</)
-  assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
-  // 重试行可点高度 ≥44px，说明句保持次级文字色（可读但不抢操作）
-  const retryRow = /\.list-retry\s*\{[^}]*\}/.exec(periodWxss)
+  // 重试行可点高度 ≥44px，整句与首页一样使用玫瑰可点色，不再嵌一个等高的重试块
+  const retryRow = parseWxssRules(periodWxss).find(rule => rule.selectors.includes('.list-retry'))
   assert.ok(retryRow, 'expected the .list-retry rule')
-  assert.match(retryRow[0], /min-height:\s*88rpx/)
-  const retryText = /\.list-retry-text\s*\{[^}]*\}/.exec(periodWxss)
-  assert.ok(retryText, 'expected the .list-retry-text rule')
-  assert.match(retryText[0], /color:\s*var\(--text-secondary\)/)
+  assert.match(retryRow.decls['min-height'], /88rpx/)
+  assert.match(retryRow.decls.color, /#E8909E/i)
 })
 
 test('record tab memory segment mirrors the standalone memory list state contract', () => {

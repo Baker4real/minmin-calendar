@@ -187,6 +187,10 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
   assert.equal(errorMsg.color, '#F97373')
   assert.match(errorMsg.background, /rgba\(249,\s*115,\s*115,\s*0\.1\)/)
   assert.match(errorMsg.border, /1px solid rgba\(249,\s*115,\s*115,\s*0\.24\)/)
+  // #234：重试不再是第二个红色错误面，整行句与首页、记录 tab 共用玫瑰可点色。
+  const errorRetry = findRule(css, '.error-retry')
+  assert.equal(errorRetry.color, '#E8909E')
+  assert.equal(errorRetry.border, '1px solid rgba(255,255,255,0.1)')
   const unbindInline = findRule(css, '.unbind-inline')
   assert.match(unbindInline['margin-top'], /^\d+rpx$/)
 })

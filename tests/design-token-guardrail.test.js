@@ -175,8 +175,6 @@ const PAGE_RHYTHM_SITES = [
   ['rowInset', 'pages/period/period.wxss', '.list-item', 'padding', 'x'],
   ['rowInset', 'pages/period/period.wxss', '.skeleton-item', 'padding', 'x'],
   ['rowInset', 'pages/period/period.wxss', '.month-header', 'padding', 'x'],
-  // 刷新失败重试行站在列表行的位置上（经期与欢乐时光两段同一条行），按列表行的内边距
-  ['rowInset', 'pages/period/period.wxss', '.list-retry', 'padding', 'x'],
   ['rowInset', 'pages/settings/settings.wxss', '.menu-item', 'padding', 'x'],
   ['rowInset', 'pages/settings/settings.wxss', '.density-menu-desc', 'padding', 'x'],
   ['rowInset', 'pages/settings/settings.wxss', '.density-control', 'margin', 'x'],

@@ -345,11 +345,11 @@ button.share-invite::after {
   background-color: var(--glass-bg);
 }
 
-/* ===== 平涂层（issue #163、#166）=====
-   压在极光上的行和按钮，底是海军回退 var(--glass-fallback)，淡白或淡红只是 ::before 上的平涂层
+/* ===== 平涂层（issue #163、#166、#234）=====
+   压在极光上的重试行，底是海军回退 var(--glass-fallback)，淡白只是 ::before 上的平涂层
    （宿主自己带 position: relative 与 z-index: 0）：铺满内边距盒、跟宿主同一个圆角、不拦点按，按压加深这一层，
-   background-color 和按压同一拍。平涂层盖不到描边带，宿主按下时描边同色提亮。首页刷新重试行、
-   记录 tab 的刷新失败重试行、绑定页校验失败重试共用这一层，各页只写平涂色和按下的颜色 */
+   background-color 和按压同一拍。平涂层盖不到描边带，宿主按下时描边提亮。首页、记录 tab、
+   绑定页三处重试共用这一层，外观和平涂色只写在 pages/shared/retry-row.wxss */
 .refresh-retry::before,
 .list-retry::before,
 .error-retry::before {
