@@ -1,10 +1,11 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const { confirmDelete } = require('./helpers/recordPages')
 const { readSource } = require('./sourceFiles')
-const { renderWxmlAttribute, wxmlOpeningTags } = require('./wxmlTemplate')
+const { evaluateWxmlExpression, renderWxmlAttribute, wxmlOpeningTags } = require('./wxmlTemplate')
 
 const value = value => ({ detail: { value } })
 const dataset = value => ({ currentTarget: { dataset: value } })
@@ -27,11 +28,25 @@ const draftKey = (spec, id = 'new') => `recordDraft:${spec.collection}:${id}`
 const editUrl = (spec, options = {}) => `/pages/${spec.kind}/edit/edit?${new URLSearchParams(options)}`
 const cell = (page, date = '2026-09-20') => page.data.days.find(day => day.date === date)
 
-function datePickerName(spec, handler, data) {
+function sharedTemplateData(spec, templateName, handlerKey, handler, data) {
   const file = path.join(__dirname, `../pages/${spec.kind}/edit/edit.wxml`)
-  const picker = wxmlOpeningTags(readSource(file, 'utf8')).find(tag => tag.tag === 'picker' && tag.attrs.bindchange === handler)
-  assert.ok(picker, `${spec.kind} exposes its ${handler} date picker`)
-  return renderWxmlAttribute(picker.attrs['aria-label'], data)
+  const invocations = wxmlOpeningTags(fs.readFileSync(file, 'utf8'))
+    .filter(tag => tag.tag === 'template' && tag.attrs.is === templateName)
+  for (const invocation of invocations) {
+    const expression = /^\{\{([\s\S]*)\}\}$/.exec(invocation.attrs.data || '')
+    assert.ok(expression, `${spec.kind} ${templateName} passes a data object`)
+    const mapped = evaluateWxmlExpression(`{${expression[1]}}`, data)
+    if (mapped[handlerKey] === handler) return mapped
+  }
+  assert.fail(`${spec.kind} binds ${handler} through ${templateName}`)
+}
+
+function datePickerName(spec, handler, data) {
+  const mapped = sharedTemplateData(spec, 'sharedDateField', 'changeHandler', handler, data)
+  const file = path.join(__dirname, `../pages/${spec.kind}/edit/edit.wxml`)
+  const picker = wxmlOpeningTags(readSource(file, 'utf8')).find(tag => tag.tag === 'picker' && tag.attrs.bindchange === '{{changeHandler}}')
+  assert.ok(picker, `${spec.kind} exposes its ${handler} date picker through the shared template`)
+  return renderWxmlAttribute(picker.attrs['aria-label'], mapped)
 }
 
 function setup(t, options = {}) {
@@ -248,9 +263,13 @@ test('period: status option screen-reader names include each option consequence'
   const app = setup(t)
   const { page } = await openEditor(app, period)
   const template = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
-  const option = wxmlOpeningTags(template).find(tag => tag.attrs['aria-role'] === 'radio' && tag.attrs.bindtap === 'selectStatus')
+  const option = wxmlOpeningTags(template).find(tag => tag.attrs.bindtap === '{{tapHandler}}')
   assert.ok(option)
-  assert.deepEqual(page.data.statusOptions.map(item => renderWxmlAttribute(option.attrs['aria-label'], { item })), [
+  assert.deepEqual(page.data.statusOptions.map(item => {
+    const mapped = sharedTemplateData(period, 'sharedChoiceChip', 'tapHandler', 'selectStatus', { ...page.data, item })
+    assert.equal(mapped.role, 'radio')
+    return renderWxmlAttribute(option.attrs['aria-label'], mapped)
+  }), [
     '经期状态 进行中，进行中可稍后补结束日期',
     '经期状态 结束日期不详，结束日不清楚，日历只标开始那天',
     '经期状态 已结束，选好结束日期，这次经期才有确定的天数'

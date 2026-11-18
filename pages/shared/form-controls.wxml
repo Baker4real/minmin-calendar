@@ -1,0 +1,34 @@
+<template name="sharedDateField">
+  <text class="form-label">{{label}}</text>
+  <picker mode="date" value="{{value}}" start="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="{{changeHandler}}" aria-role="button" aria-disabled="{{saving}}" aria-label="{{ariaLabel}}{{error ? '，' + error : ''}}">
+    <view class="form-picker form-control{{saving ? ' disabled' : ''}}" hover-class="form-picker-hover">
+      <text class="{{value ? '' : 'input-placeholder'}}">{{value ? displayValue : placeholder}}</text>
+      <text class="form-picker-arrow">›</text>
+    </view>
+  </picker>
+  <text wx:if="{{error}}" class="field-error" aria-role="alert">{{error}}</text>
+</template>
+
+<template name="sharedChoiceChip">
+  <view
+    class="{{checked ? 'active' : ''}}{{saving ? ' disabled' : ''}} {{chipClass}}"
+    data-value="{{item.value}}"
+    bindtap="{{tapHandler}}"
+    aria-role="{{role}}"
+    aria-label="{{ariaLabel}}"
+    aria-checked="{{checked}}"
+    aria-disabled="{{saving}}" hover-class="{{chipClass}}-hover">{{item.label}}</view>
+</template>
+
+<template name="sharedRecordActions">
+  <view class="btns">
+    <view wx:if="{{!saving && !deleting && !submitted}}" class="btn-premium" bindtap="save" aria-role="button" aria-label="保存" hover-class="btn-premium-hover">保存</view>
+    <view wx:elif="{{saving}}" class="btn-premium loading" aria-role="button" aria-disabled="true">保存中...</view>
+    <view wx:else class="btn-premium disabled" aria-role="button" aria-disabled="true">保存</view>
+  </view>
+  <view wx:if="{{isEdit}}" class="delete-zone">
+    <view wx:if="{{isEdit && !deleting && !saving && !submitted}}" class="btn-danger" hover-class="btn-danger-hover" bindtap="delete" aria-role="button" aria-label="删除此记录">删除此记录</view>
+    <view wx:elif="{{isEdit && deleting}}" class="btn-danger loading" aria-role="button" aria-disabled="true">删除中...</view>
+    <view wx:elif="{{isEdit}}" class="btn-danger disabled" aria-role="button" aria-disabled="true">删除此记录</view>
+  </view>
+</template>

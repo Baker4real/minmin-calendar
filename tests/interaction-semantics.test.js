@@ -1,9 +1,10 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { readSource } = require('./sourceFiles')
 const { PRESS_SCALE_BAND, TOUCH_FLOOR_RPX, parseWxssRules } = require('./designTokens')
-const { conditionalClassCondition, wxmlElementTree, wxmlOpeningTags } = require('./wxmlTemplate')
+const { conditionalClassCondition, evaluateWxmlExpression, renderWxmlAttribute, wxmlElementTree, wxmlOpeningTags } = require('./wxmlTemplate')
 
 // issue #57：交互语义护栏 —— 每个用户可点控件都有明确角色与可读名称；
 // 选中/禁用/隐藏状态用 aria 表达且与视觉状态同条件绑定，不与可操作状态冲突；
@@ -40,6 +41,17 @@ function elementsOf(relativePath) {
   const elements = []
   walk(wxmlElementTree(readPage(relativePath)), (node) => elements.push(node))
   return elements
+}
+
+function sharedChipInvocation(handler) {
+  const file = path.join(repoRoot, 'pages/period/edit/edit.wxml')
+  const invocation = wxmlOpeningTags(fs.readFileSync(file, 'utf8')).find(tag =>
+    tag.tag === 'template' && tag.attrs.is === 'sharedChoiceChip' &&
+    (tag.attrs.data || '').includes(`tapHandler: '${handler}'`))
+  assert.ok(invocation, `expected ${handler} to use sharedChoiceChip`)
+  const expression = /^\{\{([\s\S]*)\}\}$/.exec(invocation.attrs.data)
+  const scope = { item: { value: 'sample', label: '选项', hint: '后果' }, status: '', flow: '', selectedSymptoms: {}, saving: false }
+  return { invocation, data: evaluateWxmlExpression(`{${expression[1]}}`, scope) }
 }
 
 // 一个选择器在样式表里的全部声明，后写的覆盖先写的
@@ -214,7 +226,8 @@ test('five radio groups expose radiogroup while page and sheet titles avoid unsu
     ['pages/index/index.wxml', 'selectJumpMonth', '月份'],
     ['pages/period/edit/edit.wxml', 'selectStatus', '经期状态']
   ]) {
-    const option = elementsOf(file).find((element) => element.attrs.bindtap === optionHandler)
+    const option = elementsOf(file).find((element) => element.attrs.bindtap ===
+      (optionHandler === 'selectStatus' ? '{{tapHandler}}' : optionHandler))
     assert.ok(option, `${file}: expected a ${optionHandler} radio option`)
     const group = option.parent
     assert.ok(group, `${file}: ${optionHandler} needs a group container`)
@@ -700,27 +713,24 @@ test('edit pages name the save and delete operations and expose inert variants a
   }
 
   const periodEdit = elementsOf('pages/period/edit/edit.wxml')
-  // issue #100：经期状态是单选组，按 radio 朗读且选中项带 checked 状态；
-  // 按 aria-label 前缀区分——状态组与经量组共用 flow-chip 类，不能按类名取第一个；
-  // 状态容器也与选项同名，只取选项本身
-  const statusChip = periodEdit.find((element) =>
-    element.classes.includes('flow-chip') && (element.attrs['aria-label'] || '').startsWith('经期状态'))
-  assert.equal(statusChip.attrs['aria-role'], 'radio')
-  assert.equal(statusChip.attrs['aria-checked'], '{{status === item.value}}')
+  const sharedChip = periodEdit.find((element) => element.attrs.bindtap === '{{tapHandler}}')
+  assert.ok(sharedChip, 'period options use the shared chip template')
+  assert.equal(sharedChip.attrs['aria-checked'], '{{checked}}')
+  // issue #100/#242：共享结构仍按各组原角色和选中条件渲染。
+  const statusChip = sharedChipInvocation('selectStatus')
+  assert.equal(statusChip.data.role, 'radio')
+  assert.match(statusChip.invocation.attrs.data, /checked: status === item\.value/)
   // 经量（可再点取消的单选）与症状（多选）保持 checkbox
-  const flowChip = periodEdit.find((element) =>
-    (element.attrs['aria-label'] || '').startsWith('经量'))
-  assert.equal(flowChip.attrs['aria-role'], 'checkbox')
-  const symptomChip = periodEdit.find((element) => element.classes.includes('symptom-chip'))
-  assert.equal(symptomChip.attrs['aria-role'], 'checkbox')
+  assert.equal(sharedChipInvocation('selectFlow').data.role, 'checkbox')
+  const symptomChip = sharedChipInvocation('toggleSymptom')
+  assert.equal(symptomChip.data.role, 'checkbox')
+  assert.equal(symptomChip.data.chipClass, 'symptom-chip')
 })
 
 test('flow options stay checkboxes and announce single selection with tap-again cancellation', () => {
-  const flowChip = elementsOf('pages/period/edit/edit.wxml').find((element) =>
-    (element.attrs['aria-label'] || '').startsWith('经量'))
-  assert.ok(flowChip, 'expected the flow option template')
-  assert.equal(flowChip.attrs['aria-role'], 'checkbox')
-  assert.equal(flowChip.attrs['aria-label'], '经量 {{item.label}}，单选，再点取消')
+  const flowChip = sharedChipInvocation('selectFlow')
+  assert.equal(flowChip.data.role, 'checkbox')
+  assert.equal(renderWxmlAttribute('{{ariaLabel}}', flowChip.data), '经量 选项，单选，再点取消')
 })
 
 // ===== issue #77 / #106：已退役的符号与叫法不再出现 =====

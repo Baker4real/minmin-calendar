@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { readSource } = require('./sourceFiles')
@@ -416,14 +417,21 @@ test('every tappable control carries its own hover-class, painted by an :active 
   const violations = []
   for (const file of listWxmlFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    const raw = fs.readFileSync(file, 'utf8')
+    const sharedChipHovers = [...raw.matchAll(/\bchipClass:\s*'([^']+)'/g)].map(match => `${match[1]}-hover`)
     for (const control of tapControls(wxmlElementTree(readSource(file, 'utf8')))) {
       const label = `${relative} <${control.tag} class="${control.attrs.class || ''}">`
       const hover = control.attrs['hover-class'] || ''
-      const stem = hover.endsWith('-hover') ? hover.slice(0, -'-hover'.length) : ''
-      if (!stem || !control.classes.includes(stem)) {
-        violations.push(`${label} hover-class=${hover || '(missing)'}`)
-      } else if (!activeClasses.has(`.${hover}`)) {
-        violations.push(`${label} hover-class ${hover} is in no :active rule`)
+      // 共享芯片把现有 flow/symptom 类名作为 data 修饰传入，逐个核对真实 hover 类。
+      const hovers = hover === '{{chipClass}}-hover' ? sharedChipHovers : [hover]
+      for (const hoverName of hovers) {
+        const stem = hoverName.endsWith('-hover') ? hoverName.slice(0, -'-hover'.length) : ''
+        const dynamicClass = hover === '{{chipClass}}-hover' && (control.attrs.class || '').includes('{{chipClass}}')
+        if (!stem || (!control.classes.includes(stem) && !dynamicClass)) {
+          violations.push(`${label} hover-class=${hoverName || '(missing)'}`)
+        } else if (!activeClasses.has(`.${hoverName}`)) {
+          violations.push(`${label} hover-class ${hoverName} is in no :active rule`)
+        }
       }
     }
   }
@@ -495,6 +503,9 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/period/period.wxss', '.segment-control'],
     ['pages/period/period.wxss', '.skeleton-card'],
     ['pages/period/period.wxss', '.empty-state'],
+    // #236：共享表单规则及两个 @import 调用页核对同一份既有平涂登记。
+    ['pages/shared/record-form.wxss', '.form-picker'],
+    ['pages/shared/record-form.wxss', '.form-input'],
     ['pages/period/edit/edit.wxss', '.form-picker'],
     ['pages/period/edit/edit.wxss', '.form-input'],
     ['pages/memory/edit/edit.wxss', '.form-picker'],

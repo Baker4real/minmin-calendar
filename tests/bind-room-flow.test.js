@@ -197,13 +197,15 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
 
 // issue #138：加入房间时六位码完整可见、在框内居中，输入框与上方说明、下方主按钮同宽。
 test('join room-code field has an 88rpx line and lines up with the hint and the main button', () => {
-  const codeInput = findRule(readPageFile('pages/bind/bind.wxss'), '.code-input')
+  const css = readPageFile('pages/bind/bind.wxss')
+  const codeInput = findRule(css, '.code-input')
+  const baseInput = findRule(css, '.form-control')
 
   assert.equal(codeInput.height, '88rpx', 'the field needs an explicit height at the touch step')
   assert.equal(codeInput['line-height'], '88rpx', 'the line box must match that height so glyphs are not clipped')
-  assert.equal(codeInput.width, '100%', 'the field spans the card, same as the hint and the main button')
+  assert.equal(baseInput.width, '100%', 'the field spans the card, same as the hint and the main button')
   assert.equal(codeInput['text-align'], 'center')
-  assert.equal(codeInput['box-sizing'], 'border-box')
+  assert.equal(baseInput['box-sizing'], 'border-box')
   assert.equal(codeInput.padding, '0 20rpx', 'vertical padding must not eat the line box')
 
   const placeholder = findRule(readPageFile('pages/bind/bind.wxss'), '.input-placeholder')

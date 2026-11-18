@@ -54,7 +54,7 @@
 
       <view wx:if="{{tab === 'join'}}">
         <text class="info-text">输入对方给你的房间码</text>
-        <input class="code-input" placeholder-class="input-placeholder" placeholder="输入6位码" value="{{joinCode}}" bindinput="onCodeInput" confirm-type="done" bindconfirm="joinRoom" aria-label="输入6位房间码"/>
+        <input class="code-input form-control" placeholder-class="input-placeholder" placeholder="输入6位码" value="{{joinCode}}" bindinput="onCodeInput" confirm-type="done" bindconfirm="joinRoom" aria-label="输入6位房间码"/>
         <view wx:if="{{joinCode.length < 6 && !loading}}" class="btn-premium disabled" aria-role="button" aria-disabled="true">请输入6位房间码</view>
         <view wx:elif="{{loading}}" class="btn-premium loading" aria-role="button" aria-disabled="true">加入中...</view>
         <view wx:elif="{{joinCode.length === 6}}" class="btn-premium" bindtap="joinRoom" aria-role="button" aria-label="加入房间" hover-class="btn-premium-hover">加入房间</view>

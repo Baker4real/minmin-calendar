@@ -1,0 +1,6 @@
+/* 输入控件共同盒结构；字号、颜色、边框、背景与间距由使用方修饰类保留（issue #236）。 */
+.form-control {
+  box-sizing: border-box;
+  width: 100%;
+  border-radius: var(--radius-sm);
+}

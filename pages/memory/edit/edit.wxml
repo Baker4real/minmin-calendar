@@ -1,5 +1,6 @@
 <import src="/pages/shared/confirmation-sheet.wxml" />
 <import src="/pages/shared/nav-bar.wxml" />
+<import src="/pages/shared/form-controls.wxml" />
 <view class="page safe-top {{pageObscured ? 'page-obscured' : ''}} {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
   <wxs module="sheetDrag" src="../../../utils/sheetDrag.wxs"></wxs>
   <include src="/pages/shared/aurora.wxml" />
@@ -13,31 +14,15 @@
         <text class="draft-discard" hover-class="draft-discard-hover" bindtap="discardDraft" aria-role="button" aria-label="{{draftDiscardText}}">{{draftDiscardText}}</text>
       </view>
       <view class="form-item" id="field-date">
-        <text class="form-label">日期</text>
-        <picker mode="date" value="{{date}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="onDateChange" aria-role="button" aria-disabled="{{saving}}" aria-label="日期，{{dateLabel}}，点按修改{{fieldErrors.date ? '，' + fieldErrors.date : ''}}">
-          <view class="form-picker{{saving ? ' disabled' : ''}}" hover-class="form-picker-hover">
-            <text>{{dateLabel}}</text>
-            <text class="form-picker-arrow">›</text>
-          </view>
-        </picker>
-        <text wx:if="{{fieldErrors.date}}" class="field-error" aria-role="alert">{{fieldErrors.date}}</text>
+        <template is="sharedDateField" data="{{label: '日期', value: date, displayValue: dateLabel, placeholder: '', ariaLabel: '日期，' + dateLabel + '，点按修改', error: fieldErrors.date, maxDate: maxDate, saving: saving, changeHandler: 'onDateChange'}}" />
       </view>
       <view class="form-item">
         <text class="form-label">内容</text>
-        <textarea class="form-input" placeholder-class="input-placeholder" placeholder="记录这一天的欢乐时光..." value="{{note}}" bindinput="onNoteInput" maxlength="500" auto-height disabled="{{saving}}" aria-label="内容"/>
+        <textarea class="form-input form-control" placeholder-class="input-placeholder" placeholder="记录这一天的欢乐时光..." value="{{note}}" bindinput="onNoteInput" maxlength="500" auto-height disabled="{{saving}}" aria-label="内容"/>
       </view>
     </view>
 
-    <view class="btns">
-      <view wx:if="{{!saving && !deleting && !submitted}}" class="btn-premium" bindtap="save" aria-role="button" aria-label="保存" hover-class="btn-premium-hover">保存</view>
-      <view wx:elif="{{saving}}" class="btn-premium loading" aria-role="button" aria-disabled="true">保存中...</view>
-      <view wx:else class="btn-premium disabled" aria-role="button" aria-disabled="true">保存</view>
-    </view>
-    <view wx:if="{{isEdit}}" class="delete-zone">
-      <view wx:if="{{isEdit && !deleting && !saving && !submitted}}" class="btn-danger" hover-class="btn-danger-hover" bindtap="delete" aria-role="button" aria-label="删除此记录">删除此记录</view>
-      <view wx:elif="{{isEdit && deleting}}" class="btn-danger loading" aria-role="button" aria-disabled="true">删除中...</view>
-      <view wx:elif="{{isEdit}}" class="btn-danger disabled" aria-role="button" aria-disabled="true">删除此记录</view>
-    </view>
+    <template is="sharedRecordActions" data="{{saving: saving, deleting: deleting, submitted: submitted, isEdit: isEdit}}" />
   </view>
   <template is="confirmationSheet" data="{{confirmationName: confirmationName, confirmationTitle: confirmationTitle, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions, confirmationMounted: confirmationMounted, confirmationPhase: confirmationPhase, confirmationDragClear: confirmationDragClear, sheetExitGuard: sheetExitGuard}}" />
 </view>

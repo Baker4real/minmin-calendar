@@ -46,6 +46,7 @@ const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'pages/period/period.wxss', selector: '.cycle-num', kind: 'display', value: '44rpx' },
   { file: 'pages/period/period.wxss', selector: '.memory-heart', kind: 'glyph', value: '36rpx' },
   { file: 'pages/period/period.wxss', selector: '.memory-arrow', kind: 'glyph', value: '32rpx' },
+  { file: 'pages/shared/record-form.wxss', selector: '.form-picker-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/period/edit/edit.wxss', selector: '.form-picker-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/memory/edit/edit.wxss', selector: '.form-picker-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-icon', kind: 'glyph', value: '120rpx' },

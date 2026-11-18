@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const path = require('node:path')
 const { setImmediate: checkpoint } = require('node:timers')
 const { isDeepStrictEqual } = require('node:util')
@@ -138,6 +139,8 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
     if (viewContexts.has(page)) return viewContexts.get(page)
     const templatePath = path.join(root, `${page.route}.wxml`)
     const template = readSource(templatePath, 'utf8')
+    const rawTemplate = fs.readFileSync(templatePath, 'utf8')
+    const sharedHandlers = [...rawTemplate.matchAll(/\b(?:tapHandler|changeHandler):\s*'([^']+)'/g)].map(match => match[1])
     const modules = {}
     for (const [, attrs, body] of template.matchAll(/<wxs\b([^>]*)>([\s\S]*?)<\/wxs>/g)) {
       const name = /\bmodule=["']([^"']+)["']/.exec(attrs)[1]
@@ -178,7 +181,7 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
       return elements.get(key)
     }
     const context = {
-      template, modules, element,
+      template, sharedHandlers, modules, element,
       viewStyle: selector => copy(styles.get(nodeKey(selector)) || {}),
       owner: { callMethod: (name, data) => invoke(page, name, data), selectComponent: selector => element(selector) },
       deliverChanges(data) {
@@ -414,7 +417,9 @@ function createMiniProgram({ storage: initialStorage = {}, now = '2026-06-26T12:
     },
     dispatch(page, handler, event = {}) {
       const view = viewContext(page)
-      const bindings = [...view.template.matchAll(/(?:bind|catch):?[\w-]*=["']([^"']+)["']/g)].map(match => match[1].replace(/^\{\{|\}\}$/g, '').trim())
+      const bindings = [...view.template.matchAll(/(?:bind|catch):?[\w-]*=["']([^"']+)["']/g)]
+        .map(match => match[1].replace(/^\{\{|\}\}$/g, '').trim())
+        .concat(view.sharedHandlers)
       assert.ok(bindings.includes(handler), `${handler} must be bound by ${page.route}.wxml`)
       const input = { currentTarget: { dataset: {} }, detail: {}, timeStamp: time, ...event }
       if (handler.includes('.')) {

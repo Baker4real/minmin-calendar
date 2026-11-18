@@ -139,7 +139,7 @@ test('bind card is border-box at width:100% and keeps a usable inner width at 32
   const rules = parseWxssRules(readRepo('pages/bind/bind.wxss'))
   const content = findDecls(rules, '.content')
   const card = findDecls(rules, '.premium-card')
-  const codeInput = findDecls(rules, '.code-input')
+  const codeInput = { ...findDecls(rules, '.form-control'), ...findDecls(rules, '.code-input') }
 
   // 溢出根因：width:100% + padding 40rpx 在 content-box 下叠加出 82rpx 横向溢出
   assert.equal(card.width, '100%')
@@ -161,7 +161,7 @@ test('room code input stays inside the card at 320px and the six glyphs fit the 
   const rules = parseWxssRules(readRepo('pages/bind/bind.wxss'))
   const content = findDecls(rules, '.content')
   const card = findDecls(rules, '.premium-card')
-  const codeInput = findDecls(rules, '.code-input')
+  const codeInput = { ...findDecls(rules, '.form-control'), ...findDecls(rules, '.code-input') }
 
   const height = rpxNumber(codeInput, 'height')
   const lineHeight = rpxNumber(codeInput, 'line-height')

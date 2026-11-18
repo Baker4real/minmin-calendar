@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { readSource } = require('./sourceFiles')
@@ -256,7 +257,9 @@ test('memory edit page clamps the date picker to today', () => {
     path.join(__dirname, '..', 'pages/memory/edit/edit.wxml'),
     'utf8'
   )
-  assert.match(memoryEditWxml, /<picker mode="date" value="\{\{date\}\}" end="\{\{maxDate\}\}"[^>]*bindchange="onDateChange"[^>]*>/)
+  assert.match(memoryEditWxml, /<picker mode="date" value="\{\{value\}\}" start="\{\{startDate\}\}" end="\{\{maxDate\}\}"[^>]*bindchange="\{\{changeHandler\}\}"[^>]*>/)
+  const raw = fs.readFileSync(path.join(__dirname, '..', 'pages/memory/edit/edit.wxml'), 'utf8')
+  assert.match(raw, /<template is="sharedDateField" data="\{\{label: '日期', value: date,[\s\S]*maxDate: maxDate, saving: saving, changeHandler: 'onDateChange'\}\}" \/>/)
 })
 
 test('parseMemoryEditOptions tolerates truncated UTF-8 in note', () => {

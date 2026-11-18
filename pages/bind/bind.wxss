@@ -1,4 +1,5 @@
 @import '../shared/confirmation-sheet.wxss';
+@import '../shared/form-control.wxss';
 @import '../shared/room-code.wxss';
 @import '../shared/segmented-control.wxss';
 @import '../shared/retry-row.wxss';
@@ -121,11 +122,8 @@
 
 /* Code Input – Dark Glass */
 .code-input {
-  width: 100%;
   height: 88rpx;
-  box-sizing: border-box;
   border: 1px solid rgba(255,255,255,0.15);
-  border-radius: var(--radius-sm);
   padding: 0 20rpx;
   font-size: 40rpx;
   line-height: 88rpx;

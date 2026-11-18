@@ -237,14 +237,15 @@ test('record edit pages isolate delete loading, constrain period dates, and cap 
   assert.match(periodEditWxml, /start="\{\{startDate\}\}"/)
   // 结束日期选择器只在已知结束状态出现；开始日期选择器上限为今天
   assert.match(periodEditWxml, /<view class="form-item" wx:if="\{\{status === 'known-end'\}\}"[^>]*>/)
-  assert.match(periodEditWxml, /bindtap="selectStatus"/)
-  assert.match(periodEditWxml, /aria-label="经期状态/)
+  assert.match(periodEditWxml, /bindtap="\{\{tapHandler\}\}"/)
+  assert.match(readRawPageFile('pages/period/edit/edit.wxml'), /tapHandler: 'selectStatus'[\s\S]*ariaLabel: '经期状态 ' \+ item\.label/)
   assert.match(periodEditWxml, /maxlength="500"/)
   assert.match(memoryEditWxml, /maxlength="500"/)
 })
 
 test('record edit templates use action titles, paired authors, and the required form structure', () => {
   const periodWxml = readPageFile('pages/period/edit/edit.wxml')
+  const periodRawWxml = readRawPageFile('pages/period/edit/edit.wxml')
   const memoryWxml = readPageFile('pages/memory/edit/edit.wxml')
   for (const file of ['pages/period/edit/edit.wxml', 'pages/memory/edit/edit.wxml']) {
     assert.match(readRawPageFile(file), /variant: 'back', title: pageTitle/)
@@ -259,20 +260,21 @@ test('record edit templates use action titles, paired authors, and the required 
   assert.equal(cards.length, 2, 'period required and optional fields live in two cards')
   const required = periodWxml.slice(cards[0].index, cards[1].index)
   const optional = periodWxml.slice(cards[1].index, periodWxml.indexOf('<view class="btns">'))
-  for (const label of ['开始日期', '经期状态', '结束日期']) assert.match(required, new RegExp(`>${label}<`))
+  for (const label of ['开始日期', '结束日期']) assert.match(periodRawWxml, new RegExp(`label: '${label}'`))
+  assert.match(required, />经期状态</)
   assert.doesNotMatch(required, />经量<|>症状<|>备注</)
   assert.match(optional, /class="form-section-title">选填<\/view>/)
   for (const label of ['经量', '症状', '备注']) assert.match(optional, new RegExp(`>${label}<`))
-  assert.match(optional, /\{\{selectedSymptoms\[item\.value\] \? 'active' : ''\}\}/)
+  assert.match(periodRawWxml, /checked: selectedSymptoms\[item\.value\]/)
   assert.doesNotMatch(optional, /item\.selected/)
 
-  const statusOptions = required.indexOf('wx:for="{{statusOptions}}"')
+  const statusOptions = required.indexOf('bindtap="{{tapHandler}}"')
   const statusHint = required.indexOf('{{statusHint}}')
   const endDate = required.indexOf('id="field-endDate"')
   assert.ok(statusOptions !== -1 && statusOptions < statusHint && statusHint < endDate, 'the current status consequence follows its options')
   assert.match(required, /class="form-hint status-hint" aria-role="status">\{\{statusHint\}\}/)
-  assert.match(required, /aria-label="经期状态 \{\{item\.label\}\}，\{\{item\.hint\}\}"/)
-  assert.match(required, /<text class="\{\{endDate \? '' : 'input-placeholder'\}\}">\{\{endDate \? endDateLabel : '选择结束日期'\}\}<\/text>/)
+  assert.match(periodRawWxml, /ariaLabel: '经期状态 ' \+ item\.label \+ '，' \+ item\.hint/)
+  assert.match(periodRawWxml, /placeholder: '选择结束日期'[\s\S]*ariaLabel: endDate \? '结束日期，' \+ endDateLabel \+ '，点按修改' : '结束日期，还没选，点按选择'/)
 
   assert.match(memoryWxml, /<text class="form-label">内容<\/text>/)
   assert.match(memoryWxml, /<textarea[^>]*aria-label="内容"/)
@@ -292,9 +294,12 @@ test('record edit templates keep fields and delete locked while saving', () => {
     assert.match(wxml, /wx:if="\{\{isEdit && !deleting && !saving && !submitted\}\}"[^>]*bindtap="delete"/)
   }
 
-  // 经量与症状芯片在保存中暴露禁用类与 aria-disabled；行为由平台测试覆盖
-  const chipBlocks = periodEditWxml.match(/class="(flow-chip|symptom-chip)[^"]*"[^>]*aria-disabled="\{\{saving\}\}"/g) || []
-  assert.equal(chipBlocks.length >= 2, true, 'flow and symptom chips must expose saving-disabled state')
+  // 状态、经量与症状芯片都从共享结构继承保存中的禁用类与 aria-disabled。
+  const sharedChip = readRawPageFile('pages/shared/form-controls.wxml')
+  assert.match(sharedChip, /<template name="sharedChoiceChip">[\s\S]*saving \? ' disabled'[\s\S]*aria-disabled="\{\{saving\}\}"/)
+  const chipInvocations = readRawPageFile('pages/period/edit/edit.wxml')
+    .match(/<template is="sharedChoiceChip"[^>]*saving: saving/g) || []
+  assert.equal(chipInvocations.length, 3, 'all three chip groups pass the saving state')
 })
 
 test('record edit notes are multi-line textareas with the unchanged 500-char cap', () => {
@@ -311,21 +316,24 @@ test('record edit notes are multi-line textareas with the unchanged 500-char cap
 // 读屏能听出是开始日、结束日还是欢乐时光日期出错；字段容器带页面滚动锚点
 test('edit forms read each displayed date and keep its own error inside that picker screen-reader name', () => {
   const cases = [
-    ['pages/period/edit/edit.wxml', 'startDate', '开始日期，{{startDateLabel}}，点按修改'],
-    ['pages/period/edit/edit.wxml', 'endDate', "结束日期，{{endDate ? endDateLabel + '，点按修改' : '还没选，点按选择'}}"],
-    ['pages/memory/edit/edit.wxml', 'date', '日期，{{dateLabel}}，点按修改']
+    ['pages/period/edit/edit.wxml', 'startDate', "'开始日期，' + startDateLabel + '，点按修改'"],
+    ['pages/period/edit/edit.wxml', 'endDate', "endDate ? '结束日期，' + endDateLabel + '，点按修改' : '结束日期，还没选，点按选择'"],
+    ['pages/memory/edit/edit.wxml', 'date', "'日期，' + dateLabel + '，点按修改'"]
   ]
-  for (const [file, field, name] of cases) {
+  for (const [file, field, nameExpression] of cases) {
     const wxml = readPageFile(file)
+    const raw = readRawPageFile(file)
+    assert.ok(raw.includes(`ariaLabel: ${nameExpression}`), `${file} ${field} keeps its date announcement`)
+    assert.ok(raw.includes(`error: fieldErrors.${field}`), `${file} ${field} passes its own error`)
     const opening = new RegExp(`<view class="form-item"[^>]*\\sid="field-${field}"[^>]*>`).exec(wxml)
     assert.ok(opening, `${file} marks the ${field} form item as #field-${field}`)
     const nextItem = wxml.indexOf('class="form-item', opening.index + opening[0].length)
     const item = wxml.slice(opening.index, nextItem === -1 ? undefined : nextItem)
     assert.ok(
-      item.includes(`aria-label="${name}{{fieldErrors.${field} ? '，' + fieldErrors.${field} : ''}}"`),
-      `${file} ${field} picker reads its error after the field name`
+      item.includes('aria-label="{{ariaLabel}}{{error ? \'，\' + error : \'\'}}"'),
+      `${file} ${field} picker appends its error after the field name`
     )
-    const errorLine = `<text wx:if="{{fieldErrors.${field}}}" class="field-error" aria-role="alert">{{fieldErrors.${field}}}</text>`
+    const errorLine = '<text wx:if="{{error}}" class="field-error" aria-role="alert">{{error}}</text>'
     const pickerEnd = item.indexOf('</picker>')
     assert.ok(pickerEnd !== -1 && item.indexOf(errorLine) > pickerEnd, `${file} ${field} error line follows its picker`)
   }
@@ -342,15 +350,16 @@ test('edit forms read each displayed date and keep its own error inside that pic
 })
 
 test('period edit fields run start, status, end date, flow, symptoms, then note', () => {
-  const wxml = readPageFile('pages/period/edit/edit.wxml')
-  const labels = [...wxml.matchAll(/<text class="form-label">([^<]+)<\/text>/g)].map(match => match[1])
+  const wxml = readRawPageFile('pages/period/edit/edit.wxml')
+  const labels = [...wxml.matchAll(/<text class="form-label">([^<]+)<\/text>|label: '([^']+)'/g)]
+    .map(match => match[1] || match[2])
   assert.deepEqual(labels, ['开始日期', '经期状态', '结束日期', '经量', '症状', '备注'])
 })
 
 test('period edit binds status and length hints beside their fields', () => {
   const wxml = readPageFile('pages/period/edit/edit.wxml')
   assert.match(wxml, /经期状态[\s\S]*class="form-hint status-hint" aria-role="status">\{\{statusHint\}\}/)
-  const endLabel = wxml.indexOf('结束日期')
+  const endLabel = wxml.indexOf('id="field-endDate"')
   const dayText = wxml.indexOf('{{periodDayCountText}}')
   const lengthHint = wxml.indexOf('{{periodLengthHint}}')
   const noteLabel = wxml.indexOf('备注')
