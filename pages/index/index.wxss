@@ -425,7 +425,7 @@ button.home-share-invite {
 }
 /* 翻月滑入（issue #165）：新月份的格子与月标题同一次更新换上，再从翻月方向滑入 10rpx、透明度 0.5 → 1。
    10rpx 等于网格左右内边距，内容不出卡片、不用裁切。a、b 两份关键帧内容相同，记号交替才会从头重播；
-   接续、反向与取消的策略在 index.js（_calendarFlipPatch）。减弱动效下即时替换 */
+   接续、反向与取消的策略在 index.js（_calendarMarks）。减弱动效下即时替换 */
 .calendar-days.calendar-flip-next-a {
   animation: calendarFlipNextA var(--duration-enter) var(--ease-out);
 }

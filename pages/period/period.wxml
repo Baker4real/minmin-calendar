@@ -65,7 +65,7 @@
             <text>{{yearGroup.title}}</text>
             <text class="year-toggle">{{yearGroup.toggleLabel}}</text>
           </view>
-          <view wx:if="{{yearGroup.expanded}}" class="period-year-months">
+          <view wx:if="{{yearGroup.expanded}}">
           <view class="premium-card month-card" wx:for="{{yearGroup.months}}" wx:key="key" wx:for-item="group">
             <view class="month-header" bindtap="togglePeriodMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-class="month-header-hover">
               <text class="month-header-text">{{group.title}}</text>

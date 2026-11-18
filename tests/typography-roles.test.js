@@ -46,8 +46,6 @@ const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'pages/period/period.wxss', selector: '.memory-heart', kind: 'glyph', value: '36rpx' },
   { file: 'pages/period/period.wxss', selector: '.memory-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/period/edit/edit.wxss', selector: '.form-picker-arrow', kind: 'glyph', value: '32rpx' },
-  { file: 'pages/memory/memory.wxss', selector: '.memory-heart', kind: 'glyph', value: '36rpx' },
-  { file: 'pages/memory/memory.wxss', selector: '.memory-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/memory/edit/edit.wxss', selector: '.form-picker-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-icon', kind: 'glyph', value: '120rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-title', kind: 'display', value: '48rpx' },
@@ -249,9 +247,6 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/period/edit/edit.wxss', '.symptom-group-label', 'assist'],
   ['pages/period/edit/edit.wxss', '.flow-chip', 'control'],
   ['pages/period/edit/edit.wxss', '.symptom-chip', 'control'],
-  ['pages/memory/memory.wxss', '.memory-date', 'body'],
-  ['pages/memory/memory.wxss', '.memory-note', 'assist'],
-  ['pages/memory/memory.wxss', '.empty-state', 'body'],
   ['pages/memory/edit/edit.wxss', '.form-label', 'assist'],
   ['pages/memory/edit/edit.wxss', '.form-picker', 'body'],
   ['pages/memory/edit/edit.wxss', '.form-input', 'body']
@@ -277,7 +272,6 @@ const TABULAR_NUMERIC = [
   ['pages/period/period.wxss', '.item-date'],
   ['pages/period/period.wxss', '.item-duration'],
   ['pages/period/period.wxss', '.month-header-text'],
-  ['pages/memory/memory.wxss', '.memory-date'],
   ['pages/settings/settings.wxss', '.room-code-value'],
   ['pages/bind/bind.wxss', '.bound-code']
 ]
@@ -311,8 +305,7 @@ const BODY_LINE_HEIGHT = [
   ['pages/index/index.wxss', '.recap-main'],
   ['pages/index/index.wxss', '.recap-highlight'],
   ['pages/index/index.wxss', '.detail-main'],
-  ['pages/period/period.wxss', '.empty-state'],
-  ['pages/memory/memory.wxss', '.empty-state']
+  ['pages/period/period.wxss', '.empty-state']
 ]
 
 function ruleMap(relative) {

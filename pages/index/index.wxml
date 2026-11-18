@@ -231,7 +231,7 @@ module.exports = {
   <view wx:if="{{monthPickerMounted}}" class="sheet-host month-jump-mask">
     <view class="day-sheet-mask sheet-{{monthPickerPhase}}" bindtap="closeMonthPicker" aria-role="button" aria-label="关闭月份选择" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-monthPicker sheet-{{monthPickerPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.monthPicker}}">
-    <view class="calendar-jump-sheet safe-bottom" catchtap="noop" aria-label="月份选择">
+    <view class="calendar-jump-sheet" catchtap="noop" aria-label="月份选择">
       <view class="sheet-drag-zone" data-sheet="monthPicker" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -279,7 +279,7 @@ module.exports = {
         <text class="jump-section-title">月份</text>
         <view class="jump-month-grid" aria-role="radiogroup" aria-label="月份">
           <view
-            class="jump-option month-option {{jumpYear == year && item.value == jumpMonth ? 'active' : ''}}"
+            class="jump-option {{jumpYear == year && item.value == jumpMonth ? 'active' : ''}}"
             wx:for="{{jumpMonths}}"
             wx:key="value"
             data-month="{{item.value}}"
@@ -297,7 +297,7 @@ module.exports = {
   <view wx:if="{{dayActionsMounted}}" class="sheet-host">
     <view class="day-sheet-mask sheet-{{dayActionsPhase}}" bindtap="closeDayActions" aria-role="button" aria-label="关闭当日操作" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-dayActions sheet-{{dayActionsPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.dayActions}}">
-    <view class="day-action-sheet safe-bottom" catchtap="noop" aria-label="当日操作">
+    <view class="day-action-sheet" catchtap="noop" aria-label="当日操作">
       <view class="sheet-drag-zone" data-sheet="dayActions" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
@@ -398,7 +398,7 @@ module.exports = {
   <view wx:if="{{infoSheetMounted}}" class="sheet-host calendar-info-sheet">
     <view class="day-sheet-mask sheet-{{infoSheetPhase}}" bindtap="closeInfoSheet" aria-role="button" aria-label="关闭{{infoSheetName}}" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-infoSheet sheet-{{infoSheetPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear.infoSheet}}">
-    <view class="day-action-sheet calendar-info-panel safe-bottom" catchtap="noop" aria-label="{{infoSheetName}}">
+    <view class="day-action-sheet calendar-info-panel" catchtap="noop" aria-label="{{infoSheetName}}">
       <view class="sheet-drag-zone" data-sheet="infoSheet" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}">
       <view class="sheet-handle"></view>
       <view class="sheet-head">
