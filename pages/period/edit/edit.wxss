@@ -68,9 +68,22 @@
   color: var(--text-secondary);
 }
 .period-length-hint,
-.status-hint {
+.status-hint,
+.start-date-owner {
   display: block;
   margin-top: 12rpx;
+}
+.start-date-owner-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 88rpx;
+  margin-left: 16rpx;
+  color: var(--aurora-pink);
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.start-date-owner-action:active,
+.start-date-owner-action.start-date-owner-action-hover {
+  transform: scale(0.96);
 }
 .form-picker {
   display: flex;
@@ -219,7 +232,8 @@
   .form-input,
   .flow-chip,
   .symptom-chip,
-  .draft-discard {
+  .draft-discard,
+  .start-date-owner-action {
     transition: none;
   }
 }

@@ -26,6 +26,10 @@
           </view>
         </picker>
         <text wx:if="{{fieldErrors.startDate}}" class="field-error" aria-role="alert">{{fieldErrors.startDate}}</text>
+        <view wx:if="{{startDateOwnerText}}" class="form-hint start-date-owner">
+          <text>{{startDateOwnerText}}</text>
+          <text class="start-date-owner-action" hover-class="start-date-owner-action-hover" bindtap="openStartDateOwner" aria-role="button" aria-label="打开那条">打开那条</text>
+        </view>
       </view>
       <view class="form-item">
         <text class="form-label">经期状态</text>
