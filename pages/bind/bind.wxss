@@ -1,3 +1,5 @@
+@import '../shared/confirmation-sheet.wxss';
+
 /* ===== Aurora Bloom: Bind Page ===== */
 
 .content {

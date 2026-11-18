@@ -454,16 +454,16 @@ test('RoomSession clearLocalRoom removes the cached room code', () => {
   assert.equal(storage.get('roomCode'), '')
 })
 
-test('RoomSession leaveRoom revokes the server room and clears the cached room code', async () => {
+test('RoomSession leaveRoom revokes the server room, clears the cached code and passes through the archive count', async () => {
   const storage = createMemoryStorage({ roomCode: 'ROOM01' })
   const cloud = createFakeCloud({
-    leaveRoom: { code: 0 }
+    leaveRoom: { code: 0, archivedCount: 1 }
   })
   const session = createRoomSession({ storage, cloud })
 
   const result = await session.leaveRoom()
 
-  assert.deepEqual(result, { code: 0 })
+  assert.deepEqual(result, { code: 0, archivedCount: 1 })
   assert.equal(storage.get('roomCode'), '')
   assert.deepEqual(cloud.calls, [{ name: 'leaveRoom' }])
 })
