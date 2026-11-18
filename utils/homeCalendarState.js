@@ -276,21 +276,23 @@ function isDateString(value) {
 
 function buildDayDetailsByDate(days, periods, memories, today, roomPaired = false) {
   const details = {}
-  const periodKeys = buildStableDetailKeys(periods, 'period', period => buildPeriodDetailFingerprint(period, today))
+  const periodRanges = periods.map(period => periodCoverage.projectPeriodRange(period, today))
+  const periodKeys = buildStableDetailKeys(periods, 'period',
+    (period, index) => buildPeriodDetailFingerprint(period, today, periodRanges[index]))
   const memoryKeys = buildStableDetailKeys(memories, 'memory', buildMemoryDetailFingerprint)
 
   days.forEach(day => {
     if (!day || day.isEmpty || !day.date) return
 
     const periodDetails = periods
-      .map((period, index) => ({ period, range: periodCoverage.projectPeriodRange(period, today), index }))
+      .map((period, index) => ({ period, range: periodRanges[index], index }))
       .filter(item => isPeriodActiveOnDate(item.range, day.date))
       .map(({ period, range, index }) => {
         const detail = cycle.decoratePeriod({
           ...period,
           startDate: range.startDate,
           endDate: range.endDate
-        }, { today })
+        }, { today, projectedRange: range })
         const meta = []
         if (detail.flowLabel) meta.push(`经量 ${detail.flowLabel}`)
         if (detail.symptomText) meta.push(detail.symptomText)
@@ -424,22 +426,22 @@ function joinAriaParts(parts) {
 
 function buildStableDetailKeys(records, type, buildFingerprint) {
   const occurrences = new Map()
-  return records.map(record => {
+  return records.map((record, index) => {
     if (record && record._id) return `${type}:${record._id}`
 
-    const fingerprint = encodeURIComponent(JSON.stringify(buildFingerprint(record || {})))
+    const fingerprint = encodeURIComponent(JSON.stringify(buildFingerprint(record || {}, index)))
     const occurrence = occurrences.get(fingerprint) || 0
     occurrences.set(fingerprint, occurrence + 1)
     return `${type}:fallback:${fingerprint}:${occurrence}`
   })
 }
 
-function buildPeriodDetailFingerprint(period, today) {
-  const range = periodCoverage.projectPeriodRange(period, today) || {}
-  const detail = cycle.decoratePeriod(period, { today })
+function buildPeriodDetailFingerprint(period, today, range) {
+  const projectedRange = range || {}
+  const detail = cycle.decoratePeriod(period, { today, projectedRange: range })
   return [
-    range.startDate || '',
-    range.endDate || '',
+    projectedRange.startDate || '',
+    projectedRange.endDate || '',
     detail.status || '',
     normalizeKeyText(period.note),
     detail.flow,

@@ -110,6 +110,18 @@ test('homepage stacks navbar legend, sticky month and status, calendar, record a
   assert.doesNotMatch(wxml, /任意一天/)
 })
 
+test('day-cell template reads only its render fields, not projection-only metadata', () => {
+  const wxml = readIndexWxml()
+  const start = wxml.indexOf('class="day-cell {{item.')
+  const end = wxml.indexOf('<!-- 首页记录入口', start)
+  assert.ok(start >= 0 && end > start)
+  const fields = [...new Set([...wxml.slice(start, end).matchAll(/\bitem\.([A-Za-z][A-Za-z0-9]*)/g)].map(match => match[1]))].sort()
+  assert.deepEqual(fields, [
+    'ariaLabel', 'date', 'day', 'holidayName', 'isEmpty', 'isHoliday', 'isMemory', 'isPeriod',
+    'isPredict', 'isToday', 'isWorkday', 'lunarCellText', 'periodOpenEnd', 'periodSegment'
+  ])
+})
+
 test('empty-state guide text meets the secondary-text contrast floor on its composed surface', () => {
   const { contrastRatio } = require('./contrast')
   const appWxss = readSource(path.join(repoRoot, 'app.wxss'), 'utf8')
