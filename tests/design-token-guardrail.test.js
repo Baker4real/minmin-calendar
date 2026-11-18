@@ -488,9 +488,12 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/index/index.wxss', '.calendar-grid'],
     // issue #162：图例样本格铺日历网格同一层玻璃
     ['pages/index/index.wxss', '.legend-sample.day-cell'],
-    ['pages/bind/bind.wxss', '.tab-bar'],
     ['pages/bind/bind.wxss', '.code-input'],
     ['pages/bind/bind.wxss', '.error-msg'],
+    // #233：画布上变体只有这一处；共享文件及三个 @import 调用页都按展开结果核对。
+    ['pages/shared/segmented-control.wxss', '.segment-control'],
+    ['pages/bind/bind.wxss', '.segment-control'],
+    ['pages/settings/settings.wxss', '.segment-control'],
     ['pages/period/period.wxss', '.segment-control'],
     ['pages/period/period.wxss', '.skeleton-card'],
     ['pages/period/period.wxss', '.empty-state'],

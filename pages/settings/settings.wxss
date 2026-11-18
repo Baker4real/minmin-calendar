@@ -1,5 +1,6 @@
 @import '../shared/confirmation-sheet.wxss';
 @import '../shared/room-code.wxss';
+@import '../shared/segmented-control.wxss';
 
 /* ===== Aurora Bloom: Settings ===== */
 /* 第一组离顶栏 24rpx，与记录页、编辑页的首块顶距同一角色（issue #164） */
@@ -289,37 +290,9 @@ button.settings-share-invite {
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
 }
+/* 密度选项与记录、绑定共用 shared/segmented-control.wxss 的卡内变体；本页只保留外边距。 */
 .density-control {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10rpx;
   margin: 0 30rpx 28rpx;
-  box-sizing: border-box;
-}
-.density-option {
-  min-height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-control);
-  color: rgba(255,255,255,0.68);
-  border: 1px solid transparent;
-  transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
-}
-.density-option:active,
-.density-option.density-option-hover {
-  transform: scale(0.98);
-  background: rgba(255,255,255,0.1);
-}
-/* 密度偏好是弱态设置：选中项用玫瑰描边+玫瑰字，不用主操作的实色填充 */
-.density-option.active {
-  color: #E8909E;
-  background: rgba(232,144,158,0.08);
-  border-color: rgba(232,144,158,0.45);
-  box-shadow: none;
 }
 /* 减弱动效探针（同首页）：逻辑层读它的宽度，决定帮助弹层藏起与恢复 tabBar 时是否播动画 */
 .reduced-motion-probe {
@@ -333,7 +306,6 @@ button.settings-share-invite {
   .reduced-motion-probe {
     width: 1px;
   }
-  .density-option,
   .room-action-btn,
   .menu-item,
   .menu-item.danger,

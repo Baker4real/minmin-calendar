@@ -549,8 +549,13 @@ function exactRuleBody(relativePath, selector) {
   const css = readSource(relativePath).replace(/\/\*[\s\S]*?\*\//g, '')
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const match = new RegExp(`(?:^|[}\\n])\\s*${escaped}\\s*\\{([^}]*)\\}`).exec(css)
-  assert.ok(match, `expected exact rule ${selector}`)
-  return match[1]
+  if (match) return match[1]
+
+  // 共享分段样式把同一组声明写给三页类名；原精确规则未命中时才读取选择器组成员。
+  const rule = parseWxssRules(readSource(relativePath))
+    .find(candidate => candidate.selectors.includes(selector))
+  assert.ok(rule, `expected exact rule ${selector}`)
+  return Object.entries(rule.decls).map(([property, value]) => `${property}: ${value};`).join('\n')
 }
 
 function exactDeclaration(relativePath, selector, property) {

@@ -1,0 +1,71 @@
+/* issue #233：绑定方式、记录分类与日历密度共用同一种分段控件。
+   页面只保留容器外边距；选项、按压、选中态与减弱动效均以此文件为唯一来源。 */
+.segment-control,
+.density-control,
+.tab-bar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10rpx;
+  box-sizing: border-box;
+}
+
+/* 卡内变体：绑定与设置直接落在现有卡片上，不另铺一张分段卡片。 */
+.density-control,
+.tab-bar {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+/* 画布上变体：记录 tab 直接压在极光上，海军回退保证文字对比度。 */
+.segment-control {
+  padding: 4rpx;
+  border-radius: var(--radius-card);
+  background: linear-gradient(rgba(255,255,255,0.055), rgba(255,255,255,0.055)), var(--glass-fallback);
+  border: 1px solid rgba(255,255,255,0.11);
+}
+
+.segment-option,
+.density-option,
+.tab {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-control);
+  color: rgba(255,255,255,0.68);
+  border: 1px solid transparent;
+  transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
+}
+
+.segment-option.active,
+.density-option.active,
+.tab.active {
+  color: #E8909E;
+  background: rgba(232,144,158,0.08);
+  border-color: rgba(232,144,158,0.45);
+  font-weight: var(--font-weight-control);
+  box-shadow: none;
+}
+
+.segment-option:active,
+.segment-option.segment-option-hover,
+.density-option:active,
+.density-option.density-option-hover,
+.tab:active,
+.tab.tab-hover {
+  transform: scale(0.98);
+  background: rgba(255,255,255,0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segment-option,
+  .density-option,
+  .tab {
+    animation: none;
+    transition: none;
+  }
+}

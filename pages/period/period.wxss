@@ -1,3 +1,5 @@
+@import '../shared/segmented-control.wxss';
+
 /* ===== Aurora Bloom: Period ===== */
 /* 导航标题使用 pages/shared/nav-bar.wxss 的中性白。 */
 .content {
@@ -227,43 +229,9 @@
   50% { opacity: 0.45; }
 }
 
-/* Segment Control – 记录分类（经期 / 欢乐时光）：弱态单选，选中项玫瑰描边+玫瑰字，
-   不用主操作的实色填充（同设置页密度控件形态，issue #103） */
+/* 记录分类使用 shared/segmented-control.wxss 的画布上变体；本页只保留节奏外边距。 */
 .segment-control {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10rpx;
   margin: 24rpx 0 20rpx;
-  padding: 4rpx;
-  box-sizing: border-box;
-  border-radius: var(--radius-card);
-  /* 分段控件直接压在极光上：5.5% 淡白是叠在海军回退上的平涂层（issue #163），
-     否则极光最亮处透上来，选中项的玫瑰字掉到 4.5:1 以下 */
-  background: linear-gradient(rgba(255,255,255,0.055), rgba(255,255,255,0.055)), var(--glass-fallback);
-  border: 1px solid rgba(255,255,255,0.11);
-}
-.segment-option {
-  min-height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-control);
-  color: rgba(255,255,255,0.68);
-  border: 1px solid transparent;
-  transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
-}
-.segment-option:active,
-.segment-option.segment-option-hover {
-  transform: scale(0.98);
-  background: rgba(255,255,255,0.1);
-}
-.segment-option.active {
-  color: #E8909E;
-  background: rgba(232,144,158,0.08);
-  border-color: rgba(232,144,158,0.45);
 }
 
 /* Memory Segment – 欢乐时光月份分组（issue #108）：每月一张卡复用 app 级 .premium-card 玻璃面，
@@ -471,7 +439,6 @@
   .load-failed,
   .retry-btn,
   .list-retry,
-  .segment-option,
   .period-year-title {
     transition: none;
   }

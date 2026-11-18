@@ -156,12 +156,12 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
   assert.doesNotMatch(css, /--bind-/, 'the purple-pink pilot tokens must leave the bind page')
   assert.doesNotMatch(css, /\.page::before/, 'the dark-purple canvas override must leave the bind page')
 
-  // tab 条与输入框玻璃面回海军实底回退（tab 条保留自身更淡的白玻璃层）
-  const tabBar = findRule(css, '.tab-bar')
-  assert.equal(
-    tabBar.background,
-    'linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback)'
-  )
+  // #233：tab 条使用共享卡内变体，透明落在现有海军卡上；输入框仍保留自身玻璃面。
+  const tabBar = Object.assign({}, ...parseWxssRules(css)
+    .filter(rule => rule.selectors.includes('.tab-bar'))
+    .map(rule => rule.decls))
+  assert.equal(tabBar.background, 'transparent')
+  assert.equal(tabBar.border, '0')
   const codeInput = findRule(css, '.code-input')
   assert.equal(
     codeInput.background,

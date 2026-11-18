@@ -1,5 +1,6 @@
 @import '../shared/confirmation-sheet.wxss';
 @import '../shared/room-code.wxss';
+@import '../shared/segmented-control.wxss';
 
 /* ===== Aurora Bloom: Bind Page ===== */
 
@@ -102,42 +103,9 @@
   box-sizing: border-box;
 }
 
-/* Tab Bar */
+/* 创建/加入与记录、设置共用 shared/segmented-control.wxss；本页只保留卡内容器的下间距。 */
 .tab-bar {
-  display: flex;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.15);
   margin-bottom: 30rpx;
-  background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-}
-.tab {
-  flex: 1;
-  min-height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  text-align: center;
-  padding: 0 20rpx;
-  font-size: var(--font-size-body);
-  font-weight: var(--font-weight-control);
-  line-height: var(--line-height-assist);
-  color: rgba(255,255,255,0.6);
-  border: 1px solid transparent;
-  transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
-}
-/* 选中态与记录分段、设置密度同一种描边玫瑰弱选中，不用主按钮实色填充 */
-.tab.active {
-  color: #E8909E;
-  background: rgba(232,144,158,0.08);
-  border-color: rgba(232,144,158,0.45);
-  font-weight: var(--font-weight-control);
-}
-.tab:active,
-.tab.tab-hover {
-  transform: scale(0.98);
-  background: rgba(255,255,255,0.1);
 }
 .info-text {
   display: block;
@@ -286,8 +254,7 @@
   .btn-ghost,
   .error-retry,
   .bind-reveal,
-  .hero-icon,
-  .tab {
+  .hero-icon {
     animation: none;
     transition: none;
   }
