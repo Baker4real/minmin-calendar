@@ -120,6 +120,23 @@ for (const field of ['confirmText', 'cancelText']) {
   })
 }
 
+test('showToast enforces seven weighted characters for icon titles and permits long none-icon titles', async (t) => {
+  const app = createMiniProgram()
+  t.after(() => app.teardown())
+  for (const title of ['12345678901234', '１２３４５６７', '同步 ABCDEFGHI']) {
+    app.wx.showToast({ title })
+  }
+  await app.settle()
+  assert.equal(app.wx.toasts.length, 3)
+  for (const title of ['123456789012345', '１２３４５６７８', '同步 ABCDEFGHIJ']) {
+    assert.throws(() => app.wx.showToast({ title }), /showToast title exceeds 7 weighted characters/)
+  }
+  assert.throws(() => app.wx.showToast({ title: '已清除本机房间码' }), /showToast title exceeds 7 weighted characters/)
+  app.wx.showToast({ title: '带图标以外的提示可以完整显示', icon: 'none' })
+  await app.settle()
+  assert.equal(app.wx.toasts.length, 4)
+})
+
 test('real WXS bindings drive month swipes and sheet drags through the page interface', async (t) => {
   const app = createMiniProgram({ storage: { roomCode: 'ROOM01' }, selectors: { '.sheet-slide-toolsMenu': { height: 400 } } })
   t.after(() => app.teardown())

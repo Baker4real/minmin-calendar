@@ -1,6 +1,8 @@
+<import src="/pages/shared/confirmation-sheet.wxml" />
 <view class="page safe-top {{pageObscured ? 'page-obscured' : ''}} {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
   <view class="reduced-motion-probe" aria-hidden="true"></view>
   <include src="/pages/shared/aurora.wxml" />
+  <wxs module="sheetDrag" src="../../utils/sheetDrag.wxs"></wxs>
   <view aria-hidden="{{pageObscured}}" class="nav-bar header-gradient">
     <view class="nav-placeholder"></view>
     <view class="nav-title">设置</view>
@@ -21,6 +23,7 @@
           <text class="menu-text">{{roomMemberLabel}}</text>
         </view>
         <button wx:if="{{roomStatus === 'waiting' && roomCode}}" class="btn-premium share-invite settings-share-invite" open-type="share" hover-class="share-invite-hover" aria-role="button" aria-label="再发邀请">再发邀请</button>
+        <view wx:if="{{roomCode}}" class="room-action-btn resync-room-btn" bindtap="clearData" aria-role="button" aria-label="重新同步房间" hover-class="room-action-btn-hover">重新同步房间</view>
         <view wx:if="{{roomCodeLoaded && !roomCode}}" class="room-code-actions">
           <view class="room-action-btn" bindtap="retryRoomResolve" aria-role="button" aria-label="重试获取房间码" hover-class="room-action-btn-hover">重试</view>
           <view class="room-action-btn" bindtap="goBind" aria-role="button" aria-label="去绑定房间" hover-class="room-action-btn-hover">去绑定</view>
@@ -60,10 +63,6 @@
       <view class="premium-card">
         <view class="menu-item" bindtap="exportData" aria-role="button" aria-label="导出数据" hover-class="menu-item-hover">
           <text class="menu-text">导出数据</text>
-          <text class="menu-arrow">›</text>
-        </view>
-        <view class="menu-item" bindtap="clearData" aria-role="button" aria-label="重新同步房间" hover-class="menu-item-hover">
-          <text class="menu-text">重新同步房间</text>
           <text class="menu-arrow">›</text>
         </view>
       </view>
@@ -108,15 +107,5 @@
     </view>
     </view>
   </view>
-  <!-- 同首页：不弹层时不要把 page-container 留在树上。show 为 false 时它仍是原生层，会吃掉页面点击。 -->
-  <page-container
-    wx:if="{{sheetExitGuard}}"
-    show="{{true}}"
-    overlay="{{false}}"
-    duration="0"
-    z-index="1"
-    position="bottom"
-    custom-style="height:0;width:0;overflow:hidden;opacity:0;pointer-events:none;background:transparent;"
-    bindbeforeleave="onSheetSystemBack"
-  ></page-container>
+  <template is="confirmationSheet" data="{{confirmationName: confirmationName, confirmationTitle: confirmationTitle, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions, confirmationMounted: confirmationMounted, confirmationPhase: confirmationPhase, confirmationDragClear: confirmationDragClear, sheetExitGuard: sheetExitGuard}}" />
 </view>

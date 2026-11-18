@@ -12,7 +12,13 @@ function settingsApp(t, options = {}) {
   return app
 }
 
-test('settings exports both cloud collections only after the explanation is confirmed', async (t) => {
+async function chooseConfirmation(app, page, action = 'confirm') {
+  await app.dispatch(page, 'onConfirmationAction', { currentTarget: { dataset: { action } } })
+  await app.advance(200)
+  await app.settle()
+}
+
+test('settings exports both cloud collections only after the shared-sheet explanation is confirmed', async (t) => {
   const app = settingsApp(t, { storage: { roomCode: 'ROOM01' } })
   const periods = [{ _id: 'p1', startDate: '2026-06-20', endDate: '2026-06-24', periodStatus: 'ended' }]
   const memories = [{ _id: 'm1', date: '2026-06-25', note: '测试记录' }]
@@ -22,16 +28,16 @@ test('settings exports both cloud collections only after the explanation is conf
   await app.settle()
   const exporting = app.dispatch(page, 'exportData')
   await app.settle()
-  const confirmation = app.wx.modals[0]
-  assert.equal(confirmation.title, '导出数据')
-  assert.equal(confirmation.confirmText, '开始导出')
-  assert.match(confirmation.content, /全部经期和欢乐时光/)
-  assert.match(confirmation.content, /文件传输助手/)
-  assert.match(confirmation.content, /不能导入恢复/)
+  assert.equal(page.data.confirmationTitle, '导出数据')
+  assert.equal(page.data.confirmationContent, '会导出全部经期和欢乐时光。建议发到「文件传输助手」保存。目前还不能导入恢复。')
+  assert.deepEqual(page.data.confirmationActions, [
+    { id: 'confirm', text: '开始导出', kind: 'primary' },
+    { id: 'cancel', text: '取消', kind: 'secondary' }
+  ])
+  assert.deepEqual(app.wx.modals, [])
   assert.equal(app.cloud.calls.some(call => call.name === 'dataOp'), false)
   assert.equal(app.platformCalls.showLoading, undefined)
-  app.respond('showModal', 0, { confirm: true })
-  await app.settle()
+  await chooseConfirmation(app, page)
   assert.equal(app.platformCalls.shareFileMessage, undefined, 'both collections must arrive before sharing')
   pendingMemories.resolve({ code: 0, data: memories })
   await app.settle()
@@ -39,7 +45,7 @@ test('settings exports both cloud collections only after the explanation is conf
   assert.equal(app.wx.toasts.at(-1).title, '导出成功')
   assert.deepEqual(app.files, [{
     path: '/wx-user-data/minmin-calendar-backup.json',
-    data: JSON.stringify({ exportTime: '2026-06-26T04:00:00.000Z', periods, memories }, null, 2),
+    data: JSON.stringify({ exportTime: '2026-06-26T04:00:00.200Z', periods, memories }, null, 2),
     encoding: 'utf8'
   }])
   assert.equal(app.platformCalls.shareFileMessage[0].filePath, app.files[0].path)
@@ -51,8 +57,10 @@ test('cancelling export never reads records, writes files or shares data', async
   const app = settingsApp(t)
   const page = app.launch('/pages/settings/settings')
   await app.settle()
-  app.respondNext('showModal', { confirm: false, cancel: true })
-  await app.dispatch(page, 'exportData')
+  const exporting = app.dispatch(page, 'exportData')
+  await app.settle()
+  await chooseConfirmation(app, page, 'cancel')
+  await exporting
   assert.equal(app.cloud.calls.some(call => call.name === 'dataOp'), false)
   assert.deepEqual(app.files, [])
   assert.equal(app.platformCalls.shareFileMessage, undefined)
@@ -66,17 +74,17 @@ test('a failed collection prevents a partial export and offers retry', async (t)
   const memories = app.cloud.when({ name: 'dataOp', data: { collection: 'memories' } }).reject(new Error('网络不太稳定，请重试'))
   const page = app.launch('/pages/settings/settings')
   await app.settle()
-  app.respondNext('showModal', { confirm: true })
   const exporting = app.dispatch(page, 'exportData')
   await app.settle()
+  await chooseConfirmation(app, page)
   assert.equal(app.wx.modals.at(-1).title, '导出失败')
   assert.equal(app.wx.modals.at(-1).confirmText, '重试')
   assert.deepEqual(app.files, [])
   assert.equal(app.platformCalls.shareFileMessage, undefined)
   memories.reply({ code: 0, data: [] })
-  app.respondNext('showModal', { confirm: true })
-  app.respond('showModal', 1, { confirm: true })
+  app.respond('showModal', 0, { confirm: true })
   await app.settle()
+  await chooseConfirmation(app, page)
   await exporting
   assert.equal(app.files.length, 1)
   assert.equal(app.wx.toasts.at(-1).title, '导出成功')
@@ -94,9 +102,9 @@ test('export reads its own lists in order even after Home has read the records, 
   await app.settle()
   const before = app.cloud.calls.length
   list('periods').reject(new Error('network down'))
-  app.respondNext('showModal', { confirm: true })
   const exporting = app.dispatch(app.currentPage, 'exportData')
   await app.settle()
+  await chooseConfirmation(app, app.currentPage)
   assert.deepEqual(app.cloud.calls.slice(before).filter(call => call.name === 'dataOp').map(call => call.data.collection), ['periods'])
   assert.equal(app.wx.modals.at(-1).title, '导出失败')
   assert.deepEqual(app.files, [])
@@ -106,6 +114,45 @@ test('export reads its own lists in order even after Home has read the records, 
   assert.equal(app.platformCalls.shareFileMessage, undefined)
 })
 
+test('export mask, close, drag and system back all cancel before any record read', async (t) => {
+  const closes = [
+    { name: 'mask', handler: 'onConfirmationMask' },
+    { name: 'close button', handler: 'onConfirmationClose' },
+    { name: 'drag' },
+    { name: 'system back', handler: 'onSheetSystemBack' }
+  ]
+  for (const close of closes) {
+    await t.test(close.name, async (t) => {
+      const app = settingsApp(t)
+      const page = app.launch('/pages/settings/settings')
+      await app.settle()
+      const exporting = app.dispatch(page, 'exportData')
+      await app.settle()
+      assert.equal(page.data.confirmationPhase, 'open')
+      if (close.name === 'drag') {
+        const currentTarget = { dataset: { sheet: 'confirmation' } }
+        const touch = { identifier: 1, pageX: 100, pageY: 100 }
+        app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
+        app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
+        await app.advance(100)
+        app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
+      } else {
+        await app.dispatch(page, close.handler)
+      }
+      assert.equal(page.data.confirmationPhase, 'leaving')
+      await app.advance(200)
+      await exporting
+      assert.equal(page.data.confirmationMounted, false)
+      assert.equal(page.data.pageObscured, false)
+      assert.equal(app.cloud.calls.some(call => call.name === 'dataOp'), false)
+      assert.deepEqual(app.files, [])
+      assert.equal(app.platformCalls.shareFileMessage, undefined)
+      assert.deepEqual(app.clipboard, [])
+      assert.equal(app.currentPage, page)
+    })
+  }
+})
+
 test('share cancellation keeps the clipboard intact and share failure copies only by explicit choice', async (t) => {
   for (const [failure, copyJson] of [['shareFileMessage:fail cancel', false], ['shareFileMessage:fail unavailable', true]]) {
     await t.test(failure, async (t) => {
@@ -113,24 +160,69 @@ test('share cancellation keeps the clipboard intact and share failure copies onl
       app.cloud.when('dataOp').reply({ code: 0, data: [] })
       const page = app.launch('/pages/settings/settings')
       await app.settle()
-      app.respondNext('showModal', { confirm: true })
       app.respondNext('shareFileMessage', new Error(failure))
       const exporting = app.dispatch(page, 'exportData')
       await app.settle()
+      await chooseConfirmation(app, page)
       assert.deepEqual(app.clipboard, [])
       if (copyJson) {
-        const menu = app.wx.actionSheets[0]
-        assert.match(menu.alertText, /全部经期和欢乐时光/)
-        const tapIndex = menu.itemList.indexOf('复制 JSON')
-        assert.ok(tapIndex >= 0)
-        app.respond('showActionSheet', 0, { tapIndex })
+        assert.equal(page.data.confirmationTitle, '分享没有完成')
+        assert.equal(page.data.confirmationContent, '选「复制成文字」会把全部经期和欢乐时光放进剪贴板')
+        assert.deepEqual(page.data.confirmationActions, [
+          { id: 'retry', text: '重试分享', kind: 'primary' },
+          { id: 'copy', text: '复制成文字', kind: 'secondary' },
+          { id: 'cancel', text: '取消', kind: 'secondary' }
+        ])
+        await chooseConfirmation(app, page, 'copy')
       } else {
-        assert.deepEqual(app.wx.actionSheets, [])
+        assert.equal(page.data.confirmationMounted, false)
       }
-      await app.settle()
+      assert.deepEqual(app.wx.actionSheets, [])
       await exporting
       assert.deepEqual(app.clipboard, copyJson ? [app.files[0].data] : [])
       assert.equal(app.wx.toasts.some(toast => toast.title === '导出成功'), false)
+    })
+  }
+})
+
+test('share-failure mask, close, drag and system back all cancel without copying', async (t) => {
+  const closes = [
+    { name: 'mask', handler: 'onConfirmationMask' },
+    { name: 'close button', handler: 'onConfirmationClose' },
+    { name: 'drag' },
+    { name: 'system back', handler: 'onSheetSystemBack' }
+  ]
+  for (const close of closes) {
+    await t.test(close.name, async (t) => {
+      const app = settingsApp(t)
+      app.cloud.when('dataOp').reply({ code: 0, data: [] })
+      const page = app.launch('/pages/settings/settings')
+      await app.settle()
+      app.respondNext('shareFileMessage', new Error('shareFileMessage:fail unavailable'))
+      const exporting = app.dispatch(page, 'exportData')
+      await app.settle()
+      await chooseConfirmation(app, page)
+      assert.equal(page.data.confirmationTitle, '分享没有完成')
+      assert.equal(page.data.confirmationPhase, 'open')
+      if (close.name === 'drag') {
+        const currentTarget = { dataset: { sheet: 'confirmation' } }
+        const touch = { identifier: 1, pageX: 100, pageY: 100 }
+        app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
+        app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
+        await app.advance(100)
+        app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
+      } else {
+        await app.dispatch(page, close.handler)
+      }
+      assert.equal(page.data.confirmationPhase, 'leaving')
+      await app.advance(200)
+      await exporting
+      assert.equal(page.data.confirmationMounted, false)
+      assert.equal(page.data.pageObscured, false)
+      assert.deepEqual(app.clipboard, [])
+      assert.deepEqual(app.wx.actionSheets, [])
+      assert.equal(app.wx.toasts.some(toast => toast.title === '已复制到剪贴板'), false)
+      assert.equal(app.currentPage, page)
     })
   }
 })
@@ -197,24 +289,86 @@ test('reentering settings reads the current cache before verification and unboun
   assert.equal(page.data.roomCodeDisplay, 'ROOM03')
 })
 
-test('resync explains local-only clearing and never deletes records or leaves the room', async (t) => {
+test('resync uses the shared sheet and announces only after room resolution completes', async (t) => {
   const app = settingsApp(t, { storage: { roomCode: 'ROOM01', calendarDensity: 'full' } })
   const page = app.launch('/pages/settings/settings')
   await app.settle()
-  await app.dispatch(page, 'clearData')
-  const modal = app.wx.modals[0]
-  assert.equal(modal.title, '重新同步房间')
-  assert.equal(modal.content, '只会清掉本机缓存的房间码，再重新获取。不会删除记录，也不会退出房间。')
-  const verification = app.cloud.when('getMyRoom').defer()
-  app.respond('showModal', 0, { confirm: true })
+  const resyncing = app.dispatch(page, 'clearData')
   await app.settle()
+  assert.equal(page.data.confirmationTitle, '重新同步房间？')
+  assert.equal(page.data.confirmationContent, '重新从云端读一次你所在的房间，不会删除任何记录')
+  assert.deepEqual(page.data.confirmationActions, [
+    { id: 'confirm', text: '重新同步', kind: 'primary' },
+    { id: 'cancel', text: '取消', kind: 'secondary' }
+  ])
+  assert.deepEqual(app.wx.modals, [])
+  assert.equal(app.cloud.calls.filter(call => call.name === 'getMyRoom').length, 1)
+  const verification = app.cloud.when('getMyRoom').defer()
+  await app.dispatch(page, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
+  await app.advance(200)
   assert.equal(app.storage.roomCode, undefined)
   assert.equal(app.storage.calendarDensity, 'full')
-  verification.resolve({ code: 0, room: { roomCode: 'ROOM02' } })
+  assert.deepEqual(app.wx.toasts, [], 'resolution has not completed yet')
+  verification.resolve({ code: 0, room: { roomCode: 'ROOM02', status: 'waiting' } })
+  await resyncing
   await app.settle()
   assert.equal(page.data.roomCodeDisplay, 'ROOM02')
   assert.equal(app.storage.roomCode, 'ROOM02')
   assert.deepEqual(app.cloud.calls.map(call => call.name), ['getMyRoom', 'getMyRoom'])
+  assert.deepEqual(app.wx.toasts, [{ title: '已重新同步' }])
+})
+
+test('resync mask, close, drag and system back all cancel without clearing the room', async (t) => {
+  const closes = [
+    { name: 'mask', handler: 'onConfirmationMask' },
+    { name: 'close button', handler: 'onConfirmationClose' },
+    { name: 'drag' },
+    { name: 'system back', handler: 'onSheetSystemBack' }
+  ]
+  for (const close of closes) {
+    await t.test(close.name, async (t) => {
+      const app = settingsApp(t, { storage: { roomCode: 'ROOM01' } })
+      const page = app.launch('/pages/settings/settings')
+      await app.settle()
+      const resyncing = app.dispatch(page, 'clearData')
+      await app.settle()
+      assert.equal(page.data.confirmationPhase, 'open')
+      if (close.name === 'drag') {
+        const currentTarget = { dataset: { sheet: 'confirmation' } }
+        const touch = { identifier: 1, pageX: 100, pageY: 100 }
+        app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
+        app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
+        await app.advance(100)
+        app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
+      } else {
+        await app.dispatch(page, close.handler)
+      }
+      assert.equal(page.data.confirmationPhase, 'leaving')
+      assert.equal(app.storage.roomCode, 'ROOM01')
+      await app.advance(200)
+      await resyncing
+      assert.equal(page.data.confirmationMounted, false)
+      assert.equal(page.data.pageObscured, false)
+      assert.equal(app.cloud.calls.filter(call => call.name === 'getMyRoom').length, 1)
+      assert.deepEqual(app.wx.toasts, [])
+      assert.equal(app.currentPage, page)
+    })
+  }
+})
+
+test('resync failure keeps the existing retry presentation without a success toast', async (t) => {
+  const app = settingsApp(t, { storage: { roomCode: 'ROOM01' } })
+  const page = app.launch('/pages/settings/settings')
+  await app.settle()
+  app.cloud.when('getMyRoom').reject(new Error('network down'))
+  const resyncing = app.dispatch(page, 'clearData')
+  await app.settle()
+  await app.dispatch(page, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
+  await app.advance(200)
+  await resyncing
+  assert.equal(page.data.roomCodeDisplay, '同步失败，请重试')
+  assert.equal(page.data.roomCodeLoaded, true)
+  assert.deepEqual(app.wx.toasts, [])
 })
 
 test('settings and the refused-bind entry show the same unbind confirmation', async (t) => {
@@ -475,6 +629,31 @@ test('settings shows membership and announces only a waiting-to-paired transitio
       assert.deepEqual(app.wx.toasts.map(toast => toast.title), initialStatus === 'waiting' ? ['TA 已加入'] : [])
     })
   }
+})
+
+test('settings writes calendar density only when the selection changes', async (t) => {
+  const app = settingsApp(t, { storage: { roomCode: 'ROOM01', calendarDensity: 'compact' } })
+  const densityWrites = []
+  const setStorageSync = app.wx.setStorageSync
+  app.wx.setStorageSync = (key, value) => {
+    if (key === 'calendarDensity') densityWrites.push(value)
+    return setStorageSync(key, value)
+  }
+  const page = app.launch('/pages/settings/settings')
+  await app.settle()
+  assert.deepEqual(densityWrites, [], 'showing settings only reads the saved preference')
+  await app.dispatch(page, 'setCalendarDensity', { currentTarget: { dataset: { density: 'compact' } } })
+  assert.deepEqual(densityWrites, [], 'reselecting the visible density is a no-op')
+  await app.dispatch(page, 'setCalendarDensity', { currentTarget: { dataset: { density: 'full' } } })
+  assert.deepEqual(densityWrites, ['full'])
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.deepEqual(densityWrites, ['full'], 'showing the unchanged density does not rewrite storage')
+  await app.dispatch(page, 'setCalendarDensity', { currentTarget: { dataset: { density: 'full' } } })
+  assert.deepEqual(densityWrites, ['full'])
+  await app.dispatch(page, 'setCalendarDensity', { currentTarget: { dataset: { density: 'compact' } } })
+  assert.deepEqual(densityWrites, ['full', 'compact'])
 })
 
 test('help opens after render, silences settings, keeps tabs hidden through exit and cancels exit on reopen', async (t) => {

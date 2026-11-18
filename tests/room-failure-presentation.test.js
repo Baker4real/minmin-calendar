@@ -115,13 +115,12 @@ async function prepare(t, { operation, record }, failure, { missingModal = false
     await app.settle()
     return { app, page }
   }
-  // Export still has a native user confirmation; delete uses the shared sheet before its failure prompt.
-  if (operation === 'export') app.respondNext('showModal', { confirm: true })
+  // Export and delete use the shared sheet before their unchanged native failure prompt.
   if (failedModal) app.respondNext('showModal', new Error('showModal:fail unavailable'))
   const pending = app.dispatch(page, operation === 'export' ? 'exportData' : operation === 'delete' ? 'delete' : 'save')
   if (missingModal) delete app.wx.showModal
   await app.settle()
-  if (operation === 'delete') {
+  if (operation === 'export' || operation === 'delete') {
     await app.dispatch(page, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
     await app.advance(200)
     await app.settle()
@@ -192,14 +191,16 @@ for (const scenario of scenarios) {
       assertPresentation(app, page, expected)
       const beforeCalls = dataCalls(app).length
       const beforeWrites = writes(app).length
-      if (expected.next === 'retry') {
-        recover(app)
-        if (spec.operation === 'export') app.respondNext('showModal', { confirm: true })
-      }
+      if (expected.next === 'retry') recover(app)
       if (expected.form === 'inline') await app.dispatch(page, 'handleRoomStatusAction')
       else if (expected.form === 'segment') await app.dispatch(page, segmentKeys(app.rendered(page)).retry)
       else app.respond('showModal', app.wx.modals.length - 1, { confirm: true })
       await app.settle()
+      if (spec.operation === 'export' && expected.next === 'retry') {
+        await app.dispatch(page, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
+        await app.advance(200)
+        await app.settle()
+      }
       await pending
       await app.settle()
       if (expected.next === 'bind') {
@@ -223,10 +224,8 @@ for (const scenario of scenarios) {
 }
 
 const confirmations = [
-  { name: 'export', route: '/pages/settings/settings', event: 'exportData' },
-  // #209：删除确认已是应用内面板，不再经过原生 missing/failed showModal 分支。
+  // #209/#213：删除、导出与重新同步的共享面板取消路径由页面行为测试覆盖。
   { name: 'leave', route: '/pages/settings/settings', event: 'unbind' },
-  { name: 'cache resync', route: '/pages/settings/settings', event: 'clearData' },
   { name: 'overlap', route: '/pages/period/edit/edit?startDate=2026-06-20&endDate=2026-06-23', event: 'save' }
 ]
 for (const confirmation of confirmations) {

@@ -77,8 +77,11 @@ for (const rebound of [null, B]) {
       listRoute(app, 'periods', rebound).reply(listed([period('b-p', '2026-06-20', { createdByMe: true })]))
       listRoute(app, 'memories', rebound).reject(new Error('network down'))
     }
-    app.respondNext('showModal', { confirm: true })
-    await app.dispatch(app.currentPage, 'clearData')
+    const resyncing = app.dispatch(app.currentPage, 'clearData')
+    await app.settle()
+    await app.dispatch(app.currentPage, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
+    await app.advance(200)
+    await resyncing
     await app.settle()
     assert.equal(app.storage.roomCode, rebound || undefined)
 
@@ -118,8 +121,11 @@ test('a live record tab shows none of the previous Room once the device holds an
   app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: B, status: 'waiting' } })
   listRoute(app, 'periods', B).reply(listed([period('b-p', '2026-06-20', { createdByMe: true })]))
   listRoute(app, 'memories', B).reject(new Error('network down'))
-  app.respondNext('showModal', { confirm: true })
-  await app.dispatch(app.currentPage, 'clearData')
+  const resyncing = app.dispatch(app.currentPage, 'clearData')
+  await app.settle()
+  await app.dispatch(app.currentPage, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
+  await app.advance(200)
+  await resyncing
   await app.settle()
   assert.equal(app.storage.roomCode, B)
 
@@ -363,8 +369,11 @@ test('records Home read after its own Room lookup belong to the Room the lookup 
   await app.settle()
   // Settings clears the local room code while the server has no Room for this member.
   app.cloud.when('getMyRoom').reply({ code: 0, room: null })
-  app.respondNext('showModal', { confirm: true })
-  await app.dispatch(app.currentPage, 'clearData')
+  const resyncing = app.dispatch(app.currentPage, 'clearData')
+  await app.settle()
+  await app.dispatch(app.currentPage, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
+  await app.advance(200)
+  await resyncing
   await app.settle()
   assert.equal(app.storage.roomCode, undefined)
 
