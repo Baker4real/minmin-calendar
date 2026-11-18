@@ -59,7 +59,7 @@ const UNSYNCED_PERIODS_TEXT = '经期未同步，暂不预测'
 // periodsSynced / memoriesSynced：该集合在这个房间里是否成功同步过一次。投影在这里统一解释未同步：
 // 本地标记、记录详情与小结保留；经期不报第几天、不预测；任一集合未同步都保留小结入口。
 // recordChange：这次投影带来的那条记录变化 { collection, mode, record, before }（before 是变化前的那个集合），
-// 投影据此给出记录成功反馈 recordFeedback（日期 → memory / period，issue #167）；没有变化就是空表
+// 投影据此给出记录成功反馈 recordFeedback（日期 → memory / period / both，issue #167、#222）；没有变化就是空表
 function buildHomeCalendarState({
   year,
   month,
@@ -69,7 +69,8 @@ function buildHomeCalendarState({
   roomPaired = false,
   periodsSynced = true,
   memoriesSynced = true,
-  recordChange = null
+  recordChange = null,
+  newRecordIds = []
 }) {
   const prediction = cycle.predictNextPeriod(periodsSynced ? periods : [], { today })
   const predictionWindow = prediction.canPredict
@@ -96,7 +97,7 @@ function buildHomeCalendarState({
     today
   })
   let homeStatus = withHomeStatusAria(cycle.buildHomeStatusLine(periods, { today, prediction }))
-  let predictionExplanation = calendarInsights.buildPredictionExplanation(prediction, periods)
+  let predictionExplanation = calendarInsights.buildPredictionExplanation(prediction, periods, { today })
   if (!periodsSynced) {
     homeStatus = withHomeStatusAria({ status: 'unsynced', text: UNSYNCED_PERIODS_TEXT, countdownText: '', tone: 'neutral' })
     const lines = ['经期同步后再按记录估算']
@@ -118,6 +119,13 @@ function buildHomeCalendarState({
   }
 
   const quickEntry = buildPeriodQuickEntry(periods, { today, periodsSynced, roomPaired })
+  const feedbackChanges = newRecordIds.map(({ collection, id }) => ({
+    collection,
+    mode: 'add',
+    record: { _id: id },
+    before: []
+  }))
+  if (recordChange) feedbackChanges.push(recordChange)
 
   const todayDate = util.parseDate(today)
   return {
@@ -134,7 +142,7 @@ function buildHomeCalendarState({
     monthSummaryLine: monthlyRecap.summaryLine,
     monthlyRecap,
     days,
-    recordFeedback: buildRecordFeedback(days, recordChange, { periods, memories, today }),
+    recordFeedback: buildRecordFeedback(days, feedbackChanges, { periods, memories, today }),
     dayDetailsByDate: buildDayDetailsByDate(days, periods, memories, today, roomPaired)
   }
 }
@@ -165,19 +173,27 @@ function buildPeriodQuickEntry(periods, { today, periodsSynced = true, roomPaire
 // 反馈落在当月显示这条记录的格子上：欢乐时光是那一天的 ♥，经期是它投影出的每一格色带
 function buildRecordFeedback(days, change, { periods, memories, today }) {
   const marked = {}
-  const id = recordIdentity(change && change.record)
-  const after = !change ? null : change.collection === 'periods' ? periods : change.collection === 'memories' ? memories : null
-  if (!id || !after) return marked
-  const previous = (change.before || []).find(record => recordIdentity(record) === id) || null
-  const saved = after.find(record => recordIdentity(record) === id) || null
-  const kind = recordFeedbackKind(change.collection, previous, saved, change.mode)
-  const band = kind === 'period' ? periodCoverage.projectPeriodRange(saved, today) : null
-  days.forEach(day => {
-    if (!day || day.isEmpty || !day.date) return
-    if (kind === 'memory' && day.isMemory && day.date === saved.date) marked[day.date] = 'memory'
-    if (band && day.isPeriod && isPeriodActiveOnDate(band, day.date)) marked[day.date] = 'period'
-  })
+  const changes = Array.isArray(change) ? change : [change]
+  for (const item of changes) {
+    const id = recordIdentity(item && item.record)
+    const after = !item ? null : item.collection === 'periods' ? periods : item.collection === 'memories' ? memories : null
+    if (!id || !after) continue
+    const previous = (item.before || []).find(record => recordIdentity(record) === id) || null
+    const saved = after.find(record => recordIdentity(record) === id) || null
+    const kind = recordFeedbackKind(item.collection, previous, saved, item.mode)
+    const band = kind === 'period' ? periodCoverage.projectPeriodRange(saved, today) : null
+    days.forEach(day => {
+      if (!day || day.isEmpty || !day.date) return
+      if (kind === 'memory' && day.isMemory && day.date === saved.date) markRecordFeedback(marked, day.date, 'memory')
+      if (band && day.isPeriod && isPeriodActiveOnDate(band, day.date)) markRecordFeedback(marked, day.date, 'period')
+    })
+  }
   return marked
+}
+
+function markRecordFeedback(marked, date, kind) {
+  const current = marked[date]
+  marked[date] = current && current !== kind ? 'both' : kind
 }
 
 function recordFeedbackKind(collection, previous, saved, mode) {

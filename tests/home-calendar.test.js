@@ -70,7 +70,7 @@ test('cloud records render the calendar, summary and the selected day detail', a
 })
 
 test('navbar legend button and one-time partner welcome both open the legend directly', async t => {
-  const app = homeApp(t, { storage: { roomCode: 'ROOM01', partnerWelcome: 'pending' } })
+  const app = homeApp(t, { roomStatus: 'paired', storage: { roomCode: 'ROOM01', partnerWelcome: 'pending' } })
   const home = await launch(app)
   assert.equal(tagWith('nav-tool').attrs.bindtap, 'openLegendSheet')
   await tap(app, home, tagWith('nav-tool').attrs.bindtap)
@@ -579,10 +579,11 @@ test('settings density changes resize a real six-row calendar on return before c
   assert.equal(app.currentPage, home)
   assert.ok(classes('calendar-grid', app.rendered(home)).includes('calendar-density-compact'))
   assert.ok(classes('calendar-grid', app.rendered(home)).includes('calendar-info-merged'))
-  assert.equal(attr('calendar-grid', 'style', app.rendered(home)), '--calendar-row-height: 55.33px')
+  assert.equal(app.rendered(home).partnerInvite, true, 'the waiting invitation keeps using the shared slot during the density change')
+  assert.equal(attr('calendar-grid', 'style', app.rendered(home)), '--calendar-row-height: 54px')
   pending.resolve(success([]))
   await app.settle()
-  assert.equal(attr('calendar-grid', 'style', app.rendered(home)), '--calendar-row-height: 55.33px')
+  assert.equal(attr('calendar-grid', 'style', app.rendered(home)), '--calendar-row-height: 54px')
   app.wx.setStorageSync('calendarDensity', 'invalid')
   app.hide(); app.show(); await app.settle()
   assert.ok(classes('calendar-grid', app.rendered(home)).includes('calendar-density-compact'))
@@ -1073,6 +1074,53 @@ test('a saved memory blooms on return, confirmation refresh preserves it, later 
   assert.deepEqual(feedback(app, home), [])
   app.show(); await app.settle()
   assert.deepEqual(feedback(app, home), [])
+})
+
+test('a pending partner arrival and a later saved memory both bloom on the same Home return', async t => {
+  const app = homeApp(t, { roomStatus: 'paired' })
+  const home = await launch(app)
+  app.wx.navigateTo({ url: '/pages/memory/edit/edit?date=2026-06-10' })
+  await app.settle()
+  const edit = app.currentPage
+  const partner = { ...memory('partner', '2026-06-18'), createdByMe: false }
+  listRoute(app, 'periods').reply(listed([], 'paired'))
+  listRoute(app, 'memories').reply(listed([partner], 'paired'))
+  await home.onPullDownRefresh()
+  await app.settle()
+  assert.deepEqual(feedback(app, home), [])
+
+  const saved = { ...memory('own', '2026-06-10'), createdByMe: true }
+  app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'memories' } })
+    .reply({ code: 0, id: saved._id, record: saved })
+  await app.dispatch(edit, 'onNoteInput', { detail: { value: '一起晚饭' } })
+  await app.dispatch(edit, 'save')
+  await app.settle()
+  assert.deepEqual(feedback(app, home), [['2026-06-10', 'record-feedback-memory']])
+
+  listRoute(app, 'memories').reply(listed([partner, saved], 'paired'))
+  await returnHome(app)
+  assert.deepEqual(feedback(app, home), [
+    ['2026-06-10', 'record-feedback-memory'],
+    ['2026-06-18', 'record-feedback-memory']
+  ])
+})
+
+test('same-day partner period and memory reuse both appearance effects', async t => {
+  const app = homeApp(t, { roomStatus: 'paired' })
+  const home = await launch(app)
+  listRoute(app, 'periods').reply(listed([
+    { ...period('partner-p', '2026-06-10', '2026-06-11'), createdByMe: false }
+  ], 'paired'))
+  listRoute(app, 'memories').reply(listed([
+    { ...memory('partner-m', '2026-06-10'), createdByMe: false }
+  ], 'paired'))
+  await home.onPullDownRefresh()
+  await app.settle()
+  assert.deepEqual(feedback(app, home), [
+    ['2026-06-10', 'record-feedback-memory'],
+    ['2026-06-10', 'record-feedback-period'],
+    ['2026-06-11', 'record-feedback-period']
+  ])
 })
 
 const earlier = period('p1', '2026-06-01', '2026-06-03')

@@ -62,6 +62,27 @@ test('the unbound heart art is reserved for bind states, not load failures', () 
   assert.match(wxml, /bindtap="handleRoomStatusAction"[^>]*aria-label="\{\{roomStatusActionText\}\}"/)
 })
 
+test('waiting invitation has two copy lines and a native share button beside the partner welcome slot', () => {
+  const wxml = readIndexWxml()
+  const inviteAt = wxml.indexOf('wx:if="{{partnerInvite}}"')
+  assert.ok(inviteAt !== -1)
+  const invite = wxml.slice(inviteAt, wxml.indexOf('</button>', inviteAt) + '</button>'.length)
+  assert.match(invite, /class="partner-invite"/)
+  assert.match(invite, /class="partner-invite-title">TA 还没加入<\/text>/)
+  assert.match(invite, /class="partner-invite-desc">发个邀请，TA 加入后你们看的是同一本日历<\/text>/)
+  assert.match(invite, /class="btn-premium share-invite home-share-invite"/)
+  assert.match(invite, /open-type="share"/)
+  assert.match(invite, /hover-class="share-invite-hover"/)
+  assert.match(invite, /aria-role="button"/)
+  assert.match(invite, /aria-label="发邀请"/)
+  assert.match(invite, />发邀请<\/button>/)
+  const spacerAt = wxml.indexOf('class="home-sticky-spacer')
+  const welcomeAt = wxml.indexOf('wx:if="{{partnerWelcome}}"')
+  const retryAt = wxml.indexOf('class="refresh-retry"')
+  assert.ok(spacerAt < inviteAt && inviteAt < retryAt)
+  assert.ok(spacerAt < welcomeAt && welcomeAt < retryAt)
+})
+
 test('partner welcome explains the calendar marks and the whole row opens the legend', () => {
   const wxml = readIndexWxml()
   const welcome = /<view wx:if="\{\{partnerWelcome\}\}" class="partner-welcome"[^>]*bindtap="openLegendSheet"[^>]*aria-role="button"[^>]*aria-label="已和 TA 连上。点按打开日历图例"[^>]*>([^<]+)<\/view>/.exec(wxml)
@@ -127,6 +148,23 @@ test('homepage status line is one named row with countdown and arrow, without re
   assert.match(wxml, /predictionExplanation\.title/)
   assert.match(wxml, /aria-label="\{\{periodQuickAriaLabel\}\}"/)
   assert.match(wxml, /class="quick-text">\{\{periodQuickLabel\}\}/)
+})
+
+test('delayed prediction record action reuses the homepage period entry destination', () => {
+  const wxml = readIndexWxml()
+  const quickStart = wxml.indexOf('class="quick-actions"')
+  const quick = wxml.slice(quickStart, wxml.indexOf('class="month-summary"', quickStart))
+  const quickHandler = /bindtap="([^"]+)"/.exec(quick)?.[1]
+  assert.equal(quickHandler, 'quickPeriod')
+
+  const predictionStart = wxml.indexOf('class="prediction-explanation"')
+  const prediction = wxml.slice(predictionStart, wxml.indexOf('class="monthly-recap"', predictionStart))
+  const action = /<view\s+wx:if="\{\{predictionExplanation\.periodAction\}\}"[^>]*bindtap="([^"]+)"[^>]*>[\s\S]*?<\/view>/.exec(prediction)
+  assert.ok(action, 'expected the delayed prediction record action')
+  assert.equal(action[1], quickHandler)
+  assert.match(action[0], /aria-role="button"/)
+  assert.match(action[0], /aria-label="\{\{predictionExplanation\.periodAction\.label\}\}"/)
+  assert.match(action[0], /\{\{predictionExplanation\.periodAction\.label\}\}/)
 })
 
 test('day sheet record actions and details retain their visible and accessible bindings', () => {
@@ -202,6 +240,26 @@ test('homepage retires the tools menu and keeps direct prediction, recap and hel
   const legendStart = wxml.indexOf('class="legend-list"')
   const legend = wxml.slice(legendStart, wxml.indexOf('class="prediction-explanation"', legendStart))
   assert.match(legend, /更多用法请前往「设置 → 使用说明」。/)
+})
+
+test('monthly recap uses a body-large main sentence and body-sized detail lines', () => {
+  const wxml = readIndexWxml()
+  const recap = wxml.slice(wxml.indexOf('class="monthly-recap"'), wxml.indexOf('class="copy-recap"'))
+  assert.match(recap, /class="recap-summary recap-main">\{\{monthlyRecap\.periodSummary\}\}/)
+  assert.match(recap, /class="recap-summary">\{\{monthlyRecap\.memorySummary\}\}/)
+  assert.match(recap, /class="recap-summary">\{\{monthlyRecap\.predictionSummary\}\}/)
+
+  const wxss = readIndexWxss()
+  const main = ruleBody(wxss, '.recap-main')
+  assert.match(main, /font-size:\s*var\(--font-size-body-lg\)/)
+  assert.match(main, /font-weight:\s*var\(--font-weight-body\)/)
+  assert.match(main, /line-height:\s*var\(--line-height-body\)/)
+  for (const selector of ['.recap-summary', '.recap-highlight']) {
+    const detail = ruleBody(wxss, selector)
+    assert.match(detail, /font-size:\s*var\(--font-size-body\)/)
+    assert.match(detail, /font-weight:\s*var\(--font-weight-body\)/)
+    assert.match(detail, /line-height:\s*var\(--line-height-body\)/)
+  }
 })
 
 test('quick record buttons keep the calendar marks, rose fill, readable labels and touch height', () => {

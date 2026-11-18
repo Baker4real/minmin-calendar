@@ -136,6 +136,14 @@ module.exports = {
       </view>
     </view>
     <view class="home-sticky-spacer {{showBackToToday ? 'with-back-today' : ''}}"></view>
+    <!-- 等待邀请与一次性欢迎共用同一个正常文档流槽位和日历账本项（issue #219） -->
+    <view wx:if="{{partnerInvite}}" class="partner-invite">
+      <view class="partner-invite-copy">
+        <text class="partner-invite-title">TA 还没加入</text>
+        <text class="partner-invite-desc">发个邀请，TA 加入后你们看的是同一本日历</text>
+      </view>
+      <button class="btn-premium share-invite home-share-invite" open-type="share" hover-class="share-invite-hover" aria-role="button" aria-label="发邀请">发邀请</button>
+    </view>
     <!-- 一次性配对欢迎条：吸顶占位之后的正常文档流；整条直达图例，高度计入日历行高（issue #149、#215） -->
     <view wx:if="{{partnerWelcome}}" class="partner-welcome" hover-class="partner-welcome-hover" bindtap="openLegendSheet" aria-role="button" aria-label="已和 TA 连上。点按打开日历图例">已和 TA 连上。玫瑰色带是经期，♥ 是欢乐时光，「预」是可能开始的日子。点这里或左上角「图例」随时再看</view>
 
@@ -160,7 +168,7 @@ module.exports = {
       <!-- 翻月滑入只动这一层（issue #165）：方向记号与新月份的格子同一次更新换上；状态强调记号也挂在这里 -->
       <view class="calendar-days{{calendarFlip ? ' calendar-flip-' + calendarFlip : ''}}{{calendarEmphasis ? ' calendar-emphasis-' + calendarEmphasis : ''}}">
         <view
-          class="day-cell {{item.isToday ? 'today' : ''}} {{item.isPeriod ? 'period' : ''}} {{item.periodSegment === 'start' ? 'period-start' : ''}} {{item.periodSegment === 'middle' ? 'period-middle' : ''}} {{item.periodSegment === 'end' ? 'period-end' : ''}} {{item.periodSegment === 'single' ? 'period-single' : ''}} {{item.periodOpenEnd ? 'period-open' : ''}} {{item.isMemory ? 'memory' : ''}} {{item.isPredict ? 'predict' : ''}} {{item.isHoliday ? 'holiday' : ''}} {{item.isWorkday ? 'workday' : ''}} {{item.isEmpty ? 'empty' : ''}} {{recordFeedback[item.date] ? 'record-feedback-' + recordFeedback[item.date] : ''}}"
+          class="day-cell {{item.isToday ? 'today' : ''}} {{item.isPeriod ? 'period' : ''}} {{item.periodSegment === 'start' ? 'period-start' : ''}} {{item.periodSegment === 'middle' ? 'period-middle' : ''}} {{item.periodSegment === 'end' ? 'period-end' : ''}} {{item.periodSegment === 'single' ? 'period-single' : ''}} {{item.periodOpenEnd ? 'period-open' : ''}} {{item.isMemory ? 'memory' : ''}} {{item.isPredict ? 'predict' : ''}} {{item.isHoliday ? 'holiday' : ''}} {{item.isWorkday ? 'workday' : ''}} {{item.isEmpty ? 'empty' : ''}} {{recordFeedback[item.date] === 'memory' || recordFeedback[item.date] === 'both' ? 'record-feedback-memory' : ''}} {{recordFeedback[item.date] === 'period' || recordFeedback[item.date] === 'both' ? 'record-feedback-period' : ''}}"
           wx:for="{{days}}"
           wx:key="index"
           bindtap="onDayTap"
@@ -431,10 +439,18 @@ module.exports = {
           wx:key="key"
           class="explain-line"
         >{{item.text}}</text>
+        <view
+          wx:if="{{predictionExplanation.periodAction}}"
+          class="btn-premium prediction-period-action"
+          bindtap="quickPeriod"
+          aria-role="button"
+          aria-label="{{predictionExplanation.periodAction.label}}"
+          hover-class="btn-premium-hover"
+        >{{predictionExplanation.periodAction.label}}</view>
       </view>
 
       <view wx:elif="{{infoSheetMode == 'recap' && monthlyRecap}}" class="monthly-recap">
-        <text class="recap-summary">{{monthlyRecap.periodSummary}}</text>
+        <text class="recap-summary recap-main">{{monthlyRecap.periodSummary}}</text>
         <text class="recap-summary">{{monthlyRecap.memorySummary}}</text>
         <text class="recap-summary">{{monthlyRecap.predictionSummary}}</text>
         <view wx:if="{{monthlyRecap.highlightItems.length}}" class="recap-highlights">

@@ -29,6 +29,7 @@ const rowsFor = (page, segment) => segment === 'period'
 // of its chain holds (WXML draws one branch per chain), and the same goes for every element around it.
 // Ask only about the segment on screen: the memory segment is a bare wx:else, which the tree does not read.
 const tabWxml = readSource(path.join(__dirname, '../pages/period/period.wxml'), 'utf8')
+const tabWxss = readSource(path.join(__dirname, '../pages/period/period.wxss'), 'utf8')
 const tabTemplate = wxmlElementTree(tabWxml)
 const allElements = nodes => nodes.flatMap(node => [node, ...allElements(node.children)])
 function holds(node, data) {
@@ -71,6 +72,43 @@ test('period empty state uses the current action label and cycle prediction thre
   assert.equal(page.data.periodQuickLabel, '＋ 记经期')
   assert.equal(page.data.predictionThresholdText, '记两次经期后就能估下次')
   assert.ok(draws(page.data, node => node.classes.includes('empty-state') && !node.classes.includes('load-failed')))
+})
+
+test('period overview reserves three fixed-height number slots throughout loading', async (t) => {
+  const app = setup(t)
+  const pending = list(app, 'periods').defer()
+  const page = app.launch(route)
+  await app.settle()
+  assert.equal(page.data.loading, true)
+  assert.ok(draws(page.data, node => node.classes.includes('cycle-card')))
+  const placeholders = allElements(tabTemplate).filter(node => node.classes.includes('cycle-num-placeholder'))
+  assert.equal(placeholders.length, 3)
+  for (const placeholder of placeholders) {
+    assert.ok(draws(page.data, node => node === placeholder), 'each loading number slot is drawn')
+    assert.equal(placeholder.attrs['aria-hidden'], 'true')
+  }
+  const numberRule = /\.cycle-num\s*\{[^}]*\}/.exec(tabWxss)
+  assert.ok(numberRule, 'the shared loaded and loading number style exists')
+  assert.match(numberRule[0], /height:\s*52\.8rpx/)
+  assert.match(numberRule[0], /line-height:\s*52\.8rpx/)
+  pending.resolve({ code: 0, data: [] })
+  await app.flush()
+})
+
+test('confirmed empty periods hide the overview and put the guide directly below the add action', async (t) => {
+  const app = setup(t)
+  const page = app.launch(route)
+  await app.flush()
+  assert.equal(page.data.hasLoaded, true)
+  assert.equal(page.data.periodCount, 0)
+  assert.equal(draws(page.data, node => node.classes.includes('cycle-card')), false)
+  const add = allElements(tabTemplate).find(node => node.attrs.bindtap === 'addPeriod')
+  const guide = allElements(tabTemplate).find(node => node.classes.includes('empty-state') && !node.classes.includes('load-failed'))
+  assert.ok(add && guide)
+  const siblings = add.parent.children
+  const following = siblings.slice(siblings.indexOf(add) + 1)
+  const nextVisible = following.find(node => draws(page.data, candidate => candidate === node))
+  assert.equal(nextVisible, guide, 'the empty guide is the first visible block after the add action')
 })
 
 const segments = [
@@ -246,7 +284,11 @@ for (const spec of segments) {
     assert.equal(page.data[spec.loaded], false)
     assert.equal(page.data[spec.loading], false)
     assert.deepEqual(rowsFor(page, spec.segment), [])
-    if (spec.segment === 'period') assert.deepEqual([page.data.avgCycle, page.data.avgDuration], [null, null])
+    if (spec.segment === 'period') {
+      assert.deepEqual([page.data.avgCycle, page.data.avgDuration], [null, null])
+      assert.ok(draws(page.data, node => node.classes.includes('cycle-num') && node.attrs['wx:elif'] === '{{!loading}}'),
+        'a first read failure keeps the -- overview placeholders')
+    }
     assert.equal(page.data[other.failed], false)
     assert.equal(page.data[other.loaded], true)
     assert.equal(page.data[other.segment === 'period' ? 'periodCount' : 'memoryCount'], 1)
@@ -298,6 +340,15 @@ for (const spec of segments) {
       assert.equal(page.data[spec.loading], false)
       assert.deepEqual(page.data[spec.segment === 'period' ? 'periods' : 'memoryGroups'], before)
       assert.deepEqual([page.data.avgCycle, page.data.avgDuration], stats)
+      if (spec.segment === 'period') {
+        if (records.length) {
+          assert.ok(draws(page.data, node => node.classes.includes('cycle-num') && node.attrs['wx:if'] === '{{!loading && (!loadFailed || hasLoaded)}}'),
+            'a refresh failure keeps the previous period count visible')
+        } else {
+          assert.equal(draws(page.data, node => node.classes.includes('cycle-card')), false,
+            'a confirmed empty overview stays hidden through a later refresh failure')
+        }
+      }
       assert.equal(page.data[other.failed], false)
       assert.deepEqual(listCalls(app).map(call => call.data.collection), bothLists(3))
       list(app, spec.collection).reply({ code: 0, data: records })

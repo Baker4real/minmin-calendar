@@ -3,20 +3,39 @@ const periodCoverage = require('./periodCoverage')
 const util = require('./util')
 
 const CONFIDENCE_COPY = {
-  high: '最近几次很规律，比较准',
+  high: '最近几次很规律，估得比较准',
   medium: '已经有几次记录，大致可以参考',
   low: '记录还不多，仅供参考'
 }
 
-function buildPredictionExplanation(prediction, periods = []) {
+function buildPredictionExplanation(prediction, periods = [], options = {}) {
+  const today = options.today || util.formatDate(new Date())
+  const status = cycle.buildHomeStatusLine(periods, { today, prediction }).status
+  const leadingLine = buildOverdueLeadingLine(periods, today, status)
   if (!prediction || !prediction.canPredict) {
-    const summary = cycle.buildPredictionThresholdText(periods)
+    const summary = [leadingLine, cycle.buildPredictionThresholdText(periods)].filter(Boolean).join('\n')
     return {
       available: false,
       title: '预测说明',
       summary,
       lines: [],
       lineItems: []
+    }
+  }
+
+  if (status === 'late' || status === 'late-too-long') {
+    const lateDays = util.daysBetween(util.parseDate(prediction.nextStart), util.parseDate(today))
+    const lines = [
+      '已经开始了就记经期；漏记了，在日历上点那一天补记',
+      '根据记录估算，不是医疗建议'
+    ]
+    return {
+      available: true,
+      title: '预测说明',
+      summary: `原本估在 ${prediction.nextDisplay} 前后 ${windowDays(prediction)} 天，现在已经过了 ${lateDays} 天`,
+      lines,
+      lineItems: buildTextItems(lines, 'prediction'),
+      periodAction: { label: '记经期' }
     }
   }
 
@@ -35,10 +54,19 @@ function buildPredictionExplanation(prediction, periods = []) {
     available: true,
     title: '预测说明',
     // 窗口从句另起一行（<text> 里的换行即断行）：整句折行时 430px 宽下「口」会单独落在第二行
-    summary: `预计 ${prediction.nextDisplay} 开始，\n前后 ${windowDays(prediction)} 天是可能开始的窗口`,
+    summary: [leadingLine, `预计 ${prediction.nextDisplay} 开始，\n前后 ${windowDays(prediction)} 天是可能开始的窗口`].filter(Boolean).join('\n'),
     lines,
     lineItems: buildTextItems(lines, 'prediction')
   }
+}
+
+function buildOverdueLeadingLine(periods, today, status) {
+  if (status !== 'in-period') return ''
+  const active = periodCoverage.getPeriodOnDate(periods, today, today)
+  if (!active || active.status !== 'ongoing') return ''
+  const length = cycle.describeKnownPeriodLength({ startDate: active.record.startDate, endDate: today, periods })
+  if (!length.exceedsExpected) return ''
+  return `这次已经 ${length.days} 天，比预期的 ${length.expectedDays} 天多；结束了就点「记结束」`
 }
 
 function buildMonthlyRecap({
@@ -61,8 +89,7 @@ function buildMonthlyRecap({
     if (highlight) highlights.push(highlight)
   })
 
-  const memoryHighlight = formatMemoryHighlight(monthMemories)
-  if (memoryHighlight) highlights.push(memoryHighlight)
+  highlights.push(...formatMemoryHighlights(monthMemories, today))
 
   const title = `${year}年${month + 1}月小结`
   const periodSummary = formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd, today)
@@ -95,7 +122,7 @@ function windowDays(prediction) {
 
 function formatPredictionSummary(prediction) {
   if (!prediction || !prediction.canPredict) return '下次预测暂无，记录更多后会更稳'
-  return `下次预测 ${prediction.nextDisplay}，区间 ${prediction.rangeDisplay}（置信度：${spokenConfidence(prediction)}）`
+  return `下次预测 ${prediction.nextDisplay}，区间 ${prediction.rangeDisplay}，${spokenConfidence(prediction)}`
 }
 
 // 预测持续天数按来源措辞：已知历史才说「平均」，
@@ -157,23 +184,16 @@ function formatPeriodHighlight(period, monthStart, monthEnd, today) {
   return parts.join('，')
 }
 
-function formatMemoryHighlight(memories) {
-  if (!memories.length) return ''
-
-  const notes = memories
-    .map(normalizeMemoryNote)
-    .filter(note => !note.isDefault)
-    .map(note => note.text)
-  if (!notes.length) return ''
-
-  return `欢乐时光：${notes.join('；')}`
+function formatMemoryHighlights(memories, today) {
+  return memories.map(memory => {
+    const date = util.formatDisplayDate(memory.date, { today })
+    return `欢乐时光：${date}，${normalizeMemoryNote(memory)}`
+  })
 }
 
 function normalizeMemoryNote(memory) {
   const note = typeof memory.note === 'string' ? memory.note.trim() : ''
-  return note
-    ? { text: note, isDefault: false }
-    : { text: '欢乐时光', isDefault: true }
+  return note || '欢乐时光'
 }
 
 function overlapsMonth(period, monthStart, monthEnd, today) {

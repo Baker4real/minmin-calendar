@@ -146,24 +146,25 @@ test('white type on active chip fills fails 4.5:1', () => {
   assert.equal(meetsContrast('#FFFFFF', symptom.fill), false)
 })
 
-// issue #76：经期列表的经量标签与编辑页选中芯片同一玫瑰角色；症状保持中性，不用预测金。
-test('list flow tag rides the same rose fill and navy type as the selected edit chip', () => {
-  assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-tag.flow', 'color'), '#0A0E27')
-  assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-tag.flow', 'background'), 'rgba(232,144,158,0.92)')
-  assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-tag.flow', 'border-color'), 'rgba(232,144,158,0.95)')
-
-  const editChip = activeChipPair(PERIOD_EDIT_WXSS, 'flow-chip')
-  assert.equal(cssColorToHex('rgba(232,144,158,0.92)'), editChip.fill)
-  assert.equal(cssColorToHex('#0A0E27'), editChip.color)
+// issue #225：列表经量标签改成分段选中态的弱态；编辑页选中芯片与进行中胶囊仍用实色。
+test('list flow tag shares the selected segment quiet rose treatment', () => {
+  for (const [property, expected] of [
+    ['color', '#E8909E'],
+    ['background', 'rgba(232,144,158,0.08)'],
+    ['border-color', 'rgba(232,144,158,0.45)']
+  ]) {
+    assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-tag.flow', property), expected)
+    assert.equal(declarationFor(PERIOD_LIST_WXSS, '.segment-option.active', property), expected,
+      `flow tag ${property} matches the selected segment`)
+  }
 })
 
-test('list flow tag keeps navy type readable on the rose fill', () => {
-  const ratio = contrastRatio('#0A0E27', cssColorToHex('rgba(232,144,158,0.92)'))
-  assert.equal(
-    meetsContrast('#0A0E27', cssColorToHex('rgba(232,144,158,0.92)')),
-    true,
-    `list flow tag #0A0E27 on rose is ${ratio.toFixed(2)}:1, need ≥4.5:1`
-  )
+test('list flow tag quiet treatment leaves the in-progress duration solid', () => {
+  assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-duration.ongoing', 'color'), '#0A0E27')
+  assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-duration.ongoing', 'background'), 'rgba(232,144,158,0.92)')
+  const editChip = activeChipPair(PERIOD_EDIT_WXSS, 'flow-chip')
+  assert.equal(editChip.fill, '#E8909E')
+  assert.equal(editChip.color, '#0A0E27')
 })
 
 test('list symptom tags stay neutral — no rose fill, no gold', () => {

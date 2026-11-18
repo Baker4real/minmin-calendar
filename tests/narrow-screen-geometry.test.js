@@ -658,7 +658,7 @@ test('the prediction summary starts the window clause on its own line and each c
     durationSource: 'history',
     confidence: 'low',
     ignoredCycleCount: 0
-  })
+  }, [], { today: '2027-12-30' })
   const clauses = summary.split('\n')
   assert.deepEqual(clauses, ['预计 2027年12月30日 开始，', '前后 10 天是可能开始的窗口'])
 
@@ -771,6 +771,85 @@ test('the clickable partner welcome copy fits two rpx lines and its box matches 
   assert.ok(Math.abs(boxRpx - 103.2) < 1e-9, `welcome box ${boxRpx}rpx`)
   assert.ok(boxRpx * 320 / 750 >= 44, 'the whole welcome box remains a 44px touch target at 320px')
   assert.equal(CALENDAR_LEDGER.firstScreenRpx.partnerWelcome, 103.2, 'ledger entry must equal the rendered welcome box')
+})
+
+test('waiting invitation and creator welcome use the same calendar ledger slot without overlapping', async () => {
+  const { computeCalendarRowHeight, CALENDAR_LEDGER } = require('../utils/calendarRowHeight')
+  const app = createMiniProgram({
+    storage: { roomCode: 'ROOM01', roomStatusSeen: 'waiting' },
+    windowInfo: { windowWidth: 375, windowHeight: 619 }
+  })
+  try {
+    const match = collection => ({ name: 'dataOp', data: { action: 'list', collection } })
+    const periods = app.cloud.when(match('periods')).reply({ code: 0, data: [], roomStatus: 'waiting' })
+    const memories = app.cloud.when(match('memories')).reply({ code: 0, data: [], roomStatus: 'waiting' })
+    const home = app.launch('/pages/index/index')
+    await app.settle()
+    const waiting = app.rendered(home)
+    assert.equal(waiting.partnerInvite, true)
+    assert.equal(waiting.partnerWelcome, false)
+    const expected = computeCalendarRowHeight({
+      viewportWidth: 375,
+      viewportHeight: 619,
+      navBarHeightPx: waiting.navBarHeight,
+      density: waiting.calendarDensity,
+      days: waiting.days,
+      showBackToToday: waiting.showBackToToday,
+      showPartnerWelcome: true,
+      showRefreshRetry: waiting.refreshRetryVisible
+    })
+    assert.equal(waiting.calendarRowHeightPx, expected.heightPx)
+
+    periods.reply({ code: 0, data: [], roomStatus: 'paired' })
+    memories.reply({ code: 0, data: [], roomStatus: 'paired' })
+    app.hide()
+    app.show()
+    await app.settle()
+    const welcomed = app.rendered(home)
+    assert.equal(welcomed.partnerInvite, false)
+    assert.equal(welcomed.partnerWelcome, true)
+    assert.equal(welcomed.calendarRowHeightPx, waiting.calendarRowHeightPx)
+    assert.equal(home.setDataCalls.some(patch => patch.partnerInvite && patch.partnerWelcome), false)
+    assert.equal(CALENDAR_LEDGER.firstScreenRpx.partnerInvite, undefined, 'the invitation reuses partnerWelcome instead of adding a second ledger item')
+
+    const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+    const invite = findDecls(rules, '.partner-invite')
+    const welcome = findDecls(rules, '.partner-welcome')
+    for (const prop of ['box-sizing', 'margin', 'padding', 'font-size', 'line-height']) {
+      assert.equal(invite[prop], welcome[prop], `shared slot ${prop}`)
+    }
+    const share = findDecls(rules, 'button.home-share-invite')
+    const shareHeight = rpxNumber(share, 'min-height')
+    assert.ok(shareHeight * 320 / 750 >= 44)
+    const appTokens = readAppTokens()
+    const fontRpx = parseFloat(appTokens['--font-size-caption'])
+    const lineHeight = Number(appTokens['--line-height-body'])
+    const invitePadding = splitCssTokens(invite.padding).map(token => parseFloat(token))
+    const shareMargin = splitCssTokens(share.margin).map(token => parseFloat(token))
+    const slotHeight = invitePadding[0] + invitePadding[2] + Math.max(
+      2 * fontRpx * lineHeight,
+      shareHeight + shareMargin[0] + shareMargin[2]
+    )
+    assert.ok(Math.abs(slotHeight - CALENDAR_LEDGER.firstScreenRpx.partnerWelcome) < 1e-9)
+
+    const copyRules = findDecls(rules, '.partner-invite-title')
+    assert.equal(copyRules['white-space'], 'nowrap')
+    const contentPadRpx = parseFloat(horizontalPaddingTokens(findDecls(rules, '.content'))[0])
+    const inviteMarginRpx = parseFloat(splitCssTokens(invite.margin)[1])
+    const shareTextWidth = 3 * fontRpx + 2 * parseFloat(horizontalPaddingTokens(share)[0])
+    const shareWidth = Math.max(rpxNumber(share, 'min-width'), shareTextWidth)
+    const copyWidth = 750 - 2 * contentPadRpx - 2 * inviteMarginRpx - shareWidth - shareMargin[3]
+    for (const copy of ['TA 还没加入', '发个邀请，TA 加入后你们看的是同一本日历']) {
+      let maxEm = 0
+      for (const ch of copy) {
+        if (/[　-鿿＀-￯]/.test(ch)) maxEm += 1
+        else if (ch === ' ') maxEm += 0.5
+        else if (/[A-Za-z]/.test(ch)) maxEm += 0.7
+        else maxEm += 1
+      }
+      assert.ok(maxEm * fontRpx <= copyWidth, `「${copy}」 exceeds its single-line copy column at 320px`)
+    }
+  } finally { app.teardown() }
 })
 
 // issue #149：绑定页幽灵「进入应用」是内容宽胶囊，高度 = 上下 px 内边距 + 一行字 + 描边，320px 宽下仍 ≥44px

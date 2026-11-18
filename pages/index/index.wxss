@@ -79,11 +79,50 @@
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.85);
+}
+.partner-welcome {
   transition: transform var(--duration-press) var(--ease-out);
 }
 .partner-welcome:active,
 .partner-welcome.partner-welcome-hover {
   transform: scale(0.98);
+}
+.partner-invite {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  margin: 0 24rpx;
+  padding: 8rpx 0 12rpx;
+  text-align: left;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
+  color: rgba(255,255,255,0.85);
+}
+.partner-invite-copy {
+  flex: 1;
+  min-width: 0;
+}
+.partner-invite-title,
+.partner-invite-desc {
+  display: block;
+  white-space: nowrap;
+}
+.partner-invite-title {
+  font-weight: var(--font-weight-control);
+}
+button.home-share-invite {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 112rpx;
+  min-height: 103.2rpx;
+  margin: -8rpx 0 -12rpx 8rpx;
+  padding: 0 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-title);
 }
 
 /* 刷新失败重试句（issue #79）：已加载后的后台刷新失败留驻的可点行。
@@ -1576,12 +1615,16 @@
 .recap-summary {
   display: block;
   min-width: 0;
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-assist);
-  line-height: var(--line-height-assist);
-  letter-spacing: var(--letter-spacing-assist);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
   color: rgba(255,255,255,0.82);
   overflow-wrap: anywhere;
+}
+.recap-main {
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
 }
 .recap-highlights {
   display: flex;
@@ -1591,10 +1634,9 @@
 .recap-highlight {
   display: block;
   min-width: 0;
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-assist);
-  line-height: var(--line-height-assist);
-  letter-spacing: var(--letter-spacing-assist);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-body);
   color: rgba(255,255,255,0.78);
   overflow-wrap: anywhere;
 }

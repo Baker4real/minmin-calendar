@@ -40,6 +40,29 @@ async function dayAuthors(app, page, date) {
   return [...detail.periods, ...detail.memories].map(item => item.authorLabel || '')
 }
 
+test('shared records expose pairing as unknown, waiting and paired and clear it for another Room', async t => {
+  const app = homeApp(t)
+  const roomRecordsSync = require('../utils/roomRecordsSync')
+  assert.equal(roomRecordsSync.getState().roomStatus, '', 'no list has supplied a pairing status')
+  const periods = listRoute(app, 'periods', A).reply(listed([], 'waiting'))
+  const memories = listRoute(app, 'memories', A).reply(listed([], 'waiting'))
+  app.launch('/pages/index/index')
+  await app.settle()
+  assert.equal(roomRecordsSync.getState().roomStatus, 'waiting')
+
+  periods.reply(listed([], 'paired'))
+  memories.reply(listed([], 'paired'))
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.equal(roomRecordsSync.getState().roomStatus, 'paired')
+  assert.equal(roomRecordsSync.getState().roomPaired, true)
+
+  app.wx.setStorageSync('roomCode', B)
+  assert.equal(roomRecordsSync.readCurrentRoom().roomStatus, '', 'a different Room starts unknown')
+  assert.equal(roomRecordsSync.getState().roomPaired, false)
+})
+
 test('a new Home instance shows the shared records at once and refreshes them silently', async t => {
   const app = homeApp(t)
   listRoute(app, 'periods', A).reply(listed([period('a-p', '2026-06-01')]))
@@ -78,8 +101,11 @@ for (const rebound of [null, B]) {
       listRoute(app, 'periods', rebound).reply(listed([period('b-p', '2026-06-20', { createdByMe: true })]))
       listRoute(app, 'memories', rebound).reject(new Error('network down'))
     }
-    app.respondNext('showModal', { confirm: true })
-    await app.dispatch(app.currentPage, 'clearData')
+    const resyncing = app.dispatch(app.currentPage, 'clearData')
+    await app.settle()
+    await app.dispatch(app.currentPage, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
+    await app.advance(200)
+    await resyncing
     await app.settle()
     assert.equal(app.storage.roomCode, rebound || undefined)
 
@@ -125,8 +151,11 @@ test('a live record tab shows none of the previous Room once the device holds an
   app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: B, status: 'waiting' } })
   listRoute(app, 'periods', B).reply(listed([period('b-p', '2026-06-20', { createdByMe: true })]))
   listRoute(app, 'memories', B).reject(new Error('network down'))
-  app.respondNext('showModal', { confirm: true })
-  await app.dispatch(app.currentPage, 'clearData')
+  const resyncing = app.dispatch(app.currentPage, 'clearData')
+  await app.settle()
+  await app.dispatch(app.currentPage, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
+  await app.advance(200)
+  await resyncing
   await app.settle()
   assert.equal(app.storage.roomCode, B)
 
@@ -239,6 +268,36 @@ for (const [entry, failed] of [['createRoom', 'memories'], ['joinRoom', 'periods
     assert.equal(app.rendered(edit).periodLengthHint, '', 'Room A\'s one-day period is no history here')
   })
 }
+
+test('switching Rooms drops pending partner arrivals without rendering them into the next Room', async t => {
+  const app = homeApp(t)
+  const home = await launchRoomA(app)
+  app.hide()
+  listRoute(app, 'periods', A).reply(listed([period('a-p', '2026-06-01', { createdByMe: true })], 'paired'))
+  listRoute(app, 'memories', A).reply(listed([
+    memory('a-m', '2026-06-02', { createdByMe: false }),
+    memory('a-new', '2026-06-15', { createdByMe: false })
+  ], 'paired'))
+  await home.onPullDownRefresh()
+  await app.settle()
+  assert.deepEqual(app.rendered(home).recordFeedback, {})
+
+  app.wx.setStorageSync('roomCode', B)
+  listRoute(app, 'periods', B).reply(listed([period('b-p', '2026-06-20', { createdByMe: false })], 'paired'))
+  listRoute(app, 'memories', B).reply(listed([memory('b-m', '2026-06-12', { createdByMe: false })], 'paired'))
+  const frames = home.setDataCalls.length
+  app.show()
+  app.commit(home)
+  assert.deepEqual(marked(app, home, 'isMemory'), [], 'Room A is cleared before Room B answers')
+  await app.settle()
+  assert.equal(home.setDataCalls.slice(frames).some(patch => (
+    patch.recordFeedback && patch.recordFeedback['2026-06-15']
+  )), false, 'Room A never lights during the Room B show')
+  assert.deepEqual(home.setDataCalls.slice(frames).filter(showsRoomA), [], 'no Room A calendar survives the ownership checkpoint')
+  assert.deepEqual(app.rendered(home).recordFeedback, {}, 'the first load of Room B is not an arrival')
+  assert.deepEqual(marked(app, home, 'isPeriod'), ['2026-06-20'])
+  assert.deepEqual(marked(app, home, 'isMemory'), ['2026-06-12'])
+})
 
 test('a load still in flight for the previous Room is not shared with the next Room and never lands in it', async t => {
   const app = homeApp(t)
@@ -372,8 +431,11 @@ test('records Home read after its own Room lookup belong to the Room the lookup 
   await app.settle()
   // Settings clears the local room code while the server has no Room for this member.
   app.cloud.when('getMyRoom').reply({ code: 0, room: null })
-  app.respondNext('showModal', { confirm: true })
-  await app.dispatch(app.currentPage, 'clearData')
+  const resyncing = app.dispatch(app.currentPage, 'clearData')
+  await app.settle()
+  await app.dispatch(app.currentPage, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
+  await app.advance(200)
+  await resyncing
   await app.settle()
   assert.equal(app.storage.roomCode, undefined)
 

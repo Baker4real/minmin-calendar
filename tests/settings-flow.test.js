@@ -74,7 +74,8 @@ test('exportRecordsAsJson keeps the JSON shape, writes the backup file, and shar
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
-    userDataPath: '/tmp/user-data'
+    userDataPath: '/tmp/user-data',
+    confirm: env.wx.confirm
   })
 
   assert.equal(result.kind, 'shared')
@@ -100,8 +101,8 @@ test('exportRecordsAsJson keeps the JSON shape, writes the backup file, and shar
   })
 })
 
-// issue #150：分享失败只返回可识别结果，由用户在「重试分享／复制 JSON／取消」里明确选择；
-// 只有显式选「复制 JSON」才调用剪贴板 API。「取消」是系统操作菜单自带的取消键。
+// issue #150：分享失败只返回可识别结果，由用户在「重试分享／复制成文字／取消」里明确选择；
+// 只有显式选「复制成文字」才调用剪贴板 API；共享面板的取消结果不写剪贴板。
 const SHARE_FAILURE = { errMsg: 'shareFileMessage:fail system error' }
 const BACKUP_PATH = '/tmp/user-data/minmin-calendar-backup.json'
 
@@ -118,21 +119,27 @@ test('exportRecordsAsJson returns a recognizable share failure and leaves the cl
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
-    userDataPath: '/tmp/user-data'
+    userDataPath: '/tmp/user-data',
+    confirm: env.wx.confirm
   })
 
   await waitForAsyncTurn()
-  assert.equal(env.wx.actionSheets.length, 1, 'a failed share asks the user what to do next')
-  const choice = env.wx.actionSheets[0]
-  assert.deepEqual(choice.itemList, ['重试分享', '复制 JSON'])
-  assert.match(choice.alertText, /分享没有完成/)
-  assert.match(choice.alertText, /复制 JSON/)
-  assert.match(choice.alertText, /全部经期和欢乐时光/)
-  assert.match(choice.alertText, /剪贴板/)
+  assert.equal(env.wx.confirmations.length, 1, 'a failed share asks the user what to do next')
+  assert.deepEqual(env.wx.confirmations[0], {
+    name: '分享没有完成',
+    title: '分享没有完成',
+    content: '选「复制成文字」会把全部经期和欢乐时光放进剪贴板',
+    actions: [
+      { id: 'retry', text: '重试分享', kind: 'primary' },
+      { id: 'copy', text: '复制成文字', kind: 'secondary' },
+      { id: 'cancel', text: '取消', kind: 'secondary' }
+    ]
+  })
+  assert.deepEqual(env.wx.actionSheets, [])
   assert.deepEqual(env.wx.clipboardCalls, [], 'a failed share must not copy anything on its own')
   assert.deepEqual(env.wx.toasts, [])
 
-  env.wx.tapActionSheet('取消')
+  env.wx.tapConfirmation(null)
   const result = await promise
 
   assert.deepEqual(result, { kind: 'share-failed', filePath: BACKUP_PATH })
@@ -143,7 +150,7 @@ test('exportRecordsAsJson returns a recognizable share failure and leaves the cl
   assert.deepEqual(env.wx.modals, [])
 })
 
-test('exportRecordsAsJson copies the full export JSON only after the user explicitly chooses 复制 JSON', async () => {
+test('exportRecordsAsJson copies the full export JSON only after the user explicitly chooses 复制成文字', async () => {
   const env = createFakeSettingsEnv({ shareError: SHARE_FAILURE })
   const client = createFakeRoomDataClient({
     periods: [{ _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05' }],
@@ -154,14 +161,15 @@ test('exportRecordsAsJson copies the full export JSON only after the user explic
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
-    userDataPath: '/tmp/user-data'
+    userDataPath: '/tmp/user-data',
+    confirm: env.wx.confirm
   })
 
   await waitForAsyncTurn()
-  assert.equal(env.wx.actionSheets.length, 1)
+  assert.equal(env.wx.confirmations.length, 1)
   assert.deepEqual(env.wx.clipboardCalls, [], 'nothing is copied before the explicit choice')
 
-  env.wx.tapActionSheet('复制 JSON')
+  env.wx.tapConfirmation('copy')
   const result = await promise
 
   assert.deepEqual(result, { kind: 'copied', filePath: BACKUP_PATH })
@@ -189,16 +197,17 @@ test('exportRecordsAsJson shares the same backup again on 重试分享 and offer
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
-    userDataPath: '/tmp/user-data'
+    userDataPath: '/tmp/user-data',
+    confirm: env.wx.confirm
   })
 
   await waitForAsyncTurn()
-  env.wx.tapActionSheet('重试分享')
+  env.wx.tapConfirmation('retry')
   await waitForAsyncTurn()
-  assert.equal(env.wx.actionSheets.length, 2, 'a failed retry offers the same choice again')
-  assert.deepEqual(env.wx.actionSheets[1].itemList, ['重试分享', '复制 JSON'])
+  assert.equal(env.wx.confirmations.length, 2, 'a failed retry offers the same choice again')
+  assert.deepEqual(env.wx.confirmations[1].actions.map(action => action.text), ['重试分享', '复制成文字', '取消'])
 
-  env.wx.tapActionSheet('重试分享')
+  env.wx.tapConfirmation('retry')
   const result = await promise
 
   assert.deepEqual(result, { kind: 'shared', filePath: BACKUP_PATH })
@@ -221,14 +230,15 @@ test('exportRecordsAsJson treats a missing share api as a share failure and neve
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
-    userDataPath: '/tmp/user-data'
+    userDataPath: '/tmp/user-data',
+    confirm: env.wx.confirm
   })
 
   await waitForAsyncTurn()
-  assert.equal(env.wx.actionSheets.length, 1)
+  assert.equal(env.wx.confirmations.length, 1)
   assert.deepEqual(env.wx.clipboardCalls, [])
 
-  env.wx.tapActionSheet('取消')
+  env.wx.tapConfirmation(null)
 
   assert.deepEqual(await promise, { kind: 'share-failed', filePath: BACKUP_PATH })
   assert.deepEqual(env.wx.clipboardCalls, [])
@@ -246,11 +256,12 @@ test('exportRecordsAsJson reports a failed explicit copy as a copy failure witho
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
-    userDataPath: '/tmp/user-data'
+    userDataPath: '/tmp/user-data',
+    confirm: env.wx.confirm
   })
 
   await waitForAsyncTurn()
-  env.wx.tapActionSheet('复制 JSON')
+  env.wx.tapConfirmation('copy')
 
   assert.deepEqual(await promise, { kind: 'copy-failed', filePath: BACKUP_PATH })
   assert.equal(env.wx.clipboardCalls.length, 1)
@@ -272,7 +283,8 @@ test('exportRecordsAsJson leaves the clipboard untouched and silent when the use
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
-    userDataPath: '/tmp/user-data'
+    userDataPath: '/tmp/user-data',
+    confirm: env.wx.confirm
   })
 
   assert.equal(result.kind, 'cancelled')
@@ -317,7 +329,8 @@ test('exportRecordsAsJson surfaces a retry action and retries the export when th
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
-    userDataPath: '/tmp/user-data'
+    userDataPath: '/tmp/user-data',
+    confirm: env.wx.confirm
   })
 
   await waitForAsyncTurn()
@@ -406,7 +419,8 @@ test('exportRecordsAsJson stops before writing when memories fail after periods 
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
-    userDataPath: '/tmp/user-data'
+    userDataPath: '/tmp/user-data',
+    confirm: env.wx.confirm
   })
 
   await waitForAsyncTurn()
@@ -440,7 +454,8 @@ test('exportRecordsAsJson treats malformed collection outcomes as export failure
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
-    userDataPath: '/tmp/user-data'
+    userDataPath: '/tmp/user-data',
+    confirm: env.wx.confirm
   })
 
   assert.deepEqual(result, {
@@ -480,7 +495,8 @@ test('exportRecordsAsJson keeps repaired room export failures on the export retr
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
-    userDataPath: '/tmp/user-data'
+    userDataPath: '/tmp/user-data',
+    confirm: env.wx.confirm
   })
 
   await waitForAsyncTurn()
@@ -518,7 +534,8 @@ test('exportRecordsAsJson offers to rebind when the room cache is stale and cann
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
-    userDataPath: '/tmp/user-data'
+    userDataPath: '/tmp/user-data',
+    confirm: env.wx.confirm
   })
 
   await waitForAsyncTurn()
@@ -561,7 +578,8 @@ test('exportRecordsAsJson keeps room repair retryable failures on the retry path
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
-    userDataPath: '/tmp/user-data'
+    userDataPath: '/tmp/user-data',
+    confirm: env.wx.confirm
   })
 
   await waitForAsyncTurn()
@@ -600,7 +618,8 @@ test('exportRecordsAsJson hides loading and reports export failure when file wri
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
-    userDataPath: '/tmp/user-data'
+    userDataPath: '/tmp/user-data',
+    confirm: env.wx.confirm
   })
 
   assert.equal(result.kind, 'export-failed')
@@ -653,6 +672,29 @@ test('exportRecordsAsJson reports export failure when toast is unavailable', asy
   assert.equal(wxApi.hideLoadingCalls, 1)
 })
 
+test('confirmResync presents the exact shared-sheet choice and maps every non-confirm result to cancellation', async () => {
+  assert.equal(typeof settingsFlow.confirmResync, 'function')
+  const panels = []
+  const confirmed = await settingsFlow.confirmResync({
+    confirm: async panel => {
+      panels.push(panel)
+      return 'confirm'
+    }
+  })
+  assert.deepEqual(confirmed, { kind: 'confirmed' })
+  assert.deepEqual(panels, [{
+    name: '重新同步房间',
+    title: '重新同步房间？',
+    content: '重新从云端读一次你所在的房间，不会删除任何记录',
+    actions: [
+      { id: 'confirm', text: '重新同步', kind: 'primary' },
+      { id: 'cancel', text: '取消', kind: 'secondary' }
+    ]
+  }])
+  assert.deepEqual(await settingsFlow.confirmResync({ confirm: async () => null }), { kind: 'cancelled' })
+  assert.deepEqual(await settingsFlow.confirmResync({}), { kind: 'cancelled' })
+})
+
 test('clearLocalCache only clears the local room cache, never leaves the shared room, and re-resolves the active room', async () => {
   assert.equal(typeof settingsFlow.clearLocalCache, 'function')
 
@@ -693,7 +735,7 @@ test('clearLocalCache only clears the local room cache, never leaves the shared 
   assert.equal(resolveCalls, 1)
   assert.equal(leaveCalls, 0)
   assert.equal(deleteCalls, 0)
-  assert.deepEqual(env.wx.toasts, [{ title: '已清除本机房间码' }])
+  assert.deepEqual(env.wx.toasts, [{ title: '已重新同步' }])
 })
 
 test('clearLocalCache keeps the unbound state when re-resolution finds no room', async () => {
@@ -716,7 +758,7 @@ test('clearLocalCache keeps the unbound state when re-resolution finds no room',
     kind: 'success',
     room: { kind: 'no-room', bound: false, roomCode: '' }
   })
-  assert.deepEqual(env.wx.toasts, [{ title: '已清除本机房间码' }])
+  assert.deepEqual(env.wx.toasts, [{ title: '已重新同步' }])
 })
 
 // Settings page behavior is covered through the shared platform in settings-page.test.js.
@@ -729,46 +771,35 @@ test('settings labels local resync as an ordinary action', () => {
   assert.doesNotMatch(wxml, /bindtap="clearData"[^>]*danger/)
 })
 
-test('confirmExport explains the export is complete, should be saved to 文件传输助手, and cannot be imported', async () => {
+test('confirmExport presents the exact shared-sheet explanation and confirmed result', async () => {
   assert.equal(typeof settingsFlow.confirmExport, 'function')
-
-  const env = createFakeSettingsEnv()
-
-  const promise = settingsFlow.confirmExport({ wx: env.wx })
-
-  await waitForAsyncTurn()
-  assert.equal(env.wx.modals.length, 1)
-  const modal = env.wx.modals[0]
-  assert.match(modal.content, /全部经期和欢乐时光/)
-  assert.match(modal.content, /文件传输助手/)
-  assert.match(modal.content, /不能导入恢复/)
-  assert.doesNotMatch(modal.content, /JSON/)
-
-  const result = await env.wx.resolveModal(true, promise)
-
+  const panels = []
+  const result = await settingsFlow.confirmExport({
+    confirm: async panel => {
+      panels.push(panel)
+      return 'confirm'
+    }
+  })
   assert.deepEqual(result, { kind: 'confirmed' })
+  assert.deepEqual(panels, [{
+    name: '导出数据',
+    title: '导出数据',
+    content: '会导出全部经期和欢乐时光。建议发到「文件传输助手」保存。目前还不能导入恢复。',
+    actions: [
+      { id: 'confirm', text: '开始导出', kind: 'primary' },
+      { id: 'cancel', text: '取消', kind: 'secondary' }
+    ]
+  }])
 })
 
-test('confirmExport returns cancelled when the user dismisses the export explanation', async () => {
-  assert.equal(typeof settingsFlow.confirmExport, 'function')
-
-  const env = createFakeSettingsEnv()
-
-  const promise = settingsFlow.confirmExport({ wx: env.wx })
-
-  await waitForAsyncTurn()
-  assert.equal(env.wx.modals.length, 1)
-
-  const result = await env.wx.resolveModal(false, promise)
-
-  assert.deepEqual(result, { kind: 'cancelled' })
+test('confirmExport returns cancelled for every non-confirm shared-sheet result', async () => {
+  assert.deepEqual(await settingsFlow.confirmExport({ confirm: async () => null }), { kind: 'cancelled' })
+  assert.deepEqual(await settingsFlow.confirmExport({ confirm: async () => 'cancel' }), { kind: 'cancelled' })
 })
 
-test('confirmExport cancels when the modal api cannot ask for consent', async () => {
-  assert.equal(typeof settingsFlow.confirmExport, 'function')
-
-  assert.deepEqual(await settingsFlow.confirmExport({ wx: null }), { kind: 'cancelled' })
-  assert.deepEqual(await settingsFlow.confirmExport({ wx: {} }), { kind: 'cancelled' })
+test('confirmExport cancels when the shared sheet is unavailable', async () => {
+  assert.deepEqual(await settingsFlow.confirmExport({}), { kind: 'cancelled' })
+  assert.deepEqual(await settingsFlow.confirmExport({ confirm: null }), { kind: 'cancelled' })
 })
 
 test('settings about group shows the version once and opens a short help sheet', async () => {
@@ -808,29 +839,35 @@ test('settings help binds lifecycle, accessibility and system-back state in WXML
   }
 })
 
-test('exportRecordsAsJson explains the export and proceeds after confirmation when confirmBeforeExport is set', async () => {
+test('exportRecordsAsJson explains the export and proceeds after shared-sheet confirmation when confirmBeforeExport is set', async () => {
   const env = createFakeSettingsEnv()
   const client = createFakeRoomDataClient({ periods: [], memories: [] })
-
+  const panels = []
+  let confirm
   const promise = settingsFlow.exportRecordsAsJson({
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
     userDataPath: '/tmp/user-data',
-    confirmBeforeExport: true
+    confirmBeforeExport: true,
+    confirm: panel => {
+      panels.push(panel)
+      return new Promise(resolve => { confirm = () => resolve('confirm') })
+    }
   })
 
   await waitForAsyncTurn()
-  assert.equal(env.wx.modals.length, 1)
-  const modal = env.wx.modals[0]
-  assert.match(modal.content, /全部经期和欢乐时光/)
-  assert.match(modal.content, /文件传输助手/)
-  assert.match(modal.content, /不能导入恢复/)
-  assert.doesNotMatch(modal.content, /JSON/)
+  assert.equal(panels.length, 1)
+  assert.equal(panels[0].title, '导出数据')
+  assert.match(panels[0].content, /全部经期和欢乐时光/)
+  assert.match(panels[0].content, /文件传输助手/)
+  assert.match(panels[0].content, /不能导入恢复/)
+  assert.deepEqual(env.wx.modals, [])
   assert.deepEqual(env.wx.loadingCalls, [])
   assert.deepEqual(client.calls, [])
 
-  const result = await env.wx.resolveModal(true, promise)
+  confirm()
+  const result = await promise
 
   assert.equal(result.kind, 'shared')
   assert.deepEqual(env.wx.loadingCalls, [{ title: '导出中...' }])
@@ -841,22 +878,18 @@ test('exportRecordsAsJson explains the export and proceeds after confirmation wh
   assert.equal(env.fs.writes.length, 1)
 })
 
-test('exportRecordsAsJson stops without touching data when the export explanation is cancelled', async () => {
+test('exportRecordsAsJson stops without touching data when the shared-sheet explanation is cancelled', async () => {
   const env = createFakeSettingsEnv()
   const client = createFakeRoomDataClient({ periods: [], memories: [] })
 
-  const promise = settingsFlow.exportRecordsAsJson({
+  const result = await settingsFlow.exportRecordsAsJson({
     wx: env.wx,
     cloud: { createRoomDataClient: () => client },
     now: () => '2026-06-26T08:00:00.000Z',
     userDataPath: '/tmp/user-data',
-    confirmBeforeExport: true
+    confirmBeforeExport: true,
+    confirm: async () => null
   })
-
-  await waitForAsyncTurn()
-  assert.equal(env.wx.modals.length, 1)
-
-  const result = await env.wx.resolveModal(false, promise)
 
   assert.deepEqual(result, { kind: 'cancelled' })
   assert.deepEqual(env.wx.loadingCalls, [])
@@ -933,6 +966,7 @@ test('settings page leads with room info in named groups and keeps unbind in the
   const room = wxml.slice(wxml.indexOf('>房间<'), wxml.indexOf('>日历显示<'))
   assert.match(room, /class="menu-item room-code-item/)
   assert.match(room, /bindtap="copyRoomCode"/)
+  assert.match(room, /class="room-action-btn resync-room-btn" bindtap="clearData"/)
   assert.doesNotMatch(room, /bindtap="unbind"/)
 
   const calendar = wxml.slice(wxml.indexOf('>日历显示<'), wxml.indexOf('>数据<'))
@@ -943,7 +977,7 @@ test('settings page leads with room info in named groups and keeps unbind in the
 
   const data = wxml.slice(wxml.indexOf('>数据<'), wxml.indexOf('>关于<'))
   assert.match(data, /bindtap="exportData"/)
-  assert.match(data, /bindtap="clearData"/)
+  assert.doesNotMatch(data, /bindtap="clearData"/)
   assert.doesNotMatch(data, /class="[^"]*danger/)
 
   const aboutAt = wxml.indexOf('>关于<')
@@ -1015,6 +1049,8 @@ function createFakeSettingsEnv(options = {}) {
     loadingCalls: [],
     modals: [],
     actionSheets: [],
+    confirmations: [],
+    confirmationResolvers: [],
     navigateToCalls: [],
     hideLoadingCalls: 0,
     setClipboardData({ data, success, fail }) {
@@ -1051,6 +1087,14 @@ function createFakeSettingsEnv(options = {}) {
         return
       }
       if (success) success()
+    },
+    confirm(panel) {
+      wx.confirmations.push(panel)
+      return new Promise(resolve => { wx.confirmationResolvers.push(resolve) })
+    },
+    tapConfirmation(action) {
+      assert.ok(wx.confirmationResolvers.length > 0, 'expected a pending shared-sheet choice')
+      wx.confirmationResolvers.shift()(action)
     },
     showActionSheet(options) {
       wx.actionSheets.push(options)

@@ -49,6 +49,8 @@ function createRoomRecordsSync() {
   let pill = null
   // The Room pairing as the lists last brought it back, with the room code it belongs to (#191).
   let listedRoom = UNKNOWN_LISTED_ROOM
+  // Newly arrived partner ids wait here until a visible Home consumes them (#222).
+  let newRecordIds = []
   // Load results some caller has already presented a prompt for (#194).
   const promptedResults = new WeakSet()
 
@@ -61,7 +63,9 @@ function createRoomRecordsSync() {
         synced: collections[collection].synced,
         pending: collections[collection].pendingRevision !== null
       }])),
+      roomStatus: listedRoom.roomStatus,
       roomPaired: listedRoom.roomStatus === 'paired',
+      newRecordIds: newRecordIds.map(entry => ({ ...entry })),
       hasLoadedRecords,
       loading,
       refreshing,
@@ -117,6 +121,7 @@ function createRoomRecordsSync() {
     blockedOutcome = null
     pill = null
     listedRoom = UNKNOWN_LISTED_ROOM
+    newRecordIds = []
     roomCode = code
     generation += 1
     if (inFlight) {
@@ -139,6 +144,7 @@ function createRoomRecordsSync() {
     blockedOutcome = null
     pill = null
     listedRoom = UNKNOWN_LISTED_ROOM
+    newRecordIds = []
     generation += 1
     inFlight = null
     publish(true)
@@ -207,6 +213,7 @@ function createRoomRecordsSync() {
     failedCollections = []
     blockedOutcome = outcome
     pill = null
+    newRecordIds = []
     publish(cleared)
   }
 
@@ -258,8 +265,12 @@ function createRoomRecordsSync() {
       const outcome = snapshot.collections[collection]
       return outcome.kind === 'success' && outcome.roomCode === roomCode
     })
+    const loadPaired = adopted.reduce((held, collection) => (
+      adoptListedRoomStatus(held, snapshot.collections[collection])
+    ), listedRoom).roomStatus === 'paired'
     const wasLoaded = hasLoadedRecords
     const wasPaired = listedRoom.roomStatus === 'paired'
+    const arrived = []
     let listedStatus = ''
     let recordsChanged = false
     let syncedChanged = false
@@ -273,6 +284,15 @@ function createRoomRecordsSync() {
       if (current.revision !== revisions[collection]) continue
       // A successful reply only confirms the collection if no local change has
       // invalidated this load's snapshot. Other collections can still advance.
+      if (current.synced && loadPaired) {
+        const previousIds = new Set(current.records.map(record => record._id || record.id || ''))
+        for (const record of outcome.data) {
+          const id = record && (record._id || record.id || '')
+          if (!id || previousIds.has(id) || record.createdByMe !== false) continue
+          previousIds.add(id)
+          arrived.push({ collection, id })
+        }
+      }
       if (!current.synced) syncedChanged = true
       current.synced = true
       if (stableRecordListKey(current.records) !== stableRecordListKey(outcome.data)) {
@@ -282,6 +302,7 @@ function createRoomRecordsSync() {
       if (current.pendingRevision !== null) confirmedPending = true
       current.pendingRevision = null
     }
+    if (arrived.length) newRecordIds = newRecordIds.concat(arrived)
     hasLoadedRecords = true
     loading = false
     refreshing = false
@@ -345,7 +366,15 @@ function createRoomRecordsSync() {
     return true
   }
 
-  return { subscribe, load, discard, applyRecordChange, getState, readCurrentRoom, claimPrompt }
+  // Only a visible Home consumes arrivals. Hidden pages leave them queued for a later show;
+  // taking them is silent because the same listener is already committing the calendar frame.
+  function consumeNewRecordIds() {
+    const consumed = newRecordIds.map(entry => ({ ...entry }))
+    newRecordIds = []
+    return consumed
+  }
+
+  return { subscribe, load, discard, applyRecordChange, getState, readCurrentRoom, claimPrompt, consumeNewRecordIds }
 }
 
 function syncingPill() {
@@ -414,5 +443,6 @@ module.exports = {
   applyRecordChange: shared.applyRecordChange,
   getState: shared.getState,
   readCurrentRoom: shared.readCurrentRoom,
-  claimPrompt: shared.claimPrompt
+  claimPrompt: shared.claimPrompt,
+  consumeNewRecordIds: shared.consumeNewRecordIds
 }

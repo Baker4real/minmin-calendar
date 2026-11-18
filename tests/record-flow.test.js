@@ -28,7 +28,7 @@ test('period and memory list templates keep the REC-03 visible row contract', ()
   assert.match(periodWxml, /wx:for="\{\{item\.symptomLabels\}\}"[\s\S]*?class="item-tag"[\s\S]*?>\{\{tag\}\}/)
 })
 
-test('record list pages show load-failed retry copy and hide period stats while loading', () => {
+test('record list pages show load-failed retry copy and reserve period stats while loading', () => {
   const periodWxml = readPageFile('pages/period/period.wxml')
   const memoryWxml = readPageFile('pages/memory/memory.wxml')
   assert.match(periodWxml, /loadFailed/)
@@ -43,6 +43,8 @@ test('record list pages show load-failed retry copy and hide period stats while 
   assert.match(periodWxml, /wx:if="\{\{!loading && avgCycle\}\}" class="cycle-num">\{\{avgCycle\}\} 天</)
   assert.match(periodWxml, /class="cycle-label">平均持续</)
   assert.match(periodWxml, /wx:if="\{\{!loading && avgDuration\}\}" class="cycle-num">\{\{avgDuration\}\} 天</)
+  assert.equal((periodWxml.match(/class="cycle-num cycle-num-placeholder"/g) || []).length, 3,
+    'all three number slots keep a loading placeholder')
   assert.doesNotMatch(periodWxml, /持续天数/)
 })
 

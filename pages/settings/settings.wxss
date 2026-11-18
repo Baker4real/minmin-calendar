@@ -1,3 +1,5 @@
+@import '../shared/confirmation-sheet.wxss';
+
 /* ===== Aurora Bloom: Settings ===== */
 /* 第一组离顶栏 24rpx，与记录页、编辑页的首块顶距同一角色（issue #164） */
 .content {
@@ -27,6 +29,9 @@
 }
 button.settings-share-invite {
   width: calc(100% - 60rpx);
+  margin: 0 30rpx 30rpx;
+}
+.resync-room-btn {
   margin: 0 30rpx 30rpx;
 }
 

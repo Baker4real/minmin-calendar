@@ -107,14 +107,19 @@ for (const scenario of firstScreenCases) {
           assert.equal(Object.hasOwn(state, 'cycleReminders'), false)
           assert.equal(Object.hasOwn(state, 'ongoingCompletionReminder'), false)
           assert.equal(state.predictionExplanation.available, false)
-          assert.equal(state.predictionExplanation.summary, periodsSynced ? '记两次经期后就能估下次' : '经期未同步，暂不预测')
+          const expectedPredictionSummary = periodsSynced
+            ? scenario.name === 'ongoing'
+              ? '这次已经 7 天，比预期的 5 天多；结束了就点「记结束」\n记两次经期后就能估下次'
+              : '记两次经期后就能估下次'
+            : '经期未同步，暂不预测'
+          assert.equal(state.predictionExplanation.summary, expectedPredictionSummary)
           const explanationLines = periodsSynced ? [] : ['经期同步后再按记录估算']
           assert.deepEqual(state.predictionExplanation.lines, explanationLines)
           assert.deepEqual(state.predictionExplanation.lineItems, explanationLines.map((text, index) => ({ key: `prediction:${index}`, text })))
           assert.equal(state.monthSummaryLine, `本月 ${periodsSynced ? `经期 ${scenario.count} 天` : '经期未同步'} · ${memoriesSynced ? `欢乐时光 ${hasMemory ? 1 : 0} 条` : '欢乐时光未同步'}`)
           assert.equal(state.monthlyRecap.periodSummary, !periodsSynced ? '本月经期未同步' : scenario.count ? `本月记录了 1 次经期，共 ${scenario.count} 天` : '本月暂无经期记录')
           assert.equal(state.monthlyRecap.memorySummary, !memoriesSynced ? '本月欢乐时光未同步' : hasMemory ? '留下 1 条欢乐时光' : '本月还没有欢乐时光')
-          assert.deepEqual(state.monthlyRecap.highlights, [scenario.highlight, hasMemory ? '欢乐时光：散步' : ''].filter(Boolean))
+          assert.deepEqual(state.monthlyRecap.highlights, [scenario.highlight, hasMemory ? '欢乐时光：6月26日，散步' : ''].filter(Boolean))
           assert.ok(state.monthlyRecap.shareText.includes(state.monthlyRecap.periodSummary))
           assert.ok(state.monthlyRecap.shareText.includes(state.monthlyRecap.memorySummary))
           const detail = state.dayDetailsByDate['2026-06-26']
@@ -359,7 +364,7 @@ test('buildHomeCalendarState returns fallback prediction state and explicit day 
   assert.equal(state.periodQuickLabel, '记经期')
   assert.equal(state.predictionExplanation.available, false)
   assert.equal(state.monthSummaryLine, '本月 经期 5 天 · 欢乐时光 1 条')
-  assert.deepEqual(state.predictionExplanation, insights.buildPredictionExplanation(prediction, periods))
+  assert.deepEqual(state.predictionExplanation, insights.buildPredictionExplanation(prediction, periods, { today: '2026-08-03' }))
   assert.deepEqual(
     state.legendItems.map(item => item.key),
     ['today', 'period', 'memory', 'predict', 'holiday', 'workday']
@@ -420,7 +425,7 @@ test('buildHomeCalendarState reuses cycle and insight helpers for predictable re
   assert.equal(state.homeStatus.text, '这几天可能开始')
   assert.equal(state.predictionExplanation.summary, '预计 8月10日 开始，\n前后 1 天是可能开始的窗口')
   assert.ok(state.predictionExplanation.lines.includes('平均周期 28 天，平均持续 5 天'))
-  assert.deepEqual(state.predictionExplanation, insights.buildPredictionExplanation(prediction, periods))
+  assert.deepEqual(state.predictionExplanation, insights.buildPredictionExplanation(prediction, periods, { today: '2026-08-10' }))
   assert.deepEqual(
     state.legendItems.map(item => item.key),
     ['today', 'period', 'memory', 'predict', 'holiday', 'workday']
