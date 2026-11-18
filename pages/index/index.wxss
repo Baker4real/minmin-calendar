@@ -1666,6 +1666,17 @@ button.home-share-invite {
   pointer-events: none;
   animation: skeletonPulse 2.4s ease-in-out infinite;
 }
+.skeleton-month-title {
+  min-height: 88rpx;
+  min-width: 320rpx;
+  padding: 0 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255,255,255,0.08);
+}
 .skeleton-status-bar {
   height: 88rpx;
 }

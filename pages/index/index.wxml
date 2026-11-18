@@ -94,7 +94,7 @@ module.exports = {
     <view class="home-sticky skeleton-sticky" aria-hidden="true">
       <view class="month-nav skeleton-month-bar">
         <view class="nav-btn skeleton-control"></view>
-        <view class="month-title-trigger skeleton-month-title"></view>
+        <view class="skeleton-month-title"></view>
         <view class="nav-btn skeleton-control"></view>
       </view>
       <view class="skeleton-status-bar"></view>
