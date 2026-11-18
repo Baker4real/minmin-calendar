@@ -166,7 +166,7 @@ function createRoomSession(options = {}) {
         }
 
         storage.remove(ROOM_CODE_KEY)
-        return { code: 0 }
+        return { code: 0, archivedCount: res.result.archivedCount }
       } catch (error) {
         return { code: -1, msg: roomAccessOutcome.presentUserFailure(getErrorMessage(error), logger) }
       }

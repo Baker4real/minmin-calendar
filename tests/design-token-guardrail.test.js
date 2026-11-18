@@ -473,6 +473,7 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/period/edit/edit.wxss', '.confirmation-panel'],
     ['pages/memory/edit/edit.wxss', '.confirmation-panel'],
     ['pages/settings/settings.wxss', '.confirmation-panel'],
+    ['pages/bind/bind.wxss', '.confirmation-panel'],
     ['pages/period/period.wxss', '.cycle-card'],
     // 平涂 tint 图像层叠在海军回退上。不是装饰渐变，也不是 CTA 填充。
     ['app.wxss', '.premium-card'],

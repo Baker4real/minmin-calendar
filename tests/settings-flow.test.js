@@ -672,6 +672,94 @@ test('exportRecordsAsJson reports export failure when toast is unavailable', asy
   assert.equal(wxApi.hideLoadingCalls, 1)
 })
 
+test('leaveRoom shared panel explains paired, waiting and unknown consequences exactly', async () => {
+  const cases = [
+    {
+      roomStatus: 'paired',
+      content: '解除后你这边看不到这本日历；记录留在房间里，TA 照常能看。想回来，用房间码 ROOM01 重新加入'
+    },
+    {
+      roomStatus: 'waiting',
+      content: '房间里只有你。解除后房间会存起来，记录不删；之后在绑定页点「我来建房间」就能恢复原来的房间和记录'
+    },
+    {
+      roomStatus: '',
+      content: '解除后你这边看不到这本日历，记录不会删除。TA 还在房间里时，用房间码 ROOM01 加入；房间里只剩你时，在绑定页点「我来建房间」恢复'
+    }
+  ]
+  for (const { roomStatus, content } of cases) {
+    const panels = []
+    const results = []
+    let leaveCalls = 0
+    const result = await settingsFlow.leaveRoom({
+      wx: {},
+      roomStatus,
+      roomCode: 'ROOM01',
+      roomSession: {
+        async leaveRoom() {
+          leaveCalls += 1
+          return { code: 0, archivedCount: 0 }
+        }
+      },
+      confirm: async panel => {
+        panels.push(panel)
+        return null
+      },
+      onResult: outcome => results.push(outcome)
+    })
+    assert.deepEqual(panels, [{
+      name: '解除绑定',
+      title: '解除绑定？',
+      content,
+      actions: [
+        { id: 'confirm', text: '解除绑定', kind: 'danger' },
+        { id: 'cancel', text: '取消', kind: 'secondary' }
+      ]
+    }])
+    assert.deepEqual(result, { kind: 'cancelled' })
+    assert.deepEqual(results, [{ kind: 'cancelled' }])
+    assert.equal(leaveCalls, 0)
+  }
+})
+
+test('leaveRoom hands the archive result and original code to Bind in memory without storage', async () => {
+  for (const [archivedCount, recoveryText] of [
+    [1, '原来的房间已经存起来，点「我来建房间」就能恢复'],
+    [0, '想回原来的房间，用房间码 ROOM01 加入']
+  ]) {
+    const wx = {
+      reads: 0,
+      writes: 0,
+      removals: 0,
+      toasts: [],
+      getStorageSync() { this.reads += 1 },
+      setStorageSync() { this.writes += 1 },
+      removeStorageSync() { this.removals += 1 },
+      showToast(options) { this.toasts.push(options) }
+    }
+    const results = []
+    const result = await settingsFlow.leaveRoom({
+      wx,
+      roomStatus: 'paired',
+      roomCode: 'ROOM01',
+      notifyOnBind: true,
+      roomSession: { leaveRoom: async () => ({ code: 0, archivedCount }) },
+      confirm: async () => 'confirm',
+      onResult: outcome => results.push(outcome)
+    })
+    const expected = { kind: 'success', archived: archivedCount === 1, roomCode: 'ROOM01' }
+    assert.deepEqual(result, expected)
+    assert.deepEqual(results, [expected])
+    assert.deepEqual(settingsFlow.consumeRoomLeaveOutcome({ wx }), { ...expected, recoveryText })
+    assert.deepEqual(wx.toasts, [{ title: '已解除绑定', icon: 'none' }])
+    assert.equal(settingsFlow.consumeRoomLeaveOutcome({ wx }), null)
+    assert.equal(wx.toasts.length, 1)
+    assert.equal(wx.reads, 0)
+    assert.equal(wx.writes, 0)
+    assert.equal(wx.removals, 0)
+  }
+})
+
 test('confirmResync presents the exact shared-sheet choice and maps every non-confirm result to cancellation', async () => {
   assert.equal(typeof settingsFlow.confirmResync, 'function')
   const panels = []

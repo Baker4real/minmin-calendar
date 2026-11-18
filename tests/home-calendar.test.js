@@ -74,6 +74,79 @@ test('cloud records render the calendar, summary and the selected day detail', a
   assert.equal(app.wx.modals.length, 0)
 })
 
+test('cold display submits only skeleton geometry until one whole-month frame reveals the calendar', async t => {
+  const app = homeApp(t, { autoCommit: false, roomStatus: 'paired' })
+  const pendingPeriods = listRoute(app, 'periods').defer()
+  const pendingMemories = listRoute(app, 'memories').defer()
+  const home = await launch(app)
+
+  assert.equal(app.rendered(home).loading, true)
+  assert.equal(app.rendered(home).hasLoadedHomeData, false)
+  assert.equal(calendarFrames(home), 0, 'the skeleton must not submit a whole month')
+  const skeletonRowHeight = app.rendered(home).calendarRowHeightPx
+
+  pendingPeriods.resolve(listed([], 'paired'))
+  pendingMemories.resolve(listed([], 'paired'))
+  await app.settle()
+  app.commit(home)
+  await app.settle()
+  app.commit(home)
+
+  assert.equal(calendarFrames(home), 1, 'the first records snapshot reveals one whole month')
+  const reveal = home.setDataCalls.find(patch => 'days' in patch)
+  assert.equal(reveal.loading, false)
+  assert.equal(reveal.hasLoadedHomeData, true)
+  assert.ok(reveal.days.length > 0)
+  assert.equal(reveal.calendarRowHeightPx, skeletonRowHeight, 'the skeleton used the revealed month geometry')
+})
+
+test('first show measures the viewport once and later commits reuse it while sheets are open', async t => {
+  const app = homeApp(t, { roomStatus: 'paired' })
+  await launch(app) // Warm safe-area caches; the next Home isolates calendar viewport reads.
+
+  const readWindowInfo = app.wx.getWindowInfo
+  let viewportReads = 0
+  app.wx.getWindowInfo = () => {
+    viewportReads++
+    return readWindowInfo()
+  }
+  const home = await launch(app)
+  assert.equal(calendarFrames(home), 1, 'an existing snapshot also reveals one whole month')
+  assert.equal(viewportReads, 1, 'first show measures the calendar viewport once')
+  const firstRowHeight = app.rendered(home).calendarRowHeightPx
+  assert.equal(firstRowHeight, 74)
+
+  app.wx.getWindowInfo = () => {
+    viewportReads++
+    return { ...readWindowInfo(), windowHeight: 619, screenHeight: 619 }
+  }
+  await tap(app, home, 'openMonthPicker')
+  app.hide()
+  app.show()
+  await app.settle()
+  app.commit(home)
+  assert.equal(app.rendered(home).monthPickerMounted, true)
+  assert.equal(app.rendered(home).calendarRowHeightPx, firstRowHeight)
+
+  await tap(app, home, 'selectJumpMonth', { month: 7 })
+  await app.advance(200)
+  app.commit(home)
+  await tap(app, home, 'nextMonth')
+  assert.equal(app.rendered(home).calendarRowHeightPx, firstRowHeight)
+  assert.equal(viewportReads, 1, 'sheet, show, jump and arrow commits never remeasure the viewport')
+})
+
+test('a preloaded snapshot on a later month still reveals the current month once', async t => {
+  const app = homeApp(t, { roomStatus: 'paired' })
+  await launch(app)
+  await app.advance(5 * 24 * 60 * 60 * 1000)
+
+  const home = await launch(app)
+  assert.deepEqual([app.rendered(home).year, app.rendered(home).month], [2026, 6])
+  assert.equal(app.rendered(home).days.find(item => item.date).date, '2026-07-01')
+  assert.equal(calendarFrames(home), 1)
+})
+
 test('navbar legend button and one-time partner welcome both open the legend directly', async t => {
   const app = homeApp(t, { roomStatus: 'paired', storage: { roomCode: 'ROOM01', partnerWelcome: 'pending' } })
   const home = await launch(app)
@@ -198,8 +271,8 @@ for (const roomStatus of ['paired', 'waiting', null, 'archived']) {
       memories: [{ ...memory('m1', '2026-06-02', '散步'), createdByMe: false }, { ...memory('m2', '2026-06-02'), createdByMe: true }]
     })
     const home = await launch(app)
-    // The opening frame plus one frame for both lists: pairing needs no Room lookup and no second render.
-    assert.equal(calendarFrames(home), 2)
+    // The cold skeleton submits no month; both lists reveal one frame with pairing and no Room lookup.
+    assert.equal(calendarFrames(home), 1)
     assert.equal(roomLookups(app), 0)
     await day(app, home, '2026-06-02')
     const detail = app.rendered(home).selectedDayDetail

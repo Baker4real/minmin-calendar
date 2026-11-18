@@ -620,6 +620,7 @@ const MASK_BLUR_CAP_PX = 8
 const BLURRED_SURFACES = {
   'pages/index/index.wxss': ['.day-sheet-mask'],
   'pages/settings/settings.wxss': ['.help-mask', '.confirmation-mask'],
+  'pages/bind/bind.wxss': ['.confirmation-mask'],
   'pages/shared/confirmation-sheet.wxss': ['.confirmation-mask'],
   'pages/period/edit/edit.wxss': ['.confirmation-mask'],
   'pages/memory/edit/edit.wxss': ['.confirmation-mask']

@@ -242,7 +242,7 @@ test('copy buttons press instantly under reduced motion on both bind and setting
   // RM 下移除 transform 过渡，按下立即缩放，不做 0.2s 动画式按压
   for (const file of ['pages/bind/bind.wxss', 'pages/settings/settings.wxss']) {
     const css = readPageFile(file)
-    const rmStart = css.indexOf('@media (prefers-reduced-motion: reduce)')
+    const rmStart = css.lastIndexOf('@media (prefers-reduced-motion: reduce)')
     assert.ok(rmStart !== -1, `${file} must register a prefers-reduced-motion block`)
     assert.match(
       css.slice(rmStart),
@@ -333,22 +333,41 @@ test('create and join clear the unbind entry for other failures even when the co
   }
 })
 
-test('confirming same-screen unbind leaves the room and returns to a clean unbound state', async (t) => {
+test('confirming same-screen unbind uses unknown no-code copy and leaves only through the shared danger action', async (t) => {
   const app = bindPlatform(t, { createRoom: { code: -5, msg: '你已加入其他房间，请先解除绑定后再创建新房间' } })
-  app.cloud.when('leaveRoom').reply({ code: 0 })
+  app.cloud.when('leaveRoom').reply({ code: 0, archivedCount: 0 })
   const page = app.launch('/pages/bind/bind')
   await app.settle()
   await app.dispatch(page, 'createRoom')
   assert.equal(page.data.needUnbind, true)
-  app.respondNext('showModal', { confirm: true, cancel: false })
-  await app.dispatch(page, 'unbind')
+  const writes = []
+  const setStorageSync = app.wx.setStorageSync
+  app.wx.setStorageSync = (key, value) => {
+    writes.push(key)
+    return setStorageSync(key, value)
+  }
+  const unbinding = app.dispatch(page, 'unbind')
   await app.settle()
-  assert.equal(app.wx.modals.length, 1)
-  assert.equal(app.wx.modals[0].title, '解除绑定')
+  assert.equal(page.data.confirmationTitle, '解除绑定？')
+  assert.equal(page.data.confirmationContent, '解除后你这边看不到这本日历，记录不会删除。TA 还在房间里时，用原来的房间码加入；房间里只剩你时，在绑定页点「我来建房间」恢复')
+  assert.deepEqual(page.data.confirmationActions, [
+    { id: 'confirm', text: '解除绑定', kind: 'danger' },
+    { id: 'cancel', text: '取消', kind: 'secondary' }
+  ])
+  assert.deepEqual(app.wx.modals, [])
+  assert.equal(app.cloud.calls.some(call => call.name === 'leaveRoom'), false)
+  await app.dispatch(page, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
+  await app.advance(200)
+  await unbinding
+  await app.settle()
   assert.equal(app.cloud.calls.filter(call => call.name === 'leaveRoom').length, 1)
   assert.equal(page.data.bound, false)
   assert.equal(page.data.needUnbind, false)
   assert.equal(page.data.errorMsg, '')
+  assert.equal(page.data.leaveRecoveryNotice, '想回原来的房间，用原来的房间码加入')
+  assert.deepEqual(writes, [], 'same-screen outcome handoff must not write local storage')
+  assert.equal(app.navigation.length, 1, 'same-screen unbind adds no route or route parameters')
+  assert.deepEqual(app.wx.toasts, [], 'the existing same-screen unbind remains silent')
 })
 
 test('created room shows the room-ready title and its next-step explanation before the code', async (t) => {
@@ -811,7 +830,7 @@ test('bind page reveals the card and its title with the shared enter motion', ()
   assert.equal(reveal.opacity, undefined)
   assert.equal(reveal.transform, undefined)
   assert.doesNotMatch(css, /--duration-enter\s*:/)
-  const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
+  const reduced = css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce)'))
   assert.match(reduced, /\.bind-reveal[^{]*\{[^}]*animation:\s*none/)
   const wxml = readPageFile('pages/bind/bind.wxml')
   assert.match(wxml, /wx:if="\{\{revealed\}\}" class="bind-reveal"[\s\S]*wx:if="\{\{bound\}\}"[\s\S]*class="error-msg"[\s\S]*class="error-retry"/)
@@ -854,21 +873,57 @@ test('created room blooms once, failed creation does not bloom, and rechecking c
   assert.equal(card.animation, 'bindReveal var(--duration-enter) var(--ease-out) both')
   assert.equal(card.opacity, undefined)
   assert.equal(card.transform, undefined)
-  const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))
+  const reduced = css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce)'))
   assert.equal(findRule(reduced, '.hero.hero-bloom .hero-icon::after').animation, 'none')
   assert.equal(findRule(reduced, '.premium-card.bound-reveal').animation, 'none')
 })
 
-test('bind page consumes the unbind notice exactly once', async (t) => {
-  const app = bindPlatform(t, { storage: { bindUnbindNotice: '1' } })
-  app.launch('/pages/bind/bind')
-  await app.settle()
-  assert.deepEqual(app.wx.toasts, [{ title: '已解除绑定', icon: 'none' }])
-  assert.equal(app.storage.bindUnbindNotice, undefined)
-  app.hide()
-  app.show()
-  await app.settle()
-  assert.equal(app.wx.toasts.length, 1)
+test('bind shows archived and rejoin recovery lines after settings leave using only process memory', async (t) => {
+  for (const [archivedCount, recoveryText] of [
+    [1, '原来的房间已经存起来，点「我来建房间」就能恢复'],
+    [0, '想回原来的房间，用房间码 ROOM01 加入']
+  ]) {
+    await t.test(archivedCount ? 'archived' : 'not archived', async (t) => {
+      const app = bindPlatform(t, { storage: { roomCode: 'ROOM01' } })
+      app.cloud.when('getMyRoom').replyOnce({ code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } }).reply({ code: 0, room: null })
+      app.cloud.when('leaveRoom').reply({ code: 0, archivedCount })
+      const settings = app.launch('/pages/settings/settings')
+      await app.settle()
+      const writes = []
+      const setStorageSync = app.wx.setStorageSync
+      app.wx.setStorageSync = (key, value) => {
+        writes.push(key)
+        return setStorageSync(key, value)
+      }
+      const unbinding = app.dispatch(settings, 'unbind')
+      await app.settle()
+      await app.dispatch(settings, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
+      await app.advance(200)
+      await unbinding
+      await app.settle()
+      const page = app.currentPage
+      assert.equal(page.route, 'pages/bind/bind')
+      assert.equal(page.data.leaveRecoveryNotice, recoveryText)
+      assert.equal(app.navigation.at(-1).url, '/pages/bind/bind')
+      assert.equal(app.navigation.at(-1).url.includes('?'), false)
+      assert.deepEqual(writes, [], 'neither the archive flag nor original Room code is stored')
+      assert.deepEqual(app.wx.modals, [])
+      assert.deepEqual(app.wx.toasts, [{ title: '已解除绑定', icon: 'none' }])
+      const wxml = readPageFile('pages/bind/bind.wxml')
+      const noticeTag = wxmlOpeningTags(wxml).find(tag => tag.classes.includes('leave-recovery-notice'))
+      assert.ok(noticeTag, 'the recovery line is part of the Bind template')
+      assert.equal(evaluateWxmlExpression(noticeTag.attrs['wx:if'].slice(2, -2), page.data), true)
+      assert.ok(wxml.indexOf('leave-recovery-notice') < wxml.indexOf('wx:if="{{bound}}"'), 'the line sits above the binding card')
+      app.hide()
+      app.show()
+      await app.settle()
+      assert.equal(page.data.leaveRecoveryNotice, recoveryText)
+      assert.equal(app.wx.toasts.length, 1)
+      app.cloud.when('createRoom').reply({ code: 0, room: { roomCode: 'ROOM05' } })
+      await app.dispatch(page, 'createRoom')
+      assert.equal(page.data.leaveRecoveryNotice, '', 'rebinding consumes the explanation')
+    })
+  }
 })
 
 test('settings local reset preserves an active room and only shows unbound after fresh resolution finds no room', async (t) => {

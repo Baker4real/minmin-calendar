@@ -56,7 +56,8 @@ const TYPOGRAPHY_EXCEPTIONS = [
   // #209：共享确认面板的同一枚 ×；@import 展开后的调用页也各登记一次
   { file: 'pages/shared/confirmation-sheet.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
   { file: 'pages/period/edit/edit.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
-  { file: 'pages/memory/edit/edit.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' }
+  { file: 'pages/memory/edit/edit.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
+  { file: 'pages/bind/bind.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' }
 ]
 
 function readAppTokens() {

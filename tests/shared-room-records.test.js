@@ -182,8 +182,11 @@ async function leaveFromSettings(app, status = 'paired') {
   await app.settle()
   app.cloud.when('leaveRoom').reply({ code: 0 })
   app.cloud.when('getMyRoom').reply({ code: 0, room: null })
-  app.respondNext('showModal', { confirm: true })
-  await app.dispatch(app.currentPage, 'unbind')
+  const leaving = app.dispatch(app.currentPage, 'unbind')
+  await app.settle()
+  await app.dispatch(app.currentPage, 'onConfirmationAction', { currentTarget: { dataset: { action: 'confirm' } } })
+  await app.advance(200)
+  await leaving
   await app.settle()
   assert.equal(app.currentPage.route, 'pages/bind/bind')
   assert.equal(app.storage.roomCode, undefined)
