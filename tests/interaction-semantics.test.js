@@ -760,7 +760,7 @@ test('no decorative emoji hearts or warning emoji remain in app markup', () => {
 
 test('happy-time list rows draw no second rose dot', () => {
   // 玫瑰圆点只表经期：欢乐时光列表行不再有时间轴玫瑰点
-  const rules = parseWxssRules(readSource(path.join(repoRoot, 'pages/memory/memory.wxss'), 'utf8'))
+  const rules = parseWxssRules(readSource(path.join(repoRoot, 'pages/period/period.wxss'), 'utf8'))
   assert.equal(rules.some((rule) => rule.selectors.includes('.list-item::before')), false,
     'memory rows must not draw the rose timeline dot')
 })

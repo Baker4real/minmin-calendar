@@ -105,8 +105,11 @@ Page(withPageVisibility({
 
   // issue #102 / #139：解除绑定在页底危险区；二次确认仍走 leaveRoom，成功后 reLaunch 回绑定页
   unbind() {
-    settingsFlow.leaveRoom({
+    return settingsFlow.leaveRoom({
+      roomStatus: this.data.roomStatus,
+      roomCode: this.data.roomCode,
       notifyOnBind: true,
+      confirm: panel => confirmationSheet(this).open(panel),
       onResult: result => {
         if (result.kind === 'success') {
           // bind 非 tab 页，解绑成功后回绑定页只能 reLaunch

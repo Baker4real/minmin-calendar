@@ -520,7 +520,7 @@ button.share-invite::after {
 /* ===== 常驻装饰暂停（issue #118 → #163）=====
    弹层开着时页面根带 page-obscured，页面不可见（onHide 到下一次 onShow）时带 page-hidden。
    两种标记下，注册表里的装饰性常驻动画都暂停在当前帧，去掉标记后从这一帧继续，动画名和周期不变。
-   只暂停、不写 animation: none（那会丢掉当前帧）；状态指示（spin、syncDotPulse、skeletonPulse）照常播放。
+   只暂停、不写 animation: none（那会丢掉当前帧）；状态指示（syncDotPulse、skeletonPulse）照常播放。
    色团写它们共有的 .aurora-bloom（共享标记里每个色团都带这个类），增减色团不用改这里。 */
 .page.page-obscured .aurora-bloom,
 .page.page-obscured .header-gradient::before,
@@ -531,31 +531,6 @@ button.share-invite::after {
 .page.page-hidden .header-gradient::after,
 .page.page-hidden .no-room-icon {
   animation-play-state: paused;
-}
-
-/* ===== Loading Spinner ===== */
-.loading-view {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 70vh;
-}
-.loading-spinner {
-  width: 60rpx;
-  height: 60rpx;
-  border: 4rpx solid rgba(255,255,255,0.1);
-  border-top-color: #E8909E;
-  border-radius: var(--radius-circle);
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* reduced-motion 下的加载替代反馈：透明度脉冲，无位移/旋转 */
-@keyframes loadingPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
 }
 
 /* ===== Pulse Animation（仅空态心跳使用） ===== */
@@ -591,7 +566,6 @@ button.share-invite::after {
 
 /* ===== Reduced Motion — 全局兜底 =====
    政策（issue #58）：移除位移/缩放/旋转与装饰动画；状态反馈走颜色/透明度等无位移通道。
-   加载中不静默：spinner 的旋转替换为 loadingPulse 透明度脉冲。
    这里只管 app.wxss 自己声明的动画和过渡：页面 wxss 里的同名选择器会盖过这里，
    页面声明的写在本页文件末尾的减弱动效块里。 */
 @media (prefers-reduced-motion: reduce) {
@@ -621,8 +595,5 @@ button.share-invite::after {
   .calendar-grid {
     animation: none;
     transition: none;
-  }
-  .loading-spinner {
-    animation: loadingPulse 1.6s ease-in-out infinite;
   }
 }

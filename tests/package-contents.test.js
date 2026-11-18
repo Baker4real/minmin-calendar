@@ -73,6 +73,16 @@ test('privacy-safe invite artwork is included in the upload package within 40 KB
   assert.ok(invite.size <= 40 * 1024, `invite card is ${invite.size} B (limit ${40 * 1024} B)`)
 })
 
+test('unused application icon stays in source control but out of the upload package', () => {
+  assert.ok(fs.existsSync(path.join(repoRoot, 'images/app-icon.png')), 'keep the application icon source file')
+  assert.equal(packaged.some(file => file.rel === 'images/app-icon.png'), false, 'images/app-icon.png must be ignored by packOptions')
+})
+
+test('sitemap disallows indexing every mini program page', () => {
+  const sitemap = JSON.parse(fs.readFileSync(path.join(repoRoot, 'sitemap.json'), 'utf8'))
+  assert.deepEqual(sitemap.rules, [{ action: 'disallow', page: '*' }])
+})
+
 test('images and audio in the package stay under the 200 KB code-quality budget', () => {
   const media = packaged.filter(file => MEDIA_EXTS.has(path.extname(file.rel).toLowerCase()))
   const total = media.reduce((sum, file) => sum + file.size, 0)

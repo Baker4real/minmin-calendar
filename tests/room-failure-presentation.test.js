@@ -222,33 +222,3 @@ for (const scenario of scenarios) {
     })
   }
 }
-
-const confirmations = [
-  // #209/#210/#213：删除、归属、导出与重新同步的共享面板取消路径由页面行为测试覆盖。
-  { name: 'leave', route: '/pages/settings/settings', event: 'unbind' }
-]
-for (const confirmation of confirmations) {
-  for (const unavailable of ['missing', 'failed']) {
-    test(`${confirmation.name}: ${unavailable} confirmation cannot authorize a business action or leave a pending result`, async (t) => {
-      const app = createMiniProgram({ storage: { roomCode: 'ROOM01' } })
-      t.after(() => app.teardown())
-      recover(app)
-      app.cloud.when('leaveRoom').reply({ code: 0 })
-      const page = app.launch(confirmation.route)
-      await app.settle()
-      if (unavailable === 'missing') delete app.wx.showModal
-      else app.respondNext('showModal', new Error('showModal:fail unavailable'))
-      const pending = app.dispatch(page, confirmation.event)
-      await app.settle()
-      assert.ok(app.wx.toasts.length, 'unavailable confirmation must leave visible feedback')
-      assert.equal(app.currentPage, page)
-      assert.equal(app.cloud.calls.filter(call => call.name === 'leaveRoom').length, 0)
-      assert.equal(writes(app).length, 0)
-      assert.deepEqual(app.files, [])
-      assert.deepEqual(app.clipboard, [])
-      await pending
-      await app.settle()
-      assert.equal(app.storage.roomCode, 'ROOM01')
-    })
-  }
-}

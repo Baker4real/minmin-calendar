@@ -102,7 +102,7 @@
           </view>
         </view>
       </view>
-      <view class="form-item form-item-last">
+      <view class="form-item">
         <text class="form-label">备注</text>
         <textarea class="form-input" placeholder-class="input-placeholder" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput" maxlength="500" auto-height disabled="{{saving}}" aria-label="备注"/>
       </view>

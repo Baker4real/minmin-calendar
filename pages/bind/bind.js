@@ -5,6 +5,8 @@ const cloud = require('../../utils/cloud')
 const roomRecordsSync = require('../../utils/roomRecordsSync')
 const safeArea = require('../../utils/safeArea')
 const { withPageVisibility } = require('../../utils/pageVisibility')
+const { confirmationSheet, confirmationSheetData } = require('../../utils/confirmationSheet')
+const { probeReducedMotion } = require('../../utils/sheetLifecycle')
 
 const ROOM_CODE_LENGTH = 6
 const OPENING_CALENDAR_HINT_DELAY = 800
@@ -36,6 +38,11 @@ async function restoredRoomNotice() {
   }
 }
 
+function consumeRoomLeaveOutcome(page) {
+  const outcome = settingsFlow.consumeRoomLeaveOutcome()
+  if (outcome) page.setData({ leaveRecoveryNotice: outcome.recoveryText })
+}
+
 Page(withPageVisibility({
   data: {
     safeTop: safeArea.getSafeTop(),
@@ -53,19 +60,29 @@ Page(withPageVisibility({
     checkFailed: false,
     justCreated: false,
     restoredNotice: '',
+    leaveRecoveryNotice: '',
     homeJumpFailed: false,
     // issue #115/#220：第一次校验结果前只留品牌心；慢校验 800ms 后追加打开提示
     verifying: true,
     revealed: false,
-    openingCalendarHint: false
+    openingCalendarHint: false,
+    ...confirmationSheetData()
   },
 
   onLoad(options) {
     this.pendingInviteCode = inviteCodeFromLaunchQuery(options)
   },
 
+  onReady() {
+    probeReducedMotion(this)
+  },
+
+  onUnload() {
+    confirmationSheet(this).unload()
+  },
+
   onShow() {
-    settingsFlow.consumeRoomLeaveNotice()
+    consumeRoomLeaveOutcome(this)
     const returningFromShare = this.inviteSharePending === true
     this.inviteSharePending = false
     return this.checkRoom({ returningFromShare })
@@ -94,7 +111,7 @@ Page(withPageVisibility({
     if (room.bound) {
       // issue #102：已绑定冷启动直达首页，不再停在绑定页多点一次「进入应用」
       // review #99：重校验清空一次性旗标——「进入应用」只在跳转失败或刚创建房间时出现
-      this.setData({ bound: true, roomCode: room.roomCode, roomStatus: room.status || '', errorMsg: '', needUnbind: false, justCreated: returningFromShare ? this.data.justCreated : false, checkFailed: false, homeJumpFailed: false, verifying: false, openingCalendarHint: false })
+      this.setData({ bound: true, roomCode: room.roomCode, roomStatus: room.status || '', errorMsg: '', needUnbind: false, justCreated: returningFromShare ? this.data.justCreated : false, checkFailed: false, homeJumpFailed: false, leaveRecoveryNotice: '', verifying: false, openingCalendarHint: false })
       if (!returningFromShare) this.goHome()
       return
     }
@@ -139,7 +156,7 @@ Page(withPageVisibility({
     const res = await roomSession.createRoom()
     if (res.code === 0) {
       // issue #102：创建后引导——本次会话内在房间码区域提示「把房间码发给 TA」（onShow 重校验后清除）
-      this.setData({ bound: true, roomCode: res.roomCode, roomStatus: 'waiting', needUnbind: false, justCreated: true, loading: false })
+      this.setData({ bound: true, roomCode: res.roomCode, roomStatus: 'waiting', needUnbind: false, justCreated: true, leaveRecoveryNotice: '', loading: false })
       wx.vibrateShort({ type: 'light' })
       const restoredNotice = await restoredRoomNotice()
       if (restoredNotice) this.setData({ restoredNotice })
@@ -155,7 +172,7 @@ Page(withPageVisibility({
     this.setData({ loading: true, errorMsg: '', checkFailed: false })
     const res = await roomSession.joinRoom(code)
     if (res.code === 0) {
-      this.setData({ bound: true, roomCode: res.roomCode, roomStatus: 'paired', needUnbind: false, loading: false })
+      this.setData({ bound: true, roomCode: res.roomCode, roomStatus: 'paired', needUnbind: false, leaveRecoveryNotice: '', loading: false })
       this.goHome()
     } else {
       this.setData({ errorMsg: res.msg, needUnbind: res.reason === 'already-in-other-room', loading: false })
@@ -186,14 +203,41 @@ Page(withPageVisibility({
   },
 
   unbind() {
-    settingsFlow.leaveRoom({
+    return settingsFlow.leaveRoom({
+      // This recovery entry never reuses Settings' pairing answer.
+      roomStatus: '',
+      roomCode: this.data.roomCode || roomSession.getRoomCode(),
+      confirm: panel => confirmationSheet(this).open(panel),
       onResult: result => {
         if (result.kind === 'success') {
           this.setData({ bound: false, roomCode: '', roomStatus: '', joinCode: '', errorMsg: '', needUnbind: false })
+          consumeRoomLeaveOutcome(this)
         } else if (result.kind === 'failure') {
           this.setData({ errorMsg: result.message })
         }
       }
     })
-  }
+  },
+
+  onConfirmationAction(e) {
+    confirmationSheet(this).action(e.currentTarget.dataset.action)
+  },
+
+  onConfirmationMask() {
+    confirmationSheet(this).cancel()
+  },
+
+  onConfirmationClose() {
+    confirmationSheet(this).cancel()
+  },
+
+  onSheetDragRelease(detail) {
+    confirmationSheet(this).dragRelease(detail)
+  },
+
+  onSheetSystemBack() {
+    confirmationSheet(this).systemBack()
+  },
+
+  noop() {}
 }))

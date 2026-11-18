@@ -75,10 +75,13 @@ test('settings uses programmable prompts, clipboard, reduced-motion query and ti
   await app.advance(1)
   assert.equal(page.data.helpMounted, false)
   assert.equal(app.tabBar.visible, true)
-  app.respondNext('showModal', { confirm: false, cancel: true })
-  await app.dispatch(page, 'unbind')
+  const unbinding = app.dispatch(page, 'unbind')
   await app.settle()
-  assert.equal(app.wx.modals.at(-1).title, '解除绑定')
+  assert.equal(page.data.confirmationTitle, '解除绑定？')
+  assert.deepEqual(app.wx.modals, [])
+  await app.dispatch(page, 'onConfirmationAction', { currentTarget: { dataset: { action: 'cancel' } } })
+  await app.advance(200)
+  await unbinding
   assert.equal(app.cloud.calls.some(call => call.name === 'leaveRoom'), false)
 })
 

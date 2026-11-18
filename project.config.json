@@ -102,6 +102,10 @@
       {
         "value": ".okf-frontmatter.json",
         "type": "file"
+      },
+      {
+        "value": "images/app-icon.png",
+        "type": "file"
       }
     ],
     "include": []

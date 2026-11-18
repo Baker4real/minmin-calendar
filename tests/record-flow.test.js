@@ -2,6 +2,7 @@ const assert = require('node:assert/strict')
 const path = require('node:path')
 const test = require('node:test')
 const { readSource } = require('./sourceFiles')
+const { parseWxssRules } = require('./designTokens')
 
 test('period and memory list templates keep the REC-03 visible row contract', () => {
   const periodWxml = readPageFile('pages/period/period.wxml')
@@ -77,6 +78,14 @@ test('record tab preserves author and accessible row bindings, pull refresh, and
   assert.match(periodRow, /class="item-date">\{\{item\.dateLabel\}\}/)
   assert.doesNotMatch(periodRow, /endDateDisplay/)
   assert.doesNotMatch(legacy, /wx:for="\{\{memories\}\}"|class="empty-state"|bindtap="(?:addMemory|editMemory|loadData)"/)
+})
+
+test('legacy memory route keeps only the navbar style its markup renders', () => {
+  const wxml = readPageFile('pages/memory/memory.wxml')
+  const wxss = readPageFile('pages/memory/memory.wxss')
+  assert.match(wxml, /<view class="nav-bar header-gradient">/)
+  assert.match(wxml, /<view class="nav-title">欢乐时光<\/view>/)
+  assert.deepEqual(parseWxssRules(wxss).flatMap(rule => rule.selectors), ['.nav-title'])
 })
 
 test('period list failure retry is a recognizable operation, distinct from the quiet empty note', () => {
@@ -381,7 +390,6 @@ test('record lists preview long notes as one clamped line without displacing lat
   const periodWxml = readPageFile('pages/period/period.wxml')
   const memoryWxml = readPageFile('pages/memory/memory.wxml')
   const periodWxss = readPageFile('pages/period/period.wxss')
-  const memoryWxss = readPageFile('pages/memory/memory.wxss')
 
   // 列表绑定真实备注（本人写下的文字原样显示），显示与否由 wx:if 决定。
   // 欢乐时光列表在记录 tab；旧页不再渲染备注行
@@ -392,7 +400,7 @@ test('record lists preview long notes as one clamped line without displacing lat
   // 长备注只显示短预览：单行截断 + 省略号，换行折叠成一行，不把后面的记录挤出屏幕
   const clamps = [
     [periodWxss, '.item-note'],
-    [memoryWxss, '.memory-note']
+    [periodWxss, '.memory-note']
   ]
   for (const [wxss, selector] of clamps) {
     const rule = new RegExp(`\\${selector}\\s*\\{[^}]*\\}`).exec(wxss)
@@ -404,8 +412,8 @@ test('record lists preview long notes as one clamped line without displacing lat
 
   // 截断生效的前提：备注所在的弹性列允许收缩到内容宽度以下
   assert.match(periodWxss, /\.item-left\s*\{[^}]*min-width:\s*0[^}]*\}/)
-  assert.match(memoryWxss, /\.memory-left\s*\{[^}]*min-width:\s*0[^}]*\}/)
-  assert.match(memoryWxss, /\.memory-info\s*\{[^}]*min-width:\s*0[^}]*\}/)
+  assert.match(periodWxss, /\.memory-left\s*\{[^}]*min-width:\s*0[^}]*\}/)
+  assert.match(periodWxss, /\.memory-info\s*\{[^}]*min-width:\s*0[^}]*\}/)
 })
 
 test('both edit pages reuse the shared confirmation sheet, back guard and reduced-motion probe', () => {

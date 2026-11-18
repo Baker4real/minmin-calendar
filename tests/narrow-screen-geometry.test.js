@@ -24,7 +24,6 @@ const ALL_PAGES = [
 ]
 const NON_TAB_WXSS = [
   'pages/bind/bind.wxss',
-  'pages/memory/memory.wxss',
   'pages/memory/edit/edit.wxss',
   'pages/period/edit/edit.wxss'
 ]
@@ -934,7 +933,8 @@ test('sheets scroll within a bounded height and are never clipped by the mask', 
   // 图例/预测/月小结面板复用 .day-action-sheet 的 overflow-y，自身只收紧高度
   const infoVh = Number(/(\d+(?:\.\d+)?)vh/.exec(infoPanel['max-height'] || '0')[1])
   assert.ok(infoVh > 0 && infoVh < 100, '.calendar-info-panel needs a sub-viewport max-height')
-  assert.match(wxml, /class="day-action-sheet calendar-info-panel safe-bottom"/)
+  assert.match(wxml, /class="day-action-sheet calendar-info-panel"/)
+  assert.doesNotMatch(wxml, /class="[^"]*\bsafe-bottom\b/, 'home sheets use their own safe-area padding, not the overridden global class')
 
   // 父级不裁切：遮罩全屏 flex-end，无 overflow 裁切；页面入场只淡入（transform 会把 fixed 弹层拖进裁剪域）
   assert.ok(!/overflow\s*:\s*hidden/.test(mask.overflow || ''), 'sheet mask must not clip the sheet')

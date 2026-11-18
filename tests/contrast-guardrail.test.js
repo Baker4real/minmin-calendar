@@ -96,7 +96,7 @@ test('non-interactive titles use the neutral text color, not rose', () => {
   )
 
   // 加载失败标题：无独立颜色声明，继承 .empty-state 的中性白（不是玫瑰）
-  for (const file of ['pages/period/period.wxss', 'pages/memory/memory.wxss']) {
+  for (const file of ['pages/period/period.wxss']) {
     assert.equal(wxssRuleBody(file, '.load-failed-text'), null,
       `${file} load-failed title must not override the neutral empty-state color`)
     const emptyText = layerPaint(declarationOf(file, '.empty-state', 'color'))
@@ -277,7 +277,6 @@ test('edit-form field errors reuse the one warning red and clear 4.5:1 on the fo
 
 test('the light heart stays the happy-time color and uses text glow on memory rows', () => {
   assert.equal(wxssRuleBody('pages/settings/settings.wxss', '.menu-heart'), null)
-  assert.equal(declarationOf('pages/memory/memory.wxss', '.memory-heart', 'color'), LIGHT_HEART)
   assert.equal(declarationOf('pages/period/period.wxss', '.memory-heart', 'color'), LIGHT_HEART)
   assert.equal(declarationOf('pages/period/period.wxss', '.memory-heart', 'text-shadow'), '0 0 10px rgba(240,196,192,0.3)')
   assert.equal(declarationOf('pages/period/period.wxss', '.memory-heart', 'filter'), undefined)

@@ -57,7 +57,7 @@ test('WXML targets are converted into explicit HTML coverage before detection', 
   const withAurora = shims.filter(html => /<div class="aurora"[^>]*data-src="pages\/shared\/aurora\.wxml:\d+"/.test(html))
   assert.equal(withAurora.length, includers.length, 'the aurora markup lands in every page that includes it, traced back to the fragment')
   const withConfirmation = shims.filter(html => html.includes('class="confirmation-host"'))
-  assert.equal(withConfirmation.length, 3, 'both edit pages and settings include the imported confirmation template')
+  assert.equal(withConfirmation.length, 4, 'both edit pages, settings and bind include the imported confirmation template')
 })
 
 test('a target without recognizable WXML fails closed instead of reporting a clean scan', t => {
