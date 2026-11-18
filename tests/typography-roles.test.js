@@ -212,8 +212,9 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/index/index.wxss', '.legend-text', 'assist'],
   ['pages/index/index.wxss', '.prediction-summary', 'body'],
   ['pages/index/index.wxss', '.explain-line', 'assist'],
-  ['pages/index/index.wxss', '.recap-summary', 'assist'],
-  ['pages/index/index.wxss', '.recap-highlight', 'assist'],
+  ['pages/index/index.wxss', '.recap-summary', 'body'],
+  ['pages/index/index.wxss', '.recap-main', 'body'],
+  ['pages/index/index.wxss', '.recap-highlight', 'body'],
   ['pages/index/index.wxss', '.copy-recap', 'control'],
   ['pages/bind/bind.wxss', '.hero-title', 'title'],
   ['pages/bind/bind.wxss', '.hero-desc', 'assist'],
@@ -305,6 +306,9 @@ const NATURAL_TRACKING = [
 
 const BODY_LINE_HEIGHT = [
   ['pages/index/index.wxss', '.prediction-summary'],
+  ['pages/index/index.wxss', '.recap-summary'],
+  ['pages/index/index.wxss', '.recap-main'],
+  ['pages/index/index.wxss', '.recap-highlight'],
   ['pages/index/index.wxss', '.detail-main'],
   ['pages/period/period.wxss', '.empty-state'],
   ['pages/memory/memory.wxss', '.empty-state']

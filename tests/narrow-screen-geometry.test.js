@@ -658,7 +658,7 @@ test('the prediction summary starts the window clause on its own line and each c
     durationSource: 'history',
     confidence: 'low',
     ignoredCycleCount: 0
-  })
+  }, [], { today: '2027-12-30' })
   const clauses = summary.split('\n')
   assert.deepEqual(clauses, ['预计 2027年12月30日 开始，', '前后 10 天是可能开始的窗口'])
 

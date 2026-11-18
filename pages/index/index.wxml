@@ -431,10 +431,18 @@ module.exports = {
           wx:key="key"
           class="explain-line"
         >{{item.text}}</text>
+        <view
+          wx:if="{{predictionExplanation.periodAction}}"
+          class="btn-premium prediction-period-action"
+          bindtap="quickPeriod"
+          aria-role="button"
+          aria-label="{{predictionExplanation.periodAction.label}}"
+          hover-class="btn-premium-hover"
+        >{{predictionExplanation.periodAction.label}}</view>
       </view>
 
       <view wx:elif="{{infoSheetMode == 'recap' && monthlyRecap}}" class="monthly-recap">
-        <text class="recap-summary">{{monthlyRecap.periodSummary}}</text>
+        <text class="recap-summary recap-main">{{monthlyRecap.periodSummary}}</text>
         <text class="recap-summary">{{monthlyRecap.memorySummary}}</text>
         <text class="recap-summary">{{monthlyRecap.predictionSummary}}</text>
         <view wx:if="{{monthlyRecap.highlightItems.length}}" class="recap-highlights">

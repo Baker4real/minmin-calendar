@@ -15,7 +15,7 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
     period('2026-07-13', '2026-07-17')
   ])
 
-  assert.deepEqual(insights.buildPredictionExplanation(prediction), {
+  assert.deepEqual(insights.buildPredictionExplanation(prediction, [], { today: '2026-08-10' }), {
     available: true,
     title: '预测说明',
     summary: '预计 8月10日 开始，\n前后 1 天是可能开始的窗口',
@@ -23,7 +23,7 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
       '参考最近 5 次有效周期',
       '平均周期 28 天，平均持续 5 天',
       '预计持续 5 天',
-      '最近几次很规律，比较准',
+      '最近几次很规律，估得比较准',
       '已忽略 1 次波动较大的记录',
       '根据记录估算，不是医疗建议'
     ],
@@ -31,11 +31,59 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
       { key: 'prediction:0', text: '参考最近 5 次有效周期' },
       { key: 'prediction:1', text: '平均周期 28 天，平均持续 5 天' },
       { key: 'prediction:2', text: '预计持续 5 天' },
-      { key: 'prediction:3', text: '最近几次很规律，比较准' },
+      { key: 'prediction:3', text: '最近几次很规律，估得比较准' },
       { key: 'prediction:4', text: '已忽略 1 次波动较大的记录' },
       { key: 'prediction:5', text: '根据记录估算，不是医疗建议' }
     ]
   })
+})
+
+test('buildPredictionExplanation uses the three-sentence delayed version for both late statuses', () => {
+  const periods = [
+    period('2026-05-18', '2026-05-22'),
+    period('2026-06-15', '2026-06-19'),
+    period('2026-07-13', '2026-07-17')
+  ]
+
+  for (const [today, lateDays] of [['2026-08-12', 2], ['2026-08-19', 9]]) {
+    const prediction = cycle.predictNextPeriod(periods, { today })
+    assert.equal(cycle.buildHomeStatusLine(periods, { today, prediction }).status, today === '2026-08-12' ? 'late' : 'late-too-long')
+
+    assert.deepEqual(insights.buildPredictionExplanation(prediction, periods, { today }), {
+      available: true,
+      title: '预测说明',
+      summary: `原本估在 8月10日 前后 1 天，现在已经过了 ${lateDays} 天`,
+      lines: [
+        '已经开始了就记经期；漏记了，在日历上点那一天补记',
+        '根据记录估算，不是医疗建议'
+      ],
+      lineItems: [
+        { key: 'prediction:0', text: '已经开始了就记经期；漏记了，在日历上点那一天补记' },
+        { key: 'prediction:1', text: '根据记录估算，不是医疗建议' }
+      ],
+      periodAction: { label: '记经期' }
+    })
+  }
+})
+
+test('buildPredictionExplanation puts the overdue ongoing-period sentence at the top', () => {
+  const today = '2026-06-26'
+  const ongoing = { _id: 'live', startDate: '2026-06-20', status: 'ongoing' }
+  const withoutPrediction = insights.buildPredictionExplanation(null, [ongoing], { today })
+  assert.equal(withoutPrediction.summary, [
+    '这次已经 7 天，比预期的 5 天多；结束了就点「记结束」',
+    '记两次经期后就能估下次'
+  ].join('\n'))
+
+  const periods = [
+    period('2026-04-24', '2026-04-28'),
+    period('2026-05-22', '2026-05-26'),
+    ongoing
+  ]
+  const prediction = cycle.predictNextPeriod(periods, { today })
+  const withPrediction = insights.buildPredictionExplanation(prediction, periods, { today })
+  assert.equal(withPrediction.summary.split('\n')[0], '这次已经 7 天，比预期的 5 天多；结束了就点「记结束」')
+  assert.equal(withPrediction.summary.split('\n').length, 3)
 })
 
 test('prediction explanation uses the shared date and spoken confidence, not a confidence grade', () => {
@@ -46,7 +94,7 @@ test('prediction explanation uses the shared date and spoken confidence, not a c
     period('2026-03-26', '2026-03-30')
   ])
 
-  const explanation = insights.buildPredictionExplanation(prediction)
+  const explanation = insights.buildPredictionExplanation(prediction, [], { today: '2026-04-23' })
 
   assert.equal(explanation.summary, `预计 ${prediction.nextDisplay} 开始，\n前后 1 天是可能开始的窗口`)
   assert.equal(explanation.summary.includes('08月'), false)
@@ -63,7 +111,7 @@ test('prediction summary names the possible start window instead of promising it
   ], { today: '2026-07-10' })
   assert.equal(prediction.rangeDisplay, '7月24日–7月30日')
 
-  const explanation = insights.buildPredictionExplanation(prediction)
+  const explanation = insights.buildPredictionExplanation(prediction, [], { today: '2026-07-10' })
 
   // 首句只描述可能开始的窗口，天数与预测窗口一致；不做「正常」或健康保证
   assert.equal(explanation.summary, '预计 7月27日 开始，\n前后 3 天是可能开始的窗口')
@@ -103,20 +151,24 @@ test('buildMonthlyRecap creates a gentle shareable recap for the selected month'
   assert.equal(recap.title, '2026年8月小结')
   assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 5 天')
   assert.equal(recap.memorySummary, '留下 2 条欢乐时光')
-  assert.equal(recap.predictionSummary, '下次预测 8月8日，区间 8月7日–8月9日（置信度：已经有几次记录，大致可以参考）')
+  assert.equal(recap.predictionSummary, '下次预测 8月8日，区间 8月7日–8月9日，已经有几次记录，大致可以参考')
   assert.deepEqual(recap.highlights, [
     '经期：8月9日–8月13日，5天，经量 量多，痛经',
-    '欢乐时光：七夕晚餐；一起看电影'
+    '欢乐时光：8月7日，七夕晚餐',
+    '欢乐时光：8月22日，一起看电影'
   ])
   assert.deepEqual(recap.highlightItems, [
     { key: 'recap:0', text: '经期：8月9日–8月13日，5天，经量 量多，痛经' },
-    { key: 'recap:1', text: '欢乐时光：七夕晚餐；一起看电影' }
+    { key: 'recap:1', text: '欢乐时光：8月7日，七夕晚餐' },
+    { key: 'recap:2', text: '欢乐时光：8月22日，一起看电影' }
   ])
   assert.match(recap.shareText, /2026年8月小结/)
   assert.match(recap.shareText, /本月记录了 1 次经期，共 5 天/)
   assert.match(recap.shareText, /留下 2 条欢乐时光/)
-  assert.match(recap.shareText, /下次预测 8月8日，区间 8月7日–8月9日（置信度：已经有几次记录，大致可以参考）/)
+  assert.match(recap.shareText, /下次预测 8月8日，区间 8月7日–8月9日，已经有几次记录，大致可以参考/)
   assert.equal(recap.shareText.includes('（中）'), false)
+  assert.deepEqual(recap.shareText.split('\n').slice(-recap.highlights.length), recap.highlights)
+  assert.doesNotMatch(JSON.stringify(recap), /置信度/)
 })
 
 test('buildMonthlyRecap keeps period duration and days in viewed month as two numbers when stored duration conflicts', () => {
@@ -297,12 +349,12 @@ test('buildMonthlyRecap ignores impossible dates before deriving counts and high
   assert.equal(recap.memorySummary, '留下 1 条欢乐时光')
   assert.deepEqual(recap.highlights, [
     '经期：8月20日–8月22日，3天',
-    '欢乐时光：有效记忆'
+    '欢乐时光：8月21日，有效记忆'
   ])
   assert.doesNotMatch(recap.shareText, /错误日期/)
 })
 
-test('buildMonthlyRecap collapses repeated default memory labels in highlights', () => {
+test('buildMonthlyRecap lists every default-labelled memory with its date', () => {
   const recap = insights.buildMonthlyRecap({
     year: 2026,
     month: 5,
@@ -318,12 +370,18 @@ test('buildMonthlyRecap collapses repeated default memory labels in highlights',
 
   assert.equal(recap.periodSummary, '本月暂无经期记录')
   assert.equal(recap.memorySummary, '留下 5 条欢乐时光')
-  assert.deepEqual(recap.highlights, [])
+  assert.deepEqual(recap.highlights, [
+    '欢乐时光：6月1日，欢乐时光',
+    '欢乐时光：6月7日，欢乐时光',
+    '欢乐时光：6月13日，欢乐时光',
+    '欢乐时光：6月20日，欢乐时光',
+    '欢乐时光：6月28日，欢乐时光'
+  ])
   assert.equal(recap.shareText.includes('特别日子'), false)
   assert.equal(recap.shareText.includes('欢乐时光；欢乐时光'), false)
 })
 
-test('buildMonthlyRecap keeps real memory notes in order while collapsing defaults', () => {
+test('buildMonthlyRecap keeps every memory note and default label in input order', () => {
   const recap = insights.buildMonthlyRecap({
     year: 2026,
     month: 5,
@@ -338,7 +396,11 @@ test('buildMonthlyRecap keeps real memory notes in order while collapsing defaul
   })
 
   assert.deepEqual(recap.highlights, [
-    '欢乐时光：散步；看电影；散步'
+    '欢乐时光：6月1日，散步',
+    '欢乐时光：6月7日，欢乐时光',
+    '欢乐时光：6月13日，看电影',
+    '欢乐时光：6月20日，散步',
+    '欢乐时光：6月28日，欢乐时光'
   ])
   assert.equal(recap.shareText.includes('特别日子'), false)
 })
@@ -436,7 +498,7 @@ test('prediction explanation states where the predicted duration comes from', ()
     cycle.predictNextPeriod([
       { startDate: '2026-06-01', endDate: '', status: 'unknown-end', duration: 9 },
       { startDate: '2026-06-29', endDate: '', status: 'unknown-end', duration: 9 }
-    ])
+    ]), [], { today: '2026-07-27' }
   )
   assert.deepEqual(defaulted.lines, [
     '参考最近 1 次有效周期',
