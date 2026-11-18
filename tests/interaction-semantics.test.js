@@ -245,6 +245,7 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   assert.equal(byHandler('nextMonth', 'nav-btn').attrs['aria-label'], '下一个月')
   assert.equal(byHandler('quickPeriod', 'quick-btn').attrs['aria-label'], '{{periodQuickAriaLabel}}')
   assert.equal(byHandler('quickMemory', 'quick-btn').attrs['aria-label'], '记欢乐时光')
+  assert.equal(byHandler('openMonthPicker', 'month-title-trigger').attrs['aria-label'], '{{year}}年{{month + 1}}月，选择年份和月份')
 
   // 弹层遮罩本身是可点的「关闭」操作，必须带角色与可读名称；信息弹层按当前内容命名（issue #155）
   assert.equal(byHandler('closeMonthPicker', 'day-sheet-mask').attrs['aria-label'], '关闭月份选择')
