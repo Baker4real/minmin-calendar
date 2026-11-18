@@ -4,52 +4,73 @@ const roomAccessOutcome = require('./roomAccessOutcome')
 const roomRecordsSnapshot = require('./roomRecordsSnapshot')
 const wxPrompts = require('./wxPrompts')
 
-const ROOM_LEAVE_NOTICE_KEY = 'bindUnbindNotice'
+let pendingRoomLeave = null
 
 // Pages render the outcome; confirmation, server leave and the pending notice belong here.
-function leaveRoom({ onResult, notifyOnBind = false }) {
-  const wxApi = getWx()
-  wxPrompts.modal({
-    title: '解除绑定',
-    content: '解除绑定后你会退出这个房间。TA 还在的话会留在房间里；房间里只剩你时，房间会归档。之后在绑定页点「创建」即可恢复。',
-    confirmText: '解除绑定',
-    success: async response => {
-      if (!response.confirm) {
-        onResult({ kind: 'cancelled' })
-        return
-      }
-      const result = await roomSessionApi.leaveRoom()
-      if (result.code !== 0) {
-        onResult({ kind: 'failure', message: result.msg || '解除绑定失败，请稍后重试' })
-        return
-      }
-      if (notifyOnBind) {
-        // Optional feedback must not block navigation after the server has left the Room.
-        try {
-          wxApi.setStorageSync(ROOM_LEAVE_NOTICE_KEY, '1')
-        } catch (e) {}
-      }
-      onResult({ kind: 'success' })
-    },
-    fail: error => onResult({
-      kind: 'failure',
-      message: roomAccessOutcome.presentUserFailure(error.errMsg || getErrorMessage(error))
-    })
-  }, wxApi)
+async function leaveRoom(options = {}) {
+  const onResult = options.onResult || (() => {})
+  const finish = result => {
+    onResult(result)
+    return result
+  }
+  if (typeof options.confirm !== 'function') return finish({ kind: 'cancelled' })
+  const action = await options.confirm({
+    name: '解除绑定',
+    title: '解除绑定？',
+    content: roomLeaveContent(options.roomStatus, options.roomCode),
+    actions: [
+      { id: 'confirm', text: '解除绑定', kind: 'danger' },
+      { id: 'cancel', text: '取消', kind: 'secondary' }
+    ]
+  })
+  if (action !== 'confirm') return finish({ kind: 'cancelled' })
+
+  const roomSession = options.roomSession || roomSessionApi
+  const result = await roomSession.leaveRoom()
+  if (result.code !== 0) {
+    return finish({ kind: 'failure', message: result.msg || '解除绑定失败，请稍后重试' })
+  }
+  const outcome = {
+    kind: 'success',
+    archived: result.archivedCount > 0,
+    roomCode: normalizeRoomCode(options.roomCode)
+  }
+  pendingRoomLeave = { ...outcome, notifyOnBind: options.notifyOnBind === true }
+  return finish(outcome)
 }
 
-function consumeRoomLeaveNotice() {
-  const wxApi = getWx()
-  // Notice storage is best-effort; Room verification must still run on Bind.
-  let notice = ''
-  try {
-    notice = wxApi.getStorageSync(ROOM_LEAVE_NOTICE_KEY)
-  } catch (e) {}
-  if (!notice) return
-  try {
-    wxApi.removeStorageSync(ROOM_LEAVE_NOTICE_KEY)
-  } catch (e) {}
-  wxApi.showToast({ title: '已解除绑定', icon: 'none' })
+function roomLeaveContent(roomStatus, roomCode) {
+  const code = normalizeRoomCode(roomCode)
+  const rejoin = code ? `房间码 ${code} ` : '原来的房间码'
+  if (roomStatus === 'paired') {
+    return `解除后你这边看不到这本日历；记录留在房间里，TA 照常能看。想回来，用${rejoin}重新加入`
+  }
+  if (roomStatus === 'waiting') {
+    return '房间里只有你。解除后房间会存起来，记录不删；之后在绑定页点「我来建房间」就能恢复原来的房间和记录'
+  }
+  return `解除后你这边看不到这本日历，记录不会删除。TA 还在房间里时，用${rejoin}加入；房间里只剩你时，在绑定页点「我来建房间」恢复`
+}
+
+function consumeRoomLeaveOutcome(options = {}) {
+  const outcome = pendingRoomLeave
+  pendingRoomLeave = null
+  if (!outcome) return null
+  if (outcome.notifyOnBind) {
+    showToast(resolveWxApi(options), { title: '已解除绑定', icon: 'none' })
+  }
+  return {
+    kind: outcome.kind,
+    archived: outcome.archived,
+    roomCode: outcome.roomCode,
+    recoveryText: roomLeaveRecoveryText(outcome)
+  }
+}
+
+function roomLeaveRecoveryText(outcome) {
+  if (outcome.archived) return '原来的房间已经存起来，点「我来建房间」就能恢复'
+  const code = normalizeRoomCode(outcome.roomCode)
+  const rejoin = code ? `房间码 ${code} ` : '原来的房间码'
+  return `想回原来的房间，用${rejoin}加入`
 }
 
 // issue #150：分享失败后的选择由共享确认面板承载；所有取消路径都只结束流程。
@@ -332,7 +353,7 @@ function getErrorMessage(error) {
 
 module.exports = {
   leaveRoom,
-  consumeRoomLeaveNotice,
+  consumeRoomLeaveOutcome,
   copyRoomCode,
   exportRecordsAsJson,
   clearLocalCache,

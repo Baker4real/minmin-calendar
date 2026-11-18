@@ -89,13 +89,24 @@ module.exports = {
     <view class="btn-premium" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}" hover-class="btn-premium-hover">{{roomStatusActionText}}</view>
   </view>
 
-  <view wx:elif="{{loading && !hasLoadedHomeData}}" class="calendar-skeleton" aria-label="正在加载" aria-hidden="{{pageObscured}}">
-    <view class="skeleton-month-bar"></view>
-    <view class="skeleton-week">
-      <view class="skeleton-week-cell" wx:for="{{[0, 1, 2, 3, 4, 5, 6]}}" wx:key="*this"></view>
+  <view wx:elif="{{loading && !hasLoadedHomeData}}" class="content calendar-skeleton" aria-role="status" aria-label="正在加载" aria-hidden="{{pageObscured}}">
+    <!-- 骨架复用真实页边距、吸顶占位、周头和网格；唯一动画挂在整个父容器上（issue #239） -->
+    <view class="home-sticky skeleton-sticky" aria-hidden="true">
+      <view class="month-nav skeleton-month-bar">
+        <view class="nav-btn skeleton-control"></view>
+        <view class="skeleton-month-title"></view>
+        <view class="nav-btn skeleton-control"></view>
+      </view>
+      <view class="skeleton-status-bar"></view>
     </view>
-    <view class="skeleton-grid">
-      <view class="skeleton-cell" wx:for="{{skeletonCells}}" wx:key="*this"></view>
+    <view class="skeleton-sticky-spacer home-sticky-spacer"></view>
+    <view class="week-header skeleton-week" aria-hidden="true">
+      <view class="week-cell skeleton-week-cell" wx:for="{{[0, 1, 2, 3, 4, 5, 6]}}" wx:key="*this"></view>
+    </view>
+    <view class="skeleton-grid calendar-grid calendar-density-{{calendarDensity}}{{calendarInfoMerged ? ' calendar-info-merged' : ''}}" style="--calendar-row-height: {{calendarRowHeightPx}}px" aria-hidden="true">
+      <view class="skeleton-days">
+        <view class="skeleton-cell" wx:for="{{days}}" wx:key="index"></view>
+      </view>
     </view>
   </view>
 

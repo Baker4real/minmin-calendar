@@ -1,9 +1,11 @@
-<view class="page safe-top {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
+<import src="/pages/shared/confirmation-sheet.wxml" />
+<view class="page safe-top {{pageObscured ? 'page-obscured' : ''}} {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
   <include src="/pages/shared/aurora.wxml" />
-  <view class="nav-bar header-gradient">
+  <wxs module="sheetDrag" src="../../utils/sheetDrag.wxs"></wxs>
+  <view class="nav-bar header-gradient" aria-hidden="{{pageObscured}}">
     <view class="nav-placeholder"></view>
   </view>
-  <view class="content">
+  <view class="content" aria-hidden="{{pageObscured}}">
     <!-- issue #167：刚建好房间时 hero-bloom 让品牌心向外漾开一次 -->
     <view class="hero {{justCreated ? 'hero-bloom' : ''}}">
       <!-- 品牌心是文本字形（颜色走 wxss），不用红色心形表情（issue #77） -->
@@ -17,6 +19,7 @@
     </view>
 
     <view wx:if="{{revealed}}" class="bind-reveal">
+    <text wx:if="{{leaveRecoveryNotice && !bound}}" class="info-text leave-recovery-notice">{{leaveRecoveryNotice}}</text>
     <!-- issue #167：刚建好房间时已绑定卡用同一个显现出现，不硬切 -->
     <view wx:if="{{bound}}" class="premium-card {{justCreated ? 'bound-reveal' : ''}}">
       <view class="bound-status">{{justCreated ? '房间建好了' : '已绑定房间'}}</view>
@@ -66,4 +69,5 @@
     <view wx:if="{{checkFailed}}" class="error-retry" bindtap="retryCheck" aria-role="button" aria-label="重试" hover-class="error-retry-hover">重试</view>
     </view>
   </view>
+  <template is="confirmationSheet" data="{{confirmationName: confirmationName, confirmationTitle: confirmationTitle, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions, confirmationMounted: confirmationMounted, confirmationPhase: confirmationPhase, confirmationDragClear: confirmationDragClear, sheetExitGuard: sheetExitGuard}}" />
 </view>

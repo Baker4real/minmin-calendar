@@ -371,198 +371,135 @@ test('resync failure keeps the existing retry presentation without a success toa
   assert.deepEqual(app.wx.toasts, [])
 })
 
-test('settings and the refused-bind entry show the same unbind confirmation', async (t) => {
-  const confirmations = []
-  for (const route of ['settings', 'bind']) {
-    await t.test(route, async (t) => {
-      const app = settingsApp(t, { storage: route === 'settings' ? { roomCode: 'ROOM01' } : {} })
-      if (route === 'bind') {
-        app.cloud.when('getMyRoom').reply({ code: 0, room: null })
-        app.cloud.when('createRoom').reply({ code: -5, msg: '你已加入其他房间，请先解除绑定后再创建新房间' })
-      }
-      const page = app.launch(`/pages/${route}/${route}`)
-      await app.settle()
-      if (route === 'bind') {
-        await app.dispatch(page, 'createRoom')
-        assert.equal(page.data.needUnbind, true)
-      }
-      await app.dispatch(page, 'unbind')
-      const { title, content, confirmText, confirmColor, cancelText, showCancel } = app.wx.modals[0]
-      confirmations.push({ title, content, confirmText, confirmColor, cancelText, showCancel })
-    })
-  }
-  assert.deepEqual(confirmations[0], {
-    title: '解除绑定',
-    content: '解除绑定后你会退出这个房间。TA 还在的话会留在房间里；房间里只剩你时，房间会归档。之后在绑定页点「创建」即可恢复。',
-    confirmText: '解除绑定', confirmColor: undefined, cancelText: undefined, showCancel: undefined
-  })
-  assert.deepEqual(confirmations[1], confirmations[0])
-})
-
-test('both unbind entries report a failed confirmation without leaving the room', async (t) => {
-  for (const route of ['settings', 'bind']) {
-    await t.test(route, async (t) => {
-      const app = settingsApp(t, { storage: route === 'settings' ? { roomCode: 'ROOM01' } : {} })
-      if (route === 'bind') {
-        app.cloud.when('getMyRoom').reply({ code: 0, room: null })
-        app.cloud.when('createRoom').reply({ code: -5, msg: '你目前属于另一个房间' })
-      }
-      const page = app.launch(`/pages/${route}/${route}`)
-      await app.settle()
-      if (route === 'bind') await app.dispatch(page, 'createRoom')
-      app.respondNext('showModal', new Error('showModal:fail'))
-      await app.dispatch(page, 'unbind')
-      await app.settle()
-      assert.equal(app.cloud.calls.some(call => call.name === 'leaveRoom'), false)
-      assert.equal(app.currentPage, page)
-      const message = route === 'bind' ? page.data.errorMsg : app.wx.toasts.at(-1)?.title
-      assert.equal(message, '这次没有完成，请重试')
-      assert.equal(app.storage.bindUnbindNotice, undefined)
-    })
-  }
-})
-
-test('both unbind entries preserve confirmation, cancellation, failures and successful leave behavior', async (t) => {
-  const scenarios = [
-    { name: 'cancel', confirm: false },
-    { name: 'business refusal', result: { code: -1, msg: '解除绑定失败，请稍后重试' }, message: '解除绑定失败，请稍后重试' },
-    { name: 'filtered server failure', result: { code: -1, msg: 'TypeError: unavailable' }, message: '这次没有完成，请重试' },
-    { name: 'network rejection', error: new Error('network down'), message: '网络不太稳定，请重试' },
-    { name: 'success', result: { code: 0 } }
+test('settings unbind panel uses the exact paired, waiting and unknown consequences without a native modal', async (t) => {
+  const cases = [
+    ['paired', '解除后你这边看不到这本日历；记录留在房间里，TA 照常能看。想回来，用房间码 ROOM01 重新加入'],
+    ['waiting', '房间里只有你。解除后房间会存起来，记录不删；之后在绑定页点「我来建房间」就能恢复原来的房间和记录'],
+    ['', '解除后你这边看不到这本日历，记录不会删除。TA 还在房间里时，用房间码 ROOM01 加入；房间里只剩你时，在绑定页点「我来建房间」恢复']
   ]
-  for (const route of ['settings', 'bind']) {
-    for (const scenario of scenarios) {
-      await t.test(`${route}: ${scenario.name}`, async (t) => {
-        const app = settingsApp(t, { storage: route === 'settings' ? { roomCode: 'ROOM01' } : {} })
-        if (route === 'bind') {
-          app.cloud.when('getMyRoom').reply({ code: 0, room: null })
-          app.cloud.when('joinRoom').reply({ code: -5, msg: '你目前属于另一个房间' })
-        }
-        const page = app.launch(`/pages/${route}/${route}${route === 'bind' ? '?roomCode=ROOM02' : ''}`)
-        await app.settle()
-        if (route === 'bind') {
-          await app.dispatch(page, 'joinRoom')
-          assert.equal(page.data.needUnbind, true)
-        }
-        const originalRoomCode = page.data.roomCode
-        const cachedRoomCode = app.storage.roomCode
-        const leaving = app.cloud.when('leaveRoom').defer()
-        await app.dispatch(page, 'unbind')
-        await app.settle()
-        assert.equal(app.wx.modals.length, 1)
-        assert.equal(app.cloud.calls.some(call => call.name === 'leaveRoom'), false, 'confirmation must precede the server call')
-        const confirm = scenario.confirm !== false
-        app.respond('showModal', 0, { confirm, cancel: !confirm })
-        await app.settle()
-        assert.equal(app.cloud.calls.filter(call => call.name === 'leaveRoom').length, confirm ? 1 : 0)
-        assert.equal(app.currentPage, page)
-        assert.equal(page.data.roomCode, originalRoomCode)
-        assert.equal(app.storage.roomCode, cachedRoomCode, 'do not clear the Room while leave is pending')
-        assert.equal(app.storage.bindUnbindNotice, undefined)
-        assert.deepEqual(app.wx.toasts, [])
-        if (!confirm) {
-          assert.equal(app.navigation.length, 1)
-          if (route === 'bind') assert.equal(page.data.needUnbind, true)
-          return
-        }
-        if (scenario.name === 'success') app.cloud.when('getMyRoom').reply({ code: 0, room: null })
-        if (scenario.error) leaving.reject(scenario.error)
-        else leaving.resolve(scenario.result)
-        await app.settle()
-        if (scenario.message) {
-          assert.equal(app.currentPage, page)
-          assert.equal(app.navigation.length, 1)
-          assert.equal(page.data.roomCode, originalRoomCode)
-          assert.equal(app.storage.roomCode, cachedRoomCode)
-          assert.equal(app.storage.bindUnbindNotice, undefined)
-          if (route === 'bind') {
-            assert.equal(page.data.errorMsg, scenario.message)
-            assert.equal(page.data.needUnbind, true)
-            assert.equal(page.data.joinCode, 'ROOM02')
-          } else {
-            assert.deepEqual(app.wx.toasts, [{ title: scenario.message, icon: 'none' }])
-          }
-          return
-        }
-        assert.equal(app.storage.roomCode, undefined)
-        assert.equal(app.currentPage.route, 'pages/bind/bind')
-        assert.equal(app.currentPage.data.bound, false)
-        assert.equal(app.currentPage.data.roomCode, '')
-        assert.equal(app.currentPage.data.joinCode, '')
-        assert.equal(app.currentPage.data.needUnbind, false)
-        assert.equal(app.currentPage.data.errorMsg, '')
-        assert.equal(app.navigation.length, route === 'settings' ? 2 : 1)
-        if (route === 'settings') assert.equal(app.navigation.at(-1).method, 'reLaunch')
-        else assert.equal(app.currentPage, page)
-        const notices = route === 'settings' ? [{ title: '已解除绑定', icon: 'none' }] : []
-        assert.deepEqual(app.wx.toasts, notices)
-        assert.equal(app.storage.bindUnbindNotice, undefined)
-        for (let visit = 0; visit < 2; visit += 1) {
-          app.hide()
-          app.show()
-          await app.settle()
-          assert.deepEqual(app.wx.toasts, notices, 'the leave notice must never repeat')
-        }
-      })
-    }
+  for (const [roomStatus, content] of cases) {
+    await t.test(roomStatus || 'unknown', async (t) => {
+      const app = settingsApp(t, { storage: { roomCode: 'ROOM01' } })
+      const room = { roomCode: 'ROOM01' }
+      if (roomStatus) room.status = roomStatus
+      app.cloud.when('getMyRoom').reply({ code: 0, room })
+      const page = app.launch('/pages/settings/settings')
+      await app.settle()
+      const unbinding = app.dispatch(page, 'unbind')
+      await app.settle()
+      assert.equal(page.data.confirmationTitle, '解除绑定？')
+      assert.equal(page.data.confirmationContent, content)
+      assert.deepEqual(page.data.confirmationActions, [
+        { id: 'confirm', text: '解除绑定', kind: 'danger' },
+        { id: 'cancel', text: '取消', kind: 'secondary' }
+      ])
+      assert.deepEqual(app.wx.modals, [])
+      assert.equal(app.cloud.calls.some(call => call.name === 'leaveRoom'), false)
+      await chooseConfirmation(app, page, 'cancel')
+      await unbinding
+      assert.equal(app.cloud.calls.some(call => call.name === 'leaveRoom'), false)
+      assert.equal(app.storage.roomCode, 'ROOM01')
+    })
   }
 })
 
-test('settings leave still returns to verified bind when writing its optional notice fails', async (t) => {
+test('settings unbind mask, close, drag and system back all cancel without leaving', async (t) => {
+  const closes = [
+    { name: 'mask', handler: 'onConfirmationMask' },
+    { name: 'close button', handler: 'onConfirmationClose' },
+    { name: 'drag' },
+    { name: 'system back', handler: 'onSheetSystemBack' }
+  ]
+  for (const close of closes) {
+    await t.test(close.name, async (t) => {
+      const app = settingsApp(t, { storage: { roomCode: 'ROOM01' } })
+      const page = app.launch('/pages/settings/settings')
+      await app.settle()
+      const unbinding = app.dispatch(page, 'unbind')
+      await app.settle()
+      assert.equal(page.data.confirmationPhase, 'open')
+      if (close.name === 'drag') {
+        const currentTarget = { dataset: { sheet: 'confirmation' } }
+        const touch = { identifier: 1, pageX: 100, pageY: 100 }
+        app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
+        app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
+        await app.advance(100)
+        app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
+      } else {
+        await app.dispatch(page, close.handler)
+      }
+      assert.equal(page.data.confirmationPhase, 'leaving')
+      await app.advance(200)
+      await unbinding
+      assert.equal(page.data.confirmationMounted, false)
+      assert.equal(page.data.pageObscured, false)
+      assert.equal(app.cloud.calls.some(call => call.name === 'leaveRoom'), false)
+      assert.equal(app.storage.roomCode, 'ROOM01')
+      assert.deepEqual(app.wx.modals, [])
+      assert.equal(app.currentPage, page)
+    })
+  }
+})
+
+test('settings unbind only leaves after the danger action and hands the archived outcome to Bind in memory', async (t) => {
   const app = settingsApp(t, { storage: { roomCode: 'ROOM01' } })
   const page = app.launch('/pages/settings/settings')
   await app.settle()
+  const leaving = app.cloud.when('leaveRoom').defer()
+  const writes = []
   const setStorageSync = app.wx.setStorageSync
-  let noticeWrites = 0
   app.wx.setStorageSync = (key, value) => {
-    if (key === 'bindUnbindNotice') {
-      noticeWrites += 1
-      throw new Error('notice storage write failed')
-    }
+    writes.push(key)
     return setStorageSync(key, value)
   }
-  app.cloud.when('leaveRoom').reply({ code: 0 })
-  app.cloud.when('getMyRoom').reply({ code: 0, room: null })
-  app.respondNext('showModal', { confirm: true })
-  await app.dispatch(page, 'unbind')
+  const unbinding = app.dispatch(page, 'unbind')
   await app.settle()
-  assert.equal(noticeWrites, 1)
-  assert.deepEqual(app.cloud.calls.map(call => call.name), ['getMyRoom', 'leaveRoom', 'getMyRoom'])
+  assert.equal(app.cloud.calls.some(call => call.name === 'leaveRoom'), false)
+  await chooseConfirmation(app, page)
+  assert.equal(app.cloud.calls.filter(call => call.name === 'leaveRoom').length, 1)
+  assert.equal(app.storage.roomCode, 'ROOM01', 'the cached Room stays until the server succeeds')
+  assert.equal(app.currentPage, page)
+  app.cloud.when('getMyRoom').reply({ code: 0, room: null })
+  leaving.resolve({ code: 0, archivedCount: 1 })
+  await unbinding
+  await app.settle()
   assert.equal(app.storage.roomCode, undefined)
-  assert.equal(app.storage.bindUnbindNotice, undefined)
-  assert.equal(app.navigation.at(-1).method, 'reLaunch')
   assert.equal(app.currentPage.route, 'pages/bind/bind')
-  assert.equal(app.currentPage.data.verifying, false)
-  assert.equal(app.currentPage.data.bound, false)
-  assert.equal(app.currentPage.data.errorMsg, '')
-  assert.deepEqual(app.wx.toasts, [])
+  assert.equal(app.currentPage.data.leaveRecoveryNotice, '原来的房间已经存起来，点「我来建房间」就能恢复')
+  assert.equal(app.navigation.at(-1).method, 'reLaunch')
+  assert.equal(app.navigation.at(-1).url, '/pages/bind/bind')
+  assert.deepEqual(writes, [], 'the outcome handoff must not write local storage')
+  assert.deepEqual(app.wx.toasts, [{ title: '已解除绑定', icon: 'none' }])
+  app.hide()
+  app.show()
+  await app.settle()
+  assert.equal(app.currentPage.data.leaveRecoveryNotice, '原来的房间已经存起来，点「我来建房间」就能恢复')
+  assert.equal(app.wx.toasts.length, 1, 'the toast is consumed once while the unbound explanation remains')
 })
 
-test('bind still verifies its Room when reading or removing the optional leave notice fails', async (t) => {
-  for (const method of ['getStorageSync', 'removeStorageSync']) {
-    await t.test(method, async (t) => {
-      const app = settingsApp(t, { storage: { bindUnbindNotice: '1' } })
-      app.cloud.when('getMyRoom').reply({ code: 0, room: null })
-      const storageOperation = app.wx[method]
-      let noticeAttempts = 0
-      app.wx[method] = key => {
-        if (key === 'bindUnbindNotice') {
-          noticeAttempts += 1
-          throw new Error(`notice ${method} failed`)
-        }
-        return storageOperation(key)
-      }
-      const page = app.launch('/pages/bind/bind')
+test('settings unbind failures keep the Room and show the existing error toast', async (t) => {
+  for (const [name, response, message] of [
+    ['business refusal', { code: -1, msg: '解除绑定失败，请稍后重试' }, '解除绑定失败，请稍后重试'],
+    ['filtered server failure', { code: -1, msg: 'TypeError: unavailable' }, '这次没有完成，请重试'],
+    ['network rejection', new Error('network down'), '网络不太稳定，请重试']
+  ]) {
+    await t.test(name, async (t) => {
+      const app = settingsApp(t, { storage: { roomCode: 'ROOM01' } })
+      const page = app.launch('/pages/settings/settings')
       await app.settle()
-      assert.equal(noticeAttempts, 1)
-      assert.deepEqual(app.cloud.calls.map(call => call.name), ['getMyRoom'])
+      const leaving = app.cloud.when('leaveRoom')
+      if (response instanceof Error) leaving.reject(response)
+      else leaving.reply(response)
+      const unbinding = app.dispatch(page, 'unbind')
+      await app.settle()
+      await chooseConfirmation(app, page)
+      await unbinding
       assert.equal(app.currentPage, page)
-      assert.equal(page.data.verifying, false)
-      assert.equal(page.data.bound, false)
-      assert.equal(page.data.errorMsg, '')
-      assert.equal(page.data.checkFailed, false)
-      assert.equal(app.storage.bindUnbindNotice, '1')
-      assert.deepEqual(app.wx.toasts, method === 'getStorageSync' ? [] : [{ title: '已解除绑定', icon: 'none' }])
+      assert.equal(app.storage.roomCode, 'ROOM01')
+      assert.equal(page.data.roomCode, 'ROOM01')
+      assert.deepEqual(app.wx.toasts, [{ title: message, icon: 'none' }])
+      assert.deepEqual(app.wx.modals, [])
+      assert.equal(app.navigation.length, 1)
     })
   }
 })
