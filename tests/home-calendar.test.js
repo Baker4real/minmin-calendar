@@ -51,6 +51,13 @@ function classes(className, data) {
   // An unset optional WXML flag renders as false on the platform.
   return renderWxmlClasses(tagWith(className).attrs.class, { pageHidden: false, ...data })
 }
+function legendClasses(data) {
+  const item = data.legendItems.find(item => item.key === 'period')
+  return classes('legend-sample', { ...data, item })
+}
+function actionSampleClasses(data) {
+  return classes('action-sample', { ...data, ...data.periodBandSample })
+}
 function visible(className, data) {
   const condition = tagWith(className).attrs['wx:if']
   return !condition || Boolean(evaluateWxmlExpression(condition.replace(/^\{\{|\}\}$/g, ''), data))
@@ -656,6 +663,8 @@ test('settings density changes resize a real six-row calendar on return before c
   const app = homeApp(t, { now: '2026-08-15T12:00:00+08:00', storage: { roomCode: 'ROOM01', calendarDensity: 'full' }, windowInfo: { windowWidth: 375, windowHeight: 619 } })
   const home = await launch(app)
   assert.equal(Math.ceil(app.rendered(home).days.length / 7), 6)
+  assert.ok(legendClasses(app.rendered(home)).includes('calendar-density-full'))
+  assert.ok(actionSampleClasses(app.rendered(home)).includes('calendar-density-full'))
   assert.equal(attr('calendar-grid', 'style', app.rendered(home)), '--calendar-row-height: 79.5px')
   assert.equal(classes('calendar-grid', app.rendered(home)).includes('calendar-info-merged'), false)
   app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } })
@@ -664,10 +673,19 @@ test('settings density changes resize a real six-row calendar on return before c
   await tap(app, app.currentPage, 'setCalendarDensity', { density: 'compact' })
   assert.equal(app.storage.calendarDensity, 'compact')
   const pending = listRoute(app, 'periods').defer()
+  const densityPatchStart = home.setDataCalls.length
   app.wx.switchTab({ url: '/pages/index/index' })
   await app.settle()
   assert.equal(app.currentPage, home)
   assert.ok(classes('calendar-grid', app.rendered(home)).includes('calendar-density-compact'))
+  assert.ok(legendClasses(app.rendered(home)).includes('calendar-density-compact'))
+  assert.ok(actionSampleClasses(app.rendered(home)).includes('calendar-density-compact'))
+  const densityPatches = home.setDataCalls.slice(densityPatchStart).filter(patch => patch.calendarDensity === 'compact')
+  assert.ok(densityPatches.length > 0, 'the density change is submitted')
+  for (const patch of densityPatches) {
+    assert.equal(Object.hasOwn(patch, 'legendItems'), false, 'density changes do not resend legend items')
+    assert.equal(Object.hasOwn(patch, 'periodBandSample'), false, 'density changes do not resend the band sample')
+  }
   assert.ok(classes('calendar-grid', app.rendered(home)).includes('calendar-info-merged'))
   assert.equal(app.rendered(home).partnerInvite, true, 'the waiting invitation keeps using the shared slot during the density change')
   assert.equal(attr('calendar-grid', 'style', app.rendered(home)), '--calendar-row-height: 54px')

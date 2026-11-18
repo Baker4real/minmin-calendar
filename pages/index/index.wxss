@@ -699,6 +699,14 @@ button.home-share-invite {
   pointer-events: none;
   background: rgba(232,144,158,0.22);
 }
+.calendar-density-full .period-band {
+  box-sizing: border-box;
+  border-top: 1px solid rgba(232,144,158,0.6);
+  border-bottom: 1px solid rgba(232,144,158,0.6);
+}
+.calendar-density-compact .period-band {
+  background: rgba(232,144,158,0.6);
+}
 .day-cell.period {
   border-radius: 0;
 }
@@ -848,7 +856,7 @@ button.home-share-invite {
   background: rgba(255,255,255,0.06);
 }
 
-/* ===== Quick Actions — 首屏主操作：实色玫瑰填充 + 画布海军字 ===== */
+/* ===== Quick Actions — 经期实色主操作 + 欢乐时光 button-ghost 次操作 ===== */
 .quick-actions {
   display: flex;
   gap: 20rpx;
@@ -898,6 +906,31 @@ button.home-share-invite {
   line-height: var(--line-height-title);
   word-break: keep-all;
   color: #0A0E27;
+}
+/* 欢乐时光是次操作：沿用 button-ghost 的透明底、玫瑰描边与玫瑰字；半栏几何和触控高度仍由 .quick-btn 给。
+   透明按钮落在自己的画布海军面上，不让极光峰值把玫瑰字压到 4.5:1 以下。 */
+.quick-ghost-surface {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  background: #0A0E27;
+  border-radius: var(--radius-full);
+}
+.quick-btn.btn-ghost {
+  background: transparent;
+  color: #E8909E;
+  border: 1.5px solid #E8909E;
+  border-radius: var(--radius-full);
+}
+.quick-btn.btn-ghost::before {
+  box-shadow: none;
+}
+.quick-btn.btn-ghost:active,
+.quick-btn.btn-ghost.btn-ghost-hover {
+  transform: scale(0.95);
+}
+.quick-btn.btn-ghost .quick-text {
+  color: #E8909E;
 }
 
 /* ===== Empty Room Guidance ===== */

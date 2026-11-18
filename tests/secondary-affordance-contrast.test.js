@@ -176,6 +176,7 @@ const CASES = [
   { file: 'pages/bind/bind.wxss', selector: '.tab', surfaces: [['app.wxss', '.premium-card'], ['pages/bind/bind.wxss', '.tab-bar']], note: '绑定页未选中 tab' },
   // issue #149：刚创建房间时的幽灵「进入应用」，玫瑰字落在卡片合成面上
   { file: 'pages/bind/bind.wxss', selector: '.btn-ghost', surfaces: [['app.wxss', '.premium-card']], note: '绑定页次操作进入应用' },
+  { file: 'pages/index/index.wxss', selector: '.quick-btn.btn-ghost .quick-text', surfaces: [['pages/index/index.wxss', '.quick-ghost-surface']], note: '首页次操作记欢乐时光' },
   { file: 'app.wxss', selector: '.btn-danger', surfaces: [], note: '危险操作（删除记录/解除绑定）' },
   // issue #144：备注占位符不再用 0.35 白，颜色档位不弱于次要文字，落在输入框合成面上
   { file: 'app.wxss', selector: '.input-placeholder', surfaces: [['app.wxss', '.premium-card'], ['pages/period/edit/edit.wxss', '.form-input']], note: '经期编辑备注占位' },

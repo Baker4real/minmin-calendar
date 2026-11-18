@@ -213,13 +213,15 @@ module.exports = {
     <view class="quick-actions">
       <view class="quick-btn" bindtap="quickPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-class="quick-btn-hover">
         <view class="quick-icon sample-plate">
-          <template is="periodBandSample" data="{{...periodBandSample}}" />
+          <template is="periodBandSample" data="{{...periodBandSample, calendarDensity: calendarDensity}}" />
         </view>
         <text class="quick-text">{{periodQuickLabel}}</text>
       </view>
-      <view class="quick-btn" bindtap="quickMemory" aria-role="button" aria-label="记欢乐时光" hover-class="quick-btn-hover">
-        <text class="quick-icon memory-tone">♥</text>
-        <text class="quick-text">记欢乐时光</text>
+      <view class="quick-ghost-surface">
+        <view class="quick-btn btn-ghost" bindtap="quickMemory" aria-role="button" aria-label="记欢乐时光" hover-class="btn-ghost-hover">
+          <text class="quick-icon memory-tone">♥</text>
+          <text class="quick-text">记欢乐时光</text>
+        </view>
       </view>
     </view>
 
@@ -392,7 +394,7 @@ module.exports = {
           hover-class="sheet-action-hover"
         >
           <view wx:if="{{item.key == 'period'}}" class="sheet-action-icon sample-plate">
-            <template is="periodBandSample" data="{{...periodBandSample}}" />
+            <template is="periodBandSample" data="{{...periodBandSample, calendarDensity: calendarDensity}}" />
           </view>
           <text wx:else class="sheet-action-icon memory-tone">♥</text>
           <view class="sheet-action-copy">
@@ -426,7 +428,7 @@ module.exports = {
       <view class="sheet-body">
       <view wx:if="{{infoSheetMode == 'legend'}}" class="legend-list">
         <view wx:for="{{legendItems}}" wx:key="key" class="legend-row">
-          <view class="legend-sample day-cell {{item.cellClass}}">
+          <view class="legend-sample day-cell {{item.cellClass}} calendar-density-{{calendarDensity}}">
             <block wx:for="{{item.parts}}" wx:for-item="part" wx:key="className">
               <view wx:if="{{part.kind == 'band' || part.kind == 'num' || part.kind == 'mark'}}" class="{{part.className}}">{{part.text}}</view>
               <text wx:elif="{{part.kind == 'tag'}}" class="{{part.className}}">{{part.text}}</text>
@@ -490,7 +492,7 @@ module.exports = {
 <!-- 记经期动作的图标：日历图例那段单日经期色带（issue #159）。首页记录入口和当日弹层的经期动作共用，
      放在页面根之外，不进读屏树的背景块；数据是 homeCalendarState 的 periodBandSample -->
 <template name="periodBandSample">
-  <view class="action-sample day-cell {{cellClass}}">
+  <view class="action-sample day-cell {{cellClass}} calendar-density-{{calendarDensity}}">
     <view wx:for="{{parts}}" wx:for-item="part" wx:key="className" class="{{part.className}}"></view>
   </view>
 </template>

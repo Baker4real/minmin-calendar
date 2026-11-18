@@ -263,7 +263,16 @@ test('monthly recap uses a body-large main sentence and body-sized detail lines'
   }
 })
 
-test('quick record buttons keep the calendar marks, rose fill, readable labels and touch height', () => {
+test('period band samples follow density classes and keep their shared source data', () => {
+  const wxml = readIndexWxml()
+  assert.match(wxml, /class="legend-sample day-cell \{\{item\.cellClass\}\} calendar-density-\{\{calendarDensity\}\}"/)
+  assert.match(wxml, /class="action-sample day-cell \{\{cellClass\}\} calendar-density-\{\{calendarDensity\}\}"/)
+  const actionSamples = wxml.match(/class="action-sample day-cell \{\{cellClass\}\} calendar-density-\{\{calendarDensity\}\}"/g) || []
+  assert.equal(actionSamples.length, 2, 'the quick period and day action share the density-aware sample')
+  assert.match(wxml, /wx:for="\{\{legendItems\}\}"/)
+})
+
+test('quick record actions keep period primary and memory button-ghost with readable touch targets', () => {
   const wxml = readIndexWxml()
   const wxss = readIndexWxss()
   const button = ruleBody(wxss, '.quick-btn')
@@ -272,12 +281,23 @@ test('quick record buttons keep the calendar marks, rose fill, readable labels a
   assert.match(button, /color:\s*#0A0E27/i)
   assert.match(ruleBody(wxss, '.quick-text'), /color:\s*#0A0E27/i)
   const quick = wxml.slice(wxml.indexOf('class="quick-actions"'), wxml.indexOf('class="month-summary"'))
-  assert.match(quick.slice(0, quick.indexOf('bindtap="quickMemory"')), /class="quick-icon sample-plate">\s*<view class="action-sample day-cell \{\{cellClass\}\}">\s*<view wx:for="\{\{parts\}\}" wx:for-item="part" wx:key="className" class="\{\{part\.className\}\}"><\/view>/)
+  assert.match(quick, /class="quick-btn" bindtap="quickPeriod"/)
+  assert.match(quick, /class="quick-ghost-surface">\s*<view class="quick-btn btn-ghost" bindtap="quickMemory"/)
+  assert.match(ruleBody(wxss, '.quick-ghost-surface'), /background:\s*#0A0E27/i)
+  assert.match(quick.slice(0, quick.indexOf('bindtap="quickMemory"')), /class="quick-icon sample-plate">\s*<view class="action-sample day-cell \{\{cellClass\}\} calendar-density-\{\{calendarDensity\}\}">\s*<view wx:for="\{\{parts\}\}" wx:for-item="part" wx:key="className" class="\{\{part\.className\}\}"><\/view>/)
   assert.match(quick, /class="quick-icon memory-tone">♥<\/text>/)
   assert.doesNotMatch(quick, /🩸|❤️|●/)
   assert.match(ruleBody(wxss, '.memory-tone'), /color:\s*#F0C4C0/i)
   assert.match(ruleBody(wxss, '.quick-icon'), /background:\s*#0A0E27/i)
   assert.match(ruleBody(wxss, '.quick-icon'), /border-radius:\s*var\(--radius-circle\)/)
+  const ghost = ruleBody(wxss, '.quick-btn.btn-ghost')
+  assert.match(ghost, /background:\s*transparent/i)
+  assert.match(ghost, /color:\s*#E8909E/i)
+  assert.match(ghost, /border:\s*1\.5px solid #E8909E/i)
+  assert.match(ghost, /border-radius:\s*var\(--radius-full\)/)
+  assert.match(ruleBody(wxss, '.quick-btn.btn-ghost .quick-text'), /color:\s*#E8909E/i)
+  assert.match(ruleBody(wxss, '.quick-btn.btn-ghost::before'), /box-shadow:\s*none/i)
+  assert.match(wxss, /\.quick-btn\.btn-ghost:active,\s*\.quick-btn\.btn-ghost\.btn-ghost-hover\s*\{[^}]*transform:\s*scale\(0\.95\)/)
   const minHeight = numberDecl(button, 'min-height')
   assert.ok(minHeight >= 104)
   assert.ok(minHeight * 320 / 750 >= 44)

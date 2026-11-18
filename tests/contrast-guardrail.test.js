@@ -136,6 +136,32 @@ test('period band stays a translucent rose and lunar text on it clears 4.5:1', (
   }
 })
 
+test('full density period band draws 1px rose edges at least 3:1 against the grid', () => {
+  const file = 'pages/index/index.wxss'
+  const selector = '.calendar-density-full .period-band'
+  const grid = gridSurface()
+  for (const side of ['top', 'bottom']) {
+    const declared = exactDeclaration(file, selector, `border-${side}`)
+    assert.match(declared, /^1px solid\s+/)
+    const stroke = strokeColor(declared)
+    assert.deepEqual([stroke.r, stroke.g, stroke.b].map(channel => Math.round(channel * 255)), [232, 144, 158])
+    assert.ok(stroke.a >= 0.58 && stroke.a <= 0.62, `full ${side} edge alpha ${stroke.a} is not about 60%`)
+    const edge = composite(grid, stroke, stroke.a)
+    const ratio = contrastRatio(toHex(edge), toHex(grid))
+    assert.ok(ratio >= 3, `full ${side} edge on the grid is ${ratio.toFixed(2)}:1`)
+  }
+})
+
+test('compact density period band uses about 60% rose and clears 3:1 on the grid', () => {
+  const fill = cssColor(declarationOf('pages/index/index.wxss', '.calendar-density-compact .period-band', 'background'))
+  assert.deepEqual([fill.r, fill.g, fill.b].map(channel => Math.round(channel * 255)), [232, 144, 158])
+  assert.ok(fill.a >= 0.58 && fill.a <= 0.62, `compact band alpha ${fill.a} is not about 60%`)
+  const grid = gridSurface()
+  const painted = composite(grid, fill, fill.a)
+  const ratio = contrastRatio(toHex(painted), toHex(grid))
+  assert.ok(ratio >= 3.2 && ratio <= 3.3, `compact band on the grid is ${ratio.toFixed(2)}:1, expected about 3.25:1`)
+})
+
 // issue #162：今天胶囊只包住日期，「预」在胶囊外（几何由 calendar-micro-labels 钉住），今天落在预测窗口时
 // 「预」照样直接落在日历网格面上
 test('the in-cell 预 stays at least 4.5:1 on the grid, outside the today capsule', () => {
