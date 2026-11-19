@@ -227,7 +227,8 @@ test('five radio groups expose radiogroup while page and sheet titles avoid unsu
     ['pages/period/edit/edit.wxml', 'selectStatus', '经期状态']
   ]) {
     const option = elementsOf(file).find((element) => element.attrs.bindtap ===
-      (optionHandler === 'selectStatus' ? '{{tapHandler}}' : optionHandler))
+      (optionHandler === 'selectStatus' ? '{{tapHandler}}' : optionHandler) &&
+      (optionHandler !== 'selectStatus' || element.attrs['aria-checked'] === '{{checked}}'))
     assert.ok(option, `${file}: expected a ${optionHandler} radio option`)
     const group = option.parent
     assert.ok(group, `${file}: ${optionHandler} needs a group container`)
@@ -707,7 +708,7 @@ test('edit pages name the save and delete operations and expose inert variants a
   }
 
   const periodEdit = elementsOf('pages/period/edit/edit.wxml')
-  const sharedChip = periodEdit.find((element) => element.attrs.bindtap === '{{tapHandler}}')
+  const sharedChip = periodEdit.find((element) => element.attrs.bindtap === '{{tapHandler}}' && element.attrs['aria-checked'] === '{{checked}}')
   assert.ok(sharedChip, 'period options use the shared chip template')
   assert.equal(sharedChip.attrs['aria-checked'], '{{checked}}')
   // issue #100/#242：共享结构仍按各组原角色和选中条件渲染。

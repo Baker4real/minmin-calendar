@@ -3,7 +3,7 @@ const path = require('node:path')
 const test = require('node:test')
 const { readSource } = require('./sourceFiles')
 const { createMiniProgram } = require('./helpers/miniProgram')
-const { confirmDelete, listCalls, listed, markedDates: marked, roomLookups } = require('./helpers/recordPages')
+const { changeEditorDate, confirmDelete, listCalls, listed, markedDates: marked, roomLookups } = require('./helpers/recordPages')
 const { evaluateWxmlExpression, wxmlElementTree } = require('./wxmlTemplate')
 const { buildHomeCalendarState } = require('../utils/homeCalendarState')
 
@@ -173,7 +173,7 @@ test('a save or delete on the record tab shows on Home before any refresh answer
   }
 
   await app.dispatch(tab, 'addMemory')
-  await app.dispatch(app.currentPage, 'onDateChange', { detail: { value: saved.date } })
+  await changeEditorDate(app, app.currentPage, 'onDateChange', saved.date)
   app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'memories' } }).reply({ code: 0, id: saved._id, record: saved })
   await app.dispatch(app.currentPage, 'save')
   let [periods, memories] = await returnToHomeWithRefreshPending()
@@ -774,8 +774,8 @@ test('period saves expand their destination month, moves remove empty years, and
   assert.equal(page.data.periodGroups[0].expanded, false)
   await app.dispatch(page, 'editPeriod', dataset({ id: 'move' }))
   assert.equal(app.currentPage.data.startDate, '2025-12-28')
-  await app.dispatch(app.currentPage, 'onStartChange', { detail: { value: '2026-09-12' } })
-  await app.dispatch(app.currentPage, 'onEndChange', { detail: { value: '2026-09-16' } })
+  await changeEditorDate(app, app.currentPage, 'onStartChange', '2026-09-12')
+  await changeEditorDate(app, app.currentPage, 'onEndChange', '2026-09-16')
   const moved = { _id: 'move', startDate: '2026-09-12', endDate: '2026-09-16', status: 'known-end' }
   app.cloud.when({ name: 'dataOp', data: { action: 'update', collection: 'periods', id: 'move' } }).reply({ code: 0, record: moved })
   records = [records[0], moved]
@@ -810,9 +810,9 @@ test('period add into a collapsed February and move from March to February expan
   await app.flush()
   await app.dispatch(page, 'togglePeriodMonth', dataset({ key: '2026-02' }))
   await app.dispatch(page, 'addPeriod')
-  await app.dispatch(app.currentPage, 'onStartChange', { detail: { value: '2026-02-20' } })
+  await changeEditorDate(app, app.currentPage, 'onStartChange', '2026-02-20')
   await app.dispatch(app.currentPage, 'selectStatus', dataset({ value: 'known-end' }))
-  await app.dispatch(app.currentPage, 'onEndChange', { detail: { value: '2026-02-24' } })
+  await changeEditorDate(app, app.currentPage, 'onEndChange', '2026-02-24')
   const added = { _id: 'feb-added', startDate: '2026-02-20', endDate: '2026-02-24', status: 'known-end' }
   app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'periods' } }).reply({ code: 0, record: added })
   await app.dispatch(app.currentPage, 'save')
@@ -823,8 +823,8 @@ test('period add into a collapsed February and move from March to February expan
   assert.deepEqual(periodExpansion(page), [['2026-03', true], ['2026-02', true]])
   await app.dispatch(page, 'togglePeriodMonth', dataset({ key: '2026-02' }))
   await app.dispatch(page, 'editPeriod', dataset({ id: 'march' }))
-  await app.dispatch(app.currentPage, 'onStartChange', { detail: { value: '2026-02-12' } })
-  await app.dispatch(app.currentPage, 'onEndChange', { detail: { value: '2026-02-16' } })
+  await changeEditorDate(app, app.currentPage, 'onStartChange', '2026-02-12')
+  await changeEditorDate(app, app.currentPage, 'onEndChange', '2026-02-16')
   const moved = { _id: 'march', startDate: '2026-02-12', endDate: '2026-02-16', status: 'known-end' }
   app.cloud.when({ name: 'dataOp', data: { action: 'update', collection: 'periods', id: 'march' } }).reply({ code: 0, record: moved })
   records = records.map(record => record._id === 'march' ? moved : record)
@@ -845,8 +845,8 @@ for (const attempt of ['cancel', 'failure']) {
     await app.dispatch(page, 'togglePeriodMonth', dataset({ key: '2026-02' }))
     const before = structuredClone(page.data.periodGroups)
     await app.dispatch(page, 'editPeriod', dataset({ id: 'march' }))
-    await app.dispatch(app.currentPage, 'onStartChange', { detail: { value: '2026-02-12' } })
-    await app.dispatch(app.currentPage, 'onEndChange', { detail: { value: '2026-02-16' } })
+    await changeEditorDate(app, app.currentPage, 'onStartChange', '2026-02-12')
+    await changeEditorDate(app, app.currentPage, 'onEndChange', '2026-02-16')
     if (attempt === 'failure') {
       app.cloud.when({ name: 'dataOp', data: { action: 'update', collection: 'periods', id: 'march' } }).reply({ code: 400, msg: '合成保存失败' })
       app.respondNext('showModal', { confirm: true })
@@ -1151,7 +1151,7 @@ test('memory add and move expand the saved older month after returning from the 
   await app.flush()
   assert.equal(page.data.memoryGroups.at(-1).expanded, false)
   await app.dispatch(page, 'addMemory')
-  await app.dispatch(app.currentPage, 'onDateChange', { detail: { value: '2026-06-20' } })
+  await changeEditorDate(app, app.currentPage, 'onDateChange', '2026-06-20')
   await app.dispatch(app.currentPage, 'onNoteInput', { detail: { value: '补记的六月' } })
   const added = { _id: 'jun-added', date: '2026-06-20', note: '补记的六月' }
   app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'memories' } }).reply({ code: 0, record: added })
@@ -1163,7 +1163,7 @@ test('memory add and move expand the saved older month after returning from the 
   assert.equal(page.data.memoryGroups.at(-1).expanded, true)
   assert.equal(page.data.memoryGroups.at(-1).records[0].note, '补记的六月')
   await app.dispatch(page, 'editMemory', dataset({ id: 'sep' }))
-  await app.dispatch(app.currentPage, 'onDateChange', { detail: { value: '2026-05-09' } })
+  await changeEditorDate(app, app.currentPage, 'onDateChange', '2026-05-09')
   const moved = { _id: 'sep', date: '2026-05-09', note: '九月晚餐' }
   app.cloud.when({ name: 'dataOp', data: { action: 'update', collection: 'memories', id: 'sep' } }).reply({ code: 0, record: moved })
   records = records.map(record => record._id === moved._id ? moved : record)

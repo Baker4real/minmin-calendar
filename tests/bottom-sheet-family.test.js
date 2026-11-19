@@ -10,8 +10,8 @@ const repoRoot = path.join(__dirname, '..')
 const pages = [
   ['pages/index/index.wxml', 3],
   ['pages/settings/settings.wxml', 2],
-  ['pages/period/edit/edit.wxml', 1],
-  ['pages/memory/edit/edit.wxml', 1],
+  ['pages/period/edit/edit.wxml', 2],
+  ['pages/memory/edit/edit.wxml', 2],
   ['pages/bind/bind.wxml', 1]
 ]
 
@@ -77,7 +77,9 @@ test('shared bottom sheet calls keep template data flat for the WXML compiler', 
     'year', 'month', 'jumpYear', 'jumpMonth', 'jumpYearAtMin', 'jumpYearAtMax', 'jumpMonths',
     'selectedDayDetail', 'daySheetMode', 'dayDetailFade', 'periodBandSample', 'calendarDensity',
     'infoSheetMode', 'predictionExplanation', 'monthlyRecap', 'legendItems',
-    'confirmationDateText', 'confirmationContent', 'confirmationActions'
+    'confirmationDateText', 'confirmationContent', 'confirmationActions',
+    'datePickerName', 'datePickerYears', 'datePickerMonths', 'datePickerDays', 'datePickerValue',
+    'datePickerYearAria', 'datePickerMonthAria', 'datePickerDayAria', 'datePickerConfirmAria'
   ]
   for (const field of forwarded) assert.ok(shared.includes(`${field}: ${field}`), `${field} is forwarded to the selected body template`)
 })

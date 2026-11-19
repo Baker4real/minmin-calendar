@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
-const { confirmDelete } = require('./helpers/recordPages')
+const { changeEditorDate, confirmDelete } = require('./helpers/recordPages')
 const { readSource } = require('./sourceFiles')
 const { evaluateWxmlExpression, renderWxmlAttribute, wxmlOpeningTags } = require('./wxmlTemplate')
 
@@ -42,10 +42,10 @@ function sharedTemplateData(spec, templateName, handlerKey, handler, data) {
 }
 
 function datePickerName(spec, handler, data) {
-  const mapped = sharedTemplateData(spec, 'sharedDateField', 'changeHandler', handler, data)
+  const mapped = sharedTemplateData(spec, 'sharedDateField', 'tapHandler', handler, data)
   const file = path.join(__dirname, `../pages/${spec.kind}/edit/edit.wxml`)
-  const picker = wxmlOpeningTags(readSource(file, 'utf8')).find(tag => tag.tag === 'picker' && tag.attrs.bindchange === '{{changeHandler}}')
-  assert.ok(picker, `${spec.kind} exposes its ${handler} date picker through the shared template`)
+  const picker = wxmlOpeningTags(readSource(file, 'utf8')).find(tag => tag.classes.includes('form-picker') && tag.attrs.bindtap === '{{tapHandler}}')
+  assert.ok(picker, `${spec.kind} exposes its ${handler} date field through the shared template`)
   return renderWxmlAttribute(picker.attrs['aria-label'], mapped)
 }
 
@@ -149,7 +149,7 @@ for (const scenario of statusCases) {
       assert.equal(page.data.endDate, scenario.defaultEnd)
       assert.equal(page.data.periodDayCountText, scenario.defaultEnd ? '共 11 天' : '')
       assert.equal(page.data.periodLengthHint, scenario.defaultEnd ? '比你通常的 5 天长，确认一下结束日？' : '')
-      await app.dispatch(page, 'onEndChange', value(scenario.end))
+      await changeEditorDate(app, page, 'onEndChange', scenario.end)
       assert.equal(page.data.periodDayCountText, `共 ${scenario.duration} 天`)
       assert.equal(page.data.periodLengthHint, '')
     }
@@ -169,7 +169,7 @@ for (const status of ['known-end', 'unknown-end']) {
     const route = { id: 'drafted', startDate: '2026-09-10', status: 'ongoing' }
     const { page } = await openEditor(app, period, route)
     await app.dispatch(page, 'selectStatus', dataset({ value: status }))
-    if (status === 'known-end') await app.dispatch(page, 'onEndChange', value('2026-09-14'))
+    if (status === 'known-end') await changeEditorDate(app, page, 'onEndChange', '2026-09-14')
     await app.dispatch(page, 'goBack')
     await app.flush()
     app.wx.navigateTo({ url: editUrl(period, route) })
@@ -204,41 +204,179 @@ test('period: legacy draft restores its known dates, labels, flow and selected s
   assert.deepEqual(Object.keys(page.data.selectedSymptoms || {}).filter(key => page.data.selectedSymptoms[key]), ['cramps'])
 })
 
+test('R2 date panel: period start opens three bounded columns and confirms the draft', async (t) => {
+  const app = setup(t)
+  const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+  sharedTemplateData(period, 'sharedDateField', 'tapHandler', 'openStartDatePicker', page.data)
+
+  await app.dispatch(page, 'openStartDatePicker')
+  await app.settle()
+  assert.equal(page.data.datePickerPhase, 'open')
+  assert.equal(page.data.datePickerTitle, '开始日期')
+  assert.equal(page.data.datePickerYears[0].label, '1900年')
+  assert.equal(page.data.datePickerYears.at(-1).label, '2026年')
+  assert.equal(page.data.datePickerMonths.at(-1).label, '12月')
+  assert.equal(page.data.datePickerDays.at(-1).label, '31日')
+  assert.deepEqual(page.data.datePickerValue, [125, 11, 29])
+
+  const expanded = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
+  const columns = wxmlOpeningTags(expanded).filter(tag => tag.tag === 'picker-view-column')
+  assert.equal(columns.length, 3)
+  assert.deepEqual(columns.map(column => renderWxmlAttribute(column.attrs['aria-label'], page.data)), [
+    '年份，2025年', '月份，12月', '日，30日'
+  ])
+  const confirm = wxmlOpeningTags(expanded).find(tag => tag.attrs.bindtap === 'onDatePickerConfirm')
+  assert.ok(confirm)
+  assert.equal(renderWxmlAttribute(confirm.attrs['aria-label'], page.data), '确定，2025年12月30日')
+
+  await app.dispatch(page, 'onDatePickerChange', { detail: { value: [126, 11, 29] } })
+  assert.equal(page.data.datePickerDraft, '2026-09-20', 'today is the inclusive upper bound')
+  assert.equal(page.data.datePickerMonths.at(-1).label, '9月')
+  assert.equal(page.data.datePickerDays.at(-1).label, '20日')
+
+  await app.dispatch(page, 'onDatePickerChange', { detail: { value: [125, 0, 0] } })
+  assert.equal(page.data.datePickerDraft, '2025-01-01')
+  assert.deepEqual(columns.map(column => renderWxmlAttribute(column.attrs['aria-label'], page.data)), [
+    '年份，2025年', '月份，1月', '日，1日'
+  ])
+  assert.equal(renderWxmlAttribute(confirm.attrs['aria-label'], page.data), '确定，2025年1月1日')
+  await app.dispatch(page, 'onDatePickerConfirm')
+  assert.equal(page.data.startDate, '2025-01-01')
+  assert.equal(page.data.datePickerPhase, 'leaving')
+  await app.advance(200)
+  assert.equal(page.data.datePickerMounted, false)
+})
+
+test('R2 date panel: period end and memory date reuse one shared panel with existing lower bounds', async (t) => {
+  await t.test('period end starts at its start-date lower bound', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    sharedTemplateData(period, 'sharedDateField', 'tapHandler', 'openEndDatePicker', page.data)
+    sharedTemplateData(period, 'sharedBottomSheet', 'bodyTemplate', 'datePickerSheetBody', page.data)
+
+    await app.dispatch(page, 'openEndDatePicker')
+    await app.settle()
+    assert.equal(page.data.datePickerTitle, '结束日期')
+    assert.equal(page.data.datePickerDraft, '2025-12-30')
+    assert.equal(page.data.datePickerYears[0].label, '2025年')
+    assert.equal(page.data.datePickerYears.at(-1).label, '2026年')
+    assert.equal(page.data.datePickerMonths[0].label, '12月')
+    assert.equal(page.data.datePickerDays[0].label, '30日')
+    assert.equal(page.data.datePickerYearAria, '年份，2025年')
+    assert.equal(page.data.datePickerMonthAria, '月份，12月')
+    assert.equal(page.data.datePickerDayAria, '日，30日')
+    assert.equal(page.data.datePickerConfirmAria, '确定，2025年12月30日')
+
+    await app.dispatch(page, 'onDatePickerChange', { detail: { value: [0, 0, 1] } })
+    await app.dispatch(page, 'onDatePickerConfirm')
+    assert.equal(page.data.endDate, '2025-12-31')
+    assert.equal(page.data.startDate, '2025-12-30')
+  })
+
+  await t.test('memory date uses the default native lower bound and today ceiling', async (t) => {
+    const app = setup(t)
+    const memory = records[1]
+    const { page } = await openEditor(app, memory, { date: '2025-12-31' })
+    sharedTemplateData(memory, 'sharedDateField', 'tapHandler', 'openMemoryDatePicker', page.data)
+    sharedTemplateData(memory, 'sharedBottomSheet', 'bodyTemplate', 'datePickerSheetBody', page.data)
+
+    await app.dispatch(page, 'openMemoryDatePicker')
+    await app.settle()
+    assert.equal(page.data.datePickerTitle, '日期')
+    assert.equal(page.data.datePickerYears[0].label, '1900年')
+    assert.equal(page.data.datePickerYears.at(-1).label, '2026年')
+    assert.equal(page.data.datePickerDraft, '2025-12-31')
+    assert.equal(page.data.datePickerConfirmAria, '确定，2025年12月31日')
+    await app.dispatch(page, 'onDatePickerChange', { detail: { value: [125, 0, 0] } })
+    await app.dispatch(page, 'onDatePickerConfirm')
+    assert.equal(page.data.date, '2025-01-01')
+  })
+})
+
+test('R2 date panel: mask, close, drag and system back cancel; touchcancel only resets', async (t) => {
+  const app = setup(t)
+  const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+  const closes = [
+    { name: 'mask', handler: 'onDatePickerMask' },
+    { name: 'close button', handler: 'onDatePickerClose' },
+    { name: 'drag' },
+    { name: 'system back', handler: 'onSheetSystemBack' }
+  ]
+  for (const close of closes) {
+    await app.dispatch(page, 'openStartDatePicker')
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerChange', { detail: { value: [125, 0, 0] } })
+    assert.equal(page.data.datePickerDraft, '2025-01-01')
+    if (close.name === 'drag') {
+      const currentTarget = { dataset: { sheet: 'datePicker' } }
+      const touch = { identifier: 1, pageX: 100, pageY: 100 }
+      app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
+      app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
+      await app.advance(100)
+      app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
+    } else {
+      await app.dispatch(page, close.handler)
+    }
+    assert.equal(page.data.datePickerPhase, 'leaving', `${close.name} uses the shared exit`)
+    assert.equal(page.data.startDate, '2025-12-30', `${close.name} discards the draft`)
+    await app.advance(200)
+    assert.equal(page.data.datePickerMounted, false)
+    assert.equal(page.data.pageObscured, false)
+  }
+
+  await app.dispatch(page, 'openStartDatePicker')
+  await app.settle()
+  await app.dispatch(page, 'onDatePickerChange', { detail: { value: [125, 0, 0] } })
+  const currentTarget = { dataset: { sheet: 'datePicker' } }
+  const touch = { identifier: 1, pageX: 100, pageY: 100 }
+  const dragToken = page.data.datePickerDragClear.token
+  app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
+  app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 180 }] })
+  app.dispatch(page, 'sheetDrag.touchCancel', { currentTarget, changedTouches: [{ ...touch, pageY: 180 }] })
+  assert.equal(page.data.datePickerPhase, 'open')
+  assert.deepEqual(page.data.datePickerDragClear, { token: dragToken + 1, action: 'reset' })
+  assert.equal(page.data.startDate, '2025-12-30')
+  await app.advance(16)
+  assert.equal(app.viewStyle(page, '.sheet-slide-datePicker').transform, '')
+  await app.dispatch(page, 'onDatePickerMask')
+  await app.advance(200)
+})
+
 test('date fields read the same current and cross-year display dates, then append their errors', async (t) => {
   await t.test('period start and selected end dates', async (t) => {
     const app = setup(t)
     const { page } = await openEditor(app, period, { id: 'p-date', startDate: '2025-12-30', endDate: '2026-01-02' })
     assert.equal(page.data.startDateLabel, '2025年12月30日')
     assert.equal(page.data.endDateLabel, '1月2日')
-    assert.equal(datePickerName(period, 'onStartChange', page.data), `开始日期，${page.data.startDateLabel}，点按修改`)
-    assert.equal(datePickerName(period, 'onEndChange', page.data), `结束日期，${page.data.endDateLabel}，点按修改`)
+    assert.equal(datePickerName(period, 'openStartDatePicker', page.data), `开始日期，${page.data.startDateLabel}，点按修改`)
+    assert.equal(datePickerName(period, 'openEndDatePicker', page.data), `结束日期，${page.data.endDateLabel}，点按修改`)
 
-    await app.dispatch(page, 'onStartChange', value('2026-09-25'))
+    page.onStartChange(value('2026-09-25'))
     await app.dispatch(page, 'save')
     assert.deepEqual(page.data.fieldErrors, { startDate: '开始日期不能晚于今天', endDate: '结束日期不能晚于今天' })
     assert.equal(page.data.startDateLabel, '9月25日')
-    assert.equal(datePickerName(period, 'onStartChange', page.data), `开始日期，${page.data.startDateLabel}，点按修改，${page.data.fieldErrors.startDate}`)
-    assert.equal(datePickerName(period, 'onEndChange', page.data), `结束日期，${page.data.endDateLabel}，点按修改，${page.data.fieldErrors.endDate}`)
+    assert.equal(datePickerName(period, 'openStartDatePicker', page.data), `开始日期，${page.data.startDateLabel}，点按修改，${page.data.fieldErrors.startDate}`)
+    assert.equal(datePickerName(period, 'openEndDatePicker', page.data), `结束日期，${page.data.endDateLabel}，点按修改，${page.data.fieldErrors.endDate}`)
   })
 
   await t.test('empty period end date', async (t) => {
     const app = setup(t)
     const { page } = await openEditor(app, period, { startDate: '2026-09-10' })
     assert.equal(page.data.endDateLabel, '')
-    assert.equal(datePickerName(period, 'onEndChange', page.data), '结束日期，还没选，点按选择')
+    assert.equal(datePickerName(period, 'openEndDatePicker', page.data), '结束日期，还没选，点按选择')
     await app.dispatch(page, 'save')
-    assert.equal(datePickerName(period, 'onEndChange', page.data), `结束日期，还没选，点按选择，${page.data.fieldErrors.endDate}`)
+    assert.equal(datePickerName(period, 'openEndDatePicker', page.data), `结束日期，还没选，点按选择，${page.data.fieldErrors.endDate}`)
   })
 
   await t.test('memory date', async (t) => {
     const app = setup(t)
     const { page } = await openEditor(app, records[1], { date: '2025-12-31' })
     assert.equal(page.data.dateLabel, '2025年12月31日')
-    assert.equal(datePickerName(records[1], 'onDateChange', page.data), `日期，${page.data.dateLabel}，点按修改`)
-    await app.dispatch(page, 'onDateChange', value('2026-09-21'))
+    assert.equal(datePickerName(records[1], 'openMemoryDatePicker', page.data), `日期，${page.data.dateLabel}，点按修改`)
+    page.onDateChange(value('2026-09-21'))
     await app.dispatch(page, 'save')
     assert.equal(page.data.dateLabel, '9月21日')
-    assert.equal(datePickerName(records[1], 'onDateChange', page.data), `日期，${page.data.dateLabel}，点按修改，${page.data.fieldErrors.date}`)
+    assert.equal(datePickerName(records[1], 'openMemoryDatePicker', page.data), `日期，${page.data.dateLabel}，点按修改，${page.data.fieldErrors.date}`)
   })
 })
 
@@ -263,7 +401,7 @@ test('period: status option screen-reader names include each option consequence'
   const app = setup(t)
   const { page } = await openEditor(app, period)
   const template = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
-  const option = wxmlOpeningTags(template).find(tag => tag.attrs.bindtap === '{{tapHandler}}')
+  const option = wxmlOpeningTags(template).find(tag => tag.attrs.bindtap === '{{tapHandler}}' && tag.attrs['aria-checked'] === '{{checked}}')
   assert.ok(option)
   assert.deepEqual(page.data.statusOptions.map(item => {
     const mapped = sharedTemplateData(period, 'sharedChoiceChip', 'tapHandler', 'selectStatus', { ...page.data, item })
@@ -287,11 +425,11 @@ test('period: status hints change without inventing a backfill end; history driv
   assert.equal(page.data.endDate, '')
   assert.equal(page.data.periodDayCountText, '')
   assert.equal(page.data.statusHint, '选好结束日期，这次经期才有确定的天数')
-  await app.dispatch(page, 'onStartChange', value('2026-09-11'))
+  await changeEditorDate(app, page, 'onStartChange', '2026-09-11')
   assert.equal(page.data.endDate, '')
   await app.dispatch(page, 'save')
   assert.deepEqual(page.data.fieldErrors, { endDate: '请选择结束日期；还没结束可以选「进行中」' })
-  await app.dispatch(page, 'onEndChange', value('2026-09-14'))
+  await changeEditorDate(app, page, 'onEndChange', '2026-09-14')
   assert.equal(page.data.periodDayCountText, '共 4 天')
   assert.equal(page.data.periodLengthHint, '比你通常的 3 天长，确认一下结束日？')
   for (const [status, hint] of [['unknown-end', '结束日不清楚，日历只标开始那天'], ['ongoing', '进行中可稍后补结束日期']]) {
@@ -317,14 +455,14 @@ test('period: errors stay beside their own dates, hide with the field and retain
   app.hide()
   app.show()
   assert.deepEqual(JSON.parse(app.storage['recordDraft:periods:p1']), { ...fields, symptoms: ['cramps', 'tired'] })
-  await app.dispatch(page, 'onStartChange', value('2026-09-15'))
+  await changeEditorDate(app, page, 'onStartChange', '2026-09-15')
   assert.deepEqual(page.data.fieldErrors, { endDate: '结束日期不能晚于今天' })
   await app.dispatch(page, 'selectStatus', dataset({ value: 'ongoing' }))
   assert.deepEqual(page.data.fieldErrors, {})
   await app.dispatch(page, 'selectStatus', dataset({ value: 'known-end' }))
   assert.deepEqual(page.data.fieldErrors, {})
   for (const [end, message] of [['2026-09-27', '结束日期不能晚于今天'], ['', '请选择结束日期；还没结束可以选「进行中」'], ['2026-02-31', '请选择有效的结束日期'], ['2026-09-14', '结束日期不能早于开始']]) {
-    await app.dispatch(page, 'onEndChange', value(end))
+    page.onEndChange(value(end))
     await app.dispatch(page, 'save')
     assert.deepEqual(page.data.fieldErrors, { endDate: message })
     assert.deepEqual(writes(app), [])
@@ -346,9 +484,9 @@ test('period: new start date shows its owning period inline only while covered',
   const startField = template.slice(template.indexOf('id="field-startDate"'), template.indexOf('id="field-endDate"'))
   assert.match(startField, /<view wx:if="\{\{startDateOwnerText\}\}" class="form-hint start-date-owner">[\s\S]*\{\{startDateOwnerText\}\}/)
 
-  await app.dispatch(page, 'onStartChange', value('2026-09-06'))
+  await changeEditorDate(app, page, 'onStartChange', '2026-09-06')
   assert.equal(page.data.startDateOwnerText, '')
-  await app.dispatch(page, 'onStartChange', value('2026-09-04'))
+  await changeEditorDate(app, page, 'onStartChange', '2026-09-04')
   assert.equal(page.data.startDateOwnerText, '这一天已在 9月1日 开始的那次经期里')
 
   app.wx.navigateTo({ url: editUrl(period, { id: existing._id, ...existing }) })
@@ -370,7 +508,7 @@ test('period: opening the inline owner matches editing that owner and preserves 
   const existing = { _id: 'covered', startDate: '2026-09-01', endDate: '2026-09-05', status: 'known-end', createdByMe: false }
   cloudRoute(app, period, 'list').reply({ code: 0, data: [existing], roomStatus: 'paired' })
   const { page } = await openEditor(app, period, { startDate: '2026-09-03' })
-  await app.dispatch(page, 'onEndChange', value('2026-09-04'))
+  await changeEditorDate(app, page, 'onEndChange', '2026-09-04')
   await app.dispatch(page, 'onNoteInput', value('保留新建草稿'))
 
   const template = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
@@ -418,7 +556,7 @@ for (const choice of [
     cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
     cloudRoute(app, period, 'add').reply({ code: 0, record: { _id: 'new', ...period.payload, startDate: '2026-09-03', endDate: '2026-09-04', status: 'known-end', duration: 2 } })
     const { page } = await openEditor(app, period, { startDate: '2026-09-03' })
-    await app.dispatch(page, 'onEndChange', value('2026-09-04'))
+    await changeEditorDate(app, page, 'onEndChange', '2026-09-04')
     app.hide()
     app.show()
     const originalForm = form(page, period)
@@ -472,7 +610,7 @@ test('period: overlap panel mask, close, drag and system back all cancel without
   const existing = { _id: 'covered', startDate: '2026-09-01', endDate: '2026-09-05', status: 'known-end' }
   cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
   const { page } = await openEditor(app, period, { startDate: '2026-09-03' })
-  await app.dispatch(page, 'onEndChange', value('2026-09-04'))
+  await changeEditorDate(app, page, 'onEndChange', '2026-09-04')
   await app.dispatch(page, 'onNoteInput', value('保留输入'))
   const originalForm = form(page, period)
   const navigationCount = app.navigation.length
@@ -603,7 +741,7 @@ test('period: merged save replaces the form, updates home once and moves drafts 
   await app.advance(1000)
   assert.equal(app.currentPage, page, 'merge explains and stays open instead of returning')
   await app.dispatch(page, 'selectStatus', dataset({ value: 'known-end' }))
-  await app.dispatch(page, 'onEndChange', value('2026-09-05'))
+  await changeEditorDate(app, page, 'onEndChange', '2026-09-05')
   app.hide()
   app.show()
   assert.equal(app.storage[draftKey(period)], undefined)
@@ -748,9 +886,9 @@ for (const spec of records) {
     await app.settle()
     assert.equal(app.rendered(page).saving, true)
     await app.dispatch(page, 'onNoteInput', value('等待时不能混入的备注'))
-    await app.dispatch(page, spec.changeDate, value('2026-09-19'))
+    await app.dispatch(page, spec.kind === 'period' ? 'openStartDatePicker' : 'openMemoryDatePicker')
     if (spec.kind === 'period') {
-      await app.dispatch(page, 'onEndChange', value('2026-09-20'))
+      await app.dispatch(page, 'openEndDatePicker')
       await app.dispatch(page, 'selectStatus', dataset({ value: 'known-end' }))
       await app.dispatch(page, 'selectFlow', dataset({ value: 'heavy' }))
       await app.dispatch(page, 'toggleSymptom', dataset({ value: 'cramps' }))
@@ -898,7 +1036,7 @@ for (const spec of records) {
     assert.equal(app.storage[draftKey(spec, 'existing')], undefined)
     app.show()
     assert.equal(page.data.pageHidden, false)
-    await app.dispatch(page, spec.changeDate, value('2026-09-17'))
+    await changeEditorDate(app, page, spec.changeDate, '2026-09-17')
     await app.dispatch(page, 'onNoteInput', value('未完成'))
     if (spec.kind === 'period') {
       await app.dispatch(page, 'selectFlow', dataset({ value: 'heavy' }))
@@ -933,7 +1071,7 @@ for (const spec of records) {
       await app.dispatch(restored, 'selectFlow', dataset({ value: 'heavy' }))
       await app.dispatch(restored, 'toggleSymptom', dataset({ value: 'cramps' }))
     }
-    await app.dispatch(restored, spec.changeDate, value('2026-09-18'))
+    await changeEditorDate(app, restored, spec.changeDate, '2026-09-18')
     await app.dispatch(restored, 'onNoteInput', value('原备注'))
     await app.dispatch(restored, 'goBack')
     await app.flush()
@@ -948,7 +1086,7 @@ for (const spec of records) {
     test(`${spec.kind}: ${date || 'missing date'} shows its field error without losing input or writing`, async (t) => {
       const app = setup(t)
       const { home, page } = await openEditor(app, spec, { id: 'invalid', ...spec.fields })
-      await app.dispatch(page, spec.changeDate, value(date))
+      page[spec.changeDate](value(date))
       await app.dispatch(page, 'onNoteInput', value('保留输入'))
       assert.deepEqual(page.data.fieldErrors, {}, 'editing a pristine field does not announce an error')
       await app.dispatch(page, 'save')
@@ -964,7 +1102,7 @@ for (const spec of records) {
       app.hide()
       assert.equal(JSON.parse(app.storage[draftKey(spec, 'invalid')])[spec.dateField], date)
       app.show()
-      await app.dispatch(page, spec.changeDate, value('2026-09-19'))
+      await changeEditorDate(app, page, spec.changeDate, '2026-09-19')
       assert.deepEqual(page.data.fieldErrors, {})
       cloudRoute(app, spec, 'update').reply({ code: 0, record: { _id: 'invalid', ...spec.payload, [spec.dateField]: '2026-09-19', note: '保留输入' } })
       await app.dispatch(page, 'save')
@@ -1352,7 +1490,7 @@ test('period: a save in the editor opened through the overlap question reaches h
   await app.settle()
   const owner = app.currentPage
   assert.equal(owner.data.id, 'covered')
-  await app.dispatch(owner, 'onEndChange', value('2026-09-07'))
+  await changeEditorDate(app, owner, 'onEndChange', '2026-09-07')
   cloudRoute(app, period, 'update').reply({ code: 0, record: { ...existing, endDate: '2026-09-07' } })
   await app.dispatch(owner, 'save')
   assert.equal(cell(home, '2026-09-07').isPeriod, true)

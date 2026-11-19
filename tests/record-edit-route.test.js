@@ -252,14 +252,15 @@ test('parseMemoryEditOptions keeps the original date when editing while clamping
   assert.equal(state.isEdit, true)
 })
 
-test('memory edit page clamps the date picker to today', () => {
+test('memory edit page routes its shared date field into the custom panel', () => {
   const memoryEditWxml = readSource(
     path.join(__dirname, '..', 'pages/memory/edit/edit.wxml'),
     'utf8'
   )
-  assert.match(memoryEditWxml, /<picker mode="date" value="\{\{value\}\}" start="\{\{startDate\}\}" end="\{\{maxDate\}\}"[^>]*bindchange="\{\{changeHandler\}\}"[^>]*>/)
+  assert.doesNotMatch(memoryEditWxml, /<picker mode="date"/)
   const raw = fs.readFileSync(path.join(__dirname, '..', 'pages/memory/edit/edit.wxml'), 'utf8')
-  assert.match(raw, /<template is="sharedDateField" data="\{\{label: '日期', value: date,[\s\S]*maxDate: maxDate, saving: saving, changeHandler: 'onDateChange'\}\}" \/>/)
+  assert.match(raw, /bodyTemplate: 'datePickerSheetBody'/)
+  assert.match(raw, /<template is="sharedDateField" data="\{\{label: '日期', value: date,[\s\S]*maxDate: maxDate, saving: saving, tapHandler: 'openMemoryDatePicker'\}\}" \/>/)
 })
 
 test('parseMemoryEditOptions tolerates truncated UTF-8 in note', () => {

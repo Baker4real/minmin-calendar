@@ -521,7 +521,14 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/period/edit/edit.wxss', '.form-picker'],
     ['pages/period/edit/edit.wxss', '.form-input'],
     ['pages/memory/edit/edit.wxss', '.form-picker'],
-    ['pages/memory/edit/edit.wxss', '.form-input']
+    ['pages/memory/edit/edit.wxss', '.form-input'],
+    // #243：自有日期面板的滚轮槽沿用表单平涂；共享规则及全部展开调用页登记同一来源。
+    ['pages/shared/confirmation-sheet.wxss', '.date-picker-columns'],
+    ['pages/index/index.wxss', '.date-picker-columns'],
+    ['pages/bind/bind.wxss', '.date-picker-columns'],
+    ['pages/settings/settings.wxss', '.date-picker-columns'],
+    ['pages/period/edit/edit.wxss', '.date-picker-columns'],
+    ['pages/memory/edit/edit.wxss', '.date-picker-columns']
   ].map(([file, selector]) => `${file}::${selector}`)
 )
 
