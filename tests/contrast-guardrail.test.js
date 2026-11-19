@@ -4,7 +4,7 @@ const test = require('node:test')
 const { readSource: readFile } = require('./sourceFiles')
 
 const { auroraPeakHex, contrastGrounds, contrastRatio, meetsContrast, surfaceFill } = require('./contrast')
-const { parseWxssRules } = require('./designTokens')
+const { findOffScaleTextOpacities, listWxssFiles, parseWxssRules } = require('./designTokens')
 
 test('white on black is the WCAG 21:1 reference pair and meets 4.5:1', () => {
   assert.equal(contrastRatio('#FFFFFF', '#000000'), 21)
@@ -54,6 +54,17 @@ function readSource(relativePath) {
   return readFile(path.join(repoRoot, relativePath), 'utf8')
 }
 
+test('contrast-checked neutral text uses only the five opacity tiers', () => {
+  const violations = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    for (const violation of findOffScaleTextOpacities(readSource(relative))) {
+      violations.push(`${relative} ${violation.selector} ${violation.property} alpha=${violation.alpha}`)
+    }
+  }
+  assert.deepEqual(violations, [])
+})
+
 function wxssRuleBody(relativePath, selector) {
   const css = readSource(relativePath).replace(/\/\*[\s\S]*?\*\//g, '')
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -90,11 +101,8 @@ test('non-interactive titles use the neutral text color, not rose', () => {
   // 未绑定标题、绑定页大标题、选月年份数字
   assert.equal(declarationOf('pages/index/index.wxss', '.no-room-title', 'color'), NEUTRAL_TITLE_COLOR)
   assert.equal(declarationOf('pages/bind/bind.wxss', '.hero-title', 'color'), NEUTRAL_TITLE_COLOR)
-  assert.equal(
-    declarationOf('pages/index/index.wxss', '.jump-year-value', 'color'),
-    'rgba(255,255,255,0.9)',
-    'the year readout must be neutral'
-  )
+  const yearText = layerPaint(declarationOf('pages/index/index.wxss', '.jump-year-value', 'color'))
+  assert.deepEqual([yearText.r, yearText.g, yearText.b], [1, 1, 1], 'the year readout must be neutral')
 
   // 加载失败标题：无独立颜色声明，继承 .empty-state 的中性白（不是玫瑰）
   for (const file of ['pages/period/period.wxss']) {
@@ -106,6 +114,16 @@ test('non-interactive titles use the neutral text color, not rose', () => {
 
   // 设置分组标题
   assert.equal(declarationOf('pages/settings/settings.wxss', '.settings-group-title', 'color'), NEUTRAL_TITLE_COLOR)
+})
+
+test('legacy opacity values use nearest tiers and round ties upward', () => {
+  for (const [file, selector, expected] of [
+    ['pages/index/index.wxss', '.detail-main', 'rgba(255,255,255,0.85)'],
+    ['pages/index/index.wxss', '.legend-title', 'rgba(255,255,255,0.85)'],
+    ['pages/period/edit/edit.wxss', '.flow-chip', 'rgba(255,255,255,0.72)']
+  ]) {
+    assert.equal(exactDeclaration(file, selector, 'color'), expected, `${selector} uses the nearest legacy mapping`)
+  }
 })
 
 // issue #159：记录动作上的经期标记改为图例色带样本，颜色随 .period-band（下一条测试钉住），不再有单独的玫瑰圆点
@@ -397,7 +415,7 @@ test('cycle overview labels clear 4.5:1 on canvas, glass fallback and both gradi
 // issue #158：承载操作后果、记录内容或关键说明的辅助文字不弱于 --text-secondary 档，
 // 并在实际合成表面上 ≥4.5:1。stacks 列出元素可能落在的表面栈：自下而上叠在背景上
 // （画布和极光最亮处各算一次，issue #163），空栈就是背景本身。只登记关键文字，
-// 其余文字保留逐元素调校的透明度（DESIGN.md）。
+// 其余文字同样归并到五档中性文字透明度（DESIGN.md）。
 const KEY_ASSIST_TEXT = [
   { file: 'pages/period/period.wxss', selector: '.item-note', stacks: [[['app.wxss', '.premium-card']]], note: '经期列表行的作者与备注' },
   { file: 'pages/period/period.wxss', selector: '.memory-note', stacks: [[['app.wxss', '.premium-card']]], note: '欢乐时光行的作者与备注' },
@@ -409,7 +427,7 @@ const KEY_ASSIST_TEXT = [
   { file: 'pages/index/index.wxss', selector: '.no-room-desc', stacks: [[]], note: '未绑定与加载失败说明' }
 ]
 
-// 不承载后果或内容的分组文字保留更安静的一档，不并入关键文字档，但仍 ≥4.5:1
+// 不承载后果或内容的分组文字按最近档归并，仍须 ≥4.5:1
 const QUIET_ASSIST_TEXT = [
   { file: 'pages/period/edit/edit.wxss', selector: '.symptom-group-label', stacks: [[['app.wxss', '.premium-card']]], note: '症状分组标题（芯片自己说明内容）' }
 ]
@@ -441,15 +459,14 @@ test('edit form field labels and hints ride the secondary text token', () => {
   }
 })
 
-test('non-key grouping labels keep their quieter tier and still clear 4.5:1', () => {
+test('non-key grouping labels use the nearest secondary tier and still clear 4.5:1', () => {
   const secondary = layerPaint('var(--text-secondary)')
   for (const item of QUIET_ASSIST_TEXT) {
     const text = layerPaint(exactDeclaration(item.file, item.selector, 'color'))
+    assert.deepEqual(text, secondary, `${item.note} ${item.selector} rounds 0.5 to 0.6`)
     for (const surface of item.stacks.flatMap(stackSurfaces)) {
       const ratio = contrastOn(text, surface)
       assert.ok(ratio >= 4.5, `${item.note} ${item.selector} on ${toHex(surface)} = ${ratio.toFixed(2)}:1`)
-      assert.ok(ratio < contrastOn(secondary, surface),
-        `${item.note} ${item.selector} is not key text; keep its hand-tuned quieter tier`)
     }
   }
 })

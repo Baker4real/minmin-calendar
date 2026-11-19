@@ -20,6 +20,25 @@ const PALETTE_HEXES = [
 const PRESS_SCALE_BAND = [0.94, 0.98]
 // DESIGN 登记的触控下限：高度至少 44px，750rpx 设计宽下盒高 ≥88rpx
 const TOUCH_FLOOR_RPX = 88
+// 中性文字透明度只有五档；其他颜色通道与玫瑰/材质透明值不归这条阶梯。
+const TEXT_OPACITY_SCALE = Object.freeze([0.92, 0.85, 0.72, 0.6, 0.35])
+
+function findOffScaleTextOpacities(css) {
+  const violations = []
+  const whiteText = /^rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*([\d.]+)\s*\)$/i
+  for (const rule of parseWxssRules(css)) {
+    for (const [property, value] of Object.entries(rule.decls)) {
+      if (property !== 'color' && !property.startsWith('--text-')) continue
+      const match = whiteText.exec(String(value).trim())
+      if (!match) continue
+      const alpha = Number(match[1])
+      if (!TEXT_OPACITY_SCALE.includes(alpha)) {
+        violations.push({ selector: rule.selectors.join(', '), property, alpha })
+      }
+    }
+  }
+  return violations
+}
 
 function maskComments(css) {
   return String(css).replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
@@ -187,11 +206,13 @@ module.exports = {
   FILL_PROPERTIES,
   PALETTE_HEXES,
   PRESS_SCALE_BAND,
+  TEXT_OPACITY_SCALE,
   TOUCH_FLOOR_RPX,
   definedRadiusTokens,
   fillOf,
   findOffPaletteHexes,
   findOffPaletteHexesInInlineStyles,
+  findOffScaleTextOpacities,
   findOffTokenRadii,
   listWxmlFiles,
   listWxssFiles,

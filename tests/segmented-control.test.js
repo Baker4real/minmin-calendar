@@ -40,7 +40,7 @@ test('bind, record and settings segmented options share the 26rpx quiet-rose opt
 
     const base = declarations(file, option)
     assert.equal(base['font-size'], 'var(--font-size-caption)')
-    assert.equal(base.color, 'rgba(255,255,255,0.68)')
+    assert.match(base.color, /^rgba\(255,255,255,/)
     assert.equal(base['border-radius'], 'var(--radius-md)')
     assert.equal(base['min-height'], '88rpx')
 

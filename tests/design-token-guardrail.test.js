@@ -6,9 +6,11 @@ const { readSource } = require('./sourceFiles')
 
 const {
   PALETTE_HEXES,
+  TEXT_OPACITY_SCALE,
   definedRadiusTokens,
   findOffPaletteHexes,
   findOffPaletteHexesInInlineStyles,
+  findOffScaleTextOpacities,
   findOffTokenRadii,
   listWxmlFiles,
   listWxssFiles,
@@ -142,6 +144,40 @@ function appCustomProperties() {
   }
   return tokens
 }
+
+test('text opacity guardrail accepts five neutral tiers and ignores non-text paint', () => {
+  assert.deepEqual(TEXT_OPACITY_SCALE, [0.92, 0.85, 0.72, 0.6, 0.35])
+  const css = `
+    page { --text-primary: rgba(255,255,255,0.85); --text-legacy: rgba(255,255,255,0.62); }
+    .good { color: rgba(255,255,255,0.92); background: rgba(255,255,255,0.13); }
+    .bad { color: rgba(255,255,255,0.78); border-color: rgba(255,255,255,0.66); }
+    .semantic { color: rgba(232,144,158,0.68); background: rgba(232,144,158,0.08); }
+  `
+  assert.deepEqual(
+    findOffScaleTextOpacities(css).map((violation) => [violation.property, violation.alpha]),
+    [['--text-legacy', 0.62], ['color', 0.78]]
+  )
+})
+
+test('every WXSS neutral text color and text token uses only the five opacity tiers', () => {
+  const violations = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    for (const violation of findOffScaleTextOpacities(readSource(file, 'utf8'))) {
+      violations.push(`${relative} ${violation.selector} ${violation.property} alpha=${violation.alpha}`)
+    }
+  }
+  assert.deepEqual(violations, [])
+})
+
+test('DESIGN registers the five text opacity tiers and retires per-element alpha tuning', () => {
+  const design = readSource(path.join(repoRoot, 'DESIGN.md'), 'utf8')
+  for (const [alpha, role] of [['0.92', '强调'], ['0.85', '正文'], ['0.72', '辅助'], ['0.6', '次要'], ['0.35', '仅装饰']]) {
+    assert.ok(design.includes(`| \`${alpha}\` | ${role} |`), `DESIGN.md is missing ${alpha} ${role}`)
+  }
+  assert.ok(design.includes('距离相等时取高档'))
+  assert.doesNotMatch(design, /0\.62–0\.94[^\n]*逐元素调校|逐元素调校，不要机械归并/)
+})
 
 const SEMANTIC_COLOR_TOKENS = {
   '--color-danger': '#F97373',

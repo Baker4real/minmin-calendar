@@ -78,7 +78,7 @@
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
-  color: rgba(255,255,255,0.5);
+  color: var(--text-secondary);
   margin-bottom: 12rpx;
 }
 .flow-options,
@@ -98,7 +98,7 @@
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-assist);
-  color: rgba(255,255,255,0.66);
+  color: rgba(255,255,255,0.72);
   background: rgba(255,255,255,0.065);
   border: 1px solid rgba(255,255,255,0.12);
   transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);

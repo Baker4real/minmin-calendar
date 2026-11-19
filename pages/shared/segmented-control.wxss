@@ -36,7 +36,7 @@
   border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
-  color: rgba(255,255,255,0.68);
+  color: rgba(255,255,255,0.72);
   border: 1px solid transparent;
   transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }

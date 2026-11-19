@@ -31,7 +31,7 @@
   gap: 10rpx;
   box-sizing: border-box;
   border-radius: var(--radius-full);
-  color: rgba(255,255,255,0.78);
+  color: rgba(255,255,255,0.72);
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.13);
   box-shadow: 0 8rpx 26rpx rgba(0,0,0,0.14);
@@ -343,7 +343,7 @@ button.home-share-invite {
   line-height: 34rpx;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
-  color: rgba(255,255,255,0.7);
+  color: rgba(255,255,255,0.72);
 }
 
 /* ===== Calendar Grid – Glass ===== */
@@ -475,7 +475,7 @@ button.home-share-invite {
   font-size: var(--font-size-calendar-date);
   font-weight: var(--font-weight-control);
   font-variant-numeric: tabular-nums;
-  color: rgba(255,255,255,0.8);
+  color: rgba(255,255,255,0.85);
   line-height: 32rpx;
 }
 
@@ -558,7 +558,7 @@ button.home-share-invite {
   overflow: hidden;
 }
 .day-cell.holiday .day-lunar {
-  color: rgba(255,255,255,0.62);
+  color: rgba(255,255,255,0.6);
 }
 /* 节日/调休行与标记行的容器：常规排版两行竖排，合并信息行时横成一行 */
 .day-info {
@@ -941,7 +941,7 @@ button.home-share-invite {
   gap: 18rpx;
   box-sizing: border-box;
   border-radius: var(--radius-lg);
-  color: rgba(255,255,255,0.86);
+  color: rgba(255,255,255,0.85);
   background: rgba(232,144,158,0.12);
   border: 1px solid rgba(232,144,158,0.24);
   transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
@@ -971,7 +971,7 @@ button.home-share-invite {
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
-  color: rgba(255,255,255,0.68);
+  color: rgba(255,255,255,0.72);
 }
 .jump-year-stepper {
   min-height: 88rpx;
@@ -992,7 +992,7 @@ button.home-share-invite {
   border-radius: var(--radius-full);
   font-size: 40rpx;
   font-weight: 800;
-  color: rgba(255,255,255,0.82);
+  color: rgba(255,255,255,0.85);
   background: rgba(255,255,255,0.075);
   border: 1px solid rgba(255,255,255,0.11);
   transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out), opacity var(--duration-state) ease;
@@ -1017,7 +1017,7 @@ button.home-share-invite {
   font-weight: var(--font-weight-control);
   text-align: center;
   /* 选月年份数字不是控件本体（步进箭头才是），用中性文字色（issue #77） */
-  color: rgba(255,255,255,0.9);
+  color: rgba(255,255,255,0.92);
   font-variant-numeric: tabular-nums;
 }
 .jump-month-grid {
@@ -1037,7 +1037,7 @@ button.home-share-invite {
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
   white-space: nowrap;
-  color: rgba(255,255,255,0.78);
+  color: rgba(255,255,255,0.72);
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.1);
   transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
@@ -1108,7 +1108,7 @@ button.home-share-invite {
   min-width: 0;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
-  color: rgba(255,255,255,0.9);
+  color: rgba(255,255,255,0.92);
   line-height: var(--line-height-title);
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -1126,7 +1126,7 @@ button.home-share-invite {
 .sheet-action-arrow {
   flex: 0 0 auto;
   font-size: 42rpx;
-  color: rgba(255,255,255,0.78);
+  color: rgba(255,255,255,0.72);
   line-height: 1;
 }
 .day-detail-fade {
@@ -1152,7 +1152,7 @@ button.home-share-invite {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-assist);
-  color: rgba(255,255,255,0.86);
+  color: rgba(255,255,255,0.85);
   word-break: break-word;
   overflow-wrap: anywhere;
 }
@@ -1201,7 +1201,7 @@ button.home-share-invite {
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
-  color: rgba(255,255,255,0.86);
+  color: rgba(255,255,255,0.85);
   word-break: break-word;
   overflow-wrap: anywhere;
 }
@@ -1244,7 +1244,7 @@ button.home-share-invite {
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
-  color: rgba(255,255,255,0.86);
+  color: rgba(255,255,255,0.85);
 }
 .period-detail .detail-title {
   color: #E8909E;
@@ -1257,7 +1257,7 @@ button.home-share-invite {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
-  color: rgba(255,255,255,0.88);
+  color: rgba(255,255,255,0.85);
   overflow-wrap: anywhere;
 }
 .detail-meta {
@@ -1349,7 +1349,7 @@ button.home-share-invite {
   min-width: 0;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
-  color: rgba(255,255,255,0.88);
+  color: rgba(255,255,255,0.85);
   line-height: var(--line-height-title);
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -1368,7 +1368,7 @@ button.home-share-invite {
   font-size: var(--font-size-body-lg);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
-  color: rgba(255,255,255,0.9);
+  color: rgba(255,255,255,0.92);
   overflow-wrap: anywhere;
 }
 .explain-line {
@@ -1385,7 +1385,7 @@ button.home-share-invite {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
-  color: rgba(255,255,255,0.82);
+  color: rgba(255,255,255,0.85);
   overflow-wrap: anywhere;
 }
 .recap-main {
@@ -1403,7 +1403,7 @@ button.home-share-invite {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
-  color: rgba(255,255,255,0.78);
+  color: rgba(255,255,255,0.72);
   overflow-wrap: anywhere;
 }
 .copy-recap {

@@ -136,7 +136,7 @@
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   font-variant-numeric: tabular-nums;
-  color: rgba(255,255,255,0.78);
+  color: rgba(255,255,255,0.72);
   overflow-wrap: anywhere;
 }
 .sheet-close {
@@ -164,7 +164,7 @@
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-body);
   font-variant-numeric: tabular-nums;
-  color: rgba(255,255,255,0.9);
+  color: rgba(255,255,255,0.92);
 }
 .confirmation-copy {
   display: block;
