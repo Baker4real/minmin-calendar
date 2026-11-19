@@ -5,13 +5,13 @@
 /* ===== Aurora Bloom: Settings ===== */
 /* 第一组离顶栏 24rpx，与记录页、编辑页的首块顶距同一角色（issue #164） */
 .content {
-  padding: 24rpx 24rpx 30rpx;
+  padding: var(--space-page-first-block) var(--space-page-gutter) 30rpx;
   position: relative;
   z-index: 1;
 }
 
 .settings-group {
-  margin-bottom: 28rpx;
+  margin-bottom: var(--space-settings-group-gap);
 }
 .settings-group-title {
   display: block;
@@ -41,7 +41,7 @@ button.settings-share-invite {
 .menu-item {
   display: flex;
   align-items: center;
-  padding: 28rpx 30rpx;
+  padding: 28rpx var(--space-page-row-inset);
   border-bottom: 1px solid rgba(255,255,255,0.06);
   transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
@@ -98,7 +98,7 @@ button.settings-share-invite {
   transition: background-color var(--duration-press) ease;
 }
 .menu-item.danger .menu-text {
-  color: #F97373;
+  color: var(--color-danger);
 }
 /* 平涂层盖不到描边带：按下时描边同色提亮，和红色平涂层一起亮（issue #166） */
 .menu-item.danger:active,
@@ -139,7 +139,7 @@ button.settings-share-invite {
 .room-code-actions {
   display: flex;
   gap: 16rpx;
-  padding: 20rpx 30rpx 28rpx;
+  padding: 20rpx var(--space-page-row-inset) 28rpx;
 }
 .room-action-btn {
   flex: 1;
@@ -163,7 +163,7 @@ button.settings-share-invite {
 /* Calendar Density Preference — 首页日历密度的设置入口（issue #55 迁入） */
 .density-menu-desc {
   display: block;
-  padding: 28rpx 30rpx 8rpx;
+  padding: 28rpx var(--space-page-row-inset) 8rpx;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
@@ -172,7 +172,7 @@ button.settings-share-invite {
 }
 /* 密度选项与记录、绑定共用 shared/segmented-control.wxss 的卡内变体；本页只保留外边距。 */
 .density-control {
-  margin: 0 30rpx 28rpx;
+  margin: 0 var(--space-page-row-inset) 28rpx;
 }
 @media (prefers-reduced-motion: reduce) {
   .room-action-btn,

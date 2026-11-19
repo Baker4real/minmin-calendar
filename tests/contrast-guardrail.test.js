@@ -46,8 +46,8 @@ test('a surface fill is the cascaded background, or the background-color a tint 
 const repoRoot = path.join(__dirname, '..')
 const NEUTRAL_TITLE_COLOR = 'rgba(255,255,255,0.92)'
 const ROSE = '#E8909E'
-const LIGHT_HEART = '#F0C4C0'
-const WARNING_RED = '#F97373'
+const LIGHT_HEART = 'var(--color-memory)'
+const WARNING_RED = 'var(--color-danger)'
 const WARNING_RED_BORDER = 'rgba(249,115,115,0.28)'
 
 function readSource(relativePath) {
@@ -123,7 +123,7 @@ test('R5 sticky hairline composites white 8% beyond the observed 8-channel trigg
   const stroke = strokeColor(declared)
   assert.deepEqual([stroke.r, stroke.g, stroke.b].map(channel => Math.round(channel * 255)), [255, 255, 255])
   assert.equal(stroke.a, 0.08)
-  const sticky = cssColor(exactDeclaration(file, '.home-sticky', 'background'))
+  const sticky = layerPaint(exactDeclaration(file, '.home-sticky', 'background'))
   const line = composite(sticky, stroke, stroke.a)
   for (const [name, groundValue] of contrastGrounds(readSource('app.wxss'))) {
     const ground = hex(groundValue)
@@ -313,7 +313,7 @@ test('edit-form field errors reuse the one warning red and clear 4.5:1 on the fo
   assert.equal(color, WARNING_RED, 'field errors must reuse the warning red')
   for (const surface of stackSurfaces([['app.wxss', '.premium-card']])) {
     const card = toHex(surface)
-    const ratio = contrastRatio(color, card)
+    const ratio = contrastOn(layerPaint(color), surface)
     assert.ok(ratio >= 4.5, `.field-error ${color} on ${card} is ${ratio.toFixed(2)}:1, below 4.5:1`)
   }
 })
@@ -350,7 +350,7 @@ test('in-progress duration chip text clears 4.5:1 on the list-card composite', (
   const fill = cssColor(declarationOf('pages/period/period.wxss', '.item-duration.ongoing', 'background'))
   for (const card of stackSurfaces([['app.wxss', '.premium-card']])) {
     const surface = composite(card, fill, fill.a)
-    const ratio = contrastRatio(paint(color, surface), toHex(surface))
+    const ratio = contrastOn(layerPaint(color), surface)
     assert.ok(
       ratio >= 4.5,
       `in-progress duration chip ${color} on ${toHex(surface)} is ${ratio.toFixed(2)}:1, below 4.5:1`

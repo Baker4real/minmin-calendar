@@ -85,7 +85,7 @@ test('bind and settings copy buttons are the same rose small button pixel-for-pi
 
   // #232：契约五属性和 flex-shrink 只保留共享来源；页面原始文件只 import，不再各写一份。
   assert.equal(sharedRule.background, 'var(--aurora-pink)')
-  assert.equal(sharedRule.color, '#0A0E27')
+  assert.equal(sharedRule.color, 'var(--text-on-accent)')
   assert.equal(sharedRule['border-radius'], 'var(--radius-sm)')
   assert.equal(sharedRule.padding, '0 28rpx')
   assert.equal(sharedRule['box-shadow'], undefined)
@@ -118,7 +118,7 @@ test('bind buttons ride the app-level rose primary and warning-red danger famili
   // app 级基类保持玫瑰主按钮与警示红危险按钮（红 tint Pressed 对 needUnbind 入口直接生效）
   const appPremium = findRule(readPageFile('app.wxss'), '.btn-premium')
   assert.equal(appPremium.background, 'var(--aurora-pink)')
-  assert.equal(appPremium.color, '#0A0E27')
+  assert.equal(appPremium.color, 'var(--text-on-accent)')
   const appDangerTint = findRule(readPageFile('app.wxss'), '.btn-danger:active::before')
   assert.equal(appDangerTint['background-color'], 'rgba(249,115,115,0.12)')
 
@@ -184,7 +184,7 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
 
   // 错误提示保持警示红族（红字 + 红族浅底描边），需解绑中间态入口样式在场
   const errorMsg = findRule(css, '.error-msg')
-  assert.equal(errorMsg.color, '#F97373')
+  assert.equal(errorMsg.color, 'var(--color-danger)')
   assert.match(errorMsg.background, /rgba\(249,\s*115,\s*115,\s*0\.1\)/)
   assert.match(errorMsg.border, /1px solid rgba\(249,\s*115,\s*115,\s*0\.24\)/)
   // #234：重试不再是第二个红色错误面，整行句与首页、记录 tab 共用玫瑰可点色。

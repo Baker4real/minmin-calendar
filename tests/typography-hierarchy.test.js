@@ -45,12 +45,10 @@ function resolveRpx(decls, prop, tokens, label) {
   return Number(rpx[1])
 }
 
-function horizontalPaddingRpx(decls, label) {
+function horizontalPaddingRpx(decls, label, tokens = readAppTokens()) {
   const parts = String(decls.padding || '').trim().split(/\s+/)
   const token = parts.length >= 2 ? parts[1] : parts[0]
-  const match = /^(\d+(?:\.\d+)?)rpx$/.exec(token || '')
-  assert.ok(match, `expected horizontal padding in rpx on ${label}`)
-  return Number(match[1])
+  return resolveRpx({ length: token }, 'length', tokens, label)
 }
 
 function borderRpxAtNarrowest(decls) {

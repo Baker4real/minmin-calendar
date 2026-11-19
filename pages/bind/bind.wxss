@@ -198,7 +198,7 @@
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
-  color: #F97373;
+  color: var(--color-danger);
   margin-top: 20rpx;
   text-align: center;
   /* 错误条压在极光上：10% 红是叠在海军回退上的平涂层（issue #163），否则极光最亮处红字不到 4.5:1 */

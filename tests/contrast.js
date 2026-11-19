@@ -66,14 +66,28 @@ function toHexColor({ r, g, b }) {
   return `#${[r, g, b].map((channel) => Math.round(channel * 255).toString(16).padStart(2, '0')).join('')}`
 }
 
+function customProperties(css) {
+  return Object.fromEntries(
+    [...String(css).matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/gi)].map((match) => [`--${match[1]}`, match[2].trim()])
+  )
+}
+
+function resolveTokens(value, tokens) {
+  return String(value).replace(/var\((--[a-z0-9-]+)\)/gi, (reference, name) => {
+    if (!tokens[name]) throw new Error(`unknown color token ${name}`)
+    return resolveTokens(tokens[name], tokens)
+  })
+}
+
 function auroraPeakHex(appCss) {
   const rules = parseWxssRules(appCss)
+  const tokens = customProperties(appCss)
   const backgroundOf = (selector) => {
     const rule = rules.find((item) => item.selectors.includes(selector) && item.decls.background)
     if (!rule) throw new Error(`expected a background on ${selector}`)
     return rule.decls.background
   }
-  const colorsOf = (value) => [...value.matchAll(/#[0-9a-f]{6}\b|rgba\([^)]*\)/gi)].map((match) => cssRgb(match[0]))
+  const colorsOf = (value) => [...resolveTokens(value, tokens).matchAll(/#[0-9a-f]{6}\b|rgba\([^)]*\)/gi)].map((match) => cssRgb(match[0]))
 
   const luminance = (color) => relativeLuminance(toHexColor(color))
   let peak = colorsOf(backgroundOf('.page::before'))
@@ -96,10 +110,11 @@ function auroraPeakHex(appCss) {
 // 文字下面的两处背景：画布（app.wxss 的 page 底色）和极光最亮处，两处都要过线。
 // 给出 [名字, 十六进制色]，各测试换算成自己的颜色表示
 function contrastGrounds(appCss) {
+  const tokens = customProperties(appCss)
   const canvas = parseWxssRules(appCss)
-    .find((rule) => rule.selectors.includes('page') && /^#[0-9a-f]{6}$/i.test(rule.decls.background || ''))
+    .find((rule) => rule.selectors.includes('page') && /^#[0-9a-f]{6}$/i.test(resolveTokens(rule.decls.background || '', tokens)))
   if (!canvas) throw new Error('expected a solid page canvas background in app.wxss')
-  return [['canvas', canvas.decls.background], ['aurora peak', auroraPeakHex(appCss)]]
+  return [['canvas', resolveTokens(canvas.decls.background, tokens)], ['aurora peak', auroraPeakHex(appCss)]]
 }
 
 // 叠在背景上的一层表面的底色：这个选择器的各条规则按出现顺序层叠，取 background 简写或平涂层的 background-color

@@ -73,7 +73,7 @@ test('rose fill buttons share one flex and positioning base while modifiers keep
   for (const [file, selector, radius] of modifiers) {
     const decls = declarations(file, selector)
     assert.equal(decls.background, 'var(--aurora-pink)', `${selector} keeps its rose fill`)
-    assert.equal(decls.color, '#0A0E27', `${selector} keeps its navy label`)
+    assert.equal(decls.color, 'var(--text-on-accent)', `${selector} keeps its navy label`)
     assert.equal(decls['border-radius'], radius, `${selector} keeps its radius modifier`)
     for (const property of ['display', 'align-items', 'justify-content', 'position']) {
       assert.equal(decls[property], undefined, `${selector} leaves ${property} to the shared base`)

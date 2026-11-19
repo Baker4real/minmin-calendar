@@ -8,7 +8,7 @@
 }
 /* 导航标题使用共享顶栏的中性白；月份标题 .month-title 保持玫瑰，因为它打开选月。 */
 .content {
-  padding: 0 24rpx 30rpx;
+  padding: 0 var(--space-page-gutter) 30rpx;
   position: relative;
   z-index: 1;
 }
@@ -248,8 +248,8 @@ button.home-share-invite {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  padding: 0 24rpx;
-  background: #0A0E27;
+  padding: 0 var(--space-page-gutter);
+  background: var(--aurora-bg);
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 /* 占位 = 月份导航 130 + 状态行 88（+「回到今天」88），另加月份导航 1px 上下描边与 R5 吸顶底边 1px，下方第一行不被吸顶区盖住 */
@@ -689,7 +689,7 @@ button.home-share-invite {
   height: auto;
   border-radius: 0;
   overflow: visible;
-  color: #F0C4C0;
+  color: var(--color-memory);
 }
 
 /* Predict Mark – Gold */
@@ -802,7 +802,7 @@ button.home-share-invite {
   gap: 12rpx;
   padding: 14rpx 24rpx;
   background: var(--aurora-pink);
-  color: #0A0E27;
+  color: var(--text-on-accent);
   border-radius: var(--radius-md);
   border: 1px solid rgba(255,255,255,0.16);
   transition: transform var(--duration-press) var(--ease-out);
@@ -824,7 +824,7 @@ button.home-share-invite {
   text-align: center;
   border-radius: var(--radius-circle);
   font-size: 32rpx;
-  background: #0A0E27;
+  background: var(--aurora-bg);
 }
 /* 进行中经期的「经期第 N 天 · 记结束」一行放不下（issue #159）：连写的中文不拆，只在空格处折成两行，
    两行紧行高仍在 104rpx 按钮里（上下内边距因此是 14rpx），首屏账本的记录入口高度不变 */
@@ -833,7 +833,7 @@ button.home-share-invite {
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-title);
   word-break: keep-all;
-  color: #0A0E27;
+  color: var(--text-on-accent);
 }
 /* 欢乐时光是次操作：沿用 button-ghost 的透明底、玫瑰描边与玫瑰字；半栏几何和触控高度仍由 .quick-btn 给。
    透明按钮落在自己的画布海军面上，不让极光峰值把玫瑰字压到 4.5:1 以下。 */
@@ -841,7 +841,7 @@ button.home-share-invite {
   flex: 1;
   min-width: 0;
   display: flex;
-  background: #0A0E27;
+  background: var(--aurora-bg);
   border-radius: var(--radius-full);
 }
 .quick-btn.btn-ghost {
@@ -1048,7 +1048,7 @@ button.home-share-invite {
   background: rgba(255,255,255,0.13);
 }
 .jump-option.active {
-  color: #0A0E27;
+  color: var(--text-on-accent);
   background: var(--aurora-pink);
   border-color: rgba(255,255,255,0.18);
   box-shadow: 0 12rpx 28rpx rgba(232,144,158,0.18);
@@ -1089,7 +1089,7 @@ button.home-share-invite {
   background: var(--glass-bg);
 }
 .memory-tone {
-  color: #F0C4C0;
+  color: var(--color-memory);
   box-shadow: inset 0 0 0 1px rgba(240,196,192,0.28);
 }
 .detail-tone {
@@ -1222,7 +1222,7 @@ button.home-share-invite {
   box-shadow: 0 0 16rpx rgba(232,144,158,0.35);
 }
 .memory-detail .detail-rail {
-  background: #F0C4C0;
+  background: var(--color-memory);
   box-shadow: 0 0 16rpx rgba(240,196,192,0.32);
 }
 .detail-copy {
@@ -1250,7 +1250,7 @@ button.home-share-invite {
   color: #E8909E;
 }
 .memory-detail .detail-title {
-  color: #F0C4C0;
+  color: var(--color-memory);
 }
 .detail-main {
   min-width: 0;
@@ -1415,7 +1415,7 @@ button.home-share-invite {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-control);
   white-space: nowrap;
-  color: #0A0E27;
+  color: var(--text-on-accent);
   background: var(--aurora-pink);
   transition: transform var(--duration-press) var(--ease-out);
 }
@@ -1431,7 +1431,7 @@ button.home-share-invite {
 .calendar-skeleton {
   position: relative;
   z-index: 1;
-  padding: 0 24rpx 30rpx;
+  padding: 0 var(--space-page-gutter) 30rpx;
   pointer-events: none;
   animation: skeletonPulse 2.4s ease-in-out infinite;
 }

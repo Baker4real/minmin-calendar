@@ -4,7 +4,7 @@
 /* ===== Aurora Bloom: Period Edit ===== */
 /* 导航标题使用 pages/shared/nav-bar.wxss 的中性白。 */
 .content {
-  padding: 24rpx 24rpx calc(24rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  padding: var(--space-page-first-block) var(--space-page-gutter) calc(24rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
   position: relative;
   z-index: 1;
 }
@@ -117,7 +117,7 @@
 }
 .flow-chip.active,
 .symptom-chip.active {
-  color: #0A0E27;
+  color: var(--text-on-accent);
   background: rgba(232,144,158,0.92);
   border-color: rgba(232,144,158,0.95);
   box-shadow: 0 0 18rpx rgba(232,144,158,0.22);

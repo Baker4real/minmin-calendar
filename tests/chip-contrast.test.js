@@ -44,6 +44,13 @@ function selectorIsActiveChip(selector, chipClass) {
 }
 
 function cssColorToHex(value) {
+  const token = /^var\((--[a-z0-9-]+)\)$/i.exec(String(value).trim())
+  if (token) {
+    const app = readSource(path.join(__dirname, '..', 'app.wxss'), 'utf8')
+    const definition = new RegExp(`${token[1]}\\s*:\\s*([^;]+);`).exec(app)
+    assert.ok(definition, `expected ${token[1]} in app.wxss`)
+    return cssColorToHex(definition[1])
+  }
   const hexMatch = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(value).trim())
   if (hexMatch) {
     let hex = hexMatch[1]
@@ -160,7 +167,7 @@ test('list flow tag shares the selected segment quiet rose treatment', () => {
 })
 
 test('list flow tag quiet treatment leaves the in-progress duration solid', () => {
-  assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-duration.ongoing', 'color'), '#0A0E27')
+  assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-duration.ongoing', 'color'), 'var(--text-on-accent)')
   assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-duration.ongoing', 'background'), 'rgba(232,144,158,0.92)')
   const editChip = activeChipPair(PERIOD_EDIT_WXSS, 'flow-chip')
   assert.equal(editChip.fill, '#E8909E')

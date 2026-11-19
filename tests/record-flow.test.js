@@ -133,7 +133,7 @@ test('period list failure retry is a recognizable operation, distinct from the q
   const retryRule = /\.retry-btn\s*\{[^}]*\}/.exec(periodWxss)
   assert.ok(retryRule, 'expected the .retry-btn rule')
   assert.match(retryRule[0], /background:\s*var\(--aurora-pink\)/)
-  assert.match(retryRule[0], /color:\s*#0A0E27/)
+  assert.match(retryRule[0], /color:\s*var\(--text-on-accent\)/)
   assert.match(retryRule[0], /min-height:\s*88rpx/)
 })
 
@@ -364,7 +364,7 @@ test('edit forms read each displayed date and keep its own error inside that pic
   const rule = /\.field-error\s*\{([^}]*)\}/.exec(readPageFile('app.wxss'))
   assert.ok(rule, 'app.wxss defines the shared .field-error')
   assert.match(rule[1], /display:\s*block/)
-  assert.match(rule[1], /color:\s*#F97373/)
+  assert.match(rule[1], /color:\s*var\(--color-danger\)/)
   assert.match(rule[1], /font-size:\s*var\(--font-size-caption\)/)
   for (const file of ['pages/period/edit/edit.wxss', 'pages/memory/edit/edit.wxss']) {
     assert.doesNotMatch(readPageFile(file), /\.field-error\b/, `${file} reuses the shared .field-error`)

@@ -97,8 +97,11 @@ const CAPSULE_SAMPLES = [
 
 function lengthTokenRpx(token) {
   if (token === '0') return 0
-  const match = /^(\d+(?:\.\d+)?)rpx$/.exec(token)
-  assert.ok(match, `expected an rpx length, got ${token}`)
+  const variable = /^var\((--[a-z0-9-]+)\)$/.exec(token)
+  const resolved = variable ? APP_TOKENS[variable[1]] : token
+  assert.ok(resolved, variable ? `unknown token ${variable[1]}` : 'expected an rpx length')
+  const match = /^(\d+(?:\.\d+)?)rpx$/.exec(resolved)
+  assert.ok(match, `expected an rpx length, got ${resolved}`)
   return Number(match[1])
 }
 

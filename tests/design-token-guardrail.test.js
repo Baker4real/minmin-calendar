@@ -143,6 +143,39 @@ function appCustomProperties() {
   return tokens
 }
 
+const SEMANTIC_COLOR_TOKENS = {
+  '--color-danger': '#F97373',
+  '--color-memory': '#F0C4C0',
+  '--text-on-accent': '#0A0E27'
+}
+
+test('semantic color tokens keep danger, memory and accent-label literals in the app token block', () => {
+  const tokens = appCustomProperties()
+  const design = readSource(path.join(repoRoot, 'DESIGN.md'), 'utf8')
+  for (const [name, value] of Object.entries(SEMANTIC_COLOR_TOKENS)) {
+    assert.equal(tokens[name], value, `${name} should be ${value}, got ${tokens[name]}`)
+    assert.ok(design.includes(name), `DESIGN.md is missing the ${name} registration`)
+  }
+
+  const app = readSource(path.join(repoRoot, 'app.wxss'), 'utf8')
+  const tokenBlock = /(?:^|\n)page\s*\{[\s\S]*?\}/.exec(app)
+  assert.ok(tokenBlock, 'app.wxss must have the page token definition block')
+  const tokenBlockEnd = tokenBlock.index + tokenBlock[0].length
+  const violations = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    const source = readSource(file, 'utf8')
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
+    for (const literal of Object.values(SEMANTIC_COLOR_TOKENS)) {
+      for (const match of code.matchAll(new RegExp(`${literal}\\b`, 'gi'))) {
+        const inTokenBlock = relative === 'app.wxss' && match.index >= tokenBlock.index && match.index < tokenBlockEnd
+        if (!inTokenBlock) violations.push(`${relative} uses ${literal} outside the app token block`)
+      }
+    }
+  }
+  assert.deepEqual(violations, [])
+})
+
 test('app.wxss defines the shared spacing scale tokens and DESIGN.md registers them', () => {
   const tokens = appCustomProperties()
   const design = readSource(path.join(repoRoot, 'DESIGN.md'), 'utf8')
@@ -152,12 +185,13 @@ test('app.wxss defines the shared spacing scale tokens and DESIGN.md registers t
   }
 })
 
-// 页面节奏角色（issue #164）：记录、欢乐时光、设置和两个编辑页共用一套留白。数值留在各页 WXSS，
-// 这里按角色逐处比对，同一角色不许各页各写一个近似值。首页吸顶区与日历的槽位归几何账本
+// 页面节奏角色（issue #164 / #245）：记录、欢乐时光、设置和两个编辑页共用一套语义 token。
+// 这里按角色逐处比对数值与 token 引用，不许各页各写一个近似值或绕回字面量。首页吸顶区与日历的槽位归几何账本
 // （utils/calendarRowHeight.js），这里只登记它的页边距；绑定页是居中 hero 布局，不在表里。
 const PAGE_RHYTHM_RPX = { gutter: 24, firstBlock: 24, blockGap: 20, rowInset: 30 }
 const PAGE_RHYTHM_SITES = [
   ['gutter', 'pages/index/index.wxss', '.content', 'padding', 'x'],
+  ['gutter', 'pages/index/index.wxss', '.calendar-skeleton', 'padding', 'x'],
   ['gutter', 'pages/index/index.wxss', '.home-sticky', 'padding', 'x'],
   ['gutter', 'pages/period/period.wxss', '.content', 'padding', 'x'],
   ['gutter', 'pages/settings/settings.wxss', '.content', 'padding', 'x'],
@@ -181,6 +215,13 @@ const PAGE_RHYTHM_SITES = [
   ['rowInset', 'pages/settings/settings.wxss', '.density-control', 'margin', 'x'],
   ['rowInset', 'pages/settings/settings.wxss', '.room-code-actions', 'padding', 'x']
 ]
+const PAGE_RHYTHM_TOKENS = {
+  gutter: '--space-page-gutter',
+  firstBlock: '--space-page-first-block',
+  blockGap: '--space-page-block-gap',
+  rowInset: '--space-page-row-inset'
+}
+const SETTINGS_GROUP_GAP_TOKEN = '--space-settings-group-gap'
 
 function splitBoxValue(value) {
   const parts = []
@@ -211,7 +252,7 @@ function lengthRpx(raw, tokens) {
 
 // margin/padding 某一边的 rpx；side 为 x 时左右必须相等。没写这一边就是 0。
 // 同一选择器的多条规则按出现顺序层叠（例如减弱动效块里只写 transition 的那条不清掉内边距）。
-function boxSideRpx(file, selector, prop, side, tokens) {
+function boxSideRpx(file, selector, prop, side, tokens, resolve = true) {
   const rules = parseWxssRules(readSource(path.join(repoRoot, file), 'utf8'))
     .filter((candidate) => candidate.selectors.includes(selector))
   assert.ok(rules.length > 0, `expected ${selector} in ${file}`)
@@ -227,11 +268,15 @@ function boxSideRpx(file, selector, prop, side, tokens) {
     }
   }
   if (side === 'x') {
+    if (!resolve) {
+      assert.equal(sides.right, sides.left, `${file} ${selector} ${prop} left and right differ`)
+      return sides.left
+    }
     const left = lengthRpx(sides.left, tokens)
     assert.equal(lengthRpx(sides.right, tokens), left, `${file} ${selector} ${prop} left and right differ`)
     return left
   }
-  return lengthRpx(sides[side], tokens)
+  return resolve ? lengthRpx(sides[side], tokens) : sides[side]
 }
 
 test('records, memory, settings and edit pages share one value per page-rhythm role', () => {
@@ -244,6 +289,29 @@ test('records, memory, settings and edit pages share one value per page-rhythm r
     }
   }
   assert.deepEqual(drift, [])
+})
+
+test('registered page-rhythm roles reference semantic spacing tokens from the app token block', () => {
+  const tokens = appCustomProperties()
+  const design = readSource(path.join(repoRoot, 'DESIGN.md'), 'utf8')
+  for (const [role, name] of Object.entries(PAGE_RHYTHM_TOKENS)) {
+    assert.equal(tokens[name], `${PAGE_RHYTHM_RPX[role]}rpx`, `${name} should match the ${role} role`)
+    assert.ok(design.includes(name), `DESIGN.md is missing the ${name} registration`)
+  }
+  assert.equal(tokens[SETTINGS_GROUP_GAP_TOKEN], '28rpx')
+  assert.ok(design.includes(SETTINGS_GROUP_GAP_TOKEN), `DESIGN.md is missing the ${SETTINGS_GROUP_GAP_TOKEN} registration`)
+
+  const literals = []
+  for (const [role, file, selector, prop, side] of PAGE_RHYTHM_SITES) {
+    const declared = boxSideRpx(file, selector, prop, side, tokens, false)
+    const expected = `var(${PAGE_RHYTHM_TOKENS[role]})`
+    if (declared !== expected) literals.push(`${role}: ${file} ${selector} ${prop}-${side} is ${declared}, expected ${expected}`)
+  }
+  const settingsGroup = boxSideRpx('pages/settings/settings.wxss', '.settings-group', 'margin', 'bottom', tokens, false)
+  if (settingsGroup !== `var(${SETTINGS_GROUP_GAP_TOKEN})`) {
+    literals.push(`settings group gap is ${settingsGroup}, expected var(${SETTINGS_GROUP_GAP_TOKEN})`)
+  }
+  assert.deepEqual(literals, [])
 })
 
 test('both record segments start their first block one block gap below the segment control', () => {
@@ -679,7 +747,7 @@ test('day detail record tags use rose and light pink, not gold', () => {
     return rule.decls.color || ''
   }
   assert.match(colorOf('.period-detail .detail-title'), /#E8909E|var\(--aurora-pink\)/)
-  assert.match(colorOf('.memory-detail .detail-title'), /#F0C4C0/)
+  assert.equal(colorOf('.memory-detail .detail-title'), 'var(--color-memory)')
   assert.equal(INDEX_GOLD_ALLOWLIST.has('.detail-title'), false)
   assert.match(colorOf('.detail-meaning.predict .detail-meaning-title'), /var\(--aurora-gold\)/)
   assert.match(colorOf('.detail-meaning.holiday .detail-meaning-title'), /var\(--aurora-gold\)/)

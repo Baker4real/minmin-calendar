@@ -23,7 +23,7 @@
   box-sizing: border-box;
   white-space: nowrap;
   background: var(--aurora-pink);
-  color: #0A0E27;
+  color: var(--text-on-accent);
   padding: 0 28rpx;
   border-radius: var(--radius-sm);
   font-size: var(--font-size-caption);

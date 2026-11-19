@@ -79,7 +79,7 @@ test('bind validation retry shares the rose row while its error strip stays warn
   assertOnlyLocalMargins(file, '.error-retry', ['margin-top'])
 
   const error = declarations(file, '.error-msg')
-  assert.equal(error.color, '#F97373')
+  assert.equal(error.color, 'var(--color-danger)')
   assert.match(error.background, /rgba\(249,\s*115,\s*115,\s*0\.1\)/)
   assert.match(error.border, /rgba\(249,\s*115,\s*115,\s*0\.24\)/)
   const wxml = readSource(path.join(repoRoot, 'pages/bind/bind.wxml'), 'utf8')

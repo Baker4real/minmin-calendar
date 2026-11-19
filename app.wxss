@@ -14,6 +14,11 @@ page {
   --aurora-purple: #C4A0D2;
   --aurora-gold: #D4A574;
 
+  /* Semantic Colors — 实色字面量只留在 token 定义块（issue #245） */
+  --color-danger: #F97373;
+  --color-memory: #F0C4C0;
+  --text-on-accent: #0A0E27;
+
   /* Glass */
   --glass-bg: rgba(255,255,255,0.08);
   --glass-border: rgba(255,255,255,0.12);
@@ -52,6 +57,13 @@ page {
   --space-lg: 48rpx;
   --space-xl: 64rpx;
   --space-xxl: 96rpx;
+
+  /* Page Rhythm — 已登记的页面留白角色（issue #164 / #245） */
+  --space-page-gutter: 24rpx;
+  --space-page-first-block: 24rpx;
+  --space-page-block-gap: 20rpx;
+  --space-page-row-inset: 30rpx;
+  --space-settings-group-gap: 28rpx;
 
   /* Text on Dark */
   --text-white: #FFFFFF;
@@ -93,7 +105,7 @@ page {
 /* ===== Aurora Background ===== */
 page {
   /* 实色基底；极光画在视口固定层上，滚动时底部不出现色带分层 */
-  background: #0A0E27;
+  background: var(--aurora-bg);
   color: var(--text-primary);
   min-height: 100vh;
 }
@@ -115,7 +127,7 @@ page {
   right: 0;
   bottom: 0;
   left: 0;
-  background: linear-gradient(168deg, #0A0E27 0%, #0A0E27 28%, #12163D 62%, #1A0A2E 100%);
+  background: linear-gradient(168deg, var(--aurora-bg) 0%, var(--aurora-bg) 28%, #12163D 62%, #1A0A2E 100%);
   pointer-events: none;
   z-index: 0;
 }
@@ -201,7 +213,7 @@ page {
 .btn-premium {
   gap: 12rpx;
   background: var(--aurora-pink);
-  color: #0A0E27;
+  color: var(--text-on-accent);
   border-radius: var(--radius-md);
   padding: 26rpx 0;
   font-size: var(--font-size-button);
@@ -270,7 +282,7 @@ button.share-invite {
   border: none;
   border-radius: var(--radius-md);
   background: var(--aurora-pink);
-  color: #0A0E27;
+  color: var(--text-on-accent);
   font-size: var(--font-size-button);
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-body);
@@ -289,7 +301,7 @@ button.share-invite::after {
 /* ===== Danger Button — 柔红，与玫瑰体系同族 ===== */
 .btn-danger {
   background: var(--glass-fallback);
-  color: #F97373;
+  color: var(--color-danger);
   text-align: center;
   padding: 26rpx;
   border-radius: var(--radius-md);
@@ -378,7 +390,7 @@ button.share-invite::after {
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
-  color: #F97373;
+  color: var(--color-danger);
 }
 
 /* ===== Header gradient lives in the shared navbar stylesheet ===== */

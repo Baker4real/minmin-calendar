@@ -123,11 +123,10 @@ test('day-cell template reads only its render fields, not projection-only metada
 })
 
 test('empty-state guide text meets the secondary-text contrast floor on its composed surface', () => {
-  const { contrastRatio } = require('./contrast')
+  const { contrastGrounds, contrastRatio } = require('./contrast')
   const appWxss = readSource(path.join(repoRoot, 'app.wxss'), 'utf8')
   const wxss = readIndexWxss()
-  const canvasMatch = /page\s*\{[^}]*?background:\s*(#[0-9a-f]{6})/i.exec(appWxss)
-  assert.ok(canvasMatch)
+  const canvas = contrastGrounds(appWxss).find(([name]) => name === 'canvas')[1]
   const guideBg = /background:\s*rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*([\d.]+)\s*\)/.exec(ruleBody(wxss, '.empty-guide'))
   const guideText = /color:\s*rgba\(\s*255\s*,\s*255\s*,\s*255\s*,\s*([\d.]+)\s*\)/.exec(ruleBody(wxss, '.empty-guide-text'))
   assert.ok(guideBg && guideText)
@@ -135,7 +134,7 @@ test('empty-state guide text meets the secondary-text contrast floor on its comp
     const channels = [1, 3, 5].map(i => parseInt(bgHex.slice(i, i + 2), 16))
     return `#${channels.map(channel => Math.round(alpha * 255 + (1 - alpha) * channel).toString(16).padStart(2, '0')).join('')}`
   }
-  const surface = compositeWhiteOver(Number(guideBg[1]), canvasMatch[1])
+  const surface = compositeWhiteOver(Number(guideBg[1]), canvas)
   const foreground = compositeWhiteOver(Number(guideText[1]), surface)
   const ratio = contrastRatio(foreground, surface)
   assert.ok(ratio >= 4.5, `empty guide text ${foreground} on ${surface} = ${ratio.toFixed(2)}:1`)
@@ -290,17 +289,17 @@ test('quick record actions keep period primary and memory button-ghost with read
   const button = ruleBody(wxss, '.quick-btn')
   assert.match(button, /background:\s*var\(--aurora-pink\)/i)
   assert.doesNotMatch(button, /linear-gradient|gradient-gold/i)
-  assert.match(button, /color:\s*#0A0E27/i)
-  assert.match(ruleBody(wxss, '.quick-text'), /color:\s*#0A0E27/i)
+  assert.match(button, /color:\s*var\(--text-on-accent\)/i)
+  assert.match(ruleBody(wxss, '.quick-text'), /color:\s*var\(--text-on-accent\)/i)
   const quick = wxml.slice(wxml.indexOf('class="quick-actions"'), wxml.indexOf('class="month-summary"'))
   assert.match(quick, /class="quick-btn button-primary" bindtap="quickPeriod"/)
   assert.match(quick, /class="quick-ghost-surface">\s*<view class="quick-btn btn-ghost button-outline" bindtap="quickMemory"/)
-  assert.match(ruleBody(wxss, '.quick-ghost-surface'), /background:\s*#0A0E27/i)
+  assert.match(ruleBody(wxss, '.quick-ghost-surface'), /background:\s*var\(--aurora-bg\)/i)
   assert.match(quick.slice(0, quick.indexOf('bindtap="quickMemory"')), /class="quick-icon sample-plate">\s*<view class="action-sample day-cell \{\{cellClass\}\} calendar-density-\{\{calendarDensity\}\}">\s*<view wx:for="\{\{parts\}\}" wx:for-item="part" wx:key="className" class="\{\{part\.className\}\}"><\/view>/)
   assert.match(quick, /class="quick-icon memory-tone">♥<\/text>/)
   assert.doesNotMatch(quick, /🩸|❤️|●/)
-  assert.match(ruleBody(wxss, '.memory-tone'), /color:\s*#F0C4C0/i)
-  assert.match(ruleBody(wxss, '.quick-icon'), /background:\s*#0A0E27/i)
+  assert.match(ruleBody(wxss, '.memory-tone'), /color:\s*var\(--color-memory\)/i)
+  assert.match(ruleBody(wxss, '.quick-icon'), /background:\s*var\(--aurora-bg\)/i)
   assert.match(ruleBody(wxss, '.quick-icon'), /border-radius:\s*var\(--radius-circle\)/)
   const ghost = ruleBody(wxss, '.quick-btn.btn-ghost')
   assert.match(ghost, /background:\s*transparent/i)
@@ -353,7 +352,7 @@ test('home skeleton mirrors the real content margins, sticky slot and ledger row
   assert.match(skeleton, /wx:for="\{\{days\}\}"/)
 
   const wxss = readIndexWxss()
-  assert.match(ruleBody(wxss, '.calendar-skeleton'), /padding:\s*0 24rpx/)
+  assert.match(ruleBody(wxss, '.calendar-skeleton'), /padding:\s*0 var\(--space-page-gutter\)/)
   assert.match(ruleBody(wxss, '.skeleton-cell'), /height:\s*var\(--calendar-row-height/)
   const pulseRules = [...wxss.matchAll(/([^{}@]+)\{[^{}]*animation:\s*skeletonPulse[^{}]*\}/g)]
   assert.equal(pulseRules.length, 1, 'only the skeleton parent pulses')

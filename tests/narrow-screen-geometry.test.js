@@ -120,6 +120,10 @@ function tokenRpx(token, appTokens) {
   return parseFloat(variable ? appTokens[variable[1]] : token)
 }
 
+function horizontalPaddingRpx(decls, appTokens = readAppTokens()) {
+  return horizontalPaddingTokens(decls).map(token => tokenRpx(token, appTokens))
+}
+
 test('rules with explicit width and horizontal padding use border-box (no additive overflow)', () => {
   const offenders = []
   for (const file of listWxssFiles(repoRoot)) {
@@ -230,8 +234,8 @@ test('record tab memory month card header stays on one line at 320px', () => {
 
   const fontSizeRpx = Number(/(\d+)rpx/.exec(appTokens['--font-size-body'])[1])
   const toggleSizeRpx = Number(/(\d+)rpx/.exec(appTokens['--font-size-caption'])[1])
-  const contentPadRpx = Number(/(\d+)rpx/.exec(horizontalPaddingTokens(content)[0])[1])
-  const headerPadRpx = Number(/(\d+)rpx/.exec(horizontalPaddingTokens(header)[0])[1])
+  const contentPadRpx = horizontalPaddingRpx(content)[0]
+  const headerPadRpx = horizontalPaddingRpx(header, appTokens)[0]
   const headerGapRpx = Number(/(\d+)rpx/.exec(header.gap)[1])
   const availableRpx = 750 - 2 * contentPadRpx - 2 * headerPadRpx
 
@@ -256,7 +260,7 @@ test('calendar day cells keep the 44px touch height at 320px in both densities',
   const widthPct = Number(/(\d+(?:\.\d+)?)%/.exec(cell.width)[1])
   const fullHeight = rpxNumber(cell, 'height')
   const compactHeight = rpxNumber(compactCell, 'height')
-  const contentPadRpx = Number(/(\d+)rpx/.exec(horizontalPaddingTokens(content)[0])[1])
+  const contentPadRpx = horizontalPaddingRpx(content)[0]
   const gridBorderPx = Number(/(\d+(?:\.\d+)?)px/.exec(grid.border)[1])
 
   // 高度（DESIGN.md：触控高度至少 44px），三档视口两密度都须满足
@@ -497,7 +501,7 @@ test('the first-screen ledger is the CSS flow above the record actions', async (
   assert.equal(copies.length, 3, 'observed both collection failures and the all-collection retry')
   const appTokens = readAppTokens()
   const captionRpx = parseFloat(appTokens['--font-size-caption'])
-  const contentPadRpx = parseFloat(horizontalPaddingTokens(findDecls(rules, '.content'))[0])
+  const contentPadRpx = horizontalPaddingRpx(findDecls(rules, '.content'))[0]
   const retryPadRpx = parseFloat(horizontalPaddingTokens(retry)[0])
   const lineRpx = 750 - 2 * contentPadRpx - 2 * retryPadRpx - 2 * borderPx(retry) * 750 / 320
   for (const copy of copies) {
@@ -531,7 +535,7 @@ test('the ongoing quick-period label wraps only at its spaces and two lines stay
 
   // 文字列宽（320px 下 1px 描边最宽）= 半行按钮宽 − 左右内边距 − 描边 − 圆盘 − 图文间距
   const fontRpx = parseFloat(appTokens['--font-size-body'])
-  const contentPadRpx = parseFloat(horizontalPaddingTokens(findDecls(rules, '.content'))[0])
+  const contentPadRpx = horizontalPaddingRpx(findDecls(rules, '.content'))[0]
   const borderRpx = borderPx(button) * 750 / 320
   const columnRpx = (750 - 2 * contentPadRpx - rpxNumber(findDecls(rules, '.quick-actions'), 'gap')) / 2 -
     2 * parseFloat(horizontalPaddingTokens(button)[0]) - 2 * borderRpx -
@@ -610,7 +614,7 @@ test('every longest home status form fits one line and the 88rpx ledger stays un
   const mainFont = parseFloat(appTokens['--font-size-body-lg'])
   const countdownFont = parseFloat(appTokens['--font-size-caption'])
   const widthRpx = (copy, fontRpx) => [...copy].reduce((sum, ch) => sum + (/\d/.test(ch) ? 0.6 : ch === ' ' ? 0.5 : 1), 0) * fontRpx
-  const availableRpx = 750 - 2 * parseFloat(horizontalPaddingTokens(sticky)[0]) - 2 * parseFloat(horizontalPaddingTokens(status)[0] || '0')
+  const availableRpx = 750 - 2 * horizontalPaddingRpx(sticky, appTokens)[0] - 2 * parseFloat(horizontalPaddingTokens(status)[0] || '0')
   const gapRpx = rpxNumber(status, 'gap')
   const arrowRpx = rpxNumber(arrow, 'width')
   for (const form of forms) {
@@ -765,7 +769,7 @@ test('the clickable partner welcome copy fits two rpx lines and its box matches 
 
   // 文案恰好两行：CJK 与全角标点 1em；拉丁字母 0.5–0.7em、空格 0.25–0.5em、♥ 0.5–1em 取上下界。
   // 超长时缩短说明文字，caption 字号不变。
-  const contentPadRpx = parseFloat(horizontalPaddingTokens(findDecls(rules, '.content'))[0])
+  const contentPadRpx = horizontalPaddingRpx(findDecls(rules, '.content'))[0]
   const lineEm = (750 - 2 * contentPadRpx - 2 * margin[1]) / fontRpx
   let minEm = 0
   let maxEm = 0
@@ -841,7 +845,7 @@ test('waiting invitation and creator welcome use the same calendar ledger slot w
 
     const copyRules = findDecls(rules, '.partner-invite-title')
     assert.equal(copyRules['white-space'], 'nowrap')
-    const contentPadRpx = parseFloat(horizontalPaddingTokens(findDecls(rules, '.content'))[0])
+    const contentPadRpx = horizontalPaddingRpx(findDecls(rules, '.content'))[0]
     const inviteMarginRpx = parseFloat(splitCssTokens(invite.margin)[1])
     const shareTextWidth = 3 * fontRpx + 2 * parseFloat(horizontalPaddingTokens(share)[0])
     const shareWidth = Math.max(rpxNumber(share, 'min-width'), shareTextWidth)
@@ -884,7 +888,7 @@ test('leftmost and rightmost calendar columns keep their content off the grid bo
   assert.deepEqual(horizontalPaddingTokens(week), ['10rpx'])
 
   const widthPct = Number(/(\d+(?:\.\d+)?)%/.exec(cell.width)[1])
-  const contentPadRpx = Number(/(\d+)rpx/.exec(horizontalPaddingTokens(content)[0])[1])
+  const contentPadRpx = horizontalPaddingRpx(content)[0]
   const gridBorderPx = Number(/(\d+(?:\.\d+)?)px/.exec(grid.border)[1])
   const gridPadRpx = 10
   for (const viewportPx of [320, 375, 390]) {
