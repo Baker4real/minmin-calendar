@@ -37,18 +37,18 @@ test('three date fields and three period chip groups use the shared field templa
   assert.doesNotMatch(memory, /<picker\b/, 'memory keeps no local date-picker markup')
 })
 
-test('both edit pages import the sixteen identical form rules from one stylesheet', () => {
+test('both edit pages import the fifteen identical form rules from one stylesheet', () => {
   const sharedPath = 'pages/shared/record-form.wxss'
   assert.ok(fs.existsSync(path.join(repoRoot, sharedPath)), 'the shared record-form stylesheet exists')
   const sharedRules = parseWxssRules(readSource(path.join(repoRoot, sharedPath), 'utf8'))
   const selectors = [
     '.form-item', '.form-item:last-child', '.form-label', '.form-picker',
     '.form-picker-arrow', '.form-picker:active', '.form-picker.disabled',
-    '.form-input', '.form-input:focus', '.input-placeholder',
+    '.form-input', '.input-placeholder',
     '.draft-notice', '.draft-discard', '.draft-discard:active',
     '.btns', '.btn-premium', '.delete-zone'
   ]
-  assert.equal(selectors.length, 16)
+  assert.equal(selectors.length, 15)
   for (const selector of selectors) {
     assert.ok(sharedRules.some(rule => rule.selectors.includes(selector)), `shared stylesheet owns ${selector}`)
   }
@@ -77,9 +77,9 @@ test('room-code and edit inputs share only box structure while modifiers keep th
   assert.match(readRaw('pages/shared/record-form.wxss'), /@import '\.\/form-control\.wxss';/)
   assert.match(readRaw('pages/bind/bind.wxss'), /@import '\.\.\/shared\/form-control\.wxss';/)
   assert.match(readRaw('pages/shared/form-controls.wxml'), /class="form-picker form-control\{\{saving/)
-  assert.match(readRaw('pages/bind/bind.wxml'), /class="code-input form-control"/)
+  assert.match(readRaw('pages/bind/bind.wxml'), /class="code-input form-control\{\{codeFocused/)
   for (const kind of ['period', 'memory']) {
-    assert.match(readRaw(`pages/${kind}/edit/edit.wxml`), /class="form-input form-control"/)
+    assert.match(readRaw(`pages/${kind}/edit/edit.wxml`), /class="form-input form-control\{\{noteFocused/)
   }
 
   for (const [file, selector] of [

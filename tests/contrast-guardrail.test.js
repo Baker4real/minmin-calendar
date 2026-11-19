@@ -297,6 +297,21 @@ function strokeColor(declared) {
   return cssColor(color[0])
 }
 
+test('R10 focused form controls keep the rose border at least 3:1 on their field surfaces', () => {
+  const focus = declarationOf('pages/shared/form-control.wxss', '.form-control.form-control-focused', 'border-color')
+  assert.equal(focus, ROSE)
+  const rose = layerPaint(focus)
+  for (const [file, selector] of [
+    ['pages/bind/bind.wxss', '.code-input'],
+    ['pages/shared/record-form.wxss', '.form-input']
+  ]) {
+    for (const surface of stackSurfaces([[file, selector]])) {
+      const ratio = contrastOn(rose, surface)
+      assert.ok(ratio >= 3, `${selector} focused border on ${toHex(surface)} = ${ratio.toFixed(2)}:1`)
+    }
+  }
+})
+
 test('settings clear-local-data uses warning-red text and warning-red border before any tap', () => {
   const wxss = 'pages/settings/settings.wxss'
   assert.equal(declarationOf(wxss, '.menu-item.danger .menu-text', 'color'), WARNING_RED)

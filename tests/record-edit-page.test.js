@@ -5,7 +5,7 @@ const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const { changeEditorDate, confirmDelete } = require('./helpers/recordPages')
 const { readSource } = require('./sourceFiles')
-const { evaluateWxmlExpression, renderWxmlAttribute, wxmlOpeningTags } = require('./wxmlTemplate')
+const { evaluateWxmlExpression, renderWxmlAttribute, renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
 
 const value = value => ({ detail: { value } })
 const dataset = value => ({ currentTarget: { dataset: value } })
@@ -869,13 +869,16 @@ test('period: fixed actions hide on note focus, restore on blur, and save only o
   assert.equal(textarea.attrs.bindfocus, 'onNoteFocus')
   assert.equal(textarea.attrs.bindblur, 'onNoteBlur')
   assert.equal(page.data.noteFocused, false)
+  assert.equal(renderWxmlClasses(textarea.attrs.class, page.data).includes('form-control-focused'), false)
 
   await app.dispatch(page, 'onNoteFocus')
   assert.equal(page.data.noteFocused, true)
+  assert.equal(renderWxmlClasses(textarea.attrs.class, page.data).includes('form-control-focused'), true)
   let actions = sharedTemplateData(period, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
   assert.equal(actions.actionsHidden, true)
   await app.dispatch(page, 'onNoteBlur')
   assert.equal(page.data.noteFocused, false)
+  assert.equal(renderWxmlClasses(textarea.attrs.class, page.data).includes('form-control-focused'), false)
   actions = sharedTemplateData(period, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
   assert.equal(actions.actionsHidden, false)
 
@@ -888,6 +891,26 @@ test('period: fixed actions hide on note focus, restore on blur, and save only o
   pending.resolve({ code: 0, record: { _id: 'saved', ...period.payload } })
   await saving
   await app.settle()
+})
+
+test('memory: R10 note focus shows the shared focused class and blur restores it', async (t) => {
+  const app = setup(t)
+  const memory = records[1]
+  const { page } = await openEditor(app, memory)
+  const template = readSource(path.join(__dirname, '../pages/memory/edit/edit.wxml'), 'utf8')
+  const textarea = wxmlOpeningTags(template).find(tag => tag.tag === 'textarea')
+  assert.ok(textarea, 'the memory note textarea exists')
+  assert.equal(textarea.attrs.bindfocus, 'onNoteFocus')
+  assert.equal(textarea.attrs.bindblur, 'onNoteBlur')
+  assert.equal(page.data.noteFocused, false)
+  assert.equal(renderWxmlClasses(textarea.attrs.class, page.data).includes('form-control-focused'), false)
+
+  await app.dispatch(page, 'onNoteFocus')
+  assert.equal(page.data.noteFocused, true)
+  assert.equal(renderWxmlClasses(textarea.attrs.class, page.data).includes('form-control-focused'), true)
+  await app.dispatch(page, 'onNoteBlur')
+  assert.equal(page.data.noteFocused, false)
+  assert.equal(renderWxmlClasses(textarea.attrs.class, page.data).includes('form-control-focused'), false)
 })
 
 for (const spec of records) {

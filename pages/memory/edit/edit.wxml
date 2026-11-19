@@ -19,7 +19,7 @@
       </view>
       <view class="form-item">
         <text class="form-label">内容</text>
-        <textarea class="form-input form-control" placeholder-class="input-placeholder" placeholder="记录这一天的欢乐时光..." value="{{note}}" bindinput="onNoteInput" maxlength="500" auto-height disabled="{{saving}}" aria-label="内容"/>
+        <textarea class="form-input form-control{{noteFocused ? ' form-control-focused' : ''}}" placeholder-class="input-placeholder" placeholder="记录这一天的欢乐时光..." value="{{note}}" bindinput="onNoteInput" bindfocus="onNoteFocus" bindblur="onNoteBlur" maxlength="500" auto-height disabled="{{saving}}" aria-label="内容"/>
       </view>
     </view>
 

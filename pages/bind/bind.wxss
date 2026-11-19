@@ -135,10 +135,7 @@
   font-weight: var(--font-weight-body);
   color: #fff;
 }
-/* 焦点是登记的 1px 实线玫瑰描边（基线边框本就是 1px solid），不加光晕（issue #81） */
-.code-input:focus {
-  border-color: #E8909E;
-}
+/* R10：焦点描边由 shared/form-control.wxss 的 form-control-focused 统一绘制，不加光晕。 */
 .input-placeholder {
   line-height: 88rpx;
 }

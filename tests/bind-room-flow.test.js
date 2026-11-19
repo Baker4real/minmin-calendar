@@ -178,8 +178,8 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
   assert.equal(activeTab.background, 'rgba(232,144,158,0.08)')
   assert.equal(activeTab['border-color'], 'rgba(232,144,158,0.45)')
 
-  // 聚焦描边回玫瑰，1px 实线形态不变
-  const focus = findRule(css, '.code-input:focus')
+  // R10：原生 :focus 没有画出玫瑰，改由共享 focus/blur 类画出同一道 1px 实线。
+  const focus = findRule(readPageFile('pages/shared/form-control.wxss'), '.form-control.form-control-focused')
   assert.equal(focus['border-color'], '#E8909E')
 
   // 错误提示保持警示红族（红字 + 红族浅底描边），需解绑中间态入口样式在场
@@ -193,6 +193,27 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
   assert.equal(errorRetry.border, '1px solid rgba(255,255,255,0.1)')
   const unbindInline = findRule(css, '.unbind-inline')
   assert.match(unbindInline['margin-top'], /^\d+rpx$/)
+})
+
+test('R10 room-code input shows the shared focused class on focus and clears it on blur', async (t) => {
+  const app = bindPlatform(t)
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  await app.dispatch(page, 'switchTab', { currentTarget: { dataset: { tab: 'join' } } })
+  const input = wxmlOpeningTags(readPageFile('pages/bind/bind.wxml'))
+    .find(tag => tag.tag === 'input' && tag.classes.includes('code-input'))
+  assert.ok(input)
+  assert.equal(input.attrs.bindfocus, 'onCodeFocus')
+  assert.equal(input.attrs.bindblur, 'onCodeBlur')
+  assert.equal(page.data.codeFocused, false)
+  assert.equal(renderWxmlClasses(input.attrs.class, page.data).includes('form-control-focused'), false)
+
+  await app.dispatch(page, 'onCodeFocus')
+  assert.equal(page.data.codeFocused, true)
+  assert.equal(renderWxmlClasses(input.attrs.class, page.data).includes('form-control-focused'), true)
+  await app.dispatch(page, 'onCodeBlur')
+  assert.equal(page.data.codeFocused, false)
+  assert.equal(renderWxmlClasses(input.attrs.class, page.data).includes('form-control-focused'), false)
 })
 
 // issue #138：加入房间时六位码完整可见、在框内居中，输入框与上方说明、下方主按钮同宽。

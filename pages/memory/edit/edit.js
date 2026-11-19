@@ -11,6 +11,7 @@ Page(withPageVisibility({
     safeBottom: safeArea.getSafeBottom(),
     navBarHeight: safeArea.getNavBarHeight(),
     capsuleRight: safeArea.getCapsuleRightInset(),
+    noteFocused: false,
     ...confirmationSheetData(),
     ...datePickerSheetData()
   },
@@ -62,6 +63,14 @@ Page(withPageVisibility({
 
   onNoteInput(e) {
     this._editSession.changeField('note', e.detail.value)
+  },
+
+  onNoteFocus() {
+    this.setData({ noteFocused: true })
+  },
+
+  onNoteBlur() {
+    this.setData({ noteFocused: false })
   },
 
   discardDraft() {

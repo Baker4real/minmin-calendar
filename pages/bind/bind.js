@@ -54,6 +54,7 @@ Page(withPageVisibility({
     roomCode: '',
     roomStatus: '',
     joinCode: '',
+    codeFocused: false,
     loading: false,
     errorMsg: '',
     needUnbind: false,
@@ -148,6 +149,14 @@ Page(withPageVisibility({
 
   onCodeInput(e) {
     this.setData({ joinCode: normalizeRoomCode(e.detail.value), errorMsg: '' })
+  },
+
+  onCodeFocus() {
+    this.setData({ codeFocused: true })
+  },
+
+  onCodeBlur() {
+    this.setData({ codeFocused: false })
   },
 
   async createRoom() {

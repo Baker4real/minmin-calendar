@@ -64,7 +64,7 @@
       </view>
       <view class="form-item">
         <text class="form-label">备注</text>
-        <textarea class="form-input form-control" placeholder-class="input-placeholder" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput" bindfocus="onNoteFocus" bindblur="onNoteBlur" maxlength="500" auto-height disabled="{{saving}}" aria-label="备注"/>
+        <textarea class="form-input form-control{{noteFocused ? ' form-control-focused' : ''}}" placeholder-class="input-placeholder" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput" bindfocus="onNoteFocus" bindblur="onNoteBlur" maxlength="500" auto-height disabled="{{saving}}" aria-label="备注"/>
       </view>
     </view>
 

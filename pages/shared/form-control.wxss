@@ -4,3 +4,15 @@
   width: 100%;
   border-radius: var(--radius-sm);
 }
+
+/* R10：原生 :focus 未稳定画出描边，由控件自己的 bindfocus/bindblur 切换此类。 */
+.form-control.form-control-focused {
+  border-color: #E8909E;
+  transition: border-color var(--duration-state) ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form-control.form-control-focused {
+    transition: none;
+  }
+}

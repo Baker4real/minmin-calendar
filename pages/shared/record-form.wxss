@@ -56,10 +56,7 @@
   border: 1px solid rgba(255,255,255,0.12);
   transition: border-color var(--duration-state) ease;
 }
-/* 备注输入焦点：登记的 1px 实线玫瑰描边（基线边框本就是 1px solid），不加光晕（issue #81） */
-.form-input:focus {
-  border-color: #E8909E;
-}
+/* R10：焦点描边由 shared/form-control.wxss 的 form-control-focused 统一绘制，不加光晕。 */
 .input-placeholder {
   line-height: var(--line-height-body);
 }
