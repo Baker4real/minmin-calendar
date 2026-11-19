@@ -1266,7 +1266,7 @@ test('the sync pill takes the navbar title slot, clear of the sticky month title
   assert.equal(findDecls(rules, '.sync-text')['font-size'], 'var(--font-size-caption)')
   const captionRpx = parseFloat(readAppTokens()['--font-size-caption'])
   const { statuses } = await homeFeedbackCopy()
-  assert.equal(statuses.size, 7, `expected every rendered sync status, found ${[...statuses].join(' / ')}`)
+  assert.equal(statuses.size, 8, `expected every rendered sync status, found ${[...statuses].join(' / ')}`)
   for (const status of statuses) {
     const widthRpx = chromeRpx + Array.from(status).length * captionRpx
     assert.ok(widthRpx <= slotRpx, `「${status}」 needs ${widthRpx.toFixed(1)}rpx, more than the ${slotRpx.toFixed(1)}rpx title slot at 320px`)
@@ -1289,7 +1289,7 @@ test('registered pages render platform safe areas, navbar height and capsule cle
       app.cloud.when({ name: 'dataOp', data: { action: 'list' } }).reply({ code: 0, data: [] })
       const page = app.launch('/' + pagePath)
       await app.settle()
-      const root = wxmlOpeningTags(readRepo(`${pagePath}.wxml`))[0]
+      const root = wxmlOpeningTags(readRepo(`${pagePath}.wxml`)).find(tag => tag.classes.includes('page'))
       const style = renderWxmlAttribute(root.attrs.style, app.rendered(page))
       assert.match(style, /--safe-top: 44px/, pagePath)
       assert.match(style, /--safe-bottom: 34px/, pagePath)

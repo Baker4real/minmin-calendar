@@ -22,6 +22,8 @@
         aria-checked="{{segment === 'memory'}}" hover-class="segment-option-hover">欢乐时光</view>
     </view>
 
+    <view wx:if="{{refreshing}}" class="refresh-status" aria-role="status" aria-label="正在刷新">正在刷新</view>
+
     <view wx:if="{{segment === 'period'}}">
       <!-- 首次加载与首次失败仍保留概览；确认同步成功且为零条时撤掉，让空态紧跟新增按钮。 -->
       <view wx:if="{{loading || !hasLoaded || periodCount > 0}}" class="cycle-card glass-surface">

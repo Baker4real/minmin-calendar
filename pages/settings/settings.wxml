@@ -1,5 +1,6 @@
 <import src="/pages/shared/confirmation-sheet.wxml" />
 <import src="/pages/shared/nav-bar.wxml" />
+<template is="sharedSheetPage" data="{{sheetExitGuard: sheetExitGuard, pageObscured: pageObscured}}" />
 <view class="page safe-top {{pageObscured ? 'page-obscured' : ''}} {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
   <include src="/pages/shared/aurora.wxml" />
   <wxs module="sheetDrag" src="../../utils/sheetDrag.wxs"></wxs>
@@ -89,5 +90,4 @@
 
   <template is="sharedBottomSheet" data="{{sheetId: 'help', sheetMounted: helpMounted, sheetPhase: helpPhase, sheetHostClass: '', sheetPanelClass: 'help-sheet', sheetName: '使用说明', sheetTitle: '使用说明', sheetSubtitle: '', maskHandler: 'closeHelp', closeHandler: 'closeHelp', bodyTemplate: 'settingsHelpSheetBody', sheetDragClear: helpDragClear}}" />
   <template is="sharedBottomSheet" data="{{sheetId: 'confirmation', sheetMounted: confirmationMounted, sheetPhase: confirmationPhase, sheetHostClass: '', sheetPanelClass: 'confirmation-panel', sheetName: confirmationName, sheetTitle: confirmationTitle, sheetSubtitle: '', maskHandler: 'onConfirmationMask', closeHandler: 'onConfirmationClose', bodyTemplate: 'confirmationSheetBody', sheetDragClear: confirmationDragClear, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions}}" />
-  <template is="sharedSheetPage" data="{{sheetExitGuard: sheetExitGuard}}" />
 </view>

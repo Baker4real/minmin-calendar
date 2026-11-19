@@ -1,6 +1,7 @@
 <import src="/pages/shared/confirmation-sheet.wxml" />
 <import src="/pages/shared/nav-bar.wxml" />
 <import src="/pages/shared/form-controls.wxml" />
+<template is="sharedSheetPage" data="{{sheetExitGuard: sheetExitGuard, pageObscured: pageObscured}}" />
 <view class="page safe-top {{pageObscured ? 'page-obscured' : ''}} {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
   <wxs module="sheetDrag" src="../../../utils/sheetDrag.wxs"></wxs>
   <include src="/pages/shared/aurora.wxml" />
@@ -26,5 +27,4 @@
   </view>
   <template is="sharedBottomSheet" data="{{sheetId: 'confirmation', sheetMounted: confirmationMounted, sheetPhase: confirmationPhase, sheetHostClass: '', sheetPanelClass: 'confirmation-panel', sheetName: confirmationName, sheetTitle: confirmationTitle, sheetSubtitle: '', maskHandler: 'onConfirmationMask', closeHandler: 'onConfirmationClose', bodyTemplate: 'confirmationSheetBody', sheetDragClear: confirmationDragClear, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions}}" />
   <template is="sharedBottomSheet" data="{{sheetId: 'datePicker', sheetMounted: datePickerMounted, sheetPhase: datePickerPhase, sheetHostClass: '', sheetPanelClass: 'date-picker-panel', sheetName: datePickerName, sheetTitle: datePickerTitle, sheetSubtitle: datePickerSubtitle, maskHandler: 'onDatePickerMask', closeHandler: 'onDatePickerClose', bodyTemplate: 'datePickerSheetBody', sheetDragClear: datePickerDragClear, datePickerYears: datePickerYears, datePickerMonths: datePickerMonths, datePickerDays: datePickerDays, datePickerValue: datePickerValue, datePickerYearAria: datePickerYearAria, datePickerMonthAria: datePickerMonthAria, datePickerDayAria: datePickerDayAria, datePickerConfirmAria: datePickerConfirmAria}}" />
-  <template is="sharedSheetPage" data="{{sheetExitGuard: sheetExitGuard}}" />
 </view>

@@ -148,5 +148,7 @@ Page(withPageVisibility({
   onSheetSystemBack() {
     if (this.data.datePickerMounted) datePickerSheet(this).systemBack()
     else confirmationSheet(this).systemBack()
-  }
+  },
+
+  noop() {}
 }))

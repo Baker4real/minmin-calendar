@@ -32,7 +32,11 @@ async function homeFeedbackCopy() {
       }
       await capture()
       routes[failed].reply({ code: 0, data: [] })
-      await home.onPullDownRefresh()
+      const firstRefresh = routes[failed].defer()
+      const pulling = home.onPullDownRefresh()
+      await capture()
+      firstRefresh.resolve({ code: 0, data: [] })
+      await pulling
       await capture()
       const saved = failed === 'periods'
         ? { _id: 'p1', startDate: '2026-06-20', endDate: '2026-06-22', status: 'known-end' }

@@ -111,6 +111,32 @@ test('confirmed empty periods hide the overview and put the guide directly below
   assert.equal(nextVisible, guide, 'the empty guide is the first visible block after the add action')
 })
 
+test('pull-down refresh shows a status row below the segment control and removes it when settled', async (t) => {
+  const app = setup(t)
+  const page = app.launch(route)
+  await app.flush()
+  const pending = list(app, 'periods').defer()
+  const refresh = page.onPullDownRefresh()
+  await app.settle()
+  assert.equal(page.data.refreshing, true)
+
+  const status = allElements(tabTemplate).find(node => node.classes.includes('refresh-status'))
+  assert.ok(status, 'the record tab has a refreshing status element')
+  assert.equal(status.attrs['aria-role'], 'status')
+  assert.equal(status.attrs['wx:if'], '{{refreshing}}')
+  assert.match(tabWxml, /<view wx:if="\{\{refreshing\}\}" class="refresh-status" aria-role="status" aria-label="正在刷新">正在刷新<\/view>/)
+  const segment = allElements(tabTemplate).find(node => node.classes.includes('segment-control'))
+  assert.equal(status.parent, segment.parent)
+  assert.equal(segment.parent.children.indexOf(status), segment.parent.children.indexOf(segment) + 1)
+  assert.ok(draws(page.data, node => node === status), 'the status is drawn during refresh')
+
+  pending.resolve({ code: 0, data: [] })
+  await refresh
+  await app.settle()
+  assert.equal(page.data.refreshing, false)
+  assert.equal(draws(page.data, node => node === status), false, 'the status disappears when refresh ends')
+})
+
 const segments = [
   { segment: 'period', collection: 'periods', loading: 'loading', failed: 'loadFailed', loaded: 'hasLoaded', retry: 'loadData', listClass: 'period-year-list', record: { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05' } },
   { segment: 'memory', collection: 'memories', loading: 'memoryLoading', failed: 'memoryLoadFailed', loaded: 'memoryHasLoaded', retry: 'loadMemoryData', listClass: 'memory-month-list', record: { _id: 'm1', date: '2026-06-01', note: '测试记录' } }

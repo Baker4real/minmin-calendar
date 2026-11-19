@@ -107,12 +107,14 @@ test('unchanged and reordered background responses keep the calendar quiet', asy
   await app.settle()
   assert.equal(app.rendered(home).loading, false)
   assert.equal(app.rendered(home).refreshing, true)
-  assert.equal(app.rendered(home).syncStatusVisible, false)
+  assert.equal(app.rendered(home).syncStatusVisible, true)
+  assert.equal(app.rendered(home).syncStatusText, '正在刷新')
   assertCalendar(app, home, ['2026-06-01', '2026-06-20'], ['2026-06-02', '2026-06-12'])
   pending.resolve(success([...periods].reverse()))
   await app.settle()
   assert.equal(app.rendered(home).refreshing, false)
   assert.equal(app.rendered(home).syncStatusVisible, false)
+  await app.advance(200)
   assert.equal(app.rendered(home).syncStatusText, '')
   assertCalendar(app, home, ['2026-06-01', '2026-06-20'], ['2026-06-02', '2026-06-12'])
 
@@ -413,6 +415,36 @@ test('show, pull-down and retry reuse one in-flight load; pull-down stops only a
   assert.equal(app.rendered(home).refreshing, false)
   assert.equal(app.platformCalls.stopPullDownRefresh.length, 1)
   assertRetry(app, home, null)
+})
+
+test('pull-down refresh shows the navbar syncing pill until an unchanged refresh settles', async t => {
+  const app = homeApp(t)
+  const existing = period('p1', '2026-06-01')
+  const p = listRoute(app, 'periods').reply(success([existing]))
+  const m = listRoute(app, 'memories').reply(success([]))
+  const home = app.launch('/pages/index/index')
+  await app.settle()
+  assert.equal(app.rendered(home).syncStatusVisible, false)
+
+  const periods = p.defer()
+  const memories = m.defer()
+  const pull = home.onPullDownRefresh()
+  await app.settle()
+  assert.equal(app.rendered(home).refreshing, true)
+  assert.equal(app.rendered(home).syncStatusMounted, true)
+  assert.equal(app.rendered(home).syncStatusVisible, true)
+  assert.equal(app.rendered(home).syncStatusPhase, 'open')
+  assert.equal(app.rendered(home).syncStatusText, '正在刷新')
+
+  periods.resolve(success([existing]))
+  memories.resolve(success([]))
+  await pull
+  await app.settle()
+  assert.equal(app.rendered(home).refreshing, false)
+  assert.equal(app.rendered(home).syncStatusVisible, false)
+  await app.advance(200)
+  assert.equal(app.rendered(home).syncStatusMounted, false)
+  assert.equal(app.rendered(home).syncStatusText, '')
 })
 
 async function saveMemory(app, home, record) {
@@ -908,7 +940,7 @@ test('a failure screen leaves partner welcome pending until a retry renders the 
   assert.equal(app.storage.partnerWelcome, 'seen')
 })
 
-test('remote changes mount the pill closed, enter after render, and retain copy until the timed exit completes', async t => {
+test('remote changes replace the refreshing pill and retain the result copy until timed exit completes', async t => {
   const app = homeApp(t, { autoCommit: false })
   const p = listRoute(app, 'periods').reply(success([]))
   const home = app.launch('/pages/index/index')
@@ -925,7 +957,7 @@ test('remote changes mount the pill closed, enter after render, and retain copy 
   await app.dispatch(home, 'retryRefresh')
   app.commit(home)
   assert.equal(app.rendered(home).syncStatusMounted, true)
-  assert.equal(app.rendered(home).syncStatusPhase, 'closed')
+  assert.equal(app.rendered(home).syncStatusPhase, 'open')
   assert.equal(app.rendered(home).syncStatusText, '已同步')
   await app.settle()
   app.commit(home)
@@ -973,7 +1005,7 @@ test('a saved record reopens a leaving sync pill and confirmation updates its co
   assert.equal(app.rendered(home).syncStatusMounted, true)
 })
 
-test('another quiet show can reverse sync-pill entry before the render callback opens it', async t => {
+test('another quiet show reverses the refreshing pill after its entry', async t => {
   const app = homeApp(t, { autoCommit: false })
   const p = listRoute(app, 'periods').reply(success([]))
   const home = app.launch('/pages/index/index')
@@ -989,15 +1021,15 @@ test('another quiet show can reverse sync-pill entry before the render callback 
   m.reply(success([]))
   await app.dispatch(home, 'retryRefresh')
   app.commit(home)
-  assert.equal(app.rendered(home).syncStatusPhase, 'closed')
-  // A new lifecycle starts before the scheduled nextTick opens the pill.
+  assert.equal(app.rendered(home).syncStatusPhase, 'open')
+  // A new lifecycle starts after the refreshing pill has opened.
   app.hide()
   app.show()
   await app.settle()
   app.commit(home)
   assert.equal(app.rendered(home).syncStatusPhase, 'leaving')
   assert.equal(app.rendered(home).syncStatusVisible, false)
-  assert.equal(app.rendered(home).syncStatusText, '已同步')
+  assert.equal(app.rendered(home).syncStatusText, '正在刷新')
   await app.settle()
   app.commit(home)
   assert.equal(app.rendered(home).syncStatusPhase, 'leaving')
