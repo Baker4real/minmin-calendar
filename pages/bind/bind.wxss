@@ -175,7 +175,7 @@
   color: #E8909E;
   border: 1.5px solid #E8909E;
   border-radius: var(--radius-full);
-  font-size: var(--font-size-button);
+  font-size: var(--font-size-body);
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-assist);
   transition: transform var(--duration-press) var(--ease-out);

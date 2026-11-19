@@ -199,11 +199,11 @@ test('day sheet record actions and details retain their visible and accessible b
   assert.match(wxml.slice(detailAt, detailAt + 240), /day-detail-fade/)
 })
 
-test('the homepage status uses a body-large control sentence with a secondary caption countdown', () => {
+test('the homepage status keeps its 32rpx geometry exception with a secondary caption countdown', () => {
   const wxss = readIndexWxss()
   assert.match(ruleBody(wxss, '.home-status'), /height:\s*88rpx/)
   const main = ruleBody(wxss, '.home-status-text')
-  assert.match(main, /font-size:\s*var\(--font-size-body-lg\)/)
+  assert.match(main, /font-size:\s*32rpx/)
   assert.match(main, /font-weight:\s*var\(--font-weight-control\)/)
   assert.match(main, /white-space:\s*nowrap/)
   const countdown = ruleBody(wxss, '.home-status-countdown')
@@ -313,7 +313,7 @@ test('quick record actions keep period primary and memory button-ghost with read
   assert.ok(minHeight >= 104)
   assert.ok(minHeight * 320 / 750 >= 44)
   assert.match(button, /box-sizing:\s*border-box/)
-  assert.match(ruleBody(wxss, '.quick-text'), /font-size:\s*var\(--font-size-body\)/)
+  assert.match(ruleBody(wxss, '.quick-text'), /font-size:\s*28rpx/, 'the two-line label keeps its issue #247 geometry exception')
 })
 
 test('R5 sticky separator is a 1px white 8% bottom hairline', () => {

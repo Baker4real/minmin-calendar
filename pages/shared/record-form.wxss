@@ -21,7 +21,7 @@
   align-items: center;
   justify-content: space-between;
   min-height: 88rpx;
-  font-size: var(--font-size-input);
+  font-size: var(--font-size-body-lg);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.85);
@@ -47,7 +47,7 @@
 }
 .form-input {
   min-height: 88rpx;
-  font-size: var(--font-size-input);
+  font-size: var(--font-size-body-lg);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.85);

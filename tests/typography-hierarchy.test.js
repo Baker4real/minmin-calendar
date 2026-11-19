@@ -84,7 +84,7 @@ test('home month title sits one level above the shared nav title', () => {
   const tokens = readAppTokens()
   assert.equal(
     tokens['--font-size-month-title'],
-    '40rpx',
+    '44rpx',
     'the month-title role token must exist one step above --font-size-title'
   )
 
@@ -124,6 +124,7 @@ test('font role scale stays strictly ordered for reading hierarchy', () => {
     assert.ok(value, `expected ${name} in rpx`)
     return Number(value[1])
   })
+  assert.deepEqual(sizes, [24, 26, 30, 34, 38, 44], 'the shared reading ramp uses the issue #247 values')
   for (let index = 1; index < sizes.length; index += 1) {
     assert.ok(
       sizes[index] > sizes[index - 1],
@@ -193,10 +194,10 @@ const CAPTION_FAMILY_FLOW = [
   [SETTINGS_WXSS, '.room-code-label']
 ]
 
-test('input placeholder type stays on the input role, at least the caption floor', () => {
+test('input placeholder type stays on the merged body-lg role, at least the caption floor', () => {
   const tokens = readAppTokens()
   const decls = ruleDecls(APP_WXSS, '.input-placeholder')
-  assert.equal(decls['font-size'], 'var(--font-size-input)')
+  assert.equal(decls['font-size'], 'var(--font-size-body-lg)')
   assert.ok(resolveRpx(decls, 'font-size', tokens, '.input-placeholder') >= CAPTION_FLOOR_RPX)
 })
 

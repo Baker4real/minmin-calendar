@@ -26,17 +26,15 @@ page {
   --glass-inset: inset 0 1px 0 rgba(255,255,255,0.15);
   --glass-fallback: rgba(18,22,61,0.92);
 
-  /* Font Roles — 共享字号角色，页面 WXSS 只允许引用角色 token（glyph/display 例外登记在 tests/typography-roles.test.js） */
-  --font-size-month-title: 40rpx;
-  --font-size-title: 34rpx;
-  --font-size-body-lg: 32rpx;
-  --font-size-body: 28rpx;
+  /* Font Roles — 共享字号角色，页面 WXSS 只允许引用角色 token（glyph/display/scale-hold 例外登记在 tests/typography-roles.test.js） */
+  --font-size-month-title: 44rpx;
+  --font-size-title: 38rpx;
+  --font-size-body-lg: 34rpx;
+  --font-size-body: 30rpx;
   --font-size-caption: 26rpx;
   --font-size-calendar-date: 28rpx;
   --font-size-calendar-date-compact: 30rpx;
   --font-size-calendar-micro: 24rpx;
-  --font-size-button: 30rpx;
-  --font-size-input: 32rpx;
 
   /* 共享文字字重、行高、字距。页面只引用这些 token，不另写同义数字。 */
   --font-weight-body: 400;
@@ -216,7 +214,7 @@ page {
   color: var(--text-on-accent);
   border-radius: var(--radius-md);
   padding: 26rpx 0;
-  font-size: var(--font-size-button);
+  font-size: var(--font-size-body);
   font-weight: var(--font-weight-control);
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-state) ease;
 }
@@ -283,7 +281,7 @@ button.share-invite {
   border-radius: var(--radius-md);
   background: var(--aurora-pink);
   color: var(--text-on-accent);
-  font-size: var(--font-size-button);
+  font-size: var(--font-size-body);
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-body);
   overflow: visible;
@@ -305,7 +303,7 @@ button.share-invite::after {
   text-align: center;
   padding: 26rpx;
   border-radius: var(--radius-md);
-  font-size: var(--font-size-button);
+  font-size: var(--font-size-body);
   font-weight: var(--font-weight-control);
   border: 1px solid rgba(249,115,115,0.28);
   transition: border-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
@@ -438,7 +436,7 @@ button.share-invite::after {
 /* ===== Input Placeholder ===== */
 .input-placeholder {
   color: var(--text-placeholder);
-  font-size: var(--font-size-input);
+  font-size: var(--font-size-body-lg);
 }
 
 /* ===== Reduced Motion — 全局兜底 =====

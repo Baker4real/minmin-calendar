@@ -13,23 +13,22 @@ const DESIGN_MD = path.join(repoRoot, 'DESIGN.md')
 
 // 字号角色契约：与 DESIGN.md「共享字号角色」表一一对应，app.wxss 是唯一实现来源。
 // 角色语义：month-title 首页月份大标题（高于全局导航标题一级）/ title 标题 / body-lg 正文大号 /
-// body 正文 / caption 说明标签（页面外下限 26rpx）/ calendar-date 日历日期（full 与 compact 密度）/
-// calendar-micro 日历格内微字（下限 24rpx）/ button 主按钮 / input 输入文字。
+// body 正文（含 button）/ caption 说明标签（页面外下限 26rpx）/ calendar-date 日历日期（full 与 compact 密度）/
+// calendar-micro 日历格内微字（下限 24rpx）。button 并入 body，input 并入 body-lg，不再保留独立 token。
 const FONT_ROLE_TOKENS = {
-  '--font-size-month-title': '40rpx',
-  '--font-size-title': '34rpx',
-  '--font-size-body-lg': '32rpx',
-  '--font-size-body': '28rpx',
+  '--font-size-month-title': '44rpx',
+  '--font-size-title': '38rpx',
+  '--font-size-body-lg': '34rpx',
+  '--font-size-body': '30rpx',
   '--font-size-caption': '26rpx',
   '--font-size-calendar-date': '28rpx',
   '--font-size-calendar-date-compact': '30rpx',
-  '--font-size-calendar-micro': '24rpx',
-  '--font-size-button': '30rpx',
-  '--font-size-input': '32rpx'
+  '--font-size-calendar-micro': '24rpx'
 }
 
 // 文字角色之外的登记例外。glyph = 图形符号（箭头/emoji/装饰字符），字号随容器几何；
-// display = 展示型大数字/大字，单点登记。新增例外必须在此登记 file + selector + 当前值，登记即评审。
+// display = 展示型大数字/大字，单点登记；scale-hold = issue #247 几何账本判定后保留的旧值。
+// 新增例外必须在此登记 file + selector + 当前值，登记即评审；scale-hold 还必须在 DESIGN 写明原因。
 const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'app.wxss', selector: '.nav-back', kind: 'glyph', value: '46rpx' },
   { file: 'pages/shared/nav-bar.wxss', selector: '.nav-back', kind: 'glyph', value: '46rpx' },
@@ -42,6 +41,8 @@ const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'pages/index/index.wxss', selector: '.sheet-action-icon', kind: 'glyph', value: '26rpx' },
   { file: 'pages/index/index.wxss', selector: '.sheet-action-arrow', kind: 'glyph', value: '42rpx' },
   { file: 'pages/index/index.wxss', selector: '.home-status-arrow', kind: 'glyph', value: '32rpx' },
+  { file: 'pages/index/index.wxss', selector: '.home-status-text', kind: 'scale-hold', value: '32rpx' },
+  { file: 'pages/index/index.wxss', selector: '.quick-text', kind: 'scale-hold', value: '28rpx' },
   { file: 'pages/index/index.wxss', selector: '.detail-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/period/period.wxss', selector: '.item-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/period/period.wxss', selector: '.cycle-num', kind: 'display', value: '44rpx' },
@@ -77,6 +78,8 @@ test('app.wxss defines every shared font-size role token with the contract value
   for (const [name, value] of Object.entries(FONT_ROLE_TOKENS)) {
     assert.equal(tokens[name], value, `${name} should be ${value}, got ${tokens[name]}`)
   }
+  assert.equal(tokens['--font-size-button'], undefined, 'button is merged into body')
+  assert.equal(tokens['--font-size-input'], undefined, 'input is merged into body-lg')
 })
 
 test('DESIGN.md registers every shared font-size role token', () => {
@@ -86,7 +89,17 @@ test('DESIGN.md registers every shared font-size role token', () => {
   }
 })
 
-test('every WXSS font-size uses a role token or a registered glyph/display exception', () => {
+test('DESIGN.md registers every geometry-based scale hold', () => {
+  const design = readSource(DESIGN_MD, 'utf8')
+  const holds = TYPOGRAPHY_EXCEPTIONS.filter((entry) => entry.kind === 'scale-hold')
+  assert.ok(holds.length > 0, 'the observed issue #247 geometry holds are explicit')
+  for (const entry of holds) {
+    const row = `| \`${entry.selector}\` | \`${entry.value}\` |`
+    assert.ok(design.includes(row), `DESIGN.md is missing the scale-hold row for ${entry.selector}`)
+  }
+})
+
+test('every WXSS font-size uses a role token or a registered glyph/display/scale-hold exception', () => {
   const tokens = readAppTokens()
   const exceptions = new Map(
     TYPOGRAPHY_EXCEPTIONS.map((entry) => [`${entry.file}::${entry.selector}`, entry])
@@ -361,8 +374,8 @@ const FRONTMATTER_TYPOGRAPHY = {
   'body-lg': ['--font-size-body-lg', '--font-weight-body', '--line-height-body'],
   body: ['--font-size-body', '--font-weight-body', '--line-height-body'],
   caption: ['--font-size-caption', '--font-weight-assist', '--line-height-assist'],
-  button: ['--font-size-button', '--font-weight-control', null],
-  input: ['--font-size-input', '--font-weight-body', '--line-height-body'],
+  button: ['--font-size-body', '--font-weight-control', null],
+  input: ['--font-size-body-lg', '--font-weight-body', '--line-height-body'],
   'calendar-date': ['--font-size-calendar-date', '--font-weight-control', null],
   'calendar-date-compact': ['--font-size-calendar-date-compact', '--font-weight-control', null],
   'calendar-micro': ['--font-size-calendar-micro', '--font-weight-assist', null]

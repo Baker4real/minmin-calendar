@@ -161,7 +161,7 @@ button.home-share-invite {
 /* 最小宽度兜住最坏文案「2026年12月」：1 位数和 2 位数月份同宽，切月时胶囊不变宽、不挪位（issue #164） */
 .month-title-trigger {
   min-height: 88rpx;
-  min-width: 320rpx;
+  min-width: 344rpx;
   padding: 0 28rpx;
   display: flex;
   align-items: center;
@@ -296,7 +296,8 @@ button.home-share-invite {
 .home-status-text {
   flex: 1;
   min-width: 0;
-  font-size: var(--font-size-body-lg);
+  /* issue #247：body-lg 34rpx 会让最长推迟句超过 88rpx 单行账本，保留旧值 32rpx；例外见 DESIGN。 */
+  font-size: 32rpx;
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-body);
   font-variant-numeric: tabular-nums;
@@ -826,10 +827,11 @@ button.home-share-invite {
   font-size: 32rpx;
   background: var(--aurora-bg);
 }
-/* 进行中经期的「经期第 N 天 · 记结束」一行放不下（issue #159）：连写的中文不拆，只在空格处折成两行，
-   两行紧行高仍在 104rpx 按钮里（上下内边距因此是 14rpx），首屏账本的记录入口高度不变 */
+/* 进行中经期的「经期第 N 天 · 记结束」一行放不下（issue #159）：连写的中文不拆，只在空格处折成两行。
+   issue #247：body 30rpx 会让三位数天数的第一行再折行，且两行盒超出 104rpx，故此处保留旧值 28rpx；
+   两行紧行高仍在原按钮里，首屏账本的记录入口高度不变。例外见 DESIGN。 */
 .quick-text {
-  font-size: var(--font-size-body);
+  font-size: 28rpx;
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-title);
   word-break: keep-all;
@@ -1437,7 +1439,7 @@ button.home-share-invite {
 }
 .skeleton-month-title {
   min-height: 88rpx;
-  min-width: 320rpx;
+  min-width: 344rpx;
   padding: 0 28rpx;
   display: flex;
   align-items: center;

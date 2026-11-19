@@ -529,12 +529,12 @@ test('the ongoing quick-period label wraps only at its spaces and two lines stay
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
   const text = findDecls(rules, '.quick-text')
   const button = findDecls(rules, '.quick-btn')
-  assert.equal(text['font-size'], 'var(--font-size-body)')
+  assert.equal(text['font-size'], '28rpx', 'issue #247 keeps the old body size where the new ramp would add a third line')
   assert.equal(text['word-break'], 'keep-all', 'CJK runs break only at the spaces of the label')
   assert.equal(text['line-height'], 'var(--line-height-title)')
 
   // 文字列宽（320px 下 1px 描边最宽）= 半行按钮宽 − 左右内边距 − 描边 − 圆盘 − 图文间距
-  const fontRpx = parseFloat(appTokens['--font-size-body'])
+  const fontRpx = parseFloat(text['font-size'])
   const contentPadRpx = horizontalPaddingRpx(findDecls(rules, '.content'))[0]
   const borderRpx = borderPx(button) * 750 / 320
   const columnRpx = (750 - 2 * contentPadRpx - rpxNumber(findDecls(rules, '.quick-actions'), 'gap')) / 2 -
@@ -573,7 +573,7 @@ test('every longest home status form fits one line and the 88rpx ledger stays un
   const arrow = findDecls(rules, '.home-status-arrow')
   assert.equal(rpxNumber(status, 'height'), 88)
   assert.equal(CALENDAR_LEDGER.firstScreenRpx.stickySpacer, 218)
-  assert.equal(main['font-size'], 'var(--font-size-body-lg)')
+  assert.equal(main['font-size'], '32rpx', 'issue #247 keeps the old body-lg size for the one-line status ledger')
   assert.equal(main['font-weight'], 'var(--font-weight-control)')
   assert.equal(main['white-space'], 'nowrap')
   assert.equal(countdown['font-size'], 'var(--font-size-caption)')
@@ -611,7 +611,7 @@ test('every longest home status form fits one line and the 88rpx ledger stays un
     buildHomeCalendarState({ year: 2026, month: 7, today: '2026-08-01', periodsSynced: false }).homeStatus
   ]
 
-  const mainFont = parseFloat(appTokens['--font-size-body-lg'])
+  const mainFont = parseFloat(main['font-size'])
   const countdownFont = parseFloat(appTokens['--font-size-caption'])
   const widthRpx = (copy, fontRpx) => [...copy].reduce((sum, ch) => sum + (/\d/.test(ch) ? 0.6 : ch === ' ' ? 0.5 : 1), 0) * fontRpx
   const availableRpx = 750 - 2 * horizontalPaddingRpx(sticky, appTokens)[0] - 2 * parseFloat(horizontalPaddingTokens(status)[0] || '0')
@@ -642,9 +642,9 @@ test('the homepage room-status button keeps the 88rpx touch size in both axes fo
   assert.match(button['margin-top'] || '', /^var\(--space-[a-z]+\)$/, 'the gap above the button comes from a spacing token')
   assert.ok(tokenRpx(button['margin-top'], appTokens) >= 32, 'the button sits at least --space-md below the description')
 
-  // 每个动作标签（按钮字号，每字 1em）加左右内边距都不低于 88rpx，标签两侧留出空隙
+  // 每个动作标签（button 已并入 body，每字 1em）加左右内边距都不低于 88rpx，标签两侧留出空隙
   const labels = ['去绑定', '重新加载', '重试'] // visible recovery-action copy fixtures
-  const fontRpx = parseFloat(appTokens['--font-size-button'])
+  const fontRpx = parseFloat(appTokens['--font-size-body'])
   for (const label of labels) {
     const widthRpx = Array.from(label).length * fontRpx + 2 * tokenRpx(sidePad, appTokens)
     assert.ok(widthRpx >= 88, `「${label}」 is only ${widthRpx}rpx wide`)
