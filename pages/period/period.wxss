@@ -1,5 +1,6 @@
 @import '../shared/segmented-control.wxss';
 @import '../shared/retry-row.wxss';
+@import '../shared/empty-state.wxss';
 
 /* ===== Aurora Bloom: Period ===== */
 /* 导航标题使用 pages/shared/nav-bar.wxss 的中性白。 */
@@ -222,10 +223,6 @@
   background: rgba(255,255,255,0.08);
   animation: skeletonPulse 2.4s ease-in-out infinite;
 }
-@keyframes skeletonPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
-}
 
 /* 记录分类使用 shared/segmented-control.wxss 的画布上变体；本页只保留节奏外边距。 */
 .segment-control {
@@ -338,8 +335,8 @@
   animation: skeletonPulse 2.4s ease-in-out infinite;
 }
 
-/* Empty State */
-.empty-state {
+/* 空态结构共用 pages/shared/empty-state.wxss；本修饰类保留记录页的既有值。 */
+.record-empty {
   padding: 80rpx 40rpx;
   text-align: center;
   color: var(--text-secondary);
@@ -347,7 +344,8 @@
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  border: 1px solid rgba(255,255,255,0.08);
+  border-style: solid;
+  border-color: rgba(255,255,255,0.08);
   border-radius: var(--radius-card);
 }
 

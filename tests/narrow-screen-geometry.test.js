@@ -652,7 +652,7 @@ test('the homepage room-status button keeps the 88rpx touch size in both axes fo
 test('the prediction summary starts the window clause on its own line and each clause fits one sheet line at 320px', () => {
   const insights = require('../utils/calendarInsights')
   const wxml = readRepo('pages/index/index.wxml')
-  assert.match(wxml, /<text class="prediction-summary">\{\{predictionExplanation\.summary\}\}<\/text>/)
+  assert.match(wxml, /<text class="text-pair-title prediction-summary">\{\{predictionExplanation\.summary\}\}<\/text>/)
 
   const { summary } = insights.buildPredictionExplanation({
     canPredict: true,
@@ -946,8 +946,8 @@ test('sheets scroll within a bounded height and are never clipped by the mask', 
 
   // 父级不裁切：遮罩全屏 flex-end，无 overflow 裁切；页面入场只淡入（transform 会把 fixed 弹层拖进裁剪域）
   assert.ok(!/overflow\s*:\s*hidden/.test(mask.overflow || ''), 'sheet mask must not clip the sheet')
-  const pageEnter = /@keyframes pageEnter\s*\{([\s\S]*?)\n\}/.exec(readRepo('app.wxss'))
-  assert.ok(pageEnter, 'expected pageEnter keyframes')
+  const pageEnter = /@keyframes fadeIn\s*\{([\s\S]*?)\n\}/.exec(readRepo('app.wxss'))
+  assert.ok(pageEnter, 'expected the shared fadeIn keyframes used by pageEnter')
   assert.doesNotMatch(pageEnter[1], /transform/)
 })
 

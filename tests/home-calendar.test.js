@@ -43,9 +43,10 @@ function tagWith(className) {
 }
 function attr(className, name, data) { return renderWxmlAttribute(tagWith(className).attrs[name], data) }
 function text(className, data) {
-  const match = wxml.match(new RegExp(`<text\\b[^>]*class="${className}"[^>]*>([\\s\\S]*?)</text>`))
+  const match = [...wxml.matchAll(/<text\b[^>]*class="([^"]*)"[^>]*>([\s\S]*?)<\/text>/g)]
+    .find(candidate => candidate[1].split(/\s+/).includes(className))
   assert.ok(match, `expected .${className} text in WXML`)
-  return renderWxmlAttribute(match[1], data)
+  return renderWxmlAttribute(match[2], data)
 }
 function classes(className, data) {
   // An unset optional WXML flag renders as false on the platform.

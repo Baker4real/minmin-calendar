@@ -98,17 +98,36 @@ test('period list failure retry is a recognizable operation, distinct from the q
   // 首次失败卡：说明句 + 玫瑰重试按钮；整卡可点并保留读屏名称
   assert.match(
     periodWxml,
-    /wx:if="\{\{loadFailed && !hasLoaded && !loading\}\}" class="empty-state load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试"/
+    /wx:if="\{\{loadFailed && !hasLoaded && !loading\}\}" class="empty-state record-empty load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(periodWxml, /class="load-failed-text">经期记录加载失败</)
   assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 真空态仍是安静说明：不带重试按钮，也不可点；失败期间不显示断言式空态句（!loadFailed）
-  const emptyBlock = /wx:elif="\{\{periodCount === 0 && !loading && !loadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
+  const emptyBlock = /wx:elif="\{\{periodCount === 0 && !loading && !loadFailed\}\}" class="empty-state record-empty">([\s\S]*?)<\/view>/.exec(periodWxml)
   assert.ok(emptyBlock, 'expected the genuine empty state block')
   assert.match(emptyBlock[1], /经期开始那天点「\{\{periodQuickLabel\}\}」；\{\{predictionThresholdText\}\}/)
   assert.doesNotMatch(emptyBlock[1], /点上面按钮新增/)
   assert.doesNotMatch(emptyBlock[1], /retry-btn|bindtap/)
+
+  // 三类空态共用一份结构；record-empty、empty-guide、day-detail-empty 只保留各自渲染值。
+  const sharedEmpty = readPageFile('pages/shared/empty-state.wxss')
+  const sharedRules = parseWxssRules(sharedEmpty)
+  const base = sharedRules.find(rule => rule.selectors.includes('.empty-state'))
+  assert.ok(base, 'expected the shared empty-state structure')
+  assert.deepEqual(base.decls, { display: 'block', 'border-width': '1px' })
+  for (const [file, modifier] of [
+    ['pages/period/period.wxss', '.record-empty'],
+    ['pages/index/index.wxss', '.empty-guide'],
+    ['pages/index/index.wxss', '.day-detail-empty']
+  ]) {
+    const rules = parseWxssRules(readPageFile(file))
+    assert.ok(rules.some(rule => rule.selectors.includes(modifier)), `${modifier} keeps its values in ${file}`)
+  }
+  assert.match(readRawPageFile('pages/period/period.wxss'), /@import '\.\.\/shared\/empty-state\.wxss';/)
+  assert.match(readRawPageFile('pages/index/index.wxss'), /@import '\.\.\/shared\/empty-state\.wxss';/)
+  assert.match(readPageFile('pages/index/index.wxml'), /class="empty-state empty-guide"/)
+  assert.match(readRawPageFile('pages/shared/confirmation-sheet.wxml'), /class="empty-state day-detail-empty future-notice"/)
 
   // 重试按钮是玫瑰底海军字的小操作，触控目标 88rpx（750rpx 设计宽 = 44px@375px，非日历可点控件统一 88rpx 档）
   const retryRule = /\.retry-btn\s*\{[^}]*\}/.exec(periodWxss)
@@ -145,13 +164,13 @@ test('record tab memory segment mirrors the standalone memory list state contrac
   // 整卡失败态只在从未成功加载时出现；已加载后的失败保留列表，改走列表区重试行
   assert.match(
     periodWxml,
-    /wx:if="\{\{memoryLoadFailed && !memoryHasLoaded && !memoryLoading\}\}" class="empty-state load-failed" bindtap="loadMemoryData" aria-role="button" aria-label="加载失败，点按重试"/
+    /wx:if="\{\{memoryLoadFailed && !memoryHasLoaded && !memoryLoading\}\}" class="empty-state record-empty load-failed" bindtap="loadMemoryData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(periodWxml, /class="load-failed-text">欢乐时光加载失败</)
   assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
 
   // 空列表说明保持安静：没有按钮、不可点；失败期间不显示断言式空态句
-  const emptyBlock = /wx:elif="\{\{memoryCount === 0 && !memoryLoading && !memoryLoadFailed\}\}" class="empty-state">([\s\S]*?)<\/view>/.exec(periodWxml)
+  const emptyBlock = /wx:elif="\{\{memoryCount === 0 && !memoryLoading && !memoryLoadFailed\}\}" class="empty-state record-empty">([\s\S]*?)<\/view>/.exec(periodWxml)
   assert.ok(emptyBlock, 'expected the memory segment empty state block')
   assert.match(emptyBlock[1], /想记的那天点「＋ 记欢乐时光」，写一句就留在日历上/)
   assert.doesNotMatch(emptyBlock[1], /点上面按钮新增/)

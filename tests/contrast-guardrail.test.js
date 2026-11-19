@@ -100,7 +100,7 @@ test('non-interactive titles use the neutral text color, not rose', () => {
   for (const file of ['pages/period/period.wxss']) {
     assert.equal(wxssRuleBody(file, '.load-failed-text'), null,
       `${file} load-failed title must not override the neutral empty-state color`)
-    const emptyText = layerPaint(declarationOf(file, '.empty-state', 'color'))
+    const emptyText = layerPaint(declarationOf(file, '.record-empty', 'color'))
     assert.deepEqual([emptyText.r, emptyText.g, emptyText.b], [1, 1, 1], `${file} empty-state text stays neutral white`)
   }
 
@@ -402,7 +402,7 @@ const KEY_ASSIST_TEXT = [
   { file: 'pages/period/period.wxss', selector: '.item-note', stacks: [[['app.wxss', '.premium-card']]], note: '经期列表行的作者与备注' },
   { file: 'pages/period/period.wxss', selector: '.memory-note', stacks: [[['app.wxss', '.premium-card']]], note: '欢乐时光行的作者与备注' },
   { file: 'pages/period/period.wxss', selector: '.month-excerpt', stacks: [[['app.wxss', '.premium-card']]], note: '收起月份卡的备注摘要' },
-  { file: 'pages/period/period.wxss', selector: '.empty-state', stacks: [[['pages/period/period.wxss', '.empty-state']]], note: '记录 tab 空态引导与加载失败标题' },
+  { file: 'pages/period/period.wxss', selector: '.record-empty', stacks: [[['pages/period/period.wxss', '.record-empty']]], note: '记录 tab 空态引导与加载失败标题' },
   { file: 'pages/period/edit/edit.wxss', selector: '.form-hint', stacks: [[['app.wxss', '.premium-card']]], note: '经期状态的后果、天数与时长确认' },
   { file: 'pages/period/edit/edit.wxss', selector: '.form-label', stacks: [[['app.wxss', '.premium-card']]], note: '经期编辑页的字段名' },
   { file: 'pages/memory/edit/edit.wxss', selector: '.form-label', stacks: [[['app.wxss', '.premium-card']]], note: '欢乐时光编辑页的字段名' },

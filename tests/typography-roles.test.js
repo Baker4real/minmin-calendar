@@ -5,6 +5,7 @@ const test = require('node:test')
 const { readSource } = require('./sourceFiles')
 
 const { listWxssFiles, parseWxssRules } = require('./designTokens')
+const { wxmlOpeningTags } = require('./wxmlTemplate')
 
 const repoRoot = path.join(__dirname, '..')
 const APP_WXSS = path.join(repoRoot, 'app.wxss')
@@ -241,7 +242,7 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/period/period.wxss', '.item-note', 'assist'],
   ['pages/period/period.wxss', '.item-tag', 'assist'],
   ['pages/period/period.wxss', '.item-duration', 'assist'],
-  ['pages/period/period.wxss', '.empty-state', 'body'],
+  ['pages/period/period.wxss', '.record-empty', 'body'],
   ['pages/period/edit/edit.wxss', '.form-label', 'assist'],
   ['pages/period/edit/edit.wxss', '.form-hint', 'assist'],
   ['pages/period/edit/edit.wxss', '.form-picker', 'body'],
@@ -307,7 +308,7 @@ const BODY_LINE_HEIGHT = [
   ['pages/index/index.wxss', '.recap-main'],
   ['pages/index/index.wxss', '.recap-highlight'],
   ['pages/index/index.wxss', '.detail-main'],
-  ['pages/period/period.wxss', '.empty-state']
+  ['pages/period/period.wxss', '.record-empty']
 ]
 
 function ruleMap(relative) {
@@ -395,6 +396,19 @@ test('DESIGN.md frontmatter typography carries the role values, not a second ram
   }
 })
 
+// 首页九组标题 + 说明共用两个结构角色；原有类继续作为颜色、字号、间距等修饰类。
+const HOME_TEXT_PAIR_ROLES = [
+  ['sheet-title', ['sheet-subtitle']],
+  ['no-room-title', ['no-room-desc']],
+  ['partner-invite-title', ['partner-invite-desc']],
+  ['detail-empty-title', ['detail-empty-desc']],
+  ['detail-meaning-title', ['detail-meaning-text']],
+  ['detail-title', ['detail-main', 'detail-meta']],
+  ['legend-title', ['legend-text']],
+  ['prediction-summary', ['explain-line']],
+  ['recap-main', ['recap-highlight']]
+]
+
 test('shared text uses the four weight roles and does not invent a fifth weight', () => {
   const cache = new Map()
   const violations = []
@@ -410,6 +424,21 @@ test('shared text uses the four weight roles and does not invent a fifth weight'
     }
   }
   assert.deepEqual(violations, [])
+
+  const homeTags = wxmlOpeningTags(readSource(path.join(repoRoot, 'pages/index/index.wxml'), 'utf8'))
+  const assertRole = (className, role, { exclude } = {}) => {
+    const matches = homeTags.filter((tag) => tag.classes.includes(className) && !tag.classes.includes(exclude))
+    assert.ok(matches.length > 0, `expected home text modifier .${className}`)
+    for (const tag of matches) {
+      assert.ok(tag.classes.includes(role), `.${className} must carry .${role}`)
+    }
+  }
+  assert.equal(HOME_TEXT_PAIR_ROLES.length, 9)
+  for (const [title, descriptions] of HOME_TEXT_PAIR_ROLES) {
+    assertRole(title, 'text-pair-title')
+    for (const description of descriptions) assertRole(description, 'text-pair-desc')
+  }
+  assertRole('recap-summary', 'text-pair-desc', { exclude: 'recap-main' })
 })
 
 test('literal font-weight survives only on registered icon glyphs', () => {

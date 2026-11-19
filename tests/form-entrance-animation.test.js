@@ -30,8 +30,8 @@ test('form pages keep only the page-level entrance animation without card-level 
 
 test('shared stylesheet no longer defines the staggered card fade-in', () => {
   const app = readSource(path.join(repoRoot, 'app.wxss'), 'utf8')
-  assert.equal(/@keyframes\s+fadeIn\b/.test(app), false, 'fadeIn keyframes are unused once settings cards stop staggering')
-  assert.equal(/\.fade-in\b/.test(app), false, 'fade-in rules and reduced-motion entries are retired with the keyframes')
+  assert.equal((app.match(/@keyframes\s+fadeIn\b/g) || []).length, 1, 'fadeIn is the single shared opacity keyframe')
+  assert.equal(/\.fade-in\b/.test(app), false, 'staggered card fade-in rules and reduced-motion entries stay retired')
 })
 
 test('form page wxss layers define no extra entrance fade animation', () => {

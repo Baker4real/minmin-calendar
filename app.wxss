@@ -1,5 +1,6 @@
 @import './pages/shared/nav-bar.wxss';
 @import './pages/shared/glass-buttons.wxss';
+@import './pages/shared/text-pair.wxss';
 
 /* ===== Aurora Bloom: Rose + Glassmorphism ===== */
 page {
@@ -105,7 +106,7 @@ page {
   position: relative;
   min-height: 100vh;
   /* 页面入场动画 */
-  animation: pageEnter var(--duration-enter) var(--ease-out) both;
+  animation: fadeIn var(--duration-enter) var(--ease-out) both;
 }
 .page::before {
   content: '';
@@ -172,9 +173,10 @@ page {
   to { opacity: 0.6; transform: translate(-10%, 6%) scale(0.94); }
 }
 
-/* 页面入场动画：只淡入。位移动画会让 .page 永久保留 transform（fill-mode both），
-   使 position:fixed 的 .page::before 与 .aurora 退化为相对文档定位，滚动时背景跟着滚动出现分层 */
-@keyframes pageEnter {
+/* 页面入场、记录出现与当日详情共用这一份淡入关键帧。页面入场不做位移：
+   位移动画会让 .page 永久保留 transform（fill-mode both），使 position:fixed 的
+   .page::before 与 .aurora 退化为相对文档定位，滚动时背景跟着滚动出现分层 */
+@keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
@@ -397,6 +399,12 @@ button.share-invite::after {
 @keyframes pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.08); }
+}
+
+/* 首页与记录页共用同一份骨架脉冲；几何和挂载节点仍由各页保留。 */
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }
 
 /* ===== List/Menu Item Press ===== */

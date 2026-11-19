@@ -1,5 +1,6 @@
 @import '../shared/confirmation-sheet.wxss';
 @import '../shared/retry-row.wxss';
+@import '../shared/empty-state.wxss';
 
 /* ===== Aurora Bloom: Index ===== */
 .page {
@@ -104,7 +105,6 @@
 }
 .partner-invite-title,
 .partner-invite-desc {
-  display: block;
   white-space: nowrap;
 }
 .partner-invite-title {
@@ -749,7 +749,7 @@ button.home-share-invite {
   animation: recordBloom var(--duration-emphasis) var(--ease-out) var(--delay-return) both;
 }
 .calendar-days .day-cell.record-feedback-period .period-band {
-  animation: recordAppear var(--duration-emphasis) var(--ease-out) var(--delay-return) both;
+  animation: fadeIn var(--duration-emphasis) var(--ease-out) var(--delay-return) both;
 }
 .page.page-hidden .calendar-days .day-cell.record-feedback-memory .memory-mark,
 .page.page-hidden .calendar-days .day-cell.record-feedback-period .period-band {
@@ -760,11 +760,6 @@ button.home-share-invite {
   from { opacity: 0; transform: scale(0.6); }
   to { opacity: 1; transform: scale(1); }
 }
-@keyframes recordAppear {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 .month-summary {
   min-height: 88rpx;
   margin-top: 16rpx;
@@ -876,7 +871,8 @@ button.home-share-invite {
   box-sizing: border-box;
   border-radius: var(--radius-card);
   background: rgba(255,255,255,0.06);
-  border: 1px dashed rgba(255,255,255,0.16);
+  border-style: dashed;
+  border-color: rgba(255,255,255,0.16);
 }
 .empty-guide-text {
   font-size: var(--font-size-caption);
@@ -1134,11 +1130,7 @@ button.home-share-invite {
   line-height: 1;
 }
 .day-detail-fade {
-  animation: dayDetailFade var(--duration-state) var(--ease-out) both;
-}
-@keyframes dayDetailFade {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  animation: fadeIn var(--duration-state) var(--ease-out) both;
 }
 .day-detail-list {
   display: flex;
@@ -1149,13 +1141,13 @@ button.home-share-invite {
   padding: 32rpx 24rpx;
   border-radius: var(--radius-md);
   background: rgba(255,255,255,0.06);
-  border: 1px dashed rgba(255,255,255,0.14);
+  border-style: dashed;
+  border-color: rgba(255,255,255,0.14);
   display: flex;
   flex-direction: column;
   gap: 8rpx;
 }
 .detail-empty-title {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
@@ -1165,7 +1157,6 @@ button.home-share-invite {
   overflow-wrap: anywhere;
 }
 .detail-empty-desc {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
@@ -1206,7 +1197,6 @@ button.home-share-invite {
   color: var(--aurora-gold);
 }
 .detail-meaning-title {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
@@ -1216,7 +1206,6 @@ button.home-share-invite {
   overflow-wrap: anywhere;
 }
 .detail-meaning-text {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
@@ -1251,7 +1240,6 @@ button.home-share-invite {
   line-height: 1;
 }
 .detail-title {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
@@ -1265,7 +1253,6 @@ button.home-share-invite {
   color: #F0C4C0;
 }
 .detail-main {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
@@ -1274,7 +1261,6 @@ button.home-share-invite {
   overflow-wrap: anywhere;
 }
 .detail-meta {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
@@ -1360,7 +1346,6 @@ button.home-share-invite {
   gap: 8rpx;
 }
 .legend-title {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
@@ -1370,7 +1355,6 @@ button.home-share-invite {
   overflow-wrap: anywhere;
 }
 .legend-text {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
@@ -1380,7 +1364,6 @@ button.home-share-invite {
   overflow-wrap: anywhere;
 }
 .prediction-summary {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-body-lg);
   font-weight: var(--font-weight-body);
@@ -1389,7 +1372,6 @@ button.home-share-invite {
   overflow-wrap: anywhere;
 }
 .explain-line {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
@@ -1399,7 +1381,6 @@ button.home-share-invite {
   overflow-wrap: anywhere;
 }
 .recap-summary {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
@@ -1418,7 +1399,6 @@ button.home-share-invite {
   gap: 10rpx;
 }
 .recap-highlight {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
@@ -1500,10 +1480,6 @@ button.home-share-invite {
 .skeleton-cell {
   border-radius: var(--radius-md);
 }
-@keyframes skeletonPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
-}
 @media (prefers-reduced-motion: reduce) {
   .sync-pill,
   .sync-pill.sync-open,
@@ -1535,6 +1511,6 @@ button.home-share-invite {
   }
   /* 记录成功的 ♥ 只淡入、不缩放；色带本来就只动透明度，照常（issue #167） */
   .calendar-days .day-cell.record-feedback-memory .memory-mark {
-    animation: recordAppear var(--duration-emphasis) var(--ease-out) var(--delay-return) both;
+    animation: fadeIn var(--duration-emphasis) var(--ease-out) var(--delay-return) both;
   }
 }

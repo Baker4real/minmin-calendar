@@ -121,7 +121,6 @@
   gap: 6rpx;
 }
 .sheet-title {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-title);
   font-weight: var(--font-weight-title);
@@ -131,7 +130,6 @@
   overflow-wrap: anywhere;
 }
 .sheet-subtitle {
-  display: block;
   min-width: 0;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);

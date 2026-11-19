@@ -215,6 +215,10 @@ System font stack for zero-bloat + excellent CJK rendering;全页面只继承 `a
 
 caption 家族行高策略：流式说明文字（`.form-hint`、`.symptom-group-label`、`.settings-group-title`、`.room-code-label`）统一 `line-height: var(--line-height-assist)`（1.4）与 `font-weight: var(--font-weight-assist)`（500）；单行控件（`.copy-btn`）以盒高居中——盒高 88rpx flex 居中，不另设文字行高。图例符号复用日历格标记类，不另设 `.legend-symbol`。六族统一走 `--font-size-caption`（26rpx），由 `tests/typography-hierarchy.test.js` 钉住。
 
+首页九组「标题 + 说明」（弹层标题、未绑定、等待邀请、当日空态、标记含义、记录详情、图例、预测说明、本月小结）共用 `pages/shared/text-pair.wxss` 的 `.text-pair-title` / `.text-pair-desc` 两个结构角色，只收敛共同的块级显示；各类原来的字号、字重、行高、颜色、间距与换行策略继续由 `.sheet-title`、`.legend-text` 等修饰类承载，不改视觉。
+
+记录 tab 空态、首页空态引导与当日未来说明共用 `pages/shared/empty-state.wxss` 的 `.empty-state` 结构（块级盒与 1px 描边宽度）；`.record-empty`、`.empty-guide`、`.day-detail-empty` 修饰类分别保留原有 padding、颜色、字号、圆角、填充、描边样式和布局值，本轮不改视觉。
+
 信息性文字下限：日历格内微字（农历、经期/欢乐时光标记、预测徽标）不小于 `24rpx`；日历格外 caption（统计标签、同步状态、说明文字）不小于 `26rpx`。低于下限的诉求靠缩短文案或调整布局吸收，不缩小字号。
 
 ### 共享字号角色（issue #53，`app.wxss` token 为唯一来源）

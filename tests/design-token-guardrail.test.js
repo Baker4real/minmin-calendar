@@ -514,7 +514,7 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/settings/settings.wxss', '.segment-control'],
     ['pages/period/period.wxss', '.segment-control'],
     ['pages/period/period.wxss', '.skeleton-card'],
-    ['pages/period/period.wxss', '.empty-state'],
+    ['pages/period/period.wxss', '.record-empty'],
     // #236：共享表单规则及两个 @import 调用页核对同一份既有平涂登记。
     ['pages/shared/record-form.wxss', '.form-picker'],
     ['pages/shared/record-form.wxss', '.form-input'],

@@ -1,0 +1,5 @@
+/* 三类空态只共用结构；各页修饰类保留既有渲染值。 */
+.empty-state {
+  display: block;
+  border-width: 1px;
+}

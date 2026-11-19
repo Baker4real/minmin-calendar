@@ -7,8 +7,8 @@
           <view class="sheet-handle" aria-hidden="true"></view>
           <view class="sheet-head">
             <view class="sheet-date-copy">
-              <text class="sheet-title">{{sheetTitle}}</text>
-              <text wx:if="{{sheetSubtitle}}" class="sheet-subtitle">{{sheetSubtitle}}</text>
+              <text class="text-pair-title sheet-title">{{sheetTitle}}</text>
+              <text wx:if="{{sheetSubtitle}}" class="text-pair-desc sheet-subtitle">{{sheetSubtitle}}</text>
             </view>
             <view class="sheet-close" bindtap="{{closeHandler}}" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">×</view>
           </view>
@@ -90,12 +90,12 @@
       wx:key="key"
       class="detail-meaning {{item.key}}"
     >
-      <text class="detail-meaning-title">{{item.title}}</text>
-      <text class="detail-meaning-text">{{item.text}}</text>
+      <text class="text-pair-title detail-meaning-title">{{item.title}}</text>
+      <text class="text-pair-desc detail-meaning-text">{{item.text}}</text>
     </view>
-    <view wx:if="{{selectedDayDetail.futureNotice}}" class="day-detail-empty future-notice">
-      <text class="detail-empty-title">{{selectedDayDetail.futureNotice.title}}</text>
-      <text class="detail-empty-desc">{{selectedDayDetail.futureNotice.text}}</text>
+    <view wx:if="{{selectedDayDetail.futureNotice}}" class="empty-state day-detail-empty future-notice">
+      <text class="text-pair-title detail-empty-title">{{selectedDayDetail.futureNotice.title}}</text>
+      <text class="text-pair-desc detail-empty-desc">{{selectedDayDetail.futureNotice.text}}</text>
     </view>
   </view>
 
@@ -113,10 +113,10 @@
     >
       <view class="detail-rail"></view>
       <view class="detail-copy">
-        <text class="detail-title">经期</text>
-        <text class="detail-main">{{item.range}}</text>
-        <text wx:if="{{item.metaText}}" class="detail-meta">{{item.metaText}}</text>
-        <text wx:if="{{item.authorLabel}}" class="detail-meta">{{item.authorLabel}}</text>
+        <text class="text-pair-title detail-title">经期</text>
+        <text class="text-pair-desc detail-main">{{item.range}}</text>
+        <text wx:if="{{item.metaText}}" class="text-pair-desc detail-meta">{{item.metaText}}</text>
+        <text wx:if="{{item.authorLabel}}" class="text-pair-desc detail-meta">{{item.authorLabel}}</text>
       </view>
       <text class="detail-arrow" aria-hidden="true">›</text>
     </view>
@@ -134,9 +134,9 @@
     >
       <view class="detail-rail"></view>
       <view class="detail-copy">
-        <text class="detail-title">欢乐时光</text>
-        <text class="detail-main">{{item.note}}</text>
-        <text wx:if="{{item.authorLabel}}" class="detail-meta">{{item.authorLabel}}</text>
+        <text class="text-pair-title detail-title">欢乐时光</text>
+        <text class="text-pair-desc detail-main">{{item.note}}</text>
+        <text wx:if="{{item.authorLabel}}" class="text-pair-desc detail-meta">{{item.authorLabel}}</text>
       </view>
       <text class="detail-arrow" aria-hidden="true">›</text>
     </view>
@@ -175,19 +175,19 @@
         </block>
       </view>
       <view class="legend-copy">
-        <text class="legend-title">{{item.title}}</text>
-        <text class="legend-text">{{item.text}}</text>
+        <text class="text-pair-title legend-title">{{item.title}}</text>
+        <text class="text-pair-desc legend-text">{{item.text}}</text>
       </view>
     </view>
-    <text class="explain-line legend-help">更多用法请前往「设置 → 使用说明」。</text>
+    <text class="text-pair-desc explain-line legend-help">更多用法请前往「设置 → 使用说明」。</text>
   </view>
 
   <view wx:elif="{{infoSheetMode == 'prediction'}}" class="prediction-explanation">
-    <text class="prediction-summary">{{predictionExplanation.summary}}</text>
+    <text class="text-pair-title prediction-summary">{{predictionExplanation.summary}}</text>
     <text
       wx:for="{{predictionExplanation.lineItems}}"
       wx:key="key"
-      class="explain-line"
+      class="text-pair-desc explain-line"
     >{{item.text}}</text>
     <view
       wx:if="{{predictionExplanation.periodAction}}"
@@ -200,14 +200,14 @@
   </view>
 
   <view wx:elif="{{infoSheetMode == 'recap' && monthlyRecap}}" class="monthly-recap">
-    <text class="recap-summary recap-main">{{monthlyRecap.periodSummary}}</text>
-    <text class="recap-summary">{{monthlyRecap.memorySummary}}</text>
-    <text class="recap-summary">{{monthlyRecap.predictionSummary}}</text>
+    <text class="text-pair-title recap-summary recap-main">{{monthlyRecap.periodSummary}}</text>
+    <text class="text-pair-desc recap-summary">{{monthlyRecap.memorySummary}}</text>
+    <text class="text-pair-desc recap-summary">{{monthlyRecap.predictionSummary}}</text>
     <view wx:if="{{monthlyRecap.highlightItems.length}}" class="recap-highlights">
       <text
         wx:for="{{monthlyRecap.highlightItems}}"
         wx:key="key"
-        class="recap-highlight"
+        class="text-pair-desc recap-highlight"
       >{{item.text}}</text>
     </view>
     <view class="copy-recap button-primary" bindtap="copyMonthlyRecap" aria-role="button" aria-label="复制小结" hover-class="copy-recap-hover">复制小结</view>

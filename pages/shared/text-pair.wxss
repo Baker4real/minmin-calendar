@@ -1,0 +1,5 @@
+/* 首页九组标题 + 说明共用的结构角色；现有类保留各自渲染值。 */
+.text-pair-title,
+.text-pair-desc {
+  display: block;
+}

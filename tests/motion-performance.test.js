@@ -3,6 +3,7 @@
 // 常驻动画和模糊不超出登记的预算；状态通道在减弱动效下仍可感知；JS 里的时长常量与对应的样式 token 一致。
 // 具体时长、缩放和色值以 app.wxss 与 docs/motion-and-interaction.md 为准，这里不复写：在规则允许的范围内改值时测试保持通过。
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { readSource } = require('./sourceFiles')
@@ -322,6 +323,20 @@ const ONE_SHOT_ANIMATIONS = {
   recordBloom: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)', delay: RETURN_DELAY, reducedMotion: 'fades' },
   recordAppear: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)', delay: RETURN_DELAY, reducedMotion: 'stays' }
 }
+
+// pageEnter、recordAppear、dayDetailFade 共用 fadeIn 关键帧；选择器仍决定各自的时长、延迟和减弱动效政策。
+const SHARED_FADE = 'fadeIn'
+const SHARED_FADE_ROLES = new Map([
+  ['.page', 'pageEnter'],
+  ['.day-detail-fade', 'dayDetailFade'],
+  ['.calendar-days .day-cell.record-feedback-period .period-band', 'recordAppear'],
+  ['.calendar-days .day-cell.record-feedback-memory .memory-mark', 'recordAppear']
+])
+function oneShotExpectation(name, selector) {
+  const role = name === SHARED_FADE ? SHARED_FADE_ROLES.get(selector) : name
+  return role ? ONE_SHOT_ANIMATIONS[role] : null
+}
+
 const COLOR_TRANSITION_PROPS = new Set(['background', 'background-color', 'color', 'border-color'])
 const PRESS_DURATION = 'var(--duration-press)'
 const STATE_DURATION = 'var(--duration-state)'
@@ -463,8 +478,9 @@ test('one-shot transitions and animations use the shared duration tokens and rol
             }
             continue
           }
-          const expected = ONE_SHOT_ANIMATIONS[name]
-          if (!expected) {
+          const expectations = rule.selectors.map((selector) => oneShotExpectation(name, selector))
+          const expected = expectations[0]
+          if (!expected || expectations.some((item) => item !== expected)) {
             violations.push(`${where} runs unregistered one-shot animation ${name}`)
             continue
           }
@@ -532,6 +548,16 @@ test('one-shot transitions and animations use the shared duration tokens and rol
   }
 
   assert.deepEqual(violations, [])
+
+  const fadeDefinitions = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    const raw = fs.readFileSync(file, 'utf8')
+    for (const match of raw.matchAll(/@keyframes\s+(pageEnter|recordAppear|dayDetailFade|fadeIn)\b/g)) {
+      fadeDefinitions.push(`${relative} ${match[1]}`)
+    }
+  }
+  assert.deepEqual(fadeDefinitions, ['app.wxss fadeIn'], 'the three opacity fades share one keyframe definition')
 })
 
 test('cubic-bezier survives only as the --ease-out definition', () => {
@@ -586,6 +612,14 @@ test('infinite animations stay inside the registered registry with slow decorati
   }
 
   assert.deepEqual(violations, [])
+
+  const skeletonDefinitions = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    const raw = fs.readFileSync(file, 'utf8')
+    for (const _match of raw.matchAll(/@keyframes\s+skeletonPulse\b/g)) skeletonDefinitions.push(relative)
+  }
+  assert.deepEqual(skeletonDefinitions, ['app.wxss'], 'skeletonPulse has one shared definition')
 })
 
 test('retired decoration, loading and month-change animations stay gone', () => {
@@ -676,8 +710,8 @@ test('every animation stops or turns movement-free under reduced motion unless r
     for (const rule of file.rules) {
       if (rule.inReducedMotion) continue
       for (const animation of ruleAnimations(rule)) {
-        if (ONE_SHOT_ANIMATIONS[animation.name]?.reducedMotion === 'stays' && movementFree(animation.name)) continue
         for (const selector of rule.selectors) {
+          if (oneShotExpectation(animation.name, selector)?.reducedMotion === 'stays' && movementFree(animation.name)) continue
           const covering = reducedMotionCoverage(files, file, rule, selector, 'animation')
           if (covering.length === 0) {
             violations.push(`${file.relative} ${selector} (${animation.name}) has no reduced-motion coverage later in the cascade`)
@@ -855,9 +889,9 @@ test('opacity-only feedback keeps playing under reduced motion and the heart sti
     for (const rule of file.rules) {
       if (rule.inReducedMotion) continue
       for (const animation of ruleAnimations(rule)) {
-        const policy = ONE_SHOT_ANIMATIONS[animation.name]?.reducedMotion
-        if (!policy) continue
         for (const selector of rule.selectors) {
+          const policy = oneShotExpectation(animation.name, selector)?.reducedMotion
+          if (!policy) continue
           checked += 1
           const where = `${file.relative} ${selector} (${animation.name})`
           const covering = reducedMotionCoverage(files, file, rule, selector, 'animation')

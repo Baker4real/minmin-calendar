@@ -77,8 +77,8 @@ module.exports = {
   <view wx:if="{{noRoom}}" class="no-room" aria-hidden="{{pageObscured}}">
     <!-- 爱心画面只属于未绑定/需要重新绑定；加载失败保持失败标题 + 重试，不复用这颗心（issue #79） -->
     <view wx:if="{{roomStatusAction == 'bind'}}" class="no-room-icon" aria-hidden="true">♥</view>
-    <text class="no-room-title">{{roomStatusTitle}}</text>
-    <text class="no-room-desc">{{roomStatusDesc}}</text>
+    <text class="text-pair-title no-room-title">{{roomStatusTitle}}</text>
+    <text class="text-pair-desc no-room-desc">{{roomStatusDesc}}</text>
     <view class="btn-premium button-primary" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}" hover-class="btn-premium-hover">{{roomStatusActionText}}</view>
   </view>
 
@@ -143,8 +143,8 @@ module.exports = {
     <!-- 等待邀请与一次性欢迎共用同一个正常文档流槽位和日历账本项（issue #219） -->
     <view wx:if="{{partnerInvite}}" class="partner-invite">
       <view class="partner-invite-copy">
-        <text class="partner-invite-title">TA 还没加入</text>
-        <text class="partner-invite-desc">发个邀请，TA 加入后你们看的是同一本日历</text>
+        <text class="text-pair-title partner-invite-title">TA 还没加入</text>
+        <text class="text-pair-desc partner-invite-desc">发个邀请，TA 加入后你们看的是同一本日历</text>
       </view>
       <button class="btn-premium share-invite home-share-invite button-primary" open-type="share" hover-class="share-invite-hover" aria-role="button" aria-label="发邀请">发邀请</button>
     </view>
@@ -229,7 +229,7 @@ module.exports = {
       <text class="month-summary-text">{{monthSummaryLine}} ›</text>
     </view>
 
-    <view wx:if="{{!hasRecords}}" class="empty-guide">
+    <view wx:if="{{!hasRecords}}" class="empty-state empty-guide">
       <text class="empty-guide-text">点今天或过去的一天开始记录</text>
     </view>
   </view>

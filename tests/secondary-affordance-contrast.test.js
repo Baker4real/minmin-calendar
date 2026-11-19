@@ -165,7 +165,7 @@ const CASES = [
   { file: 'pages/index/index.wxss', selector: '.nav-btn', surfaces: [['pages/index/index.wxss', '.home-sticky'], ['pages/index/index.wxss', '.month-nav']], note: '月份前后切换箭头' },
   { file: 'app.wxss', selector: '.nav-back', surfaces: [['app.wxss', '.nav-back-surface']], note: '导航返回箭头' },
   { file: 'pages/index/index.wxss', selector: '.month-title-caret', surfaces: [['pages/index/index.wxss', '.home-sticky'], ['pages/index/index.wxss', '.month-nav'], ['pages/index/index.wxss', '.month-title-trigger']], note: '月份选择器 caret' },
-  { file: 'pages/period/period.wxss', selector: '.empty-state', surfaces: [], note: '记录 tab 加载失败重试入口' },
+  { file: 'pages/period/period.wxss', selector: '.record-empty', surfaces: [], note: '记录 tab 加载失败重试入口' },
   // 绑定页条目按收敛后的 Aurora 海军面验收（issue #104）：紫域画布/紫卡覆盖已删，
   // 卡片表面与其他页面同源——app 级 .premium-card（白玻璃 + 海军实底回退）
   { file: 'pages/bind/bind.wxss', selector: '.room-code-value', surfaces: [['app.wxss', '.premium-card']], note: '绑定页房间码展示文本' },
