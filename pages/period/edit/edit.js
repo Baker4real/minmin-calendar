@@ -12,6 +12,7 @@ Page(withPageVisibility({
     safeBottom: safeArea.getSafeBottom(),
     navBarHeight: safeArea.getNavBarHeight(),
     capsuleRight: safeArea.getCapsuleRightInset(),
+    noteFocused: false,
     statusOptions: cycle.PERIOD_STATUS_OPTIONS.map(item => ({ ...item, hint: cycle.periodStatusHint(item.value) })),
     flowOptions: cycle.FLOW_OPTIONS,
     symptomGroups: cycle.buildSymptomOptions(),
@@ -85,6 +86,14 @@ Page(withPageVisibility({
 
   onNoteInput(e) {
     this._editSession.changeField('note', e.detail.value)
+  },
+
+  onNoteFocus() {
+    this.setData({ noteFocused: true })
+  },
+
+  onNoteBlur() {
+    this.setData({ noteFocused: false })
   },
 
   selectFlow(e) {

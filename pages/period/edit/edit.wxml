@@ -7,7 +7,7 @@
   <include src="/pages/shared/aurora.wxml" />
   <template is="sharedNavbar" data="{{variant: 'back', title: pageTitle, pageObscured: pageObscured}}" />
 
-  <view class="content" aria-hidden="{{pageObscured}}">
+  <view class="content {{isEdit ? 'has-fixed-edit-actions' : ''}}" aria-hidden="{{pageObscured}}">
     <view class="premium-card glass-surface">
       <view wx:if="{{authorLabel}}" class="record-author">{{authorLabel}}</view>
       <view wx:if="{{draftRestored}}" class="draft-notice" aria-role="alert">
@@ -64,11 +64,11 @@
       </view>
       <view class="form-item">
         <text class="form-label">备注</text>
-        <textarea class="form-input form-control" placeholder-class="input-placeholder" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput" maxlength="500" auto-height disabled="{{saving}}" aria-label="备注"/>
+        <textarea class="form-input form-control" placeholder-class="input-placeholder" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput" bindfocus="onNoteFocus" bindblur="onNoteBlur" maxlength="500" auto-height disabled="{{saving}}" aria-label="备注"/>
       </view>
     </view>
 
-    <template is="sharedRecordActions" data="{{saving: saving, deleting: deleting, submitted: submitted, isEdit: isEdit}}" />
+    <template is="sharedRecordActions" data="{{saving: saving, deleting: deleting, submitted: submitted, isEdit: isEdit, actionsClass: 'record-actions-fixed', actionsHidden: noteFocused}}" />
   </view>
   <template is="sharedBottomSheet" data="{{sheetId: 'confirmation', sheetMounted: confirmationMounted, sheetPhase: confirmationPhase, sheetHostClass: '', sheetPanelClass: 'confirmation-panel', sheetName: confirmationName, sheetTitle: confirmationTitle, sheetSubtitle: '', maskHandler: 'onConfirmationMask', closeHandler: 'onConfirmationClose', bodyTemplate: 'confirmationSheetBody', sheetDragClear: confirmationDragClear, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions}}" />
   <template is="sharedBottomSheet" data="{{sheetId: 'datePicker', sheetMounted: datePickerMounted, sheetPhase: datePickerPhase, sheetHostClass: '', sheetPanelClass: 'date-picker-panel', sheetName: datePickerName, sheetTitle: datePickerTitle, sheetSubtitle: datePickerSubtitle, maskHandler: 'onDatePickerMask', closeHandler: 'onDatePickerClose', bodyTemplate: 'datePickerSheetBody', sheetDragClear: datePickerDragClear, datePickerYears: datePickerYears, datePickerMonths: datePickerMonths, datePickerDays: datePickerDays, datePickerValue: datePickerValue, datePickerYearAria: datePickerYearAria, datePickerMonthAria: datePickerMonthAria, datePickerDayAria: datePickerDayAria, datePickerConfirmAria: datePickerConfirmAria}}" />

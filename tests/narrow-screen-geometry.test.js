@@ -969,6 +969,40 @@ test('the settings help sheet scrolls within the bottom-sheet height band so its
   }
 })
 
+test('period fixed record actions reserve create and edit geometry with the safe area', () => {
+  const periodRaw = readRawRepo('pages/period/edit/edit.wxml')
+  const memoryRaw = readRawRepo('pages/memory/edit/edit.wxml')
+  assert.match(periodRaw, /actionsClass: 'record-actions-fixed', actionsHidden: noteFocused/)
+  assert.match(periodRaw, /class="content \{\{isEdit \? 'has-fixed-edit-actions' : ''\}\}"/)
+  assert.doesNotMatch(memoryRaw, /actionsClass|actionsHidden|record-actions-fixed/, 'memory keeps the original in-flow actions')
+  assert.doesNotMatch(readRawRepo('pages/memory/edit/edit.wxss'), /record-actions|has-fixed-edit-actions/)
+
+  const rules = parseWxssRules(readRepo('pages/period/edit/edit.wxss'))
+  const fixed = findDecls(rules, '.record-actions-fixed')
+  assert.equal(fixed.position, 'fixed')
+  assert.equal(fixed.left, '0')
+  assert.equal(fixed.right, '0')
+  assert.equal(fixed.bottom, '0')
+  assert.ok(Number(fixed['z-index']) < 60, 'fixed actions stay below the shared bottom sheets')
+  assert.equal(fixed.background, 'var(--glass-fallback)')
+  assert.match(fixed.padding, /var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
+  assert.equal(findDecls(rules, '.record-actions-fixed .btns')['margin-top'], '0')
+  assert.equal(findDecls(rules, '.record-actions-fixed.record-actions-hidden').display, 'none')
+
+  // DESIGN 的 R7 几何账本：按钮为 28rpx 正文 × 1.4 + 上下 26rpx；320px 的 1px 换算最大。
+  const buttonHeight = 28 * 1.4 + 26 * 2
+  const pxToRpx = px => px * 750 / 320
+  const createBarHeight = 20 + buttonHeight + 24 + pxToRpx(1)
+  const editBarHeight = createBarHeight + 96 + 32 + pxToRpx(1) + buttonHeight + pxToRpx(2)
+  assert.ok(createBarHeight <= 144 && 144 - createBarHeight < 16, `create reserve 144rpx covers ${createBarHeight}rpx`)
+  assert.ok(editBarHeight <= 368 && 368 - editBarHeight < 16, `edit reserve 368rpx covers ${editBarHeight}rpx`)
+
+  const content = findDecls(rules, '.content')
+  assert.match(content.padding, /calc\(144rpx \+ var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
+  const editContent = findDecls(rules, '.content.has-fixed-edit-actions')
+  assert.match(editContent['padding-bottom'], /calc\(368rpx \+ var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
+})
+
 test('sheets bottom padding carries the runtime bottom safe-area inset', () => {
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
   for (const selector of ['.calendar-jump-sheet', '.day-action-sheet']) {

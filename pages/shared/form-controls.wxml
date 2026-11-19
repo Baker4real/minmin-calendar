@@ -19,14 +19,16 @@
 </template>
 
 <template name="sharedRecordActions">
-  <view class="btns">
-    <view wx:if="{{!saving && !deleting && !submitted}}" class="btn-premium button-primary" bindtap="save" aria-role="button" aria-label="保存" hover-class="btn-premium-hover">保存</view>
-    <view wx:elif="{{saving}}" class="btn-premium loading button-primary" aria-role="button" aria-disabled="true">保存中...</view>
-    <view wx:else class="btn-premium disabled button-primary" aria-role="button" aria-disabled="true">保存</view>
-  </view>
-  <view wx:if="{{isEdit}}" class="delete-zone">
-    <view wx:if="{{isEdit && !deleting && !saving && !submitted}}" class="btn-danger button-danger" hover-class="btn-danger-hover" bindtap="delete" aria-role="button" aria-label="删除此记录">删除此记录</view>
-    <view wx:elif="{{isEdit && deleting}}" class="btn-danger loading button-danger" aria-role="button" aria-disabled="true">删除中...</view>
-    <view wx:elif="{{isEdit}}" class="btn-danger disabled button-danger" aria-role="button" aria-disabled="true">删除此记录</view>
+  <view class="record-actions {{actionsClass}}{{actionsHidden ? ' record-actions-hidden' : ''}}">
+    <view class="btns">
+      <view wx:if="{{!saving && !deleting && !submitted}}" class="btn-premium button-primary" bindtap="save" aria-role="button" aria-label="保存" hover-class="btn-premium-hover">保存</view>
+      <view wx:elif="{{saving}}" class="btn-premium loading button-primary" aria-role="button" aria-disabled="true">保存中...</view>
+      <view wx:else class="btn-premium disabled button-primary" aria-role="button" aria-disabled="true">保存</view>
+    </view>
+    <view wx:if="{{isEdit}}" class="delete-zone">
+      <view wx:if="{{isEdit && !deleting && !saving && !submitted}}" class="btn-danger button-danger" hover-class="btn-danger-hover" bindtap="delete" aria-role="button" aria-label="删除此记录">删除此记录</view>
+      <view wx:elif="{{isEdit && deleting}}" class="btn-danger loading button-danger" aria-role="button" aria-disabled="true">删除中...</view>
+      <view wx:elif="{{isEdit}}" class="btn-danger disabled button-danger" aria-role="button" aria-disabled="true">删除此记录</view>
+    </view>
   </view>
 </template>

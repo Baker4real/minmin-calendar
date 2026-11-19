@@ -4,9 +4,31 @@
 /* ===== Aurora Bloom: Period Edit ===== */
 /* 导航标题使用 pages/shared/nav-bar.wxss 的中性白。 */
 .content {
-  padding: var(--space-page-first-block) var(--space-page-gutter) calc(24rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  padding: var(--space-page-first-block) var(--space-page-gutter) calc(144rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
   position: relative;
   z-index: 1;
+}
+.content.has-fixed-edit-actions {
+  padding-bottom: calc(368rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+}
+
+/* R7：只有经期编辑页把共享保存/删除块固定在底部；聚焦备注时整块隐藏。 */
+.record-actions-fixed {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  box-sizing: border-box;
+  padding: var(--space-page-block-gap) var(--space-page-gutter) calc(24rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  background: var(--glass-fallback);
+  border-top: 1px solid var(--glass-border);
+}
+.record-actions-fixed .btns {
+  margin-top: 0;
+}
+.record-actions-fixed.record-actions-hidden {
+  display: none;
 }
 
 /* Form Card */

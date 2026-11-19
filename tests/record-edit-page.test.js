@@ -860,6 +860,36 @@ for (const exit of ['invalid', 'edit existing', 'still create', 'cancel']) {
   })
 }
 
+test('period: fixed actions hide on note focus, restore on blur, and save only once', async (t) => {
+  const app = setup(t)
+  const { page } = await openEditor(app, period)
+  const template = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
+  const textarea = wxmlOpeningTags(template).find(tag => tag.tag === 'textarea')
+  assert.ok(textarea, 'the period note textarea exists')
+  assert.equal(textarea.attrs.bindfocus, 'onNoteFocus')
+  assert.equal(textarea.attrs.bindblur, 'onNoteBlur')
+  assert.equal(page.data.noteFocused, false)
+
+  await app.dispatch(page, 'onNoteFocus')
+  assert.equal(page.data.noteFocused, true)
+  let actions = sharedTemplateData(period, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
+  assert.equal(actions.actionsHidden, true)
+  await app.dispatch(page, 'onNoteBlur')
+  assert.equal(page.data.noteFocused, false)
+  actions = sharedTemplateData(period, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
+  assert.equal(actions.actionsHidden, false)
+
+  const pending = cloudRoute(app, period, 'add').defer()
+  const saving = app.dispatch(page, 'save')
+  await app.settle()
+  await app.dispatch(page, 'save')
+  assert.equal(writes(app).length, 1, 'a repeated save cannot add a second record')
+  assert.equal(page.setDataCalls.filter(patch => patch.saving === true).length, 1)
+  pending.resolve({ code: 0, record: { _id: 'saved', ...period.payload } })
+  await saving
+  await app.settle()
+})
+
 for (const spec of records) {
   test(`${spec.kind}: one save publishes the saving state exactly once`, async (t) => {
     const app = setup(t)
