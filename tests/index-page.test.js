@@ -391,7 +391,7 @@ test('homepage sheets keep mounted phases, inert leave, layer order and system b
   assert.match(container[0], /overlay="\{\{false\}\}"/)
   assert.match(container[0], /\bduration="0"/)
   assert.match(container[0], /\bz-index="1"/)
-  assert.match(wxml.slice(0, wxml.indexOf('>')), /class="page safe-top \{\{pageObscured \? 'page-obscured' : ''\}\} \{\{pageHidden \? 'page-hidden' : ''\}\}"/)
+  assert.match(wxml, /<view class="page safe-top \{\{pageObscured \? 'page-obscured' : ''\}\} \{\{pageHidden \? 'page-hidden' : ''\}\}"/)
   assert.doesNotMatch(wxml, /infoSheetHandoff|sheet-handoff/)
   const cancellations = wxml.match(/bindtouchcancel="\{\{sheetDrag\.touchCancel\}\}"/g) || []
   assert.equal(cancellations.length, 3)

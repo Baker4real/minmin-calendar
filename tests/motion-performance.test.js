@@ -942,9 +942,9 @@ test('a sheet unmounts when its --duration-exit transition ends', async (t) => {
 const PAGE_HIDDEN_EXEMPT = { 'pages/memory/memory': 'compat route closed by its own switchTab' }
 
 function rootClassAttribute(page) {
-  // 共享 import 展开后只留下一个换行；页面根仍是第一个元素。
-  const root = /^\s*<view\b[^>]*\bclass="([^"]*)"/.exec(readRepo(`${page}.wxml`))
-  assert.ok(root, `${page}.wxml starts with the page root`)
+  // page-meta 是文档顺序中的第一个节点；暂停规则仍挂在它后面的 .page 根上。
+  const root = /<view\b[^>]*\bclass="(page [^"]*)"/.exec(readRepo(`${page}.wxml`))
+  assert.ok(root, `${page}.wxml has a .page root`)
   return root[1]
 }
 

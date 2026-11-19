@@ -13,7 +13,7 @@ const { restoreTabBarOnShow } = require('../../utils/sheetLifecycle')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 
 Page(withPageVisibility({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), segment: 'period', periodCount: 0, periodGroups: [], periodQuickLabel: '＋ 记经期', periodQuickAriaLabel: '记经期', predictionThresholdText: '记两次经期后就能估下次', avgCycle: null, avgDuration: null, loading: true, loadFailed: false, hasLoaded: false, memoryCount: 0, memoryGroups: [], memoryLoading: true, memoryLoadFailed: false, memoryHasLoaded: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), segment: 'period', periodCount: 0, periodGroups: [], periodQuickLabel: '＋ 记经期', periodQuickAriaLabel: '记经期', predictionThresholdText: '记两次经期后就能估下次', avgCycle: null, avgDuration: null, loading: true, refreshing: false, loadFailed: false, hasLoaded: false, memoryCount: 0, memoryGroups: [], memoryLoading: true, memoryLoadFailed: false, memoryHasLoaded: false },
 
   // 欢乐时光月份卡的展开选择（issue #109）：页面内存按月份键记「用户点过卡头」的月份，
   // 值为 memoryMonthGroups.EXPANDED / COLLAPSED；没点过的月份默认收起。
@@ -46,8 +46,10 @@ Page(withPageVisibility({
   },
 
   onPullDownRefresh() {
+    this.setData({ refreshing: true })
     const task = this.loadRecords()
     const stop = () => {
+      this.setData({ refreshing: false })
       if (typeof wx.stopPullDownRefresh === 'function') wx.stopPullDownRefresh()
     }
     return Promise.resolve(task).then(stop, stop)

@@ -4,7 +4,7 @@ const path = require('node:path')
 const test = require('node:test')
 const { parseWxssRules } = require('./designTokens')
 const { readSource } = require('./sourceFiles')
-const { wxmlOpeningTags } = require('./wxmlTemplate')
+const { renderWxmlAttribute, wxmlOpeningTags } = require('./wxmlTemplate')
 
 const repoRoot = path.join(__dirname, '..')
 const pages = [
@@ -34,6 +34,24 @@ test('all bottom sheets use one shared shell, page guard and reduced-motion prob
     assert.equal(nodes.filter(tag => tag.tag === 'page-container' && tag.attrs.bindbeforeleave === 'onSheetSystemBack').length, 1, `${file} mounts one return guard`)
     assert.equal(nodes.filter(tag => tag.classes.includes('day-sheet-mask')).length, sheetCount, `${file} uses the shared mask`)
     assert.equal(nodes.filter(tag => tag.classes.includes('sheet-drag-zone') && tag.attrs.bindtouchcancel === '{{sheetDrag.touchCancel}}').length, sheetCount, `${file} routes every touch cancellation through sheetDrag`)
+  }
+})
+
+test('shared sheet masks catch touch move and page-meta locks scrolling only while obscured', () => {
+  for (const [file, sheetCount] of pages) {
+    const raw = fs.readFileSync(path.join(repoRoot, file), 'utf8')
+    const pageInvocation = wxmlOpeningTags(raw).find(tag => tag.tag === 'template' && tag.attrs.is === 'sharedSheetPage')
+    assert.ok(pageInvocation, `${file} invokes the shared sheet page`)
+    assert.match(pageInvocation.attrs.data || '', /pageObscured: pageObscured/, `${file} forwards its obscured state`)
+
+    const nodes = wxmlOpeningTags(readSource(path.join(repoRoot, file), 'utf8'))
+    const masks = nodes.filter(tag => tag.classes.includes('day-sheet-mask'))
+    assert.equal(masks.filter(tag => tag.attrs.catchtouchmove === 'noop').length, sheetCount, `${file} catches movement on every shared mask`)
+    const metas = nodes.filter(tag => tag.tag === 'page-meta')
+    assert.equal(metas.length, 1, `${file} mounts one page-meta`)
+    assert.equal(nodes[0], metas[0], `${file} keeps page-meta as its first rendered node`)
+    assert.equal(renderWxmlAttribute(metas[0].attrs['page-style'], { pageObscured: true }), 'overflow: hidden;')
+    assert.equal(renderWxmlAttribute(metas[0].attrs['page-style'], { pageObscured: false }), '')
   }
 })
 

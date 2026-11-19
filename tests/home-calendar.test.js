@@ -829,6 +829,29 @@ test('close controls start leaving in their first rendered frame and retain cont
   }
 })
 
+test('open and leaving sheets suppress pull-down sync and immediately stop native refresh', async t => {
+  const app = homeApp(t)
+  const home = await launch(app)
+  for (const [index, id] of Object.keys(openers).entries()) {
+    await openSheet(app, home, id)
+    const callsBeforePull = app.cloud.calls.length
+    await home.onPullDownRefresh()
+    await app.settle()
+    assert.equal(app.cloud.calls.length, callsBeforePull, `${id} open starts no records sync`)
+    assert.equal(app.platformCalls.stopPullDownRefresh.length, index * 2 + 1, `${id} open stops native refresh immediately`)
+
+    app.dispatch(home, closers[id])
+    await app.settle()
+    assert.equal(sheet(app, home, id).pose, 'sheet-leaving')
+    await home.onPullDownRefresh()
+    await app.settle()
+    assert.equal(app.cloud.calls.length, callsBeforePull, `${id} leaving starts no records sync`)
+    assert.equal(app.platformCalls.stopPullDownRefresh.length, index * 2 + 2, `${id} leaving stops native refresh immediately`)
+    await app.advance(200)
+    app.commit(home)
+  }
+})
+
 for (const reducedMotion of [false, true]) {
   test(`sheets restore native tabs only after the last leave, reduced motion ${reducedMotion}`, async t => {
     const app = homeApp(t, { reducedMotion })

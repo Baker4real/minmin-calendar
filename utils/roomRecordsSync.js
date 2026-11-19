@@ -166,7 +166,7 @@ function createRoomRecordsSync() {
     refreshing = background
     blockedOutcome = null
     if (!background) failedCollections = []
-    pill = background && hasPending() ? syncingPill() : null
+    pill = background ? (hasPending() ? syncingPill() : refreshingPill()) : null
     const loaded = Promise.resolve().then(async () => {
       try {
         let snapshot = await readSnapshot()
@@ -375,6 +375,10 @@ function createRoomRecordsSync() {
   }
 
   return { subscribe, load, discard, applyRecordChange, getState, readCurrentRoom, claimPrompt, consumeNewRecordIds }
+}
+
+function refreshingPill() {
+  return { kind: 'syncing', text: '正在刷新', autoHide: false }
 }
 
 function syncingPill() {

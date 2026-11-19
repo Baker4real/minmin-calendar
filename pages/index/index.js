@@ -532,10 +532,14 @@ Page(withPageVisibility({
   },
 
   onPullDownRefresh() {
-    const task = this.loadRecords()
     const stop = () => {
       if (typeof wx.stopPullDownRefresh === 'function') wx.stopPullDownRefresh()
     }
+    if (this.data.pageObscured) {
+      stop()
+      return Promise.resolve()
+    }
+    const task = this.loadRecords()
     return Promise.resolve(task).then(stop, stop)
   },
 

@@ -1,6 +1,6 @@
 <template name="sharedBottomSheet">
   <view wx:if="{{sheetMounted}}" class="sheet-host {{sheetHostClass}}">
-    <view class="day-sheet-mask sheet-{{sheetPhase}}" bindtap="{{maskHandler}}" aria-role="button" aria-label="关闭{{sheetName}}" hover-class="day-sheet-mask-hover"></view>
+    <view class="day-sheet-mask sheet-{{sheetPhase}}" bindtap="{{maskHandler}}" catchtouchmove="noop" aria-role="button" aria-label="关闭{{sheetName}}" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-{{sheetId}} sheet-{{sheetPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear}}">
       <view class="day-action-sheet {{sheetPanelClass}}" catchtap="noop" aria-label="{{sheetName}}">
         <view class="sheet-drag-zone" data-sheet="{{sheetId}}" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}">
@@ -21,8 +21,9 @@
   </view>
 </template>
 
-<!-- 每页只挂一份：探测系统减弱动效，并在任一弹层卸载前拦截系统返回。 -->
+<!-- 每页只挂一份：page-meta 锁滚、减弱动效探针，以及任一弹层卸载前的系统返回拦截。 -->
 <template name="sharedSheetPage">
+  <page-meta page-style="{{pageObscured ? 'overflow: hidden;' : ''}}"></page-meta>
   <view class="reduced-motion-probe" aria-hidden="true"></view>
   <page-container
     wx:if="{{sheetExitGuard}}"
