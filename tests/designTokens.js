@@ -1,5 +1,7 @@
+const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
+const { readSource } = require('./sourceFiles')
 
 // 色板唯一权威是 DESIGN.md（含警示红、极光中间色、tab 未选中等补登色）；色板变更时同步本表
 const PALETTE_HEXES = [
@@ -165,6 +167,13 @@ function parseWxssRules(css) {
   return rules
 }
 
+function declarations(relative, selector) {
+  const matches = parseWxssRules(readSource(relative, 'utf8'))
+    .filter(rule => rule.selectors.includes(selector))
+  assert.ok(matches.length > 0, `expected ${selector} in ${relative}`)
+  return Object.assign({}, ...matches.map(rule => rule.decls))
+}
+
 // 底色有两种写法：background 简写，或平涂层只写的 background-color（按压着色要能过渡，issue #145）。
 // 两种是同一路底色，取值先看简写
 const FILL_PROPERTIES = ['background', 'background-color']
@@ -204,6 +213,7 @@ function listWxmlFiles(root) {
 
 module.exports = {
   FILL_PROPERTIES,
+  declarations,
   PALETTE_HEXES,
   PRESS_SCALE_BAND,
   TEXT_OPACITY_SCALE,

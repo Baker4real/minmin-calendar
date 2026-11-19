@@ -236,4 +236,8 @@ function readSource(file, options) {
   return fs.readFileSync(file, options)
 }
 
-module.exports = { readExpandedSource, readSource }
+function readRaw(relative) {
+  return fs.readFileSync(path.join(repoRoot, relative), 'utf8')
+}
+
+module.exports = { readExpandedSource, readRaw, readSource }

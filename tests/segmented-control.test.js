@@ -3,8 +3,8 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
-const { parseWxssRules } = require('./designTokens')
-const { readSource } = require('./sourceFiles')
+const { declarations, parseWxssRules } = require('./designTokens')
+const { readRaw } = require('./sourceFiles')
 
 const repoRoot = path.join(__dirname, '..')
 const SHARED = 'pages/shared/segmented-control.wxss'
@@ -13,17 +13,6 @@ const PAGES = [
   { file: 'pages/period/period.wxss', container: '.segment-control', option: '.segment-option', variant: 'canvas' },
   { file: 'pages/settings/settings.wxss', container: '.density-control', option: '.density-option', variant: 'card' }
 ]
-
-function readRaw(relative) {
-  return fs.readFileSync(path.join(repoRoot, relative), 'utf8')
-}
-
-function declarations(relative, selector) {
-  const matches = parseWxssRules(readSource(path.join(repoRoot, relative), 'utf8'))
-    .filter(rule => rule.selectors.includes(selector))
-  assert.ok(matches.length > 0, `expected ${selector} in ${relative}`)
-  return Object.assign({}, ...matches.map(rule => rule.decls))
-}
 
 test('bind, record and settings segmented options share the 26rpx quiet-rose option contract', () => {
   assert.ok(fs.existsSync(path.join(repoRoot, SHARED)), 'the shared segmented stylesheet must exist')

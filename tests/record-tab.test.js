@@ -1223,6 +1223,78 @@ test('deleting rows through the editor removes an emptied month and retains othe
   }
 })
 
+function pad(value) {
+  return String(value).padStart(2, '0')
+}
+
+function dateAdd(date, days) {
+  const value = new Date(`${date}T00:00:00Z`)
+  value.setUTCDate(value.getUTCDate() + days)
+  return value.toISOString().slice(0, 10)
+}
+
+function periodsForYears(years) {
+  const records = []
+  for (const year of years) {
+    for (let index = 0; index < 13; index += 1) {
+      const month = index % 12
+      const day = index < 12 ? 2 : 16
+      const startDate = `${year}-${pad(month + 1)}-${pad(day)}`
+      records.push({
+        _id: `period-${year}-${pad(index + 1)}`,
+        startDate,
+        endDate: dateAdd(startDate, 4),
+        note: `第 ${index + 1} 条经期记录`
+      })
+    }
+  }
+  return records
+}
+
+function memoriesForYears(years, count, longNote) {
+  const months = years.flatMap(year => Array.from({ length: 12 }, (_, month) => ({ year, month: month + 1 })))
+  return Array.from({ length: count }, (_, index) => {
+    const slot = months[index % months.length]
+    const day = Math.floor(index / months.length) % 27 + 1
+    return {
+      _id: `memory-${pad(index + 1)}`,
+      date: `${slot.year}-${pad(slot.month)}-${pad(day)}`,
+      note: longNote ? '测'.repeat(100) : `第 ${index + 1} 条欢乐时光`
+    }
+  })
+}
+
+// #224: same deterministic records and cumulative UTF-8 JSON byte rule as the ticket's before/after measurement.
+// The later shared prediction-threshold copy adds 80 bytes to each recorded post-projection total.
+const byteScenarios = [
+  { title: '一年13+50累计字节', years: [2026], memoryCount: 50, longNote: false, expectedBytes: 9894, ticketBaselineKiB: 46 },
+  { title: '三年39+150累计字节', years: [2024, 2025, 2026], memoryCount: 150, longNote: false, expectedBytes: 30077, ticketBaselineKiB: 141 },
+  { title: '39+300长备注累计字节', years: [2024, 2025, 2026], memoryCount: 300, longNote: true, expectedBytes: 50021, ticketBaselineKiB: 386 }
+]
+
+for (const scenario of byteScenarios) {
+  test(scenario.title, async (t) => {
+    const periods = periodsForYears(scenario.years)
+    const memories = memoriesForYears(scenario.years, scenario.memoryCount, scenario.longNote)
+    const app = createMiniProgram({ now: '2026-10-20T12:00:00+08:00', storage: { roomCode: 'ROOM01' } })
+    t.after(() => app.teardown())
+    list(app, 'periods').reply({ code: 0, data: periods })
+    list(app, 'memories').reply({ code: 0, data: memories })
+    const page = app.launch(route)
+    await app.flush()
+
+    const callBytes = page.setDataCalls.map(patch => Buffer.byteLength(JSON.stringify(patch), 'utf8'))
+    const totalBytes = callBytes.reduce((sum, bytes) => sum + bytes, 0)
+    const callSummary = page.setDataCalls.map((patch, index) => ({ keys: Object.keys(patch), bytes: callBytes[index] }))
+    assert.equal(totalBytes, scenario.expectedBytes, JSON.stringify(callSummary))
+    assert.equal(page.setDataCalls.length, 2)
+    assert.ok(
+      totalBytes < scenario.ticketBaselineKiB * 1024,
+      `${totalBytes} bytes stays below the ticket's ${scenario.ticketBaselineKiB} KB baseline`
+    )
+  })
+}
+
 test('record tab sends counts and groups without flat arrays or collapsed month rows', async (t) => {
   const app = setup(t, { segment: 'memory' })
   list(app, 'periods').reply({ code: 0, data: [

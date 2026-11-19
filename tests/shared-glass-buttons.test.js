@@ -4,14 +4,11 @@ const path = require('node:path')
 const test = require('node:test')
 
 const { listWxmlFiles, parseWxssRules } = require('./designTokens')
+const { readRaw } = require('./sourceFiles')
 const { wxmlOpeningTags } = require('./wxmlTemplate')
 
 const repoRoot = path.join(__dirname, '..')
 const SHARED = 'pages/shared/glass-buttons.wxss'
-
-function readRaw(relative) {
-  return fs.readFileSync(path.join(repoRoot, relative), 'utf8')
-}
 
 function declarations(relative, selector) {
   const rule = parseWxssRules(readRaw(relative)).find(candidate => candidate.selectors.includes(selector))
