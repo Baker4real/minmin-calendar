@@ -14,7 +14,7 @@
         <text class="draft-discard" hover-class="draft-discard-hover" bindtap="discardDraft" aria-role="button" aria-label="{{draftDiscardText}}">{{draftDiscardText}}</text>
       </view>
       <view class="form-item" id="field-startDate">
-        <template is="sharedDateField" data="{{label: '开始日期', value: startDate, displayValue: startDateLabel, placeholder: '', ariaLabel: '开始日期，' + startDateLabel + '，点按修改', error: fieldErrors.startDate, maxDate: maxDate, saving: saving, changeHandler: 'onStartChange'}}" />
+        <template is="sharedDateField" data="{{label: '开始日期', value: startDate, displayValue: startDateLabel, placeholder: '', ariaLabel: '开始日期，' + startDateLabel + '，点按修改', error: fieldErrors.startDate, maxDate: maxDate, saving: saving, tapHandler: 'openStartDatePicker'}}" />
         <view wx:if="{{startDateOwnerText}}" class="form-hint start-date-owner">
           <text>{{startDateOwnerText}}</text>
           <text class="start-date-owner-action" hover-class="start-date-owner-action-hover" bindtap="openStartDateOwner" aria-role="button" aria-label="打开那条">打开那条</text>
@@ -28,7 +28,7 @@
         <text class="form-hint status-hint" aria-role="status">{{statusHint}}</text>
       </view>
       <view class="form-item" wx:if="{{status === 'known-end'}}" id="field-endDate">
-        <template is="sharedDateField" data="{{label: '结束日期', value: endDate, displayValue: endDateLabel, placeholder: '选择结束日期', ariaLabel: endDate ? '结束日期，' + endDateLabel + '，点按修改' : '结束日期，还没选，点按选择', error: fieldErrors.endDate, startDate: startDate, maxDate: maxDate, saving: saving, changeHandler: 'onEndChange'}}" />
+        <template is="sharedDateField" data="{{label: '结束日期', value: endDate, displayValue: endDateLabel, placeholder: '选择结束日期', ariaLabel: endDate ? '结束日期，' + endDateLabel + '，点按修改' : '结束日期，还没选，点按选择', error: fieldErrors.endDate, startDate: startDate, maxDate: maxDate, saving: saving, tapHandler: 'openEndDatePicker'}}" />
         <text wx:if="{{periodDayCountText}}" class="form-hint period-length-hint">{{periodDayCountText}}</text>
         <text wx:if="{{periodLengthHint}}" class="form-hint period-length-hint">{{periodLengthHint}}</text>
       </view>
@@ -70,5 +70,6 @@
     <template is="sharedRecordActions" data="{{saving: saving, deleting: deleting, submitted: submitted, isEdit: isEdit}}" />
   </view>
   <template is="sharedBottomSheet" data="{{sheetId: 'confirmation', sheetMounted: confirmationMounted, sheetPhase: confirmationPhase, sheetHostClass: '', sheetPanelClass: 'confirmation-panel', sheetName: confirmationName, sheetTitle: confirmationTitle, sheetSubtitle: '', maskHandler: 'onConfirmationMask', closeHandler: 'onConfirmationClose', bodyTemplate: 'confirmationSheetBody', sheetDragClear: confirmationDragClear, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions}}" />
+  <template is="sharedBottomSheet" data="{{sheetId: 'datePicker', sheetMounted: datePickerMounted, sheetPhase: datePickerPhase, sheetHostClass: '', sheetPanelClass: 'date-picker-panel', sheetName: datePickerName, sheetTitle: datePickerTitle, sheetSubtitle: datePickerSubtitle, maskHandler: 'onDatePickerMask', closeHandler: 'onDatePickerClose', bodyTemplate: 'datePickerSheetBody', sheetDragClear: datePickerDragClear, datePickerYears: datePickerYears, datePickerMonths: datePickerMonths, datePickerDays: datePickerDays, datePickerValue: datePickerValue, datePickerYearAria: datePickerYearAria, datePickerMonthAria: datePickerMonthAria, datePickerDayAria: datePickerDayAria, datePickerConfirmAria: datePickerConfirmAria}}" />
   <template is="sharedSheetPage" data="{{sheetExitGuard: sheetExitGuard}}" />
 </view>

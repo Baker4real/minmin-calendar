@@ -201,6 +201,33 @@
   transform: scale(0.96);
   background-color: rgba(232,144,158,0.08);
 }
+.date-picker-columns {
+  height: 440rpx;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: linear-gradient(rgba(255,255,255,0.06), rgba(255,255,255,0.06)), var(--glass-fallback);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.date-picker-view {
+  width: 100%;
+  height: 440rpx;
+}
+.date-picker-column {
+  text-align: center;
+}
+.date-picker-option {
+  height: 88rpx;
+  line-height: 88rpx;
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-body);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.date-picker-confirm {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 24rpx;
+}
 .reduced-motion-probe {
   position: absolute;
   width: 0;

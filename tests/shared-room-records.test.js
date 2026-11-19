@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
-const { listCalls, listed, markedDates: marked } = require('./helpers/recordPages')
+const { changeEditorDate, listCalls, listed, markedDates: marked } = require('./helpers/recordPages')
 
 // #193: one Room record copy shared by every page, observed only through real pages,
 // lifecycles, platform responses and rendered data. A and B are two Rooms this device
@@ -410,8 +410,8 @@ test('a period editor whose save moved the device to another Room hints and asks
   assert.deepEqual(marked(app, home, 'isPeriod'), [], 'Home under the editor drops Room A too')
 
   // A start day inside Room A's period asks nothing: Room B's periods are read once, then the save goes on.
-  await app.dispatch(edit, 'onStartChange', { detail: { value: '2026-06-02' } })
-  assert.equal(app.rendered(edit).periodLengthHint, '')
+  await changeEditorDate(app, edit, 'onStartChange', '2026-06-02')
+  assert.equal(app.rendered(edit).periodLengthHint, '比你通常的 5 天长，确认一下结束日？', 'Room B has no history, so the default rather than Room A\'s three-day history applies')
   const periodsB = listRoute(app, 'periods', B).defer()
   listRoute(app, 'memories', B).reply(listed([]))
   const saved = period('b-new', '2026-06-02', { endDate: '2026-06-13' })

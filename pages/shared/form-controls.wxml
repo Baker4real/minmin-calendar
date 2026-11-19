@@ -1,11 +1,9 @@
 <template name="sharedDateField">
   <text class="form-label">{{label}}</text>
-  <picker mode="date" value="{{value}}" start="{{startDate}}" end="{{maxDate}}" disabled="{{saving}}" bindchange="{{changeHandler}}" aria-role="button" aria-disabled="{{saving}}" aria-label="{{ariaLabel}}{{error ? '，' + error : ''}}">
-    <view class="form-picker form-control{{saving ? ' disabled' : ''}}" hover-class="form-picker-hover">
-      <text class="{{value ? '' : 'input-placeholder'}}">{{value ? displayValue : placeholder}}</text>
-      <text class="form-picker-arrow">›</text>
-    </view>
-  </picker>
+  <view class="form-picker form-control{{saving ? ' disabled' : ''}}" hover-class="form-picker-hover" bindtap="{{tapHandler}}" aria-role="button" aria-disabled="{{saving}}" aria-label="{{ariaLabel}}{{error ? '，' + error : ''}}">
+    <text class="{{value ? '' : 'input-placeholder'}}">{{value ? displayValue : placeholder}}</text>
+    <text class="form-picker-arrow">›</text>
+  </view>
   <text wx:if="{{error}}" class="field-error" aria-role="alert">{{error}}</text>
 </template>
 

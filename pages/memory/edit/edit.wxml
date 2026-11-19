@@ -14,7 +14,7 @@
         <text class="draft-discard" hover-class="draft-discard-hover" bindtap="discardDraft" aria-role="button" aria-label="{{draftDiscardText}}">{{draftDiscardText}}</text>
       </view>
       <view class="form-item" id="field-date">
-        <template is="sharedDateField" data="{{label: '日期', value: date, displayValue: dateLabel, placeholder: '', ariaLabel: '日期，' + dateLabel + '，点按修改', error: fieldErrors.date, maxDate: maxDate, saving: saving, changeHandler: 'onDateChange'}}" />
+        <template is="sharedDateField" data="{{label: '日期', value: date, displayValue: dateLabel, placeholder: '', ariaLabel: '日期，' + dateLabel + '，点按修改', error: fieldErrors.date, maxDate: maxDate, saving: saving, tapHandler: 'openMemoryDatePicker'}}" />
       </view>
       <view class="form-item">
         <text class="form-label">内容</text>
@@ -25,5 +25,6 @@
     <template is="sharedRecordActions" data="{{saving: saving, deleting: deleting, submitted: submitted, isEdit: isEdit}}" />
   </view>
   <template is="sharedBottomSheet" data="{{sheetId: 'confirmation', sheetMounted: confirmationMounted, sheetPhase: confirmationPhase, sheetHostClass: '', sheetPanelClass: 'confirmation-panel', sheetName: confirmationName, sheetTitle: confirmationTitle, sheetSubtitle: '', maskHandler: 'onConfirmationMask', closeHandler: 'onConfirmationClose', bodyTemplate: 'confirmationSheetBody', sheetDragClear: confirmationDragClear, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions}}" />
+  <template is="sharedBottomSheet" data="{{sheetId: 'datePicker', sheetMounted: datePickerMounted, sheetPhase: datePickerPhase, sheetHostClass: '', sheetPanelClass: 'date-picker-panel', sheetName: datePickerName, sheetTitle: datePickerTitle, sheetSubtitle: datePickerSubtitle, maskHandler: 'onDatePickerMask', closeHandler: 'onDatePickerClose', bodyTemplate: 'datePickerSheetBody', sheetDragClear: datePickerDragClear, datePickerYears: datePickerYears, datePickerMonths: datePickerMonths, datePickerDays: datePickerDays, datePickerValue: datePickerValue, datePickerYearAria: datePickerYearAria, datePickerMonthAria: datePickerMonthAria, datePickerDayAria: datePickerDayAria, datePickerConfirmAria: datePickerConfirmAria}}" />
   <template is="sharedSheetPage" data="{{sheetExitGuard: sheetExitGuard}}" />
 </view>

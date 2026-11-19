@@ -14,7 +14,7 @@
           </view>
         </view>
         <view class="sheet-body">
-          <template is="{{bodyTemplate}}" data="{{year: year, month: month, jumpYear: jumpYear, jumpMonth: jumpMonth, jumpYearAtMin: jumpYearAtMin, jumpYearAtMax: jumpYearAtMax, jumpMonths: jumpMonths, selectedDayDetail: selectedDayDetail, daySheetMode: daySheetMode, dayDetailFade: dayDetailFade, periodBandSample: periodBandSample, calendarDensity: calendarDensity, infoSheetMode: infoSheetMode, predictionExplanation: predictionExplanation, monthlyRecap: monthlyRecap, legendItems: legendItems, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions}}" />
+          <template is="{{bodyTemplate}}" data="{{year: year, month: month, jumpYear: jumpYear, jumpMonth: jumpMonth, jumpYearAtMin: jumpYearAtMin, jumpYearAtMax: jumpYearAtMax, jumpMonths: jumpMonths, selectedDayDetail: selectedDayDetail, daySheetMode: daySheetMode, dayDetailFade: dayDetailFade, periodBandSample: periodBandSample, calendarDensity: calendarDensity, infoSheetMode: infoSheetMode, predictionExplanation: predictionExplanation, monthlyRecap: monthlyRecap, legendItems: legendItems, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions, datePickerName: datePickerName, datePickerYears: datePickerYears, datePickerMonths: datePickerMonths, datePickerDays: datePickerDays, datePickerValue: datePickerValue, datePickerYearAria: datePickerYearAria, datePickerMonthAria: datePickerMonthAria, datePickerDayAria: datePickerDayAria, datePickerConfirmAria: datePickerConfirmAria}}" />
         </view>
       </view>
     </view>
@@ -221,6 +221,23 @@
   <text class="help-copy">过去漏记的经期可以补记；进行中的经期结束后，用「记结束」填上结束日期。</text>
   <text class="help-copy">解除绑定后，TA 还在房间里时，用房间码加入；房间里只剩你时，房间会归档，记录还在；在绑定页点「我来建房间」恢复。</text>
   <text class="help-copy">预测是根据已有记录做的估算，不是医疗建议。</text>
+</template>
+
+<template name="datePickerSheetBody">
+  <view class="date-picker-columns">
+    <picker-view class="date-picker-view" value="{{datePickerValue}}" bindchange="onDatePickerChange" indicator-style="height: 88rpx;" aria-role="listbox" aria-label="{{datePickerName}}">
+      <picker-view-column class="date-picker-column" aria-label="{{datePickerYearAria}}">
+        <view wx:for="{{datePickerYears}}" wx:key="value" class="date-picker-option">{{item.label}}</view>
+      </picker-view-column>
+      <picker-view-column class="date-picker-column" aria-label="{{datePickerMonthAria}}">
+        <view wx:for="{{datePickerMonths}}" wx:key="value" class="date-picker-option">{{item.label}}</view>
+      </picker-view-column>
+      <picker-view-column class="date-picker-column" aria-label="{{datePickerDayAria}}">
+        <view wx:for="{{datePickerDays}}" wx:key="value" class="date-picker-option">{{item.label}}</view>
+      </picker-view-column>
+    </picker-view>
+  </view>
+  <view class="btn-premium button-primary date-picker-confirm" bindtap="onDatePickerConfirm" aria-role="button" aria-label="{{datePickerConfirmAria}}" hover-class="btn-premium-hover">确定</view>
 </template>
 
 <template name="confirmationSheetBody">

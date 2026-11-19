@@ -3,8 +3,8 @@
 const { createSheetLifecycle, sheetPageDecorator, decideSheetDragRelease, dismissSheetOnSystemBack } = require('./sheetLifecycle')
 
 const decorate = sheetPageDecorator({
-  phaseKeys: ['confirmationPhase'],
-  mountedKeys: ['confirmationMounted']
+  phaseKeys: ['confirmationPhase', 'datePickerPhase'],
+  mountedKeys: ['confirmationMounted', 'datePickerMounted']
 })
 
 // #209 的小注册表同时承接非首页的确认与使用说明：拖动、触摸取消和系统返回都走同一个 close。
@@ -166,4 +166,4 @@ function settingsHelpSheet(page) {
   return page._settingsHelpSheet
 }
 
-module.exports = { confirmationSheetData, confirmationSheet, settingsHelpSheet }
+module.exports = { confirmationSheetData, confirmationSheet, settingsHelpSheet, registeredSheetInteractions }

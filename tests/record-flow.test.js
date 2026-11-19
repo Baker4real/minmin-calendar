@@ -252,8 +252,10 @@ test('record edit pages isolate delete loading, constrain period dates, and cap 
   assert.match(memoryEditWxml, /wx:elif="\{\{saving\}\}"[^>]*>保存中\.\.\./)
   assert.match(periodEditWxml, /wx:else class="btn-premium disabled button-primary"[^>]*>保存</)
   assert.match(memoryEditWxml, /wx:else class="btn-premium disabled button-primary"[^>]*>保存</)
-  assert.match(periodEditWxml, /end="\{\{maxDate\}\}"/)
-  assert.match(periodEditWxml, /start="\{\{startDate\}\}"/)
+  const periodRawWxml = readRawPageFile('pages/period/edit/edit.wxml')
+  assert.doesNotMatch(periodEditWxml, /<picker mode="date"/)
+  assert.match(periodRawWxml, /startDate: startDate, maxDate: maxDate, saving: saving, tapHandler: 'openEndDatePicker'/)
+  assert.match(periodRawWxml, /maxDate: maxDate, saving: saving, tapHandler: 'openStartDatePicker'/)
   // 结束日期选择器只在已知结束状态出现；开始日期选择器上限为今天
   assert.match(periodEditWxml, /<view class="form-item" wx:if="\{\{status === 'known-end'\}\}"[^>]*>/)
   assert.match(periodEditWxml, /bindtap="\{\{tapHandler\}\}"/)
@@ -287,7 +289,7 @@ test('record edit templates use action titles, paired authors, and the required 
   assert.match(periodRawWxml, /checked: selectedSymptoms\[item\.value\]/)
   assert.doesNotMatch(optional, /item\.selected/)
 
-  const statusOptions = required.indexOf('bindtap="{{tapHandler}}"')
+  const statusOptions = required.indexOf('aria-checked="{{checked}}"')
   const statusHint = required.indexOf('{{statusHint}}')
   const endDate = required.indexOf('id="field-endDate"')
   assert.ok(statusOptions !== -1 && statusOptions < statusHint && statusHint < endDate, 'the current status consequence follows its options')
@@ -304,11 +306,12 @@ test('record edit templates keep fields and delete locked while saving', () => {
   const periodEditWxml = readPageFile('pages/period/edit/edit.wxml')
   const memoryEditWxml = readPageFile('pages/memory/edit/edit.wxml')
 
-  // 保存进行中：日期选择器与备注输入带原生 disabled，与 saving 同条件
-  const periodLocked = periodEditWxml.match(/\sdisabled="\{\{saving\}\}"/g) || []
-  const memoryLocked = memoryEditWxml.match(/\sdisabled="\{\{saving\}\}"/g) || []
-  assert.equal(periodLocked.length, 3, 'period date pickers and note input must be disabled while saving')
-  assert.equal(memoryLocked.length, 2, 'memory date picker and note input must be disabled while saving')
+  // 保存进行中：日期字段带 disabled 类与 aria-disabled，备注输入保留原生 disabled，均与 saving 同条件。
+  for (const [wxml, dateFields] of [[periodEditWxml, 2], [memoryEditWxml, 1]]) {
+    const lockedDates = wxml.match(/class="form-picker[^"]*"[^>]*aria-disabled="\{\{saving\}\}"/g) || []
+    assert.equal(lockedDates.length, dateFields, 'every date field is disabled while saving')
+    assert.equal((wxml.match(/<textarea[^>]*disabled="\{\{saving\}\}"/g) || []).length, 1, 'the note input is disabled while saving')
+  }
   for (const wxml of [periodEditWxml, memoryEditWxml]) {
     assert.match(wxml, /wx:if="\{\{isEdit && !deleting && !saving && !submitted\}\}"[^>]*bindtap="delete"/)
   }
@@ -353,8 +356,8 @@ test('edit forms read each displayed date and keep its own error inside that pic
       `${file} ${field} picker appends its error after the field name`
     )
     const errorLine = '<text wx:if="{{error}}" class="field-error" aria-role="alert">{{error}}</text>'
-    const pickerEnd = item.indexOf('</picker>')
-    assert.ok(pickerEnd !== -1 && item.indexOf(errorLine) > pickerEnd, `${file} ${field} error line follows its picker`)
+    const fieldControlEnd = item.indexOf('</view>')
+    assert.ok(fieldControlEnd !== -1 && item.indexOf(errorLine) > fieldControlEnd, `${file} ${field} error line follows its field control`)
   }
 
   // 两个编辑页共用 app.wxss 里的一条 .field-error，页面不各写一份

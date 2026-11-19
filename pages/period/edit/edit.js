@@ -1,6 +1,7 @@
 const recordCommands = require('../../../utils/recordCommands')
 const cycle = require('../../../utils/cycle')
 const { confirmationSheet, confirmationSheetData } = require('../../../utils/confirmationSheet')
+const { datePickerSheet, datePickerSheetData } = require('../../../utils/datePickerSheet')
 const { probeReducedMotion } = require('../../../utils/sheetLifecycle')
 const safeArea = require('../../../utils/safeArea')
 const { withPageVisibility } = require('../../../utils/pageVisibility')
@@ -14,7 +15,8 @@ Page(withPageVisibility({
     statusOptions: cycle.PERIOD_STATUS_OPTIONS.map(item => ({ ...item, hint: cycle.periodStatusHint(item.value) })),
     flowOptions: cycle.FLOW_OPTIONS,
     symptomGroups: cycle.buildSymptomOptions(),
-    ...confirmationSheetData()
+    ...confirmationSheetData(),
+    ...datePickerSheetData()
   },
 
   onLoad(options) {
@@ -33,10 +35,40 @@ Page(withPageVisibility({
   onUnload() {
     this._editSession.onUnload()
     confirmationSheet(this).unload()
+    datePickerSheet(this).unload()
   },
 
   onReady() {
     probeReducedMotion(this)
+  },
+
+  openStartDatePicker() {
+    if (this.data.saving) return
+    datePickerSheet(this).open({
+      label: '开始日期',
+      value: this.data.startDate,
+      maxDate: this.data.maxDate,
+      onConfirm: date => this.onStartChange({ detail: { value: date } })
+    })
+  },
+
+  openEndDatePicker() {
+    if (this.data.saving) return
+    datePickerSheet(this).open({
+      label: '结束日期',
+      value: this.data.endDate,
+      minDate: this.data.startDate,
+      maxDate: this.data.maxDate,
+      onConfirm: date => this.onEndChange({ detail: { value: date } })
+    })
+  },
+
+  onDatePickerChange(e) {
+    datePickerSheet(this).change(e.detail.value)
+  },
+
+  onDatePickerConfirm() {
+    datePickerSheet(this).confirm()
   },
 
   onStartChange(e) {
@@ -83,6 +115,14 @@ Page(withPageVisibility({
     return this._editSession.delete()
   },
 
+  onDatePickerMask() {
+    datePickerSheet(this).cancel()
+  },
+
+  onDatePickerClose() {
+    datePickerSheet(this).cancel()
+  },
+
   onConfirmationAction(e) {
     confirmationSheet(this).action(e.currentTarget.dataset.action)
   },
@@ -97,13 +137,16 @@ Page(withPageVisibility({
 
   onSheetDragRelease(detail) {
     confirmationSheet(this).dragRelease(detail)
+    datePickerSheet(this).dragRelease(detail)
   },
 
   onSheetDragCancel(detail) {
     confirmationSheet(this).dragCancel(detail)
+    datePickerSheet(this).dragCancel(detail)
   },
 
   onSheetSystemBack() {
-    confirmationSheet(this).systemBack()
+    if (this.data.datePickerMounted) datePickerSheet(this).systemBack()
+    else confirmationSheet(this).systemBack()
   }
 }))

@@ -3,7 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { createMiniProgram } = require('./helpers/miniProgram')
-const { confirmDelete, listCalls, listed, markedDates } = require('./helpers/recordPages')
+const { changeEditorDate, confirmDelete, listCalls, listed, markedDates } = require('./helpers/recordPages')
 
 // #171: real pages, platform responses and rendered data only. Calendar/sheet
 // interaction cases remain in index-page.test.js for #172.
@@ -498,9 +498,9 @@ async function savePeriod(app, home, record) {
   app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'periods' } }).reply({ code: 0, id: record._id, record })
   await app.dispatch(home, 'quickPeriod')
   const edit = app.currentPage
-  await app.dispatch(edit, 'onStartChange', { detail: { value: record.startDate } })
+  await changeEditorDate(app, edit, 'onStartChange', record.startDate)
   await app.dispatch(edit, 'selectStatus', { currentTarget: { dataset: { value: 'known-end' } } })
-  await app.dispatch(edit, 'onEndChange', { detail: { value: record.endDate } })
+  await changeEditorDate(app, edit, 'onEndChange', record.endDate)
   await app.dispatch(edit, 'save')
   await app.settle()
 }
@@ -556,7 +556,7 @@ test('F2: a locally saved ongoing period stays unsynced until a complete list re
   app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'periods' } }).reply({ code: 0, id: saved._id, record: saved })
   await app.dispatch(home, 'quickPeriod')
   const edit = app.currentPage
-  await app.dispatch(edit, 'onStartChange', { detail: { value: saved.startDate } })
+  await changeEditorDate(app, edit, 'onStartChange', saved.startDate)
   await app.dispatch(edit, 'selectStatus', { currentTarget: { dataset: { value: 'ongoing' } } })
   await app.dispatch(edit, 'save')
   await app.advance(1000)
