@@ -10,7 +10,7 @@ const { wxmlOpeningTags } = require('./wxmlTemplate')
 const repoRoot = path.join(__dirname, '..')
 const SHARED = 'pages/shared/glass-buttons.wxss'
 
-function declarations(relative, selector) {
+function rawDeclarations(relative, selector) {
   const rule = parseWxssRules(readRaw(relative)).find(candidate => candidate.selectors.includes(selector))
   assert.ok(rule, `expected ${selector} in ${relative}`)
   return rule.decls
@@ -32,7 +32,7 @@ function assertEveryInstanceHasBase(baseClass, modifierClasses, excludedClasses 
 test('glass surfaces share one structural base while modifiers keep their tint and stroke values', () => {
   assert.ok(fs.existsSync(path.join(repoRoot, SHARED)), 'the shared glass/button stylesheet must exist')
   assert.match(readRaw('app.wxss'), /@import '\.\/pages\/shared\/glass-buttons\.wxss';/)
-  assert.deepEqual(declarations(SHARED, '.glass-surface'), {
+  assert.deepEqual(rawDeclarations(SHARED, '.glass-surface'), {
     position: 'relative',
     overflow: 'hidden'
   })
@@ -44,7 +44,7 @@ test('glass surfaces share one structural base while modifiers keep their tint a
     ['pages/period/period.wxss', '.skeleton-card', 'linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback)', '1px solid rgba(255,255,255,0.12)']
   ]
   for (const [file, selector, background, border] of modifiers) {
-    const decls = declarations(file, selector)
+    const decls = rawDeclarations(file, selector)
     assert.equal(decls.background, background, `${selector} keeps its rendered tint`)
     assert.equal(decls.border, border, `${selector} keeps its rendered stroke`)
     assert.equal(decls.position, undefined, `${selector} leaves position to the shared base`)
@@ -54,7 +54,7 @@ test('glass surfaces share one structural base while modifiers keep their tint a
 })
 
 test('rose fill buttons share one flex and positioning base while modifiers keep their rendered values', () => {
-  assert.deepEqual(declarations(SHARED, '.button-primary'), {
+  assert.deepEqual(rawDeclarations(SHARED, '.button-primary'), {
     display: 'flex',
     'align-items': 'center',
     'justify-content': 'center',
@@ -68,7 +68,7 @@ test('rose fill buttons share one flex and positioning base while modifiers keep
     ['pages/shared/room-code.wxss', '.copy-btn', 'var(--radius-sm)']
   ]
   for (const [file, selector, radius] of modifiers) {
-    const decls = declarations(file, selector)
+    const decls = rawDeclarations(file, selector)
     assert.equal(decls.background, 'var(--aurora-pink)', `${selector} keeps its rose fill`)
     assert.equal(decls.color, 'var(--text-on-accent)', `${selector} keeps its navy label`)
     assert.equal(decls['border-radius'], radius, `${selector} keeps its radius modifier`)
@@ -80,11 +80,11 @@ test('rose fill buttons share one flex and positioning base while modifiers keep
 })
 
 test('warning buttons share one overlay structure while button and menu modifiers keep their red values', () => {
-  assert.deepEqual(declarations(SHARED, '.button-danger'), {
+  assert.deepEqual(rawDeclarations(SHARED, '.button-danger'), {
     position: 'relative',
     'z-index': '0'
   })
-  assert.deepEqual(declarations(SHARED, '.button-danger::before'), {
+  assert.deepEqual(rawDeclarations(SHARED, '.button-danger::before'), {
     content: "''",
     position: 'absolute',
     top: '0',
@@ -99,13 +99,13 @@ test('warning buttons share one overlay structure while button and menu modifier
     ['app.wxss', '.btn-danger'],
     ['pages/settings/settings.wxss', '.menu-item.danger']
   ]) {
-    const decls = declarations(file, selector)
+    const decls = rawDeclarations(file, selector)
     assert.equal(decls.background, 'var(--glass-fallback)', `${selector} keeps its navy fallback`)
     assert.equal(decls.border, '1px solid rgba(249,115,115,0.28)', `${selector} keeps its red stroke`)
     assert.equal(decls.position, undefined, `${selector} leaves position to the shared base`)
     assert.equal(decls['z-index'], undefined, `${selector} leaves stacking to the shared base`)
 
-    const overlay = declarations(file, `${selector}::before`)
+    const overlay = rawDeclarations(file, `${selector}::before`)
     assert.equal(overlay['background-color'], 'var(--glass-bg)', `${selector} keeps its resting tint`)
     assert.equal(overlay['border-radius'], 'var(--radius-md)', `${selector} keeps its overlay radius`)
     for (const property of ['content', 'position', 'top', 'right', 'bottom', 'left', 'pointer-events', 'z-index']) {
@@ -117,7 +117,7 @@ test('warning buttons share one overlay structure while button and menu modifier
 })
 
 test('secondary outline buttons share one flex base while ghost, confirmation and room modifiers keep their values', () => {
-  assert.deepEqual(declarations(SHARED, '.button-outline'), {
+  assert.deepEqual(rawDeclarations(SHARED, '.button-outline'), {
     display: 'flex',
     'align-items': 'center',
     'justify-content': 'center',
@@ -131,7 +131,7 @@ test('secondary outline buttons share one flex base while ghost, confirmation an
     ['pages/settings/settings.wxss', '.room-action-btn', 'rgba(232,144,158,0.08)', '#E8909E', '1px solid rgba(232,144,158,0.45)', 'var(--radius-sm)']
   ]
   for (const [file, selector, background, color, border, radius] of modifiers) {
-    const decls = declarations(file, selector)
+    const decls = rawDeclarations(file, selector)
     assert.equal(decls.background, background, `${selector} keeps its rendered fill`)
     assert.equal(decls.color, color, `${selector} keeps its rendered label`)
     assert.equal(decls.border, border, `${selector} keeps its rendered stroke`)

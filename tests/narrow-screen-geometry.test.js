@@ -989,18 +989,19 @@ test('period fixed record actions reserve create and edit geometry with the safe
   assert.equal(findDecls(rules, '.record-actions-fixed .btns')['margin-top'], '0')
   assert.equal(findDecls(rules, '.record-actions-fixed.record-actions-hidden').display, 'none')
 
-  // DESIGN 的 R7 几何账本：按钮为 28rpx 正文 × 1.4 + 上下 26rpx；320px 的 1px 换算最大。
-  const buttonHeight = 28 * 1.4 + 26 * 2
+  // DESIGN 的 R7 几何账本：按钮取 app.wxss 的 --font-size-body × --line-height-assist + 上下 26rpx；320px 的 1px 换算最大。
+  const appTokens = readAppTokens()
+  const buttonHeight = tokenRpx('var(--font-size-body)', appTokens) * Number(appTokens['--line-height-assist']) + 26 * 2
   const pxToRpx = px => px * 750 / 320
   const createBarHeight = 20 + buttonHeight + 24 + pxToRpx(1)
   const editBarHeight = createBarHeight + 96 + 32 + pxToRpx(1) + buttonHeight + pxToRpx(2)
   assert.ok(createBarHeight <= 144 && 144 - createBarHeight < 16, `create reserve 144rpx covers ${createBarHeight}rpx`)
-  assert.ok(editBarHeight <= 368 && 368 - editBarHeight < 16, `edit reserve 368rpx covers ${editBarHeight}rpx`)
+  assert.ok(editBarHeight <= 376 && 376 - editBarHeight < 16, `edit reserve 376rpx covers ${editBarHeight}rpx`)
 
   const content = findDecls(rules, '.content')
   assert.match(content.padding, /calc\(144rpx \+ var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
   const editContent = findDecls(rules, '.content.has-fixed-edit-actions')
-  assert.match(editContent['padding-bottom'], /calc\(368rpx \+ var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
+  assert.match(editContent['padding-bottom'], /calc\(376rpx \+ var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
 })
 
 test('sheets bottom padding carries the runtime bottom safe-area inset', () => {

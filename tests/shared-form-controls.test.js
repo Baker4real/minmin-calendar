@@ -3,10 +3,9 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 const { parseWxssRules } = require('./designTokens')
-const { readSource } = require('./sourceFiles')
+const { readRaw, readSource } = require('./sourceFiles')
 
 const repoRoot = path.join(__dirname, '..')
-const readRaw = relativePath => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
 const occurrences = (source, pattern) => (source.match(pattern) || []).length
 
 test('edit pages render save and delete states from one shared template', () => {

@@ -860,12 +860,10 @@ for (const exit of ['invalid', 'edit existing', 'still create', 'cancel']) {
   })
 }
 
-test('period: fixed actions hide on note focus, restore on blur, and save only once', async (t) => {
-  const app = setup(t)
-  const { page } = await openEditor(app, period)
-  const template = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
+async function assertNoteFocusToggle(app, page, spec, { onFocus, onBlur } = {}) {
+  const template = readSource(path.join(__dirname, `../pages/${spec.kind}/edit/edit.wxml`), 'utf8')
   const textarea = wxmlOpeningTags(template).find(tag => tag.tag === 'textarea')
-  assert.ok(textarea, 'the period note textarea exists')
+  assert.ok(textarea, `the ${spec.kind} note textarea exists`)
   assert.equal(textarea.attrs.bindfocus, 'onNoteFocus')
   assert.equal(textarea.attrs.bindblur, 'onNoteBlur')
   assert.equal(page.data.noteFocused, false)
@@ -874,13 +872,27 @@ test('period: fixed actions hide on note focus, restore on blur, and save only o
   await app.dispatch(page, 'onNoteFocus')
   assert.equal(page.data.noteFocused, true)
   assert.equal(renderWxmlClasses(textarea.attrs.class, page.data).includes('form-control-focused'), true)
-  let actions = sharedTemplateData(period, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
-  assert.equal(actions.actionsHidden, true)
+  if (onFocus) onFocus()
+
   await app.dispatch(page, 'onNoteBlur')
   assert.equal(page.data.noteFocused, false)
   assert.equal(renderWxmlClasses(textarea.attrs.class, page.data).includes('form-control-focused'), false)
-  actions = sharedTemplateData(period, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
-  assert.equal(actions.actionsHidden, false)
+  if (onBlur) onBlur()
+}
+
+test('period: fixed actions hide on note focus, restore on blur, and save only once', async (t) => {
+  const app = setup(t)
+  const { page } = await openEditor(app, period)
+  await assertNoteFocusToggle(app, page, period, {
+    onFocus: () => {
+      const actions = sharedTemplateData(period, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
+      assert.equal(actions.actionsHidden, true)
+    },
+    onBlur: () => {
+      const actions = sharedTemplateData(period, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
+      assert.equal(actions.actionsHidden, false)
+    }
+  })
 
   const pending = cloudRoute(app, period, 'add').defer()
   const saving = app.dispatch(page, 'save')
@@ -897,20 +909,7 @@ test('memory: R10 note focus shows the shared focused class and blur restores it
   const app = setup(t)
   const memory = records[1]
   const { page } = await openEditor(app, memory)
-  const template = readSource(path.join(__dirname, '../pages/memory/edit/edit.wxml'), 'utf8')
-  const textarea = wxmlOpeningTags(template).find(tag => tag.tag === 'textarea')
-  assert.ok(textarea, 'the memory note textarea exists')
-  assert.equal(textarea.attrs.bindfocus, 'onNoteFocus')
-  assert.equal(textarea.attrs.bindblur, 'onNoteBlur')
-  assert.equal(page.data.noteFocused, false)
-  assert.equal(renderWxmlClasses(textarea.attrs.class, page.data).includes('form-control-focused'), false)
-
-  await app.dispatch(page, 'onNoteFocus')
-  assert.equal(page.data.noteFocused, true)
-  assert.equal(renderWxmlClasses(textarea.attrs.class, page.data).includes('form-control-focused'), true)
-  await app.dispatch(page, 'onNoteBlur')
-  assert.equal(page.data.noteFocused, false)
-  assert.equal(renderWxmlClasses(textarea.attrs.class, page.data).includes('form-control-focused'), false)
+  await assertNoteFocusToggle(app, page, memory)
 })
 
 for (const spec of records) {

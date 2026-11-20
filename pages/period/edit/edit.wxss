@@ -9,7 +9,7 @@
   z-index: 1;
 }
 .content.has-fixed-edit-actions {
-  padding-bottom: calc(368rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  padding-bottom: calc(376rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
 }
 
 /* R7：只有经期编辑页把共享保存/删除块固定在底部；聚焦备注时整块隐藏。 */
