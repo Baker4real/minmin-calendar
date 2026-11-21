@@ -18,10 +18,56 @@ test('automator preflight distinguishes a listening port from a closed port', as
 test('preflight fails while the project window is minimized, because captures fail then even with CLI and automator up', async () => {
   const { projectWindowResult } = await import('./tools/devtoolsPreflight.mjs')
   assert.deepEqual(projectWindowResult('50236\tFalse\r\n', 'minmin-calendar'), { name: 'DevTools project window', ok: true })
-  const minimized = projectWindowResult('50236\tTrue\r\n', 'minmin-calendar')
+  assert.deepEqual(projectWindowResult('DESKTOP_WINDOWS\t5\r\n50236\tFalse\r\n', 'minmin-calendar'), { name: 'DevTools project window', ok: true })
+  const minimized = projectWindowResult('DESKTOP_WINDOWS\t5\r\n50236\tTrue\r\n', 'minmin-calendar')
   assert.equal(minimized.ok, false)
   assert.match(minimized.error, /minimized \(pid 50236\)/)
+  const missing = projectWindowResult('DESKTOP_WINDOWS\t5\r\n', 'minmin-calendar')
+  assert.equal(missing.skipped, true)
+  assert.match(missing.error, /no DevTools window titled minmin-calendar/)
   assert.equal(projectWindowResult('', 'minmin-calendar').skipped, true)
+  const headless = projectWindowResult('DESKTOP_WINDOWS\t0\r\n', 'minmin-calendar')
+  assert.equal(headless.skipped, true)
+  assert.match(headless.error, /shell-cannot-observe-desktop/)
+})
+
+test('CLI islogin retries once on transient exit 4294967295 and fails immediately on non-transient errors', async () => {
+  const { checkLogin } = await import('./tools/devtoolsPreflight.mjs')
+  let calls = 0
+  const recovered = await checkLogin('C:/fake-ide', {
+    async runCli() {
+      calls += 1
+      return calls === 1
+        ? { status: 'failed', exitCode: 4294967295, output: '' }
+        : { status: 'ok', exitCode: 0, output: '{"login":true}' }
+    },
+  })
+  assert.equal(calls, 2)
+  assert.match(recovered.note, /recovered on retry after exit 4294967295/)
+
+  let twice = 0
+  await assert.rejects(
+    checkLogin('C:/fake-ide', {
+      async runCli() {
+        twice += 1
+        return { status: 'failed', exitCode: 4294967295, output: '' }
+      },
+    }),
+    /after retry from 4294967295/
+  )
+  assert.equal(twice, 2)
+
+  let nonTransient = 0
+  await assert.rejects(
+    checkLogin('C:/fake-ide', {
+      async runCli() {
+        nonTransient += 1
+        return { status: 'failed', exitCode: 10, output: '{"login":false}' }
+      },
+    }),
+    /exit 10/
+  )
+  assert.equal(nonTransient, 1)
 })
 
 test('preflight fails when the latest app launch loaded no page, because page logic stays dead until the next compile', async () => {

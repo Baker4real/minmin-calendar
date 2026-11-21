@@ -36,7 +36,7 @@ Two details make `watchOptions.ignore` easy to get wrong:
 
 开发者工具内部脚本的加载错误、连接超时和 Console 提示先按 [开发者工具验证](docs/devtools-verification.md) 分层检查；不能仅凭 `WAServiceMainContext.js` 文件名或堆栈不含本仓库路径，就判定为可忽略噪音或业务故障。
 
-多个 git worktree 并行开发时，每个 worktree 用 `npm run deps:install` 装自己的 `node_modules`，依赖装成真实文件，不从主检出硬链接：硬链接的目录树会被本机的受管删除拒收，worktree 用完就没法整棵回收。Playwright 浏览器只在主检出的 `.scratch/browsers/` 装一份，链接 worktree 里的 `npm run browser:install` 和 `npm run test:hit` 都直接用主检出这份。
+多个 git worktree 并行开发时，只要链接 worktree 的 `package-lock.json` 与主检出一致，不必在 worktree 内运行 `npm ci` / `npm run deps:install`：`npm run verify`、`npm test`、`npm run test:hit` 和 `npm run browser:install` 会自动通过 `NODE_PATH` / `workspaceRequire` 复用主检出的 `node_modules`（以及 `.scratch/browsers/`），避免 `"jimp": "file:tests/tools/automator-image"` 在每个 worktree 下生成 `node_modules\jimp` junction，确保 `git worktree remove` 一次删净、不留断链空目录。只有改了 `package-lock.json` 的 worktree 或独立克隆才用 `npm run deps:install` 安装自己的 `node_modules`（真实文件，不硬链接）。
 
 根开发依赖中的 `miniprogram-automator` 固定为 `0.12.1`。它只通过旧式 `Jimp.read(buffer).bitmap` 解码二维码；[图像读取适配](tests/tools/automator-image/index.cjs) 将这次调用转发到 `jimp@1.6.1`，保留 PNG、JPEG、BMP、TIFF 和 GIF 读取，避免旧 Jimp 带入 `core-js@2`、`phin` 和 `mkdirp@0.5`。根依赖覆盖同时将 Zod 固定为安全版本 `4.6.7`。升级 automator 时须复核它的图像调用接口；完整验证中的真实 SDK 二维码回归会读取上述五种格式并核对内容，不以“包可以加载”代替解码通过。安装与审计入口见下方 Verification。
 
@@ -91,7 +91,7 @@ npm run verify
 
 #169 的页面行为测试经 `tests/helpers/miniProgram.js` 这一份微信平台 harness，或 `buildHomeCalendarState` 的纯 projection 表格验证。`tests/test-seam-guardrail.test.js` 随完整测试运行：迁移预算 `BUDGET` 已清空，只保留两处 JS 源码读取例外：Room lifecycle 云函数的部署打包，以及 `tests/cloudfunction-collection-reads.test.js` 对云函数集合读取条数上限的静态检查；WXML/WXSS 设计守卫与既有公开 interface 测试继续保留。harness 同样约束原生确认按钮文案最多四个汉字。
 
-WXML/WXSS 设计守卫只钉不变量：DESIGN 规定的对比度下限在实际合成底上成立；声明了动画或过渡的选择器在减弱动效下有覆盖，且覆盖在层叠里排在声明之后，状态通道在减弱动效下仍看得出；十六进制颜色只取 DESIGN.md 色板，玫瑰实色填充和页面里的金色只经 token，渐变填充和阴影色只用登记过的；一次性动效的时长与曲线只经共享 token，JS 里的时长常量与对应的样式 token 一致；已退役的缓动、token 和符号不再出现；DESIGN 写明的预算类上限；读屏语义（可点元素的角色与读屏名、选中与禁用状态、弹层的读屏边界）；可点控件带自己的 hover-class，并和 `:active` 写在同一条规则里，按压缩放落在 DESIGN 登记的区间内；登记的触控目标不低于下限。纯视觉调整让钉字面量的断言变红时，删掉该断言，不改数字；变红的是上述不变量时，改样式。把下限写成相等的断言改成下限比较；其余护栏文件随改随删，不做一次性清理。护栏和其他直接读取 WXML / WXSS 的检查会先展开共享 `@import`、`include` 与 `import` / `template`，再按同一套规则判定。
+WXML/WXSS 设计守卫只钉不变量：DESIGN 规定的对比度下限在实际合成底上成立；声明了动画或过渡的选择器在减弱动效下有覆盖，且覆盖在层叠里排在声明之后，状态通道在减弱动效下仍看得出；十六进制颜色只取 DESIGN.md 色板，玫瑰实色填充和页面里的金色只经 token，渐变填充和阴影色只用登记过的；一次性动效的时长与曲线只经共享 token，JS 里的时长常量与对应的样式 token 一致；已退役的缓动、token 和符号不再出现；DESIGN 写明的预算类上限；读屏语义（可点元素的角色与读屏名、选中与禁用状态、弹层的读屏边界）；可点控件带自己的 hover-class，并和 `:active` 写在同一条规则里，按压缩放落在 DESIGN 登记的区间内；登记的触控目标不低于下限。纯视觉调整让钉字面量的断言变红时，删掉该断言，不改数字；变红的是上述不变量时，改样式。把下限写成相等的断言改成下限比较；其余护栏文件随改随删，不做一次性清理。护栏和其他直接读取 WXML / WXSS 的检查会先展开共享 `@import`、`include` 与 `import` / `template`，再按同一套规则判定；对 `<page-meta>`、`<navigation-bar>` 等要求页面直接顶层节点的微信组件，同时以 `tests/sourceFiles.js` 的 `readRaw` 校验未展开的原始 `.wxml`（如 `tests/bottom-sheet-family.test.js`）。
 
 首次检出及 Playwright 版本升级后运行 `npm run release:prepare`；仅补装浏览器时可用 `npm run browser:install`，缓存位置按上面的检出类型解析。日常输出只显示结果、测试条数和日志路径；完整门禁日志在 `.scratch/verify/`，依赖原文在 `.scratch/dependencies/`，发布准备日志和结果在 `.scratch/release-prepare/`，坐标与截图证据在 `.scratch/coordinate-hit/`。这些入口覆盖各自最近一次结果；CI 失败时归档上述诊断目录。任何检查失败均退出非零。`npm test`、`npm run check`、`npm run test:hit` 可用于单独定位，不能代替完整验收。定向用例优先用 `npm run verify:target -- --tests 'tests/capture-evidence.test.js,tests/devtools-cli.test.js' [--name '用例正则']`：复用完整日志写盘，只返回计数和有界失败片段，日志在 `.scratch/verify-target/tests.log`；文件重复、非法路径或零匹配均失败，不能把 Node 的文件包装行当作有效用例。预期测试红灯保留真实非零退出；retro 审计用 `--expected-exit <原始结果行号>:<退出码>` 标记，不能把其他失败一起豁免。
 

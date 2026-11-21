@@ -21,11 +21,19 @@ export function probeEndpoint(endpoint, timeoutMs = 2500) {
   })
 }
 
-async function checkLogin(ide) {
-  const result = await runOfficialCli({ ide, command: 'islogin' })
-  if (result.status !== 'ok' || !/['"]?login['"]?\s*:\s*true/.test(result.output)) {
-    throw new Error(`CLI islogin did not confirm login (${result.status}, exit ${result.exitCode}); check IDE login and Settings > Security > service port`)
+const TRANSIENT_ISLOGIN_EXITS = new Set([4294967295, -1])
+
+export async function checkLogin(ide, { runCli = runOfficialCli } = {}) {
+  const first = await runCli({ ide, command: 'islogin' })
+  if (first.status === 'ok' && /['"]?login['"]?\s*:\s*true/.test(first.output)) return {}
+  if (TRANSIENT_ISLOGIN_EXITS.has(first.exitCode)) {
+    const retry = await runCli({ ide, command: 'islogin' })
+    if (retry.status === 'ok' && /['"]?login['"]?\s*:\s*true/.test(retry.output)) {
+      return { note: `recovered on retry after exit ${first.exitCode}` }
+    }
+    throw new Error(`CLI islogin did not confirm login (${retry.status}, exit ${retry.exitCode} after retry from ${first.exitCode}); check IDE login and Settings > Security > service port`)
   }
+  throw new Error(`CLI islogin did not confirm login (${first.status}, exit ${first.exitCode}); check IDE login and Settings > Security > service port`)
 }
 
 // 读开发者工具落盘的项目状态和监听器日志：已加载的配置是否与磁盘一致，以及最近一次代码质量结果。
@@ -46,14 +54,32 @@ function checkLoadedConfig(ide) {
 
 // A minimized project window keeps the CLI and automator answering while mp.screenshot() fails with
 // "fail to capture screenshot" (2026-11-04), so the preflight reads the window state before a capture run.
-// Input: one "<pid>\t<True|False>" line per DevTools window titled with the project name.
+// Input: optional "DESKTOP_WINDOWS\t<N>" header followed by "<pid>\t<True|False>" lines per DevTools window
+// titled with the project name.
 export function projectWindowResult(output, projectName) {
   const name = 'DevTools project window'
-  const windows = output.split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => {
-    const [pid, minimized] = line.split('\t')
-    return { pid, minimized: minimized === 'True' }
-  })
-  if (!windows.length) return { name, skipped: true, error: `no DevTools window titled ${projectName}; open the project in DevTools first` }
+  let desktopWindowCount = null
+  const windows = []
+  for (const rawLine of output.split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (!line) continue
+    const [first, second] = line.split('\t')
+    if (first === 'DESKTOP_WINDOWS') {
+      desktopWindowCount = Number(second)
+      continue
+    }
+    windows.push({ pid: first, minimized: second === 'True' })
+  }
+  if (!windows.length) {
+    if (desktopWindowCount === 0) {
+      return {
+        name,
+        skipped: true,
+        error: 'shell-cannot-observe-desktop: this shell sees 0 desktop windows (MainWindowHandle=0 across all processes), so window visibility/minimization cannot be checked from here',
+      }
+    }
+    return { name, skipped: true, error: `no DevTools window titled ${projectName}; open the project in DevTools first` }
+  }
   const minimized = windows.filter(window => window.minimized).map(window => window.pid)
   return minimized.length
     ? { name, ok: false, error: `minimized (pid ${minimized.join(', ')}); ask the maintainer to restore the window, captures fail while it stays minimized` }
@@ -61,8 +87,11 @@ export function projectWindowResult(output, projectName) {
 }
 
 // Match by process name and window title: the process that owns the project window may not expose its Path.
+// Also emit total visible desktop windows across all processes so a non-interactive shell does not misreport
+// an open DevTools project window as missing.
 const WINDOW_SCRIPT = [
   `Add-Type -Namespace MinminPreflight -Name User32 -MemberDefinition '[DllImport("user32.dll")] public static extern bool IsIconic(System.IntPtr h);'`,
+  `"DESKTOP_WINDOWS\`t$(@(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 }).Count)"`,
   "Get-Process -Name $env:MINMIN_DEVTOOLS_PROCESS -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -eq $env:MINMIN_DEVTOOLS_PROJECT } | ForEach-Object { \"$($_.Id)`t$([MinminPreflight.User32]::IsIconic($_.MainWindowHandle))\" }"
 ].join('; ')
 
@@ -120,7 +149,10 @@ async function main() {
   }
   const results = []
   for (const [name, check] of [['CLI service/login', () => checkLogin(options.ide)], ['automator TCP', () => probeEndpoint(options.ws)]]) {
-    try { await check(); results.push({ name, ok: true }) }
+    try {
+      const extra = await check()
+      results.push({ name, ok: true, ...(extra?.note ? { note: extra.note } : {}) })
+    }
     catch (error) { results.push({ name, ok: false, error: error.message }) }
   }
   const connectionFailed = results.some(result => !result.ok)

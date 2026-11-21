@@ -1,6 +1,7 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { spawnSync } = require('node:child_process')
+const { sharedNodeModulesPath } = require('./playwrightBrowsers.cjs')
 const root = path.resolve(__dirname, '../..')
 
 function sourceFiles(directory) {
@@ -25,6 +26,10 @@ function runLogged(name, args, logDir, cwd = root, summarize = () => '', report 
   try {
     const env = { ...process.env }
     delete env.NODE_TEST_CONTEXT
+    const sharedModules = sharedNodeModulesPath(cwd)
+    if (sharedModules) {
+      env.NODE_PATH = env.NODE_PATH ? `${sharedModules}${path.delimiter}${env.NODE_PATH}` : sharedModules
+    }
     result = spawnSync(process.execPath, args, { cwd, env, stdio: ['ignore', fd, fd], timeout: 180000 })
     if (result.error) fs.writeSync(fd, `${result.error.message}\n`)
   } finally { fs.closeSync(fd) }

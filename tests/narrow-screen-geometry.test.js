@@ -117,7 +117,16 @@ function rpxNumber(decls, prop) {
 // 「12rpx」或「var(--space-xs)」这类长度换成 rpx 数；token 从 app.wxss 读
 function tokenRpx(token, appTokens) {
   const variable = /^var\((--[a-z0-9-]+)\)$/.exec(String(token).trim())
-  return parseFloat(variable ? appTokens[variable[1]] : token)
+  const resolved = variable ? appTokens[variable[1]] : token
+  assert.ok(resolved !== undefined, `missing app.wxss token for ${token}`)
+  const value = parseFloat(resolved)
+  assert.ok(Number.isFinite(value), `expected numeric rpx for ${token}, got ${resolved}`)
+  return value
+}
+
+function fontSizeRpx(declOrToken, appTokens = readAppTokens()) {
+  const raw = typeof declOrToken === 'string' ? declOrToken : declOrToken['font-size']
+  return tokenRpx(raw, appTokens)
 }
 
 function horizontalPaddingRpx(decls, appTokens = readAppTokens()) {
@@ -232,8 +241,8 @@ test('record tab memory month card header stays on one line at 320px', () => {
   assert.equal(toggle['font-size'], 'var(--font-size-caption)')
   assert.equal(toggle['white-space'], 'nowrap')
 
-  const fontSizeRpx = Number(/(\d+)rpx/.exec(appTokens['--font-size-body'])[1])
-  const toggleSizeRpx = Number(/(\d+)rpx/.exec(appTokens['--font-size-caption'])[1])
+  const headerSizeRpx = fontSizeRpx(headerText, appTokens)
+  const toggleSizeRpx = fontSizeRpx(toggle, appTokens)
   const contentPadRpx = horizontalPaddingRpx(content)[0]
   const headerPadRpx = horizontalPaddingRpx(header, appTokens)[0]
   const headerGapRpx = Number(/(\d+)rpx/.exec(header.gap)[1])
@@ -241,7 +250,7 @@ test('record tab memory month card header stays on one line at 320px', () => {
 
   // 卡头标题最坏文案「2026年12月 · 99 条」：8 位数字（0.6em）+ 年/月/条 3 个 CJK（1em）
   // +「·」按全宽 1em + 两侧空格按 0.5em；切换文字最坏「收起」2 个 CJK（1em）
-  const titleRpx = (8 * 0.6 + 3 + 1 + 2 * 0.5) * fontSizeRpx
+  const titleRpx = (8 * 0.6 + 3 + 1 + 2 * 0.5) * headerSizeRpx
   const toggleRpx = 2 * toggleSizeRpx
   const worstRpx = titleRpx + headerGapRpx + toggleRpx
   assert.ok(
@@ -500,7 +509,7 @@ test('the first-screen ledger is the CSS flow above the record actions', async (
   const { retryCopies: copies } = await homeFeedbackCopy()
   assert.equal(copies.length, 3, 'observed both collection failures and the all-collection retry')
   const appTokens = readAppTokens()
-  const captionRpx = parseFloat(appTokens['--font-size-caption'])
+  const captionRpx = fontSizeRpx(retry, appTokens)
   const contentPadRpx = horizontalPaddingRpx(findDecls(rules, '.content'))[0]
   const retryPadRpx = parseFloat(horizontalPaddingTokens(retry)[0])
   const lineRpx = 750 - 2 * contentPadRpx - 2 * retryPadRpx - 2 * borderPx(retry) * 750 / 320
@@ -534,7 +543,7 @@ test('the ongoing quick-period label wraps only at its spaces and two lines stay
   assert.equal(text['line-height'], 'var(--line-height-title)')
 
   // 文字列宽（320px 下 1px 描边最宽）= 半行按钮宽 − 左右内边距 − 描边 − 圆盘 − 图文间距
-  const fontRpx = parseFloat(text['font-size'])
+  const fontRpx = fontSizeRpx(text, appTokens)
   const contentPadRpx = horizontalPaddingRpx(findDecls(rules, '.content'))[0]
   const borderRpx = borderPx(button) * 750 / 320
   const columnRpx = (750 - 2 * contentPadRpx - rpxNumber(findDecls(rules, '.quick-actions'), 'gap')) / 2 -
@@ -611,8 +620,8 @@ test('every longest home status form fits one line and the 88rpx ledger stays un
     buildHomeCalendarState({ year: 2026, month: 7, today: '2026-08-01', periodsSynced: false }).homeStatus
   ]
 
-  const mainFont = parseFloat(main['font-size'])
-  const countdownFont = parseFloat(appTokens['--font-size-caption'])
+  const mainFont = fontSizeRpx(main, appTokens)
+  const countdownFont = fontSizeRpx(countdown, appTokens)
   const widthRpx = (copy, fontRpx) => [...copy].reduce((sum, ch) => sum + (/\d/.test(ch) ? 0.6 : ch === ' ' ? 0.5 : 1), 0) * fontRpx
   const availableRpx = 750 - 2 * horizontalPaddingRpx(sticky, appTokens)[0] - 2 * parseFloat(horizontalPaddingTokens(status)[0] || '0')
   const gapRpx = rpxNumber(status, 'gap')
@@ -644,7 +653,7 @@ test('the homepage room-status button keeps the 88rpx touch size in both axes fo
 
   // 每个动作标签（button 已并入 body，每字 1em）加左右内边距都不低于 88rpx，标签两侧留出空隙
   const labels = ['去绑定', '重新加载', '重试'] // visible recovery-action copy fixtures
-  const fontRpx = parseFloat(appTokens['--font-size-body'])
+  const fontRpx = fontSizeRpx('var(--font-size-body)', appTokens)
   for (const label of labels) {
     const widthRpx = Array.from(label).length * fontRpx + 2 * tokenRpx(sidePad, appTokens)
     assert.ok(widthRpx >= 88, `「${label}」 is only ${widthRpx}rpx wide`)
@@ -675,8 +684,9 @@ test('the prediction summary starts the window clause on its own line and each c
 
   const appTokens = readAppTokens()
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
-  assert.equal(findDecls(rules, '.prediction-summary')['font-size'], 'var(--font-size-body-lg)')
-  const fontRpx = parseFloat(appTokens['--font-size-body-lg'])
+  const summaryRule = findDecls(rules, '.prediction-summary')
+  assert.equal(summaryRule['font-size'], 'var(--font-size-body-lg)')
+  const fontRpx = fontSizeRpx(summaryRule, appTokens)
   const sheet = findDecls(rules, '.day-action-sheet')
   const columnRpx = 750 - 2 * parseFloat(horizontalPaddingTokens(findDecls(rules, '.sheet-host'))[0]) -
     2 * parseFloat(horizontalPaddingTokens(sheet)[0]) - 2 * borderPx(sheet) * 750 / 320
@@ -764,7 +774,7 @@ test('the clickable partner welcome copy fits two rpx lines and its box matches 
   const padding = splitCssTokens(bar.padding).map(token => parseFloat(token))
   assert.equal(margin.length, 2, 'margin is vertical / horizontal')
   assert.equal(padding.length, 3, 'padding is top / horizontal / bottom')
-  const fontRpx = parseFloat(appTokens['--font-size-caption'])
+  const fontRpx = fontSizeRpx(bar, appTokens)
   const lineHeight = Number(appTokens['--line-height-body'])
 
   // 文案恰好两行：CJK 与全角标点 1em；拉丁字母 0.5–0.7em、空格 0.25–0.5em、♥ 0.5–1em 取上下界。
@@ -833,7 +843,7 @@ test('waiting invitation and creator welcome use the same calendar ledger slot w
     const shareHeight = rpxNumber(share, 'min-height')
     assert.ok(shareHeight * 320 / 750 >= 44)
     const appTokens = readAppTokens()
-    const fontRpx = parseFloat(appTokens['--font-size-caption'])
+    const fontRpx = fontSizeRpx(invite, appTokens)
     const lineHeight = Number(appTokens['--line-height-body'])
     const invitePadding = splitCssTokens(invite.padding).map(token => parseFloat(token))
     const shareMargin = splitCssTokens(share.margin).map(token => parseFloat(token))
@@ -871,7 +881,7 @@ test('bind ghost enter-app button keeps a 44px touch height at 320px', () => {
   assert.ok(verticalPadPx, 'ghost vertical padding stays in px so it does not shrink with the viewport')
   const lineHeightToken = /^var\((--line-height-[a-z]+)\)$/.exec(ghost['line-height'])
   assert.ok(lineHeightToken, 'ghost line-height uses a line-height token')
-  const fontPx = parseFloat(appTokens[/^var\((--[a-z-]+)\)$/.exec(ghost['font-size'])[1]]) * 320 / 750
+  const fontPx = fontSizeRpx(ghost, appTokens) * 320 / 750
   const borderPx = parseFloat(ghost.border)
   const heightPx = 2 * Number(verticalPadPx[1]) + fontPx * Number(appTokens[lineHeightToken[1]]) + 2 * borderPx
   assert.ok(heightPx >= 44, `ghost button is ${heightPx.toFixed(2)}px tall at 320px`)
@@ -1302,8 +1312,9 @@ test('the sync pill takes the navbar title slot, clear of the sticky month title
     rpxNumber(findDecls(appRules, '.nav-tool'), 'min-width') - pxToRpx(94)
   const chromeRpx = 2 * parseFloat(horizontalPaddingTokens(pill)[0]) + 2 * pxToRpx(borderPx(pill)) +
     rpxNumber(findDecls(rules, '.sync-dot'), 'width') + rpxNumber(pill, 'gap')
-  assert.equal(findDecls(rules, '.sync-text')['font-size'], 'var(--font-size-caption)')
-  const captionRpx = parseFloat(readAppTokens()['--font-size-caption'])
+  const syncText = findDecls(rules, '.sync-text')
+  assert.equal(syncText['font-size'], 'var(--font-size-caption)')
+  const captionRpx = fontSizeRpx(syncText)
   const { statuses } = await homeFeedbackCopy()
   assert.equal(statuses.size, 8, `expected every rendered sync status, found ${[...statuses].join(' / ')}`)
   for (const status of statuses) {
