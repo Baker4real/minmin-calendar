@@ -38,11 +38,45 @@ test('all bottom sheets use one shared shell, page guard and reduced-motion prob
 })
 
 test('shared sheet masks catch touch move and page-meta locks scrolling only while obscured', () => {
+  const sharedDir = path.join(repoRoot, 'pages/shared')
+  for (const name of fs.readdirSync(sharedDir).filter(file => file.endsWith('.wxml'))) {
+    const sharedRaw = fs.readFileSync(path.join(sharedDir, name), 'utf8')
+    for (const restricted of ['page-meta', 'navigation-bar']) {
+      assert.equal(
+        wxmlOpeningTags(sharedRaw).filter(tag => tag.tag === restricted).length,
+        0,
+        `pages/shared/${name}: <${restricted}> must live directly at page root, never inside a shared <template> virtual wrapper`
+      )
+    }
+  }
+
+  const appPages = JSON.parse(fs.readFileSync(path.join(repoRoot, 'app.json'), 'utf8')).pages || []
+  for (const route of appPages) {
+    const pageRaw = fs.readFileSync(path.join(repoRoot, `${route}.wxml`), 'utf8')
+    const rawRendered = wxmlOpeningTags(pageRaw).filter(tag => tag.tag !== 'import' && tag.tag !== 'wxs')
+    const rawMetas = rawRendered.filter(tag => tag.tag === 'page-meta')
+    if (rawMetas.length > 0) {
+      assert.equal(rawMetas.length, 1, `${route}.wxml mounts at most one page-meta`)
+      assert.equal(rawRendered[0], rawMetas[0], `${route}.wxml keeps page-meta as its first direct node`)
+      for (const forbidden of ['wx:if', 'wx:elif', 'wx:else', 'wx:for']) {
+        assert.equal(Object.hasOwn(rawMetas[0].attrs, forbidden), false, `${route}.wxml page-meta must not use ${forbidden}`)
+      }
+    }
+  }
+
   for (const [file, sheetCount] of pages) {
     const raw = fs.readFileSync(path.join(repoRoot, file), 'utf8')
-    const pageInvocation = wxmlOpeningTags(raw).find(tag => tag.tag === 'template' && tag.attrs.is === 'sharedSheetPage')
+    const rawTags = wxmlOpeningTags(raw)
+    const rawRendered = rawTags.filter(tag => tag.tag !== 'import' && tag.tag !== 'wxs')
+    const rawMetas = rawRendered.filter(tag => tag.tag === 'page-meta')
+    assert.equal(rawMetas.length, 1, `${file} declares one direct top-level page-meta`)
+    assert.equal(rawRendered[0], rawMetas[0], `${file} keeps page-meta as its first direct node (not inside <template>)`)
+    for (const forbidden of ['wx:if', 'wx:elif', 'wx:else', 'wx:for']) {
+      assert.equal(Object.hasOwn(rawMetas[0].attrs, forbidden), false, `${file} page-meta must not use ${forbidden}`)
+    }
+
+    const pageInvocation = rawTags.find(tag => tag.tag === 'template' && tag.attrs.is === 'sharedSheetPage')
     assert.ok(pageInvocation, `${file} invokes the shared sheet page`)
-    assert.match(pageInvocation.attrs.data || '', /pageObscured: pageObscured/, `${file} forwards its obscured state`)
 
     const nodes = wxmlOpeningTags(readSource(path.join(repoRoot, file), 'utf8'))
     const masks = nodes.filter(tag => tag.classes.includes('day-sheet-mask'))

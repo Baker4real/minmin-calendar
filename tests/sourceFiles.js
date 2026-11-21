@@ -1,5 +1,8 @@
 // WXML/WXSS 静态检查的统一读取入口：WXSS 展开 @import，WXML 展开 include 与 import/template。
 // readSource 让同时读取其他文件类型的检查复用同一入口；非 WXML/WXSS 仍按原样读取。
+// 注意：readSource 会把 <template is="..."/> 文本原地展开，适合查样式、类名与属性语义；
+// 涉及微信编译器虚拟节点限制的顶层结构约束（如 <page-meta>、<navigation-bar> 必须直挂页面根首位、
+// 不得写在 <template> 内）必须用 readRaw 检查原始页 WXML，不能只查展开后的文本。
 const fs = require('node:fs')
 const path = require('node:path')
 

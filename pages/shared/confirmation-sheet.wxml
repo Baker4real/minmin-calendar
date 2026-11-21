@@ -21,9 +21,8 @@
   </view>
 </template>
 
-<!-- 每页只挂一份：page-meta 锁滚、减弱动效探针，以及任一弹层卸载前的系统返回拦截。 -->
+<!-- 每页只挂一份：减弱动效探针，以及任一弹层卸载前的系统返回拦截。page-meta 不能放进 <template>，由各页直接写在根节点首位。 -->
 <template name="sharedSheetPage">
-  <page-meta page-style="{{pageObscured ? 'overflow: hidden;' : ''}}"></page-meta>
   <view class="reduced-motion-probe" aria-hidden="true"></view>
   <page-container
     wx:if="{{sheetExitGuard}}"
