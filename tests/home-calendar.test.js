@@ -1069,6 +1069,65 @@ test('real WXS same-frame A→B→A resets keep each sheet latest clear signal',
   assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-leaving')
 })
 
+test('real WXS reset RAF checks sheet token and instance against newer gestures', async t => {
+  const app = homeApp(t, {
+    selectors: {
+      '.sheet-slide-monthPicker': { height: 400 },
+      '.sheet-slide-infoSheet': { height: 400 }
+    }
+  })
+  const home = await launch(app)
+  await openSheet(app, home, 'monthPicker')
+  await openSheet(app, home, 'infoSheet')
+
+  const startDrag = (id, dy, timeStamp) => {
+    const currentTarget = { dataset: { sheet: id } }
+    const touch = { identifier: 1, pageX: 100, pageY: 100 }
+    app.dispatch(home, 'sheetDrag.touchStart', { currentTarget, touches: [touch], timeStamp })
+    app.dispatch(home, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 100 + dy }], timeStamp })
+    return { currentTarget, touch }
+  }
+  const cancelDrag = (id, dy, timeStamp) => {
+    const { currentTarget, touch } = startDrag(id, dy, timeStamp)
+    app.dispatch(home, 'sheetDrag.touchCancel', {
+      currentTarget,
+      changedTouches: [{ ...touch, pageY: 100 + dy }],
+      timeStamp
+    })
+  }
+
+  cancelDrag('monthPicker', 40, 1000)
+  app.commit(home)
+  startDrag('monthPicker', 80, 2000)
+  await app.advance(16)
+  assert.equal(
+    app.viewStyle(home, '.sheet-slide-monthPicker').transform,
+    'translateY(80px)',
+    'touchStart invalidates the old RAF instead of letting it clear the new transform'
+  )
+
+  app.dispatch(home, 'sheetDrag.touchCancel', {
+    currentTarget: { dataset: { sheet: 'monthPicker' } },
+    changedTouches: [{ identifier: 1, pageX: 100, pageY: 180 }],
+    timeStamp: 2100
+  })
+  app.commit(home)
+  cancelDrag('monthPicker', 120, 3000)
+  app.commit(home)
+  await app.advance(16)
+  assert.equal(app.viewStyle(home, '.sheet-slide-monthPicker').transform, '', 'the newest same-id reset wins')
+  assert.equal(home.data.sheetDragClear.monthPicker.token, 3)
+
+  cancelDrag('monthPicker', 40, 4000)
+  app.commit(home)
+  cancelDrag('infoSheet', 60, 5000)
+  app.commit(home)
+  startDrag('monthPicker', 80, 6000)
+  await app.advance(16)
+  assert.equal(app.viewStyle(home, '.sheet-slide-monthPicker').transform, 'translateY(80px)', 'the new same-id gesture stays intact')
+  assert.equal(app.viewStyle(home, '.sheet-slide-infoSheet').transform, '', 'the other sheet still flushes its own reset')
+})
+
 test('real WXS sheet touchcancel restores the open pose and clears drag displacement', async t => {
   const app = homeApp(t, { selectors: { '.sheet-slide-monthPicker': { height: 400 } } })
   const home = await launch(app)

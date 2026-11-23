@@ -44,9 +44,10 @@ Page(withPageVisibility({
     probeReducedMotion(this)
   },
 
-  openStartDatePicker() {
+  openStartDatePicker(event) {
     if (this.data.saving) return
     datePickerSheet(this).open({
+      openedAt: event && Number.isFinite(event.timeStamp) ? event.timeStamp : null,
       label: '开始日期',
       value: this.data.startDate,
       maxDate: this.data.maxDate,
@@ -54,9 +55,10 @@ Page(withPageVisibility({
     })
   },
 
-  openEndDatePicker() {
+  openEndDatePicker(event) {
     if (this.data.saving) return
     datePickerSheet(this).open({
+      openedAt: event && Number.isFinite(event.timeStamp) ? event.timeStamp : null,
       label: '结束日期',
       value: this.data.endDate,
       minDate: this.data.startDate,

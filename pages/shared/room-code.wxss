@@ -16,7 +16,7 @@
   text-indent: 0;
 }
 
-/* 两页复制键共用同一种玫瑰小按钮；flex-shrink 在两页都固定为 0。 */
+/* 两页复制键共用触控、字号、按压与柔光基础；设置默认实色，绑定凭证票根另覆盖淡底胶囊。 */
 .copy-btn {
   flex-shrink: 0;
   min-height: 88rpx;

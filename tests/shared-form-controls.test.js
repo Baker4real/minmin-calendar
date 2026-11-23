@@ -24,7 +24,12 @@ test('edit pages render one fixed save template and a separate in-flow delete te
     assert.equal(occurrences(page, /<template is="sharedRecordActions"/g), 1, `${kind} uses the shared save block`)
     assert.equal(occurrences(page, /<template is="sharedRecordDelete"/g), 1, `${kind} uses the shared delete block`)
     assert.ok(page.indexOf('<template is="sharedRecordDelete"') < page.indexOf('<template is="sharedRecordActions"'), `${kind} deletes in the scroll flow before its fixed save bar`)
-    assert.match(page, /<template is="sharedRecordActions"[^>]*actionsClass: 'record-actions-fixed', actionsHidden: noteFocused/)
+    assert.match(page, /<template is="sharedRecordActions"[^>]*actionsClass: 'record-actions-fixed'/)
+    if (kind === 'period') {
+      assert.match(page, /<template is="sharedRecordActions"[^>]*actionsHidden: noteFocused/)
+    } else {
+      assert.doesNotMatch(page, /<template is="sharedRecordActions"[^>]*actionsHidden:/, 'memory focus never hides the fixed save bar')
+    }
     assert.doesNotMatch(page, /<view class="btns">/, `${kind} does not keep a local action block`)
   }
 })

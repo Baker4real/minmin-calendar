@@ -181,7 +181,7 @@ button.settings-share-invite {
   margin-top: 4rpx;
 }
 
-/* 复制键样式与绑定页共用 shared/room-code.wxss（#232）。 */
+/* 设置默认实色复制键使用 shared/room-code.wxss；绑定凭证的淡底胶囊变体只覆盖在 bind.wxss。 */
 
 /* 拿不到房间码时的下一步操作（issue #79）：重试/去绑定。
    弱态玫瑰描边按钮（与密度选项同族的弱选中态），不做第二颗实色主按钮；
