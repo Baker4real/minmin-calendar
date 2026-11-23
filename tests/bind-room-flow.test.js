@@ -211,7 +211,7 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
 
   // R10：原生 :focus 没有画出玫瑰，改由共享 focus/blur 类画出同一道 1px 实线。
   const focus = findRule(readPageFile('pages/shared/form-control.wxss'), '.form-control.form-control-focused')
-  assert.equal(focus['border-color'], '#E8909E')
+  assert.equal(focus['border-color'], 'var(--aurora-pink)')
 
   // 错误提示保持警示红族（红字 + 红族浅底描边），需解绑中间态入口样式在场
   const errorMsg = findRule(css, '.error-msg')
@@ -220,7 +220,7 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
   assert.match(errorMsg.border, /1px solid rgba\(249,\s*115,\s*115,\s*0\.24\)/)
   // #234：重试不再是第二个红色错误面，整行句与首页、记录 tab 共用玫瑰可点色。
   const errorRetry = findRule(css, '.error-retry')
-  assert.equal(errorRetry.color, '#E8909E')
+  assert.equal(errorRetry.color, 'var(--aurora-pink)')
   assert.equal(errorRetry.border, '1px solid rgba(255,255,255,0.1)')
   const unbindInline = findRule(css, '.unbind-inline')
   assert.match(unbindInline['margin-top'], /^\d+rpx$/)

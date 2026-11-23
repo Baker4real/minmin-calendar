@@ -10,6 +10,7 @@ const {
   definedRadiusTokens,
   findOffPaletteHexes,
   findOffPaletteHexesInInlineStyles,
+  findLiteralTextColorDiscipline,
   findOffScaleTextOpacities,
   findOffTokenRadii,
   listWxmlFiles,
@@ -165,6 +166,40 @@ test('every WXSS neutral text color and text token uses only the five opacity ti
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
     for (const violation of findOffScaleTextOpacities(readSource(file, 'utf8'))) {
       violations.push(`${relative} ${violation.selector} ${violation.property} alpha=${violation.alpha}`)
+    }
+  }
+  assert.deepEqual(violations, [])
+})
+
+test('literal text-color guardrail checks rose text and borders plus pure-white text only', () => {
+  const css = `
+    .rose-text { color: #E8909E; }
+    .rose-border { border: 1px solid #e8909e; }
+    .rose-border-side { border-top-color: #E8909E; }
+    .white-text { color: #fff; }
+    .white-token { --text-white: #FFFFFF; }
+    .registered-graphics { background: #E8909E; border-color: #fff; }
+    .tokenized { color: var(--aurora-pink); border: 1px solid var(--aurora-pink); }
+    .emphasis { color: rgba(255,255,255,0.92); }
+  `
+  assert.deepEqual(
+    findLiteralTextColorDiscipline(css).map((violation) => [violation.selector, violation.property, violation.kind]),
+    [
+      ['.rose-text', 'color', 'rose'],
+      ['.rose-border', 'border', 'rose'],
+      ['.rose-border-side', 'border-top-color', 'rose'],
+      ['.white-text', 'color', 'white'],
+      ['.white-token', '--text-white', 'white']
+    ]
+  )
+})
+
+test('every WXSS text and border rose uses its token and neutral text avoids pure-white hex', () => {
+  const violations = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    for (const violation of findLiteralTextColorDiscipline(readSource(file, 'utf8'))) {
+      violations.push(`${relative} ${violation.selector} ${violation.property} ${violation.kind}`)
     }
   }
   assert.deepEqual(violations, [])
@@ -388,6 +423,24 @@ test('glass fallback fill has a single token source', () => {
     })
   }
   assert.deepEqual(violations, [])
+})
+
+test('premium cards own clipping and an ordered rose-white-lavender prism hairline', () => {
+  const card = declsFor('app.wxss', '.premium-card')
+  assert.equal(card.position, 'relative')
+  assert.equal(card.overflow, 'hidden')
+
+  const edge = declsFor('app.wxss', '.premium-card::after')
+  assert.equal(edge.height, '1px')
+  assert.match(edge.background, /^linear-gradient\(90deg,/)
+  const stops = [...edge.background.matchAll(/transparent|rgba\([^)]*\)/g)].map((match) => match[0])
+  assert.deepEqual(stops, [
+    'transparent',
+    'rgba(232,144,158,0.42)',
+    'rgba(255,255,255,0.30)',
+    'rgba(184,169,232,0.32)',
+    'transparent'
+  ])
 })
 
 // issue #104：绑定页紫粉试点（issue #86–#89）结论是「不推广」，页面级 --bind-* token 与

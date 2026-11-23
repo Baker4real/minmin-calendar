@@ -28,7 +28,7 @@
   position: relative;
   font-size: 120rpx;
   /* 品牌心：玫瑰文本字形，不再用红色心形表情（issue #77） */
-  color: #E8909E;
+  color: var(--aurora-pink);
   margin-bottom: 20rpx;
   animation: heroIn 0.6s var(--ease-out) both;
   /* ♥ 字形只留一层浅粉字阴影。不可点元素不再叠远层光晕（issue #146）。
@@ -134,7 +134,7 @@
   margin-bottom: 30rpx;
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
   font-weight: var(--font-weight-body);
-  color: #fff;
+  color: rgba(255,255,255,0.92);
 }
 .code-input.code-input-empty {
   letter-spacing: 2rpx;
@@ -157,7 +157,7 @@
   line-height: var(--line-height-body);
   text-align: center;
   margin-bottom: 20rpx;
-  color: #E8909E;
+  color: var(--aurora-pink);
 }
 /* 房间码是行内纯展示文本（issue #83/#84），展示样式与设置页共用 shared/room-code.wxss（#232）。 */
 /* 建房成功凭证票根（issue #252）：房间码左对齐，紧凑复制胶囊嵌在深色凹槽右侧。 */
@@ -197,8 +197,8 @@
   padding: 12px 28px;
   box-sizing: border-box;
   background: transparent;
-  color: #E8909E;
-  border: 1.5px solid #E8909E;
+  color: var(--aurora-pink);
+  border: 1.5px solid var(--aurora-pink);
   border-radius: var(--radius-full);
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-control);

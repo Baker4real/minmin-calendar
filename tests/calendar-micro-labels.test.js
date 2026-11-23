@@ -493,11 +493,12 @@ test('the month title stays rose and tappable without the month-nav glow', () =>
   assert.doesNotMatch(navTitle, /text-shadow/, 'nav title should not carry the rose glow')
 
   const monthTitle = ruleBody(readWxss(), '.month-title')
-  assert.match(monthTitle, /color:\s*#E8909E/i)
+  assert.match(monthTitle, /color:\s*var\(--aurora-pink\)/i)
   assert.doesNotMatch(monthTitle, /text-shadow/)
 
   const trigger = ruleBody(readWxss(), '.month-title-trigger')
   assert.match(trigger, /min-height:\s*88rpx/)
+  assert.match(trigger, /padding:\s*16rpx 28rpx/)
 })
 
 test('earlier/later month navigation buttons keep 44px touch targets', () => {
@@ -1002,7 +1003,9 @@ test('DESIGN.md registers the today capsule the CSS draws', () => {
   assert.equal(registered('todayCapsuleBg'), capsule.background)
   assert.equal(registered('todayCapsuleStroke'), capsule.border)
   assert.equal(registered('todayCapsuleSize'), `${full.width}×${full.height}rpx full / ${compact.width}×${compact.height}rpx compact`)
-  assert.equal(registered('todayText'), anchoredDeclaration(ruleBody(wxss, '.day-cell.today .day-num'), 'color'))
+  assert.equal(registered('todayText'), '#E8909E')
+  assert.match(readSource(APP_WXSS_PATH, 'utf8'), /--aurora-pink:\s*#E8909E/)
+  assert.equal(anchoredDeclaration(ruleBody(wxss, '.day-cell.today .day-num'), 'color'), 'var(--aurora-pink)')
   assert.doesNotMatch(design, /todayBg|todayRing|薰衣草内描边|今天玫瑰底/, 'the full-cell today wording is retired')
 })
 

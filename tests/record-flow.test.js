@@ -194,7 +194,7 @@ test('period list keeps last data on refresh failure and offers retry in the lis
   const retryRow = parseWxssRules(periodWxss).find(rule => rule.selectors.includes('.list-retry'))
   assert.ok(retryRow, 'expected the .list-retry rule')
   assert.match(retryRow.decls['min-height'], /88rpx/)
-  assert.match(retryRow.decls.color, /#E8909E/i)
+  assert.equal(retryRow.decls.color, 'var(--aurora-pink)')
 })
 
 test('record tab memory segment mirrors the standalone memory list state contract', () => {

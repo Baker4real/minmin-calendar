@@ -41,6 +41,7 @@
 }
 .cycle-item:nth-child(2) {
   box-sizing: border-box;
+  padding: 0 16rpx;
   border-left: 1px solid rgba(255,255,255,0.07);
   border-right: 1px solid rgba(255,255,255,0.07);
 }
@@ -57,7 +58,7 @@
   line-height: 52.8rpx;
   font-size: 44rpx;
   font-weight: var(--font-weight-control);
-  color: #fff;
+  color: rgba(255,255,255,0.92);
   font-variant-numeric: tabular-nums;
 }
 .cycle-unit {
@@ -184,7 +185,7 @@
 }
 /* 经量标签 = 分段选中态的弱态玫瑰角色；症状标签保持上面的中性样式（issue #225） */
 .item-tag.flow {
-  color: #E8909E;
+  color: var(--aurora-pink);
   background: rgba(232,144,158,0.08);
   border-color: rgba(232,144,158,0.45);
 }
@@ -202,7 +203,7 @@
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   font-variant-numeric: tabular-nums;
-  color: #E8909E;
+  color: var(--aurora-pink);
   background: rgba(232,144,158,0.12);
   padding: 4rpx 16rpx;
   border-radius: var(--radius-md);
