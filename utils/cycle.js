@@ -536,6 +536,7 @@ module.exports = {
   projectPeriodRange,
   getPeriodDuration,
   recordAuthorLabel,
+  recordNoteSummary,
   memoryEditAriaLabel,
   decoratePeriod,
   buildSymptomOptions,

@@ -199,6 +199,28 @@ test('day sheet record actions and details retain their visible and accessible b
   assert.match(wxml.slice(detailAt, detailAt + 240), /day-detail-fade/)
 })
 
+test('period detail notes render one conditional ellipsis row below the status metadata', () => {
+  const wxml = readIndexWxml()
+  const wxss = readIndexWxss()
+  const period = wxml.slice(
+    wxml.indexOf('class="day-detail-row period-detail"'),
+    wxml.indexOf('class="day-detail-row memory-detail"')
+  )
+  assert.match(period, /<text wx:if="\{\{item\.note\}\}" class="text-pair-desc detail-meta detail-note">\{\{item\.note\}\}<\/text>/)
+  assert.ok(period.indexOf('{{item.metaText}}') < period.indexOf('{{item.note}}'))
+  const note = ruleBody(wxss, '.detail-note')
+  assert.match(note, /white-space:\s*nowrap/)
+  assert.match(note, /overflow:\s*hidden/)
+  assert.match(note, /text-overflow:\s*ellipsis/)
+})
+
+test('day sheet separates meanings from records or actions and centers compact action content', () => {
+  const wxss = readIndexWxss()
+  assert.match(ruleBody(wxss, '.detail-meaning-list + .day-detail-list'), /margin-top:\s*14rpx/)
+  assert.match(ruleBody(wxss, '.detail-meaning-list + .sheet-actions'), /margin-top:\s*14rpx/)
+  assert.match(ruleBody(wxss, '.sheet-action.compact .sheet-action-copy'), /flex:\s*0 1 auto/)
+})
+
 test('the homepage status keeps its 32rpx geometry exception with a secondary caption countdown', () => {
   const wxss = readIndexWxss()
   assert.match(ruleBody(wxss, '.home-status'), /height:\s*88rpx/)
@@ -467,6 +489,23 @@ test('month jump sheet uses a bounded year stepper and immediate month selection
   assert.doesNotMatch(wxml, /jump-confirm|confirmMonthJump/)
   assert.match(ruleBody(wxss, '.jump-year-step'), /min-height:\s*88rpx/)
   assert.match(ruleBody(wxss, '.jump-year-step.disabled'), /opacity/)
+})
+
+test('month jump removes back-to-today top margin and overlays a subtle real-month marker', () => {
+  const wxml = readIndexWxml()
+  const wxss = readIndexWxss()
+  assert.equal(numberDecl(ruleBody(wxss, '.jump-today'), 'margin-top'), 0)
+  assert.match(ruleBody(wxss, '.jump-option'), /position:\s*relative/)
+  assert.match(ruleBody(wxss, '.jump-option.real-today'), /color:\s*var\(--aurora-pink\)/)
+  const active = ruleBody(wxss, '.jump-option.active')
+  assert.match(active, /color:\s*var\(--text-on-accent\)/)
+  assert.match(active, /background:\s*var\(--aurora-pink\)/)
+  const dot = ruleBody(wxss, '.jump-real-today-dot')
+  assert.equal(numberDecl(dot, 'width'), 8)
+  assert.equal(numberDecl(dot, 'height'), 8)
+  assert.match(dot, /background:\s*currentColor/)
+  assert.match(dot, /border-radius:\s*var\(--radius-circle\)/)
+  assert.match(wxml, /<view wx:if="\{\{item\.isRealTodayMonth\}\}" class="jump-real-today-dot" aria-hidden="true"><\/view>/)
 })
 
 test('the calendar area tracks month swipes in WXS and does not follow the finger', () => {

@@ -282,10 +282,10 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
     assert.equal(row.attrs['aria-label'], '{{item.ariaLabel}}')
   }
 
-  // 月份格是单选，点一下即跳转
+  // 月份格是单选，点一下即跳转；真实当月额外读作「本月」
   const jumpOption = byHandler('selectJumpMonth', 'jump-option')
   assert.equal(jumpOption.attrs['aria-role'], 'radio')
-  assert.equal(jumpOption.attrs['aria-label'], '选择{{item.label}}')
+  assert.equal(jumpOption.attrs['aria-label'], "选择{{item.label}}{{item.isRealTodayMonth ? '，本月' : ''}}")
 
   // 复制小结
   const copyRecap = byHandler('copyMonthlyRecap', 'copy-recap')
