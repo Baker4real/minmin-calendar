@@ -124,6 +124,19 @@ function tokenRpx(token, appTokens) {
   return value
 }
 
+// 横幅把 1px 边框吸收进 calc() 的垂直 padding；统一换算到最窄 320px 的 rpx 账本。
+function narrowLengthRpx(token) {
+  const raw = String(token).trim()
+  if (raw === '0') return 0
+  const calc = /^calc\((-?\d+(?:\.\d+)?)rpx\s*([+-])\s*(\d+(?:\.\d+)?)px\)$/.exec(raw)
+  if (calc) return Number(calc[1]) + (calc[2] === '+' ? 1 : -1) * Number(calc[3]) * 750 / 320
+  const px = /^(-?\d+(?:\.\d+)?)px$/.exec(raw)
+  if (px) return Number(px[1]) * 750 / 320
+  const rpx = /^(-?\d+(?:\.\d+)?)rpx$/.exec(raw)
+  assert.ok(rpx, `expected an rpx, px or simple calc length, got ${raw}`)
+  return Number(rpx[1])
+}
+
 function fontSizeRpx(declOrToken, appTokens = readAppTokens()) {
   const raw = typeof declOrToken === 'string' ? declOrToken : declOrToken['font-size']
   return tokenRpx(raw, appTokens)
@@ -785,17 +798,23 @@ test('the clickable partner welcome copy fits two rpx lines and its box matches 
   assert.equal(bar.position, undefined, 'welcome bar stays in normal flow')
   assert.equal(bar['font-size'], 'var(--font-size-caption)')
   assert.equal(bar['line-height'], 'var(--line-height-body)')
-  const margin = splitCssTokens(bar.margin).map(token => parseFloat(token))
-  const padding = splitCssTokens(bar.padding).map(token => parseFloat(token))
-  assert.equal(margin.length, 2, 'margin is vertical / horizontal')
+  const margin = splitCssTokens(bar.margin)
+  const padding = splitCssTokens(bar.padding)
+  assert.deepEqual(margin, ['0'], 'the banner aligns with the calendar instead of adding 24rpx side insets')
   assert.equal(padding.length, 3, 'padding is top / horizontal / bottom')
+  assert.equal(padding[1], '16rpx')
+  const borderRpx = borderPx(bar) * 750 / 320
+  assert.equal(bar.border, '1px solid rgba(232,144,158,0.2)')
+  assert.equal(bar['border-radius'], 'var(--radius-card)')
+  assert.equal(bar.background, 'linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback)')
   const fontRpx = fontSizeRpx(bar, appTokens)
   const lineHeight = Number(appTokens['--line-height-body'])
 
   // 文案恰好两行：CJK 与全角标点 1em；拉丁字母 0.5–0.7em、空格 0.25–0.5em、♥ 0.5–1em 取上下界。
   // 超长时缩短说明文字，caption 字号不变。
   const contentPadRpx = horizontalPaddingRpx(findDecls(rules, '.content'))[0]
-  const lineEm = (750 - 2 * contentPadRpx - 2 * margin[1]) / fontRpx
+  const copyWidth = 750 - 2 * contentPadRpx - 2 * narrowLengthRpx(padding[1]) - 2 * borderRpx
+  const lineEm = copyWidth / fontRpx
   let minEm = 0
   let maxEm = 0
   for (const ch of welcome[1]) {
@@ -803,8 +822,8 @@ test('the clickable partner welcome copy fits two rpx lines and its box matches 
   }
   assert.ok(minEm > lineEm && maxEm <= 2 * lineEm, `welcome copy ${minEm}–${maxEm}em must wrap to exactly two ${lineEm.toFixed(2)}em lines`)
 
-  const boxRpx = padding[0] + 2 * fontRpx * lineHeight + padding[2]
-  assert.ok(Math.abs(boxRpx - 103.2) < 1e-9, `welcome box ${boxRpx}rpx`)
+  const boxRpx = narrowLengthRpx(padding[0]) + 2 * fontRpx * lineHeight + narrowLengthRpx(padding[2]) + 2 * borderRpx
+  assert.ok(Math.abs(boxRpx - 103.2) < 1e-9, `welcome box ${boxRpx}rpx includes its borders`)
   assert.ok(boxRpx * 320 / 750 >= 44, 'the whole welcome box remains a 44px touch target at 320px')
   assert.equal(CALENDAR_LEDGER.firstScreenRpx.partnerWelcome, 103.2, 'ledger entry must equal the rendered welcome box')
 })
@@ -856,25 +875,33 @@ test('waiting invitation and creator welcome use the same calendar ledger slot w
     }
     const share = findDecls(rules, 'button.home-share-invite')
     const shareHeight = rpxNumber(share, 'min-height')
-    assert.ok(shareHeight * 320 / 750 >= 44)
+    assert.equal(shareHeight, 88, 'the invite action keeps the ticket-required 88rpx touch height')
+    assert.equal(invite['align-items'], 'center')
+    assert.equal(share['border-radius'], 'var(--radius-full)')
+    assert.equal(share.background, 'rgba(232,144,158,0.1)')
     const appTokens = readAppTokens()
     const fontRpx = fontSizeRpx(invite, appTokens)
     const lineHeight = Number(appTokens['--line-height-body'])
-    const invitePadding = splitCssTokens(invite.padding).map(token => parseFloat(token))
-    const shareMargin = splitCssTokens(share.margin).map(token => parseFloat(token))
-    const slotHeight = invitePadding[0] + invitePadding[2] + Math.max(
+    const invitePadding = splitCssTokens(invite.padding)
+    const shareMargin = splitCssTokens(share.margin).map(narrowLengthRpx)
+    const inviteBorderRpx = borderPx(invite) * 750 / 320
+    const slotHeight = narrowLengthRpx(invitePadding[0]) + narrowLengthRpx(invitePadding[2]) + Math.max(
       2 * fontRpx * lineHeight,
       shareHeight + shareMargin[0] + shareMargin[2]
-    )
-    assert.ok(Math.abs(slotHeight - CALENDAR_LEDGER.firstScreenRpx.partnerWelcome) < 1e-9)
+    ) + 2 * inviteBorderRpx
+    assert.ok(Math.abs(slotHeight - CALENDAR_LEDGER.firstScreenRpx.partnerWelcome) < 1e-9,
+      `padding, 88rpx button, negative margins and borders must absorb into ${CALENDAR_LEDGER.firstScreenRpx.partnerWelcome}rpx`)
 
-    const copyRules = findDecls(rules, '.partner-invite-title')
-    assert.equal(copyRules['white-space'], 'nowrap')
+    for (const selector of ['.partner-invite-title', '.partner-invite-desc']) {
+      const copyRules = findDecls(rules, selector)
+      assert.equal(copyRules['white-space'], 'nowrap')
+      assert.equal(copyRules.overflow, 'hidden')
+      assert.equal(copyRules['text-overflow'], 'ellipsis')
+    }
     const contentPadRpx = horizontalPaddingRpx(findDecls(rules, '.content'))[0]
-    const inviteMarginRpx = parseFloat(splitCssTokens(invite.margin)[1])
-    const shareTextWidth = 3 * fontRpx + 2 * parseFloat(horizontalPaddingTokens(share)[0])
+    const shareTextWidth = 3 * fontRpx + 2 * parseFloat(horizontalPaddingTokens(share)[0]) + 2 * borderPx(share) * 750 / 320
     const shareWidth = Math.max(rpxNumber(share, 'min-width'), shareTextWidth)
-    const copyWidth = 750 - 2 * contentPadRpx - 2 * inviteMarginRpx - shareWidth - shareMargin[3]
+    const copyWidth = 750 - 2 * contentPadRpx - 2 * narrowLengthRpx(invitePadding[1]) - 2 * inviteBorderRpx - shareWidth - shareMargin[3]
     for (const copy of ['TA 还没加入', '发个邀请，TA 加入后你们看的是同一本日历']) {
       let maxEm = 0
       for (const ch of copy) {

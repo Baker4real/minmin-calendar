@@ -644,7 +644,7 @@ test('retired decoration, loading and month-change animations stay gone', () => 
 const BLUR_RADIUS_CAP_PX = 20
 const MASK_BLUR_CAP_PX = 8
 const BLURRED_SURFACES = {
-  'pages/index/index.wxss': ['.day-sheet-mask'],
+  'pages/index/index.wxss': ['.home-sticky', '.day-sheet-mask'],
   'pages/settings/settings.wxss': ['.day-sheet-mask'],
   'pages/bind/bind.wxss': ['.day-sheet-mask'],
   'pages/shared/confirmation-sheet.wxss': ['.day-sheet-mask'],
