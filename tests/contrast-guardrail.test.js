@@ -542,6 +542,23 @@ test('text on the aurora and on translucent rows clears 4.5:1 at the aurora brig
   assert.deepEqual(failures, [])
 })
 
+test('settings membership badges and help topic titles clear 4.5:1 on their real surfaces', () => {
+  const cases = [
+    { selector: '.room-member-badge.paired', stacks: [[['app.wxss', '.premium-card'], ['pages/settings/settings.wxss', '.room-member-badge.paired']]], note: '已加入徽标' },
+    { selector: '.room-member-badge.waiting', stacks: [[['app.wxss', '.premium-card'], ['pages/settings/settings.wxss', '.room-member-badge.waiting']]], note: '未加入徽标' },
+    { selector: '.help-topic-title', stacks: [[['pages/shared/confirmation-sheet.wxss', '.day-action-sheet'], ['pages/settings/settings.wxss', '.help-topic']]], note: '使用说明主题标题' }
+  ]
+  const failures = []
+  for (const item of cases) {
+    const text = layerPaint(exactDeclaration('pages/settings/settings.wxss', item.selector, 'color'))
+    for (const surface of item.stacks.flatMap(stackSurfaces)) {
+      const ratio = contrastOn(text, surface)
+      if (ratio < 4.5) failures.push(`${item.note} ${item.selector} on ${toHex(surface)} = ${ratio.toFixed(2)}:1`)
+    }
+  }
+  assert.deepEqual(failures, [])
+})
+
 // 表面栈自下而上叠在两处背景（画布和极光最亮处，见 tests/contrast.js）上；渐变层在每个色标处各算一次
 function stackSurfaces(stack) {
   let surfaces = contrastGrounds(readSource('app.wxss')).map(([, value]) => hex(value))

@@ -107,6 +107,7 @@ test('settings help adopts home sheet geometry while month and day keep their vi
   const settings = readSource(path.join(repoRoot, 'pages/settings/settings.wxml'), 'utf8')
   assert.match(rawSettings, /sheetId: 'help'/)
   assert.match(rawSettings, /bodyTemplate: 'settingsHelpSheetBody'/)
+  assert.match(rawSettings, /helpTopics: helpTopics/)
   assert.match(rawSettings, /sheetDragClear: helpDragClear/)
   assert.doesNotMatch(settings, /help-layer|help-mask|help-slide|help-head/)
 
@@ -170,7 +171,7 @@ test('shared bottom sheet calls keep template data flat for the WXML compiler', 
   const forwarded = [
     'year', 'month', 'jumpYear', 'jumpMonth', 'jumpYearAtMin', 'jumpYearAtMax', 'jumpMonths',
     'selectedDayDetail', 'daySheetMode', 'dayDetailFade', 'periodBandSample', 'calendarDensity',
-    'infoSheetMode', 'predictionExplanation', 'monthlyRecap', 'legendItems',
+    'infoSheetMode', 'predictionExplanation', 'monthlyRecap', 'legendItems', 'helpTopics',
     'confirmationDateText', 'confirmationContent', 'confirmationActions',
     'datePickerName', 'datePickerYears', 'datePickerMonths', 'datePickerDays', 'datePickerValue', 'datePickerPicking',
     'datePickerYearAria', 'datePickerMonthAria', 'datePickerDayAria', 'datePickerConfirmAria'
