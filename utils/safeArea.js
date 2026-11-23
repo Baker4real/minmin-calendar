@@ -8,6 +8,14 @@ let cachedSafeBottom = null
 let cachedCapsule = null
 let cachedWindowWidth = null
 
+// Shared navbar geometry ledger (rpx uses the usual 750rpx viewport scale).
+// The home surface is 2 * 26rpx label + 2 * 22rpx padding; its two 1px borders
+// contribute to the real flex slot in addition to the rpx content width.
+const NAV_TITLE_LEFT_MARGIN_RPX = 30
+const NAV_TITLE_BACK_SLOT_RPX = 88
+const NAV_TITLE_HOME_SURFACE_RPX = 96
+const NAV_TITLE_HOME_BORDER_PX = 2
+
 function getSafeTop() {
   if (cachedSafeTop === null) cachedSafeTop = queryStatusBarHeight()
   return cachedSafeTop
@@ -123,4 +131,20 @@ function getCapsuleRightInset() {
   return queryWindowWidth() - getCapsuleRect().left
 }
 
-module.exports = { getSafeTop, getSafeBottom, getCapsuleRect, getNavBarHeight, getCapsuleRightInset }
+// The title remains in the flex slot, then compensates only its content box by
+// the difference between the real left control slot and the capsule reservation.
+// The sync pill is a sibling and never consumes these title-only paddings.
+function getNavTitlePadding(variant = 'placeholder') {
+  const controlRpx = variant === 'home'
+    ? NAV_TITLE_HOME_SURFACE_RPX
+    : variant === 'back' ? NAV_TITLE_BACK_SLOT_RPX : 0
+  const controlBorderPx = variant === 'home' ? NAV_TITLE_HOME_BORDER_PX : 0
+  const leftSlot = (NAV_TITLE_LEFT_MARGIN_RPX + controlRpx) * queryWindowWidth() / 750 + controlBorderPx
+  const compensation = getCapsuleRightInset() - leftSlot
+  return {
+    navTitlePaddingLeft: Math.max(0, compensation),
+    navTitlePaddingRight: Math.max(0, -compensation)
+  }
+}
+
+module.exports = { getSafeTop, getSafeBottom, getCapsuleRect, getNavBarHeight, getCapsuleRightInset, getNavTitlePadding }

@@ -247,6 +247,162 @@ test('R2 date panel: period start opens three bounded columns and confirms the d
   assert.equal(page.data.datePickerMounted, false)
 })
 
+test('R2 date panel: inertia locks confirmation until the settled draft can submit', async (t) => {
+  const scenarios = [
+    { spec: period, open: 'openStartDatePicker' },
+    { spec: records[1], open: 'openMemoryDatePicker' }
+  ]
+  for (const { spec, open } of scenarios) {
+    await t.test(spec.kind, async (t) => {
+      const app = setup(t)
+      const { page } = await openEditor(app, spec, { [spec.dateField]: '2025-12-30' })
+      await app.dispatch(page, open)
+      await app.settle()
+
+      const expanded = readSource(path.join(__dirname, `../pages/${spec.kind}/edit/edit.wxml`), 'utf8')
+      const picker = wxmlOpeningTags(expanded).find(tag => tag.tag === 'picker-view')
+      assert.ok(picker)
+      assert.equal(picker.attrs.bindpickstart, 'onDatePickerPickStart')
+      assert.equal(picker.attrs.bindpickend, 'onDatePickerPickEnd')
+      const confirm = wxmlOpeningTags(expanded).find(tag => tag.attrs.bindtap === 'onDatePickerConfirm')
+      assert.ok(confirm)
+      assert.equal(confirm.tag, 'button', 'confirm has a native disabled state')
+
+      let mapped = sharedTemplateData(spec, 'sharedBottomSheet', 'bodyTemplate', 'datePickerSheetBody', page.data)
+      assert.equal(mapped.datePickerPicking, false, 'opening resets the scroll lock')
+      assert.equal(renderWxmlAttribute(confirm.attrs.disabled, page.data), 'false')
+      assert.equal(renderWxmlAttribute(confirm.attrs['aria-disabled'], page.data), 'false')
+      assert.equal(renderWxmlClasses(confirm.attrs.class, page.data).includes('disabled'), false)
+
+      await app.dispatch(page, 'onDatePickerPickStart')
+      assert.equal(page.data.datePickerPicking, true)
+      mapped = sharedTemplateData(spec, 'sharedBottomSheet', 'bodyTemplate', 'datePickerSheetBody', page.data)
+      assert.equal(mapped.datePickerPicking, true, 'the page forwards the lock through the shared shell')
+      assert.equal(renderWxmlAttribute(confirm.attrs.disabled, page.data), 'true')
+      assert.equal(renderWxmlAttribute(confirm.attrs['aria-disabled'], page.data), 'true')
+      assert.equal(renderWxmlClasses(confirm.attrs.class, page.data).includes('disabled'), true)
+
+      await app.dispatch(page, 'onDatePickerConfirm')
+      assert.equal(page.data.datePickerPhase, 'open', 'a rolling confirm does not close the panel')
+      assert.equal(page.data[spec.dateField], '2025-12-30', 'a rolling confirm cannot write the old date')
+
+      await app.dispatch(page, 'onDatePickerChange', { detail: { value: [125, 0, 0] } })
+      assert.equal(page.data.datePickerDraft, '2025-01-01')
+      await app.dispatch(page, 'onDatePickerPickEnd')
+      await app.settle()
+      assert.equal(page.data.datePickerPicking, false, 'settling releases the scroll lock after the value renders')
+      assert.equal(renderWxmlAttribute(confirm.attrs.disabled, page.data), 'false')
+      assert.equal(renderWxmlAttribute(confirm.attrs['aria-disabled'], page.data), 'false')
+      assert.equal(renderWxmlClasses(confirm.attrs.class, page.data).includes('disabled'), false)
+
+      await app.dispatch(page, 'onDatePickerConfirm')
+      assert.equal(page.data[spec.dateField], '2025-01-01', 'the settled draft submits')
+      assert.equal(page.data.datePickerPhase, 'leaving')
+      assert.equal(page.data.datePickerPicking, false, 'closing resets the scroll lock')
+      await app.advance(200)
+      assert.equal(page.data.datePickerMounted, false)
+
+      await app.dispatch(page, open)
+      await app.settle()
+      assert.equal(page.data.datePickerPicking, false, 'reopening starts unlocked')
+      await app.dispatch(page, 'onDatePickerPickStart')
+      await app.dispatch(page, 'onDatePickerClose')
+      assert.equal(page.data.datePickerPicking, false, 'cancellation also resets the scroll lock immediately')
+      await app.advance(200)
+    })
+  }
+})
+
+test('R2 date panel: pick settlement follows public value semantics across event orders', async (t) => {
+  await t.test('pickend before the final change stays locked until clamp renders', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker')
+    await app.settle()
+    const expanded = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
+    const picker = wxmlOpeningTags(expanded).find(tag => tag.tag === 'picker-view')
+    assert.equal(picker.attrs['immediate-change'], '{{true}}', 'the final value is emitted at release, before native pickend')
+
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    assert.equal(page.data.datePickerPicking, true, 'pickend alone cannot reopen confirmation')
+    await app.dispatch(page, 'onDatePickerConfirm')
+    assert.equal(page.data.startDate, '2025-12-30')
+    assert.equal(page.data.datePickerPhase, 'open')
+
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 120, detail: { value: [126, 11, 30] } })
+    assert.equal(page.data.datePickerDraft, '2026-09-20', 'the final change applies the inclusive upper-bound clamp')
+    assert.equal(page.data.datePickerPicking, true, 'the lock survives until the clamped value render completes')
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, false)
+    await app.dispatch(page, 'onDatePickerConfirm')
+    assert.equal(page.data.startDate, '2026-09-20')
+    assert.equal(page.data.datePickerPhase, 'leaving')
+    await app.advance(200)
+  })
+
+  await t.test('a pick without a final change unlocks without a timer delay', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker')
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    assert.equal(page.data.datePickerPicking, true)
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, false, 'the render barrier settles a no-change gesture')
+    await app.dispatch(page, 'onDatePickerConfirm')
+    assert.equal(page.data.startDate, '2025-12-30')
+    assert.equal(page.data.datePickerPhase, 'leaving')
+    await app.advance(200)
+  })
+
+  await t.test('stale end work and timestamped end events cannot unlock a newer pick', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker')
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 200 })
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 150, detail: { value: [125, 0, 0] } })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, true, 'neither stale callback nor stale native event ends the new pick')
+    assert.equal(page.data.datePickerDraft, '2025-12-30', 'a stale change cannot overwrite the new pick draft')
+    assert.equal(page.data.datePickerPhase, 'open')
+
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 210, detail: { value: [125, 0, 0] } })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 220 })
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, false)
+    await app.dispatch(page, 'onDatePickerConfirm')
+    assert.equal(page.data.startDate, '2025-01-01')
+    await app.advance(200)
+  })
+
+  await t.test('cancel and reopen invalidate pending end work', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker')
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.dispatch(page, 'onDatePickerClose')
+    assert.equal(page.data.datePickerPicking, false)
+
+    await app.dispatch(page, 'openStartDatePicker')
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 200 })
+    await app.settle()
+    assert.equal(page.data.datePickerPhase, 'open')
+    assert.equal(page.data.datePickerPicking, true, 'the cancelled pick cannot settle the reopened panel')
+    await app.dispatch(page, 'onDatePickerClose')
+    assert.equal(page.data.datePickerPicking, false)
+    await app.advance(200)
+    assert.equal(page.data.datePickerMounted, false)
+  })
+})
+
 test('R2 date panel: period end and memory date reuse one shared panel with existing lower bounds', async (t) => {
   await t.test('period end starts at its start-date lower bound', async (t) => {
     const app = setup(t)

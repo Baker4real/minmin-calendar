@@ -479,6 +479,19 @@ function verticalMarginRpx(decls) {
   return verticalPaddingRpx({ padding: decls.margin })
 }
 
+test('month arrows and shared sheet close circles use border-box flex centering', () => {
+  for (const [file, selector] of [
+    ['pages/index/index.wxss', '.nav-btn'],
+    ['pages/shared/confirmation-sheet.wxss', '.sheet-close']
+  ]) {
+    const circle = findDecls(parseWxssRules(readRepo(file)), selector)
+    assert.equal(circle['box-sizing'], 'border-box', `${file} ${selector} includes both borders in its fixed circle`)
+    assert.equal(circle.display, 'flex', `${file} ${selector} display`)
+    assert.equal(circle['align-items'], 'center', `${file} ${selector} vertical centering`)
+    assert.equal(circle['justify-content'], 'center', `${file} ${selector} horizontal centering`)
+  }
+})
+
 // issue #153：首屏账本就是记录入口以上的 CSS 文档流；每一项都从样式里读回来核对
 test('the first-screen ledger is the CSS flow above the record actions', async () => {
   const { CALENDAR_LEDGER } = require('../utils/calendarRowHeight')
@@ -1092,6 +1105,44 @@ test('safeArea exposes a runtime bottom inset with the same query discipline as 
   }
 })
 
+test('safeArea balances the navbar title against the capsule and each actual left slot', () => {
+  for (const { width, statusBarHeight, capsuleLeft, capsuleRight } of [
+    { width: 320, statusBarHeight: 20, capsuleLeft: 226, capsuleRight: 313 },
+    { width: 390, statusBarHeight: 47, capsuleLeft: 287, capsuleRight: 383 },
+    { width: 430, statusBarHeight: 47, capsuleLeft: 327, capsuleRight: 423 }
+  ]) {
+    const env = loadSafeArea({
+      getWindowInfo: () => ({ windowWidth: width, statusBarHeight }),
+      getMenuButtonBoundingClientRect: () => ({
+        width: capsuleRight - capsuleLeft,
+        height: 32,
+        top: statusBarHeight + 4,
+        right: capsuleRight,
+        bottom: statusBarHeight + 36,
+        left: capsuleLeft
+      })
+    })
+    try {
+      const leftSlots = {
+        home: (30 + 96) * width / 750 + 2,
+        back: (30 + 88) * width / 750,
+        placeholder: 30 * width / 750
+      }
+      for (const [variant, leftSlot] of Object.entries(leftSlots)) {
+        const padding = env.safeArea.getNavTitlePadding(variant)
+        const rightSlot = env.safeArea.getCapsuleRightInset()
+        const compensation = rightSlot - leftSlot
+        assert.ok(Math.abs(padding.navTitlePaddingLeft - Math.max(0, compensation)) < 1e-9, `${variant} left compensation at ${width}px`)
+        assert.ok(Math.abs(padding.navTitlePaddingRight - Math.max(0, -compensation)) < 1e-9, `${variant} right compensation at ${width}px`)
+        const contentCenter = (leftSlot + padding.navTitlePaddingLeft + width - rightSlot - padding.navTitlePaddingRight) / 2
+        assert.ok(Math.abs(contentCenter - width / 2) < 1e-9, `${variant} title center at ${width}px`)
+      }
+    } finally {
+      env.restore()
+    }
+  }
+})
+
 test('navbar height lines up with the capsule rect and reserves its right-hand slot at 375px', () => {
   const safeAreaPath = path.join(repoRoot, 'utils/safeArea.js')
   delete require.cache[require.resolve(safeAreaPath)]
@@ -1306,10 +1357,16 @@ test('the sync pill takes the navbar title slot, clear of the sticky month title
     assert.ok(rpxNumber(pill, 'min-height') * viewportPx / 750 <= 32, `the pill outgrows the navbar row at ${viewportPx}px`)
   }
 
-  // 标题槽 = 视口 − 顶栏左内边距 − 工具钮 − 胶囊占位；胶囊 = 左右内边距 + 描边 + 圆点 + 间距 + 文案（caption，每字 1em）
+  // 标题槽 = 视口 − 顶栏左内边距 − 图例实际槽宽 − 胶囊占位；图例槽取 88rpx 热区与内层表面 intrinsic width 的较大值。
   const pxToRpx = px => px * 750 / 320
-  const slotRpx = 750 - rpxNumber(findDecls(appRules, '.nav-bar'), 'padding-left') -
-    rpxNumber(findDecls(appRules, '.nav-tool'), 'min-width') - pxToRpx(94)
+  const navTool = findDecls(appRules, '.nav-tool')
+  const navToolSurface = findDecls(appRules, '.nav-tool-surface')
+  const legendSurfaceRpx = Array.from('图例').length * fontSizeRpx(navTool) +
+    horizontalPaddingRpx(navToolSurface).reduce((sum, value) => sum + value, 0) +
+    2 * pxToRpx(borderPx(navToolSurface))
+  const toolSlotRpx = Math.max(rpxNumber(navTool, 'min-width'), legendSurfaceRpx)
+  const slotRpx = 750 - rpxNumber(findDecls(appRules, '.nav-bar'), 'padding-left') - toolSlotRpx - pxToRpx(94)
+  // 同步胶囊 = 左右内边距 + 描边 + 圆点 + 间距 + 文案（caption，每字 1em）。
   const chromeRpx = 2 * parseFloat(horizontalPaddingTokens(pill)[0]) + 2 * pxToRpx(borderPx(pill)) +
     rpxNumber(findDecls(rules, '.sync-dot'), 'width') + rpxNumber(pill, 'gap')
   const syncText = findDecls(rules, '.sync-text')
@@ -1347,6 +1404,46 @@ test('registered pages render platform safe areas, navbar height and capsule cle
       assert.match(style, /--capsule-right: 97px/, pagePath)
     } finally { app.teardown() }
   }
+})
+
+test('all seven pages inject regular-title compensation while the sync pill stays uncompressed', async () => {
+  const expectedLeftPadding = new Map([
+    ['pages/bind/bind', 82],
+    ['pages/index/index', 32],
+    ['pages/memory/memory', 82],
+    ['pages/memory/edit/edit', 38],
+    ['pages/period/period', 82],
+    ['pages/period/edit/edit', 38],
+    ['pages/settings/settings', 82]
+  ])
+  assert.deepEqual([...expectedLeftPadding.keys()].sort(), [...ALL_PAGES].sort())
+
+  for (const pagePath of ALL_PAGES) {
+    const app = createMiniProgram({ storage: { roomCode: 'ROOM01' }, windowInfo: { screenHeight: 812, statusBarHeight: 44, safeArea: { top: 44, bottom: 778 } } })
+    try {
+      app.failNavigation('switchTab')
+      app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } })
+      app.cloud.when({ name: 'dataOp', data: { action: 'list' } }).reply({ code: 0, data: [] })
+      const page = app.launch('/' + pagePath)
+      await app.settle()
+      const data = app.rendered(page)
+      const expected = expectedLeftPadding.get(pagePath)
+      assert.equal(data.navTitlePaddingLeft, expected, `${pagePath} left compensation`)
+      assert.equal(data.navTitlePaddingRight, 0, `${pagePath} right compensation`)
+      const root = wxmlOpeningTags(readRepo(`${pagePath}.wxml`)).find(tag => tag.classes.includes('page'))
+      const style = renderWxmlAttribute(root.attrs.style, data)
+      assert.match(style, new RegExp(`--nav-title-padding-left: ${expected}px`), pagePath)
+      assert.match(style, /--nav-title-padding-right: 0px/, pagePath)
+    } finally { app.teardown() }
+  }
+
+  const title = findDecls(parseWxssRules(readRepo('app.wxss')), '.nav-title')
+  assert.equal(title['box-sizing'], 'border-box')
+  assert.equal(title['min-width'], '0')
+  assert.match(title['padding-left'], /var\(--nav-title-padding-left,\s*0px\)/)
+  assert.match(title['padding-right'], /var\(--nav-title-padding-right,\s*0px\)/)
+  const pill = findDecls(parseWxssRules(readRepo('pages/index/index.wxss')), '.sync-pill')
+  for (const value of Object.values(pill)) assert.doesNotMatch(value, /nav-title-padding/)
 })
 
 test('bottom inset lands on non-tab page content; tab pages stay lean behind the native tabBar', () => {

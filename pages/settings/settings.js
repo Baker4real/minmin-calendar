@@ -29,6 +29,7 @@ function settingsInitialData() {
     safeBottom: safeArea.getSafeBottom(),
     navBarHeight: safeArea.getNavBarHeight(),
     capsuleRight: safeArea.getCapsuleRightInset(),
+    ...safeArea.getNavTitlePadding('placeholder'),
     ...cachedRoomFirstFrame(),
     roomCodeLoaded: false,
     roomStatus: '',
