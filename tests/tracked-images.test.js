@@ -154,14 +154,14 @@ function trackedImages() {
     .filter(file => IMAGE_FILE.test(file))
 }
 
-test('invite card is a tracked 500 by 400 PNG no larger than 40 KB', () => {
+test('invite card is a tracked 1000 by 800 PNG no larger than 120 KB', () => {
   assert.ok(trackedImages().includes(INVITE_CARD), `${INVITE_CARD} must be tracked`)
   const artwork = fs.readFileSync(path.join(repoRoot, INVITE_CARD))
-  assert.ok(artwork.length <= 40 * 1024, `invite card is ${artwork.length} B (limit ${40 * 1024} B)`)
+  assert.ok(artwork.length <= 120 * 1024, `invite card is ${artwork.length} B (limit ${120 * 1024} B)`)
   assert.ok(artwork.length >= 24, 'PNG header and IHDR dimensions must be present')
   assert.equal(artwork.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
-  assert.equal(artwork.readUInt32BE(16), 500)
-  assert.equal(artwork.readUInt32BE(20), 400)
+  assert.equal(artwork.readUInt32BE(16), 1000)
+  assert.equal(artwork.readUInt32BE(20), 800)
 })
 
 test('every tracked image outside images/ is allowlisted with what it shows', () => {
