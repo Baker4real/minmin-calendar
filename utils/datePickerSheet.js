@@ -83,9 +83,15 @@ function buildDatePickerContent({ label, value, minDate, maxDate }) {
     datePickerTitle: label,
     datePickerSubtitle: '选择年、月、日',
     ...buildRangeState(initial, min, max),
+    datePickerPicking: false,
     _datePickerMin: min,
     _datePickerMax: max
   }
+}
+
+function stalePickEvent(event, pick) {
+  if (!pick || pick.startedAt === null || !event || !Number.isFinite(event.timeStamp)) return false
+  return event.timeStamp < pick.startedAt
 }
 
 function emptyDatePickerContent() {
@@ -101,6 +107,7 @@ function emptyDatePickerContent() {
     datePickerYearAria: '',
     datePickerMonthAria: '',
     datePickerDayAria: '',
+    datePickerPicking: false,
     datePickerConfirmAria: ''
   }
 }
@@ -125,13 +132,21 @@ function datePickerSheet(page) {
   })
   let confirmDraft = null
   let range = null
+  let activePick = null
+
+  function settlePick(pick) {
+    if (activePick !== pick || !pick.ended || pick.changePending) return
+    activePick = null
+    page.setData({ datePickerPicking: false })
+  }
 
   function leave(extra = {}) {
+    activePick = null
     lifecycle.leave(page, () => {
       confirmDraft = null
       range = null
       page.setData(emptyDatePickerContent())
-    }, extra)
+    }, { ...extra, datePickerPicking: false })
   }
 
   const interactions = registeredSheetInteractions(page, {
@@ -144,6 +159,7 @@ function datePickerSheet(page) {
 
   page._datePickerSheet = {
     open(config) {
+      activePick = null
       confirmDraft = config.onConfirm
       const content = buildDatePickerContent(config)
       range = { min: content._datePickerMin, max: content._datePickerMax }
@@ -151,8 +167,38 @@ function datePickerSheet(page) {
       delete content._datePickerMax
       lifecycle.open(page, content)
     },
-    change(indexes) {
-      if (!range || !Array.isArray(indexes) || indexes.length !== 3 || page.data.datePickerPhase === 'leaving') return
+    pickStart(event) {
+      if (!range || !lifecycle.isMounted(page) || page.data.datePickerPhase === 'leaving') return
+      activePick = {
+        startedAt: event && Number.isFinite(event.timeStamp) ? event.timeStamp : null,
+        ended: false,
+        changed: false,
+        changePending: false,
+        endBarrierPending: false
+      }
+      page.setData({ datePickerPicking: true })
+    },
+    pickEnd(event) {
+      const pick = activePick
+      if (!pick || stalePickEvent(event, pick) || !lifecycle.isMounted(page) || page.data.datePickerPhase === 'leaving') return
+      pick.ended = true
+      if (pick.changed && !pick.changePending) {
+        settlePick(pick)
+        return
+      }
+      if (pick.endBarrierPending) return
+      pick.endBarrierPending = true
+      // No millisecond delay: immediate-change supplies real changes at release; this render
+      // barrier is the no-change fallback, and object identity keeps old picks from settling new ones.
+      page.setData({ datePickerPicking: true }, () => {
+        pick.endBarrierPending = false
+        if (activePick !== pick || !pick.ended || pick.changePending) return
+        settlePick(pick)
+      })
+    },
+    change(indexes, event) {
+      const pick = activePick
+      if (!range || stalePickEvent(event, pick) || !Array.isArray(indexes) || indexes.length !== 3 || page.data.datePickerPhase === 'leaving') return
       const year = page.data.datePickerYears[Number(indexes[0])]
       const month = page.data.datePickerMonths[Number(indexes[1])]
       const day = page.data.datePickerDays[Number(indexes[2])]
@@ -162,10 +208,18 @@ function datePickerSheet(page) {
         month: month.value,
         day: Math.min(day.value, daysInMonth(year.value, month.value))
       }
-      page.setData(buildRangeState(candidate, range.min, range.max))
+      if (pick) {
+        pick.changed = true
+        pick.changePending = true
+      }
+      page.setData({ ...buildRangeState(candidate, range.min, range.max), datePickerPicking: Boolean(pick) }, () => {
+        if (!pick) return
+        pick.changePending = false
+        if (activePick === pick && pick.ended) settlePick(pick)
+      })
     },
     confirm() {
-      if (!lifecycle.isMounted(page) || page.data.datePickerPhase === 'leaving') return
+      if (!lifecycle.isMounted(page) || page.data.datePickerPhase === 'leaving' || page.data.datePickerPicking) return
       const commit = confirmDraft
       const draft = page.data.datePickerDraft
       confirmDraft = null
@@ -186,6 +240,7 @@ function datePickerSheet(page) {
       interactions.systemBack(page)
     },
     unload() {
+      activePick = null
       confirmDraft = null
       range = null
       lifecycle.dismissPatch()

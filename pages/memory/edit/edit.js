@@ -50,7 +50,15 @@ Page(withPageVisibility({
   },
 
   onDatePickerChange(e) {
-    datePickerSheet(this).change(e.detail.value)
+    datePickerSheet(this).change(e.detail.value, e)
+  },
+
+  onDatePickerPickStart(e) {
+    datePickerSheet(this).pickStart(e)
+  },
+
+  onDatePickerPickEnd(e) {
+    datePickerSheet(this).pickEnd(e)
   },
 
   onDatePickerConfirm() {

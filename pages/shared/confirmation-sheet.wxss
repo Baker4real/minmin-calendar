@@ -223,10 +223,18 @@
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
-.date-picker-confirm {
+button.date-picker-confirm {
   width: 100%;
   box-sizing: border-box;
-  margin-top: 24rpx;
+  margin: 24rpx 0 0;
+  line-height: var(--line-height-body);
+  border: 0;
+  background: var(--aurora-pink);
+  color: var(--text-on-accent);
+  overflow: visible;
+}
+button.date-picker-confirm::after {
+  border: 0;
 }
 .reduced-motion-probe {
   position: absolute;
