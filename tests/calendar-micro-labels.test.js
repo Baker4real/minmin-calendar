@@ -137,12 +137,6 @@ function borderBoxRpx(body, viewportPx) {
   return Number(width[1]) * 2 * (750 / viewportPx)
 }
 
-function contentInsetRpx(body, viewportPx) {
-  const sizing = body.match(/box-sizing:\s*([^;]+)/)
-  if (sizing && sizing[1].trim() === 'content-box') return 0
-  return borderBoxRpx(body, viewportPx)
-}
-
 function lineBoxRpx(body, fontRpx) {
   const match = body.match(/line-height:\s*([^;]+);/)
   assert.ok(match, 'expected line-height')
@@ -391,11 +385,12 @@ test('holiday, workday, and predict capsules center their labels with inset at 3
   const tagFont = declarationRpx(tag, 'font-size')
   const tagHeight = declarationRpx(tag, 'height')
   const tagLine = lineBoxRpx(tag, tagFont)
-  const workdayInset = contentInsetRpx(ruleBody(wxss, '.workday-tag'), NARROW_VIEWPORT_PX)
   assert.equal(tagLine, tagHeight, '.day-tag line box should fill the capsule and center the label')
+  const workday = ruleBody(wxss, '.workday-tag')
+  assert.match(workday, /box-sizing:\s*border-box/)
   assert.ok(
-    tagHeight - workdayInset >= tagFont * CAPTION_LINE_HEIGHT_RATIO,
-    `workday edge leaves ${tagHeight - workdayInset}rpx, under the caption line box at 320px`
+    tagHeight >= tagFont * CAPTION_LINE_HEIGHT_RATIO,
+    `workday border box ${tagHeight}rpx is under the caption line box`
   )
 
   const predictFont = declarationRpx(predict, 'font-size')
@@ -617,8 +612,8 @@ test('the merged info row ledger uses the CSS widths and its single row holds th
     infoGap: declarationRpx(info, 'gap')
   })
   assert.deepEqual(borders, { grid: borderWidthPx(grid), workday: borderWidthPx(workday), predict: borderWidthPx(predict) })
-  // 「班」是 content-box：描边加在盒宽外；♥ 行高 1，字宽按 1em 上限记账
-  assert.match(workday, /box-sizing:\s*content-box/)
+  // 「班」用 border-box：描边包含在固定盒内；♥ 行高 1，字宽按 1em 上限记账
+  assert.match(workday, /box-sizing:\s*border-box/)
   assert.match(ruleBody(wxss, '.memory-mark'), /line-height:\s*1;/)
 
   // 一行横排、居中；节日胶囊可收窄（超长节日名仍只裁尾部），标记不收窄
@@ -626,14 +621,28 @@ test('the merged info row ledger uses the CSS widths and its single row holds th
   assert.match(info, /justify-content:\s*center/)
   assert.match(ruleBody(wxss, '.calendar-info-merged .day-tag-line'), /min-width:\s*0/)
   assert.match(ruleBody(wxss, '.calendar-info-merged .day-marks'), /flex-shrink:\s*0/)
-  // 行高装得下最高的一项：「预」胶囊（含描边），以及 320px 下「班」的 34rpx 盒高加 1px 上下描边
+  // 行高装得下最高的一项：「预」胶囊（含描边），以及「班」包含描边的 34rpx 边框盒
   const rowHeight = declarationRpx(info, 'height')
-  const workdayPx = borderWidthPx(workday) * 2 * (750 / NARROW_VIEWPORT_PX)
   assert.ok(rowHeight >= declarationRpx(predict, 'height'), 'merged row is shorter than the predict capsule')
-  assert.ok(rowHeight >= declarationRpx(compactTag, 'height') + workdayPx, 'merged row is shorter than the workday tag')
+  assert.ok(rowHeight >= declarationRpx(compactTag, 'height'), 'merged row is shorter than the workday tag')
   for (const selector of ['.calendar-info-merged .day-tag-line', '.calendar-info-merged .day-marks']) {
     assert.equal(declarationRpx(ruleBody(wxss, selector), 'height'), rowHeight, `${selector} fills the merged row`)
   }
+})
+
+test('compact workday tag uses border-box and compact padding inside its information slot', () => {
+  const wxss = readWxss()
+  const workday = ruleBody(wxss, '.workday-tag')
+  const compactWorkday = ruleBody(wxss, '.calendar-density-compact .workday-tag')
+  const compactTag = ruleBody(wxss, '.calendar-density-compact .day-tag')
+  const tagLine = ruleBody(wxss, '.calendar-density-compact .day-tag-line')
+  assert.match(workday, /box-sizing:\s*border-box/)
+  assert.equal(horizontalPaddingRpx(compactWorkday), 12, 'compact workday keeps 6rpx horizontal padding')
+  assert.equal(
+    declarationRpx(compactTag, 'height'),
+    declarationRpx(tagLine, 'height'),
+    'the workday border box stays inside the 34rpx information slot'
+  )
 })
 
 test('compact period bands keep visible thickness at narrow widths instead of reading as an underline', () => {
@@ -648,7 +657,7 @@ test('compact period bands keep visible thickness at narrow widths instead of re
 })
 
 // 色带使用独立槽位：完整模式在农历字框后，清爽模式在日期与信息之间。
-test('period bands stay below dates and today capsules, behind lunar text or above compact information', () => {
+test('period bands stay below dates, center behind lunar text, and clear compact information', () => {
   const { calendarCellContentMinRpx, CALENDAR_ROW_CAP_RPX } = require('../utils/calendarRowHeight')
   const wxss = readWxss()
   const fullSlot = ruleBody(wxss, '.period-slot')
@@ -656,6 +665,9 @@ test('period bands stay below dates and today capsules, behind lunar text or abo
   const fullTop = declarationRpx(fullSlot, 'top')
   const fullHeight = declarationRpx(fullSlot, 'height')
   const compactHeight = declarationRpx(compactSlot, 'height')
+  const lunarFont = declarationRpx(ruleBody(wxss, '.day-lunar'), 'font-size')
+  assert.equal(lunarFont, 24)
+  assert.equal(fullHeight - lunarFont, 6, 'the full band leaves 3rpx above and below the 24rpx lunar glyphs')
   assert.match(compactSlot, /position:\s*relative/)
   assert.match(compactSlot, /top:\s*auto/)
   for (const layout of ['full', 'compact', 'merged']) {
@@ -671,9 +683,12 @@ test('period bands stay below dates and today capsules, behind lunar text or abo
       const bandBottom = bandTop + (layout === 'full' ? fullHeight : compactHeight)
       const capsule = todayCapsuleBox(wxss, density)
       assert.ok(bandTop >= dateBottom, `${layout} band covers the date`)
-      assert.ok(bandTop >= dateTop + capsule.top + capsule.height + 2, `${layout} band touches the today capsule`)
+      if (layout !== 'full') {
+        assert.ok(bandTop >= dateTop + capsule.top + capsule.height + 2, `${layout} band touches the today capsule`)
+      }
       if (layout === 'full') {
         const lunarTop = dateBottom + cell.stack[1].gap
+        assert.equal(bandTop, lunarTop + (cell.stack[1].height - fullHeight) / 2, 'full band is centered in the lunar line')
         assert.ok(bandTop >= lunarTop && bandBottom <= lunarTop + cell.stack[1].height, 'full band stays inside the lunar line')
       } else {
         const infoSlot = cell.stack[2]
@@ -898,14 +913,14 @@ test('full density first-screen stack stays within the ratcheted budget', () => 
   )
 })
 
-test('period band stays compact, connects across a week and caps the open end without animating', () => {
+test('period band uses the breathable full-density slot and caps the open end without animating', () => {
   const wxss = readWxss()
   const band = ruleBody(wxss, '.period-band')
   assert.match(band, /inset:\s*0\s+0\s+auto/)
   assert.match(band, /height:\s*100%/)
   const fullSlot = ruleBody(wxss, '.period-slot')
-  assert.match(fullSlot, /top:\s*43rpx/)
-  assert.match(fullSlot, /height:\s*24rpx/)
+  assert.match(fullSlot, /top:\s*40rpx/)
+  assert.match(fullSlot, /height:\s*30rpx/)
   assert.match(band, /background:\s*rgba\(232,\s*144,\s*158,\s*0\.(?:1[89]|2[0-4])\)/)
   assert.doesNotMatch(band, /transition\s*:/)
   assert.doesNotMatch(band, /animation\s*:/)
@@ -944,6 +959,22 @@ test('period band stays compact, connects across a week and caps the open end wi
 
 })
 
+test('period band overlaps 1rpx right only when the next cell continues', () => {
+  const wxss = readWxss()
+  assert.match(ruleBody(wxss, '.period-band'), /inset:\s*0\s+0\s+auto/, 'other segments stop at the cell edge')
+  for (const selector of ['.day-cell.period-start .period-band', '.day-cell.period-middle .period-band']) {
+    assert.match(ruleBody(wxss, selector), /right:\s*-1rpx/, `${selector} must overlap the next cell`)
+  }
+  for (const selector of [
+    '.day-cell.period-end .period-band',
+    '.day-cell.period-single .period-band',
+    '.day-cell.period-open.period-end .period-band',
+    '.day-cell.period-open.period-single .period-band'
+  ]) {
+    assert.doesNotMatch(ruleBody(wxss, selector), /right:\s*-\d/, `${selector} must not extend past the cell`)
+  }
+})
+
 // DESIGN.md 是唯一视觉权威：frontmatter 的今天胶囊登记就是 CSS 画的那一枚，整格的 todayBg / todayRing 已退役
 test('DESIGN.md registers the today capsule the CSS draws', () => {
   const design = readSource(path.join(__dirname, '..', 'DESIGN.md'), 'utf8')
@@ -977,6 +1008,8 @@ test('legend samples are calendar cells on the grid glass', () => {
   const tile = declarationRpx(legend, 'height')
   const band = declarationRpx(ruleBody(wxss, '.period-slot'), 'height')
   const sampleBand = ruleBody(wxss, '.legend-sample .period-band')
+  assert.equal(declarationRpx(sampleBand, 'top'), 21, 'the 30rpx band sample is centered in its 72rpx tile')
+  assert.equal(declarationRpx(sampleBand, 'height'), 30, 'the band sample keeps the breathable full slot height')
   assert.equal(declarationRpx(sampleBand, 'top'), (tile - band) / 2, 'the band sample sits in the middle of its tile')
   assert.equal(declarationRpx(sampleBand, 'height'), band, 'the band sample keeps the full slot height')
 })
