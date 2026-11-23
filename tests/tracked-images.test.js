@@ -145,6 +145,19 @@ const ALLOWED_IMAGES = {
   'docs/evidence/issue-168/settings-help-open-390x844.png': '设置页使用说明弹层停在打开态：固定文案，没有记录数据',
   'docs/evidence/issue-168/period-edit-ongoing-390x844.png': '经期编辑页打开进行中的替身经期：选中的状态、经量和症状芯片带静态玫瑰光；日期与备注来自替身记录',
   'docs/evidence/issue-168/memory-edit-existing-390x844.png': '欢乐时光编辑页打开一条替身记录：日期与备注「替身：一起散步」来自替身记录',
+  // #262：当前模拟器 390×844、ABC123 与 standin-* 数据。runtime-proof 编译挑战不可用，这些是本轮观察图，不标 current 通过。
+  'docs/evidence/issue-262/home-six-row-d1-390x844.png': 'D1 六行日历真实 pageScrollTo 后，月份与状态行压在吸顶渐变上；经期与欢乐时光均为替身记录',
+  'docs/evidence/issue-262/home-full-calendar-390x844.png': '完整密度日历：单日、连续、跨周与今天的替身经期色带及欢乐时光',
+  'docs/evidence/issue-262/home-compact-calendar-390x844.png': '清爽密度日历：单日、连续、跨周与今天的替身经期色带及欢乐时光',
+  'docs/evidence/issue-262/sheet-recap-390x844.png': '本月小结弹层的轻玻璃概览与语义导轨；所有日期、统计和备注均为替身数据',
+  'docs/evidence/issue-262/date-picker-picking-rose-390x844.png': '日期滚轮 picking 锁定时确定键保持 55% 玫瑰与海军字；无真实日期或备注',
+  'docs/evidence/issue-262/home-skeleton-390x844.png': '替身云端延迟时的首页首次加载骨架；无真实记录',
+  'docs/evidence/issue-262/period-skeleton-390x844.png': '替身云端延迟时的记录页首次加载骨架；无真实记录',
+  'docs/evidence/issue-262/period-dashboard-390x844.png': '记录页周期概览与经期行；日期、统计、作者和备注均为替身数据',
+  'docs/evidence/issue-262/period-edit-fixed-save-390x844.png': '新建过去经期表单的固定单保存栏；日期由替身场景生成，无真实记录',
+  'docs/evidence/issue-262/settings-help-four-topics-390x844.png': '设置使用说明四大主题块；固定帮助文案，无真实记录或房间码',
+  'docs/evidence/issue-262/bind-created-credential-390x844.png': '刚创建替身房间的凭证票根；ABC123 是替身码，无真实记录',
+  'docs/evidence/issue-262/memory-compat-unverified-390x844.png': '兼容路由运行观察停在空白 pages/memory/memory 且记录 tab 选中；跳转未完成，不能作通过证据，无真实记录',
 }
 
 // 读 index 而不是工作区：提交钩子里跑时，读到的正是这次要提交的文件。
