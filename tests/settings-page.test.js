@@ -764,7 +764,7 @@ test('settings help touchcancel resets the drag without closing', async (t) => {
 
   assert.equal(page.data.helpPhase, 'open')
   assert.equal(page.data.helpMounted, true)
-  assert.deepEqual(page.data.helpDragClear, { token: 1, action: 'reset' })
+  assert.deepEqual(page.data.helpDragClear, { token: 1, action: 'reset', sheet: 'help' })
   await app.advance(16)
   assert.equal(app.viewStyle(page, '.sheet-slide-help').transform, '')
   assert.equal(app.tabBar.visible, false)

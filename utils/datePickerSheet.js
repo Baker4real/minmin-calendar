@@ -118,7 +118,7 @@ function datePickerSheetData() {
     datePickerMounted: false,
     datePickerPhase: 'closed',
     ...emptyDatePickerContent(),
-    datePickerDragClear: { token: 0, action: '' }
+    datePickerDragClear: { token: 0, action: '', sheet: 'datePicker' }
   }
 }
 

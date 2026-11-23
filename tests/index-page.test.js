@@ -311,14 +311,27 @@ test('homepage retires the tools menu and keeps direct prediction, recap and hel
   assert.match(legend, /更多用法请前往「设置 → 使用说明」。/)
 })
 
-test('monthly recap uses a body-large main sentence and body-sized detail lines', () => {
+test('monthly recap uses a glass overview, projected semantic rails and 24rpx copy spacing', () => {
   const wxml = readIndexWxml()
   const recap = wxml.slice(wxml.indexOf('class="monthly-recap"'), wxml.indexOf('class="copy-recap"'))
-  assert.match(recap, /class="text-pair-title recap-summary recap-main">\{\{monthlyRecap\.periodSummary\}\}/)
+  assert.match(recap, /<view class="recap-overview">\s*<text class="text-pair-title recap-summary recap-main">\{\{monthlyRecap\.periodSummary\}\}/)
   assert.match(recap, /class="text-pair-desc recap-summary">\{\{monthlyRecap\.memorySummary\}\}/)
   assert.match(recap, /class="text-pair-desc recap-summary">\{\{monthlyRecap\.predictionSummary\}\}/)
+  assert.match(recap, /<view\s+wx:for="\{\{monthlyRecap\.highlightItems\}\}"\s+wx:key="key"\s+class="recap-highlight-row recap-highlight-\{\{item\.kind\}\}"\s*>\s*<view class="recap-highlight-rail" aria-hidden="true"><\/view>\s*<text class="text-pair-desc recap-highlight">\{\{item\.text\}\}<\/text>/)
 
   const wxss = readIndexWxss()
+  const overview = ruleBody(wxss, '.recap-overview')
+  assert.match(overview, /padding:\s*20rpx 24rpx/)
+  assert.match(overview, /border-radius:\s*var\(--radius-md\)/)
+  assert.match(overview, /background:\s*var\(--glass-bg\)/)
+  assert.match(overview, /border:\s*1px solid var\(--glass-border\)/)
+  const rail = ruleBody(wxss, '.recap-highlight-rail')
+  assert.match(rail, /width:\s*4rpx/)
+  assert.match(rail, /border-radius:\s*var\(--radius-full\)/)
+  assert.match(rail, /background:\s*var\(--aurora-pink\)/)
+  assert.match(ruleBody(wxss, '.recap-highlight-memory .recap-highlight-rail'), /background:\s*var\(--memory-gold\)/)
+  assert.match(readSource(path.join(repoRoot, 'app.wxss'), 'utf8'), /--memory-gold:\s*var\(--aurora-gold\)/)
+
   const main = ruleBody(wxss, '.recap-main')
   assert.match(main, /font-size:\s*var\(--font-size-body-lg\)/)
   assert.match(main, /font-weight:\s*var\(--font-weight-body\)/)
@@ -329,6 +342,10 @@ test('monthly recap uses a body-large main sentence and body-sized detail lines'
     assert.match(detail, /font-weight:\s*var\(--font-weight-body\)/)
     assert.match(detail, /line-height:\s*var\(--line-height-body\)/)
   }
+  const recapGap = numberDecl(ruleBody(wxss, '.monthly-recap'), 'gap')
+  const copyOffset = numberDecl(ruleBody(wxss, '.copy-recap'), 'margin-top')
+  assert.equal(recapGap + copyOffset, 24, 'the highlight list and copy action have 24rpx of breathing room')
+  assert.match(ruleBody(wxss, '.copy-recap.copy-recap-hover'), /transform:\s*scale\(0\.96\)/)
 })
 
 test('period band samples follow density classes and keep their shared source data', () => {

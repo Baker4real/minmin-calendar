@@ -1460,6 +1460,16 @@ button.home-share-invite {
   color: rgba(255,255,255,0.72);
   overflow-wrap: anywhere;
 }
+.recap-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+  box-sizing: border-box;
+  padding: 20rpx 24rpx;
+  border-radius: var(--radius-md);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+}
 .recap-summary {
   min-width: 0;
   font-size: var(--font-size-body);
@@ -1478,7 +1488,22 @@ button.home-share-invite {
   flex-direction: column;
   gap: 10rpx;
 }
+.recap-highlight-row {
+  display: flex;
+  align-items: stretch;
+  gap: 16rpx;
+}
+.recap-highlight-rail {
+  width: 4rpx;
+  flex: 0 0 4rpx;
+  border-radius: var(--radius-full);
+  background: var(--aurora-pink);
+}
+.recap-highlight-memory .recap-highlight-rail {
+  background: var(--memory-gold);
+}
 .recap-highlight {
+  flex: 1;
   min-width: 0;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
@@ -1488,7 +1513,7 @@ button.home-share-invite {
 }
 .copy-recap {
   min-height: 88rpx;
-  margin-top: 4rpx;
+  margin-top: 10rpx;
   box-sizing: border-box;
   padding: 0 28rpx;
   border-radius: var(--radius-md);
@@ -1505,7 +1530,7 @@ button.home-share-invite {
 }
 .copy-recap:active,
 .copy-recap.copy-recap-hover {
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
 /* 骨架复用真实 .content 页边距、吸顶占位、周头和网格；只有父容器脉冲（issue #239） */
 .calendar-skeleton {
