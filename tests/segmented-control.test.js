@@ -32,11 +32,18 @@ test('bind, record and settings segmented options share the 26rpx quiet-rose opt
     assert.match(base.color, /^rgba\(255,255,255,/)
     assert.equal(base['border-radius'], 'var(--radius-md)')
     assert.equal(base['min-height'], '88rpx')
+    const defaultRule = parseWxssRules(readRaw(SHARED))
+      .find(rule => rule.selectors.includes(option) && rule.decls.transition)
+    assert.match(defaultRule.decls.transition, /border-color var\(--duration-state\) ease/)
 
     const active = declarations(file, `${option}.active`)
-    assert.equal(active.color, '#E8909E')
+    assert.equal(active.color, 'var(--aurora-pink)')
     assert.equal(active.background, 'rgba(232,144,158,0.08)')
     assert.equal(active['border-color'], 'rgba(232,144,158,0.45)')
+
+    const activePressed = declarations(file, `${option}:active.active`)
+    assert.equal(activePressed.background, 'rgba(232,144,158,0.14)')
+    assert.equal(activePressed['border-color'], 'rgba(232,144,158,0.58)')
   }
 })
 
@@ -56,9 +63,10 @@ test('segmented containers use the canvas variant only outside cards and retain 
       )
       assert.equal(box.border, '1px solid rgba(255,255,255,0.11)')
     } else {
-      assert.equal(box.padding, '0')
-      assert.equal(box.background, 'transparent')
-      assert.equal(box.border, '0')
+      assert.equal(box.padding, '6rpx')
+      assert.equal(box['border-radius'], 'var(--radius-card)')
+      assert.equal(box.background, 'rgba(10,14,39,0.45)')
+      assert.equal(box.border, '1px solid rgba(255,255,255,0.07)')
     }
 
     const localContainerRules = parseWxssRules(readRaw(file))

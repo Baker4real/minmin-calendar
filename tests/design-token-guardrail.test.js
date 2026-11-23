@@ -421,7 +421,7 @@ test('primary CTA rose fill comes from var(--aurora-pink) only', () => {
 // issue #145：分段控件只有一种选中态。描边玫瑰弱选中，不用主按钮实色填充。
 // 记录分类、设置页密度、绑定页创建/加入是全部分段控件。
 const SEGMENTED_SELECTED = {
-  color: '#E8909E',
+  color: 'var(--aurora-pink)',
   background: 'rgba(232,144,158,0.08)',
   'border-color': 'rgba(232,144,158,0.45)'
 }
@@ -626,6 +626,10 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/period/edit/edit.wxss', '.form-input'],
     ['pages/memory/edit/edit.wxss', '.form-picker'],
     ['pages/memory/edit/edit.wxss', '.form-input'],
+    // #253：两个编辑页的单保存固定栏使用不透字的海军实底渐变。
+    ['pages/shared/record-form.wxss', '.record-actions-fixed'],
+    ['pages/period/edit/edit.wxss', '.record-actions-fixed'],
+    ['pages/memory/edit/edit.wxss', '.record-actions-fixed'],
     // #243：自有日期面板的滚轮槽沿用表单平涂；共享规则及全部展开调用页登记同一来源。
     ['pages/shared/confirmation-sheet.wxss', '.date-picker-columns'],
     ['pages/index/index.wxss', '.date-picker-columns'],
@@ -809,11 +813,12 @@ test('home page reserves gold for prediction, range, certainty, and calendar met
 const SHADOW_COLOR_FAMILIES = [
   { name: 'black elevation', rgb: [0, 0, 0], allow: (a) => (a >= 0.12 && a <= 0.15) || a === 0.2 || a === 0.34 },
   { name: 'navy near-field', rgb: [10, 14, 39], allow: (a) => a >= 0.16 && a <= 0.35 },
+  { name: 'fixed action bar elevation', rgb: [5, 8, 22], allow: (a) => a === 0.55 },
   { name: 'rose glow', rgb: [232, 144, 158], allow: (a) => a >= 0.1 && a <= 0.45 },
   { name: 'soft pink glow', rgb: [240, 196, 192], allow: (a) => a >= 0.28 && a <= 0.32 },
   { name: 'gold glow', rgb: [212, 165, 116], allow: (a) => a >= 0.3 && a <= 0.5 },
   { name: 'warning glow', rgb: [249, 115, 115], allow: (a) => a === 0.38 },
-  { name: 'inset highlight', rgb: [255, 255, 255], allow: (a) => a >= 0.09 && a <= 0.22 }
+  { name: 'inset highlight', rgb: [255, 255, 255], allow: (a) => a >= 0.08 && a <= 0.22 }
   // issue #162：今天的薰衣草描边改成胶囊与色带的 border，不再是阴影，阴影登记里没有薰衣草
 ]
 
@@ -961,7 +966,7 @@ const REGISTERED_GLOWS = [
   'pages/period/period.wxss .memory-heart',
   'pages/period/period.wxss .cycle-card'
 ]
-const ELEVATION_RGB = new Set(['0,0,0', '10,14,39', '255,255,255'])
+const ELEVATION_RGB = new Set(['0,0,0', '5,8,22', '10,14,39', '255,255,255'])
 
 // 一个阴影值的各层：box-shadow / text-shadow 按顶层逗号分，filter 只取其中的 drop-shadow(...)
 function shadowLayers(prop, value) {

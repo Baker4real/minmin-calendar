@@ -16,6 +16,23 @@
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
 }
+.form-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
+}
+.form-label-row .form-label {
+  margin-bottom: 0;
+}
+.note-count {
+  flex-shrink: 0;
+  font-size: var(--font-size-caption);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--line-height-assist);
+  color: var(--text-secondary);
+}
 .form-picker {
   display: flex;
   align-items: center;
@@ -56,32 +73,82 @@
   border: 1px solid rgba(255,255,255,0.12);
   transition: border-color var(--duration-state) ease;
 }
+.form-input.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
 /* R10：焦点描边由 shared/form-control.wxss 的 form-control-focused 统一绘制，不加光晕。 */
 .input-placeholder {
   line-height: var(--line-height-body);
 }
 
-/* 草稿恢复说明常驻并主动播报；只有可点的放弃操作使用玫瑰色 */
-.draft-notice {
+/* 草稿恢复与开始日归属共用玫瑰微提示条；操作热区不撑开正文行。 */
+.micro-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  box-sizing: border-box;
+  padding: 16rpx 24rpx;
+  background: rgba(232,144,158,0.08);
+  border: 1px solid rgba(232,144,158,0.24);
+  border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   color: var(--text-secondary);
+}
+.micro-notice-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.micro-notice-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  min-height: 88rpx;
+  margin: -16rpx;
+  padding: 16rpx;
+  color: var(--aurora-pink);
+}
+.draft-notice {
   margin-bottom: 24rpx;
 }
-.draft-discard {
-  display: inline-block;
-  color: var(--aurora-pink);
+.draft-discard,
+.start-date-owner-action {
   transition: transform var(--duration-press) var(--ease-out);
+}
+.draft-discard {
+  color: var(--aurora-pink);
 }
 .draft-discard:active,
 .draft-discard.draft-discard-hover {
   transform: scale(0.96);
 }
 
-/* Buttons：保存紧跟表单卡，一个块间距；删除另在下方危险区（issue #164） */
+/* Buttons：删除留在滚动流末尾；保存使用两页共用的单按钮固定栏。 */
 .btns {
   margin-top: var(--space-page-block-gap);
+}
+.record-actions-fixed {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  box-sizing: border-box;
+  padding: var(--space-page-block-gap) var(--space-page-gutter) calc(24rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  background: linear-gradient(180deg, rgba(10,14,39,0.96) 0%, var(--aurora-bg) 48rpx, var(--aurora-bg) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 -12rpx 32rpx rgba(5,8,22,0.55);
+}
+.record-actions-fixed .btns {
+  margin-top: 0;
+}
+.record-actions-fixed.record-actions-hidden {
+  display: none;
 }
 .btn-premium,
 .btn-danger {
@@ -96,7 +163,8 @@
 @media (prefers-reduced-motion: reduce) {
   .form-picker,
   .form-input,
-  .draft-discard {
+  .draft-discard,
+  .start-date-owner-action {
     transition: none;
   }
 }

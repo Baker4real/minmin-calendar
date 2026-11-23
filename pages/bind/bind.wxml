@@ -24,11 +24,11 @@
     <!-- issue #167：刚建好房间时已绑定卡用同一个显现出现，不硬切 -->
     <view wx:if="{{bound}}" class="premium-card glass-surface {{justCreated ? 'bound-reveal' : ''}}">
       <view class="bound-status">{{justCreated ? '房间建好了' : '已绑定房间'}}</view>
-      <text wx:if="{{justCreated}}" class="info-text">把房间码发给 TA，TA 加入后你们看的是同一本日历</text>
-      <!-- issue #83：复制键紧贴房间码同一行，整组在卡片内水平居中；
+      <text wx:if="{{justCreated}}" class="info-text">把房间码发给 TA，一起共享这份日历</text>
+      <!-- issue #252：房间码与复制键组成左对齐的深色凭证票根；
            issue #84：房间码回归纯展示文本，复制键是唯一复制入口 -->
       <view class="bound-code-row">
-        <text class="room-code-value">房间码：{{roomCode}}</text>
+        <text class="room-code-value">{{roomCode}}</text>
         <view class="copy-btn button-primary" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码" hover-class="copy-btn-hover">复制</view>
       </view>
       <!-- issue #102：复制键仍是唯一复制入口，不新增第二个 -->
@@ -43,9 +43,9 @@
 
     <view wx:else class="premium-card glass-surface">
       <text class="info-text">房间只有你们两个人能看到</text>
-      <view class="tab-bar" aria-role="radiogroup" aria-label="绑定方式">
-        <view class="tab {{tab==='create' ? 'active' : ''}}" bindtap="switchTab" data-tab="create" aria-role="radio" aria-label="我来建房间" aria-checked="{{tab==='create'}}" hover-class="tab-hover">我来建房间</view>
-        <view class="tab {{tab==='join' ? 'active' : ''}}" bindtap="switchTab" data-tab="join" aria-role="radio" aria-label="我有房间码" aria-checked="{{tab==='join'}}" hover-class="tab-hover">我有房间码</view>
+      <view class="tab-bar {{!tab ? 'tab-bar-unselected' : ''}}" aria-role="radiogroup" aria-label="绑定方式">
+        <view class="tab {{tab==='create' ? 'active' : ''}} {{!tab ? 'tab-equal' : ''}}" bindtap="switchTab" data-tab="create" aria-role="radio" aria-label="我来建房间" aria-checked="{{tab==='create'}}" hover-class="tab-hover">我来建房间</view>
+        <view class="tab {{tab==='join' ? 'active' : ''}} {{!tab ? 'tab-equal' : ''}}" bindtap="switchTab" data-tab="join" aria-role="radio" aria-label="我有房间码" aria-checked="{{tab==='join'}}" hover-class="tab-hover">我有房间码</view>
       </view>
 
       <view wx:if="{{tab === 'create'}}">
@@ -56,7 +56,7 @@
 
       <view wx:if="{{tab === 'join'}}">
         <text class="info-text">输入对方给你的房间码</text>
-        <input class="code-input form-control{{codeFocused ? ' form-control-focused' : ''}}" placeholder-class="input-placeholder" placeholder="输入6位码" value="{{joinCode}}" bindinput="onCodeInput" bindfocus="onCodeFocus" bindblur="onCodeBlur" confirm-type="done" bindconfirm="joinRoom" aria-label="输入6位房间码"/>
+        <input class="code-input form-control {{joinCode ? 'code-input-filled' : 'code-input-empty'}}{{codeFocused ? ' form-control-focused' : ''}}" placeholder-class="input-placeholder" placeholder="输入6位码" value="{{joinCode}}" bindinput="onCodeInput" bindfocus="onCodeFocus" bindblur="onCodeBlur" confirm-type="done" bindconfirm="joinRoom" aria-label="输入6位房间码"/>
         <view wx:if="{{joinCode.length < 6 && !loading}}" class="btn-premium disabled button-primary" aria-role="button" aria-disabled="true">请输入6位房间码</view>
         <view wx:elif="{{loading}}" class="btn-premium loading button-primary" aria-role="button" aria-disabled="true">加入中...</view>
         <view wx:elif="{{joinCode.length === 6}}" class="btn-premium button-primary" bindtap="joinRoom" aria-role="button" aria-label="加入房间" hover-class="btn-premium-hover">加入房间</view>

@@ -8,16 +8,23 @@ const { readRaw, readSource } = require('./sourceFiles')
 const repoRoot = path.join(__dirname, '..')
 const occurrences = (source, pattern) => (source.match(pattern) || []).length
 
-test('edit pages render save and delete states from one shared template', () => {
+test('edit pages render one fixed save template and a separate in-flow delete template', () => {
   const sharedPath = 'pages/shared/form-controls.wxml'
   assert.ok(fs.existsSync(path.join(repoRoot, sharedPath)), 'the shared form template exists')
   const shared = readRaw(sharedPath)
   assert.equal(occurrences(shared, /<template name="sharedRecordActions">/g), 1)
+  assert.equal(occurrences(shared, /<template name="sharedRecordDelete">/g), 1)
+  const actions = /<template name="sharedRecordActions">([\s\S]*?)<\/template>/.exec(shared)
+  assert.ok(actions)
+  assert.doesNotMatch(actions[1], /delete-zone|bindtap="delete"/, 'the fixed save bar never owns deletion')
 
   for (const kind of ['period', 'memory']) {
     const page = readRaw(`pages/${kind}/edit/edit.wxml`)
     assert.match(page, /<import src="\/pages\/shared\/form-controls\.wxml" \/>/)
-    assert.equal(occurrences(page, /<template is="sharedRecordActions"/g), 1, `${kind} uses the shared action block`)
+    assert.equal(occurrences(page, /<template is="sharedRecordActions"/g), 1, `${kind} uses the shared save block`)
+    assert.equal(occurrences(page, /<template is="sharedRecordDelete"/g), 1, `${kind} uses the shared delete block`)
+    assert.ok(page.indexOf('<template is="sharedRecordDelete"') < page.indexOf('<template is="sharedRecordActions"'), `${kind} deletes in the scroll flow before its fixed save bar`)
+    assert.match(page, /<template is="sharedRecordActions"[^>]*actionsClass: 'record-actions-fixed', actionsHidden: noteFocused/)
     assert.doesNotMatch(page, /<view class="btns">/, `${kind} does not keep a local action block`)
   }
 })
@@ -36,18 +43,20 @@ test('three date fields and three period chip groups use the shared field templa
   assert.doesNotMatch(memory, /<picker\b/, 'memory keeps no local date-picker markup')
 })
 
-test('both edit pages import the fifteen identical form rules from one stylesheet', () => {
+test('both edit pages import shared form, notice, and fixed-action rules from one stylesheet', () => {
   const sharedPath = 'pages/shared/record-form.wxss'
   assert.ok(fs.existsSync(path.join(repoRoot, sharedPath)), 'the shared record-form stylesheet exists')
   const sharedRules = parseWxssRules(readSource(path.join(repoRoot, sharedPath), 'utf8'))
   const selectors = [
-    '.form-item', '.form-item:last-child', '.form-label', '.form-picker',
+    '.form-item', '.form-item:last-child', '.form-label', '.form-label-row',
+    '.form-label-row .form-label', '.note-count', '.form-picker',
     '.form-picker-arrow', '.form-picker:active', '.form-picker.disabled',
-    '.form-input', '.input-placeholder',
-    '.draft-notice', '.draft-discard', '.draft-discard:active',
-    '.btns', '.btn-premium', '.delete-zone'
+    '.form-input', '.form-input.disabled', '.input-placeholder',
+    '.micro-notice', '.micro-notice-text', '.micro-notice-action',
+    '.draft-notice', '.draft-discard', '.draft-discard:active', '.start-date-owner-action',
+    '.btns', '.record-actions-fixed', '.record-actions-fixed .btns',
+    '.record-actions-fixed.record-actions-hidden', '.btn-premium', '.delete-zone'
   ]
-  assert.equal(selectors.length, 15)
   for (const selector of selectors) {
     assert.ok(sharedRules.some(rule => rule.selectors.includes(selector)), `shared stylesheet owns ${selector}`)
   }
@@ -62,7 +71,7 @@ test('both edit pages import the fifteen identical form rules from one styleshee
   }
 })
 
-test('room-code and edit inputs share only box structure while modifiers keep their visuals', () => {
+test('room-code and edit inputs share box structure and focus timing while modifiers keep their visuals', () => {
   const sharedPath = 'pages/shared/form-control.wxss'
   assert.ok(fs.existsSync(path.join(repoRoot, sharedPath)), 'the shared input-structure stylesheet exists')
   const base = parseWxssRules(readRaw(sharedPath)).find(rule => rule.selectors.includes('.form-control'))
@@ -70,15 +79,16 @@ test('room-code and edit inputs share only box structure while modifiers keep th
   assert.deepEqual(base.decls, {
     'box-sizing': 'border-box',
     width: '100%',
-    'border-radius': 'var(--radius-sm)'
+    'border-radius': 'var(--radius-sm)',
+    transition: 'border-color var(--duration-state) ease, box-shadow var(--duration-state) ease'
   })
 
   assert.match(readRaw('pages/shared/record-form.wxss'), /@import '\.\/form-control\.wxss';/)
   assert.match(readRaw('pages/bind/bind.wxss'), /@import '\.\.\/shared\/form-control\.wxss';/)
   assert.match(readRaw('pages/shared/form-controls.wxml'), /class="form-picker form-control\{\{saving/)
-  assert.match(readRaw('pages/bind/bind.wxml'), /class="code-input form-control\{\{codeFocused/)
+  assert.match(readRaw('pages/bind/bind.wxml'), /class="code-input form-control\s/)
   for (const kind of ['period', 'memory']) {
-    assert.match(readRaw(`pages/${kind}/edit/edit.wxml`), /class="form-input form-control\{\{noteFocused/)
+    assert.match(readRaw(`pages/${kind}/edit/edit.wxml`), /class="form-input(?: memory-note-input)? form-control\{\{noteFocused/)
   }
 
   for (const [file, selector] of [

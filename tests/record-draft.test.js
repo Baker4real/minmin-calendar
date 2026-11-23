@@ -131,16 +131,16 @@ function createMemoryStorage() {
   }
 }
 
-test('edit forms bind an alert restore notice with a separate rose discard action', () => {
+test('edit forms bind an alert restore micro notice with a separate rose discard action', () => {
   for (const relativePath of ['pages/period/edit/edit.wxml', 'pages/memory/edit/edit.wxml']) {
     const wxml = readSource(path.join(repoRoot, relativePath), 'utf8')
-    assert.match(wxml, /wx:if="\{\{draftRestored\}\}" class="draft-notice" aria-role="alert"/)
-    assert.match(wxml, /\{\{draftNoticeText\}\} · /, `${relativePath} binds the restore description`)
-    assert.match(wxml, /class="draft-discard"[^>]*bindtap="discardDraft"[^>]*aria-role="button"[^>]*aria-label="\{\{draftDiscardText\}\}"/)
-    assert.doesNotMatch(wxml, /已恢复上次未完成的输入/)
+    assert.match(wxml, /wx:if="\{\{draftRestored\}\}" class="draft-notice micro-notice" aria-role="alert"/)
+    assert.match(wxml, /<text class="micro-notice-text">\{\{draftNoticeText\}\}<\/text>/, `${relativePath} binds the restore description`)
+    assert.match(wxml, /class="draft-discard micro-notice-action"[^>]*bindtap="discardDraft"[^>]*aria-role="button"[^>]*aria-label="\{\{draftDiscardText\}\}"/)
+    assert.doesNotMatch(wxml, /\{\{draftNoticeText\}\} ·|已恢复上次未完成的输入/)
 
     const wxss = readSource(path.join(repoRoot, relativePath.replace(/\.wxml$/, '.wxss')), 'utf8')
-    assert.match(wxss, /\.draft-notice\s*\{[^}]*color: var\(--text-secondary\)/s)
+    assert.match(wxss, /\.micro-notice\s*\{[^}]*color: var\(--text-secondary\)/s)
     assert.match(wxss, /\.draft-discard\s*\{[^}]*color: var\(--aurora-pink\)/s)
   }
 })

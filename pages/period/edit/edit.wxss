@@ -8,28 +8,6 @@
   position: relative;
   z-index: 1;
 }
-.content.has-fixed-edit-actions {
-  padding-bottom: calc(376rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
-}
-
-/* R7：只有经期编辑页把共享保存/删除块固定在底部；聚焦备注时整块隐藏。 */
-.record-actions-fixed {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 20;
-  box-sizing: border-box;
-  padding: var(--space-page-block-gap) var(--space-page-gutter) calc(24rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
-  background: var(--glass-fallback);
-  border-top: 1px solid var(--glass-border);
-}
-.record-actions-fixed .btns {
-  margin-top: 0;
-}
-.record-actions-fixed.record-actions-hidden {
-  display: none;
-}
 
 /* Form Card */
 .premium-card {
@@ -55,16 +33,6 @@
 }
 
 /* Period-specific labels, consequences and inline ownership */
-.form-label-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16rpx;
-  margin-bottom: 12rpx;
-}
-.form-label-row .form-label {
-  margin-bottom: 0;
-}
 .form-hint {
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
@@ -73,18 +41,12 @@
   color: var(--text-secondary);
 }
 .period-length-hint,
-.status-hint,
-.start-date-owner {
+.status-hint {
   display: block;
   margin-top: 12rpx;
 }
-.start-date-owner-action {
-  display: inline-flex;
-  align-items: center;
-  min-height: 88rpx;
-  margin-left: 16rpx;
-  color: var(--aurora-pink);
-  transition: transform var(--duration-press) var(--ease-out);
+.start-date-owner {
+  margin-top: 12rpx;
 }
 .start-date-owner-action:active,
 .start-date-owner-action.start-date-owner-action-hover {

@@ -83,6 +83,7 @@ const EDIT_KINDS = {
     },
     overlapOwner: periodCoverage.getPeriodOnDate,
     successTitle: '保存成功',
+    successIcon: 'none',
     mergedTitle: '已打开进行中的经期',
     mergedContent: '房间里已有一条进行中的经期，已为你打开它',
     confirmName: '删除经期确认',
@@ -173,7 +174,12 @@ function openRecordEditSession({ kind, route, render, confirm }) {
 
   function publish(update = {}) {
     state = { ...state, ...update }
-    render({ ...state, ...config.describeForm(state, today(), heldPeriods()) })
+    const noteLength = String(state.note || '').length
+    render({
+      ...state,
+      ...config.describeForm(state, today(), heldPeriods()),
+      noteCountText: noteLength >= 350 ? `${noteLength} / 500` : ''
+    })
   }
 
   // 时长提示和保存前的归属查询读共享记录里的经期，包括尚待确认的本地改动；欢乐时光会话不读。
@@ -428,7 +434,10 @@ async function runCommand(options) {
     }
     if (reconciled.confirmed && reconciled.record) {
       wxApi.vibrateShort({ type: 'light' })
-      safeShowToast(wxApi, { title: '已保存' })
+      safeShowToast(wxApi, {
+        title: '已保存',
+        ...(successIcon ? { icon: successIcon } : {})
+      })
       setTimeout(() => wxApi.navigateBack(), successDelay)
       render({ [loadingKey]: false, submitted: true })
       return { kind: 'success', result: { record: reconciled.record } }

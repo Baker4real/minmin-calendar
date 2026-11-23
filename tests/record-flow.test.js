@@ -334,6 +334,29 @@ test('record edit notes are multi-line textareas with the unchanged 500-char cap
   }
 })
 
+test('edit textareas expose keyboard completion, saving opacity, and a roomy memory diary', () => {
+  for (const relativePath of ['pages/period/edit/edit.wxml', 'pages/memory/edit/edit.wxml']) {
+    const wxml = readPageFile(relativePath)
+    const textarea = /<textarea[^>]*>/.exec(wxml)?.[0]
+    assert.ok(textarea, `${relativePath} has a note textarea`)
+    assert.match(textarea, /show-confirm-bar="\{\{true\}\}"/)
+    assert.match(textarea, /disabled="\{\{saving\}\}"/)
+    assert.match(textarea, /aria-disabled="\{\{saving\}\}"/)
+    assert.match(textarea, /saving \? ' disabled' : ''/)
+
+    const wxss = readPageFile(relativePath.replace(/\.wxml$/, '.wxss'))
+    const disabled = /\.form-input\.disabled\s*\{([^}]*)\}/.exec(wxss)
+    assert.ok(disabled, 'the shared textarea disabled state is visible')
+    assert.match(disabled[1], /opacity:\s*0\.5/)
+    assert.match(disabled[1], /pointer-events:\s*none/)
+  }
+
+  const memoryWxss = readPageFile('pages/memory/edit/edit.wxss')
+  const diary = /\.memory-note-input\s*\{([^}]*)\}/.exec(memoryWxss)
+  assert.ok(diary, 'memory gives the diary textarea its own minimum height')
+  assert.match(diary[1], /min-height:\s*200rpx/)
+})
+
 // 日期错误常驻在所属字段的 picker 下方，同时并进带当前显示值的 picker 读屏名；
 // 读屏能听出是开始日、结束日还是欢乐时光日期出错；字段容器带页面滚动锚点
 test('edit forms read each displayed date and keep its own error inside that picker screen-reader name', () => {
@@ -388,17 +411,18 @@ test('period edit binds status and length hints beside their fields', () => {
   assert.ok(endLabel !== -1 && endLabel < dayText && dayText < lengthHint && lengthHint < noteLabel)
 })
 
-test('both edit pages keep the delete area apart from save', () => {
+test('both edit pages keep the delete area in the scroll flow apart from the fixed save bar', () => {
   for (const [wxmlPath, wxssPath] of [
     ['pages/period/edit/edit.wxml', 'pages/period/edit/edit.wxss'],
     ['pages/memory/edit/edit.wxml', 'pages/memory/edit/edit.wxss']
   ]) {
+    const raw = readRawPageFile(wxmlPath)
+    assert.ok(raw.indexOf('<template is="sharedRecordDelete"') < raw.indexOf('<template is="sharedRecordActions"'))
+    assert.match(raw, /<template is="sharedRecordActions"[^>]*actionsClass: 'record-actions-fixed'/)
     const wxml = readPageFile(wxmlPath)
+    assert.match(wxml, /<view wx:if="\{\{isEdit\}\}" class="delete-zone">[\s\S]*bindtap="delete"[\s\S]*删除此记录<\/view>/)
+
     const wxss = readPageFile(wxssPath)
-    assert.match(
-      wxml,
-      /<view class="btns">[\s\S]*<\/view>\s*<view wx:if="\{\{isEdit\}\}" class="delete-zone">[\s\S]*bindtap="delete"[\s\S]*删除此记录<\/view>/
-    )
     const zone = /\.delete-zone\s*\{([^}]*)\}/.exec(wxss)
     assert.ok(zone, `${wxssPath} should define .delete-zone`)
     assert.match(zone[1], /margin-top:\s*var\(--space-xxl\)/)
