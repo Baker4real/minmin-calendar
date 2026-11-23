@@ -1,6 +1,6 @@
 // 为视觉审计提供按组件裁剪的只读证据；用法见 README.md Verification。
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { pathToFileURL } from 'node:url'
@@ -268,18 +268,28 @@ export function buildAuditSummary({ projectPath, component = 'calendar', capture
 }
 
 export function parseAuditArguments(argv) {
-  const result = { projectPath: process.cwd(), component: 'calendar', captureFile: '.scratch/screenshots/captures.jsonl', list: false }
+  const result = {
+    projectPath: process.cwd(),
+    component: 'calendar',
+    captureFile: '.scratch/screenshots/captures.jsonl',
+    list: false,
+    compact: false,
+    outFile: null
+  }
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index]
     if (argument === '--list-components') {
       result.list = true
-    } else if (['--component', '--project', '--captures'].includes(argument)) {
+    } else if (argument === '--compact') {
+      result.compact = true
+    } else if (['--component', '--project', '--captures', '--out'].includes(argument)) {
       const value = argv[index + 1]
       if (!value || value.startsWith('--')) throw new Error(`${argument} requires a value.`)
       index += 1
       if (argument === '--component') result.component = value
       if (argument === '--project') result.projectPath = path.resolve(value)
       if (argument === '--captures') result.captureFile = value
+      if (argument === '--out') result.outFile = value
     } else {
       throw new Error(`Unknown argument: ${argument}`)
     }
@@ -291,7 +301,29 @@ function main() {
   try {
     const options = parseAuditArguments(process.argv.slice(2))
     const output = options.list ? { components: listAuditComponents() } : buildAuditSummary(options)
-    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`)
+    const serialized = `${JSON.stringify(output, null, options.compact ? 0 : 2)}\n`
+    if (options.outFile) {
+      const target = path.resolve(options.projectPath, options.outFile)
+      mkdirSync(path.dirname(target), { recursive: true })
+      writeFileSync(target, serialized)
+      const receipt = options.list
+        ? { file: target, bytes: Buffer.byteLength(serialized), components: output.components.length }
+        : {
+            component: output.component,
+            file: target,
+            bytes: Buffer.byteLength(serialized),
+            counts: {
+              designSections: output.designSections.length,
+              selectors: output.componentStatus.length,
+              motion: output.motion.length,
+              tests: output.tests.length,
+              evidence: output.evidence.counts
+            }
+          }
+      process.stdout.write(`${JSON.stringify(receipt)}\n`)
+    } else {
+      process.stdout.write(serialized)
+    }
   } catch (error) {
     console.error(`Impeccable audit summary failed: ${error.message}`)
     process.exitCode = 1

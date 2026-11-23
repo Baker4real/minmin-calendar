@@ -46,7 +46,7 @@ This shape is for standalone bugs and requests. A spec (epic parent) follows the
 
 implement-spec 等技能无参数调用时，spec 默认取当前开放的 epic 父票：有子票以 `## Parent` 指向它、整组标记 `ready-for-agent`。只开放一个 epic 时直接采用；多个 epic 同时开放时先与用户确认目标再开工。
 
-spec 发布为 epic 父票后，在 `docs/specs/<发布日期>-<slug>.md` 留一份同源副本：frontmatter 照同目录最近一份填写，H1 之后一行 `**Issue:** [#<n>](<issue URL>)`，其余正文与父票一致。父票是事实源，改父票正文时同步改副本。
+spec 发布为 epic 父票后，在 `docs/specs/<发布日期>-<slug>.md` 留一份同源副本：frontmatter 照同目录最近一份填写（`title` 与 `# ` 一级标题一致，带 `label: ready-for-agent`），H1 之后一行 `**Issue:** [#<n>](<issue URL>)`，其余正文与父票一致；子票批量发布后，仅在仓库副本末尾追加 `## 拆分记录（仓库副本独有，不在父票正文里）` 记录子票编号范围与起跑顺序。父票是事实源，改父票正文时同步改副本；`to-spec` 与 `to-tickets` 的 `glossary_hits.py` 同时传入 `--glossary CONTEXT.md --glossary GLOSSARY.md`。
 
 ## Close and evidence fallbacks
 

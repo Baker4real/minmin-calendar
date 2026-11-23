@@ -12,9 +12,9 @@ Minmin Calendar is a WeChat Mini Program for a private two-person shared calenda
 ## Project Shape
 
 - `app.js`, `app.json`, `app.wxss` - mini program entry: WeChat Cloud initialization, page and tabBar registration, and global styles.
-- `pages/` - one directory per page registered in `app.json`: `index` (首页 tab), `period` (记录 tab, with the Period editor in `edit/`), `memory` (compatibility entry, with the Memory editor in `edit/`), `bind` (Launch screen) and `settings` (设置 tab); `pages/shared/` holds shared WXML.
+- `pages/` - one directory per page registered in `app.json`: `index` (首页 tab), `period` (记录 tab, with the Period editor in `edit/`), `memory` (compatibility entry, with the Memory editor in `edit/`), `bind` (Launch screen) and `settings` (设置 tab); `pages/shared/` holds shared WXML templates/fragments and shared WXSS stylesheets.
 - `utils/` - client modules: domain rules and the Calendar projection, Room session and records access, record sync and edit sessions, and wx platform seams.
-- `images/` - tabBar icons and the app icon.
+- `images/` - tabBar icons, the packaged privacy-safe invite card (`invite-card.png`), and the source-only app icon (`app-icon.png`).
 - `cloudfunctions/` - one directory per WeChat Cloud Function: `dataOp` for room-scoped records, the four Room lifecycle functions whose shared source lives in `_shared/`, and `login`.
 - `tests/` - `node:test` suites (`tests/*.test.js`), the WeChat platform harness and test helpers in `tests/helpers/`, fixtures in `tests/fixtures/`, and verification tools in `tests/tools/`.
 - `docs/` - ADRs, specs and plans, the verification log and evidence, DevTools verification and motion notes, and agent workflow guides.
@@ -97,7 +97,7 @@ WXML/WXSS 设计守卫只钉不变量：DESIGN 规定的对比度下限在实际
 
 WXML/WXSS 的 Impeccable 静态检查走 `npm run impeccable:detect -- --target pages --launcher <impeccable(.cmd) 路径>`。入口先把 `app.json` 注册的页面转换成 HTML shim，`<include>` 的片段原地展开进引用它的页面，展开出的元素 `data-src` 指回片段文件；输出源 WXML 数、生成 HTML 数、展开过的片段、扫描类型和 findings 摘要；没有 WXML 时失败闭锁，不把直接检测 `pages/` 的空数组当成已覆盖。本机存在受管 `D:\agents\tmp` 时默认把每次运行写入其独立子目录，其他环境回退到 `.scratch/impeccable-shims/`；可用 `--out` 或 `MINMIN_IMPECCABLE_TEMP` 覆盖。完整 findings 保留在输出目录，退出码 0 表示无命中、2 表示有候选、1 表示覆盖或调用失败。候选仍须回源复核，本检查不进入 CI，也不替代微信验收。
 
-组件级视觉审计先用 `node tests/impeccableAudit.mjs --component calendar`；`--list-components` 列出 calendar、atmosphere、typography、sheets、feedback、motion 六个视角。只读 JSON 摘要给出带行号的设计段落、静态选择器引用、动效、相关测试，以及 `.scratch/screenshots/captures.jsonl` 的 current / runtime-unconfirmed / stale / historical-unbound 分类；`--captures <路径>` 可指定其他账本。缺失源码、未知组件和损坏账本会直接失败。摘要是定位入口，不替代 DESIGN.md、真实界面审美判断或微信验收；检测器命中也只是待回源候选。需要直接管道解析 stdout 时使用上述 `node` 入口；`npm run impeccable:audit` 是等价的交互命令，但 npm notice 会混进 stdout。
+组件级视觉审计先用 `node tests/impeccableAudit.mjs --component calendar`（宿主有标准输出长度上限时加 `--compact` 输出单行 JSON，或加 `--out <路径>` 把完整摘要落盘并只向 stdout 打印单行回执）；`--list-components` 列出 calendar、atmosphere、typography、sheets、feedback、motion 六个视角。只读 JSON 摘要给出带行号的设计段落、静态选择器引用、动效、相关测试，以及 `.scratch/screenshots/captures.jsonl` 的 current / runtime-unconfirmed / stale / historical-unbound 分类；`--captures <路径>` 可指定其他账本（如 `.scratch/standin/<run>/captures.jsonl`）。缺失源码、未知组件和损坏账本会直接失败。摘要是定位入口，不替代 DESIGN.md、真实界面审美判断或微信验收；检测器命中也只是待回源候选。需要直接管道解析 stdout 时使用上述 `node` 入口；`npm run impeccable:audit` 是等价的交互命令，但 npm notice 会混进 stdout。
 
 UI 改动仍需微信开发者工具验证。连接预检、MCP 备用路径、截图与视口记录见 [开发者工具验证](docs/devtools-verification.md)。选择器 `tap()` 可以绕过遮挡，不能证明实际点击可达；Chromium 坐标回归只验证提取的导航栏 CSS，微信验收另行记录实际视口。
 

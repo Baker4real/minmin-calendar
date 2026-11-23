@@ -33,3 +33,37 @@ test('the ADR index links every ADR under its own title', () => {
   })
   assert.deepEqual(unlisted, [], 'link each ADR above from docs/adr/README.md as [NNNN <its # title>](<file>)')
 })
+
+test('every spec in docs/specs aligns frontmatter title with H1 and links ready-for-agent epics to GitHub Issues', () => {
+  const specsDir = path.join(repoRoot, 'docs', 'specs')
+  const specs = fs.readdirSync(specsDir).filter(name => name.endsWith('.md')).sort()
+  assert.ok(specs.length > 0)
+  const violations = []
+  for (const name of specs) {
+    const raw = read(`docs/specs/${name}`)
+    if (!raw.endsWith('\n') || raw.endsWith('\n\n')) {
+      violations.push(`${name}: must end with exactly one trailing newline`)
+    }
+    const header = /^---\n([\s\S]+?)\n---\n\n# (.+)\n\n([^\n]+)/.exec(raw)
+    if (!header) {
+      violations.push(`${name}: missing frontmatter or top-level # heading`)
+      continue
+    }
+    const [, frontmatter, h1, firstMetaLine] = header
+    if (!/^type:\s*(?:spec|reference)\s*$/m.test(frontmatter)) {
+      violations.push(`${name}: frontmatter must declare type: spec (or reference)`)
+    }
+    if (!frontmatter.includes(`title: "${h1}"`)) {
+      violations.push(`${name}: frontmatter title must match "# ${h1}"`)
+    }
+    if (!/^intent:\s*"\S[\s\S]*?"\s*$/m.test(frontmatter)) {
+      violations.push(`${name}: frontmatter must declare a non-empty quoted intent`)
+    }
+    if (/^label:\s*ready-for-agent\s*$/m.test(frontmatter)) {
+      if (!/^\*\*Issue:\*\* \[#\d+\]\(https:\/\/github\.com\/Baker4real\/minmin-calendar\/issues\/\d+\)$/.test(firstMetaLine)) {
+        violations.push(`${name}: ready-for-agent epic replica must follow H1 with **Issue:** [#<n>](https://github.com/Baker4real/minmin-calendar/issues/<n>)`)
+      }
+    }
+  }
+  assert.deepEqual(violations, [])
+})

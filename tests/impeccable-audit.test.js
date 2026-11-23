@@ -160,3 +160,20 @@ test('real repository exposes component choices and a machine-readable calendar 
   assert.deepEqual(termCounts, [...termCounts].sort((a, b) => b - a))
   assert.ok(summary.evidence.currentFingerprint)
 })
+
+test('CLI supports single-line --compact output and bounded --out file receipts', t => {
+  const root = project(t)
+  const compact = run(['--project', root, '--component', 'calendar', '--compact'])
+  assert.equal(compact.status, 0, compact.stderr)
+  assert.equal(compact.stdout.trim().split('\n').length, 1)
+  assert.equal(JSON.parse(compact.stdout).component, 'calendar')
+
+  const outPath = path.join(root, 'out', 'calendar-summary.json')
+  const receiptRun = run(['--project', root, '--component', 'calendar', '--out', outPath])
+  assert.equal(receiptRun.status, 0, receiptRun.stderr)
+  const receipt = JSON.parse(receiptRun.stdout)
+  assert.equal(receipt.component, 'calendar')
+  assert.equal(receipt.file, outPath)
+  assert.ok(receipt.bytes > 0)
+  assert.equal(JSON.parse(fs.readFileSync(outPath, 'utf8')).component, 'calendar')
+})
