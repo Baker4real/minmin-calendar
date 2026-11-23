@@ -11,6 +11,7 @@ Page(withPageVisibility({
     safeBottom: safeArea.getSafeBottom(),
     navBarHeight: safeArea.getNavBarHeight(),
     capsuleRight: safeArea.getCapsuleRightInset(),
+    ...safeArea.getNavTitlePadding('back'),
     noteFocused: false,
     ...confirmationSheetData(),
     ...datePickerSheetData()

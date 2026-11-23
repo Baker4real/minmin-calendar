@@ -188,7 +188,11 @@ button.home-share-invite {
 .nav-btn {
   width: 88rpx;
   height: 88rpx;
-  line-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
   text-align: center;
   font-size: 42rpx;
   color: #fff;

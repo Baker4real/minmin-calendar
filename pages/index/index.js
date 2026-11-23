@@ -116,6 +116,7 @@ Page(withPageVisibility({
     safeBottom: safeArea.getSafeBottom(),
     navBarHeight: safeArea.getNavBarHeight(),
     capsuleRight: safeArea.getCapsuleRightInset(),
+    ...safeArea.getNavTitlePadding('home'),
     year: INITIAL_VIEW_DATE.getFullYear(),
     month: INITIAL_VIEW_DATE.getMonth(),
     weekDays: ['日','一','二','三','四','五','六'],

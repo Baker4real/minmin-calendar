@@ -49,6 +49,7 @@ Page(withPageVisibility({
     safeBottom: safeArea.getSafeBottom(),
     navBarHeight: safeArea.getNavBarHeight(),
     capsuleRight: safeArea.getCapsuleRightInset(),
+    ...safeArea.getNavTitlePadding('placeholder'),
     tab: '',
     bound: false,
     roomCode: '',

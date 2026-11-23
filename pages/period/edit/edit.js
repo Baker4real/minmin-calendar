@@ -12,6 +12,7 @@ Page(withPageVisibility({
     safeBottom: safeArea.getSafeBottom(),
     navBarHeight: safeArea.getNavBarHeight(),
     capsuleRight: safeArea.getCapsuleRightInset(),
+    ...safeArea.getNavTitlePadding('back'),
     noteFocused: false,
     statusOptions: cycle.PERIOD_STATUS_OPTIONS.map(item => ({ ...item, hint: cycle.periodStatusHint(item.value) })),
     flowOptions: cycle.FLOW_OPTIONS,
