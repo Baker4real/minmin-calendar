@@ -41,7 +41,6 @@ function buildPredictionExplanation(prediction, periods = [], options = {}) {
 
   const lines = [`参考最近 ${prediction.usedCycleCount} 次有效周期`]
   lines.push(formatDurationLine(prediction))
-  lines.push(`预计持续 ${prediction.avgDuration} 天`)
   lines.push(spokenConfidence(prediction))
 
   if (prediction.ignoredCycleCount > 0) {

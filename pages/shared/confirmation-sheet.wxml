@@ -71,14 +71,14 @@
     <text class="jump-section-title">月份</text>
     <view class="jump-month-grid" aria-role="radiogroup" aria-label="月份">
       <view
-        class="jump-option {{jumpYear == year && item.value == jumpMonth ? 'active' : ''}}"
+        class="jump-option {{jumpYear == year && item.value == jumpMonth ? 'active' : ''}} {{item.isRealTodayMonth ? 'real-today' : ''}}"
         wx:for="{{jumpMonths}}"
         wx:key="value"
         data-month="{{item.value}}"
         bindtap="selectJumpMonth"
         aria-role="radio"
-        aria-label="选择{{item.label}}"
-        aria-checked="{{jumpYear == year && item.value == jumpMonth}}" hover-class="jump-option-hover">{{item.label}}</view>
+        aria-label="选择{{item.label}}{{item.isRealTodayMonth ? '，本月' : ''}}"
+        aria-checked="{{jumpYear == year && item.value == jumpMonth}}" hover-class="jump-option-hover">{{item.label}}<view wx:if="{{item.isRealTodayMonth}}" class="jump-real-today-dot" aria-hidden="true"></view></view>
     </view>
   </view>
 </template>
@@ -116,6 +116,7 @@
         <text class="text-pair-title detail-title">经期</text>
         <text class="text-pair-desc detail-main">{{item.range}}</text>
         <text wx:if="{{item.metaText}}" class="text-pair-desc detail-meta">{{item.metaText}}</text>
+        <text wx:if="{{item.note}}" class="text-pair-desc detail-meta detail-note">{{item.note}}</text>
         <text wx:if="{{item.authorLabel}}" class="text-pair-desc detail-meta">{{item.authorLabel}}</text>
       </view>
       <text class="detail-arrow" aria-hidden="true">›</text>

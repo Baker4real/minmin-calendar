@@ -1028,6 +1028,20 @@ test('legend samples are calendar cells on the grid glass', () => {
   assert.equal(declarationRpx(sampleBand, 'height'), band, 'the band sample keeps the full slot height')
 })
 
+test('legend prediction and compact today samples share the calendar cell alignment', () => {
+  const wxss = readWxss()
+  const tile = ruleBody(wxss, '.legend-sample.day-cell')
+  assert.match(ruleBody(wxss, '.day-cell'), /align-items:\s*center/)
+  assert.match(tile, /justify-content:\s*center/)
+  assert.match(ruleBody(wxss, '.legend-sample .predict-mark'), /align-self:\s*center/)
+
+  const compact = mergedDecls(wxss, COMPACT_TODAY_CAPSULE_SELECTOR)
+  const legendCompact = mergedDecls(wxss, '.legend-sample.day-cell.today.calendar-density-compact .day-num::before')
+  for (const property of ['top', 'width', 'height', 'margin-left']) {
+    assert.equal(legendCompact[property], compact[property], `compact legend today ${property}`)
+  }
+})
+
 const BAND_SIDES = ['top', 'right', 'bottom', 'left']
 
 function strokeWidthOf(value) {
