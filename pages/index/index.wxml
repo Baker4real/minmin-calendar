@@ -2,7 +2,7 @@
 <import src="/pages/shared/nav-bar.wxml" />
 <page-meta page-style="{{pageObscured ? 'overflow: hidden;' : ''}}"></page-meta>
 <template is="sharedSheetPage" data="{{sheetExitGuard: sheetExitGuard}}" />
-<view class="page safe-top {{pageObscured ? 'page-obscured' : ''}} {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px">
+<view class="page safe-top {{pageObscured ? 'page-obscured' : ''}} {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px; --nav-title-padding-left: {{navTitlePaddingLeft}}px; --nav-title-padding-right: {{navTitlePaddingRight}}px">
 <wxs module="sheetDrag" src="../../utils/sheetDrag.wxs"></wxs>
 <wxs module="monthSwipe">
 var SWIPE_PX = 48

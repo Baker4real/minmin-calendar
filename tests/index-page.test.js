@@ -224,22 +224,37 @@ test('status line and month summary press with the shared scale-down and reduced
   assert.match(reduced, /\.month-summary\b/)
 })
 
-test('navbar legend entry opens the legend directly and stays distinct from the month arrows', () => {
+test('navbar legend entry opens directly and keeps its 88rpx hit area around an unclipped 64rpx capsule', () => {
   const wxml = readIndexWxml()
   const nav = wxml.slice(wxml.indexOf('class="nav-bar'), wxml.indexOf('class="no-room"'))
   const monthNav = wxml.slice(wxml.indexOf('class="month-nav glass-surface"'), wxml.indexOf('class="home-status'))
-  assert.match(nav, /class="nav-tool"/)
-  assert.match(nav, /bindtap="openLegendSheet"/)
-  assert.match(nav, /aria-label="打开日历图例"/)
-  assert.match(nav, />图例<\/view>/)
+  assert.match(nav, /class="nav-tool"[^>]*bindtap="openLegendSheet"[^>]*aria-label="打开日历图例"[^>]*>\s*<view class="nav-tool-surface">图例<\/view>/)
   assert.doesNotMatch(monthNav, /openMonthMenu|month-menu-trigger|…/)
   assert.match(monthNav, /bindtap="prevMonth"/)
   assert.match(monthNav, /bindtap="nextMonth"/)
+
   const wxss = readSource(path.join(repoRoot, 'pages/shared/nav-bar.wxss'), 'utf8')
   const tool = ruleBody(wxss, '.nav-tool')
+  assert.match(tool, /min-width:\s*88rpx/)
   assert.match(tool, /height:\s*88rpx/)
-  assert.match(tool, /border-radius:\s*var\(--radius-md\)/)
-  assert.doesNotMatch(tool, /border-radius:\s*var\(--radius-circle\)/)
+  assert.match(tool, /display:\s*flex/)
+  assert.match(tool, /align-items:\s*center/)
+  assert.match(tool, /justify-content:\s*center/)
+  assert.match(tool, /border:\s*0/)
+  assert.match(tool, /background:\s*transparent/)
+
+  const surface = ruleBody(wxss, '.nav-tool-surface')
+  assert.match(surface, /height:\s*64rpx/)
+  assert.match(surface, /padding:\s*0 22rpx/)
+  assert.match(surface, /box-sizing:\s*border-box/)
+  assert.match(surface, /border-radius:\s*var\(--radius-full\)/)
+  assert.match(surface, /border:\s*1px solid rgba\(255,255,255,0\.28\)/)
+  assert.match(surface, /background:\s*var\(--glass-bg\)/)
+  assert.match(wxss, /\.nav-tool:active \.nav-tool-surface,\s*\.nav-tool\.nav-tool-hover \.nav-tool-surface/)
+  for (const [viewport, navContentHeight] of [[320, 40], [390, 44], [430, 44]]) {
+    const surfaceHeight = 64 * viewport / 750
+    assert.ok(surfaceHeight < navContentHeight, `${viewport}px: ${surfaceHeight}px surface must fit the ${navContentHeight}px navbar content row`)
+  }
   assert.match(ruleBody(readIndexWxss(), '.nav-btn'), /border-radius:\s*var\(--radius-circle\)/)
 })
 
