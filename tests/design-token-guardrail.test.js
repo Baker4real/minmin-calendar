@@ -442,11 +442,10 @@ test('segmented controls share one outlined-rose selected style', () => {
   }
 })
 
-// issue #145：主按钮只有一种形状，圆角矩形 --radius-md。
-// 复制键与重试小按钮不是主按钮。
+// issue #145：通用主按钮只有一种形状，圆角矩形 --radius-md。
+// 复制键与重试小按钮不是主按钮；首页双快捷的 --radius-card 例外由 index-page 的 #255 契约单独钉住。
 const PRIMARY_BUTTONS = [
   ['app.wxss', '.btn-premium'],
-  ['pages/index/index.wxss', '.quick-btn'],
   ['pages/index/index.wxss', '.copy-recap']
 ]
 
@@ -608,6 +607,11 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/index/index.wxss', '.nav-btn:active'],
     ['pages/index/index.wxss', '.week-header'],
     ['pages/index/index.wxss', '.calendar-grid'],
+    // #255：吸顶海军渐变与首页轻玻璃横幅；均不是 CTA 填充。
+    ['pages/index/index.wxss', '.home-sticky'],
+    ['pages/index/index.wxss', '.partner-welcome'],
+    ['pages/index/index.wxss', '.partner-invite'],
+    ['pages/index/index.wxss', '.month-summary'],
     // issue #162：图例样本格铺日历网格同一层玻璃
     ['pages/index/index.wxss', '.legend-sample.day-cell'],
     ['pages/bind/bind.wxss', '.code-input'],

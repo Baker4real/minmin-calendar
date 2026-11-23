@@ -161,7 +161,7 @@ const CASES = [
   { file: 'pages/index/index.wxss', selector: '.sheet-close', surfaces: [['pages/index/index.wxss', '.day-action-sheet']], note: '弹层关闭按钮' },
   // issue #235：设置「使用说明」直接复用首页的深色底部 Sheet，关闭键叠在同一表面上
   { file: 'pages/settings/settings.wxss', selector: '.sheet-close', surfaces: [['pages/shared/confirmation-sheet.wxss', '.day-action-sheet']], note: '设置使用说明关闭按钮' },
-  // 月份导航在吸顶区里，吸顶区是不透明的画布海军，极光透不上来（issue #163）
+  // 月份导航在吸顶区里；静态 D1 的 86%→94% 海军渐变与底层极光逐站合成（#255）
   { file: 'pages/index/index.wxss', selector: '.nav-btn', surfaces: [['pages/index/index.wxss', '.home-sticky'], ['pages/index/index.wxss', '.month-nav']], note: '月份前后切换箭头' },
   { file: 'app.wxss', selector: '.nav-back', surfaces: [['app.wxss', '.nav-back-surface']], note: '导航返回箭头' },
   { file: 'pages/index/index.wxss', selector: '.month-title-caret', surfaces: [['pages/index/index.wxss', '.home-sticky'], ['pages/index/index.wxss', '.month-nav'], ['pages/index/index.wxss', '.month-title-trigger']], note: '月份选择器 caret' },
@@ -175,7 +175,9 @@ const CASES = [
   { file: 'pages/bind/bind.wxss', selector: '.tab', surfaces: [['app.wxss', '.premium-card'], ['pages/bind/bind.wxss', '.tab-bar']], note: '绑定页未选中 tab' },
   // issue #149：刚创建房间时的幽灵「进入应用」，玫瑰字落在卡片合成面上
   { file: 'pages/bind/bind.wxss', selector: '.btn-ghost', surfaces: [['app.wxss', '.premium-card']], note: '绑定页次操作进入应用' },
-  { file: 'pages/index/index.wxss', selector: '.quick-btn.btn-ghost .quick-text', surfaces: [['pages/index/index.wxss', '.quick-ghost-surface']], note: '首页次操作记欢乐时光' },
+  { file: 'pages/index/index.wxss', selector: '.quick-btn.btn-ghost .quick-text', surfaces: [['pages/index/index.wxss', '.quick-btn.btn-ghost']], note: '首页次操作记欢乐时光（海军底随按钮缩放）' },
+  { file: 'pages/index/index.wxss', selector: '.month-summary-arrow', surfaces: [['pages/index/index.wxss', '.month-summary']], note: '本月小结横幅右箭头' },
+  { file: 'pages/index/index.wxss', selector: 'button.home-share-invite', surfaces: [['pages/index/index.wxss', '.partner-invite']], note: '等待邀请横幅发邀请胶囊钮' },
   { file: 'app.wxss', selector: '.btn-danger', surfaces: [], note: '危险操作（删除记录/解除绑定）' },
   // issue #144：备注占位符不再用 0.35 白，颜色档位不弱于次要文字，落在输入框合成面上
   { file: 'app.wxss', selector: '.input-placeholder', surfaces: [['app.wxss', '.premium-card'], ['pages/period/edit/edit.wxss', '.form-input']], note: '经期编辑备注占位' },

@@ -70,9 +70,9 @@ test('waiting invitation has two copy lines and a native share button beside the
   assert.match(invite, /class="partner-invite"/)
   assert.match(invite, /class="text-pair-title partner-invite-title">TA 还没加入<\/text>/)
   assert.match(invite, /class="text-pair-desc partner-invite-desc">发个邀请，TA 加入后你们看的是同一本日历<\/text>/)
-  assert.match(invite, /class="btn-premium share-invite home-share-invite button-primary"/)
+  assert.match(invite, /class="share-invite home-share-invite"/)
   assert.match(invite, /open-type="share"/)
-  assert.match(invite, /hover-class="share-invite-hover"/)
+  assert.match(invite, /hover-class="home-share-invite-hover"/)
   assert.match(invite, /aria-role="button"/)
   assert.match(invite, /aria-label="发邀请"/)
   assert.match(invite, />发邀请<\/button>/)
@@ -101,7 +101,7 @@ test('homepage stacks navbar legend, sticky month and status, calendar, record a
   assert.equal(wxml.includes('record-entries'), false)
   assert.doesNotMatch(wxml, /periodCount|stat-num|stat-label">经期记录/)
   assert.doesNotMatch(wxml, /goPeriodList|goMemoryList/)
-  assert.match(wxml, /class="month-summary-text">\{\{monthSummaryLine\}\} ›<\/text>/)
+  assert.match(wxml, /class="month-summary-text">\{\{monthSummaryLine\}\}<\/text>\s*<text class="month-summary-arrow" aria-hidden="true">›<\/text>/)
   assert.doesNotMatch(wxml, /periodCount|status-card|stat-label">经期记录/)
   assert.doesNotMatch(wxml, /periods\.length|memories\.length|dayDetailsByDate/)
   assert.match(wxml, /wx:if="\{\{hasRecords\}\}"[\s\S]*class="month-summary"/)
@@ -224,6 +224,26 @@ test('status line and month summary press with the shared scale-down and reduced
   assert.match(reduced, /\.month-summary\b/)
 })
 
+test('status and monthly recap entries use rounded surfaces and a left-copy right-arrow banner', () => {
+  const wxss = readIndexWxss()
+  const status = ruleBody(wxss, '.home-status')
+  assert.match(status, /border-radius:\s*var\(--radius-md\)/)
+  assert.match(status, /padding:\s*0 4rpx/)
+
+  const summary = ruleBody(wxss, '.month-summary')
+  assert.match(summary, /min-height:\s*88rpx/)
+  assert.match(summary, /padding:\s*0 24rpx/)
+  assert.match(summary, /border-radius:\s*var\(--radius-card\)/)
+  assert.match(summary, /background:\s*linear-gradient\(rgba\(255,255,255,0\.05\), rgba\(255,255,255,0\.05\)\), var\(--glass-fallback\)/)
+  assert.match(summary, /border:\s*1px solid rgba\(255,255,255,0\.12\)/)
+
+  const arrow = ruleBody(wxss, '.month-summary-arrow')
+  assert.match(arrow, /flex:\s*none/)
+  assert.match(arrow, /color:\s*var\(--text-secondary\)/)
+  const wxml = readIndexWxml()
+  assert.match(wxml, /class="month-summary-text">\{\{monthSummaryLine\}\}<\/text>\s*<text class="month-summary-arrow" aria-hidden="true">›<\/text>/)
+})
+
 test('navbar legend entry opens directly and keeps its 88rpx hit area around an unclipped 64rpx capsule', () => {
   const wxml = readIndexWxml()
   const nav = wxml.slice(wxml.indexOf('class="nav-bar'), wxml.indexOf('class="no-room"'))
@@ -309,7 +329,9 @@ test('quick record actions keep period primary and memory button-ghost with read
   const quick = wxml.slice(wxml.indexOf('class="quick-actions"'), wxml.indexOf('class="month-summary"'))
   assert.match(quick, /class="quick-btn button-primary" bindtap="quickPeriod"/)
   assert.match(quick, /class="quick-ghost-surface">\s*<view class="quick-btn btn-ghost button-outline" bindtap="quickMemory"/)
-  assert.match(ruleBody(wxss, '.quick-ghost-surface'), /background:\s*var\(--aurora-bg\)/i)
+  assert.match(button, /border-radius:\s*var\(--radius-card\)/)
+  const ghostSurface = ruleBody(wxss, '.quick-ghost-surface')
+  assert.doesNotMatch(ghostSurface, /background\s*:/, 'the non-scaling host must not leave a stationary navy rim')
   assert.match(quick.slice(0, quick.indexOf('bindtap="quickMemory"')), /class="quick-icon sample-plate">\s*<view class="action-sample day-cell \{\{cellClass\}\} calendar-density-\{\{calendarDensity\}\}">\s*<view wx:for="\{\{parts\}\}" wx:for-item="part" wx:key="className" class="\{\{part\.className\}\}"><\/view>/)
   assert.match(quick, /class="quick-icon memory-tone">♥<\/text>/)
   assert.doesNotMatch(quick, /🩸|❤️|●/)
@@ -317,10 +339,10 @@ test('quick record actions keep period primary and memory button-ghost with read
   assert.match(ruleBody(wxss, '.quick-icon'), /background:\s*var\(--aurora-bg\)/i)
   assert.match(ruleBody(wxss, '.quick-icon'), /border-radius:\s*var\(--radius-circle\)/)
   const ghost = ruleBody(wxss, '.quick-btn.btn-ghost')
-  assert.match(ghost, /background:\s*transparent/i)
+  assert.match(ghost, /background:\s*var\(--aurora-bg\)/i, 'the navy base scales with the ghost button itself')
   assert.match(ghost, /color:\s*#E8909E/i)
   assert.match(ghost, /border:\s*1\.5px solid #E8909E/i)
-  assert.match(ghost, /border-radius:\s*var\(--radius-full\)/)
+  assert.match(ghost, /border-radius:\s*var\(--radius-card\)/)
   assert.match(ruleBody(wxss, '.quick-btn.btn-ghost .quick-text'), /color:\s*#E8909E/i)
   assert.match(ruleBody(wxss, '.quick-btn.btn-ghost::before'), /box-shadow:\s*none/i)
   assert.match(wxss, /\.quick-btn\.btn-ghost:active,\s*\.quick-btn\.btn-ghost\.btn-ghost-hover\s*\{[^}]*transform:\s*scale\(0\.95\)/)
@@ -331,8 +353,25 @@ test('quick record actions keep period primary and memory button-ghost with read
   assert.match(ruleBody(wxss, '.quick-text'), /font-size:\s*28rpx/, 'the two-line label keeps its issue #247 geometry exception')
 })
 
-test('R5 sticky separator is a 1px white 8% bottom hairline', () => {
+test('silent refresh dims calendar, quick actions, summary and guide on one opacity beat', () => {
+  const wxss = readIndexWxss()
+  const refreshing = ruleBody(wxss, '.content-refreshing .calendar-grid')
+  assert.match(refreshing, /opacity:\s*0\.94/)
+  for (const selector of ['.calendar-grid', '.quick-actions', '.month-summary', '.empty-guide']) {
+    assert.match(ruleBody(wxss, selector), /opacity var\(--duration-state\) ease/, `${selector} uses the shared refresh timing`)
+  }
+  const reduced = wxss.slice(wxss.indexOf('@media (prefers-reduced-motion: reduce)'))
+  for (const selector of ['.calendar-grid', '.quick-actions', '.month-summary', '.empty-guide']) {
+    assert.match(reduced, new RegExp(selector.replace('.', '\\.')), `${selector} switches instantly under reduced motion`)
+  }
+})
+
+test('home sticky keeps the static D1 default gradient, paired light blur and 1px separator', () => {
   const sticky = ruleBody(readIndexWxss(), '.home-sticky')
+  assert.match(sticky, /background:\s*linear-gradient\(180deg, rgba\(10,14,39,0\.86\) 0%, rgba\(10,14,39,0\.94\) 100%\)/)
+  assert.doesNotMatch(sticky, /rgba\(10,14,39,0\.92\)/, 'runtime D1 has not selected the 92% fallback')
+  assert.match(sticky, /backdrop-filter:\s*blur\(6px\)/)
+  assert.match(sticky, /-webkit-backdrop-filter:\s*blur\(6px\)/)
   assert.match(sticky, /border-bottom:\s*1px solid rgba\(255,\s*255,\s*255,\s*0\.08\)/)
 })
 

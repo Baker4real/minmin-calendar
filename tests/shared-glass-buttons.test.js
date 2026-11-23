@@ -63,7 +63,7 @@ test('rose fill buttons share one flex and positioning base while modifiers keep
 
   const modifiers = [
     ['app.wxss', '.btn-premium', 'var(--radius-md)'],
-    ['pages/index/index.wxss', '.quick-btn', 'var(--radius-md)'],
+    ['pages/index/index.wxss', '.quick-btn', 'var(--radius-card)'],
     ['pages/index/index.wxss', '.copy-recap', 'var(--radius-md)'],
     ['pages/shared/room-code.wxss', '.copy-btn', 'var(--radius-sm)']
   ]
@@ -126,7 +126,7 @@ test('secondary outline buttons share one flex base while ghost, confirmation an
 
   const modifiers = [
     ['pages/bind/bind.wxss', '.btn-ghost', 'transparent', '#E8909E', '1.5px solid #E8909E', 'var(--radius-full)'],
-    ['pages/index/index.wxss', '.quick-btn.btn-ghost', 'transparent', '#E8909E', '1.5px solid #E8909E', 'var(--radius-full)'],
+    ['pages/index/index.wxss', '.quick-btn.btn-ghost', 'var(--aurora-bg)', '#E8909E', '1.5px solid #E8909E', 'var(--radius-card)'],
     ['pages/shared/confirmation-sheet.wxss', '.confirmation-secondary', 'transparent', 'var(--aurora-pink)', '1px solid rgba(232,144,158,0.45)', 'var(--radius-md)'],
     ['pages/settings/settings.wxss', '.room-action-btn', 'rgba(232,144,158,0.08)', '#E8909E', '1px solid rgba(232,144,158,0.45)', 'var(--radius-sm)']
   ]

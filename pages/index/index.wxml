@@ -148,7 +148,7 @@ module.exports = {
         <text class="text-pair-title partner-invite-title">TA 还没加入</text>
         <text class="text-pair-desc partner-invite-desc">发个邀请，TA 加入后你们看的是同一本日历</text>
       </view>
-      <button class="btn-premium share-invite home-share-invite button-primary" open-type="share" hover-class="share-invite-hover" aria-role="button" aria-label="发邀请">发邀请</button>
+      <button class="share-invite home-share-invite" open-type="share" hover-class="home-share-invite-hover" aria-role="button" aria-label="发邀请">发邀请</button>
     </view>
     <!-- 一次性配对欢迎条：吸顶占位之后的正常文档流；整条直达图例，高度计入日历行高（issue #149、#215） -->
     <view wx:if="{{partnerWelcome}}" class="partner-welcome" hover-class="partner-welcome-hover" bindtap="openLegendSheet" aria-role="button" aria-label="已和 TA 连上。点按打开日历图例">已和 TA 连上。玫瑰色带是经期，♥ 是欢乐时光，「预」是可能开始的日子。点这里或左上角「图例」随时再看</view>
@@ -228,7 +228,8 @@ module.exports = {
       aria-role="button"
       aria-label="查看本月小结，{{monthSummaryLine}}"
     >
-      <text class="month-summary-text">{{monthSummaryLine}} ›</text>
+      <text class="month-summary-text">{{monthSummaryLine}}</text>
+      <text class="month-summary-arrow" aria-hidden="true">›</text>
     </view>
 
     <view wx:if="{{!hasRecords}}" class="empty-state empty-guide">
