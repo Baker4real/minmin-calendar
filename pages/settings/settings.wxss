@@ -29,12 +29,18 @@
 .premium-card {
   margin-bottom: 0;
 }
+.room-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  padding: 16rpx var(--space-page-row-inset) 30rpx;
+}
 button.settings-share-invite {
-  width: calc(100% - 60rpx);
-  margin: 0 30rpx 30rpx;
+  width: 100%;
+  margin: 0;
 }
 .resync-room-btn {
-  margin: 0 30rpx 30rpx;
+  margin: 0;
 }
 
 /* Menu Items */
@@ -67,9 +73,31 @@ button.settings-share-invite {
   flex-shrink: 0;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
-  color: rgba(255,255,255,0.85);
+  color: var(--text-secondary);
 }
-/* 使用说明正文；弹层 chrome 与几何统一由 shared/confirmation-sheet 提供（issue #235）。 */
+/* 使用说明按主题分块；弹层 chrome 与几何统一由 shared/confirmation-sheet 提供（issue #235）。 */
+.help-topic {
+  box-sizing: border-box;
+  margin-bottom: 16rpx;
+  padding: 20rpx 24rpx;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.035);
+}
+.help-topic:last-child {
+  margin-bottom: 0;
+}
+.help-topic-title {
+  display: block;
+  margin-bottom: 12rpx;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-control);
+  line-height: var(--line-height-assist);
+  color: rgba(255,255,255,0.92);
+}
+.help-topic .help-copy:last-child {
+  margin-bottom: 0;
+}
 .help-copy {
   display: block;
   margin-bottom: 16rpx;
@@ -118,6 +146,13 @@ button.settings-share-invite {
   flex-direction: column;
   min-width: 0;
 }
+.room-code-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  min-width: 0;
+}
 .room-code-label {
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
@@ -125,9 +160,24 @@ button.settings-share-invite {
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
 }
+.room-member-badge {
+  flex-shrink: 0;
+  padding: 4rpx 12rpx;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+}
+.room-member-badge.paired {
+  color: var(--aurora-pink);
+  background: rgba(232,144,158,0.12);
+}
+.room-member-badge.waiting {
+  color: rgba(255,255,255,0.72);
+  background: rgba(255,255,255,0.06);
+}
 /* 展示样式与绑定页共用 shared/room-code.wxss；这里只保留设置页上下布局。 */
 .room-code-content .room-code-value {
-  text-indent: var(--letter-spacing-room-code);
   margin-top: 4rpx;
 }
 
@@ -171,6 +221,9 @@ button.settings-share-invite {
   color: rgba(255,255,255,0.72);
 }
 /* 密度选项与记录、绑定共用 shared/segmented-control.wxss 的卡内变体；本页只保留外边距。 */
+.density-menu-desc-full {
+  white-space: nowrap;
+}
 .density-control {
   margin: 0 var(--space-page-row-inset) 28rpx;
 }
