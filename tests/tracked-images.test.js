@@ -158,6 +158,9 @@ const ALLOWED_IMAGES = {
   'docs/evidence/issue-262/settings-help-four-topics-390x844.png': '设置使用说明四大主题块；固定帮助文案，无真实记录或房间码',
   'docs/evidence/issue-262/bind-created-credential-390x844.png': '刚创建替身房间的凭证票根；ABC123 是替身码，无真实记录',
   'docs/evidence/issue-262/memory-compat-390x844.png': 'memory 兼容路由的 switchTab 返回 ok 后落到记录 tab 欢乐时光分段；月份和备注均为替身数据',
+  'docs/evidence/issue-262/quick-ghost-touchstart-390x844.png': '原生 touchstart 按住期间的次快捷：按钮海军底随 0.95 缩放、宿主透明且不缩放；替身记录，无真实数据',
+  'docs/evidence/issue-262/sheet-handle-touchstart-390x844.png': '原生 touchstart 按住共享把手时的 55% 玫瑰微光；固定帮助文案，无真实记录',
+  'docs/evidence/issue-262/date-picker-touch-unverified-390x844.png': '原生 touch 序列未产生 pick 事件的直接未验证证据：滚轮仍停在原替身日期，不能作惯性通过图',
 }
 
 // 读 index 而不是工作区：提交钩子里跑时，读到的正是这次要提交的文件。
