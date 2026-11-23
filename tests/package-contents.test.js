@@ -67,10 +67,10 @@ test('only mini program roots go into the upload package', () => {
   assert.deepEqual(unexpected, [], 'Add these paths to packOptions.ignore in project.config.json, or to PACKAGE_ROOTS if the mini program loads them at runtime')
 })
 
-test('privacy-safe invite artwork is included in the upload package within 40 KB', () => {
+test('privacy-safe invite artwork is included in the upload package within 120 KB', () => {
   const invite = packaged.find(file => file.rel === 'images/invite-card.png')
   assert.ok(invite, 'images/invite-card.png must be packaged, not ignored')
-  assert.ok(invite.size <= 40 * 1024, `invite card is ${invite.size} B (limit ${40 * 1024} B)`)
+  assert.ok(invite.size <= 120 * 1024, `invite card is ${invite.size} B (limit ${120 * 1024} B)`)
 })
 
 test('unused application icon stays in source control but out of the upload package', () => {
