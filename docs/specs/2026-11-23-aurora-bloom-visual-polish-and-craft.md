@@ -236,3 +236,13 @@ intent: "把 2026-11-23 全项目前端视觉与界面表现审计中推荐的�
   - 备注接近上限的安静提示阈值定为 `350` 字（满额 `500` 字的 `70%`），兼顾日常短句零打扰与长文余量预警。
   - 应用内显示名与邀请卡主文案继续沿用既有「美少女的日历」，与产品定位文档保持一致。
 - **隐私与公开仓库红线**：本仓库与议题追踪器均为公开可见，任何议题正文、提交说明与入库证据严禁出现真实伴侣房间码、真实周期日期、真实备注文本或本机私有路径，所有运行态核验一律使用替身房间与构造数据。
+
+## 拆分记录（仓库副本独有，不在父票正文里）
+
+2026-11-23 用 to-tickets 把本规格全量拆成 13 张垂直切片子票：[#250](https://github.com/Baker4real/minmin-calendar/issues/250) 到 [#262](https://github.com/Baker4real/minmin-calendar/issues/262)，全部挂在父票 [#249](https://github.com/Baker4real/minmin-calendar/issues/249) 下，标记 `ready-for-agent`，阻塞关系用 GitHub 原生 blocked-by 边表达。
+
+切片起跑面与收口顺序约定如下：
+
+- 四张无前置阻塞的切片可立即并行启动：共享顶栏居中与图例防裁切（[#250](https://github.com/Baker4real/minmin-calendar/issues/250)）、自有日期滚轮遮罩与惯性锁（[#251](https://github.com/Baker4real/minmin-calendar/issues/251)）、卡内分段轨道与绑定页打磨（[#252](https://github.com/Baker4real/minmin-calendar/issues/252)）、高清邀请分享卡与底栏设置图标重绘（[#261](https://github.com/Baker4real/minmin-calendar/issues/261)）。
+- 判定规则 D1（吸顶区滚动叠字可读性）在 [#255](https://github.com/Baker4real/minmin-calendar/issues/255) 实测落定，判定规则 D2（高清邀请卡体积与暗部平滑度）在 [#261](https://github.com/Baker4real/minmin-calendar/issues/261) 实测落定，两者的观察结果最后由整体验收票 [#262](https://github.com/Baker4real/minmin-calendar/issues/262) 汇总写入验证日志的 epic 条目。
+- 极光棱镜卡片顶缘高光、全仓色值收口与死样式清理（[#260](https://github.com/Baker4real/minmin-calendar/issues/260)）排在全部页面与共享样式功能切片之后，避免并行改动样式冲突；权威文档对齐与替身房间运行态整体验收（[#262](https://github.com/Baker4real/minmin-calendar/issues/262)）排在最后收口。
