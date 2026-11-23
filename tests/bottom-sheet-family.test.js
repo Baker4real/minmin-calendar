@@ -156,6 +156,9 @@ test('date picker uses navy masks, a rose indicator and a semi-transparent nativ
   assert.equal(confirm.attrs.disabled, '{{datePickerPicking}}')
   assert.equal(confirm.attrs['aria-disabled'], '{{datePickerPicking}}')
   assert.equal(declarations('app.wxss', '.btn-premium.disabled').opacity, '0.55')
+  const disabled = declarations('pages/shared/confirmation-sheet.wxss', 'button.date-picker-confirm[disabled]')
+  assert.equal(disabled.background, 'var(--aurora-pink)', 'native disabled buttons keep the rose surface instead of the UA gray fill')
+  assert.equal(disabled.color, 'var(--text-on-accent)', 'native disabled buttons keep navy label text')
 })
 
 test('shared bottom sheet calls keep template data flat for the WXML compiler', () => {

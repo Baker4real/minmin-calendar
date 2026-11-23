@@ -242,6 +242,10 @@ button.date-picker-confirm {
   color: var(--text-on-accent);
   overflow: visible;
 }
+button.date-picker-confirm[disabled] {
+  background: var(--aurora-pink);
+  color: var(--text-on-accent);
+}
 button.date-picker-confirm::after {
   border: 0;
 }
