@@ -100,8 +100,12 @@ module.exports = {
     </view>
     <view class="skeleton-grid calendar-grid calendar-density-{{calendarDensity}}{{calendarInfoMerged ? ' calendar-info-merged' : ''}}" style="--calendar-row-height: {{calendarRowHeightPx}}px" aria-hidden="true">
       <view class="skeleton-days">
-        <view class="skeleton-cell" wx:for="{{days}}" wx:key="index"></view>
+        <view class="skeleton-cell{{item.isEmpty ? ' skeleton-cell-empty' : ''}}" wx:for="{{days}}" wx:key="index"></view>
       </view>
+    </view>
+    <view class="quick-actions skeleton-quick-actions" aria-hidden="true">
+      <view class="skeleton-quick-action"></view>
+      <view class="skeleton-quick-action"></view>
     </view>
   </view>
 
