@@ -10,7 +10,7 @@ const decorate = sheetPageDecorator({
 // #209 的小注册表同时承接非首页的确认与使用说明：拖动、触摸取消和系统返回都走同一个 close。
 function registeredSheetInteractions(page, { name, phaseKey, dragClearKey, close, isMounted }) {
   const dragClearPatch = (detailPage, action) => ({
-    [dragClearKey]: { token: detailPage.data[dragClearKey].token + 1, action }
+    [dragClearKey]: { token: detailPage.data[dragClearKey].token + 1, action, sheet: name }
   })
   return {
     dragRelease(detailPage, detail) {
@@ -45,7 +45,7 @@ function confirmationSheetData() {
     confirmationDateText: '',
     confirmationContent: '',
     confirmationActions: [],
-    confirmationDragClear: { token: 0, action: '' },
+    confirmationDragClear: { token: 0, action: '', sheet: 'confirmation' },
     pageObscured: false,
     sheetExitGuard: false
   }

@@ -2,7 +2,7 @@
 
 var START_PX = 10
 var RUBBER = 0.55
-var pendingClear = null
+var pendingClearBySheet = {}
 
 function touchStart(event, ownerInstance) {
   var panel = findPanel(event, ownerInstance)
@@ -87,7 +87,7 @@ function touchCancel(event, ownerInstance) {
 }
 
 function clearInline(newValue, oldValue, ownerInstance, instance) {
-  if (!newValue || !newValue.token) return
+  if (!newValue || !newValue.token || !newValue.sheet) return
   if (newValue.action !== 'reset' && newValue.action !== 'close') return
   if (newValue.action === 'reset') instance.addClass('sheet-reset')
   else instance.removeClass('sheet-reset')
@@ -95,14 +95,17 @@ function clearInline(newValue, oldValue, ownerInstance, instance) {
     transition: '',
     '-webkit-transition': ''
   })
-  pendingClear = instance
-  instance.requestAnimationFrame(flushPendingClear)
+  var sheet = newValue.sheet
+  pendingClearBySheet[sheet] = instance
+  instance.requestAnimationFrame(function() {
+    flushPendingClear(sheet)
+  })
 }
 
-function flushPendingClear() {
-  if (!pendingClear) return
-  var instance = pendingClear
-  pendingClear = null
+function flushPendingClear(sheet) {
+  var instance = pendingClearBySheet[sheet]
+  if (!instance) return
+  pendingClearBySheet[sheet] = null
   instance.setStyle({
     transform: '',
     '-webkit-transform': ''

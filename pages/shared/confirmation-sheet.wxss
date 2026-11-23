@@ -105,6 +105,11 @@
   margin: 0 auto 20rpx;
   border-radius: var(--radius-full);
   background: rgba(255,255,255,0.22);
+  transition: background-color var(--duration-press) ease;
+}
+.sheet-drag-zone:active .sheet-handle,
+.sheet-drag-zone.sheet-drag-zone-hover .sheet-handle {
+  background-color: rgba(232,144,158,0.55);
 }
 .sheet-head {
   display: flex;
@@ -258,6 +263,7 @@ button.date-picker-confirm::after {
   .sheet-slide.sheet-open,
   .sheet-slide.sheet-open.sheet-reset,
   .sheet-close,
+  .sheet-handle,
   .confirmation-secondary {
     transition: none;
   }

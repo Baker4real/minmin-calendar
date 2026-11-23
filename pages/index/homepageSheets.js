@@ -55,7 +55,7 @@ function homepageSheetData() {
     data[entry.visibleKey] = false
     data[entry.mountedKey] = false
     data[entry.phaseKey] = 'closed'
-    data.sheetDragClear[entry.name] = { token: 0, action: '' }
+    data.sheetDragClear[entry.name] = { token: 0, action: '', sheet: entry.name }
   }
   return data
 }
@@ -73,7 +73,7 @@ function homepageSheets(page) {
       return {
         sheetDragClear: {
           ...current,
-          [entry.name]: { token: current[entry.name].token + 1, action }
+          [entry.name]: { token: current[entry.name].token + 1, action, sheet: entry.name }
         }
       }
     }

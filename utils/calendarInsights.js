@@ -82,13 +82,18 @@ function buildMonthlyRecap({
   const monthMemories = memories.filter(memory => isDateString(memory.date) && memory.date >= monthStart && memory.date <= monthEnd)
   const periodDays = periodCoverage.getMonthCoverage(periods, year, month, today).count
   const highlights = []
+  const highlightItems = []
+  const addHighlight = (kind, text) => {
+    if (!text) return
+    highlights.push(text)
+    highlightItems.push({ key: `recap:${highlightItems.length}`, kind, text })
+  }
 
   monthPeriods.forEach(period => {
-    const highlight = formatPeriodHighlight(period, monthStart, monthEnd, today)
-    if (highlight) highlights.push(highlight)
+    addHighlight('period', formatPeriodHighlight(period, monthStart, monthEnd, today))
   })
 
-  highlights.push(...formatMemoryHighlights(monthMemories, today))
+  formatMemoryHighlights(monthMemories, today).forEach(highlight => addHighlight('memory', highlight))
 
   const title = `${year}年${month + 1}月小结`
   const periodSummary = formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd, today)
@@ -106,7 +111,7 @@ function buildMonthlyRecap({
     periodDays,
     memoryCount: monthMemories.length,
     highlights,
-    highlightItems: buildTextItems(highlights, 'recap'),
+    highlightItems,
     shareText: shareLines.filter(Boolean).join('\n')
   }
 }

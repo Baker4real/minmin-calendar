@@ -37,6 +37,19 @@ test('all bottom sheets use one shared shell, page guard and reduced-motion prob
   }
 })
 
+test('shared sheet drag zones light the handle rose while pressed and instantly under reduced motion', () => {
+  const sharedWxml = fs.readFileSync(path.join(repoRoot, 'pages/shared/confirmation-sheet.wxml'), 'utf8')
+  const dragZone = wxmlOpeningTags(sharedWxml).find(tag => tag.classes.includes('sheet-drag-zone'))
+  assert.ok(dragZone)
+  assert.equal(dragZone.attrs['hover-class'], 'sheet-drag-zone-hover')
+
+  const sharedWxss = readSource(path.join(repoRoot, 'pages/shared/confirmation-sheet.wxss'), 'utf8')
+  assert.match(sharedWxss, /\.sheet-handle\s*\{[^}]*transition:\s*background-color var\(--duration-press\) ease/)
+  assert.match(sharedWxss, /\.sheet-drag-zone:active \.sheet-handle,\s*\.sheet-drag-zone\.sheet-drag-zone-hover \.sheet-handle\s*\{[^}]*background-color:\s*rgba\(232,144,158,0\.55\)/)
+  const reduced = sharedWxss.slice(sharedWxss.indexOf('@media (prefers-reduced-motion: reduce)'))
+  assert.match(reduced, /\.sheet-handle,[\s\S]*?transition:\s*none/)
+})
+
 test('shared sheet masks catch touch move and page-meta locks scrolling only while obscured', () => {
   const sharedDir = path.join(repoRoot, 'pages/shared')
   for (const name of fs.readdirSync(sharedDir).filter(file => file.endsWith('.wxml'))) {

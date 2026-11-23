@@ -39,7 +39,7 @@ function settingsInitialData() {
     helpOpen: false,
     helpMounted: false,
     helpPhase: 'closed',
-    helpDragClear: { token: 0, action: '' },
+    helpDragClear: { token: 0, action: '', sheet: 'help' },
     pageObscured: false,
     sheetExitGuard: false,
     ...confirmationSheetData()
