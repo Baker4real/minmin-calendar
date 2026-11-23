@@ -79,7 +79,7 @@ test('bind bound screen puts the copy button in the same row as the room code, a
 
 // issue #78 像素同款契约重建（issue #104，DESIGN.md「试点不推广」节登记）；#232 将两页规则
 // 收进 shared/room-code.wxss，继续核对 fill/label/radius/padding/shadow，并补上唯一的 flex-shrink。
-test('bind and settings copy buttons are the same rose small button pixel-for-pixel (issue #78)', () => {
+test('bind and settings copy buttons share one rose base button contract (issue #78)', () => {
   const sharedCss = readPageFile('pages/shared/room-code.wxss')
   const sharedRule = findRule(sharedCss, '.copy-btn')
 
@@ -102,6 +102,37 @@ test('bind and settings copy buttons are the same rose small button pixel-for-pi
   assert.equal(sharedGlow['box-shadow'], '0 8rpx 30rpx rgba(232,144,158,0.28)')
   assert.equal(findRule(sharedCss, '.copy-btn:active').transform, 'scale(0.94)')
   assert.equal(findRule(sharedCss, '.copy-btn:active::before').opacity, '0.5')
+})
+
+test('created room code is a left-aligned navy credential ticket with a rose capsule copy action', () => {
+  const wxml = readPageFile('pages/bind/bind.wxml')
+  const boundCard = sliceBetween(wxml, 'wx:if="{{bound}}"', 'wx:else')
+  assert.match(
+    boundCard,
+    /<view class="bound-code-row">\s*<text class="room-code-value">\{\{roomCode\}\}<\/text>\s*<view class="copy-btn button-primary"/,
+    'the ticket contains only the six-character code and its copy action'
+  )
+
+  const css = readPageFile('pages/bind/bind.wxss')
+  const ticket = findRule(css, '.bound-code-row')
+  assert.equal(ticket.display, 'flex')
+  assert.equal(ticket['justify-content'], 'flex-start')
+  assert.equal(ticket.padding, '20rpx 24rpx')
+  assert.equal(ticket['border-radius'], 'var(--radius-md)')
+  assert.equal(ticket.background, 'rgba(10,14,39,0.52)')
+  assert.equal(ticket.border, '1px solid rgba(232,144,158,0.20)')
+
+  const code = findRule(css, '.bound-code-row .room-code-value')
+  assert.equal(code.flex, '1')
+  assert.equal(code['text-align'], 'left')
+  const copy = findRule(css, '.bound-code-row .copy-btn')
+  assert.equal(copy.background, 'rgba(232,144,158,0.14)')
+  assert.equal(copy.color, 'var(--aurora-pink)')
+  assert.equal(copy.border, '1px solid rgba(232,144,158,0.45)')
+  assert.equal(copy['border-radius'], 'var(--radius-full)')
+  assert.equal(copy.padding, '0 24rpx')
+  assert.equal(findRule(css, '.copy-btn')['min-height'], '88rpx')
+  assert.equal(findRule(css, '.bound-code-row .copy-btn::before')['border-radius'], 'inherit')
 })
 
 // issue #104：粉胶囊/粉幽灵页面级覆盖整体移除——绑定页主按钮回 app 级玫瑰基类，
@@ -156,12 +187,12 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
   assert.doesNotMatch(css, /--bind-/, 'the purple-pink pilot tokens must leave the bind page')
   assert.doesNotMatch(css, /\.page::before/, 'the dark-purple canvas override must leave the bind page')
 
-  // #233：tab 条使用共享卡内变体，透明落在现有海军卡上；输入框仍保留自身玻璃面。
+  // #252：tab 条使用共享卡内凹轻玻璃轨道；输入框仍保留自身玻璃面。
   const tabBar = Object.assign({}, ...parseWxssRules(css)
     .filter(rule => rule.selectors.includes('.tab-bar'))
     .map(rule => rule.decls))
-  assert.equal(tabBar.background, 'transparent')
-  assert.equal(tabBar.border, '0')
+  assert.equal(tabBar.background, 'rgba(10,14,39,0.45)')
+  assert.equal(tabBar.border, '1px solid rgba(255,255,255,0.07)')
   const codeInput = findRule(css, '.code-input')
   assert.equal(
     codeInput.background,
@@ -174,7 +205,7 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
 
   // 选中 tab 与记录分段、密度控件同一种描边玫瑰弱选中
   const activeTab = findRule(css, '.tab.active')
-  assert.equal(activeTab.color, '#E8909E')
+  assert.equal(activeTab.color, 'var(--aurora-pink)')
   assert.equal(activeTab.background, 'rgba(232,144,158,0.08)')
   assert.equal(activeTab['border-color'], 'rgba(232,144,158,0.45)')
 
@@ -193,6 +224,15 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
   assert.equal(errorRetry.border, '1px solid rgba(255,255,255,0.1)')
   const unbindInline = findRule(css, '.unbind-inline')
   assert.match(unbindInline['margin-top'], /^\d+rpx$/)
+})
+
+test('shared form controls transition border and shadow by default and disable both under reduced motion', () => {
+  const css = readPageFile('pages/shared/form-control.wxss')
+  const base = findRule(css, '.form-control')
+  assert.equal(base.transition, 'border-color var(--duration-state) ease, box-shadow var(--duration-state) ease')
+  assert.equal(findRule(css, '.form-control.form-control-focused').transition, undefined)
+  const reduced = css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce)'))
+  assert.equal(findRule(reduced, '.form-control').transition, 'none')
 })
 
 test('R10 room-code input shows the shared focused class on focus and clears it on blur', async (t) => {
@@ -214,6 +254,37 @@ test('R10 room-code input shows the shared focused class on focus and clears it 
   await app.dispatch(page, 'onCodeBlur')
   assert.equal(page.data.codeFocused, false)
   assert.equal(renderWxmlClasses(input.attrs.class, page.data).includes('form-control-focused'), false)
+})
+
+test('join room-code input switches between 2rpx placeholder and 12rpx uppercase slot tracking', async (t) => {
+  const app = bindPlatform(t)
+  const page = app.launch('/pages/bind/bind')
+  await app.settle()
+  await app.dispatch(page, 'switchTab', { currentTarget: { dataset: { tab: 'join' } } })
+  const input = wxmlOpeningTags(readPageFile('pages/bind/bind.wxml'))
+    .find(tag => tag.tag === 'input' && tag.classes.includes('code-input'))
+  assert.ok(input)
+  assert.equal(input.attrs.placeholder, '输入6位码')
+  const classes = () => renderWxmlClasses(input.attrs.class, page.data)
+  assert.equal(classes().includes('code-input-empty'), true)
+  assert.equal(classes().includes('code-input-filled'), false)
+
+  const css = readPageFile('pages/bind/bind.wxss')
+  const empty = findRule(css, '.code-input.code-input-empty')
+  assert.equal(empty['letter-spacing'], '2rpx')
+  assert.equal(empty['text-indent'], '2rpx')
+  assert.equal(empty['font-weight'], 'var(--font-weight-body)')
+  const filled = findRule(css, '.code-input.code-input-filled')
+  assert.equal(filled['letter-spacing'], 'var(--letter-spacing-code-input)')
+  assert.equal(filled['text-indent'], 'var(--letter-spacing-code-input)')
+
+  await app.dispatch(page, 'onCodeInput', { detail: { value: ' a b\tc 1 2 3 ' } })
+  assert.equal(page.data.joinCode, 'ABC123')
+  assert.equal(classes().includes('code-input-empty'), false)
+  assert.equal(classes().includes('code-input-filled'), true)
+  await app.dispatch(page, 'onCodeInput', { detail: { value: '' } })
+  assert.equal(classes().includes('code-input-empty'), true)
+  assert.equal(classes().includes('code-input-filled'), false)
 })
 
 // issue #138：加入房间时六位码完整可见、在框内居中，输入框与上方说明、下方主按钮同宽。
@@ -409,7 +480,7 @@ test('created room shows the room-ready title and its next-step explanation befo
   assert.ok(status)
   assert.ok(explanation)
   assert.equal(renderWxmlAttribute(status[1], page.data), '房间建好了')
-  assert.equal(explanation[1], '把房间码发给 TA，TA 加入后你们看的是同一本日历')
+  assert.equal(explanation[1], '把房间码发给 TA，一起共享这份日历')
   assert.ok(status.index < explanation.index)
   assert.ok(explanation.index < card.indexOf('class="bound-code-row"'))
 })
@@ -434,7 +505,7 @@ test('creating a room leaves its code ready to copy and share, with sharing the 
   assert.equal(page.data.homeJumpFailed, true)
   assert.deepEqual(boundCardActions(page.data), actions, 'a failed home jump does not demote sharing')
   const card = sliceBetween(readPageFile('pages/bind/bind.wxml'), 'wx:if="{{bound}}"', 'wx:else')
-  assert.match(card, /wx:if="\{\{justCreated\}\}"[^>]*>\s*把房间码发给 TA，TA 加入后你们看的是同一本日历\s*<\//)
+  assert.match(card, /wx:if="\{\{justCreated\}\}"[^>]*>\s*把房间码发给 TA，一起共享这份日历\s*<\//)
   assert.equal((card.match(/bindtap="copyRoomCode"/g) || []).length, 1)
   app.hide()
   app.show()
@@ -499,6 +570,8 @@ test('bind starts with two equal unselected entries and expands only the chosen 
 
   const wxml = readPageFile('pages/bind/bind.wxml')
   const entries = wxmlOpeningTags(wxml).filter(tag => tag.classes[0] === 'tab')
+  const tabBar = wxmlOpeningTags(wxml).find(tag => tag.classes[0] === 'tab-bar')
+  assert.ok(tabBar)
   assert.deepEqual(entries.map(tag => tag.attrs['aria-label']), ['我来建房间', '我有房间码'])
   assert.match(wxml, />我来建房间<\/view>/)
   assert.match(wxml, />我有房间码<\/view>/)
@@ -509,19 +582,33 @@ test('bind starts with two equal unselected entries and expands only the chosen 
     assert.ok(panel, `expected the ${tab} panel`)
     return evaluateWxmlExpression(panel.attrs['wx:if'].slice(2, -2), page.data)
   }
+  const renderedEntryClasses = entry => renderWxmlClasses(entry.attrs.class, page.data)
   assert.equal(panelVisible('create'), false)
   assert.equal(panelVisible('join'), false)
+  assert.deepEqual(renderWxmlClasses(tabBar.attrs.class, page.data), ['tab-bar', 'tab-bar-unselected'])
   for (const entry of entries) {
-    assert.equal(renderWxmlClasses(entry.attrs.class, page.data).includes('active'), false)
+    assert.deepEqual(renderedEntryClasses(entry), ['tab', 'tab-equal'])
     assert.equal(evaluateWxmlExpression(entry.attrs['aria-checked'].slice(2, -2), page.data), false)
   }
+  const equalEntry = findRule(readPageFile('pages/shared/segmented-control.wxss'), '.tab.tab-equal')
+  assert.equal(equalEntry.background, 'rgba(255,255,255,0.05)')
+  assert.equal(equalEntry.border, '1px solid rgba(232,144,158,0.28)')
+  assert.equal(equalEntry.color, 'rgba(255,255,255,0.92)')
+  const bindCss = readRawPageFile('pages/bind/bind.wxss')
+  assert.equal(findRule(bindCss, '.tab-bar')['margin-bottom'], '30rpx')
+  assert.equal(findRule(bindCss, '.tab-bar.tab-bar-unselected')['margin-bottom'], '0')
 
   await app.dispatch(page, 'switchTab', { currentTarget: { dataset: { tab: 'join' } } })
   assert.equal(panelVisible('create'), false)
   assert.equal(panelVisible('join'), true)
+  assert.deepEqual(renderWxmlClasses(tabBar.attrs.class, page.data), ['tab-bar'])
+  assert.deepEqual(renderedEntryClasses(entries[0]), ['tab'])
+  assert.deepEqual(renderedEntryClasses(entries[1]), ['tab', 'active'])
   await app.dispatch(page, 'switchTab', { currentTarget: { dataset: { tab: 'create' } } })
   assert.equal(panelVisible('create'), true)
   assert.equal(panelVisible('join'), false)
+  assert.deepEqual(renderedEntryClasses(entries[0]), ['tab', 'active'])
+  assert.deepEqual(renderedEntryClasses(entries[1]), ['tab'])
 })
 
 test('cancelling invite share skips home navigation on that return show only', async (t) => {

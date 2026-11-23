@@ -160,8 +160,10 @@ test('list flow tag shares the selected segment quiet rose treatment', () => {
     ['background', 'rgba(232,144,158,0.08)'],
     ['border-color', 'rgba(232,144,158,0.45)']
   ]) {
-    assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-tag.flow', property), expected)
-    assert.equal(declarationFor(PERIOD_LIST_WXSS, '.segment-option.active', property), expected,
+    const flowValue = declarationFor(PERIOD_LIST_WXSS, '.item-tag.flow', property)
+    const segmentValue = declarationFor(PERIOD_LIST_WXSS, '.segment-option.active', property)
+    assert.equal(property === 'color' ? cssColorToHex(flowValue) : flowValue, expected)
+    assert.equal(property === 'color' ? cssColorToHex(segmentValue) : segmentValue, expected,
       `flow tag ${property} matches the selected segment`)
   }
 })

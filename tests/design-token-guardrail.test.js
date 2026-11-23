@@ -421,7 +421,7 @@ test('primary CTA rose fill comes from var(--aurora-pink) only', () => {
 // issue #145：分段控件只有一种选中态。描边玫瑰弱选中，不用主按钮实色填充。
 // 记录分类、设置页密度、绑定页创建/加入是全部分段控件。
 const SEGMENTED_SELECTED = {
-  color: '#E8909E',
+  color: 'var(--aurora-pink)',
   background: 'rgba(232,144,158,0.08)',
   'border-color': 'rgba(232,144,158,0.45)'
 }
