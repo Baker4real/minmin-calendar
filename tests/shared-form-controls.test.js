@@ -71,7 +71,7 @@ test('both edit pages import shared form, notice, and fixed-action rules from on
   }
 })
 
-test('room-code and edit inputs share only box structure while modifiers keep their visuals', () => {
+test('room-code and edit inputs share box structure and focus timing while modifiers keep their visuals', () => {
   const sharedPath = 'pages/shared/form-control.wxss'
   assert.ok(fs.existsSync(path.join(repoRoot, sharedPath)), 'the shared input-structure stylesheet exists')
   const base = parseWxssRules(readRaw(sharedPath)).find(rule => rule.selectors.includes('.form-control'))
@@ -79,13 +79,14 @@ test('room-code and edit inputs share only box structure while modifiers keep th
   assert.deepEqual(base.decls, {
     'box-sizing': 'border-box',
     width: '100%',
-    'border-radius': 'var(--radius-sm)'
+    'border-radius': 'var(--radius-sm)',
+    transition: 'border-color var(--duration-state) ease, box-shadow var(--duration-state) ease'
   })
 
   assert.match(readRaw('pages/shared/record-form.wxss'), /@import '\.\/form-control\.wxss';/)
   assert.match(readRaw('pages/bind/bind.wxss'), /@import '\.\.\/shared\/form-control\.wxss';/)
   assert.match(readRaw('pages/shared/form-controls.wxml'), /class="form-picker form-control\{\{saving/)
-  assert.match(readRaw('pages/bind/bind.wxml'), /class="code-input form-control\{\{codeFocused/)
+  assert.match(readRaw('pages/bind/bind.wxml'), /class="code-input form-control\s/)
   for (const kind of ['period', 'memory']) {
     assert.match(readRaw(`pages/${kind}/edit/edit.wxml`), /class="form-input(?: memory-note-input)? form-control\{\{noteFocused/)
   }
