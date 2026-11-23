@@ -8,18 +8,18 @@
   <include src="/pages/shared/aurora.wxml" />
   <template is="sharedNavbar" data="{{variant: 'back', title: pageTitle, pageObscured: pageObscured}}" />
 
-  <view class="content {{isEdit ? 'has-fixed-edit-actions' : ''}}" aria-hidden="{{pageObscured}}">
+  <view class="content" aria-hidden="{{pageObscured}}">
     <view class="premium-card glass-surface">
       <view wx:if="{{authorLabel}}" class="record-author">{{authorLabel}}</view>
-      <view wx:if="{{draftRestored}}" class="draft-notice" aria-role="alert">
-        <text>{{draftNoticeText}} · </text>
-        <text class="draft-discard" hover-class="draft-discard-hover" bindtap="discardDraft" aria-role="button" aria-label="{{draftDiscardText}}">{{draftDiscardText}}</text>
+      <view wx:if="{{draftRestored}}" class="draft-notice micro-notice" aria-role="alert">
+        <text class="micro-notice-text">{{draftNoticeText}}</text>
+        <text class="draft-discard micro-notice-action" hover-class="draft-discard-hover" bindtap="discardDraft" aria-role="button" aria-label="{{draftDiscardText}}">{{draftDiscardText}}</text>
       </view>
       <view class="form-item" id="field-startDate">
         <template is="sharedDateField" data="{{label: '开始日期', value: startDate, displayValue: startDateLabel, placeholder: '', ariaLabel: '开始日期，' + startDateLabel + '，点按修改', error: fieldErrors.startDate, maxDate: maxDate, saving: saving, tapHandler: 'openStartDatePicker'}}" />
-        <view wx:if="{{startDateOwnerText}}" class="form-hint start-date-owner">
-          <text>{{startDateOwnerText}}</text>
-          <text class="start-date-owner-action" hover-class="start-date-owner-action-hover" bindtap="openStartDateOwner" aria-role="button" aria-label="打开那条">打开那条</text>
+        <view wx:if="{{startDateOwnerText}}" class="form-hint start-date-owner micro-notice">
+          <text class="micro-notice-text">{{startDateOwnerText}}</text>
+          <text class="start-date-owner-action micro-notice-action" hover-class="start-date-owner-action-hover" bindtap="openStartDateOwner" aria-role="button" aria-label="打开那条">打开那条</text>
         </view>
       </view>
       <view class="form-item">
@@ -64,12 +64,16 @@
         </view>
       </view>
       <view class="form-item">
-        <text class="form-label">备注</text>
-        <textarea class="form-input form-control{{noteFocused ? ' form-control-focused' : ''}}" placeholder-class="input-placeholder" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput" bindfocus="onNoteFocus" bindblur="onNoteBlur" maxlength="500" auto-height disabled="{{saving}}" aria-label="备注"/>
+        <view class="form-label-row">
+          <text class="form-label">备注</text>
+          <text wx:if="{{noteCountText}}" class="note-count">{{noteCountText}}</text>
+        </view>
+        <textarea class="form-input form-control{{noteFocused ? ' form-control-focused' : ''}}{{saving ? ' disabled' : ''}}" placeholder-class="input-placeholder" placeholder="补充一点实际情况" value="{{note}}" bindinput="onNoteInput" bindfocus="onNoteFocus" bindblur="onNoteBlur" maxlength="500" auto-height show-confirm-bar="{{true}}" disabled="{{saving}}" aria-disabled="{{saving}}" aria-label="备注"/>
       </view>
     </view>
 
-    <template is="sharedRecordActions" data="{{saving: saving, deleting: deleting, submitted: submitted, isEdit: isEdit, actionsClass: 'record-actions-fixed', actionsHidden: noteFocused}}" />
+    <template is="sharedRecordDelete" data="{{saving: saving, deleting: deleting, submitted: submitted, isEdit: isEdit}}" />
+    <template is="sharedRecordActions" data="{{saving: saving, deleting: deleting, submitted: submitted, actionsClass: 'record-actions-fixed', actionsHidden: noteFocused}}" />
   </view>
   <template is="sharedBottomSheet" data="{{sheetId: 'confirmation', sheetMounted: confirmationMounted, sheetPhase: confirmationPhase, sheetHostClass: '', sheetPanelClass: 'confirmation-panel', sheetName: confirmationName, sheetTitle: confirmationTitle, sheetSubtitle: '', maskHandler: 'onConfirmationMask', closeHandler: 'onConfirmationClose', bodyTemplate: 'confirmationSheetBody', sheetDragClear: confirmationDragClear, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions}}" />
   <template is="sharedBottomSheet" data="{{sheetId: 'datePicker', sheetMounted: datePickerMounted, sheetPhase: datePickerPhase, sheetHostClass: '', sheetPanelClass: 'date-picker-panel', sheetName: datePickerName, sheetTitle: datePickerTitle, sheetSubtitle: datePickerSubtitle, maskHandler: 'onDatePickerMask', closeHandler: 'onDatePickerClose', bodyTemplate: 'datePickerSheetBody', sheetDragClear: datePickerDragClear, datePickerYears: datePickerYears, datePickerMonths: datePickerMonths, datePickerDays: datePickerDays, datePickerValue: datePickerValue, datePickerPicking: datePickerPicking, datePickerYearAria: datePickerYearAria, datePickerMonthAria: datePickerMonthAria, datePickerDayAria: datePickerDayAria, datePickerConfirmAria: datePickerConfirmAria}}" />

@@ -638,7 +638,7 @@ test('period: new start date shows its owning period inline only while covered',
 
   const template = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
   const startField = template.slice(template.indexOf('id="field-startDate"'), template.indexOf('id="field-endDate"'))
-  assert.match(startField, /<view wx:if="\{\{startDateOwnerText\}\}" class="form-hint start-date-owner">[\s\S]*\{\{startDateOwnerText\}\}/)
+  assert.match(startField, /<view wx:if="\{\{startDateOwnerText\}\}" class="form-hint start-date-owner micro-notice">[\s\S]*<text class="micro-notice-text">\{\{startDateOwnerText\}\}<\/text>/)
 
   await changeEditorDate(app, page, 'onStartChange', '2026-09-06')
   assert.equal(page.data.startDateOwnerText, '')
@@ -1036,6 +1036,25 @@ async function assertNoteFocusToggle(app, page, spec, { onFocus, onBlur } = {}) 
   if (onBlur) onBlur()
 }
 
+test('edit pages derive a quiet note counter only from 350 through 500 characters', async (t) => {
+  for (const spec of records) {
+    await t.test(spec.kind, async (t) => {
+      const app = setup(t)
+      const { page } = await openEditor(app, spec)
+      assert.equal(page.data.noteCountText, '')
+      const template = readSource(path.join(__dirname, `../pages/${spec.kind}/edit/edit.wxml`), 'utf8')
+      assert.match(template, /<text wx:if="\{\{noteCountText\}\}" class="note-count">\{\{noteCountText\}\}<\/text>/)
+      const wxss = readSource(path.join(__dirname, `../pages/${spec.kind}/edit/edit.wxss`), 'utf8')
+      assert.match(wxss, /\.note-count\s*\{[^}]*font-variant-numeric: tabular-nums[^}]*color: var\(--text-secondary\)/s)
+
+      for (const [length, expected] of [[349, ''], [350, '350 / 500'], [500, '500 / 500']]) {
+        await app.dispatch(page, 'onNoteInput', value('字'.repeat(length)))
+        assert.equal(page.data.noteCountText, expected)
+      }
+    })
+  }
+})
+
 test('period: fixed actions hide on note focus, restore on blur, and save only once', async (t) => {
   const app = setup(t)
   const { page } = await openEditor(app, period)
@@ -1061,11 +1080,39 @@ test('period: fixed actions hide on note focus, restore on blur, and save only o
   await app.settle()
 })
 
-test('memory: R10 note focus shows the shared focused class and blur restores it', async (t) => {
+test('memory: note focus shows the focused class and hides the fixed save bar until blur', async (t) => {
   const app = setup(t)
   const memory = records[1]
   const { page } = await openEditor(app, memory)
-  await assertNoteFocusToggle(app, page, memory)
+  await assertNoteFocusToggle(app, page, memory, {
+    onFocus: () => {
+      const actions = sharedTemplateData(memory, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
+      assert.equal(actions.actionsHidden, true)
+    },
+    onBlur: () => {
+      const actions = sharedTemplateData(memory, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
+      assert.equal(actions.actionsHidden, false)
+    }
+  })
+})
+
+test('new and existing record saves use the same iconless success capsule on both edit pages', async (t) => {
+  for (const spec of records) {
+    for (const mode of ['new', 'edit']) {
+      await t.test(`${spec.kind}: ${mode}`, async (t) => {
+        const app = setup(t)
+        const action = mode === 'edit' ? 'update' : 'add'
+        const { page } = await openEditor(app, spec, {
+          ...spec.fields,
+          ...(mode === 'edit' ? { id: 'existing' } : {})
+        })
+        cloudRoute(app, spec, action).reply({ code: 0, record: { _id: 'saved', ...spec.payload } })
+        await app.dispatch(page, 'save')
+        assert.equal(app.wx.toasts.at(-1).title, spec.success)
+        assert.equal(app.wx.toasts.at(-1).icon, 'none')
+      })
+    }
+  }
 })
 
 for (const spec of records) {
@@ -1352,6 +1399,7 @@ for (const spec of records) {
         if (result === 'match') {
           await saving
           assert.equal(app.wx.toasts.at(-1).title, '已保存')
+          assert.equal(app.wx.toasts.at(-1).icon, 'none', 'read-back confirmation keeps the same iconless capsule')
           assert.equal(page.data.submitted, true)
           assert.equal(cell(home)[spec.marker], true)
           assert.equal(app.storage[key], undefined)
