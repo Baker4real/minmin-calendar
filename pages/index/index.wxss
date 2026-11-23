@@ -656,6 +656,16 @@ button.home-share-invite {
 .day-cell.period {
   border-radius: 0;
 }
+/* 只有向右延续的格子放出 1rpx 色带；长标签仍裁在本格的信息行内。 */
+.day-cell.period-start,
+.day-cell.period-middle {
+  overflow: visible;
+  z-index: 1;
+}
+.day-cell.period-start .day-tag-line,
+.day-cell.period-middle .day-tag-line {
+  overflow: hidden;
+}
 .day-num,
 .day-lunar,
 .day-tag-line,

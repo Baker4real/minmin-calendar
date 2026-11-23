@@ -975,6 +975,20 @@ test('period band overlaps 1rpx right only when the next cell continues', () => 
   }
 })
 
+test('connected period cells expose the band overlap while their labels stay clipped', () => {
+  const wxss = readWxss()
+  for (const segment of ['period-start', 'period-middle']) {
+    const cell = mergedDecls(wxss, `.day-cell.${segment}`)
+    assert.equal(cell.overflow, 'visible', `${segment} clips the 1rpx band overlap`)
+    assert.equal(cell['z-index'], '1', `${segment} must paint its overlap over the next cell background`)
+    assert.equal(
+      mergedDecls(wxss, `.day-cell.${segment} .day-tag-line`).overflow,
+      'hidden',
+      `${segment} must keep long holiday labels inside its own cell`
+    )
+  }
+})
+
 // DESIGN.md 是唯一视觉权威：frontmatter 的今天胶囊登记就是 CSS 画的那一枚，整格的 todayBg / todayRing 已退役
 test('DESIGN.md registers the today capsule the CSS draws', () => {
   const design = readSource(path.join(__dirname, '..', 'DESIGN.md'), 'utf8')
