@@ -1030,7 +1030,9 @@ test('both edit pages reserve one-save fixed-bar geometry with an opaque navy gr
 
   for (const kind of ['period', 'memory']) {
     const raw = readRawRepo(`pages/${kind}/edit/edit.wxml`)
-    assert.match(raw, /actionsClass: 'record-actions-fixed', actionsHidden: noteFocused/)
+    assert.match(raw, /actionsClass: 'record-actions-fixed'/)
+    if (kind === 'period') assert.match(raw, /actionsHidden: noteFocused/)
+    else assert.doesNotMatch(raw, /actionsHidden:/, 'memory keeps its fixed save visible while the note is focused')
     assert.doesNotMatch(raw, /has-fixed-edit-actions/, `${kind} uses the same create and edit reserve`)
 
     const rules = parseWxssRules(readRepo(`pages/${kind}/edit/edit.wxss`))

@@ -241,6 +241,7 @@ test('R2 date panel: period start opens three bounded columns and confirms the d
   ])
   assert.equal(renderWxmlAttribute(confirm.attrs['aria-label'], page.data), '确定，2025年1月1日')
   await app.dispatch(page, 'onDatePickerConfirm')
+  await app.settle()
   assert.equal(page.data.startDate, '2025-01-01')
   assert.equal(page.data.datePickerPhase, 'leaving')
   await app.advance(200)
@@ -296,6 +297,7 @@ test('R2 date panel: inertia locks confirmation until the settled draft can subm
       assert.equal(renderWxmlClasses(confirm.attrs.class, page.data).includes('disabled'), false)
 
       await app.dispatch(page, 'onDatePickerConfirm')
+      await app.settle()
       assert.equal(page.data[spec.dateField], '2025-01-01', 'the settled draft submits')
       assert.equal(page.data.datePickerPhase, 'leaving')
       assert.equal(page.data.datePickerPicking, false, 'closing resets the scroll lock')
@@ -336,6 +338,7 @@ test('R2 date panel: pick settlement follows public value semantics across event
     await app.settle()
     assert.equal(page.data.datePickerPicking, false)
     await app.dispatch(page, 'onDatePickerConfirm')
+    await app.settle()
     assert.equal(page.data.startDate, '2026-09-20')
     assert.equal(page.data.datePickerPhase, 'leaving')
     await app.advance(200)
@@ -352,6 +355,7 @@ test('R2 date panel: pick settlement follows public value semantics across event
     await app.settle()
     assert.equal(page.data.datePickerPicking, false, 'the render barrier settles a no-change gesture')
     await app.dispatch(page, 'onDatePickerConfirm')
+    await app.settle()
     assert.equal(page.data.startDate, '2025-12-30')
     assert.equal(page.data.datePickerPhase, 'leaving')
     await app.advance(200)
@@ -377,6 +381,7 @@ test('R2 date panel: pick settlement follows public value semantics across event
     await app.settle()
     assert.equal(page.data.datePickerPicking, false)
     await app.dispatch(page, 'onDatePickerConfirm')
+    await app.settle()
     assert.equal(page.data.startDate, '2025-01-01')
     await app.advance(200)
   })
@@ -403,6 +408,132 @@ test('R2 date panel: pick settlement follows public value semantics across event
   })
 })
 
+test('R2 date panel: retained picks and the confirm render barrier reject stale submission orders', async (t) => {
+  await t.test('settle then confirm then a late final change submits the rendered final draft', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker', { timeStamp: 50 })
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, false)
+
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 115 })
+    assert.equal(page.data.datePickerPicking, true, 'confirm disables itself before its render barrier')
+    assert.equal(page.data.datePickerPhase, 'open')
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 120, detail: { value: [126, 11, 30] } })
+    await app.settle()
+
+    assert.equal(page.data.startDate, '2026-09-20', 'the change before the confirm barrier is the submitted draft')
+    assert.equal(page.data.datePickerPhase, 'leaving')
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 130, detail: { value: [125, 0, 0] } })
+    assert.equal(page.data.startDate, '2026-09-20')
+    assert.equal(page.data.datePickerDraft, '2026-09-20', 'a change after confirm starts leaving cannot rewrite the panel')
+    await app.advance(200)
+  })
+
+  await t.test('settle then a late change relocks before a same-turn confirm', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker', { timeStamp: 50 })
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.settle()
+
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 120, detail: { value: [126, 11, 30] } })
+    assert.equal(page.data.datePickerPicking, true, 'a late change on the retained pick relocks confirmation')
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 130 })
+    assert.equal(page.data.startDate, '2025-12-30')
+    assert.equal(page.data.datePickerPhase, 'open', 'confirm early-returns while the late draft is rendering')
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, false)
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 140 })
+    await app.settle()
+    assert.equal(page.data.startDate, '2026-09-20')
+    assert.equal(page.data.datePickerPhase, 'leaving')
+    await app.advance(200)
+  })
+
+  await t.test('a no-change confirmation uses one render barrier and ignores repeated taps', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker', { timeStamp: 50 })
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, false)
+
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 115 })
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 116 })
+    assert.equal(page.data.startDate, '2025-12-30')
+    assert.equal(page.data.datePickerPhase, 'open')
+    assert.equal(page.data.datePickerPicking, true)
+    await app.settle()
+    assert.equal(page.data.startDate, '2025-12-30')
+    assert.equal(page.data.datePickerPhase, 'leaving')
+    await app.advance(200)
+    assert.equal(page.data.datePickerMounted, false)
+  })
+
+  await t.test('an old confirm barrier and old change cannot finish or overwrite a newer pick', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker', { timeStamp: 50 })
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 115 })
+
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 200 })
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 150, detail: { value: [125, 0, 0] } })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.settle()
+    assert.equal(page.data.datePickerPhase, 'open', 'the old confirm barrier cannot close the new gesture')
+    assert.equal(page.data.datePickerPicking, true)
+    assert.equal(page.data.datePickerDraft, '2025-12-30')
+
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 210, detail: { value: [125, 0, 0] } })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 220 })
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, false)
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 230 })
+    await app.settle()
+    assert.equal(page.data.startDate, '2025-01-01')
+    assert.equal(page.data.datePickerPhase, 'leaving')
+    await app.advance(200)
+  })
+
+  await t.test('cancel and reopen reject old changes before and after the new panel opens', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker', { timeStamp: 50 })
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.dispatch(page, 'onDatePickerClose', { timeStamp: 115 })
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 120, detail: { value: [125, 0, 0] } })
+    assert.equal(page.data.datePickerDraft, '2025-12-30', 'a cancelled panel has no active pick to write')
+
+    await app.dispatch(page, 'openStartDatePicker', { timeStamp: 200 })
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 120, detail: { value: [125, 0, 0] } })
+    await app.settle()
+    assert.equal(page.data.datePickerPhase, 'open')
+    assert.equal(page.data.datePickerPicking, false)
+    assert.equal(page.data.datePickerDraft, '2025-12-30', 'the reopened generation rejects the old change by its openedAt boundary')
+
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 210, detail: { value: [125, 0, 0] } })
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 220 })
+    await app.settle()
+    assert.equal(page.data.startDate, '2025-01-01')
+    assert.equal(page.data.datePickerPhase, 'leaving')
+    await app.advance(200)
+  })
+})
+
 test('R2 date panel: period end and memory date reuse one shared panel with existing lower bounds', async (t) => {
   await t.test('period end starts at its start-date lower bound', async (t) => {
     const app = setup(t)
@@ -425,6 +556,7 @@ test('R2 date panel: period end and memory date reuse one shared panel with exis
 
     await app.dispatch(page, 'onDatePickerChange', { detail: { value: [0, 0, 1] } })
     await app.dispatch(page, 'onDatePickerConfirm')
+    await app.settle()
     assert.equal(page.data.endDate, '2025-12-31')
     assert.equal(page.data.startDate, '2025-12-30')
   })
@@ -445,6 +577,7 @@ test('R2 date panel: period end and memory date reuse one shared panel with exis
     assert.equal(page.data.datePickerConfirmAria, '确定，2025年12月31日')
     await app.dispatch(page, 'onDatePickerChange', { detail: { value: [125, 0, 0] } })
     await app.dispatch(page, 'onDatePickerConfirm')
+    await app.settle()
     assert.equal(page.data.date, '2025-01-01')
   })
 })
@@ -1066,7 +1199,7 @@ test('period: fixed actions hide on note focus, restore on blur, and save only o
     },
     onBlur: () => {
       const actions = sharedTemplateData(period, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
-      assert.equal(actions.actionsHidden, false)
+      assert.equal(Boolean(actions.actionsHidden), false)
     }
   })
 
@@ -1081,18 +1214,20 @@ test('period: fixed actions hide on note focus, restore on blur, and save only o
   await app.settle()
 })
 
-test('memory: note focus shows the focused class and hides the fixed save bar until blur', async (t) => {
+test('memory: note focus only toggles the focused class and never hides the fixed save bar', async (t) => {
   const app = setup(t)
   const memory = records[1]
   const { page } = await openEditor(app, memory)
+  const initialActions = sharedTemplateData(memory, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
+  assert.equal(Boolean(initialActions.actionsHidden), false)
   await assertNoteFocusToggle(app, page, memory, {
     onFocus: () => {
       const actions = sharedTemplateData(memory, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
-      assert.equal(actions.actionsHidden, true)
+      assert.equal(Boolean(actions.actionsHidden), false)
     },
     onBlur: () => {
       const actions = sharedTemplateData(memory, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
-      assert.equal(actions.actionsHidden, false)
+      assert.equal(Boolean(actions.actionsHidden), false)
     }
   })
 })

@@ -40,9 +40,10 @@ Page(withPageVisibility({
     probeReducedMotion(this)
   },
 
-  openMemoryDatePicker() {
+  openMemoryDatePicker(event) {
     if (this.data.saving) return
     datePickerSheet(this).open({
+      openedAt: event && Number.isFinite(event.timeStamp) ? event.timeStamp : null,
       label: '日期',
       value: this.data.date,
       maxDate: this.data.maxDate,
