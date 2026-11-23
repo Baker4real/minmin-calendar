@@ -45,7 +45,7 @@ test('a surface fill is the cascaded background, or the background-color a tint 
 
 const repoRoot = path.join(__dirname, '..')
 const NEUTRAL_TITLE_COLOR = 'rgba(255,255,255,0.92)'
-const ROSE = '#E8909E'
+const ROSE = 'var(--aurora-pink)'
 const LIGHT_HEART = 'var(--color-memory)'
 const WARNING_RED = 'var(--color-danger)'
 const WARNING_RED_BORDER = 'rgba(249,115,115,0.28)'
@@ -392,7 +392,7 @@ test('list flow tag rose text clears 4.5:1 on its quiet tint over the list card'
   const fill = cssColor(declarationOf(file, '.item-tag.flow', 'background'))
   for (const card of stackSurfaces([['app.wxss', '.premium-card']])) {
     const surface = composite(card, fill, fill.a)
-    const ratio = contrastRatio(color, toHex(surface))
+    const ratio = contrastOn(layerPaint(color), surface)
     assert.ok(ratio >= 4.5, `list flow tag ${color} on ${toHex(surface)} is ${ratio.toFixed(2)}:1, below 4.5:1`)
   }
 })

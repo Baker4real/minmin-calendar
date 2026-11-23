@@ -1523,6 +1523,7 @@ test('record dashboard uses three equal tracks with middle-column hairlines', ()
   assert.equal(middle['border-left'], '1px solid rgba(255,255,255,0.07)')
   assert.equal(middle['border-right'], '1px solid rgba(255,255,255,0.07)')
   assert.equal(middle['box-sizing'], 'border-box')
+  assert.equal(middle.padding, '0 16rpx')
 })
 
 test('period rows keep horizontal separation and protect their trailing controls', () => {

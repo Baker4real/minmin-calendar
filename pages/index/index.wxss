@@ -171,13 +171,13 @@ button.home-share-invite {
   white-space: nowrap;
   position: relative;
   z-index: 1;
-  color: #E8909E;
+  color: var(--aurora-pink);
 }
 /* 最小宽度兜住最坏文案「2026年12月」：1 位数和 2 位数月份同宽，切月时胶囊不变宽、不挪位（issue #164） */
 .month-title-trigger {
   min-height: 88rpx;
   min-width: 344rpx;
-  padding: 0 28rpx;
+  padding: 16rpx 28rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -197,7 +197,7 @@ button.home-share-invite {
 .month-title-caret {
   font-size: 24rpx;
   line-height: 1;
-  color: #E8909E;
+  color: var(--aurora-pink);
   transform: translateY(-2rpx);
 }
 .nav-btn {
@@ -210,7 +210,7 @@ button.home-share-invite {
   line-height: 1;
   text-align: center;
   font-size: 42rpx;
-  color: #fff;
+  color: rgba(255,255,255,0.92);
   border-radius: var(--radius-circle);
   background: var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.2);
@@ -506,7 +506,7 @@ button.home-share-invite {
 
 /* Today number — 实色玫瑰，不用渐变文字 */
 .day-cell.today .day-num {
-  color: #E8909E;
+  color: var(--aurora-pink);
   font-weight: var(--font-weight-title);
 }
 /* 今天（issue #162）：围住日期数字的紧凑胶囊——浅玫瑰底、薰衣草细描边，数字仍是玫瑰色。格子本身不上色，
@@ -896,8 +896,8 @@ button.home-share-invite {
 }
 .quick-btn.btn-ghost {
   background: var(--aurora-bg);
-  color: #E8909E;
-  border: 1.5px solid #E8909E;
+  color: var(--aurora-pink);
+  border: 1.5px solid var(--aurora-pink);
   border-radius: var(--radius-card);
 }
 .quick-btn.btn-ghost::before {
@@ -908,7 +908,7 @@ button.home-share-invite {
   transform: scale(0.95);
 }
 .quick-btn.btn-ghost .quick-text {
-  color: #E8909E;
+  color: var(--aurora-pink);
 }
 
 /* ===== Empty Room Guidance ===== */
@@ -949,7 +949,7 @@ button.home-share-invite {
 .no-room-icon {
   font-size: 120rpx;
   /* 无房间心：玫瑰文本字形，与绑定页 hero / 设置资料卡同款（issue #77 模式，issue #106） */
-  color: #E8909E;
+  color: var(--aurora-pink);
   margin-bottom: 30rpx;
   animation: pulse 6s ease-in-out infinite;
 }
@@ -984,7 +984,7 @@ button.home-share-invite {
 }
 .jump-today {
   min-height: 88rpx;
-  padding: 0 26rpx;
+  padding: 16rpx 26rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1157,10 +1157,6 @@ button.home-share-invite {
   color: var(--color-memory);
   box-shadow: inset 0 0 0 1px rgba(240,196,192,0.28);
 }
-.detail-tone {
-  color: rgba(255,255,255,0.72);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
-}
 .sheet-action-copy {
   flex: 1;
   min-width: 0;
@@ -1316,7 +1312,7 @@ button.home-share-invite {
   color: rgba(255,255,255,0.85);
 }
 .period-detail .detail-title {
-  color: #E8909E;
+  color: var(--aurora-pink);
 }
 .memory-detail .detail-title {
   color: var(--color-memory);

@@ -9,7 +9,7 @@
 /* R10：原生 :focus 未稳定画出描边，由控件自己的 bindfocus/bindblur 切换此类。
    默认态承担双向过渡，聚焦与失焦都不另换时序。 */
 .form-control.form-control-focused {
-  border-color: #E8909E;
+  border-color: var(--aurora-pink);
 }
 
 @media (prefers-reduced-motion: reduce) {

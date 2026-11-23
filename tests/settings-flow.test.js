@@ -1034,7 +1034,7 @@ test('settings room actions are rose tappable rows with the shared small-action 
   const btn = wxssRuleBody(wxss, '.room-action-btn')
 
   assert.match(btn, /min-height:\s*88rpx/)
-  assert.match(btn, /color:\s*#E8909E/i)
+  assert.match(btn, /color:\s*var\(--aurora-pink\)/i)
   assert.match(btn, /border-radius:\s*var\(--radius-sm\)/)
   assert.match(btn, /background:\s*rgba\(232,144,158,0\.08\)/)
   assert.doesNotMatch(btn, /linear-gradient/i)
