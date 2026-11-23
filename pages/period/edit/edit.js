@@ -68,6 +68,14 @@ Page(withPageVisibility({
     datePickerSheet(this).change(e.detail.value)
   },
 
+  onDatePickerPickStart() {
+    datePickerSheet(this).pickStart()
+  },
+
+  onDatePickerPickEnd() {
+    datePickerSheet(this).pickEnd()
+  },
+
   onDatePickerConfirm() {
     datePickerSheet(this).confirm()
   },

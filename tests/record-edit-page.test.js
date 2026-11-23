@@ -247,6 +247,71 @@ test('R2 date panel: period start opens three bounded columns and confirms the d
   assert.equal(page.data.datePickerMounted, false)
 })
 
+test('R2 date panel: inertia locks confirmation until the settled draft can submit', async (t) => {
+  const scenarios = [
+    { spec: period, open: 'openStartDatePicker' },
+    { spec: records[1], open: 'openMemoryDatePicker' }
+  ]
+  for (const { spec, open } of scenarios) {
+    await t.test(spec.kind, async (t) => {
+      const app = setup(t)
+      const { page } = await openEditor(app, spec, { [spec.dateField]: '2025-12-30' })
+      await app.dispatch(page, open)
+      await app.settle()
+
+      const expanded = readSource(path.join(__dirname, `../pages/${spec.kind}/edit/edit.wxml`), 'utf8')
+      const picker = wxmlOpeningTags(expanded).find(tag => tag.tag === 'picker-view')
+      assert.ok(picker)
+      assert.equal(picker.attrs.bindpickstart, 'onDatePickerPickStart')
+      assert.equal(picker.attrs.bindpickend, 'onDatePickerPickEnd')
+      const confirm = wxmlOpeningTags(expanded).find(tag => tag.attrs.bindtap === 'onDatePickerConfirm')
+      assert.ok(confirm)
+      assert.equal(confirm.tag, 'button', 'confirm has a native disabled state')
+
+      let mapped = sharedTemplateData(spec, 'sharedBottomSheet', 'bodyTemplate', 'datePickerSheetBody', page.data)
+      assert.equal(mapped.datePickerPicking, false, 'opening resets the scroll lock')
+      assert.equal(renderWxmlAttribute(confirm.attrs.disabled, page.data), 'false')
+      assert.equal(renderWxmlAttribute(confirm.attrs['aria-disabled'], page.data), 'false')
+      assert.equal(renderWxmlClasses(confirm.attrs.class, page.data).includes('disabled'), false)
+
+      await app.dispatch(page, 'onDatePickerPickStart')
+      assert.equal(page.data.datePickerPicking, true)
+      mapped = sharedTemplateData(spec, 'sharedBottomSheet', 'bodyTemplate', 'datePickerSheetBody', page.data)
+      assert.equal(mapped.datePickerPicking, true, 'the page forwards the lock through the shared shell')
+      assert.equal(renderWxmlAttribute(confirm.attrs.disabled, page.data), 'true')
+      assert.equal(renderWxmlAttribute(confirm.attrs['aria-disabled'], page.data), 'true')
+      assert.equal(renderWxmlClasses(confirm.attrs.class, page.data).includes('disabled'), true)
+
+      await app.dispatch(page, 'onDatePickerConfirm')
+      assert.equal(page.data.datePickerPhase, 'open', 'a rolling confirm does not close the panel')
+      assert.equal(page.data[spec.dateField], '2025-12-30', 'a rolling confirm cannot write the old date')
+
+      await app.dispatch(page, 'onDatePickerChange', { detail: { value: [125, 0, 0] } })
+      assert.equal(page.data.datePickerDraft, '2025-01-01')
+      await app.dispatch(page, 'onDatePickerPickEnd')
+      assert.equal(page.data.datePickerPicking, false, 'settling releases the scroll lock')
+      assert.equal(renderWxmlAttribute(confirm.attrs.disabled, page.data), 'false')
+      assert.equal(renderWxmlAttribute(confirm.attrs['aria-disabled'], page.data), 'false')
+      assert.equal(renderWxmlClasses(confirm.attrs.class, page.data).includes('disabled'), false)
+
+      await app.dispatch(page, 'onDatePickerConfirm')
+      assert.equal(page.data[spec.dateField], '2025-01-01', 'the settled draft submits')
+      assert.equal(page.data.datePickerPhase, 'leaving')
+      assert.equal(page.data.datePickerPicking, false, 'closing resets the scroll lock')
+      await app.advance(200)
+      assert.equal(page.data.datePickerMounted, false)
+
+      await app.dispatch(page, open)
+      await app.settle()
+      assert.equal(page.data.datePickerPicking, false, 'reopening starts unlocked')
+      await app.dispatch(page, 'onDatePickerPickStart')
+      await app.dispatch(page, 'onDatePickerClose')
+      assert.equal(page.data.datePickerPicking, false, 'cancellation also resets the scroll lock immediately')
+      await app.advance(200)
+    })
+  }
+})
+
 test('R2 date panel: period end and memory date reuse one shared panel with existing lower bounds', async (t) => {
   await t.test('period end starts at its start-date lower bound', async (t) => {
     const app = setup(t)

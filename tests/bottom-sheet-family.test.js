@@ -115,6 +115,35 @@ test('settings help adopts home sheet geometry while month and day keep their vi
   assert.match(shared.background, /rgba\(18,22,61,0\.94\)/)
 })
 
+test('date picker uses navy masks, a rose indicator and a semi-transparent native disabled confirm', () => {
+  const shared = fs.readFileSync(path.join(repoRoot, 'pages/shared/confirmation-sheet.wxml'), 'utf8')
+  const nodes = wxmlOpeningTags(shared)
+  const picker = nodes.find(tag => tag.tag === 'picker-view')
+  assert.ok(picker)
+  assert.equal(
+    picker.attrs['mask-style'],
+    'background: linear-gradient(to bottom, rgba(28,32,71,0.92) 0%, rgba(28,32,71,0) 40%, rgba(28,32,71,0) 60%, rgba(28,32,71,0.92) 100%); border: 0;'
+  )
+
+  const indicator = Object.fromEntries(picker.attrs['indicator-style'].split(';').map(part => part.trim()).filter(Boolean).map(part => {
+    const separator = part.indexOf(':')
+    return [part.slice(0, separator).trim(), part.slice(separator + 1).trim()]
+  }))
+  assert.equal(indicator.height, '88rpx')
+  assert.equal(indicator['box-sizing'], 'border-box')
+  assert.equal(indicator['background-color'], 'rgba(232,144,158,0.10)')
+  assert.equal(indicator.border, '0', 'the default bright column separators are cleared')
+  assert.equal(indicator['border-top'], '1px solid rgba(232,144,158,0.32)')
+  assert.equal(indicator['border-bottom'], '1px solid rgba(232,144,158,0.32)')
+
+  const confirm = nodes.find(tag => tag.attrs.bindtap === 'onDatePickerConfirm')
+  assert.ok(confirm)
+  assert.equal(confirm.tag, 'button')
+  assert.equal(confirm.attrs.disabled, '{{datePickerPicking}}')
+  assert.equal(confirm.attrs['aria-disabled'], '{{datePickerPicking}}')
+  assert.equal(declarations('app.wxss', '.btn-premium.disabled').opacity, '0.55')
+})
+
 test('shared bottom sheet calls keep template data flat for the WXML compiler', () => {
   for (const [file] of pages) {
     const raw = fs.readFileSync(path.join(repoRoot, file), 'utf8')
@@ -130,7 +159,7 @@ test('shared bottom sheet calls keep template data flat for the WXML compiler', 
     'selectedDayDetail', 'daySheetMode', 'dayDetailFade', 'periodBandSample', 'calendarDensity',
     'infoSheetMode', 'predictionExplanation', 'monthlyRecap', 'legendItems',
     'confirmationDateText', 'confirmationContent', 'confirmationActions',
-    'datePickerName', 'datePickerYears', 'datePickerMonths', 'datePickerDays', 'datePickerValue',
+    'datePickerName', 'datePickerYears', 'datePickerMonths', 'datePickerDays', 'datePickerValue', 'datePickerPicking',
     'datePickerYearAria', 'datePickerMonthAria', 'datePickerDayAria', 'datePickerConfirmAria'
   ]
   for (const field of forwarded) assert.ok(shared.includes(`${field}: ${field}`), `${field} is forwarded to the selected body template`)

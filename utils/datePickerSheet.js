@@ -69,6 +69,7 @@ function buildRangeState(parts, min, max) {
     datePickerYearAria: `年份，${selected.year}年`,
     datePickerMonthAria: `月份，${selected.month}月`,
     datePickerDayAria: `日，${selected.day}日`,
+    datePickerPicking: false,
     datePickerConfirmAria: `确定，${selected.year}年${selected.month}月${selected.day}日`
   }
 }
@@ -101,6 +102,7 @@ function emptyDatePickerContent() {
     datePickerYearAria: '',
     datePickerMonthAria: '',
     datePickerDayAria: '',
+    datePickerPicking: false,
     datePickerConfirmAria: ''
   }
 }
@@ -131,7 +133,7 @@ function datePickerSheet(page) {
       confirmDraft = null
       range = null
       page.setData(emptyDatePickerContent())
-    }, extra)
+    }, { ...extra, datePickerPicking: false })
   }
 
   const interactions = registeredSheetInteractions(page, {
@@ -151,6 +153,14 @@ function datePickerSheet(page) {
       delete content._datePickerMax
       lifecycle.open(page, content)
     },
+    pickStart() {
+      if (!range || !lifecycle.isMounted(page) || page.data.datePickerPhase === 'leaving') return
+      page.setData({ datePickerPicking: true })
+    },
+    pickEnd() {
+      if (!lifecycle.isMounted(page) || page.data.datePickerPhase === 'leaving') return
+      page.setData({ datePickerPicking: false })
+    },
     change(indexes) {
       if (!range || !Array.isArray(indexes) || indexes.length !== 3 || page.data.datePickerPhase === 'leaving') return
       const year = page.data.datePickerYears[Number(indexes[0])]
@@ -165,7 +175,7 @@ function datePickerSheet(page) {
       page.setData(buildRangeState(candidate, range.min, range.max))
     },
     confirm() {
-      if (!lifecycle.isMounted(page) || page.data.datePickerPhase === 'leaving') return
+      if (!lifecycle.isMounted(page) || page.data.datePickerPhase === 'leaving' || page.data.datePickerPicking) return
       const commit = confirmDraft
       const draft = page.data.datePickerDraft
       confirmDraft = null
