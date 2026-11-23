@@ -992,39 +992,59 @@ test('the settings help sheet scrolls within the bottom-sheet height band so its
   }
 })
 
-test('period fixed record actions reserve create and edit geometry with the safe area', () => {
-  const periodRaw = readRawRepo('pages/period/edit/edit.wxml')
-  const memoryRaw = readRawRepo('pages/memory/edit/edit.wxml')
-  assert.match(periodRaw, /actionsClass: 'record-actions-fixed', actionsHidden: noteFocused/)
-  assert.match(periodRaw, /class="content \{\{isEdit \? 'has-fixed-edit-actions' : ''\}\}"/)
-  assert.doesNotMatch(memoryRaw, /actionsClass|actionsHidden|record-actions-fixed/, 'memory keeps the original in-flow actions')
-  assert.doesNotMatch(readRawRepo('pages/memory/edit/edit.wxss'), /record-actions|has-fixed-edit-actions/)
-
-  const rules = parseWxssRules(readRepo('pages/period/edit/edit.wxss'))
-  const fixed = findDecls(rules, '.record-actions-fixed')
-  assert.equal(fixed.position, 'fixed')
-  assert.equal(fixed.left, '0')
-  assert.equal(fixed.right, '0')
-  assert.equal(fixed.bottom, '0')
-  assert.ok(Number(fixed['z-index']) < 60, 'fixed actions stay below the shared bottom sheets')
-  assert.equal(fixed.background, 'var(--glass-fallback)')
-  assert.match(fixed.padding, /var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
-  assert.equal(findDecls(rules, '.record-actions-fixed .btns')['margin-top'], '0')
-  assert.equal(findDecls(rules, '.record-actions-fixed.record-actions-hidden').display, 'none')
-
-  // DESIGN 的 R7 几何账本：按钮取 app.wxss 的 --font-size-body × --line-height-assist + 上下 26rpx；320px 的 1px 换算最大。
+test('both edit pages reserve one-save fixed-bar geometry with an opaque navy gradient and safe area', () => {
   const appTokens = readAppTokens()
   const buttonHeight = tokenRpx('var(--font-size-body)', appTokens) * Number(appTokens['--line-height-assist']) + 26 * 2
   const pxToRpx = px => px * 750 / 320
-  const createBarHeight = 20 + buttonHeight + 24 + pxToRpx(1)
-  const editBarHeight = createBarHeight + 96 + 32 + pxToRpx(1) + buttonHeight + pxToRpx(2)
-  assert.ok(createBarHeight <= 144 && 144 - createBarHeight < 16, `create reserve 144rpx covers ${createBarHeight}rpx`)
-  assert.ok(editBarHeight <= 376 && 376 - editBarHeight < 16, `edit reserve 376rpx covers ${editBarHeight}rpx`)
+  const barHeight = 20 + buttonHeight + 24 + pxToRpx(1)
+  assert.ok(barHeight <= 144 && 144 - barHeight < 16, `single-save reserve 144rpx covers ${barHeight}rpx`)
 
-  const content = findDecls(rules, '.content')
-  assert.match(content.padding, /calc\(144rpx \+ var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
-  const editContent = findDecls(rules, '.content.has-fixed-edit-actions')
-  assert.match(editContent['padding-bottom'], /calc\(376rpx \+ var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
+  for (const kind of ['period', 'memory']) {
+    const raw = readRawRepo(`pages/${kind}/edit/edit.wxml`)
+    assert.match(raw, /actionsClass: 'record-actions-fixed', actionsHidden: noteFocused/)
+    assert.doesNotMatch(raw, /has-fixed-edit-actions/, `${kind} uses the same create and edit reserve`)
+
+    const rules = parseWxssRules(readRepo(`pages/${kind}/edit/edit.wxss`))
+    const fixed = findDecls(rules, '.record-actions-fixed')
+    assert.equal(fixed.position, 'fixed')
+    assert.equal(fixed.left, '0')
+    assert.equal(fixed.right, '0')
+    assert.equal(fixed.bottom, '0')
+    assert.ok(Number(fixed['z-index']) < 60, 'fixed actions stay below the shared bottom sheets')
+    assert.equal(fixed.background, 'linear-gradient(180deg, rgba(10,14,39,0.96) 0%, var(--aurora-bg) 48rpx, var(--aurora-bg) 100%)')
+    assert.equal(fixed['box-shadow'], 'inset 0 1px 0 rgba(255,255,255,0.08), 0 -12rpx 32rpx rgba(5,8,22,0.55)')
+    assert.match(fixed.padding, /var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
+    assert.equal(findDecls(rules, '.record-actions-fixed .btns')['margin-top'], '0')
+    assert.equal(findDecls(rules, '.record-actions-fixed.record-actions-hidden').display, 'none')
+
+    const content = findDecls(rules, '.content')
+    assert.match(content.padding, /calc\(144rpx \+ var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
+  }
+})
+
+test('draft and start-date-owner hints share a compact rose micro notice with compensated 88rpx actions', () => {
+  for (const kind of ['period', 'memory']) {
+    const raw = readRawRepo(`pages/${kind}/edit/edit.wxml`)
+    assert.match(raw, /class="draft-notice micro-notice"/)
+    assert.match(raw, /class="micro-notice-text">\{\{draftNoticeText\}\}/)
+
+    const rules = parseWxssRules(readRepo(`pages/${kind}/edit/edit.wxss`))
+    const notice = findDecls(rules, '.micro-notice')
+    assert.equal(notice.display, 'flex')
+    assert.equal(notice['align-items'], 'center')
+    assert.equal(notice['justify-content'], 'space-between')
+    assert.equal(notice.padding, '16rpx 24rpx')
+    assert.equal(notice.background, 'rgba(232,144,158,0.08)')
+    assert.equal(notice.border, '1px solid rgba(232,144,158,0.24)')
+    assert.equal(notice['border-radius'], 'var(--radius-md)')
+    const action = findDecls(rules, '.micro-notice-action')
+    assert.equal(action['min-height'], '88rpx')
+    assert.equal(action.padding, '16rpx')
+    assert.equal(action.margin, '-16rpx')
+  }
+  const periodRaw = readRawRepo('pages/period/edit/edit.wxml')
+  assert.match(periodRaw, /class="form-hint start-date-owner micro-notice"/)
+  assert.match(periodRaw, /class="micro-notice-text">\{\{startDateOwnerText\}\}/)
 })
 
 test('sheets bottom padding carries the runtime bottom safe-area inset', () => {

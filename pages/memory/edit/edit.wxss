@@ -4,7 +4,7 @@
 /* ===== Aurora Bloom: Memory Edit ===== */
 /* 导航标题使用 pages/shared/nav-bar.wxss 的中性白。 */
 .content {
-  padding: var(--space-page-first-block) var(--space-page-gutter) calc(24rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  padding: var(--space-page-first-block) var(--space-page-gutter) calc(144rpx + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
   position: relative;
   z-index: 1;
 }
@@ -20,6 +20,9 @@
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   color: var(--text-secondary);
+}
+.memory-note-input {
+  min-height: 200rpx;
 }
 
 /* 表单与草稿的减弱动效覆盖随共享规则收进 record-form.wxss。 */
