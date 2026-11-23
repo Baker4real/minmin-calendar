@@ -3,7 +3,7 @@
     <view class="day-sheet-mask sheet-{{sheetPhase}}" bindtap="{{maskHandler}}" catchtouchmove="noop" aria-role="button" aria-label="关闭{{sheetName}}" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-{{sheetId}} sheet-{{sheetPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear}}">
       <view class="day-action-sheet {{sheetPanelClass}}" catchtap="noop" aria-label="{{sheetName}}">
-        <view class="sheet-drag-zone" data-sheet="{{sheetId}}" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}">
+        <view class="sheet-drag-zone" data-sheet="{{sheetId}}" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}" hover-class="sheet-drag-zone-hover">
           <view class="sheet-handle" aria-hidden="true"></view>
           <view class="sheet-head">
             <view class="sheet-date-copy">
@@ -201,15 +201,20 @@
   </view>
 
   <view wx:elif="{{infoSheetMode == 'recap' && monthlyRecap}}" class="monthly-recap">
-    <text class="text-pair-title recap-summary recap-main">{{monthlyRecap.periodSummary}}</text>
-    <text class="text-pair-desc recap-summary">{{monthlyRecap.memorySummary}}</text>
-    <text class="text-pair-desc recap-summary">{{monthlyRecap.predictionSummary}}</text>
+    <view class="recap-overview">
+      <text class="text-pair-title recap-summary recap-main">{{monthlyRecap.periodSummary}}</text>
+      <text class="text-pair-desc recap-summary">{{monthlyRecap.memorySummary}}</text>
+      <text class="text-pair-desc recap-summary">{{monthlyRecap.predictionSummary}}</text>
+    </view>
     <view wx:if="{{monthlyRecap.highlightItems.length}}" class="recap-highlights">
-      <text
+      <view
         wx:for="{{monthlyRecap.highlightItems}}"
         wx:key="key"
-        class="text-pair-desc recap-highlight"
-      >{{item.text}}</text>
+        class="recap-highlight-row recap-highlight-{{item.kind}}"
+      >
+        <view class="recap-highlight-rail" aria-hidden="true"></view>
+        <text class="text-pair-desc recap-highlight">{{item.text}}</text>
+      </view>
     </view>
     <view class="copy-recap button-primary" bindtap="copyMonthlyRecap" aria-role="button" aria-label="复制小结" hover-class="copy-recap-hover">复制小结</view>
   </view>

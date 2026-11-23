@@ -490,7 +490,7 @@ test('R2 date panel: mask, close, drag and system back cancel; touchcancel only 
   app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 180 }] })
   app.dispatch(page, 'sheetDrag.touchCancel', { currentTarget, changedTouches: [{ ...touch, pageY: 180 }] })
   assert.equal(page.data.datePickerPhase, 'open')
-  assert.deepEqual(page.data.datePickerDragClear, { token: dragToken + 1, action: 'reset' })
+  assert.deepEqual(page.data.datePickerDragClear, { token: dragToken + 1, action: 'reset', sheet: 'datePicker' })
   assert.equal(page.data.startDate, '2025-12-30')
   await app.advance(16)
   assert.equal(app.viewStyle(page, '.sheet-slide-datePicker').transform, '')
@@ -787,6 +787,7 @@ test('period: overlap panel mask, close, drag and system back all cancel without
       app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
       await app.advance(100)
       app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
+      assert.deepEqual(page.data.confirmationDragClear, { token: 1, action: 'close', sheet: 'confirmation' })
     } else {
       await app.dispatch(page, close.handler)
     }

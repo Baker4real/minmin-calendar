@@ -1013,6 +1013,62 @@ for (const id of Object.keys(openers)) {
   })
 }
 
+test('real WXS same-frame A→B→A resets keep each sheet latest clear signal', async t => {
+  const app = homeApp(t, {
+    selectors: {
+      '.sheet-slide-monthPicker': { height: 400 },
+      '.sheet-slide-infoSheet': { height: 400 },
+      '.sheet-slide-dayActions': { height: 400 }
+    }
+  })
+  const home = await launch(app)
+  await openSheet(app, home, 'monthPicker')
+  await openSheet(app, home, 'infoSheet')
+  await openSheet(app, home, 'dayActions')
+
+  const startDrag = (id, dy, timeStamp) => {
+    const currentTarget = { dataset: { sheet: id } }
+    const touch = { identifier: 1, pageX: 100, pageY: 100 }
+    app.dispatch(home, 'sheetDrag.touchStart', { currentTarget, touches: [touch], timeStamp })
+    app.dispatch(home, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 100 + dy }], timeStamp })
+    return { currentTarget, touch }
+  }
+  const resetDrag = (id, dy, timeStamp) => {
+    const { currentTarget, touch } = startDrag(id, dy, timeStamp)
+    app.dispatch(home, 'sheetDrag.touchCancel', { currentTarget, changedTouches: [{ ...touch, pageY: 100 + dy }], timeStamp })
+  }
+
+  resetDrag('monthPicker', 40, 1000)
+  const closing = startDrag('infoSheet', 140, 2000)
+  app.dispatch(home, 'sheetDrag.touchEnd', {
+    currentTarget: closing.currentTarget,
+    changedTouches: [{ ...closing.touch, pageY: 240 }],
+    timeStamp: 2100
+  })
+  resetDrag('monthPicker', 80, 3000)
+  resetDrag('dayActions', 60, 4000)
+
+  assert.equal(app.viewStyle(home, '.sheet-slide-monthPicker').transform, 'translateY(80px)')
+  assert.equal(app.viewStyle(home, '.sheet-slide-infoSheet').transform, 'translateY(140px)')
+  assert.equal(app.viewStyle(home, '.sheet-slide-dayActions').transform, 'translateY(60px)')
+  app.commit(home)
+  await app.advance(16)
+
+  assert.deepEqual([
+    app.viewStyle(home, '.sheet-slide-monthPicker').transform,
+    app.viewStyle(home, '.sheet-slide-infoSheet').transform,
+    app.viewStyle(home, '.sheet-slide-dayActions').transform
+  ], ['', '', ''], 'no same-frame clear may be overwritten by another sheet or an older reset')
+  assert.deepEqual(home.data.sheetDragClear, {
+    monthPicker: { token: 2, action: 'reset', sheet: 'monthPicker' },
+    dayActions: { token: 1, action: 'reset', sheet: 'dayActions' },
+    infoSheet: { token: 1, action: 'close', sheet: 'infoSheet' }
+  })
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-open')
+  assert.equal(sheet(app, home, 'dayActions').pose, 'sheet-open')
+  assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-leaving')
+})
+
 test('real WXS sheet touchcancel restores the open pose and clears drag displacement', async t => {
   const app = homeApp(t, { selectors: { '.sheet-slide-monthPicker': { height: 400 } } })
   const home = await launch(app)

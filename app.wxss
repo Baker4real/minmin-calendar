@@ -17,6 +17,7 @@ page {
   /* Semantic Colors — 实色字面量只留在 token 定义块（issue #245） */
   --color-danger: #F97373;
   --color-memory: #F0C4C0;
+  --memory-gold: var(--aurora-gold);
   --text-on-accent: #0A0E27;
 
   /* Glass */
