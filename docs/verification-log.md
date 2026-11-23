@@ -172,4 +172,4 @@ D2：上游 24 位候选 331,567B 已触发量化；本票回读未变的最终�
 
 直接环境证据与完成边界：官方 CLI open/auto、close/open 和 MCP `simulator_refresh` 后，运行态仍反复报 `module 'utils/__captureProbe.js' is not defined`；preflight 的 CLI、automator、项目窗口和页面启动 PASS，但 `DevTools loaded project.config.json` 为 SKIP。所有本轮 sidecar 因而不是 `current`，而是 `runtime-unconfirmed`；仓库外矩阵 `D:/agents/tmp/minmin-aurora-249/262-visual-matrix.json` 及 `.sha256` 对账为 0 processed / 45 pending，不把观察图冒充 current 通过。`pages/memory/memory` 的兼容路由观察停在空白 memory route、记录 tab 虽选中但未完成跳转，记未验证而非通过。
 
-未验证：所有需要 compiled-module current proof 的视觉格；真实坐标可达与物理按压（次快捷黑边、把手微光/拖拽）；真实滚轮惯性及 pick 事件顺序；键盘完成栏、原生 toast 外观、原生分享面板；VoiceOver/TalkBack 实听、真机触感、系统减弱动效实机、物理系统返回、键盘顶起和低端设备性能；memory 兼容路由问题是否仅为 automator 接缝及其真实用户路径。小屏微信运行态、多机型矩阵和真机按维护者决定不做。代码质量面板本轮未刷新。未读取、截取或上传真实房间、真实日期/备注/房间码，未做真实云写入；本 epic 未改云函数、未部署。
+未验证：所有需要 compiled-module current proof 的视觉格；真实坐标可达与物理按压（次快捷黑边、把手微光/拖拽）；真实滚轮惯性及 pick 事件顺序；键盘完成栏、原生 toast 外观、原生分享面板；VoiceOver/TalkBack 实听、真机触感、系统减弱动效实机、物理系统返回、键盘顶起和低端设备性能；memory 兼容路由问题是否仅为 automator 接缝及其真实用户路径。小屏微信运行态、多机型矩阵和真机按维护者决定不做。代码质量面板本轮未刷新。未截取或上传真实房间画面、真实日期/备注/房间码；存储快照只由 withStandin 用于本地恢复与哈希核对。未做真实云写入；本 epic 未改云函数、未部署。
