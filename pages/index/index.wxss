@@ -1564,20 +1564,38 @@ button.home-share-invite {
 .skeleton-cell {
   width: 14.28%;
   height: var(--calendar-row-height, 148rpx);
-  padding: 4rpx 0;
+  padding: 4rpx 2rpx;
   box-sizing: border-box;
+  background-clip: content-box;
 }
 .calendar-density-compact .skeleton-cell {
   padding-bottom: 12rpx;
 }
 .calendar-info-merged .skeleton-cell {
-  padding: 8rpx 0 4rpx;
+  padding: 8rpx 2rpx 4rpx;
 }
 .skeleton-control,
 .skeleton-month-title,
 .skeleton-status-bar,
 .skeleton-week-cell,
 .skeleton-cell {
+  background: rgba(255,255,255,0.08);
+}
+/* 翻月圆钮不再叠加真实按钮的玻璃底与平涂层，和其他骨架块保持同一弱白亮度。 */
+.nav-btn.skeleton-control {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.08);
+}
+.nav-btn.skeleton-control::before {
+  background-color: transparent;
+}
+.skeleton-cell.skeleton-cell-empty {
+  background: transparent;
+}
+.skeleton-quick-action {
+  flex: 1;
+  min-height: 104rpx;
+  border-radius: var(--radius-card);
   background: rgba(255,255,255,0.08);
 }
 .skeleton-status-bar,

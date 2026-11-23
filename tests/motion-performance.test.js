@@ -625,6 +625,24 @@ test('infinite animations stay inside the registered registry with slow decorati
   assert.deepEqual(skeletonDefinitions, ['app.wxss'], 'skeletonPulse has one shared definition')
 })
 
+test('home and record skeletons pulse only at their parent containers', () => {
+  const pulses = []
+  for (const file of analyzedWxssFiles()) {
+    if (!['pages/index/index.wxss', 'pages/period/period.wxss'].includes(file.relative)) continue
+    for (const rule of file.rules) {
+      if (rule.inReducedMotion) continue
+      for (const animation of ruleAnimations(rule)) {
+        if (animation.name !== 'skeletonPulse') continue
+        for (const selector of rule.selectors) pulses.push(`${file.relative} ${selector}`)
+      }
+    }
+  }
+  assert.deepEqual(pulses.sort(), [
+    'pages/index/index.wxss .calendar-skeleton',
+    'pages/period/period.wxss .skeleton-card'
+  ])
+})
+
 test('retired decoration, loading and month-change animations stay gone', () => {
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
