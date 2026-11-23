@@ -31,22 +31,34 @@
         <view class="cycle-stats">
           <view class="cycle-item">
             <text class="cycle-label">总记录</text>
-            <!-- 首次加载失败时不给确信的 0；已成功加载过则保留上次的数字 -->
-            <text wx:if="{{!loading && (!loadFailed || hasLoaded)}}" class="cycle-num">{{periodCount}}</text>
-            <text wx:elif="{{!loading}}" class="cycle-num">--</text>
-            <text wx:else class="cycle-num cycle-num-placeholder" aria-hidden="true"></text>
+            <view class="cycle-value">
+              <!-- 首次加载失败时不给确信的 0；已成功加载过则保留上次的数字 -->
+              <text wx:if="{{!loading && (!loadFailed || hasLoaded)}}" class="cycle-num">{{periodCount}}</text>
+              <text wx:elif="{{!loading}}" class="cycle-num">--</text>
+              <text wx:else class="cycle-num cycle-num-placeholder" aria-hidden="true"></text>
+            </view>
           </view>
           <view class="cycle-item">
             <text class="cycle-label">平均周期</text>
-            <text wx:if="{{!loading && avgCycle}}" class="cycle-num">{{avgCycle}} 天</text>
-            <text wx:elif="{{!loading}}" class="cycle-num">--</text>
-            <text wx:else class="cycle-num cycle-num-placeholder" aria-hidden="true"></text>
+            <view class="cycle-value">
+              <block wx:if="{{!loading && avgCycle}}">
+                <text class="cycle-num">{{avgCycle}}</text>
+                <text class="cycle-unit">天</text>
+              </block>
+              <text wx:elif="{{!loading}}" class="cycle-num">--</text>
+              <text wx:else class="cycle-num cycle-num-placeholder" aria-hidden="true"></text>
+            </view>
           </view>
           <view class="cycle-item">
             <text class="cycle-label">平均持续</text>
-            <text wx:if="{{!loading && avgDuration}}" class="cycle-num">{{avgDuration}} 天</text>
-            <text wx:elif="{{!loading}}" class="cycle-num">--</text>
-            <text wx:else class="cycle-num cycle-num-placeholder" aria-hidden="true"></text>
+            <view class="cycle-value">
+              <block wx:if="{{!loading && avgDuration}}">
+                <text class="cycle-num">{{avgDuration}}</text>
+                <text class="cycle-unit">天</text>
+              </block>
+              <text wx:elif="{{!loading}}" class="cycle-num">--</text>
+              <text wx:else class="cycle-num cycle-num-placeholder" aria-hidden="true"></text>
+            </view>
           </view>
         </view>
       </view>
@@ -57,7 +69,7 @@
            本机已保存、还没同步的记录照常列在它下面（#194） -->
       <view wx:if="{{loadFailed && !hasLoaded && !loading}}" class="empty-state record-empty load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试" hover-class="load-failed-hover">
         <text class="load-failed-text">经期记录加载失败</text>
-        <view class="retry-btn" hover-class="retry-btn-hover">重试</view>
+        <view class="btn-premium button-primary retry-btn" hover-class="btn-premium-hover">重试</view>
       </view>
       <view wx:if="{{periodCount > 0 && !loading}}" class="period-year-list">
         <view class="period-year" wx:for="{{periodGroups}}" wx:key="key" wx:for-item="yearGroup">
@@ -68,14 +80,18 @@
           <view wx:if="{{yearGroup.expanded}}">
           <view class="premium-card glass-surface month-card" wx:for="{{yearGroup.months}}" wx:key="key" wx:for-item="group">
             <view class="month-header" bindtap="togglePeriodMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-class="month-header-hover">
-              <text class="month-header-text">{{group.title}}</text>
+              <view class="month-header-text">
+                <text>{{group.title}}</text>
+                <text wx:if="{{!group.expanded}}" class="month-count" aria-hidden="true">· {{group.count}} 条</text>
+              </view>
               <text class="month-toggle">{{group.toggleLabel}}</text>
             </view>
             <block wx:if="{{group.expanded}}">
               <view class="list-item" wx:for="{{group.records}}" wx:key="_id" bindtap="editPeriod" data-id="{{item._id}}" aria-role="button" aria-label="编辑经期记录 {{item.rangeSummary}}" hover-class="list-item-hover">
                 <view class="item-left">
-                  <view class="item-date">{{item.dateLabel}}</view>
-                  <view wx:if="{{item.authorLabel}}" class="item-note">{{item.authorLabel}}</view>
+                  <view class="item-date">
+                    <text>{{item.dateLabel}}</text><text wx:if="{{item.authorLabel}}" class="item-author"> · {{item.authorLabel}}</text>
+                  </view>
                   <view wx:if="{{item.flowLabel || item.symptomText}}" class="item-tags">
                     <text wx:if="{{item.flowLabel}}" class="item-tag flow">{{item.flowLabel}}</text>
                     <text wx:for="{{item.symptomLabels}}" wx:for-item="tag" wx:key="*this" class="item-tag">{{tag}}</text>
@@ -121,7 +137,7 @@
            本机已保存、还没同步的记录照常列在它下面（#194） -->
       <view wx:if="{{memoryLoadFailed && !memoryHasLoaded && !memoryLoading}}" class="empty-state record-empty load-failed" bindtap="loadMemoryData" aria-role="button" aria-label="加载失败，点按重试" hover-class="load-failed-hover">
         <text class="load-failed-text">欢乐时光加载失败</text>
-        <view class="retry-btn" hover-class="retry-btn-hover">重试</view>
+        <view class="btn-premium button-primary retry-btn" hover-class="btn-premium-hover">重试</view>
       </view>
       <!-- 欢乐时光月份分组（issue #108）：每月一张玻璃卡，卡头写年月与条数；
            点卡头切换展开/收起，默认全部收起（2026-11-14 取代 #143 的最近三个月默认展开），收起时组内行不渲染 -->

@@ -46,6 +46,8 @@ const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'pages/index/index.wxss', selector: '.detail-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/period/period.wxss', selector: '.item-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/period/period.wxss', selector: '.cycle-num', kind: 'display', value: '44rpx' },
+  // #258：周期概览大数字旁的次要「天」单位，与 44rpx 主数字共享基线。
+  { file: 'pages/period/period.wxss', selector: '.cycle-unit', kind: 'display', value: '24rpx' },
   { file: 'pages/period/period.wxss', selector: '.memory-heart', kind: 'glyph', value: '36rpx' },
   { file: 'pages/period/period.wxss', selector: '.memory-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/shared/record-form.wxss', selector: '.form-picker-arrow', kind: 'glyph', value: '32rpx' },

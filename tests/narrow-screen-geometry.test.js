@@ -1513,3 +1513,25 @@ test('bottom inset lands on non-tab page content; tab pages stay lean behind the
     )
   }
 })
+
+test('record dashboard uses three equal tracks with middle-column hairlines', () => {
+  const rules = parseWxssRules(readRepo('pages/period/period.wxss'))
+  const stats = findDecls(rules, '.cycle-stats')
+  assert.equal(stats.display, 'grid')
+  assert.equal(stats['grid-template-columns'].replaceAll(' ', ''), 'repeat(3,minmax(0,1fr))')
+  const middle = findDecls(rules, '.cycle-item:nth-child(2)')
+  assert.equal(middle['border-left'], '1px solid rgba(255,255,255,0.07)')
+  assert.equal(middle['border-right'], '1px solid rgba(255,255,255,0.07)')
+  assert.equal(middle['box-sizing'], 'border-box')
+})
+
+test('period rows keep horizontal separation and protect their trailing controls', () => {
+  const rules = parseWxssRules(readRepo('pages/period/period.wxss'))
+  const row = findDecls(rules, '.list-item')
+  assert.equal(row.gap, '16rpx')
+  for (const selector of ['.item-right', '.item-duration', '.item-arrow']) {
+    const decls = findDecls(rules, selector)
+    assert.equal(decls['flex-shrink'], '0', `${selector} never shrinks`)
+    assert.equal(decls['white-space'], 'nowrap', `${selector} stays on one line`)
+  }
+})
