@@ -120,20 +120,6 @@ Page(withPageVisibility({
     year: INITIAL_VIEW_DATE.getFullYear(),
     month: INITIAL_VIEW_DATE.getMonth(),
     weekDays: ['日','一','二','三','四','五','六'],
-    jumpMonths: [
-      { value: 0, label: '1月' },
-      { value: 1, label: '2月' },
-      { value: 2, label: '3月' },
-      { value: 3, label: '4月' },
-      { value: 4, label: '5月' },
-      { value: 5, label: '6月' },
-      { value: 6, label: '7月' },
-      { value: 7, label: '8月' },
-      { value: 8, label: '9月' },
-      { value: 9, label: '10月' },
-      { value: 10, label: '11月' },
-      { value: 11, label: '12月' }
-    ],
     jumpMonth: 0,
     ...buildJumpYearState(INITIAL_VIEW_DATE.getFullYear()),
     ...monthNavState(INITIAL_VIEW_DATE.getFullYear(), INITIAL_VIEW_DATE.getMonth()),
@@ -763,10 +749,16 @@ function nextCalendarToken(current, kind) {
 
 function buildJumpYearState(year) {
   const jumpYear = Math.min(JUMP_YEAR_MAX, Math.max(JUMP_YEAR_MIN, year))
+  const today = new Date()
   return {
     jumpYear,
     jumpYearAtMin: jumpYear <= JUMP_YEAR_MIN,
-    jumpYearAtMax: jumpYear >= JUMP_YEAR_MAX
+    jumpYearAtMax: jumpYear >= JUMP_YEAR_MAX,
+    jumpMonths: Array.from({ length: 12 }, (_, value) => ({
+      value,
+      label: `${value + 1}月`,
+      isRealTodayMonth: jumpYear === today.getFullYear() && value === today.getMonth()
+    }))
   }
 }
 

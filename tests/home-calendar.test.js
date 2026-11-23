@@ -52,6 +52,13 @@ function classes(className, data) {
   // An unset optional WXML flag renders as false on the platform.
   return renderWxmlClasses(tagWith(className).attrs.class, { pageHidden: false, ...data })
 }
+function infoSheetSubtitle(data) {
+  const start = wxml.indexOf('class="sheet-host calendar-info-sheet"')
+  assert.ok(start >= 0, 'expected the information sheet host')
+  const match = wxml.slice(start).match(/<text\b[^>]*class="[^"]*sheet-subtitle[^"]*"[^>]*>([\s\S]*?)<\/text>/)
+  assert.ok(match, 'expected the information sheet subtitle')
+  return renderWxmlAttribute(match[1], data)
+}
 function legendClasses(data) {
   const item = data.legendItems.find(item => item.key === 'period')
   return classes('legend-sample', { ...data, item })
@@ -968,6 +975,20 @@ test('information sheets open directly as named content and recap can reopen dur
   assert.equal(app.wx.actionSheets.length, 0)
 })
 
+test('only the monthly recap information sheet shows the browsed year and month', async t => {
+  const app = homeApp(t, { now: '2026-11-08T12:00:00+08:00' })
+  const home = await launch(app)
+  for (const [handler, expected] of [
+    ['openLegendSheet', ''],
+    ['openPredictionSheet', ''],
+    ['openMonthlyRecap', '2026年11月']
+  ]) {
+    await tap(app, home, handler)
+    assert.equal(infoSheetSubtitle(app.rendered(home)), expected)
+    await closeSheet(app, home, 'infoSheet')
+  }
+})
+
 for (const id of Object.keys(openers)) {
   test(`${id} real WXS drag uses speed, distance and direction`, async t => {
     const app = homeApp(t, { selectors: { [`.sheet-slide-${id}`]: { height: 400 } } })
@@ -1085,6 +1106,31 @@ test('month picker year browsing preserves the active month and one month select
   assert.equal(calendarFrames(home), framesBeforeBrowsing + 1, 'one selection submits exactly one whole month')
   assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-leaving')
   assert.equal(classes('jump-option', { ...app.rendered(home), item: { value: 2 } }).includes('active'), true)
+})
+
+test('month picker marks the real today month across year browsing and active selection', async t => {
+  const app = homeApp(t, { now: '2026-11-08T12:00:00+08:00' })
+  const home = await launch(app)
+  await tap(app, home, 'openMonthPicker')
+
+  let data = app.rendered(home)
+  assert.deepEqual(data.jumpMonths.filter(item => item.isRealTodayMonth).map(item => item.value), [10])
+  assert.ok(classes('jump-option', { ...data, item: data.jumpMonths[10] }).includes('active'))
+  assert.ok(classes('jump-option', { ...data, item: data.jumpMonths[10] }).includes('real-today'))
+  assert.equal(attr('jump-option', 'aria-label', { ...data, item: data.jumpMonths[10] }), '选择11月，本月')
+
+  await tap(app, home, 'shiftJumpYear', { delta: 1 })
+  data = app.rendered(home)
+  assert.deepEqual(data.jumpMonths.filter(item => item.isRealTodayMonth), [])
+  assert.equal(attr('jump-option', 'aria-label', { ...data, item: data.jumpMonths[10] }), '选择11月')
+
+  await tap(app, home, 'shiftJumpYear', { delta: -1 })
+  await tap(app, home, 'selectJumpMonth', { month: 2 })
+  data = app.rendered(home)
+  const currentMonthClasses = classes('jump-option', { ...data, item: data.jumpMonths[10] })
+  assert.ok(currentMonthClasses.includes('real-today'))
+  assert.equal(currentMonthClasses.includes('active'), false)
+  assert.equal(attr('jump-option', 'aria-label', { ...data, item: data.jumpMonths[10] }), '选择11月，本月')
 })
 
 test('month button accessible name includes the active year and month', async t => {

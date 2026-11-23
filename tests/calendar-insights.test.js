@@ -22,7 +22,6 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
     lines: [
       '参考最近 5 次有效周期',
       '平均周期 28 天，平均持续 5 天',
-      '预计持续 5 天',
       '最近几次很规律，估得比较准',
       '已忽略 1 次波动较大的记录',
       '根据记录估算，不是医疗建议'
@@ -30,10 +29,9 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
     lineItems: [
       { key: 'prediction:0', text: '参考最近 5 次有效周期' },
       { key: 'prediction:1', text: '平均周期 28 天，平均持续 5 天' },
-      { key: 'prediction:2', text: '预计持续 5 天' },
-      { key: 'prediction:3', text: '最近几次很规律，估得比较准' },
-      { key: 'prediction:4', text: '已忽略 1 次波动较大的记录' },
-      { key: 'prediction:5', text: '根据记录估算，不是医疗建议' }
+      { key: 'prediction:2', text: '最近几次很规律，估得比较准' },
+      { key: 'prediction:3', text: '已忽略 1 次波动较大的记录' },
+      { key: 'prediction:4', text: '根据记录估算，不是医疗建议' }
     ]
   })
 })
@@ -503,7 +501,6 @@ test('prediction explanation states where the predicted duration comes from', ()
   assert.deepEqual(defaulted.lines, [
     '参考最近 1 次有效周期',
     '平均周期 28 天，经期时长暂无已知记录，先按默认 5 天估',
-    '预计持续 5 天',
     '记录还不多，仅供参考',
     '根据记录估算，不是医疗建议'
   ])
