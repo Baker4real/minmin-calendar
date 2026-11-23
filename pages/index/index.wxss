@@ -69,18 +69,25 @@
   50% { opacity: 1; transform: scale(1.15); }
 }
 
-.partner-welcome {
+.partner-welcome,
+.partner-invite {
   display: block;
-  margin: 0 24rpx;
-  padding: 8rpx 0 12rpx;
+  align-items: center;
+  margin: 0;
+  /* 各用 1px padding 吸收描边，文案、按钮与边框合计仍严守 103.2rpx 槽高。 */
+  padding: calc(8rpx - 1px) 16rpx calc(12rpx - 1px);
   box-sizing: border-box;
-  text-align: center;
+  border: 1px solid rgba(232,144,158,0.2);
+  border-radius: var(--radius-card);
+  background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
+  text-align: left;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.85);
 }
 .partner-welcome {
+  color: rgba(255,255,255,0.85);
   transition: transform var(--duration-press) var(--ease-out);
 }
 .partner-welcome:active,
@@ -90,14 +97,6 @@
 .partner-invite {
   display: flex;
   align-items: center;
-  box-sizing: border-box;
-  margin: 0 24rpx;
-  padding: 8rpx 0 12rpx;
-  text-align: left;
-  font-size: var(--font-size-caption);
-  font-weight: var(--font-weight-body);
-  line-height: var(--line-height-body);
-  color: rgba(255,255,255,0.85);
 }
 .partner-invite-copy {
   flex: 1;
@@ -106,22 +105,38 @@
 .partner-invite-title,
 .partner-invite-desc {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .partner-invite-title {
   font-weight: var(--font-weight-control);
+}
+.home-share-invite {
+  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-press) ease, border-color var(--duration-press) ease;
 }
 button.home-share-invite {
   flex: 0 0 auto;
   width: auto;
   min-width: 112rpx;
-  min-height: 103.2rpx;
-  margin: -8rpx 0 -12rpx 8rpx;
+  min-height: 88rpx;
+  /* 88 - 2 × 2.4 = 83.2rpx，与左侧两行 caption 同高，不撑大共享槽位。 */
+  margin: -2.4rpx 0 -2.4rpx 12rpx;
   padding: 0 16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid rgba(232,144,158,0.32);
+  border-radius: var(--radius-full);
+  background: rgba(232,144,158,0.1);
+  color: var(--aurora-pink);
   font-size: var(--font-size-caption);
   line-height: var(--line-height-title);
+}
+.home-share-invite:active,
+.home-share-invite.home-share-invite-hover {
+  transform: scale(0.96);
+  background: rgba(232,144,158,0.16);
+  border-color: rgba(232,144,158,0.45);
 }
 
 /* 刷新失败重试句的位置仍在月份导航与周头之间；整行玫瑰句外观共用 shared/retry-row.wxss（#234）。 */
@@ -253,7 +268,9 @@ button.home-share-invite {
   flex-direction: column;
   box-sizing: border-box;
   padding: 0 var(--space-page-gutter);
-  background: var(--aurora-bg);
+  background: linear-gradient(180deg, rgba(10,14,39,0.86) 0%, rgba(10,14,39,0.94) 100%);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 /* 占位 = 月份导航 130 + 状态行 88（+「回到今天」88），另加月份导航 1px 上下描边与 R5 吸顶底边 1px，下方第一行不被吸顶区盖住 */
@@ -290,7 +307,8 @@ button.home-share-invite {
   align-items: center;
   gap: 8rpx;
   box-sizing: border-box;
-  padding: 0;
+  padding: 0 4rpx;
+  border-radius: var(--radius-md);
   color: var(--text-primary);
   transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
 }
@@ -359,6 +377,7 @@ button.home-share-invite {
   border-radius: 0 0 var(--radius-card) var(--radius-card);
   padding: 6rpx 10rpx;
   box-shadow: 0 16rpx 64rpx rgba(0,0,0,0.2);
+  transition: opacity var(--duration-state) ease;
 }
 /* 格子外的一层（issue #165）：翻月滑入只动这一层，卡片、周头和月份标题不动。这一层没有盒子
    （无内外边距、无描边、不定宽高），日期格宽度仍按网格内容宽算，几何账本不变 */
@@ -785,13 +804,16 @@ button.home-share-invite {
 .month-summary {
   min-height: 88rpx;
   margin-top: 16rpx;
-  padding: 0 8rpx 0 4rpx;
+  padding: 0 24rpx;
   display: flex;
   align-items: center;
   gap: 12rpx;
   box-sizing: border-box;
+  border-radius: var(--radius-card);
+  background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
+  border: 1px solid rgba(255,255,255,0.12);
   color: var(--text-primary);
-  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
+  transition: opacity var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
 .month-summary-text {
   flex: 1;
@@ -804,10 +826,15 @@ button.home-share-invite {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.month-summary-arrow {
+  flex: none;
+  font-size: var(--font-size-caption);
+  line-height: 1;
+  color: var(--text-secondary);
+}
 .month-summary:active,
 .month-summary.month-summary-hover {
   transform: scale(0.98);
-  background: rgba(255,255,255,0.06);
 }
 
 /* ===== Quick Actions — 经期实色主操作 + 欢乐时光 button-ghost 次操作 ===== */
@@ -815,6 +842,7 @@ button.home-share-invite {
   display: flex;
   gap: 20rpx;
   margin-top: 10rpx;
+  transition: opacity var(--duration-state) ease;
 }
 .quick-btn {
   flex: 1;
@@ -825,7 +853,7 @@ button.home-share-invite {
   padding: 14rpx 24rpx;
   background: var(--aurora-pink);
   color: var(--text-on-accent);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
   border: 1px solid rgba(255,255,255,0.16);
   transition: transform var(--duration-press) var(--ease-out);
 }
@@ -858,20 +886,19 @@ button.home-share-invite {
   word-break: keep-all;
   color: var(--text-on-accent);
 }
-/* 欢乐时光是次操作：沿用 button-ghost 的透明底、玫瑰描边与玫瑰字；半栏几何和触控高度仍由 .quick-btn 给。
-   透明按钮落在自己的画布海军面上，不让极光峰值把玫瑰字压到 4.5:1 以下。 */
+/* 欢乐时光是次操作：画布海军底、玫瑰描边与玫瑰字都画在随按压缩放的按钮自身；
+   宿主只负责半栏布局，不再留下静止黑边。 */
 .quick-ghost-surface {
   flex: 1;
   min-width: 0;
   display: flex;
-  background: var(--aurora-bg);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-card);
 }
 .quick-btn.btn-ghost {
-  background: transparent;
+  background: var(--aurora-bg);
   color: #E8909E;
   border: 1.5px solid #E8909E;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-card);
 }
 .quick-btn.btn-ghost::before {
   box-shadow: none;
@@ -896,6 +923,7 @@ button.home-share-invite {
   background: rgba(255,255,255,0.06);
   border-style: dashed;
   border-color: rgba(255,255,255,0.16);
+  transition: opacity var(--duration-state) ease;
 }
 .empty-guide-text {
   font-size: var(--font-size-caption);
@@ -1551,9 +1579,13 @@ button.home-share-invite {
   .calendar-days.calendar-flip-prev-a,
   .calendar-days.calendar-flip-prev-b,
   .partner-welcome,
+  .home-share-invite,
   .back-today,
   .home-status,
   .month-summary,
+  .calendar-grid,
+  .quick-actions,
+  .empty-guide,
   .calendar-skeleton,
   .quick-btn,
   .copy-recap,
