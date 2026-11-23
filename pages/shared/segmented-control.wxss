@@ -9,12 +9,13 @@
   box-sizing: border-box;
 }
 
-/* 卡内变体：绑定与设置直接落在现有卡片上，不另铺一张分段卡片。 */
+/* 卡内变体：绑定与设置共用内凹深色轻玻璃轨道。 */
 .density-control,
 .tab-bar {
-  padding: 0;
-  border: 0;
-  background: transparent;
+  padding: 6rpx;
+  border-radius: var(--radius-card);
+  background: rgba(10,14,39,0.45);
+  border: 1px solid rgba(255,255,255,0.07);
 }
 
 /* 画布上变体：记录 tab 直接压在极光上，海军回退保证文字对比度。 */
@@ -38,17 +39,25 @@
   font-weight: var(--font-weight-control);
   color: rgba(255,255,255,0.72);
   border: 1px solid transparent;
-  transition: background-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
+  transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
+}
+
+/* 绑定首屏尚未选择入口时，两枚入口以等权玫瑰轻玻璃呈现；选择后由 active 接管。 */
+.tab.tab-equal {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(232,144,158,0.28);
+  color: rgba(255,255,255,0.92);
 }
 
 .segment-option.active,
 .density-option.active,
 .tab.active {
-  color: #E8909E;
+  color: var(--aurora-pink);
   background: rgba(232,144,158,0.08);
   border-color: rgba(232,144,158,0.45);
   font-weight: var(--font-weight-control);
   box-shadow: none;
+  transition: background-color var(--duration-press) ease, border-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
 
 .segment-option:active,
@@ -61,10 +70,24 @@
   background: rgba(255,255,255,0.1);
 }
 
+.segment-option:active.active,
+.segment-option.segment-option-hover.active,
+.density-option:active.active,
+.density-option.density-option-hover.active,
+.tab:active.active,
+.tab.tab-hover.active {
+  transform: scale(0.98);
+  background: rgba(232,144,158,0.14);
+  border-color: rgba(232,144,158,0.58);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .segment-option,
+  .segment-option.active,
   .density-option,
-  .tab {
+  .density-option.active,
+  .tab,
+  .tab.active {
     animation: none;
     transition: none;
   }

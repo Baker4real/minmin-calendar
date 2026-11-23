@@ -515,9 +515,10 @@ test('assist tracking is one token, and tight or single-character text stays nat
     'var(--letter-spacing-room-code)'
   )
   assert.equal(
-    declsOf('pages/bind/bind.wxss', '.code-input')['letter-spacing'],
+    declsOf('pages/bind/bind.wxss', '.code-input.code-input-filled')['letter-spacing'],
     'var(--letter-spacing-code-input)'
   )
+  assert.equal(declsOf('pages/bind/bind.wxss', '.code-input.code-input-empty')['letter-spacing'], '2rpx')
   assert.equal(declsOf('pages/settings/settings.wxss', '.room-code-value.muted')['letter-spacing'], '0')
 
   const allowed = new Set([
@@ -530,7 +531,9 @@ test('assist tracking is one token, and tight or single-character text stays nat
     for (const rule of parseWxssRules(readSource(file, 'utf8'))) {
       const spacing = rule.decls['letter-spacing']
       if (!spacing) continue
-      if (!allowed.has(spacing)) {
+      const codePlaceholder = relative === 'pages/bind/bind.wxss' &&
+        rule.selectors.includes('.code-input.code-input-empty') && spacing === '2rpx'
+      if (!codePlaceholder && !allowed.has(spacing)) {
         violations.push(`${relative} ${rule.selectors.join(', ')}: letter-spacing ${spacing}`)
       }
     }
