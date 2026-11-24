@@ -235,3 +235,28 @@ intent: "将 2026-11-24 全仓深度审美与流体交互审计的全部六项�
   - 微信当前基础库 WebView 内核支持标准遮罩图像属性渲染内联矢量图标，以及双层网格行高 `0fr` 至 `1fr` 过渡；实现切片在模拟器实测核对，若个别旧样式属性需带内核前缀则同处成对声明。
   - 欢乐时光列表行点滴正文最多展示两行（超出省略），兼顾手账可读性与单屏浏览密度；点击整行进入信笺编辑页即可阅读与编辑全文。
 - **公开仓库隐私红线**：本仓库与议题追踪器完全公开，任何规格正文、子票正文、提交记录与入库截图严禁包含真实伴侣房间码、真实周期日期、真实点滴文本或本机路径，一律使用替身房间 `ABC123` 与构造示例。
+
+## 拆分记录（仓库副本独有，不在父票正文里）
+
+2026-11-24 用 to-tickets 把本规格全量拆成 12 张垂直切片子票：[#264](https://github.com/Baker4real/minmin-calendar/issues/264) 到 [#275](https://github.com/Baker4real/minmin-calendar/issues/275)，全部挂在父票 [#263](https://github.com/Baker4real/minmin-calendar/issues/263) 下，标记 `ready-for-agent`，阻塞关系用 GitHub 原生 blocked-by 边表达。
+
+| 序号 | 子票 | 前置阻塞（原生 blocked-by） | 交付范围摘要 |
+|---|---|---|---|
+| 01 | [#264 01 自有日期滚轮像素级对齐与外置深海渐变遮罩](https://github.com/Baker4real/minmin-calendar/issues/264) | 无（可立即并行启动） | 运行时单行整数像素高度同步、关闭内置平铺遮罩并改用外置两行高深海军渐变遮罩、滚轮留白与惯性锁护栏 |
+| 02 | [#265 02 高清邀请分享卡真基线重制、满幅源图标与三倍底栏图标](https://github.com/Baker4real/minmin-calendar/issues/265) | 无（可立即并行启动） | `1000×800` 整行基线邀请卡重绘（含判定规则 D1）、`1024×1024` 满幅源图标、`108×108` 三倍超采样光学配重底栏图标 |
+| 03 | [#266 03 内联圆端矢量图标体系与微观排印光学对齐底座](https://github.com/Baker4real/minmin-calendar/issues/266) | 无（可立即并行启动） | `1.75px` 圆端内联矢量图标遮罩库、行高与光渗字距新令牌、居中块对称补偿、胶囊内联弹性居中、中文自然断行与量词间距 |
+| 04 | [#267 04 共享顶栏毛玻璃防透字、沉浸首屏顶栏与编辑返回钮统一](https://github.com/Baker4real/minmin-calendar/issues/267) | [#266](https://github.com/Baker4real/minmin-calendar/issues/266) | 常规固定顶栏 `14px` 背景模糊与柔边、启动首屏沉浸透明占位顶栏、两个编辑页轻玻璃返回圆钮与坐标命中回归 |
+| 05 | [#268 05 底部弹层内层无滚条滚动、同心圆几何与小结预测精修](https://github.com/Baker4real/minmin-calendar/issues/268) | [#266](https://github.com/Baker4real/minmin-calendar/issues/266) | 把手常驻与 `.sheet-body` 无滚条滚动、`28rpx` 同心内边距、本月小结去重分段、预测说明暖金微边主卡、`80ms` 瞬时脱手速度 |
+| 06 | [#269 06 光影物理景深重构：顶光衰减玻璃卡、深海内凹输入槽与主按钮微高光](https://github.com/Baker4real/minmin-calendar/issues/269) | [#266](https://github.com/Baker4real/minmin-calendar/issues/266) | 顶光分边衰减玻璃卡与回退底裁定（判定规则 D2）、卡片内输入控件深海内凹槽与聚焦光环、实色主按钮顶缘微高光与静止降雾 |
+| 07 | [#270 07 全站零粘滞触摸参数、非对称按压回弹与分段控件流体滑块](https://github.com/Baker4real/minmin-calendar/issues/270) | [#269](https://github.com/Baker4real/minmin-calendar/issues/269) | 全站交互节点 `20ms / 70ms` 触摸参数与护栏、`90ms / 180ms` 非对称按压回弹、共享分段控件 `.segment-thumb` 玫瑰轻玻璃滑块 |
+| 08 | [#271 08 启动双琉璃心主视觉、绑定与设置凭证票根统一及设置分组收口](https://github.com/Baker4real/minmin-calendar/issues/271) | [#267](https://github.com/Baker4real/minmin-calendar/issues/267), [#270](https://github.com/Baker4real/minmin-calendar/issues/270) | 启动页与未绑定空态交叠双琉璃心徽章、绑定子表单网格平滑展开、跨页内凹凭证票根与修长复制胶囊、设置徽标左聚与「数据」双行卡 |
+| 09 | [#272 09 首页减框手账日历、标记邻近性归位、零跳动今字胶囊与阻尼翻月](https://github.com/Baker4real/minmin-calendar/issues/272) | [#268](https://github.com/Baker4real/minmin-calendar/issues/268), [#271](https://github.com/Baker4real/minmin-calendar/issues/271) | 首页拆框与合并日历卡、日历格标记邻近性归位与今日经期暗缝、内嵌「今」字胶囊零跳动、主快捷图标与骨架修复、横滑阻尼跟手与 `28rpx` 翻月 |
+| 10 | [#273 10 经期编辑三层控件分化、条件字段呼吸折叠与保存栏平滑升降](https://github.com/Baker4real/minmin-calendar/issues/273) | [#267](https://github.com/Baker4real/minmin-calendar/issues/267), [#270](https://github.com/Baker4real/minmin-calendar/issues/270) | 三等分内凹经期状态轨、带程度点经量块、柔和玫瑰淡底多选症状芯片、结束日期网格平滑伸缩、备注聚焦时底部保存栏平滑升降 |
+| 11 | [#274 11 记录页欢乐时光手账化、年月平滑折叠与顶栏同步胶囊刷新](https://github.com/Baker4real/minmin-calendar/issues/274) | [#267](https://github.com/Baker4real/minmin-calendar/issues/267), [#270](https://github.com/Baker4real/minmin-calendar/issues/270) | 欢乐时光题头卡与近月默认展开及双行暖白正文、信笺化编辑页、首次加载 `.skeleton-cta`、年月网格折叠与旋转折角、顶栏同步胶囊刷新 |
+| 12 | [#275 12 权威视觉动效文档同步、反模式复检与替身房间全链路验收](https://github.com/Baker4real/minmin-calendar/issues/275) | [#264](https://github.com/Baker4real/minmin-calendar/issues/264), [#265](https://github.com/Baker4real/minmin-calendar/issues/265), [#272](https://github.com/Baker4real/minmin-calendar/issues/272), [#273](https://github.com/Baker4real/minmin-calendar/issues/273), [#274](https://github.com/Baker4real/minmin-calendar/issues/274) | 视觉规范、动效文档与领域上下文对齐，反模式检测器与全量门禁复检，模拟器当前机型替身房间全链路验收与验证日志归档 |
+
+切片起跑面与收口顺序约定如下：
+
+- 三张无前置阻塞的基础切片可立即并行启动：自有日期滚轮像素对齐与外置遮罩（[#264](https://github.com/Baker4real/minmin-calendar/issues/264)）、高清邀请分享卡与三倍底栏图标重制（[#265](https://github.com/Baker4real/minmin-calendar/issues/265)）、内联圆端矢量图标体系与微观排印底座（[#266](https://github.com/Baker4real/minmin-calendar/issues/266)）。
+- 判定规则 D1（高清邀请卡色深与包体余量）在 [#265](https://github.com/Baker4real/minmin-calendar/issues/265) 实测落定，判定规则 D2（高级卡片微透回退底对比度）在 [#269](https://github.com/Baker4real/minmin-calendar/issues/269) 实算落定，两者的采用结果最终由总验收票 [#275](https://github.com/Baker4real/minmin-calendar/issues/275) 汇总记入验证日志的 epic 条目。
+- 权威文档同步、反模式复检与替身房间全链路运行态验收（[#275](https://github.com/Baker4real/minmin-calendar/issues/275)）排在全部功能与美学叶子切片之后统一收口。
