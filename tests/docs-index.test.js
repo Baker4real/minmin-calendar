@@ -2,6 +2,7 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { PUBLISHED_HOLIDAY_START_YEAR, PUBLISHED_HOLIDAY_END_YEAR } = require('../utils/chinaHolidays')
 
 // 文档索引与代码对账：README 承诺每个模块的职责都在 CONTEXT.md 的 Technical Shape 一节，ADR 索引按每篇的标题链接它。
 // 两处都曾悄悄落后于代码（2026-11-14 epic #189 收口时靠一次全文档审计才发现），这里把能机械判断的部分钉住；
@@ -60,10 +61,66 @@ test('every spec in docs/specs aligns frontmatter title with H1 and links ready-
       violations.push(`${name}: frontmatter must declare a non-empty quoted intent`)
     }
     if (/^label:\s*ready-for-agent\s*$/m.test(frontmatter)) {
-      if (!/^\*\*Issue:\*\* \[#\d+\]\(https:\/\/github\.com\/Baker4real\/minmin-calendar\/issues\/\d+\)$/.test(firstMetaLine)) {
+      const epicMatch = /^\*\*Issue:\*\* \[#(\d+)\]\(https:\/\/github\.com\/Baker4real\/minmin-calendar\/issues\/\1\)$/.exec(firstMetaLine)
+      if (!epicMatch) {
         violations.push(`${name}: ready-for-agent epic replica must follow H1 with **Issue:** [#<n>](https://github.com/Baker4real/minmin-calendar/issues/<n>)`)
+      } else {
+        const breakdownHeading = '\n## 拆分记录（仓库副本独有，不在父票正文里）\n'
+        const breakdownIndex = raw.indexOf(breakdownHeading)
+        if (breakdownIndex >= 0) {
+          const breakdown = raw.slice(breakdownIndex + breakdownHeading.length)
+          const linkedIssues = [...breakdown.matchAll(/https:\/\/github\.com\/Baker4real\/minmin-calendar\/issues\/(\d+)/g)]
+            .map(match => match[1])
+            .filter(id => id !== epicMatch[1])
+          if (linkedIssues.length === 0) {
+            violations.push(`${name}: 拆分记录 must link at least one sub-ticket GitHub Issue distinct from parent #${epicMatch[1]}`)
+          }
+          if (/(?<![\w/])#[0-2]\d\b/.test(breakdown)) {
+            violations.push(`${name}: 拆分记录 must not leave raw two-digit #00-#29 ticket placeholders`)
+          }
+        }
       }
     }
+  }
+  assert.deepEqual(violations, [])
+})
+
+test('CONTEXT.md and PRODUCT.md keep published holiday year bounds aligned with utils/chinaHolidays.js', () => {
+  const asciiRange = `${PUBLISHED_HOLIDAY_START_YEAR}-${PUBLISHED_HOLIDAY_END_YEAR}`
+  const enDashRange = `${PUBLISHED_HOLIDAY_START_YEAR}–${PUBLISHED_HOLIDAY_END_YEAR}`
+  assert.ok(
+    read('CONTEXT.md').includes(asciiRange),
+    `CONTEXT.md Holiday Data Boundary must state ${asciiRange}`
+  )
+  assert.ok(
+    read('PRODUCT.md').includes(enDashRange) || read('PRODUCT.md').includes(asciiRange),
+    `PRODUCT.md Capabilities and Constraints must state ${enDashRange}`
+  )
+})
+
+test('tracked markdown documents never use local drive-letter or UNC paths as markdown link targets', () => {
+  const walkMarkdown = dir => {
+    const results = []
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        if (['.git', 'node_modules', 'cloudfunctions', '.scratch', '.agents', '.claude', '.codex', '.serena', '.zcode', '_external'].includes(entry.name)) continue
+        results.push(...walkMarkdown(full))
+      } else if (entry.isFile() && entry.name.endsWith('.md')) {
+        results.push(path.relative(repoRoot, full).replace(/\\/g, '/'))
+      }
+    }
+    return results
+  }
+
+  const violations = []
+  for (const rel of walkMarkdown(repoRoot)) {
+    const lines = read(rel).split('\n')
+    lines.forEach((line, idx) => {
+      if (/\]\((?:[A-Za-z]:[\\/]|\\\\)/.test(line)) {
+        violations.push(`${rel}:${idx + 1}: local drive/UNC markdown link target`)
+      }
+    })
   }
   assert.deepEqual(violations, [])
 })

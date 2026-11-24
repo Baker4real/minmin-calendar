@@ -103,3 +103,40 @@ test('Windows cmd launchers preserve detector arguments', { skip: process.platfo
   const calls = fs.readFileSync(capture, 'utf8').trim().split('\n').map(JSON.parse)
   assert.deepEqual(calls, [['detect', '--json', out]])
 })
+
+test('default launcher auto-discovers an installed user skill and fails closed when absent', t => {
+  const { dir, out, capture } = fixture(t)
+  const emptyHome = path.join(dir, 'empty-home')
+  fs.mkdirSync(emptyHome, { recursive: true })
+  const missing = run(['--target', 'pages', '--out', out], {
+    IMPECCABLE_LAUNCHER: '',
+    IMPECCABLE_SKILL_HOME: emptyHome
+  })
+  assert.equal(missing.status, 1)
+  assert.match(missing.stderr, /Pass --launcher or set IMPECCABLE_LAUNCHER/)
+
+  const scriptName = process.platform === 'win32' ? 'impeccable.cmd' : 'impeccable'
+  const skillScripts = path.join(dir, 'skill-home', '.gemini', 'config', 'skills', 'impeccable', 'scripts')
+  fs.mkdirSync(skillScripts, { recursive: true })
+  const sourceStub = process.platform === 'win32'
+    ? path.join(repo, 'tests', 'fixtures', 'impeccable-detector-stub.cmd')
+    : stub
+  if (process.platform === 'win32') {
+    fs.writeFileSync(
+      path.join(skillScripts, scriptName),
+      `@echo off\r\n"${process.execPath}" "${stub}" %*\r\n`
+    )
+  } else {
+    fs.copyFileSync(sourceStub, path.join(skillScripts, scriptName))
+    fs.chmodSync(path.join(skillScripts, scriptName), 0o755)
+  }
+
+  const discovered = run(['--target', 'pages', '--out', out], {
+    IMPECCABLE_LAUNCHER: '',
+    IMPECCABLE_SKILL_HOME: path.join(dir, 'skill-home'),
+    IMPECCABLE_STUB_CAPTURE: capture
+  })
+  assert.equal(discovered.status, 0, discovered.stderr || discovered.stdout)
+  const calls = fs.readFileSync(capture, 'utf8').trim().split('\n').map(JSON.parse)
+  assert.deepEqual(calls, [['detect', '--json', out]])
+})

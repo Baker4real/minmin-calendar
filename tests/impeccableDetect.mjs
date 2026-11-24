@@ -1,9 +1,10 @@
 // 对微信小程序执行有覆盖声明的 Impeccable 静态检测。
-// 用法：node tests/impeccableDetect.mjs --target pages --launcher <impeccable(.cmd)> [--out <dir>]
+// 用法：node tests/impeccableDetect.mjs --target pages [--launcher <impeccable(.cmd)>] [--out <dir>]
 // 退出码与检测器一致：0 无命中，2 有候选；1 表示覆盖或调用失败。
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { generateImpeccableShims } from './impeccableShims.mjs'
@@ -17,6 +18,22 @@ for (let i = 2; i < process.argv.length; i += 2) {
 function fail(message) {
   console.error(message)
   process.exit(1)
+}
+
+function discoverDefaultLauncher() {
+  if (process.env.IMPECCABLE_DISABLE_AUTO_LAUNCHER === '1') return ''
+  const home = process.env.IMPECCABLE_SKILL_HOME || os.homedir()
+  const scriptName = process.platform === 'win32' ? 'impeccable.cmd' : 'impeccable'
+  const roots = [
+    path.join(home, '.agents', 'skills'),
+    path.join(home, '.claude', 'skills'),
+    path.join(home, '.gemini', 'config', 'skills')
+  ]
+  for (const root of roots) {
+    const candidate = path.join(root, 'impeccable', 'scripts', scriptName)
+    if (existsSync(candidate)) return candidate
+  }
+  return ''
 }
 
 function collectWxml(target) {
@@ -54,7 +71,7 @@ function invokeDetector(launcher, scanTarget) {
 }
 
 const target = args.target || 'pages'
-const launcher = args.launcher || process.env.IMPECCABLE_LAUNCHER
+const launcher = args.launcher || process.env.IMPECCABLE_LAUNCHER || discoverDefaultLauncher()
 if (!launcher) fail('Pass --launcher or set IMPECCABLE_LAUNCHER')
 const sourceWxml = collectWxml(target)
 if (sourceWxml.length === 0) fail(`No WXML markup found under target: ${target}`)

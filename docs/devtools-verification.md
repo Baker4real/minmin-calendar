@@ -65,7 +65,7 @@ npm --silent run devtools:cli -- cloud-info --env <云环境 ID> --names 'dataOp
 
 ## Console 提示过滤与 GUI 操作
 
-本机 GUI 会话与 preload 过滤验收入口见 [GUI 会话适配层](D:/agents/projects/统一环境/docs/env-governance/gui-session.md)。经当前任务授权后，在官方 `node_repl` 中使用同一个 `@oai/sky` 会话；绑定失败只重观察一次，输入失败不自动重放，用户 Esc 立即停止。
+本机 GUI 会话与 preload 过滤验收入口见本机统一环境治理文档 `docs/env-governance/gui-session.md`。经当前任务授权后，在官方 `node_repl` 中使用同一个 `@oai/sky` 会话；绑定失败只重观察一次，输入失败不自动重放，用户 Esc 立即停止。
 
 只针对 `WAServiceMainContext.js` 和 `WAAutoService.js` 的未使用 preload 提示过滤：先用实际消息校验规则，写入后检查两条提示隐藏、普通 warning 和真实 error 保留，再重新编译检查。普通失败恢复原过滤值并读回确认；Esc 停止后不继续回滚。过滤仅改变 Console 显示，不修复开发者工具的 preload 行为；规则测试通过也不等于当前窗口已生效。
 
@@ -129,7 +129,7 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 
 开始组件级视觉审计时先运行 `node tests/impeccableAudit.mjs --component <id>`（ID 用 `--list-components` 查看）。它把相关 DESIGN.md 与 `docs/motion-and-interaction.md` 片段、静态选择器、动效、测试和截图账本压成一份 JSON；截图分类复用上述指纹规则。先读这些定位信息，再按疑点打开源码和 current 证据，避免先读完整规范或遍历所有历史截图。摘要失败或没有 current 证据时按缺口记录，不把静态索引或旧图当作运行态验收。
 
-实际坐标点击复用 [受管 GUI 会话](D:/agents/projects/统一环境/docs/env-governance/gui-session.md)：Harness 无官方后端时使用其中的 Windows 传输。每次动作都绑定新截图、窗口身份和 DPI；失焦、几何变化或遮挡产生的是证据无效，不能登记成产品按钮 FAIL。连续两次失效后停止自动输入并做一次人工对照，不继续用自写点按脚本推进安装包补丁。
+实际坐标点击复用本机受管 GUI 会话（统一环境治理文档 `docs/env-governance/gui-session.md`）：Harness 无官方后端时使用其中的 Windows 传输。每次动作都绑定新截图、窗口身份和 DPI；失焦、几何变化或遮挡产生的是证据无效，不能登记成产品按钮 FAIL。连续两次失效后停止自动输入并做一次人工对照，不继续用自写点按脚本推进安装包补丁。
 
 选择器 `tap()` 可能绕过命中遮挡。验证“按钮点不到”时，CSS 坐标回归之外还需在微信中实际坐标点击或人工点击；图例直接打开、关闭等状态流可用选择器自动化验证。截图若出现空白或未完成状态，先确认目标页面已就绪再重截，不能将文件写入成功当作界面验收。
 
