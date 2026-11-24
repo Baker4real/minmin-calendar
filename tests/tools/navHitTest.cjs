@@ -5,6 +5,7 @@ const path = require('node:path')
 const { readSource } = require('../sourceFiles')
 const { parseWxssRules } = require('../designTokens')
 const { browsersPath, workspaceRequire } = require('./playwrightBrowsers.cjs')
+const { runActionHitTest } = require('./actionHitTest.cjs')
 const root = path.resolve(__dirname, '../..')
 
 // Chromium once failed a capture with "Unable to capture screenshot" after the click had already worked (2026-10-11).
@@ -155,6 +156,7 @@ async function main() {
       }
       await page.close()
     }
+    await runActionHitTest(browser, out)
   } finally {
     fs.writeFileSync(path.join(out, 'evidence.json'), JSON.stringify(evidence, null, 2))
     await browser.close()

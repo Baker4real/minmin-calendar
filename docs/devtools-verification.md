@@ -20,6 +20,7 @@ intent: "连接与资源诊断、官方 CLI/MCP 入口及 GUI 验收边界"
 | CLI 正常，9420 未监听 | 运行下面的 `auto` 命令一次；若仍停在 preparing，使用 MCP 备用路径。 |
 | 9420 已监听 | 运行 `devtoolsCapture.mjs --ws`；握手超过 15 秒即失败，转 MCP。 |
 | `DevTools project window` 为 FAIL，或 CLI 与 9420 都正常、截图却报 `fail to capture screenshot` 或等 `.page` 渲染超时 | 项目窗口最小化时截图会失败（2026-11-04 实测）：请维护者还原窗口，重跑预检后再截。最小化只挡截图，页面数据、选择器查询和元素 tap 照常（2026-11-14 用 automator、11-15 用 MCP 的 `getData`、`querySelectorAll` 实测）；只需核对运行态时不必等还原，用 MCP 的 `automation_page_action` 读数据、数元素，`automation_element_action` 点元素，截图在交付报告里记为未验证。窗口正常仍失败时，看是否有别的程序窗口挡住模拟器区域，同样请维护者处理；还失败就停下，报失败行和截图目录。`SKIP` 若报 `shell-cannot-observe-desktop`，说明当前非交互子 shell 看不到任何桌面窗口（`MainWindowHandle=0`），需由交互桌面或维护者确认窗口可见性；报 `no matching DevTools window found` 则先在开发者工具里打开项目（若点击项目仍无窗口弹起，排查滞留隐藏/最小化窗口并先 `devtools:cli -- close` 再 `open`）。本机排查记录见知识库「微信开发者工具 CLI 自动化验收环境坑」。 |
+| 页面切换后真实鼠标点击无反应，selector tap 与导航 API 正常，鼠标移出再移回模拟器即恢复 | 这是 DevTools 模拟器的鼠标/触摸模式状态问题（2026-11-24 维护者再次确认），不要据此给业务按钮加兼容层。先把鼠标移出再移回恢复；反复出现时重开项目并核对官方更新说明。官方 `2.02.2609240 Stable` 明确修复“模拟器需要 touch 两次才能生效”，本机已于 2026-11-24 切换并由维护者连续实点验收正常。永久运行时补丁必须另行取得明确授权，按官方安装物白名单、完整备份与真实坐标验收执行；无法验收就回滚，不把 selector 通过当作补丁有效。 |
 | `Latest app launch loaded a page` 报 `without loading a page`，或 console 报 `routeDone with a webviewId N is not found` | 最近一次逻辑层启动只跑了 `App onLaunch`，没加载任何页面；CLI 和 9420 照常应答，页面逻辑却要到下一次编译才恢复。常见于开发者工具刚启动的一分钟内（2026-11-07 实测）。等调试面板加载完，在开发者工具里点一次「编译」后重跑预检。SKIP 表示日志里还没有启动记录，或启动不到 5 秒还没写页面记录（日志每 3 秒落盘），稍后重跑。排查记录见知识库「微信开发者工具重载竞态与基础库本地补丁」。 |
 | `Latest app launch loaded a page` 报 `page code never ran`，或 console 报 `module '<路径>.js' is not defined, require args is '<相对路径>'`（常跟着 `Component is not found in path "wx://not-found"`），而这个文件在磁盘上、已入 git | 开发者工具的增量编译漏掉了这个模块，常见于开着项目时 git 一次写进新模块和引用它的页面（2026-11-08 那次是 rebase，开发者工具 2.02.2609250）；`npm run devtools:timeline` 能看到编译前的那批 `onFileChange add`。请维护者关闭并重新打开项目后重跑预检；只改修改时间或改名再改回都会触发重编译，但恢复不了。判据：页面没注册时框架照样记 onLoad，但每个页面的 data 都用 safeArea 调 `wx.getWindowInfo`，所以正常启动在第一个页面的 onLoad 之前有这条调用，漏掉时一条 API 调用都没有。 |
 | 只需外观确认，automator / MCP 均不可用 | 在任务已授权只读截图与窗口激活时，Kimi Code 可用 `kimi-cu-win` 直接按「微信开发者工具」定位窗口，最小化时先激活再截图；只证明当时可见画面，不证明实际视口、交互或小屏验收。 |
@@ -67,6 +68,12 @@ npm --silent run devtools:cli -- cloud-info --env <云环境 ID> --names 'dataOp
 本机 GUI 会话与 preload 过滤验收入口见 [GUI 会话适配层](D:/agents/projects/统一环境/docs/env-governance/gui-session.md)。经当前任务授权后，在官方 `node_repl` 中使用同一个 `@oai/sky` 会话；绑定失败只重观察一次，输入失败不自动重放，用户 Esc 立即停止。
 
 只针对 `WAServiceMainContext.js` 和 `WAAutoService.js` 的未使用 preload 提示过滤：先用实际消息校验规则，写入后检查两条提示隐藏、普通 warning 和真实 error 保留，再重新编译检查。普通失败恢复原过滤值并读回确认；Esc 停止后不继续回滚。过滤仅改变 Console 显示，不修复开发者工具的 preload 行为；规则测试通过也不等于当前窗口已生效。
+
+### 官方安装器与原生坐标验收
+
+官方 Windows NSIS 安装器是 GUI 子系统程序：直接 `& <安装包>` 可能立即返回且 `$LASTEXITCODE` 为空，不能据此判定失败。受控安装应等待安装进程退出，并同时核对实际文件哈希与 `resources/app.asar.unpacked/package.json` 的 `version`；保留上一版完整安装副本用于回滚。
+
+真实坐标点击前必须先跑健康图例对照。若窗口截图全黑、普通点击与移出再移回都不命中，结果属于校准/捕获失败，不计作产品或补丁失败；跨版本仍全黑时停止盲点，改由维护者做不移出鼠标的人工对照。
 
 ## MCP 备用路径
 
@@ -116,9 +123,9 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 
 `devtoolsCapture.mjs` 在已渲染的 `.page` 出现后截图，将微信 `systemInfo` 的实际 `windowWidth/windowHeight`、页面路径、具名状态、日历密度、采集时间和 `captureToolVersion` 追加到截图目录的 `captures.jsonl`。`source` 只表示采集时磁盘中 `app.*`、`pages/**`、`utils/**` 的 SHA-256 指纹，不单独证明模拟器加载了同一版。当前 version 2 另带 `runtime`；只有磁盘一致且本轮编译挑战匹配才是 `current`。磁盘不同为 `stale`，没有磁盘指纹为 `historical-unbound`，磁盘一致但缺少运行确认（包括旧版图）为 `runtime-unconfirmed`；后三者都不能作为当前版本验收。MCP `--preflight` 同样报告实际视口；截图尺寸或机型名称不能证明逻辑视口。
 
-需要当前版本证据时，先运行 `npm run devtools:runtime-proof -- prepare`，在当前 IDE 对本仓库完成编译，再运行 `node tests/devtoolsCapture.mjs --ws ws://127.0.0.1:9420 --states home --runtime-proof .scratch/runtime-probe.json`。prepare 以独占创建方式写入临时 `utils/__captureProbe.js`，包含新 nonce 与业务源码指纹；采集器从编译环境 require 此模块，截图前后回读并检查源码和页面路径未变，不能通过 evaluate 人工赋值伪造通过。缺失、旧 nonce 或源码变化直接拒绝登记。未传 proof 时仍可采集定位图，但明确记为运行版本未确认。
+需要当前版本证据时，先运行 `npm run devtools:runtime-proof -- prepare`，在当前 IDE 对本仓库完成编译，再运行 `node tests/devtoolsCapture.mjs --ws ws://127.0.0.1:9420 --states home --runtime-proof .scratch/runtime-probe.json`。若 `project.private.config.json` 的 `setting.ignoreDevUnusedFiles` 为 true，prepare 会临时设为 false 并把原值记入 proof，不再要求手工切换。prepare 以独占创建方式写入临时 `utils/__captureProbe.js`，包含新 nonce 与业务源码指纹；采集器从编译环境 require 此模块，截图前后回读并检查源码和页面路径未变，不能通过 evaluate 人工赋值伪造通过。缺失、旧 nonce 或源码变化直接拒绝登记。未传 proof 时仍可采集定位图，但明确记为运行版本未确认。
 
-采集后必须运行 `npm run devtools:runtime-proof -- clean`；它只删除内容与本轮 proof 匹配的临时模块和证明文件，内容变动则拒绝清理。临时模块不参与业务指纹并被 git 忽略，完整验证的包内容检查会拒绝它的残留，防止进入发布。挑战证明本轮编译标记已进入运行环境，不替代页面状态、样式或关键交互验收。
+采集后必须运行 `npm run devtools:runtime-proof -- clean`；若 prepare 改过 unused-file 过滤，clean 先恢复原值并保留其他私有配置，再只删除内容与本轮 proof 匹配的临时模块和证明文件，内容变动则拒绝清理；恢复失败时保留 proof 与探针供修正后重试。临时模块不参与业务指纹并被 git 忽略，完整验证的包内容检查会拒绝它的残留，防止进入发布。挑战证明本轮编译标记已进入运行环境，不替代页面状态、样式或关键交互验收。
 
 开始组件级视觉审计时先运行 `node tests/impeccableAudit.mjs --component <id>`（ID 用 `--list-components` 查看）。它把相关 DESIGN.md 与 `docs/motion-and-interaction.md` 片段、静态选择器、动效、测试和截图账本压成一份 JSON；截图分类复用上述指纹规则。先读这些定位信息，再按疑点打开源码和 current 证据，避免先读完整规范或遍历所有历史截图。摘要失败或没有 current 证据时按缺口记录，不把静态索引或旧图当作运行态验收。
 
