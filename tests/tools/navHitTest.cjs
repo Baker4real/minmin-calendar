@@ -72,13 +72,26 @@ async function main() {
         document.querySelector('.nav-placeholder').remove()
         document.querySelector('.nav-tool').addEventListener('click', () => { document.querySelector('#legend').hidden = false })
       })
-      const titleCenter = await page.locator('.nav-title').evaluate(title => {
+      const titleGeometry = await page.locator('.nav-title').evaluate(title => {
         const range = document.createRange()
         range.selectNodeContents(title)
-        const rect = range.getBoundingClientRect()
-        return rect.left + rect.width / 2
+        const textRect = range.getBoundingClientRect()
+        const rect = title.getBoundingClientRect()
+        const style = getComputedStyle(title)
+        const paddingLeft = parseFloat(style.paddingLeft)
+        const paddingRight = parseFloat(style.paddingRight)
+        const toolRect = document.querySelector('.nav-tool').getBoundingClientRect()
+        return {
+          rangeCenter: textRect.left + textRect.width / 2,
+          contentCenter: rect.left + paddingLeft + (rect.width - paddingLeft - paddingRight) / 2,
+          title: { left: rect.left, width: rect.width },
+          paddingLeft,
+          paddingRight,
+          tool: { left: toolRect.left, width: toolRect.width }
+        }
       })
-      assert.ok(Math.abs(titleCenter - width / 2) <= 0.25, `${width}px: title center ${titleCenter} must equal viewport center ${width / 2}`)
+      const titleCenter = titleGeometry.rangeCenter
+      assert.ok(Math.abs(titleCenter - width / 2) <= 0.25, `${width}px: title center ${titleCenter} must equal viewport center ${width / 2}; geometry ${JSON.stringify(titleGeometry)}`)
       const box = await page.locator('.nav-tool').boundingBox()
       const surfaceBox = await page.locator('.nav-tool-surface').boundingBox()
       const navbarBox = await page.locator('.nav-bar').boundingBox()
