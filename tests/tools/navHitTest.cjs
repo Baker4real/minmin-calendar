@@ -72,7 +72,7 @@ async function main() {
         document.querySelector('.nav-placeholder').remove()
         document.querySelector('.nav-tool').addEventListener('click', () => { document.querySelector('#legend').hidden = false })
       })
-      const titleGeometry = await page.locator('.nav-title').evaluate(title => {
+      const readTitleGeometry = () => page.locator('.nav-title').evaluate(title => {
         const range = document.createRange()
         range.selectNodeContents(title)
         const textRect = range.getBoundingClientRect()
@@ -90,8 +90,15 @@ async function main() {
           tool: { left: toolRect.left, width: toolRect.width }
         }
       })
+      const titleGeometry = await readTitleGeometry()
       const titleCenter = titleGeometry.rangeCenter
       assert.ok(Math.abs(titleCenter - width / 2) <= 0.25, `${width}px: title center ${titleCenter} must equal viewport center ${width / 2}; geometry ${JSON.stringify(titleGeometry)}`)
+      if (width === 390) {
+        // Platform font metrics can widen the two-glyph label. The balanced outer slot must not grow with it.
+        await page.addStyleTag({ content: '.nav-tool-surface{letter-spacing:0.05em}' })
+        const stressedGeometry = await readTitleGeometry()
+        assert.ok(Math.abs(stressedGeometry.rangeCenter - width / 2) <= 0.25, `390px: intrinsic label width must not move the title; geometry ${JSON.stringify(stressedGeometry)}`)
+      }
       const box = await page.locator('.nav-tool').boundingBox()
       const surfaceBox = await page.locator('.nav-tool-surface').boundingBox()
       const navbarBox = await page.locator('.nav-bar').boundingBox()

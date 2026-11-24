@@ -91,9 +91,10 @@
 }
 .nav-placeholder { width: 0; flex-shrink: 0; }
 
-/* The transparent 88rpx hit area owns interaction; only the inner capsule paints. */
+/* The fixed transparent ledger slot (at least 88rpx) owns interaction; only the inner capsule paints. */
 .nav-tool {
   min-width: 88rpx;
+  width: calc(96rpx + 2px);
   height: 88rpx;
   flex-shrink: 0;
   padding: 0;
