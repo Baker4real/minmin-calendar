@@ -36,7 +36,7 @@ test('the refresh retry sentence is a tappable in-flow row below the month title
   assert.match(retryBlock, /aria-role="button"/)
   const wxss = readIndexWxss()
   assert.doesNotMatch(ruleBody(wxss, '.refresh-retry'), /position:\s*(fixed|absolute)/)
-  assert.match(ruleBody(wxss, '.refresh-retry'), /color:\s*#E8909E/i)
+  assert.match(ruleBody(wxss, '.refresh-retry'), /color:\s*var\(--aurora-pink\)/i)
 })
 
 test('the sync pill stays a non-tappable status and the retry row is the only recovery entry', () => {
@@ -70,9 +70,9 @@ test('waiting invitation has two copy lines and a native share button beside the
   assert.match(invite, /class="partner-invite"/)
   assert.match(invite, /class="text-pair-title partner-invite-title">TA 还没加入<\/text>/)
   assert.match(invite, /class="text-pair-desc partner-invite-desc">发个邀请，TA 加入后你们看的是同一本日历<\/text>/)
-  assert.match(invite, /class="btn-premium share-invite home-share-invite button-primary"/)
+  assert.match(invite, /class="share-invite home-share-invite"/)
   assert.match(invite, /open-type="share"/)
-  assert.match(invite, /hover-class="share-invite-hover"/)
+  assert.match(invite, /hover-class="home-share-invite-hover"/)
   assert.match(invite, /aria-role="button"/)
   assert.match(invite, /aria-label="发邀请"/)
   assert.match(invite, />发邀请<\/button>/)
@@ -101,7 +101,7 @@ test('homepage stacks navbar legend, sticky month and status, calendar, record a
   assert.equal(wxml.includes('record-entries'), false)
   assert.doesNotMatch(wxml, /periodCount|stat-num|stat-label">经期记录/)
   assert.doesNotMatch(wxml, /goPeriodList|goMemoryList/)
-  assert.match(wxml, /class="month-summary-text">\{\{monthSummaryLine\}\} ›<\/text>/)
+  assert.match(wxml, /class="month-summary-text">\{\{monthSummaryLine\}\}<\/text>\s*<text class="month-summary-arrow" aria-hidden="true">›<\/text>/)
   assert.doesNotMatch(wxml, /periodCount|status-card|stat-label">经期记录/)
   assert.doesNotMatch(wxml, /periods\.length|memories\.length|dayDetailsByDate/)
   assert.match(wxml, /wx:if="\{\{hasRecords\}\}"[\s\S]*class="month-summary"/)
@@ -199,6 +199,28 @@ test('day sheet record actions and details retain their visible and accessible b
   assert.match(wxml.slice(detailAt, detailAt + 240), /day-detail-fade/)
 })
 
+test('period detail notes render one conditional ellipsis row below the status metadata', () => {
+  const wxml = readIndexWxml()
+  const wxss = readIndexWxss()
+  const period = wxml.slice(
+    wxml.indexOf('class="day-detail-row period-detail"'),
+    wxml.indexOf('class="day-detail-row memory-detail"')
+  )
+  assert.match(period, /<text wx:if="\{\{item\.note\}\}" class="text-pair-desc detail-meta detail-note">\{\{item\.note\}\}<\/text>/)
+  assert.ok(period.indexOf('{{item.metaText}}') < period.indexOf('{{item.note}}'))
+  const note = ruleBody(wxss, '.detail-note')
+  assert.match(note, /white-space:\s*nowrap/)
+  assert.match(note, /overflow:\s*hidden/)
+  assert.match(note, /text-overflow:\s*ellipsis/)
+})
+
+test('day sheet separates meanings from records or actions and centers compact action content', () => {
+  const wxss = readIndexWxss()
+  assert.match(ruleBody(wxss, '.detail-meaning-list + .day-detail-list'), /margin-top:\s*14rpx/)
+  assert.match(ruleBody(wxss, '.detail-meaning-list + .sheet-actions'), /margin-top:\s*14rpx/)
+  assert.match(ruleBody(wxss, '.sheet-action.compact .sheet-action-copy'), /flex:\s*0 1 auto/)
+})
+
 test('the homepage status keeps its 32rpx geometry exception with a secondary caption countdown', () => {
   const wxss = readIndexWxss()
   assert.match(ruleBody(wxss, '.home-status'), /height:\s*88rpx/)
@@ -224,22 +246,57 @@ test('status line and month summary press with the shared scale-down and reduced
   assert.match(reduced, /\.month-summary\b/)
 })
 
-test('navbar legend entry opens the legend directly and stays distinct from the month arrows', () => {
+test('status and monthly recap entries use rounded surfaces and a left-copy right-arrow banner', () => {
+  const wxss = readIndexWxss()
+  const status = ruleBody(wxss, '.home-status')
+  assert.match(status, /border-radius:\s*var\(--radius-md\)/)
+  assert.match(status, /padding:\s*0 4rpx/)
+
+  const summary = ruleBody(wxss, '.month-summary')
+  assert.match(summary, /min-height:\s*88rpx/)
+  assert.match(summary, /padding:\s*0 24rpx/)
+  assert.match(summary, /border-radius:\s*var\(--radius-card\)/)
+  assert.match(summary, /background:\s*linear-gradient\(rgba\(255,255,255,0\.05\), rgba\(255,255,255,0\.05\)\), var\(--glass-fallback\)/)
+  assert.match(summary, /border:\s*1px solid rgba\(255,255,255,0\.12\)/)
+
+  const arrow = ruleBody(wxss, '.month-summary-arrow')
+  assert.match(arrow, /flex:\s*none/)
+  assert.match(arrow, /color:\s*var\(--text-secondary\)/)
+  const wxml = readIndexWxml()
+  assert.match(wxml, /class="month-summary-text">\{\{monthSummaryLine\}\}<\/text>\s*<text class="month-summary-arrow" aria-hidden="true">›<\/text>/)
+})
+
+test('navbar legend entry opens directly and keeps its 88rpx hit area around an unclipped 64rpx capsule', () => {
   const wxml = readIndexWxml()
   const nav = wxml.slice(wxml.indexOf('class="nav-bar'), wxml.indexOf('class="no-room"'))
   const monthNav = wxml.slice(wxml.indexOf('class="month-nav glass-surface"'), wxml.indexOf('class="home-status'))
-  assert.match(nav, /class="nav-tool"/)
-  assert.match(nav, /bindtap="openLegendSheet"/)
-  assert.match(nav, /aria-label="打开日历图例"/)
-  assert.match(nav, />图例<\/view>/)
+  assert.match(nav, /class="nav-tool"[^>]*bindtap="openLegendSheet"[^>]*aria-label="打开日历图例"[^>]*>\s*<view class="nav-tool-surface">图例<\/view>/)
   assert.doesNotMatch(monthNav, /openMonthMenu|month-menu-trigger|…/)
   assert.match(monthNav, /bindtap="prevMonth"/)
   assert.match(monthNav, /bindtap="nextMonth"/)
+
   const wxss = readSource(path.join(repoRoot, 'pages/shared/nav-bar.wxss'), 'utf8')
   const tool = ruleBody(wxss, '.nav-tool')
+  assert.match(tool, /min-width:\s*88rpx/)
   assert.match(tool, /height:\s*88rpx/)
-  assert.match(tool, /border-radius:\s*var\(--radius-md\)/)
-  assert.doesNotMatch(tool, /border-radius:\s*var\(--radius-circle\)/)
+  assert.match(tool, /display:\s*flex/)
+  assert.match(tool, /align-items:\s*center/)
+  assert.match(tool, /justify-content:\s*center/)
+  assert.match(tool, /border:\s*0/)
+  assert.match(tool, /background:\s*transparent/)
+
+  const surface = ruleBody(wxss, '.nav-tool-surface')
+  assert.match(surface, /height:\s*64rpx/)
+  assert.match(surface, /padding:\s*0 22rpx/)
+  assert.match(surface, /box-sizing:\s*border-box/)
+  assert.match(surface, /border-radius:\s*var\(--radius-full\)/)
+  assert.match(surface, /border:\s*1px solid rgba\(255,255,255,0\.28\)/)
+  assert.match(surface, /background:\s*var\(--glass-bg\)/)
+  assert.match(wxss, /\.nav-tool:active \.nav-tool-surface,\s*\.nav-tool\.nav-tool-hover \.nav-tool-surface/)
+  for (const [viewport, navContentHeight] of [[320, 40], [390, 44], [430, 44]]) {
+    const surfaceHeight = 64 * viewport / 750
+    assert.ok(surfaceHeight < navContentHeight, `${viewport}px: ${surfaceHeight}px surface must fit the ${navContentHeight}px navbar content row`)
+  }
   assert.match(ruleBody(readIndexWxss(), '.nav-btn'), /border-radius:\s*var\(--radius-circle\)/)
 })
 
@@ -254,14 +311,27 @@ test('homepage retires the tools menu and keeps direct prediction, recap and hel
   assert.match(legend, /更多用法请前往「设置 → 使用说明」。/)
 })
 
-test('monthly recap uses a body-large main sentence and body-sized detail lines', () => {
+test('monthly recap uses a glass overview, projected semantic rails and 24rpx copy spacing', () => {
   const wxml = readIndexWxml()
   const recap = wxml.slice(wxml.indexOf('class="monthly-recap"'), wxml.indexOf('class="copy-recap"'))
-  assert.match(recap, /class="text-pair-title recap-summary recap-main">\{\{monthlyRecap\.periodSummary\}\}/)
+  assert.match(recap, /<view class="recap-overview">\s*<text class="text-pair-title recap-summary recap-main">\{\{monthlyRecap\.periodSummary\}\}/)
   assert.match(recap, /class="text-pair-desc recap-summary">\{\{monthlyRecap\.memorySummary\}\}/)
   assert.match(recap, /class="text-pair-desc recap-summary">\{\{monthlyRecap\.predictionSummary\}\}/)
+  assert.match(recap, /<view\s+wx:for="\{\{monthlyRecap\.highlightItems\}\}"\s+wx:key="key"\s+class="recap-highlight-row recap-highlight-\{\{item\.kind\}\}"\s*>\s*<view class="recap-highlight-rail" aria-hidden="true"><\/view>\s*<text class="text-pair-desc recap-highlight">\{\{item\.text\}\}<\/text>/)
 
   const wxss = readIndexWxss()
+  const overview = ruleBody(wxss, '.recap-overview')
+  assert.match(overview, /padding:\s*20rpx 24rpx/)
+  assert.match(overview, /border-radius:\s*var\(--radius-md\)/)
+  assert.match(overview, /background:\s*var\(--glass-bg\)/)
+  assert.match(overview, /border:\s*1px solid var\(--glass-border\)/)
+  const rail = ruleBody(wxss, '.recap-highlight-rail')
+  assert.match(rail, /width:\s*4rpx/)
+  assert.match(rail, /border-radius:\s*var\(--radius-full\)/)
+  assert.match(rail, /background:\s*var\(--aurora-pink\)/)
+  assert.match(ruleBody(wxss, '.recap-highlight-memory .recap-highlight-rail'), /background:\s*var\(--memory-gold\)/)
+  assert.match(readSource(path.join(repoRoot, 'app.wxss'), 'utf8'), /--memory-gold:\s*var\(--aurora-gold\)/)
+
   const main = ruleBody(wxss, '.recap-main')
   assert.match(main, /font-size:\s*var\(--font-size-body-lg\)/)
   assert.match(main, /font-weight:\s*var\(--font-weight-body\)/)
@@ -272,6 +342,10 @@ test('monthly recap uses a body-large main sentence and body-sized detail lines'
     assert.match(detail, /font-weight:\s*var\(--font-weight-body\)/)
     assert.match(detail, /line-height:\s*var\(--line-height-body\)/)
   }
+  const recapGap = numberDecl(ruleBody(wxss, '.monthly-recap'), 'gap')
+  const copyOffset = numberDecl(ruleBody(wxss, '.copy-recap'), 'margin-top')
+  assert.equal(recapGap + copyOffset, 24, 'the highlight list and copy action have 24rpx of breathing room')
+  assert.match(ruleBody(wxss, '.copy-recap.copy-recap-hover'), /transform:\s*scale\(0\.96\)/)
 })
 
 test('period band samples follow density classes and keep their shared source data', () => {
@@ -294,7 +368,9 @@ test('quick record actions keep period primary and memory button-ghost with read
   const quick = wxml.slice(wxml.indexOf('class="quick-actions"'), wxml.indexOf('class="month-summary"'))
   assert.match(quick, /class="quick-btn button-primary" bindtap="quickPeriod"/)
   assert.match(quick, /class="quick-ghost-surface">\s*<view class="quick-btn btn-ghost button-outline" bindtap="quickMemory"/)
-  assert.match(ruleBody(wxss, '.quick-ghost-surface'), /background:\s*var\(--aurora-bg\)/i)
+  assert.match(button, /border-radius:\s*var\(--radius-card\)/)
+  const ghostSurface = ruleBody(wxss, '.quick-ghost-surface')
+  assert.doesNotMatch(ghostSurface, /background\s*:/, 'the non-scaling host must not leave a stationary navy rim')
   assert.match(quick.slice(0, quick.indexOf('bindtap="quickMemory"')), /class="quick-icon sample-plate">\s*<view class="action-sample day-cell \{\{cellClass\}\} calendar-density-\{\{calendarDensity\}\}">\s*<view wx:for="\{\{parts\}\}" wx:for-item="part" wx:key="className" class="\{\{part\.className\}\}"><\/view>/)
   assert.match(quick, /class="quick-icon memory-tone">♥<\/text>/)
   assert.doesNotMatch(quick, /🩸|❤️|●/)
@@ -302,11 +378,11 @@ test('quick record actions keep period primary and memory button-ghost with read
   assert.match(ruleBody(wxss, '.quick-icon'), /background:\s*var\(--aurora-bg\)/i)
   assert.match(ruleBody(wxss, '.quick-icon'), /border-radius:\s*var\(--radius-circle\)/)
   const ghost = ruleBody(wxss, '.quick-btn.btn-ghost')
-  assert.match(ghost, /background:\s*transparent/i)
-  assert.match(ghost, /color:\s*#E8909E/i)
-  assert.match(ghost, /border:\s*1\.5px solid #E8909E/i)
-  assert.match(ghost, /border-radius:\s*var\(--radius-full\)/)
-  assert.match(ruleBody(wxss, '.quick-btn.btn-ghost .quick-text'), /color:\s*#E8909E/i)
+  assert.match(ghost, /background:\s*var\(--aurora-bg\)/i, 'the navy base scales with the ghost button itself')
+  assert.match(ghost, /color:\s*var\(--aurora-pink\)/i)
+  assert.match(ghost, /border:\s*1\.5px solid var\(--aurora-pink\)/i)
+  assert.match(ghost, /border-radius:\s*var\(--radius-card\)/)
+  assert.match(ruleBody(wxss, '.quick-btn.btn-ghost .quick-text'), /color:\s*var\(--aurora-pink\)/i)
   assert.match(ruleBody(wxss, '.quick-btn.btn-ghost::before'), /box-shadow:\s*none/i)
   assert.match(wxss, /\.quick-btn\.btn-ghost:active,\s*\.quick-btn\.btn-ghost\.btn-ghost-hover\s*\{[^}]*transform:\s*scale\(0\.95\)/)
   const minHeight = numberDecl(button, 'min-height')
@@ -316,8 +392,25 @@ test('quick record actions keep period primary and memory button-ghost with read
   assert.match(ruleBody(wxss, '.quick-text'), /font-size:\s*28rpx/, 'the two-line label keeps its issue #247 geometry exception')
 })
 
-test('R5 sticky separator is a 1px white 8% bottom hairline', () => {
+test('silent refresh dims calendar, quick actions, summary and guide on one opacity beat', () => {
+  const wxss = readIndexWxss()
+  const refreshing = ruleBody(wxss, '.content-refreshing .calendar-grid')
+  assert.match(refreshing, /opacity:\s*0\.94/)
+  for (const selector of ['.calendar-grid', '.quick-actions', '.month-summary', '.empty-guide']) {
+    assert.match(ruleBody(wxss, selector), /opacity var\(--duration-state\) ease/, `${selector} uses the shared refresh timing`)
+  }
+  const reduced = wxss.slice(wxss.indexOf('@media (prefers-reduced-motion: reduce)'))
+  for (const selector of ['.calendar-grid', '.quick-actions', '.month-summary', '.empty-guide']) {
+    assert.match(reduced, new RegExp(selector.replace('.', '\\.')), `${selector} switches instantly under reduced motion`)
+  }
+})
+
+test('home sticky keeps the static D1 default gradient, paired light blur and 1px separator', () => {
   const sticky = ruleBody(readIndexWxss(), '.home-sticky')
+  assert.match(sticky, /background:\s*linear-gradient\(180deg, rgba\(10,14,39,0\.86\) 0%, rgba\(10,14,39,0\.94\) 100%\)/)
+  assert.doesNotMatch(sticky, /rgba\(10,14,39,0\.92\)/, 'runtime D1 has not selected the 92% fallback')
+  assert.match(sticky, /backdrop-filter:\s*blur\(6px\)/)
+  assert.match(sticky, /-webkit-backdrop-filter:\s*blur\(6px\)/)
   assert.match(sticky, /border-bottom:\s*1px solid rgba\(255,\s*255,\s*255,\s*0\.08\)/)
 })
 
@@ -349,11 +442,24 @@ test('home skeleton mirrors the real content margins, sticky slot and ledger row
   const grid = /<view\s+class="skeleton-grid calendar-grid[^"]*"[^>]*>/.exec(skeleton)
   assert.ok(grid, 'expected the skeleton to occupy the real calendar grid')
   assert.match(grid[0], /style="--calendar-row-height: \{\{calendarRowHeightPx\}\}px"/)
-  assert.match(skeleton, /wx:for="\{\{days\}\}"/)
+  assert.match(skeleton, /class="skeleton-cell\{\{item\.isEmpty \? ' skeleton-cell-empty' : ''\}\}" wx:for="\{\{days\}\}"/)
+  assert.equal((skeleton.match(/class="skeleton-quick-action"/g) || []).length, 2,
+    'the two quick entries keep side-by-side loading placeholders')
+  assert.match(skeleton, /class="quick-actions skeleton-quick-actions" aria-hidden="true"/)
 
   const wxss = readIndexWxss()
   assert.match(ruleBody(wxss, '.calendar-skeleton'), /padding:\s*0 var\(--space-page-gutter\)/)
   assert.match(ruleBody(wxss, '.skeleton-cell'), /height:\s*var\(--calendar-row-height/)
+  assert.match(ruleBody(wxss, '.skeleton-cell'), /padding:\s*4rpx 2rpx/)
+  assert.match(ruleBody(wxss, '.skeleton-cell'), /background-clip:\s*content-box/)
+  assert.match(ruleBody(wxss, '.calendar-info-merged .skeleton-cell'), /padding:\s*8rpx 2rpx 4rpx/)
+  assert.match(ruleBody(wxss, '.skeleton-cell.skeleton-cell-empty'), /background:\s*transparent/)
+  assert.match(ruleBody(wxss, '.nav-btn.skeleton-control'), /background:\s*rgba\(255,255,255,0\.08\)/)
+  assert.match(ruleBody(wxss, '.nav-btn.skeleton-control::before'), /background-color:\s*transparent/)
+  assert.match(ruleBody(wxss, '.skeleton-quick-action'), /flex:\s*1/)
+  assert.match(ruleBody(wxss, '.skeleton-quick-action'), /min-height:\s*104rpx/)
+  assert.match(ruleBody(wxss, '.skeleton-quick-action'), /border-radius:\s*var\(--radius-card\)/)
+  assert.match(ruleBody(wxss, '.skeleton-quick-action'), /background:\s*rgba\(255,255,255,0\.08\)/)
   const pulseRules = [...wxss.matchAll(/([^{}@]+)\{[^{}]*animation:\s*skeletonPulse[^{}]*\}/g)]
   assert.equal(pulseRules.length, 1, 'only the skeleton parent pulses')
   assert.match(pulseRules[0][1], /\.calendar-skeleton/)
@@ -413,6 +519,24 @@ test('month jump sheet uses a bounded year stepper and immediate month selection
   assert.doesNotMatch(wxml, /jump-confirm|confirmMonthJump/)
   assert.match(ruleBody(wxss, '.jump-year-step'), /min-height:\s*88rpx/)
   assert.match(ruleBody(wxss, '.jump-year-step.disabled'), /opacity/)
+})
+
+test('month jump removes back-to-today top margin and overlays a subtle real-month marker', () => {
+  const wxml = readIndexWxml()
+  const wxss = readIndexWxss()
+  assert.equal(numberDecl(ruleBody(wxss, '.jump-today'), 'margin-top'), 0)
+  assert.match(ruleBody(wxss, '.jump-today'), /padding:\s*16rpx 26rpx/)
+  assert.match(ruleBody(wxss, '.jump-option'), /position:\s*relative/)
+  assert.match(ruleBody(wxss, '.jump-option.real-today'), /color:\s*var\(--aurora-pink\)/)
+  const active = ruleBody(wxss, '.jump-option.active')
+  assert.match(active, /color:\s*var\(--text-on-accent\)/)
+  assert.match(active, /background:\s*var\(--aurora-pink\)/)
+  const dot = ruleBody(wxss, '.jump-real-today-dot')
+  assert.equal(numberDecl(dot, 'width'), 8)
+  assert.equal(numberDecl(dot, 'height'), 8)
+  assert.match(dot, /background:\s*currentColor/)
+  assert.match(dot, /border-radius:\s*var\(--radius-circle\)/)
+  assert.match(wxml, /<view wx:if="\{\{item\.isRealTodayMonth\}\}" class="jump-real-today-dot" aria-hidden="true"><\/view>/)
 })
 
 test('the calendar area tracks month swipes in WXS and does not follow the finger', () => {

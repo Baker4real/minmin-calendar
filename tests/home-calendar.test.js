@@ -52,6 +52,13 @@ function classes(className, data) {
   // An unset optional WXML flag renders as false on the platform.
   return renderWxmlClasses(tagWith(className).attrs.class, { pageHidden: false, ...data })
 }
+function infoSheetSubtitle(data) {
+  const start = wxml.indexOf('class="sheet-host calendar-info-sheet"')
+  assert.ok(start >= 0, 'expected the information sheet host')
+  const match = wxml.slice(start).match(/<text\b[^>]*class="[^"]*sheet-subtitle[^"]*"[^>]*>([\s\S]*?)<\/text>/)
+  assert.ok(match, 'expected the information sheet subtitle')
+  return renderWxmlAttribute(match[1], data)
+}
 function legendClasses(data) {
   const item = data.legendItems.find(item => item.key === 'period')
   return classes('legend-sample', { ...data, item })
@@ -968,6 +975,20 @@ test('information sheets open directly as named content and recap can reopen dur
   assert.equal(app.wx.actionSheets.length, 0)
 })
 
+test('only the monthly recap information sheet shows the browsed year and month', async t => {
+  const app = homeApp(t, { now: '2026-11-08T12:00:00+08:00' })
+  const home = await launch(app)
+  for (const [handler, expected] of [
+    ['openLegendSheet', ''],
+    ['openPredictionSheet', ''],
+    ['openMonthlyRecap', '2026年11月']
+  ]) {
+    await tap(app, home, handler)
+    assert.equal(infoSheetSubtitle(app.rendered(home)), expected)
+    await closeSheet(app, home, 'infoSheet')
+  }
+})
+
 for (const id of Object.keys(openers)) {
   test(`${id} real WXS drag uses speed, distance and direction`, async t => {
     const app = homeApp(t, { selectors: { [`.sheet-slide-${id}`]: { height: 400 } } })
@@ -991,6 +1012,121 @@ for (const id of Object.keys(openers)) {
     }
   })
 }
+
+test('real WXS same-frame A→B→A resets keep each sheet latest clear signal', async t => {
+  const app = homeApp(t, {
+    selectors: {
+      '.sheet-slide-monthPicker': { height: 400 },
+      '.sheet-slide-infoSheet': { height: 400 },
+      '.sheet-slide-dayActions': { height: 400 }
+    }
+  })
+  const home = await launch(app)
+  await openSheet(app, home, 'monthPicker')
+  await openSheet(app, home, 'infoSheet')
+  await openSheet(app, home, 'dayActions')
+
+  const startDrag = (id, dy, timeStamp) => {
+    const currentTarget = { dataset: { sheet: id } }
+    const touch = { identifier: 1, pageX: 100, pageY: 100 }
+    app.dispatch(home, 'sheetDrag.touchStart', { currentTarget, touches: [touch], timeStamp })
+    app.dispatch(home, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 100 + dy }], timeStamp })
+    return { currentTarget, touch }
+  }
+  const resetDrag = (id, dy, timeStamp) => {
+    const { currentTarget, touch } = startDrag(id, dy, timeStamp)
+    app.dispatch(home, 'sheetDrag.touchCancel', { currentTarget, changedTouches: [{ ...touch, pageY: 100 + dy }], timeStamp })
+  }
+
+  resetDrag('monthPicker', 40, 1000)
+  const closing = startDrag('infoSheet', 140, 2000)
+  app.dispatch(home, 'sheetDrag.touchEnd', {
+    currentTarget: closing.currentTarget,
+    changedTouches: [{ ...closing.touch, pageY: 240 }],
+    timeStamp: 2100
+  })
+  resetDrag('monthPicker', 80, 3000)
+  resetDrag('dayActions', 60, 4000)
+
+  assert.equal(app.viewStyle(home, '.sheet-slide-monthPicker').transform, 'translateY(80px)')
+  assert.equal(app.viewStyle(home, '.sheet-slide-infoSheet').transform, 'translateY(140px)')
+  assert.equal(app.viewStyle(home, '.sheet-slide-dayActions').transform, 'translateY(60px)')
+  app.commit(home)
+  await app.advance(16)
+
+  assert.deepEqual([
+    app.viewStyle(home, '.sheet-slide-monthPicker').transform,
+    app.viewStyle(home, '.sheet-slide-infoSheet').transform,
+    app.viewStyle(home, '.sheet-slide-dayActions').transform
+  ], ['', '', ''], 'no same-frame clear may be overwritten by another sheet or an older reset')
+  assert.deepEqual(home.data.sheetDragClear, {
+    monthPicker: { token: 2, action: 'reset', sheet: 'monthPicker' },
+    dayActions: { token: 1, action: 'reset', sheet: 'dayActions' },
+    infoSheet: { token: 1, action: 'close', sheet: 'infoSheet' }
+  })
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-open')
+  assert.equal(sheet(app, home, 'dayActions').pose, 'sheet-open')
+  assert.equal(sheet(app, home, 'infoSheet').pose, 'sheet-leaving')
+})
+
+test('real WXS reset RAF checks sheet token and instance against newer gestures', async t => {
+  const app = homeApp(t, {
+    selectors: {
+      '.sheet-slide-monthPicker': { height: 400 },
+      '.sheet-slide-infoSheet': { height: 400 }
+    }
+  })
+  const home = await launch(app)
+  await openSheet(app, home, 'monthPicker')
+  await openSheet(app, home, 'infoSheet')
+
+  const startDrag = (id, dy, timeStamp) => {
+    const currentTarget = { dataset: { sheet: id } }
+    const touch = { identifier: 1, pageX: 100, pageY: 100 }
+    app.dispatch(home, 'sheetDrag.touchStart', { currentTarget, touches: [touch], timeStamp })
+    app.dispatch(home, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 100 + dy }], timeStamp })
+    return { currentTarget, touch }
+  }
+  const cancelDrag = (id, dy, timeStamp) => {
+    const { currentTarget, touch } = startDrag(id, dy, timeStamp)
+    app.dispatch(home, 'sheetDrag.touchCancel', {
+      currentTarget,
+      changedTouches: [{ ...touch, pageY: 100 + dy }],
+      timeStamp
+    })
+  }
+
+  cancelDrag('monthPicker', 40, 1000)
+  app.commit(home)
+  startDrag('monthPicker', 80, 2000)
+  await app.advance(16)
+  assert.equal(
+    app.viewStyle(home, '.sheet-slide-monthPicker').transform,
+    'translateY(80px)',
+    'touchStart invalidates the old RAF instead of letting it clear the new transform'
+  )
+
+  app.dispatch(home, 'sheetDrag.touchCancel', {
+    currentTarget: { dataset: { sheet: 'monthPicker' } },
+    changedTouches: [{ identifier: 1, pageX: 100, pageY: 180 }],
+    timeStamp: 2100
+  })
+  app.commit(home)
+  cancelDrag('monthPicker', 120, 3000)
+  app.commit(home)
+  await app.advance(16)
+  assert.equal(app.viewStyle(home, '.sheet-slide-monthPicker').transform, '', 'the newest same-id reset wins')
+  assert.equal(home.data.sheetDragClear.monthPicker.token, 3)
+
+  cancelDrag('monthPicker', 40, 4000)
+  app.commit(home)
+  cancelDrag('infoSheet', 60, 5000)
+  app.commit(home)
+  startDrag('monthPicker', 80, 6000)
+  await app.advance(16)
+  assert.equal(app.viewStyle(home, '.sheet-slide-monthPicker').transform, 'translateY(80px)', 'the new same-id gesture stays intact')
+  assert.equal(app.viewStyle(home, '.sheet-slide-infoSheet').transform, '', 'the other sheet still flushes its own reset')
+})
 
 test('real WXS sheet touchcancel restores the open pose and clears drag displacement', async t => {
   const app = homeApp(t, { selectors: { '.sheet-slide-monthPicker': { height: 400 } } })
@@ -1085,6 +1221,31 @@ test('month picker year browsing preserves the active month and one month select
   assert.equal(calendarFrames(home), framesBeforeBrowsing + 1, 'one selection submits exactly one whole month')
   assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-leaving')
   assert.equal(classes('jump-option', { ...app.rendered(home), item: { value: 2 } }).includes('active'), true)
+})
+
+test('month picker marks the real today month across year browsing and active selection', async t => {
+  const app = homeApp(t, { now: '2026-11-08T12:00:00+08:00' })
+  const home = await launch(app)
+  await tap(app, home, 'openMonthPicker')
+
+  let data = app.rendered(home)
+  assert.deepEqual(data.jumpMonths.filter(item => item.isRealTodayMonth).map(item => item.value), [10])
+  assert.ok(classes('jump-option', { ...data, item: data.jumpMonths[10] }).includes('active'))
+  assert.ok(classes('jump-option', { ...data, item: data.jumpMonths[10] }).includes('real-today'))
+  assert.equal(attr('jump-option', 'aria-label', { ...data, item: data.jumpMonths[10] }), '选择11月，本月')
+
+  await tap(app, home, 'shiftJumpYear', { delta: 1 })
+  data = app.rendered(home)
+  assert.deepEqual(data.jumpMonths.filter(item => item.isRealTodayMonth), [])
+  assert.equal(attr('jump-option', 'aria-label', { ...data, item: data.jumpMonths[10] }), '选择11月')
+
+  await tap(app, home, 'shiftJumpYear', { delta: -1 })
+  await tap(app, home, 'selectJumpMonth', { month: 2 })
+  data = app.rendered(home)
+  const currentMonthClasses = classes('jump-option', { ...data, item: data.jumpMonths[10] })
+  assert.ok(currentMonthClasses.includes('real-today'))
+  assert.equal(currentMonthClasses.includes('active'), false)
+  assert.equal(attr('jump-option', 'aria-label', { ...data, item: data.jumpMonths[10] }), '选择11月，本月')
 })
 
 test('month button accessible name includes the active year and month', async t => {

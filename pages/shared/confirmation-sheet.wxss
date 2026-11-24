@@ -105,6 +105,11 @@
   margin: 0 auto 20rpx;
   border-radius: var(--radius-full);
   background: rgba(255,255,255,0.22);
+  transition: background-color var(--duration-press) ease;
+}
+.sheet-drag-zone:active .sheet-handle,
+.sheet-drag-zone.sheet-drag-zone-hover .sheet-handle {
+  background-color: rgba(232,144,158,0.55);
 }
 .sheet-head {
   display: flex;
@@ -143,7 +148,11 @@
   flex: 0 0 auto;
   width: 88rpx;
   height: 88rpx;
-  line-height: 84rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: 1;
   text-align: center;
   border-radius: var(--radius-circle);
   font-size: 46rpx;
@@ -223,10 +232,22 @@
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
 }
-.date-picker-confirm {
+button.date-picker-confirm {
   width: 100%;
   box-sizing: border-box;
-  margin-top: 24rpx;
+  margin: 24rpx 0 0;
+  line-height: var(--line-height-body);
+  border: 0;
+  background: var(--aurora-pink);
+  color: var(--text-on-accent);
+  overflow: visible;
+}
+button.date-picker-confirm[disabled] {
+  background: var(--aurora-pink);
+  color: var(--text-on-accent);
+}
+button.date-picker-confirm::after {
+  border: 0;
 }
 .reduced-motion-probe {
   position: absolute;
@@ -246,6 +267,7 @@
   .sheet-slide.sheet-open,
   .sheet-slide.sheet-open.sheet-reset,
   .sheet-close,
+  .sheet-handle,
   .confirmation-secondary {
     transition: none;
   }

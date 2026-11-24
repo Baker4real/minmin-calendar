@@ -896,16 +896,34 @@ test('settings about group shows the version once and opens a short help sheet',
 
   assert.equal((wxml.match(/1\.0\.0/g) || []).length, 1)
   assert.match(about, /v1\.0\.0/)
+  assert.match(wxssRuleBody(readPageFile('pages/settings/settings.wxss'), '.settings-version'), /color:\s*var\(--text-secondary\)/)
   assert.match(about, /bindtap="openHelp"/)
   assert.match(about, /aria-label="使用说明"/)
 
   const helpStart = wxml.indexOf('class="day-action-sheet help-sheet')
   assert.ok(helpStart !== -1, 'expected the help sheet')
   const help = wxml.slice(helpStart)
-  assert.match(help, /房间是你们两个人共用的日历/)
-  assert.match(help, /房间会归档/)
-  assert.match(help, /不是医疗建议/)
+  assert.match(help, /wx:for="\{\{helpTopics\}\}"/)
+  assert.match(help, /wx:for="\{\{item.paragraphs\}\}"/)
+  assert.match(help, /class="help-topic-title"/)
   assert.match(wxml, /aria-label="关闭使用说明"/)
+})
+
+test('settings help topics use rounded light cards with emphasized captions and no trailing gaps', () => {
+  const wxss = readPageFile('pages/settings/settings.wxss')
+  const topic = wxssRuleBody(wxss, '.help-topic')
+  assert.match(topic, /padding:\s*20rpx 24rpx/)
+  assert.match(topic, /border-radius:\s*var\(--radius-md\)/)
+  assert.match(topic, /background:\s*rgba\(255,255,255,0\.035\)/)
+  assert.match(topic, /border:\s*1px solid rgba\(255,255,255,0\.06\)/)
+  assert.match(topic, /margin-bottom:\s*16rpx/)
+  assert.match(wxssRuleBody(wxss, '.help-topic:last-child'), /margin-bottom:\s*0/)
+  assert.match(wxssRuleBody(wxss, '.help-topic .help-copy:last-child'), /margin-bottom:\s*0/)
+
+  const title = wxssRuleBody(wxss, '.help-topic-title')
+  assert.match(title, /font-size:\s*var\(--font-size-caption\)/)
+  assert.match(title, /font-weight:\s*var\(--font-weight-control\)/)
+  assert.match(title, /color:\s*rgba\(255,255,255,0\.92\)/)
 })
 
 test('settings help binds lifecycle, accessibility and system-back state in WXML', () => {
@@ -1016,7 +1034,7 @@ test('settings room actions are rose tappable rows with the shared small-action 
   const btn = wxssRuleBody(wxss, '.room-action-btn')
 
   assert.match(btn, /min-height:\s*88rpx/)
-  assert.match(btn, /color:\s*#E8909E/i)
+  assert.match(btn, /color:\s*var\(--aurora-pink\)/i)
   assert.match(btn, /border-radius:\s*var\(--radius-sm\)/)
   assert.match(btn, /background:\s*rgba\(232,144,158,0\.08\)/)
   assert.doesNotMatch(btn, /linear-gradient/i)
@@ -1092,14 +1110,49 @@ test('settings room group keeps member status separate from the danger zone', ()
   assert.doesNotMatch(wxml.slice(0, wxml.indexOf('settings-danger-zone')), /bindtap="unbind"/)
 })
 
+test('settings room card aligns its code, inline membership badge and separated bottom actions', () => {
+  const wxml = readPageFile('pages/settings/settings.wxml')
+  const room = wxml.slice(wxml.indexOf('>房间<'), wxml.indexOf('>日历显示<'))
+  const heading = /<view class="room-code-heading">([\s\S]*?)<\/view>/.exec(room)
+  assert.ok(heading, 'the room label and membership badge share one heading row')
+  assert.match(heading[1], /class="room-code-label">我的房间码/)
+  assert.match(heading[1], /class="room-member-badge \{\{roomStatus === 'paired' \? 'paired' : 'waiting'\}\}"/)
+  assert.match(heading[1], /\{\{roomMemberLabel\}\}/)
+  assert.doesNotMatch(room, /class="menu-item non-interactive">\s*<text class="menu-text">\{\{roomMemberLabel\}\}/)
+
+  const actions = /<view wx:if="\{\{roomCode\}\}" class="room-card-actions">([\s\S]*?)<\/view>/.exec(room)
+  assert.ok(actions, 'bound-room actions share a dedicated bottom region')
+  assert.match(actions[1], /open-type="share"/)
+  assert.match(actions[1], />再发邀请</)
+  assert.match(actions[1], /bindtap="clearData"/)
+  assert.match(actions[1], />重新同步房间$/)
+
+  const wxss = readPageFile('pages/settings/settings.wxss')
+  assert.doesNotMatch(wxssRuleBody(wxss, '.room-code-content .room-code-value'), /text-indent/)
+  assert.match(wxssRuleBody(wxss, '.room-code-heading'), /display:\s*flex/)
+  assert.match(wxssRuleBody(wxss, '.room-code-heading'), /justify-content:\s*space-between/)
+  const actionStyle = wxssRuleBody(wxss, '.room-card-actions')
+  assert.match(actionStyle, /padding:\s*16rpx var\(--space-page-row-inset\) 30rpx/)
+  assert.match(actionStyle, /gap:\s*16rpx/)
+  assert.match(wxssRuleBody(wxss, 'button.settings-share-invite'), /width:\s*100%/)
+  assert.match(wxssRuleBody(wxss, 'button.settings-share-invite'), /margin:\s*0/)
+  assert.match(wxssRuleBody(wxss, '.resync-room-btn'), /margin:\s*0/)
+  assert.match(wxssRuleBody(wxss, '.room-member-badge'), /border-radius:\s*var\(--radius-full\)/)
+  assert.match(wxssRuleBody(wxss, '.room-member-badge.paired'), /color:\s*var\(--aurora-pink\)/)
+  assert.match(wxssRuleBody(wxss, '.room-member-badge.paired'), /background:\s*rgba\(232,144,158,0\.12\)/)
+  assert.match(wxssRuleBody(wxss, '.room-member-badge.waiting'), /color:\s*rgba\(255,255,255,0\.72\)/)
+  assert.match(wxssRuleBody(wxss, '.room-member-badge.waiting'), /background:\s*rgba\(255,255,255,0\.06\)/)
+})
+
 test('settings calendar display says compact keeps holidays and adjusted workdays, and full adds the lunar day', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
   const calendar = wxml.slice(wxml.indexOf('>日历显示<'), wxml.indexOf('>数据<'))
 
-  assert.match(calendar, /清爽只看日期与标记（含节日和调休），完整另外显示农历/)
+  assert.match(calendar, /清爽只看日期与标记（含节日和调休）；<text class="density-menu-desc-full">完整另外显示农历<\/text>/)
   assert.doesNotMatch(calendar, /完整加显农历与节日|完整显示农历和节假日/)
   assert.match(calendar, /aria-label="清爽显示日期与标记"/)
   assert.match(calendar, /aria-label="完整显示农历"/)
+  assert.match(wxssRuleBody(readPageFile('pages/settings/settings.wxss'), '.density-menu-desc-full'), /white-space:\s*nowrap/)
 })
 
 // ===== issue #103：「查看欢乐时光」→ 记录 tab 的欢乐时光分段 =====

@@ -503,8 +503,11 @@ test('one-shot transitions and animations use the shared duration tokens and rol
 
       if (!rule.decls.transition || rule.decls.transition === 'none') continue
       for (const segment of splitTopLevelComma(rule.decls.transition)) {
-        // 阴影没有时长角色：按压柔光落在柔光层透明度上（issue #166）
+        // 按压柔光仍落在柔光层透明度上（issue #166）；#252 仅登记共享表单焦点阴影的状态过渡。
         if (segment.startsWith('box-shadow')) {
+          const formControlFocusShadow = rule.selectors.length === 1 && rule.selectors[0] === '.form-control' &&
+            segment === `box-shadow ${STATE_DURATION} ease`
+          if (formControlFocusShadow) continue
           violations.push(`${where} still transitions box-shadow ("${segment}")`)
           continue
         }
@@ -622,6 +625,24 @@ test('infinite animations stay inside the registered registry with slow decorati
   assert.deepEqual(skeletonDefinitions, ['app.wxss'], 'skeletonPulse has one shared definition')
 })
 
+test('home and record skeletons pulse only at their parent containers', () => {
+  const pulses = []
+  for (const file of analyzedWxssFiles()) {
+    if (!['pages/index/index.wxss', 'pages/period/period.wxss'].includes(file.relative)) continue
+    for (const rule of file.rules) {
+      if (rule.inReducedMotion) continue
+      for (const animation of ruleAnimations(rule)) {
+        if (animation.name !== 'skeletonPulse') continue
+        for (const selector of rule.selectors) pulses.push(`${file.relative} ${selector}`)
+      }
+    }
+  }
+  assert.deepEqual(pulses.sort(), [
+    'pages/index/index.wxss .calendar-skeleton',
+    'pages/period/period.wxss .skeleton-card'
+  ])
+})
+
 test('retired decoration, loading and month-change animations stay gone', () => {
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
@@ -641,7 +662,7 @@ test('retired decoration, loading and month-change animations stay gone', () => 
 const BLUR_RADIUS_CAP_PX = 20
 const MASK_BLUR_CAP_PX = 8
 const BLURRED_SURFACES = {
-  'pages/index/index.wxss': ['.day-sheet-mask'],
+  'pages/index/index.wxss': ['.home-sticky', '.day-sheet-mask'],
   'pages/settings/settings.wxss': ['.day-sheet-mask'],
   'pages/bind/bind.wxss': ['.day-sheet-mask'],
   'pages/shared/confirmation-sheet.wxss': ['.day-sheet-mask'],

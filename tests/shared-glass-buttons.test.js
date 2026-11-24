@@ -47,8 +47,17 @@ test('glass surfaces share one structural base while modifiers keep their tint a
     const decls = rawDeclarations(file, selector)
     assert.equal(decls.background, background, `${selector} keeps its rendered tint`)
     assert.equal(decls.border, border, `${selector} keeps its rendered stroke`)
-    assert.equal(decls.position, undefined, `${selector} leaves position to the shared base`)
-    assert.equal(decls.overflow, undefined, `${selector} leaves clipping to the shared base`)
+    const selfContainedPremiumCard = file === 'app.wxss' && selector === '.premium-card'
+    assert.equal(
+      decls.position,
+      selfContainedPremiumCard ? 'relative' : undefined,
+      selfContainedPremiumCard ? '.premium-card owns its pseudo-element positioning' : `${selector} leaves position to the shared base`
+    )
+    assert.equal(
+      decls.overflow,
+      selfContainedPremiumCard ? 'hidden' : undefined,
+      selfContainedPremiumCard ? '.premium-card clips its own prism hairline' : `${selector} leaves clipping to the shared base`
+    )
   }
   assertEveryInstanceHasBase('glass-surface', ['premium-card', 'cycle-card', 'month-nav', 'skeleton-card'])
 })
@@ -63,7 +72,7 @@ test('rose fill buttons share one flex and positioning base while modifiers keep
 
   const modifiers = [
     ['app.wxss', '.btn-premium', 'var(--radius-md)'],
-    ['pages/index/index.wxss', '.quick-btn', 'var(--radius-md)'],
+    ['pages/index/index.wxss', '.quick-btn', 'var(--radius-card)'],
     ['pages/index/index.wxss', '.copy-recap', 'var(--radius-md)'],
     ['pages/shared/room-code.wxss', '.copy-btn', 'var(--radius-sm)']
   ]
@@ -125,10 +134,10 @@ test('secondary outline buttons share one flex base while ghost, confirmation an
   })
 
   const modifiers = [
-    ['pages/bind/bind.wxss', '.btn-ghost', 'transparent', '#E8909E', '1.5px solid #E8909E', 'var(--radius-full)'],
-    ['pages/index/index.wxss', '.quick-btn.btn-ghost', 'transparent', '#E8909E', '1.5px solid #E8909E', 'var(--radius-full)'],
+    ['pages/bind/bind.wxss', '.btn-ghost', 'transparent', 'var(--aurora-pink)', '1.5px solid var(--aurora-pink)', 'var(--radius-full)'],
+    ['pages/index/index.wxss', '.quick-btn.btn-ghost', 'var(--aurora-bg)', 'var(--aurora-pink)', '1.5px solid var(--aurora-pink)', 'var(--radius-card)'],
     ['pages/shared/confirmation-sheet.wxss', '.confirmation-secondary', 'transparent', 'var(--aurora-pink)', '1px solid rgba(232,144,158,0.45)', 'var(--radius-md)'],
-    ['pages/settings/settings.wxss', '.room-action-btn', 'rgba(232,144,158,0.08)', '#E8909E', '1px solid rgba(232,144,158,0.45)', 'var(--radius-sm)']
+    ['pages/settings/settings.wxss', '.room-action-btn', 'rgba(232,144,158,0.08)', 'var(--aurora-pink)', '1px solid rgba(232,144,158,0.45)', 'var(--radius-sm)']
   ]
   for (const [file, selector, background, color, border, radius] of modifiers) {
     const decls = rawDeclarations(file, selector)

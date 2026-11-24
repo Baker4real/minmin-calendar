@@ -241,10 +241,297 @@ test('R2 date panel: period start opens three bounded columns and confirms the d
   ])
   assert.equal(renderWxmlAttribute(confirm.attrs['aria-label'], page.data), '确定，2025年1月1日')
   await app.dispatch(page, 'onDatePickerConfirm')
+  await app.settle()
   assert.equal(page.data.startDate, '2025-01-01')
   assert.equal(page.data.datePickerPhase, 'leaving')
   await app.advance(200)
   assert.equal(page.data.datePickerMounted, false)
+})
+
+test('R2 date panel: inertia locks confirmation until the settled draft can submit', async (t) => {
+  const scenarios = [
+    { spec: period, open: 'openStartDatePicker' },
+    { spec: records[1], open: 'openMemoryDatePicker' }
+  ]
+  for (const { spec, open } of scenarios) {
+    await t.test(spec.kind, async (t) => {
+      const app = setup(t)
+      const { page } = await openEditor(app, spec, { [spec.dateField]: '2025-12-30' })
+      await app.dispatch(page, open)
+      await app.settle()
+
+      const expanded = readSource(path.join(__dirname, `../pages/${spec.kind}/edit/edit.wxml`), 'utf8')
+      const picker = wxmlOpeningTags(expanded).find(tag => tag.tag === 'picker-view')
+      assert.ok(picker)
+      assert.equal(picker.attrs.bindpickstart, 'onDatePickerPickStart')
+      assert.equal(picker.attrs.bindpickend, 'onDatePickerPickEnd')
+      const confirm = wxmlOpeningTags(expanded).find(tag => tag.attrs.bindtap === 'onDatePickerConfirm')
+      assert.ok(confirm)
+      assert.equal(confirm.tag, 'button', 'confirm has a native disabled state')
+
+      let mapped = sharedTemplateData(spec, 'sharedBottomSheet', 'bodyTemplate', 'datePickerSheetBody', page.data)
+      assert.equal(mapped.datePickerPicking, false, 'opening resets the scroll lock')
+      assert.equal(renderWxmlAttribute(confirm.attrs.disabled, page.data), 'false')
+      assert.equal(renderWxmlAttribute(confirm.attrs['aria-disabled'], page.data), 'false')
+      assert.equal(renderWxmlClasses(confirm.attrs.class, page.data).includes('disabled'), false)
+
+      await app.dispatch(page, 'onDatePickerPickStart')
+      assert.equal(page.data.datePickerPicking, true)
+      mapped = sharedTemplateData(spec, 'sharedBottomSheet', 'bodyTemplate', 'datePickerSheetBody', page.data)
+      assert.equal(mapped.datePickerPicking, true, 'the page forwards the lock through the shared shell')
+      assert.equal(renderWxmlAttribute(confirm.attrs.disabled, page.data), 'true')
+      assert.equal(renderWxmlAttribute(confirm.attrs['aria-disabled'], page.data), 'true')
+      assert.equal(renderWxmlClasses(confirm.attrs.class, page.data).includes('disabled'), true)
+
+      await app.dispatch(page, 'onDatePickerConfirm')
+      assert.equal(page.data.datePickerPhase, 'open', 'a rolling confirm does not close the panel')
+      assert.equal(page.data[spec.dateField], '2025-12-30', 'a rolling confirm cannot write the old date')
+
+      await app.dispatch(page, 'onDatePickerChange', { detail: { value: [125, 0, 0] } })
+      assert.equal(page.data.datePickerDraft, '2025-01-01')
+      await app.dispatch(page, 'onDatePickerPickEnd')
+      await app.settle()
+      assert.equal(page.data.datePickerPicking, false, 'settling releases the scroll lock after the value renders')
+      assert.equal(renderWxmlAttribute(confirm.attrs.disabled, page.data), 'false')
+      assert.equal(renderWxmlAttribute(confirm.attrs['aria-disabled'], page.data), 'false')
+      assert.equal(renderWxmlClasses(confirm.attrs.class, page.data).includes('disabled'), false)
+
+      await app.dispatch(page, 'onDatePickerConfirm')
+      await app.settle()
+      assert.equal(page.data[spec.dateField], '2025-01-01', 'the settled draft submits')
+      assert.equal(page.data.datePickerPhase, 'leaving')
+      assert.equal(page.data.datePickerPicking, false, 'closing resets the scroll lock')
+      await app.advance(200)
+      assert.equal(page.data.datePickerMounted, false)
+
+      await app.dispatch(page, open)
+      await app.settle()
+      assert.equal(page.data.datePickerPicking, false, 'reopening starts unlocked')
+      await app.dispatch(page, 'onDatePickerPickStart')
+      await app.dispatch(page, 'onDatePickerClose')
+      assert.equal(page.data.datePickerPicking, false, 'cancellation also resets the scroll lock immediately')
+      await app.advance(200)
+    })
+  }
+})
+
+test('R2 date panel: pick settlement follows public value semantics across event orders', async (t) => {
+  await t.test('pickend before the final change stays locked until clamp renders', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker')
+    await app.settle()
+    const expanded = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
+    const picker = wxmlOpeningTags(expanded).find(tag => tag.tag === 'picker-view')
+    assert.equal(picker.attrs['immediate-change'], '{{true}}', 'the final value is emitted at release, before native pickend')
+
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    assert.equal(page.data.datePickerPicking, true, 'pickend alone cannot reopen confirmation')
+    await app.dispatch(page, 'onDatePickerConfirm')
+    assert.equal(page.data.startDate, '2025-12-30')
+    assert.equal(page.data.datePickerPhase, 'open')
+
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 120, detail: { value: [126, 11, 30] } })
+    assert.equal(page.data.datePickerDraft, '2026-09-20', 'the final change applies the inclusive upper-bound clamp')
+    assert.equal(page.data.datePickerPicking, true, 'the lock survives until the clamped value render completes')
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, false)
+    await app.dispatch(page, 'onDatePickerConfirm')
+    await app.settle()
+    assert.equal(page.data.startDate, '2026-09-20')
+    assert.equal(page.data.datePickerPhase, 'leaving')
+    await app.advance(200)
+  })
+
+  await t.test('a pick without a final change unlocks without a timer delay', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker')
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    assert.equal(page.data.datePickerPicking, true)
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, false, 'the render barrier settles a no-change gesture')
+    await app.dispatch(page, 'onDatePickerConfirm')
+    await app.settle()
+    assert.equal(page.data.startDate, '2025-12-30')
+    assert.equal(page.data.datePickerPhase, 'leaving')
+    await app.advance(200)
+  })
+
+  await t.test('stale end work and timestamped end events cannot unlock a newer pick', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker')
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 200 })
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 150, detail: { value: [125, 0, 0] } })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, true, 'neither stale callback nor stale native event ends the new pick')
+    assert.equal(page.data.datePickerDraft, '2025-12-30', 'a stale change cannot overwrite the new pick draft')
+    assert.equal(page.data.datePickerPhase, 'open')
+
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 210, detail: { value: [125, 0, 0] } })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 220 })
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, false)
+    await app.dispatch(page, 'onDatePickerConfirm')
+    await app.settle()
+    assert.equal(page.data.startDate, '2025-01-01')
+    await app.advance(200)
+  })
+
+  await t.test('cancel and reopen invalidate pending end work', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker')
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.dispatch(page, 'onDatePickerClose')
+    assert.equal(page.data.datePickerPicking, false)
+
+    await app.dispatch(page, 'openStartDatePicker')
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 200 })
+    await app.settle()
+    assert.equal(page.data.datePickerPhase, 'open')
+    assert.equal(page.data.datePickerPicking, true, 'the cancelled pick cannot settle the reopened panel')
+    await app.dispatch(page, 'onDatePickerClose')
+    assert.equal(page.data.datePickerPicking, false)
+    await app.advance(200)
+    assert.equal(page.data.datePickerMounted, false)
+  })
+})
+
+test('R2 date panel: retained picks and the confirm render barrier reject stale submission orders', async (t) => {
+  await t.test('settle then confirm then a late final change submits the rendered final draft', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker', { timeStamp: 50 })
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, false)
+
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 115 })
+    assert.equal(page.data.datePickerPicking, true, 'confirm disables itself before its render barrier')
+    assert.equal(page.data.datePickerPhase, 'open')
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 120, detail: { value: [126, 11, 30] } })
+    await app.settle()
+
+    assert.equal(page.data.startDate, '2026-09-20', 'the change before the confirm barrier is the submitted draft')
+    assert.equal(page.data.datePickerPhase, 'leaving')
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 130, detail: { value: [125, 0, 0] } })
+    assert.equal(page.data.startDate, '2026-09-20')
+    assert.equal(page.data.datePickerDraft, '2026-09-20', 'a change after confirm starts leaving cannot rewrite the panel')
+    await app.advance(200)
+  })
+
+  await t.test('settle then a late change relocks before a same-turn confirm', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker', { timeStamp: 50 })
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.settle()
+
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 120, detail: { value: [126, 11, 30] } })
+    assert.equal(page.data.datePickerPicking, true, 'a late change on the retained pick relocks confirmation')
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 130 })
+    assert.equal(page.data.startDate, '2025-12-30')
+    assert.equal(page.data.datePickerPhase, 'open', 'confirm early-returns while the late draft is rendering')
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, false)
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 140 })
+    await app.settle()
+    assert.equal(page.data.startDate, '2026-09-20')
+    assert.equal(page.data.datePickerPhase, 'leaving')
+    await app.advance(200)
+  })
+
+  await t.test('a no-change confirmation uses one render barrier and ignores repeated taps', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker', { timeStamp: 50 })
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, false)
+
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 115 })
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 116 })
+    assert.equal(page.data.startDate, '2025-12-30')
+    assert.equal(page.data.datePickerPhase, 'open')
+    assert.equal(page.data.datePickerPicking, true)
+    await app.settle()
+    assert.equal(page.data.startDate, '2025-12-30')
+    assert.equal(page.data.datePickerPhase, 'leaving')
+    await app.advance(200)
+    assert.equal(page.data.datePickerMounted, false)
+  })
+
+  await t.test('an old confirm barrier and old change cannot finish or overwrite a newer pick', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker', { timeStamp: 50 })
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 115 })
+
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 200 })
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 150, detail: { value: [125, 0, 0] } })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.settle()
+    assert.equal(page.data.datePickerPhase, 'open', 'the old confirm barrier cannot close the new gesture')
+    assert.equal(page.data.datePickerPicking, true)
+    assert.equal(page.data.datePickerDraft, '2025-12-30')
+
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 210, detail: { value: [125, 0, 0] } })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 220 })
+    await app.settle()
+    assert.equal(page.data.datePickerPicking, false)
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 230 })
+    await app.settle()
+    assert.equal(page.data.startDate, '2025-01-01')
+    assert.equal(page.data.datePickerPhase, 'leaving')
+    await app.advance(200)
+  })
+
+  await t.test('cancel and reopen reject old changes before and after the new panel opens', async (t) => {
+    const app = setup(t)
+    const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
+    await app.dispatch(page, 'openStartDatePicker', { timeStamp: 50 })
+    await app.settle()
+    await app.dispatch(page, 'onDatePickerPickStart', { timeStamp: 100 })
+    await app.dispatch(page, 'onDatePickerPickEnd', { timeStamp: 110 })
+    await app.dispatch(page, 'onDatePickerClose', { timeStamp: 115 })
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 120, detail: { value: [125, 0, 0] } })
+    assert.equal(page.data.datePickerDraft, '2025-12-30', 'a cancelled panel has no active pick to write')
+
+    await app.dispatch(page, 'openStartDatePicker', { timeStamp: 200 })
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 120, detail: { value: [125, 0, 0] } })
+    await app.settle()
+    assert.equal(page.data.datePickerPhase, 'open')
+    assert.equal(page.data.datePickerPicking, false)
+    assert.equal(page.data.datePickerDraft, '2025-12-30', 'the reopened generation rejects the old change by its openedAt boundary')
+
+    await app.dispatch(page, 'onDatePickerChange', { timeStamp: 210, detail: { value: [125, 0, 0] } })
+    await app.dispatch(page, 'onDatePickerConfirm', { timeStamp: 220 })
+    await app.settle()
+    assert.equal(page.data.startDate, '2025-01-01')
+    assert.equal(page.data.datePickerPhase, 'leaving')
+    await app.advance(200)
+  })
 })
 
 test('R2 date panel: period end and memory date reuse one shared panel with existing lower bounds', async (t) => {
@@ -269,6 +556,7 @@ test('R2 date panel: period end and memory date reuse one shared panel with exis
 
     await app.dispatch(page, 'onDatePickerChange', { detail: { value: [0, 0, 1] } })
     await app.dispatch(page, 'onDatePickerConfirm')
+    await app.settle()
     assert.equal(page.data.endDate, '2025-12-31')
     assert.equal(page.data.startDate, '2025-12-30')
   })
@@ -289,6 +577,7 @@ test('R2 date panel: period end and memory date reuse one shared panel with exis
     assert.equal(page.data.datePickerConfirmAria, '确定，2025年12月31日')
     await app.dispatch(page, 'onDatePickerChange', { detail: { value: [125, 0, 0] } })
     await app.dispatch(page, 'onDatePickerConfirm')
+    await app.settle()
     assert.equal(page.data.date, '2025-01-01')
   })
 })
@@ -334,7 +623,7 @@ test('R2 date panel: mask, close, drag and system back cancel; touchcancel only 
   app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 180 }] })
   app.dispatch(page, 'sheetDrag.touchCancel', { currentTarget, changedTouches: [{ ...touch, pageY: 180 }] })
   assert.equal(page.data.datePickerPhase, 'open')
-  assert.deepEqual(page.data.datePickerDragClear, { token: dragToken + 1, action: 'reset' })
+  assert.deepEqual(page.data.datePickerDragClear, { token: dragToken + 1, action: 'reset', sheet: 'datePicker' })
   assert.equal(page.data.startDate, '2025-12-30')
   await app.advance(16)
   assert.equal(app.viewStyle(page, '.sheet-slide-datePicker').transform, '')
@@ -482,7 +771,7 @@ test('period: new start date shows its owning period inline only while covered',
 
   const template = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
   const startField = template.slice(template.indexOf('id="field-startDate"'), template.indexOf('id="field-endDate"'))
-  assert.match(startField, /<view wx:if="\{\{startDateOwnerText\}\}" class="form-hint start-date-owner">[\s\S]*\{\{startDateOwnerText\}\}/)
+  assert.match(startField, /<view wx:if="\{\{startDateOwnerText\}\}" class="form-hint start-date-owner micro-notice">[\s\S]*<text class="micro-notice-text">\{\{startDateOwnerText\}\}<\/text>/)
 
   await changeEditorDate(app, page, 'onStartChange', '2026-09-06')
   assert.equal(page.data.startDateOwnerText, '')
@@ -631,6 +920,7 @@ test('period: overlap panel mask, close, drag and system back all cancel without
       app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
       await app.advance(100)
       app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
+      assert.deepEqual(page.data.confirmationDragClear, { token: 1, action: 'close', sheet: 'confirmation' })
     } else {
       await app.dispatch(page, close.handler)
     }
@@ -880,6 +1170,25 @@ async function assertNoteFocusToggle(app, page, spec, { onFocus, onBlur } = {}) 
   if (onBlur) onBlur()
 }
 
+test('edit pages derive a quiet note counter only from 350 through 500 characters', async (t) => {
+  for (const spec of records) {
+    await t.test(spec.kind, async (t) => {
+      const app = setup(t)
+      const { page } = await openEditor(app, spec)
+      assert.equal(page.data.noteCountText, '')
+      const template = readSource(path.join(__dirname, `../pages/${spec.kind}/edit/edit.wxml`), 'utf8')
+      assert.match(template, /<text wx:if="\{\{noteCountText\}\}" class="note-count">\{\{noteCountText\}\}<\/text>/)
+      const wxss = readSource(path.join(__dirname, `../pages/${spec.kind}/edit/edit.wxss`), 'utf8')
+      assert.match(wxss, /\.note-count\s*\{[^}]*font-variant-numeric: tabular-nums[^}]*color: var\(--text-secondary\)/s)
+
+      for (const [length, expected] of [[349, ''], [350, '350 / 500'], [500, '500 / 500']]) {
+        await app.dispatch(page, 'onNoteInput', value('字'.repeat(length)))
+        assert.equal(page.data.noteCountText, expected)
+      }
+    })
+  }
+})
+
 test('period: fixed actions hide on note focus, restore on blur, and save only once', async (t) => {
   const app = setup(t)
   const { page } = await openEditor(app, period)
@@ -890,7 +1199,7 @@ test('period: fixed actions hide on note focus, restore on blur, and save only o
     },
     onBlur: () => {
       const actions = sharedTemplateData(period, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
-      assert.equal(actions.actionsHidden, false)
+      assert.equal(Boolean(actions.actionsHidden), false)
     }
   })
 
@@ -905,11 +1214,41 @@ test('period: fixed actions hide on note focus, restore on blur, and save only o
   await app.settle()
 })
 
-test('memory: R10 note focus shows the shared focused class and blur restores it', async (t) => {
+test('memory: note focus only toggles the focused class and never hides the fixed save bar', async (t) => {
   const app = setup(t)
   const memory = records[1]
   const { page } = await openEditor(app, memory)
-  await assertNoteFocusToggle(app, page, memory)
+  const initialActions = sharedTemplateData(memory, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
+  assert.equal(Boolean(initialActions.actionsHidden), false)
+  await assertNoteFocusToggle(app, page, memory, {
+    onFocus: () => {
+      const actions = sharedTemplateData(memory, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
+      assert.equal(Boolean(actions.actionsHidden), false)
+    },
+    onBlur: () => {
+      const actions = sharedTemplateData(memory, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
+      assert.equal(Boolean(actions.actionsHidden), false)
+    }
+  })
+})
+
+test('new and existing record saves use the same iconless success capsule on both edit pages', async (t) => {
+  for (const spec of records) {
+    for (const mode of ['new', 'edit']) {
+      await t.test(`${spec.kind}: ${mode}`, async (t) => {
+        const app = setup(t)
+        const action = mode === 'edit' ? 'update' : 'add'
+        const { page } = await openEditor(app, spec, {
+          ...spec.fields,
+          ...(mode === 'edit' ? { id: 'existing' } : {})
+        })
+        cloudRoute(app, spec, action).reply({ code: 0, record: { _id: 'saved', ...spec.payload } })
+        await app.dispatch(page, 'save')
+        assert.equal(app.wx.toasts.at(-1).title, spec.success)
+        assert.equal(app.wx.toasts.at(-1).icon, 'none')
+      })
+    }
+  }
 })
 
 for (const spec of records) {
@@ -1196,6 +1535,7 @@ for (const spec of records) {
         if (result === 'match') {
           await saving
           assert.equal(app.wx.toasts.at(-1).title, '已保存')
+          assert.equal(app.wx.toasts.at(-1).icon, 'none', 'read-back confirmation keeps the same iconless capsule')
           assert.equal(page.data.submitted, true)
           assert.equal(cell(home)[spec.marker], true)
           assert.equal(app.storage[key], undefined)

@@ -45,7 +45,7 @@ test('a surface fill is the cascaded background, or the background-color a tint 
 
 const repoRoot = path.join(__dirname, '..')
 const NEUTRAL_TITLE_COLOR = 'rgba(255,255,255,0.92)'
-const ROSE = '#E8909E'
+const ROSE = 'var(--aurora-pink)'
 const LIGHT_HEART = 'var(--color-memory)'
 const WARNING_RED = 'var(--color-danger)'
 const WARNING_RED_BORDER = 'rgba(249,115,115,0.28)'
@@ -141,12 +141,32 @@ test('R5 sticky hairline composites white 8% beyond the observed 8-channel trigg
   const stroke = strokeColor(declared)
   assert.deepEqual([stroke.r, stroke.g, stroke.b].map(channel => Math.round(channel * 255)), [255, 255, 255])
   assert.equal(stroke.a, 0.08)
-  const sticky = layerPaint(exactDeclaration(file, '.home-sticky', 'background'))
-  const line = composite(sticky, stroke, stroke.a)
+  const stops = gradientStops(exactDeclaration(file, '.home-sticky', 'background'))
+  assert.deepEqual(stops.map(stop => stop.a), [0.86, 0.94], 'static D1 keeps the 86% to 94% navy stops')
   for (const [name, groundValue] of contrastGrounds(readSource('app.wxss'))) {
     const ground = hex(groundValue)
-    const deltas = ['r', 'g', 'b'].map(channel => Math.abs(line[channel] - ground[channel]) * 255)
-    assert.ok(deltas.some(delta => delta > 8), `${name} still satisfies the R5 hairline trigger: ${deltas.map(delta => delta.toFixed(2)).join(', ')}`)
+    for (const stop of stops) {
+      const sticky = composite(ground, stop, stop.a)
+      const line = composite(sticky, stroke, stroke.a)
+      const deltas = ['r', 'g', 'b'].map(channel => Math.abs(line[channel] - ground[channel]) * 255)
+      assert.ok(deltas.some(delta => delta > 8), `${name} ${stop.source} still satisfies the R5 hairline trigger: ${deltas.map(delta => delta.toFixed(2)).join(', ')}`)
+    }
+  }
+})
+
+test('home status text clears 4.5:1 at both sticky stops without relying on blur', () => {
+  const file = 'pages/index/index.wxss'
+  const stops = gradientStops(exactDeclaration(file, '.home-sticky', 'background'))
+  const grounds = contrastGrounds(readSource('app.wxss'))
+  for (const selector of ['.home-status', '.home-status.neutral']) {
+    const text = layerPaint(exactDeclaration(file, selector, 'color'))
+    for (const [groundName, groundValue] of grounds) {
+      for (const stop of stops) {
+        const surface = composite(hex(groundValue), stop, stop.a)
+        const ratio = contrastOn(text, surface)
+        assert.ok(ratio >= 4.5, `${selector} on ${groundName} + ${stop.source} = ${ratio.toFixed(2)}:1`)
+      }
+    }
   }
 })
 
@@ -372,7 +392,7 @@ test('list flow tag rose text clears 4.5:1 on its quiet tint over the list card'
   const fill = cssColor(declarationOf(file, '.item-tag.flow', 'background'))
   for (const card of stackSurfaces([['app.wxss', '.premium-card']])) {
     const surface = composite(card, fill, fill.a)
-    const ratio = contrastRatio(color, toHex(surface))
+    const ratio = contrastOn(layerPaint(color), surface)
     assert.ok(ratio >= 4.5, `list flow tag ${color} on ${toHex(surface)} is ${ratio.toFixed(2)}:1, below 4.5:1`)
   }
 })
@@ -490,9 +510,9 @@ test('non-key grouping labels use the nearest secondary tier and still clear 4.5
 // 都要 ≥4.5:1。那几条半透明行（刷新重试、记录分段与记录 tab 重试行、绑定页错误条与重试）因此都叠在
 // var(--glass-fallback) 上，淡白或淡红只是上面的一层平涂。上面关键辅助文字表里登记过的不重复。
 const TEXT_ON_AURORA = [
-  { file: 'pages/index/index.wxss', selector: '.partner-welcome', stacks: [[]], note: '首页配对欢迎条' },
-  { file: 'pages/index/index.wxss', selector: '.partner-invite', stacks: [[]], note: '首页等待邀请条' },
-  { file: 'pages/index/index.wxss', selector: '.month-summary', stacks: [[]], note: '首页本月小结行' },
+  { file: 'pages/index/index.wxss', selector: '.partner-welcome', stacks: [[['pages/index/index.wxss', '.partner-welcome']]], note: '首页配对欢迎轻玻璃横幅' },
+  { file: 'pages/index/index.wxss', selector: '.partner-invite', stacks: [[['pages/index/index.wxss', '.partner-invite']]], note: '首页等待邀请轻玻璃横幅' },
+  { file: 'pages/index/index.wxss', selector: '.month-summary', stacks: [[['pages/index/index.wxss', '.month-summary']]], note: '首页本月小结轻玻璃横幅' },
   { file: 'pages/shared/retry-row.wxss', selector: '.refresh-retry', stacks: [[['pages/index/index.wxss', '.refresh-retry'], ['pages/index/index.wxss', '.refresh-retry::before']]], note: '首页刷新失败重试行' },
   { file: 'pages/index/index.wxss', selector: '.empty-guide-text', stacks: [[['pages/index/index.wxss', '.empty-guide']]], note: '首页空态引导' },
   { file: 'pages/index/index.wxss', selector: '.no-room-title', stacks: [[]], note: '未绑定与加载失败标题' },
@@ -514,6 +534,23 @@ test('text on the aurora and on translucent rows clears 4.5:1 at the aurora brig
   const failures = []
   for (const item of TEXT_ON_AURORA) {
     const text = layerPaint(exactDeclaration(item.file, item.selector, 'color'))
+    for (const surface of item.stacks.flatMap(stackSurfaces)) {
+      const ratio = contrastOn(text, surface)
+      if (ratio < 4.5) failures.push(`${item.note} ${item.selector} on ${toHex(surface)} = ${ratio.toFixed(2)}:1`)
+    }
+  }
+  assert.deepEqual(failures, [])
+})
+
+test('settings membership badges and help topic titles clear 4.5:1 on their real surfaces', () => {
+  const cases = [
+    { selector: '.room-member-badge.paired', stacks: [[['app.wxss', '.premium-card'], ['pages/settings/settings.wxss', '.room-member-badge.paired']]], note: '已加入徽标' },
+    { selector: '.room-member-badge.waiting', stacks: [[['app.wxss', '.premium-card'], ['pages/settings/settings.wxss', '.room-member-badge.waiting']]], note: '未加入徽标' },
+    { selector: '.help-topic-title', stacks: [[['pages/shared/confirmation-sheet.wxss', '.day-action-sheet'], ['pages/settings/settings.wxss', '.help-topic']]], note: '使用说明主题标题' }
+  ]
+  const failures = []
+  for (const item of cases) {
+    const text = layerPaint(exactDeclaration('pages/settings/settings.wxss', item.selector, 'color'))
     for (const surface of item.stacks.flatMap(stackSurfaces)) {
       const ratio = contrastOn(text, surface)
       if (ratio < 4.5) failures.push(`${item.note} ${item.selector} on ${toHex(surface)} = ${ratio.toFixed(2)}:1`)

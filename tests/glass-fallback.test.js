@@ -272,6 +272,19 @@ test('canvas navy hex in the same rule is a solid fallback', () => {
   assert.equal(ruleHasSolidFallback(decls, {}), true)
 })
 
+test('home sticky keeps high-alpha navy at both gradient stops when blur is ignored', () => {
+  const rule = parseRules(readSource(path.join(repoRoot, 'pages/index/index.wxss'), 'utf8'))
+    .find(candidate => candidate.selector === '.home-sticky')
+  assert.ok(rule, 'expected the home sticky surface')
+  assert.equal(rule.decls['backdrop-filter'], 'blur(6px)')
+  assert.equal(rule.decls['-webkit-backdrop-filter'], 'blur(6px)')
+  const stops = extractColors(rule.decls.background)
+  assert.equal(stops.length, 2)
+  assert.deepEqual(stops.map(stop => stop.a), [0.86, 0.94])
+  for (const stop of stops) assert.ok(channelsMatch(stop, NAVY_FILLS[0]) && isSolidFallbackColor(stop))
+  assert.equal(ruleHasSolidFallback(rule.decls, appTokens()), true)
+})
+
 test('every backdrop-filter rule keeps an opaque navy or rose fill', () => {
   const tokens = appTokens()
   const missing = []

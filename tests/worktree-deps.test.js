@@ -2,9 +2,15 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
+const { execFileSync } = require('node:child_process')
 const { sharedNodeModulesPath, workspaceRequire } = require('./tools/playwrightBrowsers.cjs')
 
 const repoRoot = path.resolve(__dirname, '..')
+const mainCheckout = path.dirname(execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], {
+  cwd: repoRoot,
+  encoding: 'utf8',
+  stdio: ['ignore', 'pipe', 'ignore']
+}).trim())
 
 function makeFixture(t) {
   const scratch = path.join(repoRoot, '.scratch', 'worktree-deps-tests')
@@ -16,15 +22,15 @@ function makeFixture(t) {
 
 test('linked worktree with matching lockfile reuses main checkout node_modules without local install', t => {
   const worktree = makeFixture(t)
-  fs.writeFileSync(path.join(worktree, '.git'), `gitdir: ${path.join(repoRoot, '.git', 'worktrees', 'wt-demo')}\n`)
+  fs.writeFileSync(path.join(worktree, '.git'), `gitdir: ${path.join(mainCheckout, '.git', 'worktrees', 'wt-demo')}\n`)
   fs.copyFileSync(path.join(repoRoot, 'package.json'), path.join(worktree, 'package.json'))
   fs.copyFileSync(path.join(repoRoot, 'package-lock.json'), path.join(worktree, 'package-lock.json'))
 
-  const fakeCommonDir = () => `${path.join(repoRoot, '.git')}\n`
-  assert.equal(sharedNodeModulesPath(worktree, fakeCommonDir), path.join(repoRoot, 'node_modules'))
+  const fakeCommonDir = () => `${path.join(mainCheckout, '.git')}\n`
+  assert.equal(sharedNodeModulesPath(worktree, fakeCommonDir), path.join(mainCheckout, 'node_modules'))
 
   const req = workspaceRequire(worktree, fakeCommonDir)
-  assert.ok(req.resolve('playwright/package.json').startsWith(path.join(repoRoot, 'node_modules')))
+  assert.ok(req.resolve('playwright/package.json').startsWith(path.join(mainCheckout, 'node_modules')))
 })
 
 test('sharedNodeModulesPath refuses independent clones, non-git copies, local node_modules and modified lockfiles', t => {

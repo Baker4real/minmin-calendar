@@ -22,7 +22,6 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
     lines: [
       '参考最近 5 次有效周期',
       '平均周期 28 天，平均持续 5 天',
-      '预计持续 5 天',
       '最近几次很规律，估得比较准',
       '已忽略 1 次波动较大的记录',
       '根据记录估算，不是医疗建议'
@@ -30,10 +29,9 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
     lineItems: [
       { key: 'prediction:0', text: '参考最近 5 次有效周期' },
       { key: 'prediction:1', text: '平均周期 28 天，平均持续 5 天' },
-      { key: 'prediction:2', text: '预计持续 5 天' },
-      { key: 'prediction:3', text: '最近几次很规律，估得比较准' },
-      { key: 'prediction:4', text: '已忽略 1 次波动较大的记录' },
-      { key: 'prediction:5', text: '根据记录估算，不是医疗建议' }
+      { key: 'prediction:2', text: '最近几次很规律，估得比较准' },
+      { key: 'prediction:3', text: '已忽略 1 次波动较大的记录' },
+      { key: 'prediction:4', text: '根据记录估算，不是医疗建议' }
     ]
   })
 })
@@ -120,7 +118,7 @@ test('prediction summary names the possible start window instead of promising it
   assert.equal(explanation.lines.at(-1), '根据记录估算，不是医疗建议')
 })
 
-test('buildMonthlyRecap creates a gentle shareable recap for the selected month', () => {
+test('buildMonthlyRecap creates a gentle shareable recap with projected highlight kinds', () => {
   const prediction = cycle.predictNextPeriod([
     period('2026-04-18', '2026-04-22'),
     period('2026-05-16', '2026-05-20'),
@@ -158,9 +156,9 @@ test('buildMonthlyRecap creates a gentle shareable recap for the selected month'
     '欢乐时光：8月22日，一起看电影'
   ])
   assert.deepEqual(recap.highlightItems, [
-    { key: 'recap:0', text: '经期：8月9日–8月13日，5天，经量 量多，痛经' },
-    { key: 'recap:1', text: '欢乐时光：8月7日，七夕晚餐' },
-    { key: 'recap:2', text: '欢乐时光：8月22日，一起看电影' }
+    { key: 'recap:0', kind: 'period', text: '经期：8月9日–8月13日，5天，经量 量多，痛经' },
+    { key: 'recap:1', kind: 'memory', text: '欢乐时光：8月7日，七夕晚餐' },
+    { key: 'recap:2', kind: 'memory', text: '欢乐时光：8月22日，一起看电影' }
   ])
   assert.match(recap.shareText, /2026年8月小结/)
   assert.match(recap.shareText, /本月记录了 1 次经期，共 5 天/)
@@ -421,8 +419,8 @@ test('buildMonthlyRecap gives duplicate highlight text unique render keys', () =
     '经期：8月9日–8月9日，1天'
   ])
   assert.deepEqual(recap.highlightItems, [
-    { key: 'recap:0', text: '经期：8月9日–8月9日，1天' },
-    { key: 'recap:1', text: '经期：8月9日–8月9日，1天' }
+    { key: 'recap:0', kind: 'period', text: '经期：8月9日–8月9日，1天' },
+    { key: 'recap:1', kind: 'period', text: '经期：8月9日–8月9日，1天' }
   ])
 })
 
@@ -503,7 +501,6 @@ test('prediction explanation states where the predicted duration comes from', ()
   assert.deepEqual(defaulted.lines, [
     '参考最近 1 次有效周期',
     '平均周期 28 天，经期时长暂无已知记录，先按默认 5 天估',
-    '预计持续 5 天',
     '记录还不多，仅供参考',
     '根据记录估算，不是医疗建议'
   ])

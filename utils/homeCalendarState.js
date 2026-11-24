@@ -297,10 +297,12 @@ function buildDayDetailsByDate(days, periods, memories, today, roomPaired = fals
         if (detail.flowLabel) meta.push(`经量 ${detail.flowLabel}`)
         if (detail.symptomText) meta.push(detail.symptomText)
         const authorLabel = cycle.recordAuthorLabel(period, { paired: roomPaired === true })
+        const note = cycle.recordNoteSummary(period.note)
         return withAuthorLabel({
           key: periodKeys[index],
           recordId: recordIdentity(period),
-          ...describePeriodDetail(range, authorLabel, today),
+          ...describePeriodDetail(range, authorLabel, today, note),
+          note,
           metaText: meta.join(' · ')
         }, authorLabel)
       })
@@ -403,14 +405,14 @@ function isPeriodActiveOnDate(range, date) {
 // 经期详情行：日期和状态各只算一次。进行中写「开始日至今天」，结束日期不详只写开始日、不用空白日期表达；
 // 状态文字只取 cycle.PERIOD_STATUS_OPTIONS。可见行把进行中、结束日期不详写进括号（已结束不加），
 // 读屏名（issue #157）说全三种状态并接上作者（作者只在房间已配对时有值），同一天的多条各自可辨
-function describePeriodDetail(range, authorLabel, today) {
+function describePeriodDetail(range, authorLabel, today, noteSummary = '') {
   const dates = range.status === 'unknown-end'
     ? util.formatDisplayDate(range.startDate, { today })
     : util.formatDisplayDateRange(range.startDate, range.endDate, { today })
   const status = periodStatusText(range.status)
   return {
     range: range.status === 'known-end' ? dates : `${dates}（${status}）`,
-    ariaLabel: joinAriaParts([PERIOD_EDIT_ACTION, dates, status, authorLabel])
+    ariaLabel: joinAriaParts([PERIOD_EDIT_ACTION, dates, status, authorLabel, noteSummary])
   }
 }
 

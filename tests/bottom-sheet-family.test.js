@@ -37,6 +37,19 @@ test('all bottom sheets use one shared shell, page guard and reduced-motion prob
   }
 })
 
+test('shared sheet drag zones light the handle rose while pressed and instantly under reduced motion', () => {
+  const sharedWxml = fs.readFileSync(path.join(repoRoot, 'pages/shared/confirmation-sheet.wxml'), 'utf8')
+  const dragZone = wxmlOpeningTags(sharedWxml).find(tag => tag.classes.includes('sheet-drag-zone'))
+  assert.ok(dragZone)
+  assert.equal(dragZone.attrs['hover-class'], 'sheet-drag-zone-hover')
+
+  const sharedWxss = readSource(path.join(repoRoot, 'pages/shared/confirmation-sheet.wxss'), 'utf8')
+  assert.match(sharedWxss, /\.sheet-handle\s*\{[^}]*transition:\s*background-color var\(--duration-press\) ease/)
+  assert.match(sharedWxss, /\.sheet-drag-zone:active \.sheet-handle,\s*\.sheet-drag-zone\.sheet-drag-zone-hover \.sheet-handle\s*\{[^}]*background-color:\s*rgba\(232,144,158,0\.55\)/)
+  const reduced = sharedWxss.slice(sharedWxss.indexOf('@media (prefers-reduced-motion: reduce)'))
+  assert.match(reduced, /\.sheet-handle,[\s\S]*?transition:\s*none/)
+})
+
 test('shared sheet masks catch touch move and page-meta locks scrolling only while obscured', () => {
   const sharedDir = path.join(repoRoot, 'pages/shared')
   for (const name of fs.readdirSync(sharedDir).filter(file => file.endsWith('.wxml'))) {
@@ -94,6 +107,7 @@ test('settings help adopts home sheet geometry while month and day keep their vi
   const settings = readSource(path.join(repoRoot, 'pages/settings/settings.wxml'), 'utf8')
   assert.match(rawSettings, /sheetId: 'help'/)
   assert.match(rawSettings, /bodyTemplate: 'settingsHelpSheetBody'/)
+  assert.match(rawSettings, /helpTopics: helpTopics/)
   assert.match(rawSettings, /sheetDragClear: helpDragClear/)
   assert.doesNotMatch(settings, /help-layer|help-mask|help-slide|help-head/)
 
@@ -115,6 +129,38 @@ test('settings help adopts home sheet geometry while month and day keep their vi
   assert.match(shared.background, /rgba\(18,22,61,0\.94\)/)
 })
 
+test('date picker uses navy masks, a rose indicator and a semi-transparent native disabled confirm', () => {
+  const shared = fs.readFileSync(path.join(repoRoot, 'pages/shared/confirmation-sheet.wxml'), 'utf8')
+  const nodes = wxmlOpeningTags(shared)
+  const picker = nodes.find(tag => tag.tag === 'picker-view')
+  assert.ok(picker)
+  assert.equal(
+    picker.attrs['mask-style'],
+    'background: linear-gradient(to bottom, rgba(28,32,71,0.92) 0%, rgba(28,32,71,0) 40%, rgba(28,32,71,0) 60%, rgba(28,32,71,0.92) 100%); border: 0;'
+  )
+
+  const indicator = Object.fromEntries(picker.attrs['indicator-style'].split(';').map(part => part.trim()).filter(Boolean).map(part => {
+    const separator = part.indexOf(':')
+    return [part.slice(0, separator).trim(), part.slice(separator + 1).trim()]
+  }))
+  assert.equal(indicator.height, '88rpx')
+  assert.equal(indicator['box-sizing'], 'border-box')
+  assert.equal(indicator['background-color'], 'rgba(232,144,158,0.10)')
+  assert.equal(indicator.border, '0', 'the default bright column separators are cleared')
+  assert.equal(indicator['border-top'], '1px solid rgba(232,144,158,0.32)')
+  assert.equal(indicator['border-bottom'], '1px solid rgba(232,144,158,0.32)')
+
+  const confirm = nodes.find(tag => tag.attrs.bindtap === 'onDatePickerConfirm')
+  assert.ok(confirm)
+  assert.equal(confirm.tag, 'button')
+  assert.equal(confirm.attrs.disabled, '{{datePickerPicking}}')
+  assert.equal(confirm.attrs['aria-disabled'], '{{datePickerPicking}}')
+  assert.equal(declarations('app.wxss', '.btn-premium.disabled').opacity, '0.55')
+  const disabled = declarations('pages/shared/confirmation-sheet.wxss', 'button.date-picker-confirm[disabled]')
+  assert.equal(disabled.background, 'var(--aurora-pink)', 'native disabled buttons keep the rose surface instead of the UA gray fill')
+  assert.equal(disabled.color, 'var(--text-on-accent)', 'native disabled buttons keep navy label text')
+})
+
 test('shared bottom sheet calls keep template data flat for the WXML compiler', () => {
   for (const [file] of pages) {
     const raw = fs.readFileSync(path.join(repoRoot, file), 'utf8')
@@ -128,9 +174,9 @@ test('shared bottom sheet calls keep template data flat for the WXML compiler', 
   const forwarded = [
     'year', 'month', 'jumpYear', 'jumpMonth', 'jumpYearAtMin', 'jumpYearAtMax', 'jumpMonths',
     'selectedDayDetail', 'daySheetMode', 'dayDetailFade', 'periodBandSample', 'calendarDensity',
-    'infoSheetMode', 'predictionExplanation', 'monthlyRecap', 'legendItems',
+    'infoSheetMode', 'predictionExplanation', 'monthlyRecap', 'legendItems', 'helpTopics',
     'confirmationDateText', 'confirmationContent', 'confirmationActions',
-    'datePickerName', 'datePickerYears', 'datePickerMonths', 'datePickerDays', 'datePickerValue',
+    'datePickerName', 'datePickerYears', 'datePickerMonths', 'datePickerDays', 'datePickerValue', 'datePickerPicking',
     'datePickerYearAria', 'datePickerMonthAria', 'datePickerDayAria', 'datePickerConfirmAria'
   ]
   for (const field of forwarded) assert.ok(shared.includes(`${field}: ${field}`), `${field} is forwarded to the selected body template`)

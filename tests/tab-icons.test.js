@@ -15,6 +15,7 @@ const SELECTED = { r: 0xe8, g: 0x90, b: 0x9e }
 const TAB_BAR = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'app.json'), 'utf8')).tabBar
 const ICONS = TAB_BAR.list.flatMap(tab => [[tab.iconPath, UNSELECTED], [tab.selectedIconPath, SELECTED]])
 const RECORD_TAB = TAB_BAR.list.find(tab => tab.pagePath === 'pages/period/period')
+const SETTINGS_TAB = TAB_BAR.list.find(tab => tab.pagePath === 'pages/settings/settings')
 
 function paeth(a, b, c) {
   const p = a + b - c
@@ -174,6 +175,28 @@ test('tab icon solid pixels match the tabBar color pair', () => {
       }
     }
     assert.ok(solidCount > 0, `${file} must contain solid pixels`)
+  }
+})
+
+test('settings tab icons have six teeth around a transparent center', () => {
+  for (const file of [SETTINGS_TAB.iconPath, SETTINGS_TAB.selectedIconPath]) {
+    const icon = loadIcon(file)
+    const { width, height, data } = icon
+    const samples = 720
+    const on = []
+    for (let i = 0; i < samples; i++) {
+      const angle = i * Math.PI * 2 / samples
+      const x = Math.round((width - 1) / 2 + Math.cos(angle) * 30)
+      const y = Math.round((height - 1) / 2 + Math.sin(angle) * 30)
+      on.push(data[(y * width + x) * 4 + 3] >= 128)
+    }
+    let transitions = 0
+    for (let i = 0; i < samples; i++) {
+      if (on[i] !== on[(i + 1) % samples]) transitions++
+    }
+    assert.equal(transitions / 2, 6, `${file} must have six teeth, found ${transitions / 2}`)
+    const center = (Math.floor(height / 2) * width + Math.floor(width / 2)) * 4
+    assert.ok(data[center + 3] < 16, `${file} must preserve a clear center opening`)
   }
 })
 

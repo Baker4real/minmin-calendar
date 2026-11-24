@@ -9,8 +9,9 @@ test('period and memory list templates keep the REC-03 visible row contract', ()
   const periodWxml = readPageFile('pages/period/period.wxml')
   const memoryWxml = readPageFile('pages/memory/memory.wxml')
 
-  // 日期行走统一显示格式；结束日期不详不在日期行再写一遍，时长位仍占住这几个字
-  assert.match(periodWxml, /class="item-date">\{\{item\.dateLabel\}\}/)
+  // 日期行走统一显示格式，作者作为次要后缀同行；结束日期不详不在日期行再写一遍，时长位仍占住这几个字
+  assert.match(periodWxml, /class="item-date">\s*<text>\{\{item\.dateLabel\}\}<\/text>\s*<text wx:if="\{\{item\.authorLabel\}\}" class="item-author"> · \{\{item\.authorLabel\}\}<\/text>/)
+  assert.doesNotMatch(periodWxml, /class="item-note">\{\{item\.authorLabel\}\}/)
   assert.doesNotMatch(periodWxml, /\{\{item\.startDate\}\}/)
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}"/)
   assert.doesNotMatch(periodWxml, /无备注/)
@@ -42,12 +43,28 @@ test('record list pages show load-failed retry copy and reserve period stats whi
   assert.match(periodWxml, /wx:if="\{\{!loading && \(!loadFailed \|\| hasLoaded\)\}\}"[^>]*class="cycle-num">\{\{periodCount\}\}/)
   assert.match(periodWxml, /wx:elif="\{\{!loading\}\}"[^>]*class="cycle-num">--</)
   assert.match(periodWxml, /class="cycle-label">平均周期</)
-  assert.match(periodWxml, /wx:if="\{\{!loading && avgCycle\}\}" class="cycle-num">\{\{avgCycle\}\} 天</)
+  assert.match(periodWxml, /<block wx:if="\{\{!loading && avgCycle\}\}">\s*<text class="cycle-num">\{\{avgCycle\}\}<\/text>\s*<text class="cycle-unit">天<\/text>\s*<\/block>/)
   assert.match(periodWxml, /class="cycle-label">平均持续</)
-  assert.match(periodWxml, /wx:if="\{\{!loading && avgDuration\}\}" class="cycle-num">\{\{avgDuration\}\} 天</)
+  assert.match(periodWxml, /<block wx:if="\{\{!loading && avgDuration\}\}">\s*<text class="cycle-num">\{\{avgDuration\}\}<\/text>\s*<text class="cycle-unit">天<\/text>\s*<\/block>/)
   assert.equal((periodWxml.match(/class="cycle-num cycle-num-placeholder"/g) || []).length, 3,
     'all three number slots keep a loading placeholder')
   assert.doesNotMatch(periodWxml, /持续天数/)
+
+  const periodWxss = readPageFile('pages/period/period.wxss')
+  const valueRule = /\.cycle-value\s*\{[^}]*\}/.exec(periodWxss)
+  assert.ok(valueRule, 'every loaded and loading number shares one fixed-height slot')
+  assert.match(valueRule[0], /height:\s*52\.8rpx/)
+  assert.match(valueRule[0], /align-items:\s*baseline/)
+  const placeholderRule = /\.cycle-num-placeholder\s*\{[^}]*\}/.exec(periodWxss)
+  assert.ok(placeholderRule, 'the loading number has its own placeholder geometry')
+  assert.match(placeholderRule[0], /width:\s*88rpx/)
+  assert.match(placeholderRule[0], /height:\s*44rpx/)
+  assert.match(placeholderRule[0], /border-radius:\s*var\(--radius-sm\)/)
+  assert.match(placeholderRule[0], /background:\s*rgba\(255,255,255,0\.08\)/)
+  const unitRule = /\.cycle-unit\s*\{[^}]*\}/.exec(periodWxss)
+  assert.ok(unitRule, 'the day unit is separate from the display number')
+  assert.match(unitRule[0], /font-size:\s*24rpx/)
+  assert.match(unitRule[0], /color:\s*var\(--text-secondary\)/)
 })
 
 test('period overview columns all stack the label above the number', () => {
@@ -63,6 +80,16 @@ test('period overview columns all stack the label above the number', () => {
   }
 })
 
+test('collapsed period months show their existing count without repeating it while expanded', () => {
+  const periodWxml = readPageFile('pages/period/period.wxml')
+  const periodWxss = readPageFile('pages/period/period.wxss')
+  assert.match(periodWxml, /<view class="month-header-text">\s*<text>\{\{group\.title\}\}<\/text>\s*<text wx:if="\{\{!group\.expanded\}\}" class="month-count" aria-hidden="true">· \{\{group\.count\}\} 条<\/text>/)
+  const countRule = /\.month-count\s*\{[^}]*\}/.exec(periodWxss)
+  assert.ok(countRule, 'the collapsed month count has a secondary text role')
+  assert.match(countRule[0], /color:\s*var\(--text-secondary\)/)
+  assert.match(countRule[0], /white-space:\s*nowrap/)
+})
+
 test('record tab preserves author and accessible row bindings, pull refresh, and the quiet compatibility template', () => {
   const wxml = readPageFile('pages/period/period.wxml')
   const legacy = readPageFile('pages/memory/memory.wxml')
@@ -76,7 +103,10 @@ test('record tab preserves author and accessible row bindings, pull refresh, and
   assert.equal((memoryList.match(/item\.ariaLabel/g) || []).length,
     (memoryList.match(/aria-label="\{\{item\.ariaLabel\}\}"/g) || []).length)
   const periodRow = wxml.slice(wxml.indexOf('class="list-item"'), wxml.indexOf('class="item-arrow"'))
-  assert.match(periodRow, /class="item-date">\{\{item\.dateLabel\}\}/)
+  assert.match(periodRow, /class="item-date">\s*<text>\{\{item\.dateLabel\}\}<\/text>\s*<text wx:if="\{\{item\.authorLabel\}\}" class="item-author"> · \{\{item\.authorLabel\}\}<\/text>/)
+  const authorRule = /\.item-author\s*\{[^}]*\}/.exec(readPageFile('pages/period/period.wxss'))
+  assert.ok(authorRule, 'the inline author suffix has its own secondary text role')
+  assert.match(authorRule[0], /color:\s*var\(--text-secondary\)/)
   assert.doesNotMatch(periodRow, /endDateDisplay/)
   assert.doesNotMatch(legacy, /wx:for="\{\{memories\}\}"|class="empty-state"|bindtap="(?:addMemory|editMemory|loadData)"/)
 })
@@ -95,13 +125,13 @@ test('period list failure retry is a recognizable operation, distinct from the q
   const periodWxml = readPageFile('pages/period/period.wxml')
   const periodWxss = readPageFile('pages/period/period.wxss')
 
-  // 首次失败卡：说明句 + 玫瑰重试按钮；整卡可点并保留读屏名称
+  // 首次失败卡保留整卡重试行为与读屏名，但外层不按压缩放；内部重试复用主按钮的按压与柔光。
   assert.match(
     periodWxml,
     /wx:if="\{\{loadFailed && !hasLoaded && !loading\}\}" class="empty-state record-empty load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(periodWxml, /class="load-failed-text">经期记录加载失败</)
-  assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
+  assert.match(periodWxml, /class="btn-premium button-primary retry-btn" hover-class="btn-premium-hover">重试</)
 
   // 真空态仍是安静说明：不带重试按钮，也不可点；失败期间不显示断言式空态句（!loadFailed）
   const emptyBlock = /wx:elif="\{\{periodCount === 0 && !loading && !loadFailed\}\}" class="empty-state record-empty">([\s\S]*?)<\/view>/.exec(periodWxml)
@@ -124,17 +154,27 @@ test('period list failure retry is a recognizable operation, distinct from the q
     const rules = parseWxssRules(readPageFile(file))
     assert.ok(rules.some(rule => rule.selectors.includes(modifier)), `${modifier} keeps its values in ${file}`)
   }
+  const recordEmpty = parseWxssRules(periodWxss).find(rule => rule.selectors.includes('.record-empty'))
+  assert.ok(recordEmpty, 'both record segments share the quiet empty-card treatment')
+  assert.equal(recordEmpty.decls['border-style'], 'dashed')
+  assert.equal(recordEmpty.decls['border-color'], 'rgba(255,255,255,0.14)')
   assert.match(readRawPageFile('pages/period/period.wxss'), /@import '\.\.\/shared\/empty-state\.wxss';/)
   assert.match(readRawPageFile('pages/index/index.wxss'), /@import '\.\.\/shared\/empty-state\.wxss';/)
   assert.match(readPageFile('pages/index/index.wxml'), /class="empty-state empty-guide"/)
   assert.match(readRawPageFile('pages/shared/confirmation-sheet.wxml'), /class="empty-state day-detail-empty future-notice"/)
 
-  // 重试按钮是玫瑰底海军字的小操作，触控目标 88rpx（750rpx 设计宽 = 44px@375px，非日历可点控件统一 88rpx 档）
+  // 重试保留 88rpx 触控目标；玫瑰底、单层 0.96 缩放和柔光均来自既有 .btn-premium，不在本页复制。
   const retryRule = /\.retry-btn\s*\{[^}]*\}/.exec(periodWxss)
-  assert.ok(retryRule, 'expected the .retry-btn rule')
-  assert.match(retryRule[0], /background:\s*var\(--aurora-pink\)/)
-  assert.match(retryRule[0], /color:\s*var\(--text-on-accent\)/)
+  assert.ok(retryRule, 'expected the .retry-btn sizing rule')
   assert.match(retryRule[0], /min-height:\s*88rpx/)
+  assert.doesNotMatch(retryRule[0], /background|transform|transition/)
+  const retryPressRules = [...periodWxss.matchAll(/\.retry-btn[^{]*\{[^}]*\}/g)]
+  for (const rule of retryPressRules) assert.doesNotMatch(rule[0], /scale\(/, 'retry has no page-local second scale')
+  const loadFailedRules = [...periodWxss.matchAll(/\.load-failed[^{]*\{[^}]*\}/g)]
+  for (const rule of loadFailedRules) assert.doesNotMatch(rule[0], /scale\(|transform/, 'the failure card itself never scales')
+  const sharedButton = readPageFile('app.wxss')
+  assert.match(sharedButton, /\.btn-premium::before\s*\{[^}]*box-shadow:/)
+  assert.match(sharedButton, /\.btn-premium:active,\s*\.btn-premium\.btn-premium-hover\s*\{[^}]*transform:\s*scale\(0\.96\)/)
 })
 
 test('period list keeps last data on refresh failure and offers retry in the list area', () => {
@@ -154,7 +194,7 @@ test('period list keeps last data on refresh failure and offers retry in the lis
   const retryRow = parseWxssRules(periodWxss).find(rule => rule.selectors.includes('.list-retry'))
   assert.ok(retryRow, 'expected the .list-retry rule')
   assert.match(retryRow.decls['min-height'], /88rpx/)
-  assert.match(retryRow.decls.color, /#E8909E/i)
+  assert.equal(retryRow.decls.color, 'var(--aurora-pink)')
 })
 
 test('record tab memory segment mirrors the standalone memory list state contract', () => {
@@ -167,7 +207,7 @@ test('record tab memory segment mirrors the standalone memory list state contrac
     /wx:if="\{\{memoryLoadFailed && !memoryHasLoaded && !memoryLoading\}\}" class="empty-state record-empty load-failed" bindtap="loadMemoryData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(periodWxml, /class="load-failed-text">欢乐时光加载失败</)
-  assert.match(periodWxml, /class="retry-btn"(?: hover-class="retry-btn-hover")?>重试</)
+  assert.match(periodWxml, /class="btn-premium button-primary retry-btn" hover-class="btn-premium-hover">重试</)
 
   // 空列表说明保持安静：没有按钮、不可点；失败期间不显示断言式空态句
   const emptyBlock = /wx:elif="\{\{memoryCount === 0 && !memoryLoading && !memoryLoadFailed\}\}" class="empty-state record-empty">([\s\S]*?)<\/view>/.exec(periodWxml)
@@ -185,15 +225,19 @@ test('record tab memory segment mirrors the standalone memory list state contrac
   assert.equal((periodWxml.match(/class="list-retry-text">刷新失败，正在显示上次的内容</g) || []).length, 2,
     'both segments explain the refresh failure with the same retry row text')
 
-  // 欢乐时光骨架是圆点变体（经期侧是 pill，形态差异刻意保留），复用已注册的 skeletonPulse
+  // 欢乐时光保留圆点、经期保留 pill 的形状差异，但两类列表都只有父容器单层脉冲。
   assert.match(periodWxml, /wx:if="\{\{memoryLoading\}\}" class="skeleton-card glass-surface"/)
   assert.match(periodWxml, /class="skeleton-dot"/)
-  const dotRule = /\.skeleton-dot\s*\{[^}]*skeletonPulse[^}]*\}/.exec(periodWxss)
-  assert.ok(dotRule, 'expected the base .skeleton-dot rule')
-  assert.match(dotRule[0], /animation:\s*skeletonPulse 2\.4s ease-in-out infinite/)
-  // RM 下骨架圆点静止（与经期侧 skeleton-line/skeleton-pill 同块登记）
+  const pulseRules = [...periodWxss.matchAll(/([^{}@]+)\{[^{}]*animation:\s*skeletonPulse[^{}]*\}/g)]
+  assert.equal(pulseRules.length, 1, 'record list skeletons have one pulse layer')
+  assert.match(pulseRules[0][1], /\.skeleton-card/)
+  for (const selector of ['skeleton-line', 'skeleton-pill', 'skeleton-dot']) {
+    const rule = new RegExp(`\\.${selector}\\s*\\{[^}]*\\}`).exec(periodWxss)
+    assert.ok(rule, `expected the .${selector} shape`)
+    assert.doesNotMatch(rule[0], /animation:/)
+  }
   const rmBlock = periodWxss.slice(periodWxss.indexOf('@media (prefers-reduced-motion: reduce)'))
-  assert.match(rmBlock, /\.skeleton-dot/)
+  assert.match(rmBlock, /\.skeleton-card/)
 })
 
 test('record tab memory segment renders month cards with the grouped row contract', () => {
@@ -334,6 +378,29 @@ test('record edit notes are multi-line textareas with the unchanged 500-char cap
   }
 })
 
+test('edit textareas expose keyboard completion, saving opacity, and a roomy memory diary', () => {
+  for (const relativePath of ['pages/period/edit/edit.wxml', 'pages/memory/edit/edit.wxml']) {
+    const wxml = readPageFile(relativePath)
+    const textarea = /<textarea[^>]*>/.exec(wxml)?.[0]
+    assert.ok(textarea, `${relativePath} has a note textarea`)
+    assert.match(textarea, /show-confirm-bar="\{\{true\}\}"/)
+    assert.match(textarea, /disabled="\{\{saving\}\}"/)
+    assert.match(textarea, /aria-disabled="\{\{saving\}\}"/)
+    assert.match(textarea, /saving \? ' disabled' : ''/)
+
+    const wxss = readPageFile(relativePath.replace(/\.wxml$/, '.wxss'))
+    const disabled = /\.form-input\.disabled\s*\{([^}]*)\}/.exec(wxss)
+    assert.ok(disabled, 'the shared textarea disabled state is visible')
+    assert.match(disabled[1], /opacity:\s*0\.5/)
+    assert.match(disabled[1], /pointer-events:\s*none/)
+  }
+
+  const memoryWxss = readPageFile('pages/memory/edit/edit.wxss')
+  const diary = /\.memory-note-input\s*\{([^}]*)\}/.exec(memoryWxss)
+  assert.ok(diary, 'memory gives the diary textarea its own minimum height')
+  assert.match(diary[1], /min-height:\s*200rpx/)
+})
+
 // 日期错误常驻在所属字段的 picker 下方，同时并进带当前显示值的 picker 读屏名；
 // 读屏能听出是开始日、结束日还是欢乐时光日期出错；字段容器带页面滚动锚点
 test('edit forms read each displayed date and keep its own error inside that picker screen-reader name', () => {
@@ -388,17 +455,18 @@ test('period edit binds status and length hints beside their fields', () => {
   assert.ok(endLabel !== -1 && endLabel < dayText && dayText < lengthHint && lengthHint < noteLabel)
 })
 
-test('both edit pages keep the delete area apart from save', () => {
+test('both edit pages keep the delete area in the scroll flow apart from the fixed save bar', () => {
   for (const [wxmlPath, wxssPath] of [
     ['pages/period/edit/edit.wxml', 'pages/period/edit/edit.wxss'],
     ['pages/memory/edit/edit.wxml', 'pages/memory/edit/edit.wxss']
   ]) {
+    const raw = readRawPageFile(wxmlPath)
+    assert.ok(raw.indexOf('<template is="sharedRecordDelete"') < raw.indexOf('<template is="sharedRecordActions"'))
+    assert.match(raw, /<template is="sharedRecordActions"[^>]*actionsClass: 'record-actions-fixed'/)
     const wxml = readPageFile(wxmlPath)
+    assert.match(wxml, /<view wx:if="\{\{isEdit\}\}" class="delete-zone">[\s\S]*bindtap="delete"[\s\S]*删除此记录<\/view>/)
+
     const wxss = readPageFile(wxssPath)
-    assert.match(
-      wxml,
-      /<view class="btns">[\s\S]*<\/view>\s*<view wx:if="\{\{isEdit\}\}" class="delete-zone">[\s\S]*bindtap="delete"[\s\S]*删除此记录<\/view>/
-    )
     const zone = /\.delete-zone\s*\{([^}]*)\}/.exec(wxss)
     assert.ok(zone, `${wxssPath} should define .delete-zone`)
     assert.match(zone[1], /margin-top:\s*var\(--space-xxl\)/)

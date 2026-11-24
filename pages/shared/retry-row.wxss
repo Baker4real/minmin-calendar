@@ -12,11 +12,11 @@
   justify-content: center;
   box-sizing: border-box;
   margin: 0 0 8rpx;
-  padding: 0 28rpx;
+  padding: 16rpx 28rpx;
   border-radius: var(--radius-md);
   background: var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.1);
-  color: #E8909E;
+  color: var(--aurora-pink);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-assist);

@@ -589,6 +589,7 @@ test('buildHomeCalendarState aligns missing endDate period markers with detail r
       key: 'period:p-missing-end',
       recordId: 'p-missing-end',
       range: '8月12日（结束日期不详）',
+      note: '',
       metaText: '经量 量少',
       ariaLabel: '编辑这次经期，8月12日，结束日期不详'
     }
@@ -628,6 +629,7 @@ test('buildHomeCalendarState projects an ongoing period from its start through t
       key: 'period:p-ongoing',
       recordId: 'p-ongoing',
       range: '8月10日–8月13日（进行中）',
+      note: '',
       metaText: '',
       ariaLabel: '编辑这次经期，8月10日–8月13日，进行中'
     }
@@ -867,6 +869,7 @@ test('buildHomeCalendarState marks only the known start day of an unknown-end pe
       key: 'period:p-unknown-end',
       recordId: 'p-unknown-end',
       range: '8月12日（结束日期不详）',
+      note: '',
       metaText: '',
       ariaLabel: '编辑这次经期，8月12日，结束日期不详'
     }
@@ -1015,6 +1018,33 @@ test('day detail period entries read out their range, status and paired author',
     '编辑这次经期，8月10日–8月12日，已结束',
     '编辑这次经期，8月11日–8月13日，进行中',
     '编辑这次经期，8月12日，结束日期不详'
+  ])
+})
+
+test('day detail period entries show the shared note summary and read it after the author', () => {
+  const periods = [
+    { _id: 'p-note', startDate: '2026-08-12', endDate: '2026-08-12', status: 'known-end', note: '  第一天\n  有点累  ', createdByMe: true },
+    { _id: 'p-long', startDate: '2026-08-12', endDate: '2026-08-12', status: 'known-end', note: '傍晚沿着河边慢慢走\n聊了很多以后想去的地方还买了两杯热可可', createdByMe: false },
+    { _id: 'p-blank', startDate: '2026-08-12', endDate: '2026-08-12', status: 'known-end', note: ' \n\t ', createdByMe: true }
+  ]
+  const detail = buildHomeCalendarState({
+    year: 2026,
+    month: 7,
+    periods,
+    memories: [],
+    today: '2026-08-13',
+    roomPaired: true
+  }).dayDetailsByDate['2026-08-12']
+
+  assert.deepEqual(detail.periods.map(item => item.note), [
+    '第一天 有点累',
+    '傍晚沿着河边慢慢走 聊了很多以后想去的地…',
+    ''
+  ])
+  assert.deepEqual(detail.periods.map(item => item.ariaLabel), [
+    '编辑这次经期，8月12日–8月12日，已结束，我记的，第一天 有点累',
+    '编辑这次经期，8月12日–8月12日，已结束，TA 记的，傍晚沿着河边慢慢走 聊了很多以后想去的地…',
+    '编辑这次经期，8月12日–8月12日，已结束，我记的'
   ])
 })
 

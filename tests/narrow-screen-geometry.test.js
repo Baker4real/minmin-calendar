@@ -124,6 +124,19 @@ function tokenRpx(token, appTokens) {
   return value
 }
 
+// 横幅把 1px 边框吸收进 calc() 的垂直 padding；统一换算到最窄 320px 的 rpx 账本。
+function narrowLengthRpx(token) {
+  const raw = String(token).trim()
+  if (raw === '0') return 0
+  const calc = /^calc\((-?\d+(?:\.\d+)?)rpx\s*([+-])\s*(\d+(?:\.\d+)?)px\)$/.exec(raw)
+  if (calc) return Number(calc[1]) + (calc[2] === '+' ? 1 : -1) * Number(calc[3]) * 750 / 320
+  const px = /^(-?\d+(?:\.\d+)?)px$/.exec(raw)
+  if (px) return Number(px[1]) * 750 / 320
+  const rpx = /^(-?\d+(?:\.\d+)?)rpx$/.exec(raw)
+  assert.ok(rpx, `expected an rpx, px or simple calc length, got ${raw}`)
+  return Number(rpx[1])
+}
+
 function fontSizeRpx(declOrToken, appTokens = readAppTokens()) {
   const raw = typeof declOrToken === 'string' ? declOrToken : declOrToken['font-size']
   return tokenRpx(raw, appTokens)
@@ -299,20 +312,20 @@ test('joint ledger: 320/375/390 × both densities × 5/6 rows × back-to-today n
     { width: 390, screen: 844, tabBar: 83, nav: 91 }
   ]
   // [行高 px, 清爽密度是否合并信息行, 记录入口是否在首屏]。
-  // 完整密度要 159rpx 一行：320、375 上 5 行也放不下；390 上当月 5 行刚好放下，R5 发丝线占 1px 后带「回到今天」的 5 行与 6 行靠滚动。
+  // 完整密度要 159rpx 一行：320、375 上 5 行也放不下；390 上当月 5 行刚好放下，周头少一条底边后带「回到今天」的 5 行也刚好放下，6 行靠滚动。
   // 清爽色带加厚后，375 上6行带「回到今天」及320上6行的最矮情形靠滚动；其他组合按可用高度合并。
   const expected = {
-    '320:compact:5:0': [56.17, true, true],
-    '320:compact:5:1': [48.66, true, true],
-    '320:compact:6:0': [46.81, true, true],
+    '320:compact:5:0': [56.37, true, true],
+    '320:compact:5:1': [48.86, true, true],
+    '320:compact:6:0': [46.98, true, true],
     '320:compact:6:1': [46.08, true, false],
     '320:full:5:0': [67.84, false, false],
     '320:full:5:1': [67.84, false, false],
     '320:full:6:0': [67.84, false, false],
     '320:full:6:1': [67.84, false, false],
-    '375:compact:5:0': [70.2, true, true],
-    '375:compact:5:1': [61.4, true, true],
-    '375:compact:6:0': [58.5, true, true],
+    '375:compact:5:0': [70.4, true, true],
+    '375:compact:5:1': [61.6, true, true],
+    '375:compact:6:0': [58.66, true, true],
     '375:compact:6:1': [54, true, false],
     '375:full:5:0': [79.5, false, false],
     '375:full:5:1': [79.5, false, false],
@@ -320,10 +333,10 @@ test('joint ledger: 320/375/390 × both densities × 5/6 rows × back-to-today n
     '375:full:6:1': [79.5, false, false],
     '390:compact:5:0': [76.96, false, true],
     '390:compact:5:1': [76.96, false, true],
-    '390:compact:6:0': [76.35, false, true],
-    '390:compact:6:1': [68.72, true, true],
+    '390:compact:6:0': [76.52, false, true],
+    '390:compact:6:1': [68.89, true, true],
     '390:full:5:0': [83.2, false, true],
-    '390:full:5:1': [82.68, false, false],
+    '390:full:5:1': [82.68, false, true],
     '390:full:6:0': [82.68, false, false],
     '390:full:6:1': [82.68, false, false]
   }
@@ -399,7 +412,7 @@ test('a calendar row never drops below the cell content minimum; full density sc
 test('compact density merges the holiday row into the mark row only when the standard stack does not fit', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
   // 375×667：页高 619、顶栏 64，6 行且显示「回到今天」。首屏 = 吸顶占位 306 + 周头 50 + 网格内边距 12 + 记录入口 114
-  // = 482rpx = 241px，R5 后另有 7px 描边：每行可用 (619 − 64 − 248) / 6 = 51.16px。
+  // = 482rpx = 241px，移除周头底边后另有 6px 描边：每行可用 (619 − 64 − 247) / 6 = 51.33px，低于合并最小高度。
   // 常规清爽格加上2+12rpx经期槽后需要146rpx = 73px，放不下；
   // 合并后8 + 日期38 + 色带2+12 + 信息2+42 + 底4 = 108rpx = 54px，仍需自然滚动。
   const short = computeCalendarRowHeight({
@@ -415,7 +428,7 @@ test('compact density merges the holiday row into the mark row only when the sta
   assert.equal(short.heightPx, 54)
   assert.equal(short.actionsFit, false)
 
-  // 390×844 当月：R5 后首屏描边为 7px，每行可用 (761 − 91 − 211.88) / 6 = 76.35px，常规清爽格放得下，不合并，行高低于148rpx上限
+  // 390×844 当月：首屏描边为 6px，每行可用 (761 − 91 − 210.88) / 6 = 76.52px，常规清爽格放得下，不合并，行高低于148rpx上限
   const roomy = computeCalendarRowHeight({
     viewportWidth: 390,
     viewportHeight: 761,
@@ -425,7 +438,7 @@ test('compact density merges the holiday row into the mark row only when the sta
   })
   assert.equal(roomy.infoMerged, false)
   assert.equal(roomy.contentMinPx, 75.92)
-  assert.equal(roomy.heightPx, 76.35)
+  assert.equal(roomy.heightPx, 76.52)
   assert.equal(roomy.actionsFit, true)
 })
 
@@ -479,6 +492,19 @@ function verticalMarginRpx(decls) {
   return verticalPaddingRpx({ padding: decls.margin })
 }
 
+test('month arrows and shared sheet close circles use border-box flex centering', () => {
+  for (const [file, selector] of [
+    ['pages/index/index.wxss', '.nav-btn'],
+    ['pages/shared/confirmation-sheet.wxss', '.sheet-close']
+  ]) {
+    const circle = findDecls(parseWxssRules(readRepo(file)), selector)
+    assert.equal(circle['box-sizing'], 'border-box', `${file} ${selector} includes both borders in its fixed circle`)
+    assert.equal(circle.display, 'flex', `${file} ${selector} display`)
+    assert.equal(circle['align-items'], 'center', `${file} ${selector} vertical centering`)
+    assert.equal(circle['justify-content'], 'center', `${file} ${selector} horizontal centering`)
+  }
+})
+
 // issue #153：首屏账本就是记录入口以上的 CSS 文档流；每一项都从样式里读回来核对
 test('the first-screen ledger is the CSS flow above the record actions', async () => {
   const { CALENDAR_LEDGER } = require('../utils/calendarRowHeight')
@@ -526,8 +552,10 @@ test('the first-screen ledger is the CSS flow above the record actions', async (
   assert.equal(ledger.quickActions, rpxNumber(findDecls(rules, '.quick-actions'), 'margin-top') + rpxNumber(quickBtn, 'min-height'))
   assert.equal(ledger.partnerWelcome, 103.2)
 
-  // 月份导航、周头、日历网格各有 1px 上下描边；R5 再给吸顶区底部增加 1px
-  assert.equal(CALENDAR_LEDGER.firstScreenBorderPx, navBorder + stickyBorder + 2 * borderPx(week) + 2 * borderPx(grid))
+  // 月份导航与日历网格各有 1px 上下描边，R5 吸顶区底部有 1px；周头只保留顶边，底边由网格顶线单独承担。
+  assert.equal(week['border-bottom'], '0')
+  assert.equal(CALENDAR_LEDGER.firstScreenBorderPx, 6)
+  assert.equal(CALENDAR_LEDGER.firstScreenBorderPx, navBorder + stickyBorder + borderPx(week) + 2 * borderPx(grid))
 })
 
 // issue #159：进行中经期的记录入口「经期第 N 天 · 记结束」一行放不下。连写的中文不拆开，只在文案里的空格处折行，
@@ -700,15 +728,15 @@ test('the prediction summary starts the window clause on its own line and each c
 // issue #151 的行内重试行（首次加载只有一个集合失败时也会出现）同样在吸顶占位之后的文档流里，占首屏高度
 test('the inline sync-retry row is an explicit input of the first-screen ledger', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
-  // 375×667 当月 6 行：R5 后首屏 394rpx + 7px 描边 = 204px，每行 (619 − 64 − 204) / 6 = 58.5px（合并信息行）。
-  // 重试行 = 最小高 88 + 下外边距 8 = 96rpx = 48px：每行 (619 − 64 − 252) / 6 = 50.5px，低于加厚色带后的合并最小54px。
-  // 再显示「回到今天」88rpx：每行只剩 43.16px，行高停在54px，记录入口移出首屏。
+  // 375×667 当月 6 行：首屏 394rpx + 6px 描边 = 203px，每行 (619 − 64 − 203) / 6 = 58.66px（合并信息行）。
+  // 重试行 = 最小高 88 + 下外边距 8 = 96rpx = 48px：每行 (619 − 64 − 251) / 6 = 50.66px，低于加厚色带后的合并最小54px。
+  // 再显示「回到今天」88rpx：每行只剩 43.33px，行高停在54px，记录入口移出首屏。
   const base = { viewportWidth: 375, viewportHeight: 619, navBarHeightPx: 64, density: 'compact', days: monthDays(6) }
   const plain = computeCalendarRowHeight(base)
   const retry = computeCalendarRowHeight({ ...base, showRefreshRetry: true })
   const retryAway = computeCalendarRowHeight({ ...base, showRefreshRetry: true, showBackToToday: true })
 
-  assert.deepEqual([plain.heightPx, plain.infoMerged, plain.actionsFit], [58.5, true, true])
+  assert.deepEqual([plain.heightPx, plain.infoMerged, plain.actionsFit], [58.66, true, true])
   assert.deepEqual([retry.heightPx, retry.infoMerged, retry.actionsFit], [54, true, false])
   assert.deepEqual([retryAway.heightPx, retryAway.contentMinPx, retryAway.actionsFit], [54, 54, false])
 })
@@ -720,12 +748,12 @@ test('the one-time partner welcome bar is an explicit input of the calendar row-
   // 页高 = 手机高度 − 底栏；without / with 是不显示 / 显示欢迎条时的行高，fits 是显示时记录入口是否仍在首屏。
   // 放不下时行高停在内容最小高度（清爽合并108rpx与44px取大、完整 159rpx），记录入口靠滚动触达（issue #153）。
   const samples = [
-    { width: 390, height: 761, nav: 91, density: 'compact', rows: 6, showBackToToday: false, without: 76.35, with: 67.4, fits: true },
+    { width: 390, height: 761, nav: 91, density: 'compact', rows: 6, showBackToToday: false, without: 76.52, with: 67.57, fits: true },
     { width: 390, height: 761, nav: 91, density: 'full', rows: 5, showBackToToday: false, without: 83.2, with: 82.68, fits: false },
-    { width: 375, height: 619, nav: 64, density: 'compact', rows: 6, showBackToToday: false, without: 58.5, with: 54, fits: false },
+    { width: 375, height: 619, nav: 64, density: 'compact', rows: 6, showBackToToday: false, without: 58.66, with: 54, fits: false },
     { width: 375, height: 619, nav: 64, density: 'compact', rows: 6, showBackToToday: true, without: 54, with: 54, fits: false, plainFits: false },
-    { width: 320, height: 520, nav: 64, density: 'compact', rows: 5, showBackToToday: false, without: 56.17, with: 47.37, fits: true },
-    { width: 320, height: 520, nav: 64, density: 'compact', rows: 6, showBackToToday: false, without: 46.81, with: 46.08, fits: false }
+    { width: 320, height: 520, nav: 64, density: 'compact', rows: 5, showBackToToday: false, without: 56.37, with: 47.57, fits: true },
+    { width: 320, height: 520, nav: 64, density: 'compact', rows: 6, showBackToToday: false, without: 46.98, with: 46.08, fits: false }
   ]
 
   for (const sample of samples) {
@@ -770,17 +798,23 @@ test('the clickable partner welcome copy fits two rpx lines and its box matches 
   assert.equal(bar.position, undefined, 'welcome bar stays in normal flow')
   assert.equal(bar['font-size'], 'var(--font-size-caption)')
   assert.equal(bar['line-height'], 'var(--line-height-body)')
-  const margin = splitCssTokens(bar.margin).map(token => parseFloat(token))
-  const padding = splitCssTokens(bar.padding).map(token => parseFloat(token))
-  assert.equal(margin.length, 2, 'margin is vertical / horizontal')
+  const margin = splitCssTokens(bar.margin)
+  const padding = splitCssTokens(bar.padding)
+  assert.deepEqual(margin, ['0'], 'the banner aligns with the calendar instead of adding 24rpx side insets')
   assert.equal(padding.length, 3, 'padding is top / horizontal / bottom')
+  assert.equal(padding[1], '16rpx')
+  const borderRpx = borderPx(bar) * 750 / 320
+  assert.equal(bar.border, '1px solid rgba(232,144,158,0.2)')
+  assert.equal(bar['border-radius'], 'var(--radius-card)')
+  assert.equal(bar.background, 'linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback)')
   const fontRpx = fontSizeRpx(bar, appTokens)
   const lineHeight = Number(appTokens['--line-height-body'])
 
   // 文案恰好两行：CJK 与全角标点 1em；拉丁字母 0.5–0.7em、空格 0.25–0.5em、♥ 0.5–1em 取上下界。
   // 超长时缩短说明文字，caption 字号不变。
   const contentPadRpx = horizontalPaddingRpx(findDecls(rules, '.content'))[0]
-  const lineEm = (750 - 2 * contentPadRpx - 2 * margin[1]) / fontRpx
+  const copyWidth = 750 - 2 * contentPadRpx - 2 * narrowLengthRpx(padding[1]) - 2 * borderRpx
+  const lineEm = copyWidth / fontRpx
   let minEm = 0
   let maxEm = 0
   for (const ch of welcome[1]) {
@@ -788,8 +822,8 @@ test('the clickable partner welcome copy fits two rpx lines and its box matches 
   }
   assert.ok(minEm > lineEm && maxEm <= 2 * lineEm, `welcome copy ${minEm}–${maxEm}em must wrap to exactly two ${lineEm.toFixed(2)}em lines`)
 
-  const boxRpx = padding[0] + 2 * fontRpx * lineHeight + padding[2]
-  assert.ok(Math.abs(boxRpx - 103.2) < 1e-9, `welcome box ${boxRpx}rpx`)
+  const boxRpx = narrowLengthRpx(padding[0]) + 2 * fontRpx * lineHeight + narrowLengthRpx(padding[2]) + 2 * borderRpx
+  assert.ok(Math.abs(boxRpx - 103.2) < 1e-9, `welcome box ${boxRpx}rpx includes its borders`)
   assert.ok(boxRpx * 320 / 750 >= 44, 'the whole welcome box remains a 44px touch target at 320px')
   assert.equal(CALENDAR_LEDGER.firstScreenRpx.partnerWelcome, 103.2, 'ledger entry must equal the rendered welcome box')
 })
@@ -841,25 +875,33 @@ test('waiting invitation and creator welcome use the same calendar ledger slot w
     }
     const share = findDecls(rules, 'button.home-share-invite')
     const shareHeight = rpxNumber(share, 'min-height')
-    assert.ok(shareHeight * 320 / 750 >= 44)
+    assert.equal(shareHeight, 88, 'the invite action keeps the ticket-required 88rpx touch height')
+    assert.equal(invite['align-items'], 'center')
+    assert.equal(share['border-radius'], 'var(--radius-full)')
+    assert.equal(share.background, 'rgba(232,144,158,0.1)')
     const appTokens = readAppTokens()
     const fontRpx = fontSizeRpx(invite, appTokens)
     const lineHeight = Number(appTokens['--line-height-body'])
-    const invitePadding = splitCssTokens(invite.padding).map(token => parseFloat(token))
-    const shareMargin = splitCssTokens(share.margin).map(token => parseFloat(token))
-    const slotHeight = invitePadding[0] + invitePadding[2] + Math.max(
+    const invitePadding = splitCssTokens(invite.padding)
+    const shareMargin = splitCssTokens(share.margin).map(narrowLengthRpx)
+    const inviteBorderRpx = borderPx(invite) * 750 / 320
+    const slotHeight = narrowLengthRpx(invitePadding[0]) + narrowLengthRpx(invitePadding[2]) + Math.max(
       2 * fontRpx * lineHeight,
       shareHeight + shareMargin[0] + shareMargin[2]
-    )
-    assert.ok(Math.abs(slotHeight - CALENDAR_LEDGER.firstScreenRpx.partnerWelcome) < 1e-9)
+    ) + 2 * inviteBorderRpx
+    assert.ok(Math.abs(slotHeight - CALENDAR_LEDGER.firstScreenRpx.partnerWelcome) < 1e-9,
+      `padding, 88rpx button, negative margins and borders must absorb into ${CALENDAR_LEDGER.firstScreenRpx.partnerWelcome}rpx`)
 
-    const copyRules = findDecls(rules, '.partner-invite-title')
-    assert.equal(copyRules['white-space'], 'nowrap')
+    for (const selector of ['.partner-invite-title', '.partner-invite-desc']) {
+      const copyRules = findDecls(rules, selector)
+      assert.equal(copyRules['white-space'], 'nowrap')
+      assert.equal(copyRules.overflow, 'hidden')
+      assert.equal(copyRules['text-overflow'], 'ellipsis')
+    }
     const contentPadRpx = horizontalPaddingRpx(findDecls(rules, '.content'))[0]
-    const inviteMarginRpx = parseFloat(splitCssTokens(invite.margin)[1])
-    const shareTextWidth = 3 * fontRpx + 2 * parseFloat(horizontalPaddingTokens(share)[0])
+    const shareTextWidth = 3 * fontRpx + 2 * parseFloat(horizontalPaddingTokens(share)[0]) + 2 * borderPx(share) * 750 / 320
     const shareWidth = Math.max(rpxNumber(share, 'min-width'), shareTextWidth)
-    const copyWidth = 750 - 2 * contentPadRpx - 2 * inviteMarginRpx - shareWidth - shareMargin[3]
+    const copyWidth = 750 - 2 * contentPadRpx - 2 * narrowLengthRpx(invitePadding[1]) - 2 * inviteBorderRpx - shareWidth - shareMargin[3]
     for (const copy of ['TA 还没加入', '发个邀请，TA 加入后你们看的是同一本日历']) {
       let maxEm = 0
       for (const ch of copy) {
@@ -979,39 +1021,61 @@ test('the settings help sheet scrolls within the bottom-sheet height band so its
   }
 })
 
-test('period fixed record actions reserve create and edit geometry with the safe area', () => {
-  const periodRaw = readRawRepo('pages/period/edit/edit.wxml')
-  const memoryRaw = readRawRepo('pages/memory/edit/edit.wxml')
-  assert.match(periodRaw, /actionsClass: 'record-actions-fixed', actionsHidden: noteFocused/)
-  assert.match(periodRaw, /class="content \{\{isEdit \? 'has-fixed-edit-actions' : ''\}\}"/)
-  assert.doesNotMatch(memoryRaw, /actionsClass|actionsHidden|record-actions-fixed/, 'memory keeps the original in-flow actions')
-  assert.doesNotMatch(readRawRepo('pages/memory/edit/edit.wxss'), /record-actions|has-fixed-edit-actions/)
-
-  const rules = parseWxssRules(readRepo('pages/period/edit/edit.wxss'))
-  const fixed = findDecls(rules, '.record-actions-fixed')
-  assert.equal(fixed.position, 'fixed')
-  assert.equal(fixed.left, '0')
-  assert.equal(fixed.right, '0')
-  assert.equal(fixed.bottom, '0')
-  assert.ok(Number(fixed['z-index']) < 60, 'fixed actions stay below the shared bottom sheets')
-  assert.equal(fixed.background, 'var(--glass-fallback)')
-  assert.match(fixed.padding, /var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
-  assert.equal(findDecls(rules, '.record-actions-fixed .btns')['margin-top'], '0')
-  assert.equal(findDecls(rules, '.record-actions-fixed.record-actions-hidden').display, 'none')
-
-  // DESIGN 的 R7 几何账本：按钮取 app.wxss 的 --font-size-body × --line-height-assist + 上下 26rpx；320px 的 1px 换算最大。
+test('both edit pages reserve one-save fixed-bar geometry with an opaque navy gradient and safe area', () => {
   const appTokens = readAppTokens()
   const buttonHeight = tokenRpx('var(--font-size-body)', appTokens) * Number(appTokens['--line-height-assist']) + 26 * 2
   const pxToRpx = px => px * 750 / 320
-  const createBarHeight = 20 + buttonHeight + 24 + pxToRpx(1)
-  const editBarHeight = createBarHeight + 96 + 32 + pxToRpx(1) + buttonHeight + pxToRpx(2)
-  assert.ok(createBarHeight <= 144 && 144 - createBarHeight < 16, `create reserve 144rpx covers ${createBarHeight}rpx`)
-  assert.ok(editBarHeight <= 376 && 376 - editBarHeight < 16, `edit reserve 376rpx covers ${editBarHeight}rpx`)
+  const barHeight = 20 + buttonHeight + 24 + pxToRpx(1)
+  assert.ok(barHeight <= 144 && 144 - barHeight < 16, `single-save reserve 144rpx covers ${barHeight}rpx`)
 
-  const content = findDecls(rules, '.content')
-  assert.match(content.padding, /calc\(144rpx \+ var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
-  const editContent = findDecls(rules, '.content.has-fixed-edit-actions')
-  assert.match(editContent['padding-bottom'], /calc\(376rpx \+ var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
+  for (const kind of ['period', 'memory']) {
+    const raw = readRawRepo(`pages/${kind}/edit/edit.wxml`)
+    assert.match(raw, /actionsClass: 'record-actions-fixed'/)
+    if (kind === 'period') assert.match(raw, /actionsHidden: noteFocused/)
+    else assert.doesNotMatch(raw, /actionsHidden:/, 'memory keeps its fixed save visible while the note is focused')
+    assert.doesNotMatch(raw, /has-fixed-edit-actions/, `${kind} uses the same create and edit reserve`)
+
+    const rules = parseWxssRules(readRepo(`pages/${kind}/edit/edit.wxss`))
+    const fixed = findDecls(rules, '.record-actions-fixed')
+    assert.equal(fixed.position, 'fixed')
+    assert.equal(fixed.left, '0')
+    assert.equal(fixed.right, '0')
+    assert.equal(fixed.bottom, '0')
+    assert.ok(Number(fixed['z-index']) < 60, 'fixed actions stay below the shared bottom sheets')
+    assert.equal(fixed.background, 'linear-gradient(180deg, rgba(10,14,39,0.96) 0%, var(--aurora-bg) 48rpx, var(--aurora-bg) 100%)')
+    assert.equal(fixed['box-shadow'], 'inset 0 1px 0 rgba(255,255,255,0.08), 0 -12rpx 32rpx rgba(5,8,22,0.55)')
+    assert.match(fixed.padding, /var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
+    assert.equal(findDecls(rules, '.record-actions-fixed .btns')['margin-top'], '0')
+    assert.equal(findDecls(rules, '.record-actions-fixed.record-actions-hidden').display, 'none')
+
+    const content = findDecls(rules, '.content')
+    assert.match(content.padding, /calc\(144rpx \+ var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
+  }
+})
+
+test('draft and start-date-owner hints share a compact rose micro notice with compensated 88rpx actions', () => {
+  for (const kind of ['period', 'memory']) {
+    const raw = readRawRepo(`pages/${kind}/edit/edit.wxml`)
+    assert.match(raw, /class="draft-notice micro-notice"/)
+    assert.match(raw, /class="micro-notice-text">\{\{draftNoticeText\}\}/)
+
+    const rules = parseWxssRules(readRepo(`pages/${kind}/edit/edit.wxss`))
+    const notice = findDecls(rules, '.micro-notice')
+    assert.equal(notice.display, 'flex')
+    assert.equal(notice['align-items'], 'center')
+    assert.equal(notice['justify-content'], 'space-between')
+    assert.equal(notice.padding, '16rpx 24rpx')
+    assert.equal(notice.background, 'rgba(232,144,158,0.08)')
+    assert.equal(notice.border, '1px solid rgba(232,144,158,0.24)')
+    assert.equal(notice['border-radius'], 'var(--radius-md)')
+    const action = findDecls(rules, '.micro-notice-action')
+    assert.equal(action['min-height'], '88rpx')
+    assert.equal(action.padding, '16rpx')
+    assert.equal(action.margin, '-16rpx')
+  }
+  const periodRaw = readRawRepo('pages/period/edit/edit.wxml')
+  assert.match(periodRaw, /class="form-hint start-date-owner micro-notice"/)
+  assert.match(periodRaw, /class="micro-notice-text">\{\{startDateOwnerText\}\}/)
 })
 
 test('sheets bottom padding carries the runtime bottom safe-area inset', () => {
@@ -1089,6 +1153,44 @@ test('safeArea exposes a runtime bottom inset with the same query discipline as 
     assert.equal(env.safeArea.getSafeTop(), 44)
   } finally {
     env.restore()
+  }
+})
+
+test('safeArea balances the navbar title against the capsule and each actual left slot', () => {
+  for (const { width, statusBarHeight, capsuleLeft, capsuleRight } of [
+    { width: 320, statusBarHeight: 20, capsuleLeft: 226, capsuleRight: 313 },
+    { width: 390, statusBarHeight: 47, capsuleLeft: 287, capsuleRight: 383 },
+    { width: 430, statusBarHeight: 47, capsuleLeft: 327, capsuleRight: 423 }
+  ]) {
+    const env = loadSafeArea({
+      getWindowInfo: () => ({ windowWidth: width, statusBarHeight }),
+      getMenuButtonBoundingClientRect: () => ({
+        width: capsuleRight - capsuleLeft,
+        height: 32,
+        top: statusBarHeight + 4,
+        right: capsuleRight,
+        bottom: statusBarHeight + 36,
+        left: capsuleLeft
+      })
+    })
+    try {
+      const leftSlots = {
+        home: (30 + 96) * width / 750 + 2,
+        back: (30 + 88) * width / 750,
+        placeholder: 30 * width / 750
+      }
+      for (const [variant, leftSlot] of Object.entries(leftSlots)) {
+        const padding = env.safeArea.getNavTitlePadding(variant)
+        const rightSlot = env.safeArea.getCapsuleRightInset()
+        const compensation = rightSlot - leftSlot
+        assert.ok(Math.abs(padding.navTitlePaddingLeft - Math.max(0, compensation)) < 1e-9, `${variant} left compensation at ${width}px`)
+        assert.ok(Math.abs(padding.navTitlePaddingRight - Math.max(0, -compensation)) < 1e-9, `${variant} right compensation at ${width}px`)
+        const contentCenter = (leftSlot + padding.navTitlePaddingLeft + width - rightSlot - padding.navTitlePaddingRight) / 2
+        assert.ok(Math.abs(contentCenter - width / 2) < 1e-9, `${variant} title center at ${width}px`)
+      }
+    } finally {
+      env.restore()
+    }
   }
 })
 
@@ -1306,10 +1408,16 @@ test('the sync pill takes the navbar title slot, clear of the sticky month title
     assert.ok(rpxNumber(pill, 'min-height') * viewportPx / 750 <= 32, `the pill outgrows the navbar row at ${viewportPx}px`)
   }
 
-  // 标题槽 = 视口 − 顶栏左内边距 − 工具钮 − 胶囊占位；胶囊 = 左右内边距 + 描边 + 圆点 + 间距 + 文案（caption，每字 1em）
+  // 标题槽 = 视口 − 顶栏左内边距 − 图例实际槽宽 − 胶囊占位；图例槽取 88rpx 热区与内层表面 intrinsic width 的较大值。
   const pxToRpx = px => px * 750 / 320
-  const slotRpx = 750 - rpxNumber(findDecls(appRules, '.nav-bar'), 'padding-left') -
-    rpxNumber(findDecls(appRules, '.nav-tool'), 'min-width') - pxToRpx(94)
+  const navTool = findDecls(appRules, '.nav-tool')
+  const navToolSurface = findDecls(appRules, '.nav-tool-surface')
+  const legendSurfaceRpx = Array.from('图例').length * fontSizeRpx(navTool) +
+    horizontalPaddingRpx(navToolSurface).reduce((sum, value) => sum + value, 0) +
+    2 * pxToRpx(borderPx(navToolSurface))
+  const toolSlotRpx = Math.max(rpxNumber(navTool, 'min-width'), legendSurfaceRpx)
+  const slotRpx = 750 - rpxNumber(findDecls(appRules, '.nav-bar'), 'padding-left') - toolSlotRpx - pxToRpx(94)
+  // 同步胶囊 = 左右内边距 + 描边 + 圆点 + 间距 + 文案（caption，每字 1em）。
   const chromeRpx = 2 * parseFloat(horizontalPaddingTokens(pill)[0]) + 2 * pxToRpx(borderPx(pill)) +
     rpxNumber(findDecls(rules, '.sync-dot'), 'width') + rpxNumber(pill, 'gap')
   const syncText = findDecls(rules, '.sync-text')
@@ -1349,6 +1457,46 @@ test('registered pages render platform safe areas, navbar height and capsule cle
   }
 })
 
+test('all seven pages inject regular-title compensation while the sync pill stays uncompressed', async () => {
+  const expectedLeftPadding = new Map([
+    ['pages/bind/bind', 82],
+    ['pages/index/index', 32],
+    ['pages/memory/memory', 82],
+    ['pages/memory/edit/edit', 38],
+    ['pages/period/period', 82],
+    ['pages/period/edit/edit', 38],
+    ['pages/settings/settings', 82]
+  ])
+  assert.deepEqual([...expectedLeftPadding.keys()].sort(), [...ALL_PAGES].sort())
+
+  for (const pagePath of ALL_PAGES) {
+    const app = createMiniProgram({ storage: { roomCode: 'ROOM01' }, windowInfo: { screenHeight: 812, statusBarHeight: 44, safeArea: { top: 44, bottom: 778 } } })
+    try {
+      app.failNavigation('switchTab')
+      app.cloud.when('getMyRoom').reply({ code: 0, room: { roomCode: 'ROOM01', status: 'waiting' } })
+      app.cloud.when({ name: 'dataOp', data: { action: 'list' } }).reply({ code: 0, data: [] })
+      const page = app.launch('/' + pagePath)
+      await app.settle()
+      const data = app.rendered(page)
+      const expected = expectedLeftPadding.get(pagePath)
+      assert.equal(data.navTitlePaddingLeft, expected, `${pagePath} left compensation`)
+      assert.equal(data.navTitlePaddingRight, 0, `${pagePath} right compensation`)
+      const root = wxmlOpeningTags(readRepo(`${pagePath}.wxml`)).find(tag => tag.classes.includes('page'))
+      const style = renderWxmlAttribute(root.attrs.style, data)
+      assert.match(style, new RegExp(`--nav-title-padding-left: ${expected}px`), pagePath)
+      assert.match(style, /--nav-title-padding-right: 0px/, pagePath)
+    } finally { app.teardown() }
+  }
+
+  const title = findDecls(parseWxssRules(readRepo('app.wxss')), '.nav-title')
+  assert.equal(title['box-sizing'], 'border-box')
+  assert.equal(title['min-width'], '0')
+  assert.match(title['padding-left'], /var\(--nav-title-padding-left,\s*0px\)/)
+  assert.match(title['padding-right'], /var\(--nav-title-padding-right,\s*0px\)/)
+  const pill = findDecls(parseWxssRules(readRepo('pages/index/index.wxss')), '.sync-pill')
+  for (const value of Object.values(pill)) assert.doesNotMatch(value, /nav-title-padding/)
+})
+
 test('bottom inset lands on non-tab page content; tab pages stay lean behind the native tabBar', () => {
   for (const file of NON_TAB_WXSS) {
     const content = findDecls(parseWxssRules(readRepo(file)), '.content')
@@ -1365,5 +1513,28 @@ test('bottom inset lands on non-tab page content; tab pages stay lean behind the
       /safe-bottom/,
       `${file} is a tab page: the native tabBar already absorbs the bottom inset, do not add dead space`
     )
+  }
+})
+
+test('record dashboard uses three equal tracks with middle-column hairlines', () => {
+  const rules = parseWxssRules(readRepo('pages/period/period.wxss'))
+  const stats = findDecls(rules, '.cycle-stats')
+  assert.equal(stats.display, 'grid')
+  assert.equal(stats['grid-template-columns'].replaceAll(' ', ''), 'repeat(3,minmax(0,1fr))')
+  const middle = findDecls(rules, '.cycle-item:nth-child(2)')
+  assert.equal(middle['border-left'], '1px solid rgba(255,255,255,0.07)')
+  assert.equal(middle['border-right'], '1px solid rgba(255,255,255,0.07)')
+  assert.equal(middle['box-sizing'], 'border-box')
+  assert.equal(middle.padding, '0 16rpx')
+})
+
+test('period rows keep horizontal separation and protect their trailing controls', () => {
+  const rules = parseWxssRules(readRepo('pages/period/period.wxss'))
+  const row = findDecls(rules, '.list-item')
+  assert.equal(row.gap, '16rpx')
+  for (const selector of ['.item-right', '.item-duration', '.item-arrow']) {
+    const decls = findDecls(rules, selector)
+    assert.equal(decls['flex-shrink'], '0', `${selector} never shrinks`)
+    assert.equal(decls['white-space'], 'nowrap', `${selector} stays on one line`)
   }
 })

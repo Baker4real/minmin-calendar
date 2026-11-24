@@ -1,6 +1,8 @@
 <template name="sharedNavbar">
   <view class="nav-bar header-gradient" aria-hidden="{{pageObscured}}">
-    <view wx:if="{{variant === 'home'}}" class="nav-tool" hover-class="nav-tool-hover" bindtap="openLegendSheet" aria-role="button" aria-label="打开日历图例">图例</view>
+    <view wx:if="{{variant === 'home'}}" class="nav-tool" hover-class="nav-tool-hover" bindtap="openLegendSheet" aria-role="button" aria-label="打开日历图例">
+      <view class="nav-tool-surface">图例</view>
+    </view>
     <view wx:elif="{{variant === 'back'}}" class="nav-back" hover-class="nav-back-hover" bindtap="goBack" aria-role="button" aria-label="返回">
       <view class="nav-back-surface"></view>
       <text class="nav-back-icon">‹</text>

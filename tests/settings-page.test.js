@@ -593,7 +593,7 @@ test('settings writes calendar density only when the selection changes', async (
   assert.deepEqual(densityWrites, ['full', 'compact'])
 })
 
-test('settings help explains marks, period states, completion and both room-return paths', async (t) => {
+test('settings help provides four themed cards and preserves period, recovery and medical guidance', async (t) => {
   const app = settingsApp(t)
   const page = app.launch('/pages/settings/settings')
   await app.settle()
@@ -601,17 +601,49 @@ test('settings help explains marks, period states, completion and both room-retu
   await app.settle()
   assert.equal(page.data.helpPhase, 'open')
 
+  assert.deepEqual(page.data.helpTopics, [
+    {
+      key: 'room',
+      title: '房间与配对',
+      paragraphs: [
+        '房间是你们两个人共用的日历。把房间码发给对方，对方加入后就能一起看同一份经期和欢乐时光。',
+        '解除绑定后，TA 还在房间里时，用房间码加入；房间里只剩你时，房间会归档，记录还在；在绑定页点「我来建房间」恢复。'
+      ]
+    },
+    {
+      key: 'records',
+      title: '记录经期与欢乐时光',
+      paragraphs: [
+        '经期有「进行中」「结束日期不详」「已结束」三种状态。',
+        '过去漏记的经期可以补记；进行中的经期结束后，用「记结束」填上结束日期。'
+      ]
+    },
+    {
+      key: 'calendar',
+      title: '预测与日历标记',
+      paragraphs: [
+        '日历标记的意思，请点首页左上角的「图例」查看。',
+        '预测是根据已有记录做的估算，不是医疗建议。'
+      ]
+    },
+    {
+      key: 'sync',
+      title: '数据同步与隐私',
+      paragraphs: [
+        '重新同步房间会重新从云端读取你所在的房间，不会删除任何记录。',
+        '导出会包含全部经期和欢乐时光；目前还不能导入恢复。'
+      ]
+    }
+  ])
+
   const template = readSource(path.join(__dirname, '../pages/settings/settings.wxml'), 'utf8')
   const helpStart = template.indexOf('class="day-action-sheet help-sheet')
   assert.ok(helpStart !== -1, 'expected the settings help template')
   const help = template.slice(helpStart)
-  const expectedCopy = [
-    '日历标记的意思，请点首页左上角的「图例」查看。',
-    '经期有「进行中」「结束日期不详」「已结束」三种状态。',
-    '过去漏记的经期可以补记；进行中的经期结束后，用「记结束」填上结束日期。',
-    '解除绑定后，TA 还在房间里时，用房间码加入；房间里只剩你时，房间会归档，记录还在；在绑定页点「我来建房间」恢复。'
-  ]
-  for (const copy of expectedCopy) assert.ok(help.includes(copy), `help should explain: ${copy}`)
+  assert.match(help, /class="help-topic"[^>]*wx:for="\{\{helpTopics\}\}"|wx:for="\{\{helpTopics\}\}"[^>]*class="help-topic"/)
+  assert.match(help, /wx:for="\{\{item.paragraphs}\}"[^>]*class="help-copy"|class="help-copy"[^>]*wx:for="\{\{item.paragraphs}\}"/)
+  assert.match(help, /\{\{item.title\}\}/)
+  assert.match(help, /\{\{paragraph\}\}/)
   assert.doesNotMatch(help, /点「创建」[^。]*恢复/)
 })
 
@@ -658,6 +690,68 @@ test('help opens after render, silences settings, keeps tabs hidden through exit
   assert.equal(page.data.pageObscured, true)
   assert.equal(app.tabBar.visible, false)
   assert.equal(app.tabBar.calls.length, tabCalls)
+})
+
+test('settings help and confirmation keep the page obscured through direct handoffs and leaving', async (t) => {
+  await t.test('help hands off to confirmation while help is leaving', async (t) => {
+    const app = settingsApp(t)
+    const page = app.launch('/pages/settings/settings')
+    await app.settle()
+    await app.dispatch(page, 'openHelp')
+    await app.settle()
+    await app.dispatch(page, 'closeHelp')
+
+    const resyncing = app.dispatch(page, 'clearData')
+    assert.equal(page.data.helpPhase, 'leaving')
+    assert.equal(page.data.confirmationPhase, 'closed')
+    assert.equal(page.data.pageObscured, true)
+    assert.equal(app.tabBar.visible, false)
+
+    await app.settle()
+    assert.equal(page.data.confirmationPhase, 'open')
+    assert.equal(page.data.pageObscured, true)
+    await app.advance(200)
+    assert.equal(page.data.helpMounted, false)
+    assert.equal(page.data.confirmationPhase, 'open')
+    assert.equal(page.data.pageObscured, true)
+    assert.equal(app.tabBar.visible, false)
+
+    await app.dispatch(page, 'onConfirmationMask')
+    await app.advance(200)
+    await resyncing
+    assert.equal(page.data.pageObscured, false)
+    assert.equal(app.tabBar.visible, true)
+  })
+
+  await t.test('confirmation hands off to help while confirmation is leaving', async (t) => {
+    const app = settingsApp(t)
+    const page = app.launch('/pages/settings/settings')
+    await app.settle()
+    const resyncing = app.dispatch(page, 'clearData')
+    await app.settle()
+    await app.dispatch(page, 'onConfirmationMask')
+
+    await app.dispatch(page, 'openHelp')
+    assert.equal(page.data.confirmationPhase, 'leaving')
+    assert.equal(page.data.helpPhase, 'closed')
+    assert.equal(page.data.pageObscured, true)
+    assert.equal(app.tabBar.visible, false)
+
+    await app.settle()
+    assert.equal(page.data.helpPhase, 'open')
+    assert.equal(page.data.pageObscured, true)
+    await app.advance(200)
+    await resyncing
+    assert.equal(page.data.confirmationMounted, false)
+    assert.equal(page.data.helpPhase, 'open')
+    assert.equal(page.data.pageObscured, true)
+    assert.equal(app.tabBar.visible, false)
+
+    await app.dispatch(page, 'closeHelp')
+    await app.advance(200)
+    assert.equal(page.data.pageObscured, false)
+    assert.equal(app.tabBar.visible, true)
+  })
 })
 
 test('reduced-motion help toggles the native tab bar without animation', async (t) => {
@@ -764,7 +858,7 @@ test('settings help touchcancel resets the drag without closing', async (t) => {
 
   assert.equal(page.data.helpPhase, 'open')
   assert.equal(page.data.helpMounted, true)
-  assert.deepEqual(page.data.helpDragClear, { token: 1, action: 'reset' })
+  assert.deepEqual(page.data.helpDragClear, { token: 1, action: 'reset', sheet: 'help' })
   await app.advance(16)
   assert.equal(app.viewStyle(page, '.sheet-slide-help').transform, '')
   assert.equal(app.tabBar.visible, false)

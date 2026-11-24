@@ -16,6 +16,10 @@
 }
 .nav-title {
   flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding-left: var(--nav-title-padding-left, 0px);
+  padding-right: var(--nav-title-padding-right, 0px);
   text-align: center;
   font-size: var(--font-size-title);
   font-weight: var(--font-weight-title);
@@ -85,29 +89,46 @@
 .nav-back.nav-back-hover .nav-back-surface::before {
   background-color: rgba(255,255,255,0.14);
 }
-.nav-placeholder { width: 88rpx; }
+.nav-placeholder { width: 0; flex-shrink: 0; }
 
-/* Home legend: a rectangular text action, not a month-arrow circle. */
+/* The transparent 88rpx hit area owns interaction; only the inner capsule paints. */
 .nav-tool {
   min-width: 88rpx;
   height: 88rpx;
-  padding: 0 8rpx;
+  flex-shrink: 0;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255,255,255,0.28);
+  border: 0;
   background: transparent;
   color: rgba(255,255,255,0.92);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
   line-height: 1;
-  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.nav-tool-surface {
+  height: 64rpx;
+  padding: 0 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255,255,255,0.28);
+  background: var(--glass-bg);
+  white-space: nowrap;
+  pointer-events: none;
+  transition: background-color var(--duration-press) ease;
 }
 .nav-tool:active,
 .nav-tool.nav-tool-hover {
   transform: scale(0.96);
+}
+.nav-tool:active .nav-tool-surface,
+.nav-tool.nav-tool-hover .nav-tool-surface {
   background: rgba(255,255,255,0.12);
 }
 
@@ -164,7 +185,8 @@
   .nav-back,
   .nav-back-surface,
   .nav-back-surface::before,
-  .nav-tool {
+  .nav-tool,
+  .nav-tool-surface {
     animation: none;
     transition: none;
   }

@@ -29,25 +29,52 @@
   position: relative;
 }
 .cycle-stats {
-  display: flex;
-  justify-content: space-around;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 24rpx;
   position: relative;
 }
 .cycle-item {
+  min-width: 0;
+  box-sizing: border-box;
   text-align: center;
 }
-/* 三列统一标签在上、数字在下，间距落在数字上 */
-.cycle-num {
-  display: block;
+.cycle-item:nth-child(2) {
+  box-sizing: border-box;
+  padding: 0 16rpx;
+  border-left: 1px solid rgba(255,255,255,0.07);
+  border-right: 1px solid rgba(255,255,255,0.07);
+}
+/* 三列统一标签在上、数字在下；加载与加载后共用固定高度，单位与数字基线对齐。 */
+.cycle-value {
   box-sizing: border-box;
   height: 52.8rpx;
-  line-height: 52.8rpx;
   margin-top: var(--space-xs);
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+}
+.cycle-num {
+  line-height: 52.8rpx;
   font-size: 44rpx;
   font-weight: var(--font-weight-control);
-  color: #fff;
+  color: rgba(255,255,255,0.92);
   font-variant-numeric: tabular-nums;
+}
+.cycle-unit {
+  margin-left: 4rpx;
+  font-size: 24rpx;
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-title);
+  color: var(--text-secondary);
+}
+.cycle-num-placeholder {
+  display: block;
+  align-self: center;
+  width: 88rpx;
+  height: 44rpx;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.08);
 }
 /* 统计标签走次要文字档：在画布、玻璃回退和渐变两端都 ≥4.5:1（issue #158） */
 .cycle-label {
@@ -98,6 +125,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16rpx;
   padding: 28rpx var(--space-page-row-inset);
   border-bottom: 1px solid rgba(255,255,255,0.06);
   transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
@@ -120,6 +148,11 @@
   font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.85);
   overflow-wrap: anywhere;
+}
+.item-author {
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  color: var(--text-secondary);
 }
 .item-note {
   font-size: var(--font-size-caption);
@@ -152,21 +185,25 @@
 }
 /* 经量标签 = 分段选中态的弱态玫瑰角色；症状标签保持上面的中性样式（issue #225） */
 .item-tag.flow {
-  color: #E8909E;
+  color: var(--aurora-pink);
   background: rgba(232,144,158,0.08);
   border-color: rgba(232,144,158,0.45);
 }
 .item-right {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   gap: 12rpx;
+  white-space: nowrap;
 }
 .item-duration {
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   font-variant-numeric: tabular-nums;
-  color: #E8909E;
+  color: var(--aurora-pink);
   background: rgba(232,144,158,0.12);
   padding: 4rpx 16rpx;
   border-radius: var(--radius-md);
@@ -178,6 +215,8 @@
   background: rgba(232,144,158,0.92);
 }
 .item-arrow {
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: 32rpx;
   color: var(--text-secondary);
 }
@@ -187,6 +226,7 @@
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: var(--radius-card);
+  animation: skeletonPulse 2.4s ease-in-out infinite;
 }
 .skeleton-item {
   display: flex;
@@ -205,7 +245,6 @@
   height: 28rpx;
   border-radius: var(--radius-full);
   background: rgba(255,255,255,0.08);
-  animation: skeletonPulse 2.4s ease-in-out infinite;
 }
 .skeleton-line-title {
   width: 56%;
@@ -221,7 +260,6 @@
   margin-left: 24rpx;
   border-radius: var(--radius-md);
   background: rgba(255,255,255,0.08);
-  animation: skeletonPulse 2.4s ease-in-out infinite;
 }
 
 /* 记录分类使用 shared/segmented-control.wxss 的画布上变体；本页只保留节奏外边距。 */
@@ -280,6 +318,13 @@
   line-height: var(--line-height-body);
   font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.85);
+  white-space: nowrap;
+}
+.month-count {
+  margin-left: 8rpx;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 /* 收起卡头的备注摘要：单行，超出截断。读屏名在 aria-label 里，这里不再念一遍 */
@@ -346,7 +391,6 @@
   margin-right: 16rpx;
   border-radius: var(--radius-circle);
   background: rgba(255,255,255,0.08);
-  animation: skeletonPulse 2.4s ease-in-out infinite;
 }
 
 /* 空态结构共用 pages/shared/empty-state.wxss；本修饰类保留记录页的既有值。 */
@@ -358,23 +402,24 @@
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  border-style: solid;
-  border-color: rgba(255,255,255,0.08);
+  border-style: dashed;
+  border-color: rgba(255,255,255,0.14);
   border-radius: var(--radius-card);
 }
 
-/* Load Failure —— 重试是可识别的操作（玫瑰小操作按钮），不是空列表的安静说明 */
+/* Load Failure：整卡仍可重试，但外层不按压缩放；只有内部主按钮复用共享缩放与柔光。 */
 .load-failed {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 24rpx;
-  transition: transform var(--duration-press) var(--ease-out);
+  transition: border-color var(--duration-press) ease;
 }
 .load-failed:active,
 .load-failed.load-failed-hover {
-  transform: scale(0.98);
+  border-color: rgba(255,255,255,0.2);
 }
+
 /* 未同步的分段在失败卡下面照常列出本机已保存的记录（#194），两块之间与月份卡同一档间距 */
 .load-failed + .period-year-list,
 .load-failed + .memory-month-list {
@@ -385,17 +430,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
   padding: 0 64rpx;
   border-radius: var(--radius-sm);
-  background: var(--aurora-pink);
-  color: var(--text-on-accent);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
-  transition: transform var(--duration-press) var(--ease-out);
-}
-.retry-btn:active,
-.retry-btn.retry-btn-hover {
-  transform: scale(0.96);
 }
 
 /* 已有数据后刷新失败：列表与数字保留；两段重试行共用 shared/retry-row.wxss（#234），本页只留位置间距。 */
@@ -405,14 +445,11 @@
 
 /* 减弱动效：本页声明的动画和过渡都在这里覆盖，写在文件末尾才压得住它们（app.wxss 的同名覆盖会被本页规则盖过） */
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-line,
-  .skeleton-pill,
-  .skeleton-dot {
+  .skeleton-card {
     animation: none;
   }
   .list-item,
   .load-failed,
-  .retry-btn,
   .period-year-title {
     transition: none;
   }

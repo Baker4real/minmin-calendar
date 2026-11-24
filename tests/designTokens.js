@@ -42,6 +42,25 @@ function findOffScaleTextOpacities(css) {
   return violations
 }
 
+function findLiteralTextColorDiscipline(css) {
+  const violations = []
+  const rose = /#e8909e\b/i
+  const white = /#(?:fff|ffffff)\b/i
+  const border = /^(?:border(?:-(?:top|right|bottom|left))?(?:-color)?|outline(?:-color)?)$/
+  for (const rule of parseWxssRules(css)) {
+    for (const [property, rawValue] of Object.entries(rule.decls)) {
+      const value = String(rawValue).trim()
+      if (rose.test(value) && (property === 'color' || border.test(property))) {
+        violations.push({ selector: rule.selectors.join(', '), property, kind: 'rose' })
+      }
+      if (white.test(value) && (property === 'color' || property.startsWith('--text-'))) {
+        violations.push({ selector: rule.selectors.join(', '), property, kind: 'white' })
+      }
+    }
+  }
+  return violations
+}
+
 function maskComments(css) {
   return String(css).replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
 }
@@ -222,6 +241,7 @@ module.exports = {
   fillOf,
   findOffPaletteHexes,
   findOffPaletteHexesInInlineStyles,
+  findLiteralTextColorDiscipline,
   findOffScaleTextOpacities,
   findOffTokenRadii,
   listWxmlFiles,

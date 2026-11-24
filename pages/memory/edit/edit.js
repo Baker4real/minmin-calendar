@@ -11,6 +11,7 @@ Page(withPageVisibility({
     safeBottom: safeArea.getSafeBottom(),
     navBarHeight: safeArea.getNavBarHeight(),
     capsuleRight: safeArea.getCapsuleRightInset(),
+    ...safeArea.getNavTitlePadding('back'),
     noteFocused: false,
     ...confirmationSheetData(),
     ...datePickerSheetData()
@@ -39,9 +40,10 @@ Page(withPageVisibility({
     probeReducedMotion(this)
   },
 
-  openMemoryDatePicker() {
+  openMemoryDatePicker(event) {
     if (this.data.saving) return
     datePickerSheet(this).open({
+      openedAt: event && Number.isFinite(event.timeStamp) ? event.timeStamp : null,
       label: '日期',
       value: this.data.date,
       maxDate: this.data.maxDate,
@@ -50,7 +52,15 @@ Page(withPageVisibility({
   },
 
   onDatePickerChange(e) {
-    datePickerSheet(this).change(e.detail.value)
+    datePickerSheet(this).change(e.detail.value, e)
+  },
+
+  onDatePickerPickStart(e) {
+    datePickerSheet(this).pickStart(e)
+  },
+
+  onDatePickerPickEnd(e) {
+    datePickerSheet(this).pickEnd(e)
   },
 
   onDatePickerConfirm() {

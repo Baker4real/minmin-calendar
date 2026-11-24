@@ -145,6 +145,23 @@ const ALLOWED_IMAGES = {
   'docs/evidence/issue-168/settings-help-open-390x844.png': '设置页使用说明弹层停在打开态：固定文案，没有记录数据',
   'docs/evidence/issue-168/period-edit-ongoing-390x844.png': '经期编辑页打开进行中的替身经期：选中的状态、经量和症状芯片带静态玫瑰光；日期与备注来自替身记录',
   'docs/evidence/issue-168/memory-edit-existing-390x844.png': '欢乐时光编辑页打开一条替身记录：日期与备注「替身：一起散步」来自替身记录',
+  // #262：同一官方 DevTools 9420 当前模拟器 390×844、ABC123 与 standin-* 数据；全部为 compiled-module-challenge 确认的 fresh current 图。
+  'docs/evidence/issue-262/home-six-row-d1-390x844.png': 'D1 六行日历真实 pageScrollTo 后，月份与状态行压在吸顶渐变上；经期与欢乐时光均为替身记录',
+  'docs/evidence/issue-262/home-full-calendar-390x844.png': '完整密度日历：单日、连续、跨周与今天的替身经期色带及欢乐时光',
+  'docs/evidence/issue-262/home-compact-calendar-390x844.png': '清爽密度日历：单日、连续、跨周与今天的替身经期色带及欢乐时光',
+  'docs/evidence/issue-262/sheet-recap-390x844.png': '本月小结弹层的轻玻璃概览与语义导轨；所有日期、统计和备注均为替身数据',
+  'docs/evidence/issue-262/date-picker-picking-rose-390x844.png': '日期滚轮 picking 锁定时确定键保持 55% 玫瑰与海军字；无真实日期或备注',
+  'docs/evidence/issue-262/home-skeleton-390x844.png': '替身云端延迟时的首页首次加载骨架；无真实记录',
+  'docs/evidence/issue-262/period-skeleton-390x844.png': '替身云端延迟时的记录页首次加载骨架；无真实记录',
+  'docs/evidence/issue-262/period-dashboard-390x844.png': '记录页周期概览与经期行；日期、统计、作者和备注均为替身数据',
+  'docs/evidence/issue-262/period-edit-fixed-save-390x844.png': '新建过去经期表单的固定单保存栏；日期由替身场景生成，无真实记录',
+  'docs/evidence/issue-262/settings-help-four-topics-390x844.png': '设置使用说明四大主题块；固定帮助文案，无真实记录或房间码',
+  'docs/evidence/issue-262/bind-created-credential-390x844.png': '刚创建替身房间的凭证票根；ABC123 是替身码，无真实记录',
+  'docs/evidence/issue-262/memory-compat-390x844.png': 'memory 兼容路由的 switchTab 返回 ok 后落到记录 tab 欢乐时光分段；月份和备注均为替身数据',
+  'docs/evidence/issue-262/memory-focus-fixed-save-390x844.png': '欢乐时光备注 focus 时仅显示玫瑰描边，固定保存区仍完整可见；替身日期由场景生成，无真实记录',
+  'docs/evidence/issue-262/quick-ghost-touchstart-390x844.png': '原生 touchstart 按住期间的次快捷：按钮海军底随 0.95 缩放、宿主透明且不缩放；替身记录，无真实数据',
+  'docs/evidence/issue-262/sheet-handle-touchstart-390x844.png': '原生 touchstart 按住共享把手时的 55% 玫瑰微光；固定帮助文案，无真实记录',
+  'docs/evidence/issue-262/date-picker-touch-unverified-390x844.png': '原生 touch 序列未产生 pick 事件的直接未验证证据：滚轮仍停在原替身日期，不能作惯性通过图',
 }
 
 // 读 index 而不是工作区：提交钩子里跑时，读到的正是这次要提交的文件。
@@ -154,14 +171,14 @@ function trackedImages() {
     .filter(file => IMAGE_FILE.test(file))
 }
 
-test('invite card is a tracked 500 by 400 PNG no larger than 40 KB', () => {
+test('invite card is a tracked 1000 by 800 PNG no larger than 120 KB', () => {
   assert.ok(trackedImages().includes(INVITE_CARD), `${INVITE_CARD} must be tracked`)
   const artwork = fs.readFileSync(path.join(repoRoot, INVITE_CARD))
-  assert.ok(artwork.length <= 40 * 1024, `invite card is ${artwork.length} B (limit ${40 * 1024} B)`)
+  assert.ok(artwork.length <= 120 * 1024, `invite card is ${artwork.length} B (limit ${120 * 1024} B)`)
   assert.ok(artwork.length >= 24, 'PNG header and IHDR dimensions must be present')
   assert.equal(artwork.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
-  assert.equal(artwork.readUInt32BE(16), 500)
-  assert.equal(artwork.readUInt32BE(20), 400)
+  assert.equal(artwork.readUInt32BE(16), 1000)
+  assert.equal(artwork.readUInt32BE(20), 800)
 })
 
 test('every tracked image outside images/ is allowlisted with what it shows', () => {

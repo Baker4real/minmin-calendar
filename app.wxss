@@ -17,13 +17,12 @@ page {
   /* Semantic Colors — 实色字面量只留在 token 定义块（issue #245） */
   --color-danger: #F97373;
   --color-memory: #F0C4C0;
+  --memory-gold: var(--aurora-gold);
   --text-on-accent: #0A0E27;
 
   /* Glass */
   --glass-bg: rgba(255,255,255,0.08);
   --glass-border: rgba(255,255,255,0.12);
-  --glass-glow: rgba(232,144,158,0.15);
-  --glass-inset: inset 0 1px 0 rgba(255,255,255,0.15);
   --glass-fallback: rgba(18,22,61,0.92);
 
   /* Font Roles — 共享字号角色，页面 WXSS 只允许引用角色 token（glyph/display/scale-hold 例外登记在 tests/typography-roles.test.js） */
@@ -64,7 +63,6 @@ page {
   --space-settings-group-gap: 28rpx;
 
   /* Text on Dark */
-  --text-white: #FFFFFF;
   --text-primary: rgba(255,255,255,0.85);
   --text-secondary: rgba(255,255,255,0.6);
   --text-placeholder: rgba(255,255,255,0.6);
@@ -195,6 +193,8 @@ page {
 
 /* ===== Premium Card (Glass) ===== */
 .premium-card {
+  position: relative;
+  overflow: hidden;
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
   border-radius: var(--radius-card);
   border: 1px solid rgba(255,255,255,0.12);
@@ -205,7 +205,7 @@ page {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  background: linear-gradient(90deg, transparent 0%, rgba(232,144,158,0.42) 24%, rgba(255,255,255,0.30) 50%, rgba(184,169,232,0.32) 76%, transparent 100%);
 }
 /* ===== Premium Button — 实色玫瑰，不再常驻发光 ===== */
 .btn-premium {
@@ -431,7 +431,6 @@ button.share-invite::after {
 }
 
 /* --safe-bottom 由页面根节点内联注入（utils/safeArea.js）；顶栏安全区在共享顶栏样式里。 */
-.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 20rpx); }
 
 /* ===== Input Placeholder ===== */
 .input-placeholder {

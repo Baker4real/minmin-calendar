@@ -10,6 +10,7 @@ const {
   definedRadiusTokens,
   findOffPaletteHexes,
   findOffPaletteHexesInInlineStyles,
+  findLiteralTextColorDiscipline,
   findOffScaleTextOpacities,
   findOffTokenRadii,
   listWxmlFiles,
@@ -165,6 +166,40 @@ test('every WXSS neutral text color and text token uses only the five opacity ti
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
     for (const violation of findOffScaleTextOpacities(readSource(file, 'utf8'))) {
       violations.push(`${relative} ${violation.selector} ${violation.property} alpha=${violation.alpha}`)
+    }
+  }
+  assert.deepEqual(violations, [])
+})
+
+test('literal text-color guardrail checks rose text and borders plus pure-white text only', () => {
+  const css = `
+    .rose-text { color: #E8909E; }
+    .rose-border { border: 1px solid #e8909e; }
+    .rose-border-side { border-top-color: #E8909E; }
+    .white-text { color: #fff; }
+    .white-token { --text-white: #FFFFFF; }
+    .registered-graphics { background: #E8909E; border-color: #fff; }
+    .tokenized { color: var(--aurora-pink); border: 1px solid var(--aurora-pink); }
+    .emphasis { color: rgba(255,255,255,0.92); }
+  `
+  assert.deepEqual(
+    findLiteralTextColorDiscipline(css).map((violation) => [violation.selector, violation.property, violation.kind]),
+    [
+      ['.rose-text', 'color', 'rose'],
+      ['.rose-border', 'border', 'rose'],
+      ['.rose-border-side', 'border-top-color', 'rose'],
+      ['.white-text', 'color', 'white'],
+      ['.white-token', '--text-white', 'white']
+    ]
+  )
+})
+
+test('every WXSS text and border rose uses its token and neutral text avoids pure-white hex', () => {
+  const violations = []
+  for (const file of listWxssFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    for (const violation of findLiteralTextColorDiscipline(readSource(file, 'utf8'))) {
+      violations.push(`${relative} ${violation.selector} ${violation.property} ${violation.kind}`)
     }
   }
   assert.deepEqual(violations, [])
@@ -390,6 +425,24 @@ test('glass fallback fill has a single token source', () => {
   assert.deepEqual(violations, [])
 })
 
+test('premium cards own clipping and an ordered rose-white-lavender prism hairline', () => {
+  const card = declsFor('app.wxss', '.premium-card')
+  assert.equal(card.position, 'relative')
+  assert.equal(card.overflow, 'hidden')
+
+  const edge = declsFor('app.wxss', '.premium-card::after')
+  assert.equal(edge.height, '1px')
+  assert.match(edge.background, /^linear-gradient\(90deg,/)
+  const stops = [...edge.background.matchAll(/transparent|rgba\([^)]*\)/g)].map((match) => match[0])
+  assert.deepEqual(stops, [
+    'transparent',
+    'rgba(232,144,158,0.42)',
+    'rgba(255,255,255,0.30)',
+    'rgba(184,169,232,0.32)',
+    'transparent'
+  ])
+})
+
 // issue #104：绑定页紫粉试点（issue #86–#89）结论是「不推广」，页面级 --bind-* token 与
 // 例外色板整体退役；色板护栏回到 deny-by-default 单一 Aurora 色板（tests/designTokens.js），
 // 绑定页任何紫粉字面量会被「every WXSS file uses only DESIGN.md palette hex colors」直接拒绝。
@@ -421,7 +474,7 @@ test('primary CTA rose fill comes from var(--aurora-pink) only', () => {
 // issue #145：分段控件只有一种选中态。描边玫瑰弱选中，不用主按钮实色填充。
 // 记录分类、设置页密度、绑定页创建/加入是全部分段控件。
 const SEGMENTED_SELECTED = {
-  color: '#E8909E',
+  color: 'var(--aurora-pink)',
   background: 'rgba(232,144,158,0.08)',
   'border-color': 'rgba(232,144,158,0.45)'
 }
@@ -442,11 +495,10 @@ test('segmented controls share one outlined-rose selected style', () => {
   }
 })
 
-// issue #145：主按钮只有一种形状，圆角矩形 --radius-md。
-// 复制键与重试小按钮不是主按钮。
+// issue #145：通用主按钮只有一种形状，圆角矩形 --radius-md。
+// 复制键与重试小按钮不是主按钮；首页双快捷的 --radius-card 例外由 index-page 的 #255 契约单独钉住。
 const PRIMARY_BUTTONS = [
   ['app.wxss', '.btn-premium'],
-  ['pages/index/index.wxss', '.quick-btn'],
   ['pages/index/index.wxss', '.copy-recap']
 ]
 
@@ -608,6 +660,11 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/index/index.wxss', '.nav-btn:active'],
     ['pages/index/index.wxss', '.week-header'],
     ['pages/index/index.wxss', '.calendar-grid'],
+    // #255：吸顶海军渐变与首页轻玻璃横幅；均不是 CTA 填充。
+    ['pages/index/index.wxss', '.home-sticky'],
+    ['pages/index/index.wxss', '.partner-welcome'],
+    ['pages/index/index.wxss', '.partner-invite'],
+    ['pages/index/index.wxss', '.month-summary'],
     // issue #162：图例样本格铺日历网格同一层玻璃
     ['pages/index/index.wxss', '.legend-sample.day-cell'],
     ['pages/bind/bind.wxss', '.code-input'],
@@ -626,6 +683,10 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/period/edit/edit.wxss', '.form-input'],
     ['pages/memory/edit/edit.wxss', '.form-picker'],
     ['pages/memory/edit/edit.wxss', '.form-input'],
+    // #253：两个编辑页的单保存固定栏使用不透字的海军实底渐变。
+    ['pages/shared/record-form.wxss', '.record-actions-fixed'],
+    ['pages/period/edit/edit.wxss', '.record-actions-fixed'],
+    ['pages/memory/edit/edit.wxss', '.record-actions-fixed'],
     // #243：自有日期面板的滚轮槽沿用表单平涂；共享规则及全部展开调用页登记同一来源。
     ['pages/shared/confirmation-sheet.wxss', '.date-picker-columns'],
     ['pages/index/index.wxss', '.date-picker-columns'],
@@ -809,11 +870,12 @@ test('home page reserves gold for prediction, range, certainty, and calendar met
 const SHADOW_COLOR_FAMILIES = [
   { name: 'black elevation', rgb: [0, 0, 0], allow: (a) => (a >= 0.12 && a <= 0.15) || a === 0.2 || a === 0.34 },
   { name: 'navy near-field', rgb: [10, 14, 39], allow: (a) => a >= 0.16 && a <= 0.35 },
+  { name: 'fixed action bar elevation', rgb: [5, 8, 22], allow: (a) => a === 0.55 },
   { name: 'rose glow', rgb: [232, 144, 158], allow: (a) => a >= 0.1 && a <= 0.45 },
   { name: 'soft pink glow', rgb: [240, 196, 192], allow: (a) => a >= 0.28 && a <= 0.32 },
   { name: 'gold glow', rgb: [212, 165, 116], allow: (a) => a >= 0.3 && a <= 0.5 },
   { name: 'warning glow', rgb: [249, 115, 115], allow: (a) => a === 0.38 },
-  { name: 'inset highlight', rgb: [255, 255, 255], allow: (a) => a >= 0.09 && a <= 0.22 }
+  { name: 'inset highlight', rgb: [255, 255, 255], allow: (a) => a >= 0.08 && a <= 0.22 }
   // issue #162：今天的薰衣草描边改成胶囊与色带的 border，不再是阴影，阴影登记里没有薰衣草
 ]
 
@@ -961,7 +1023,7 @@ const REGISTERED_GLOWS = [
   'pages/period/period.wxss .memory-heart',
   'pages/period/period.wxss .cycle-card'
 ]
-const ELEVATION_RGB = new Set(['0,0,0', '10,14,39', '255,255,255'])
+const ELEVATION_RGB = new Set(['0,0,0', '5,8,22', '10,14,39', '255,255,255'])
 
 // 一个阴影值的各层：box-shadow / text-shadow 按顶层逗号分，filter 只取其中的 drop-shadow(...)
 function shadowLayers(prop, value) {

@@ -28,7 +28,7 @@
   position: relative;
   font-size: 120rpx;
   /* 品牌心：玫瑰文本字形，不再用红色心形表情（issue #77） */
-  color: #E8909E;
+  color: var(--aurora-pink);
   margin-bottom: 20rpx;
   animation: heroIn 0.6s var(--ease-out) both;
   /* ♥ 字形只留一层浅粉字阴影。不可点元素不再叠远层光晕（issue #146）。
@@ -109,6 +109,9 @@
 .tab-bar {
   margin-bottom: 30rpx;
 }
+.tab-bar.tab-bar-unselected {
+  margin-bottom: 0;
+}
 .info-text {
   display: block;
   font-size: var(--font-size-caption);
@@ -128,12 +131,19 @@
   font-size: 40rpx;
   line-height: 88rpx;
   text-align: center;
-  letter-spacing: var(--letter-spacing-code-input);
-  text-indent: var(--letter-spacing-code-input);
   margin-bottom: 30rpx;
   background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
   font-weight: var(--font-weight-body);
-  color: #fff;
+  color: rgba(255,255,255,0.92);
+}
+.code-input.code-input-empty {
+  letter-spacing: 2rpx;
+  text-indent: 2rpx;
+  font-weight: var(--font-weight-body);
+}
+.code-input.code-input-filled {
+  letter-spacing: var(--letter-spacing-code-input);
+  text-indent: var(--letter-spacing-code-input);
 }
 /* R10：焦点描边由 shared/form-control.wxss 的 form-control-focused 统一绘制，不加光晕。 */
 .input-placeholder {
@@ -147,19 +157,37 @@
   line-height: var(--line-height-body);
   text-align: center;
   margin-bottom: 20rpx;
-  color: #E8909E;
+  color: var(--aurora-pink);
 }
 /* 房间码是行内纯展示文本（issue #83/#84），展示样式与设置页共用 shared/room-code.wxss（#232）。 */
-/* 房间码 + 复制键行（issue #83）：整组在卡片内水平居中，
-   并承担与「进入应用」主按钮之间 30rpx 的间距（原独立复制行的职责） */
+/* 建房成功凭证票根（issue #252）：房间码左对齐，紧凑复制胶囊嵌在深色凹槽右侧。 */
 .bound-code-row {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 16rpx;
   margin-bottom: 30rpx;
+  padding: 20rpx 24rpx;
+  border-radius: var(--radius-md);
+  background: rgba(10,14,39,0.52);
+  border: 1px solid rgba(232,144,158,0.20);
 }
-/* 复制键紧随房间码同排，按钮与减弱动效样式共用 shared/room-code.wxss（#232）。 */
+.bound-code-row .room-code-value {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+.bound-code-row .copy-btn {
+  padding: 0 24rpx;
+  background: rgba(232,144,158,0.14);
+  color: var(--aurora-pink);
+  border: 1px solid rgba(232,144,158,0.45);
+  border-radius: var(--radius-full);
+}
+.bound-code-row .copy-btn::before {
+  border-radius: inherit;
+}
+/* 复制键的触控高度、按压与减弱动效仍共用 shared/room-code.wxss（#232）。 */
 /* 原生分享按钮的玫瑰主操作与按压样式在 app.wxss，由绑定和设置共用（issue #218）。 */
 /* 刚创建房间时的次操作「进入应用」（issue #149）：DESIGN.md button-ghost——透明底、玫瑰描边和玫瑰字，
    居中胶囊，视觉权重低于整宽实底的「发给 TA」，不加投影。上下 12px 内边距让 320px 宽下触控高度仍 ≥44px */
@@ -169,8 +197,8 @@
   padding: 12px 28px;
   box-sizing: border-box;
   background: transparent;
-  color: #E8909E;
-  border: 1.5px solid #E8909E;
+  color: var(--aurora-pink);
+  border: 1.5px solid var(--aurora-pink);
   border-radius: var(--radius-full);
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-control);

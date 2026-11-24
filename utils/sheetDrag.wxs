@@ -2,7 +2,7 @@
 
 var START_PX = 10
 var RUBBER = 0.55
-var pendingClear = null
+var pendingClearBySheet = {}
 
 function touchStart(event, ownerInstance) {
   var panel = findPanel(event, ownerInstance)
@@ -17,6 +17,8 @@ function touchStart(event, ownerInstance) {
   state.startY = touch.pageY
   state.startTime = event.timeStamp
   state.sheet = sheetName(event)
+  // A new gesture owns the panel now; any clear queued by the previous gesture is stale.
+  pendingClearBySheet[state.sheet] = null
   state.panelHeight = readHeight(panel)
   state.displacement = 0
 }
@@ -87,7 +89,7 @@ function touchCancel(event, ownerInstance) {
 }
 
 function clearInline(newValue, oldValue, ownerInstance, instance) {
-  if (!newValue || !newValue.token) return
+  if (!newValue || !newValue.token || !newValue.sheet) return
   if (newValue.action !== 'reset' && newValue.action !== 'close') return
   if (newValue.action === 'reset') instance.addClass('sheet-reset')
   else instance.removeClass('sheet-reset')
@@ -95,15 +97,19 @@ function clearInline(newValue, oldValue, ownerInstance, instance) {
     transition: '',
     '-webkit-transition': ''
   })
-  pendingClear = instance
-  instance.requestAnimationFrame(flushPendingClear)
+  var sheet = newValue.sheet
+  var pending = { token: newValue.token, instance: instance }
+  pendingClearBySheet[sheet] = pending
+  instance.requestAnimationFrame(function() {
+    flushPendingClear(sheet, pending)
+  })
 }
 
-function flushPendingClear() {
-  if (!pendingClear) return
-  var instance = pendingClear
-  pendingClear = null
-  instance.setStyle({
+function flushPendingClear(sheet, expected) {
+  var pending = pendingClearBySheet[sheet]
+  if (!pending || pending.token !== expected.token || pending.instance !== expected.instance) return
+  pendingClearBySheet[sheet] = null
+  pending.instance.setStyle({
     transform: '',
     '-webkit-transform': ''
   })

@@ -6,7 +6,8 @@ Page({
     safeTop: safeArea.getSafeTop(),
     safeBottom: safeArea.getSafeBottom(),
     navBarHeight: safeArea.getNavBarHeight(),
-    capsuleRight: safeArea.getCapsuleRightInset()
+    capsuleRight: safeArea.getCapsuleRightInset(),
+    ...safeArea.getNavTitlePadding('placeholder')
   },
 
   onShow() {
