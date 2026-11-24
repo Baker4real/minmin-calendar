@@ -118,17 +118,12 @@ test('default launcher auto-discovers an installed user skill and fails closed w
   const scriptName = process.platform === 'win32' ? 'impeccable.cmd' : 'impeccable'
   const skillScripts = path.join(dir, 'skill-home', '.gemini', 'config', 'skills', 'impeccable', 'scripts')
   fs.mkdirSync(skillScripts, { recursive: true })
-  const sourceStub = process.platform === 'win32'
-    ? path.join(repo, 'tests', 'fixtures', 'impeccable-detector-stub.cmd')
-    : stub
+  const launcherPath = path.join(skillScripts, scriptName)
   if (process.platform === 'win32') {
-    fs.writeFileSync(
-      path.join(skillScripts, scriptName),
-      `@echo off\r\n"${process.execPath}" "${stub}" %*\r\n`
-    )
+    fs.writeFileSync(launcherPath, `@echo off\r\n"${process.execPath}" "${stub}" %*\r\n`)
   } else {
-    fs.copyFileSync(sourceStub, path.join(skillScripts, scriptName))
-    fs.chmodSync(path.join(skillScripts, scriptName), 0o755)
+    fs.writeFileSync(launcherPath, `#!/bin/sh\nexec "${process.execPath}" "${stub}" "$@"\n`)
+    fs.chmodSync(launcherPath, 0o755)
   }
 
   const discovered = run(['--target', 'pages', '--out', out], {
