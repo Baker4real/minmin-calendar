@@ -248,6 +248,55 @@ test('R2 date panel: period start opens three bounded columns and confirms the d
   assert.equal(page.data.datePickerMounted, false)
 })
 
+test('R2 date panel: all three date fields synchronize rounded pixel geometry across viewport widths', async (t) => {
+  const viewports = [
+    { name: '320px', width: 320, row: 38, height: 190, mask: 76, top: 76 },
+    { name: '390px', width: 390, row: 46, height: 230, mask: 92, top: 92 },
+    { name: '430px', width: 430, row: 50, height: 250, mask: 100, top: 100 },
+    { name: 'missing window width', width: undefined, row: 44, height: 220, mask: 88, top: 88 }
+  ]
+  const panels = [
+    { name: 'period start', spec: period, open: 'openStartDatePicker', options: { startDate: '2025-12-30', endDate: '2025-12-30' } },
+    { name: 'period end', spec: period, open: 'openEndDatePicker', options: { startDate: '2025-12-30', endDate: '2025-12-30' } },
+    { name: 'memory date', spec: records[1], open: 'openMemoryDatePicker', options: { date: '2025-12-30' } }
+  ]
+  for (const viewport of viewports) {
+    for (const panel of panels) {
+      await t.test(`${viewport.name}: ${panel.name}`, async (t) => {
+        const app = setup(t, { windowInfo: { windowWidth: viewport.width } })
+        const { page } = await openEditor(app, panel.spec, panel.options)
+        await app.dispatch(page, panel.open)
+        await app.settle()
+
+        assert.equal(page.data.datePickerRowHeight, viewport.row)
+        assert.equal(page.data.datePickerHeight, viewport.height)
+        assert.equal(page.data.datePickerMaskHeight, viewport.mask)
+        assert.equal(page.data.datePickerIndicatorTop, viewport.top)
+        const mapped = sharedTemplateData(panel.spec, 'sharedBottomSheet', 'bodyTemplate', 'datePickerSheetBody', page.data)
+        assert.equal(mapped.datePickerRowHeight, viewport.row)
+        assert.equal(mapped.datePickerHeight, viewport.height)
+        assert.equal(mapped.datePickerMaskHeight, viewport.mask)
+        assert.equal(mapped.datePickerIndicatorTop, viewport.top)
+
+        const expanded = readSource(path.join(__dirname, `../pages/${panel.spec.kind}/edit/edit.wxml`), 'utf8')
+        const nodes = wxmlOpeningTags(expanded)
+        const frame = nodes.find(tag => tag.classes.includes('date-picker-columns'))
+        const picker = nodes.find(tag => tag.tag === 'picker-view')
+        assert.equal(renderWxmlAttribute(frame.attrs.style, page.data), `height: ${viewport.height}px; --date-picker-mask-height: ${viewport.mask}px;`)
+        assert.equal(renderWxmlAttribute(picker.attrs.style, page.data), `height: ${viewport.height}px;`)
+        const indicator = renderWxmlAttribute(picker.attrs['indicator-style'], page.data)
+        assert.match(indicator, new RegExp(`height: ${viewport.row}px;`))
+        assert.match(indicator, new RegExp(`top: ${viewport.top}px;`))
+        const options = nodes.filter(tag => tag.classes.includes('date-picker-option'))
+        assert.equal(options.length, 3)
+        for (const option of options) {
+          assert.equal(renderWxmlAttribute(option.attrs.style, page.data), `height: ${viewport.row}px; line-height: ${viewport.row}px;`)
+        }
+      })
+    }
+  }
+})
+
 test('R2 date panel: inertia locks confirmation until the settled draft can submit', async (t) => {
   const scenarios = [
     { spec: period, open: 'openStartDatePicker' },
