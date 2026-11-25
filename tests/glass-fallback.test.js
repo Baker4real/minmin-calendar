@@ -154,7 +154,7 @@ function backgroundValue(decls) {
 }
 
 function ruleHasSolidFallback(decls, tokens) {
-  if (!Object.prototype.hasOwnProperty.call(decls, 'backdrop-filter')) return true
+  if (!Object.prototype.hasOwnProperty.call(decls, 'backdrop-filter') || decls['backdrop-filter'] === 'none') return true
   const raw = backgroundValue(decls)
   if (!raw) return false
   return extractColors(resolveVars(raw, tokens)).some(isSolidFallbackColor)
@@ -283,6 +283,25 @@ test('home sticky keeps high-alpha navy at both gradient stops when blur is igno
   assert.deepEqual(stops.map(stop => stop.a), [0.86, 0.94])
   for (const stop of stops) assert.ok(channelsMatch(stop, NAVY_FILLS[0]) && isSolidFallbackColor(stop))
   assert.equal(ruleHasSolidFallback(rule.decls, appTokens()), true)
+})
+
+test('shared fixed navbar pairs 14px backdrop blur with high-alpha navy stops and a soft hairline', () => {
+  const rule = parseRules(readSource(path.join(repoRoot, 'pages/shared/nav-bar.wxss'), 'utf8'))
+    .find(candidate => candidate.selector === '.header-gradient')
+  assert.ok(rule, 'expected the shared fixed navbar surface')
+  assert.equal(rule.decls['backdrop-filter'], 'blur(14px)')
+  assert.equal(rule.decls['-webkit-backdrop-filter'], 'blur(14px)')
+  const stops = extractColors(rule.decls.background)
+  assert.equal(stops.length, 2)
+  assert.deepEqual(stops.map(stop => stop.a), [0.92, 0.88])
+  assert.ok(channelsMatch(stops[0], NAVY_FILLS[0]) && isSolidFallbackColor(stops[0]))
+  assert.ok(channelsMatch(stops[1], NAVY_FILLS[2]) && isSolidFallbackColor(stops[1]))
+  assert.equal(ruleHasSolidFallback(rule.decls, appTokens()), true)
+  assert.equal(rule.decls['border-bottom'], '1px solid rgba(255,255,255,0.06)')
+})
+
+test('disabled backdrop filtering does not require a solid fallback', () => {
+  assert.equal(ruleHasSolidFallback({ background: 'transparent', 'backdrop-filter': 'none' }, {}), true)
 })
 
 test('every backdrop-filter rule keeps an opaque navy or rose fill', () => {
