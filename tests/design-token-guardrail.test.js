@@ -661,7 +661,6 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/shared/nav-bar.wxss', '.header-gradient::before'],
     ['pages/shared/nav-bar.wxss', '.header-gradient::after'],
     ['app.wxss', '.premium-card::after'],
-    ['pages/index/index.wxss', '.month-nav::before'],
     ['pages/index/index.wxss', '.calendar-jump-sheet'],
     ['pages/index/index.wxss', '.day-action-sheet'],
     ['pages/index/index.wxss', '.confirmation-panel'],
@@ -688,10 +687,8 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['app.wxss', '.header-gradient'],
     ['pages/shared/nav-bar.wxss', '.header-gradient'],
     ['pages/index/index.wxss', '.sync-pill'],
-    ['pages/index/index.wxss', '.month-nav'],
     ['pages/index/index.wxss', '.nav-btn:active'],
-    ['pages/index/index.wxss', '.week-header'],
-    ['pages/index/index.wxss', '.calendar-grid'],
+    ['pages/index/index.wxss', '.calendar-swipe'],
     // #255：吸顶海军渐变与首页轻玻璃横幅；均不是 CTA 填充。
     ['pages/index/index.wxss', '.home-sticky'],
     ['pages/index/index.wxss', '.partner-welcome'],
@@ -994,7 +991,7 @@ test('shadow offsets use rpx and preserve registered 1px hairlines', () => {
     }
   }
   assert.deepEqual(violations, [])
-  assert.match(declsFor('pages/index/index.wxss', '.month-nav')['box-shadow'], /inset 0 1px 0/)
+  assert.equal(declsFor('pages/index/index.wxss', '.month-nav')['box-shadow'], 'none', '#272 removes the month navigation outer frame and inset highlight')
 })
 
 test('sheet body copy and date ranges keep word integrity with normal wrapping', () => {

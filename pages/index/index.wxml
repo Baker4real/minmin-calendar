@@ -7,6 +7,9 @@
 <wxs module="sheetDrag" src="../../utils/sheetDrag.wxs"></wxs>
 <wxs module="monthSwipe">
 var SWIPE_PX = 48
+var DIRECTION_PX = 6
+var FOLLOW_DAMPING = 0.28
+var EDGE_DAMPING = 0.12
 
 function touchStart(event, ownerInstance) {
   var instance = event.instance
@@ -15,20 +18,31 @@ function touchStart(event, ownerInstance) {
   if (state.tracking) return
   var touch = event.touches && event.touches[0]
   if (!touch) return
+  var dataset = instance.getDataset() || {}
   state.tracking = true
+  state.horizontal = null
   state.identifier = touch.identifier
   state.startX = touch.pageX
   state.startY = touch.pageY
+  state.prevDisabled = Boolean(dataset.prevDisabled)
+  state.nextDisabled = Boolean(dataset.nextDisabled)
+  state.reducedMotion = Boolean(dataset.reducedMotion)
+  state.offset = 0
 }
 
 function touchMove(event, ownerInstance) {
   var instance = event.instance
   if (!instance) return
   var state = instance.getState()
-  if (!state.tracking) return
+  if (!state.tracking || state.horizontal === false) return
   var touch = findTouch(event.touches, state.identifier)
   if (!touch) return
-  if (horizontalWins(touch.pageX - state.startX, touch.pageY - state.startY)) return false
+  var dx = touch.pageX - state.startX
+  var dy = touch.pageY - state.startY
+  if (state.horizontal === null && !lockDirection(state, dx, dy)) return
+  if (!state.horizontal) return
+  followFinger(ownerInstance, state, dx)
+  return false
 }
 
 function touchEnd(event, ownerInstance) {
@@ -38,17 +52,66 @@ function touchEnd(event, ownerInstance) {
   if (!state.tracking) return
   var touch = findTouch(event.changedTouches, state.identifier)
   state.tracking = false
-  if (!touch) return
+  if (!touch) {
+    resetFollow(ownerInstance, state, state.reducedMotion)
+    return
+  }
   var dx = touch.pageX - state.startX
   var dy = touch.pageY - state.startY
-  if (!horizontalWins(dx, dy)) return
-  ownerInstance.callMethod('onCalendarSwipe', { dx: dx, dy: dy })
+  var shouldFlip = state.horizontal === true && horizontalWins(dx, dy)
+  if (!shouldFlip && state.horizontal === null && horizontalWins(dx, dy)) shouldFlip = true
+  if (shouldFlip) {
+    resetFollow(ownerInstance, state, true)
+    ownerInstance.callMethod('onCalendarSwipe', { dx: dx, dy: dy })
+    return
+  }
+  resetFollow(ownerInstance, state, state.reducedMotion)
 }
 
 function touchCancel(event, ownerInstance) {
   var instance = event.instance
   if (!instance) return
-  instance.getState().tracking = false
+  var state = instance.getState()
+  if (!state.tracking) return
+  state.tracking = false
+  resetFollow(ownerInstance, state, state.reducedMotion)
+}
+
+function lockDirection(state, dx, dy) {
+  var absX = dx < 0 ? -dx : dx
+  var absY = dy < 0 ? -dy : dy
+  if (absX < DIRECTION_PX && absY < DIRECTION_PX) return false
+  state.horizontal = absX > absY
+  return true
+}
+
+function followFinger(ownerInstance, state, dx) {
+  if (state.reducedMotion) return
+  var blocked = dx < 0 ? state.nextDisabled : state.prevDisabled
+  var damping = blocked ? EDGE_DAMPING : FOLLOW_DAMPING
+  var offset = Math.round(dx * damping * 1000) / 1000
+  state.offset = offset
+  var days = ownerInstance.selectComponent('.calendar-days')
+  if (!days) return
+  days.setStyle({
+    transform: 'translateX(' + offset + 'px)',
+    '-webkit-transform': 'translateX(' + offset + 'px)',
+    transition: 'none',
+    '-webkit-transition': 'none'
+  })
+}
+
+function resetFollow(ownerInstance, state, immediate) {
+  state.offset = 0
+  var days = ownerInstance.selectComponent('.calendar-days')
+  if (!days) return
+  var transition = immediate ? 'none' : 'transform var(--duration-state) var(--ease-out)'
+  days.setStyle({
+    transform: 'translateX(0px)',
+    '-webkit-transform': 'translateX(0px)',
+    transition: transition,
+    '-webkit-transition': transition
+  })
 }
 
 function horizontalWins(dx, dy) {
@@ -88,7 +151,7 @@ module.exports = {
   <view wx:elif="{{loading && !hasLoadedHomeData}}" class="content calendar-skeleton" aria-role="status" aria-label="正在加载" aria-hidden="{{pageObscured}}">
     <!-- 骨架复用真实页边距、吸顶占位、周头和网格；唯一动画挂在整个父容器上（issue #239） -->
     <view class="home-sticky skeleton-sticky" aria-hidden="true">
-      <view class="month-nav glass-surface skeleton-month-bar">
+      <view class="month-nav skeleton-month-bar">
         <view class="nav-btn skeleton-control"></view>
         <view class="skeleton-month-title"></view>
         <view class="nav-btn skeleton-control"></view>
@@ -96,12 +159,14 @@ module.exports = {
       <view class="skeleton-status-bar"></view>
     </view>
     <view class="skeleton-sticky-spacer home-sticky-spacer"></view>
-    <view class="week-header skeleton-week" aria-hidden="true">
-      <view class="week-cell skeleton-week-cell" wx:for="{{[0, 1, 2, 3, 4, 5, 6]}}" wx:key="*this"></view>
-    </view>
-    <view class="skeleton-grid calendar-grid calendar-density-{{calendarDensity}}{{calendarInfoMerged ? ' calendar-info-merged' : ''}}" style="--calendar-row-height: {{calendarRowHeightPx}}px" aria-hidden="true">
-      <view class="skeleton-days">
-        <view class="skeleton-cell{{item.isEmpty ? ' skeleton-cell-empty' : ''}}" wx:for="{{days}}" wx:key="index"></view>
+    <view class="calendar-swipe skeleton-calendar-card">
+      <view class="week-header skeleton-week" aria-hidden="true">
+        <view class="week-cell skeleton-week-cell" wx:for="{{[0, 1, 2, 3, 4, 5, 6]}}" wx:key="*this"></view>
+      </view>
+      <view class="skeleton-grid calendar-grid calendar-density-{{calendarDensity}}{{calendarInfoMerged ? ' calendar-info-merged' : ''}}" style="--calendar-row-height: {{calendarRowHeightPx}}px" aria-hidden="true">
+        <view class="skeleton-days">
+          <view class="skeleton-cell{{item.isEmpty ? ' skeleton-cell-empty' : ''}}" wx:for="{{days}}" wx:key="index"></view>
+        </view>
       </view>
     </view>
     <view class="quick-actions skeleton-quick-actions" aria-hidden="true">
@@ -110,9 +175,9 @@ module.exports = {
     </view>
   </view>
 
-  <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}" aria-hidden="{{pageObscured}}">
+  <view wx:else class="content home-content-reveal {{refreshing ? 'content-refreshing' : ''}}" aria-hidden="{{pageObscured}}">
     <view class="home-sticky">
-      <view class="month-nav glass-surface">
+      <view class="month-nav">
         <view class="nav-btn {{prevMonthDisabled ? 'disabled' : ''}}" hover-start-time="20" hover-stay-time="70" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月" aria-disabled="{{prevMonthDisabled}}">
           <view class="ui-icon ui-icon-left ui-icon-36 ui-icon-circle" aria-hidden="true"></view>
         </view>
@@ -126,18 +191,18 @@ module.exports = {
           <text>{{year}}年{{month + 1}}月</text>
           <view class="ui-icon ui-icon-down ui-icon-24 month-title-caret" aria-hidden="true"></view>
         </view>
+        <view
+          wx:if="{{showBackToToday}}"
+          class="back-today-inline"
+          hover-start-time="20" hover-stay-time="70" hover-class="back-today-inline-hover"
+          bindtap="jumpToToday"
+          aria-role="button"
+          aria-label="回到今天"
+        ><view class="back-today-inline-surface">今</view></view>
         <view class="nav-btn {{nextMonthDisabled ? 'disabled' : ''}}" hover-start-time="20" hover-stay-time="70" hover-class="nav-btn-hover" bindtap="nextMonth" aria-role="button" aria-label="下一个月" aria-disabled="{{nextMonthDisabled}}">
           <view class="ui-icon ui-icon-right ui-icon-36 ui-icon-circle" aria-hidden="true"></view>
         </view>
       </view>
-      <view
-        wx:if="{{showBackToToday}}"
-        class="back-today"
-        hover-start-time="20" hover-stay-time="70" hover-class="back-today-hover"
-        bindtap="jumpToToday"
-        aria-role="button"
-        aria-label="回到今天"
-      >回到今天</view>
       <view
         class="home-status {{homeStatus.tone == 'neutral' ? 'neutral' : ''}}"
         hover-start-time="20" hover-stay-time="70" hover-class="home-status-hover"
@@ -150,7 +215,7 @@ module.exports = {
         <view class="ui-icon ui-icon-right ui-icon-24 home-status-arrow" aria-hidden="true"></view>
       </view>
     </view>
-    <view class="home-sticky-spacer {{showBackToToday ? 'with-back-today' : ''}}"></view>
+    <view class="home-sticky-spacer"></view>
     <!-- 等待邀请与一次性欢迎共用同一个正常文档流槽位和日历账本项（issue #219） -->
     <view wx:if="{{partnerInvite}}" class="partner-invite">
       <view class="partner-invite-copy">
@@ -169,6 +234,9 @@ module.exports = {
 
     <view
       class="calendar-swipe"
+      data-prev-disabled="{{prevMonthDisabled}}"
+      data-next-disabled="{{nextMonthDisabled}}"
+      data-reduced-motion="{{calendarReducedMotion}}"
       bindtouchstart="{{monthSwipe.touchStart}}"
       bindtouchmove="{{monthSwipe.touchMove}}"
       bindtouchend="{{monthSwipe.touchEnd}}"
@@ -199,7 +267,7 @@ module.exports = {
           </view>
           <view wx:if="{{!item.isEmpty && calendarDensity == 'full'}}" class="day-lunar">{{item.lunarCellText}}</view>
           <view class="day-info">
-            <view wx:if="{{!item.isEmpty}}" class="day-tag-line">
+            <view wx:if="{{!item.isEmpty && (item.holidayName || item.isWorkday)}}" class="day-tag-line">
               <text wx:if="{{item.holidayName}}" class="day-tag holiday-tag">{{item.holidayName}}</text>
               <text wx:elif="{{item.isWorkday}}" class="day-tag workday-tag">班</text>
             </view>

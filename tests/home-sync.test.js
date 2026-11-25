@@ -1040,7 +1040,7 @@ test('another quiet show reverses the refreshing pill after its entry', async t 
 })
 
 // August 2026 has six actual calendar rows. At 375 x 619 the existing
-// geometry contract after the week-header bottom border is removed is 55.33px without an extra row, 54px with welcome/retry.
+// geometry contract is 55px without an extra row: (619 - 84 - (404rpx * 0.5 + 3px)) / 6; welcome/retry still floors at 54px.
 for (const banner of ['welcome', 'retry']) {
   test(`${banner} reserves calendar space and gives it back when cleared`, async t => {
     const app = homeApp(t, {
@@ -1068,7 +1068,7 @@ for (const banner of ['welcome', 'retry']) {
       await app.settle()
       assertRetry(app, home, null)
     }
-    assert.equal(app.rendered(home).calendarRowHeightPx, 55.33)
+    assert.equal(app.rendered(home).calendarRowHeightPx, 55)
     if (banner === 'retry') {
       listRoute(app, 'periods').reject(new Error('network down'))
       m.reject(new Error('network down'))

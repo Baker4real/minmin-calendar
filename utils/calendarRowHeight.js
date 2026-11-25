@@ -8,20 +8,19 @@ const ROW_CAP_RPX = { full: 160, compact: 148 }
 const ROW_FLOOR_PX = 44
 
 // 首屏文档流，自上而下：吸顶区占位、可选的欢迎/邀请共用槽位与行内重试、周头、网格上下内边距、记录入口。
-// 吸顶区（月份导航 130 + 状态行 88，不在当月时另加「回到今天」88）本身 position: fixed，滚动时留在顶栏下。
+// 吸顶区（月份导航 130 + 状态行 88）本身 position: fixed，滚动时留在顶栏下；内嵌「今」不占独立行。
 const FIRST_SCREEN_RPX = {
   stickySpacer: 218,
-  backToToday: 88,
-  // 一次性配对欢迎条与等待邀请条共用：caption 26rpx × 正文行高 1.6 的两行，加上下 padding 8 + 12
-  partnerWelcome: 103.2,
+  // 一次性配对欢迎条与等待邀请条共用：上下外边距 8 + 8，caption 26rpx × 1.4 的两行，加内边距 13.2 + 17.2
+  partnerWelcome: 119.2,
   // 行内同步重试行：最小高 88 + 下外边距 8，文案一行
   refreshRetry: 96,
   weekHeader: 50,
   gridPadding: 12,
-  quickActions: 114
+  quickActions: 124
 }
-// 月份导航上下 2px + R5 吸顶底边 1px + 周头顶边 1px + 网格上下 2px；周头底边与网格顶边只画后者。
-const FIRST_SCREEN_BORDER_PX = 6
+// 月份导航无外框；R5 吸顶底边 1px + 合并日历卡上下 2px。
+const FIRST_SCREEN_BORDER_PX = 3
 
 // 格内纵向槽位，自上而下：每行是上外边距 + 盒高。最后一行装标记，「预」胶囊比它高时向下垂出。
 // full：日期、农历、节日/调休、标记，顶对齐；经期色带借用农历行后的绝对定位槽。
@@ -35,8 +34,8 @@ const CELL_RPX = {
     stack: [
       { gap: 0, height: 32 },
       { gap: 2, height: 34 },
-      { gap: 2, height: 38 },
-      { gap: 2, height: 30 }
+      { gap: 0, height: 38 },
+      { gap: 4, height: 30 }
     ]
   },
   compact: {
@@ -134,7 +133,6 @@ function computeCalendarRowHeight({
   navBarHeightPx = 0,
   density = 'compact',
   days = [],
-  showBackToToday = false,
   showPartnerWelcome = false,
   showRefreshRetry = false
 } = {}) {
@@ -150,7 +148,6 @@ function computeCalendarRowHeight({
   const pxPerRpx = width / 750
   const chromeRpx = FIRST_SCREEN_RPX.stickySpacer + FIRST_SCREEN_RPX.weekHeader +
     FIRST_SCREEN_RPX.gridPadding + FIRST_SCREEN_RPX.quickActions +
-    (showBackToToday ? FIRST_SCREEN_RPX.backToToday : 0) +
     (showPartnerWelcome ? FIRST_SCREEN_RPX.partnerWelcome : 0) +
     (showRefreshRetry ? FIRST_SCREEN_RPX.refreshRetry : 0)
   const chromePx = chromeRpx * pxPerRpx + FIRST_SCREEN_BORDER_PX

@@ -276,7 +276,7 @@ test('the emphasis halos keep today\'s date and the 预 at 4.5:1 at their peak',
     const fill = cssLayer(halo.background || 'transparent')
     return { color: fill.color, alpha: fill.alpha * peak }
   }
-  const grids = stackSurfaces([[file, '.calendar-grid']])
+  const grids = stackSurfaces([[file, '.calendar-swipe']])
   const capsuleFill = cssColor(exactDeclaration(file, TODAY_CAPSULE, 'background'))
   const date = resolvePaint(exactDeclaration(file, '.day-cell.today .day-num', 'color'))
   const wash = cssColor(exactDeclaration(file, '.day-cell.workday', 'background'))
@@ -307,7 +307,7 @@ test('the emphasis halos keep today\'s date and the 预 at 4.5:1 at their peak',
 
 // 日历网格面：画布 → 玻璃回退海军 → 网格的 5% 白平涂层，层值都读 CSS
 function gridSurface() {
-  return stackSurfaces([['pages/index/index.wxss', '.calendar-grid']])[0]
+  return stackSurfaces([['pages/index/index.wxss', '.calendar-swipe']])[0]
 }
 
 // border 简写里的颜色（rgba）

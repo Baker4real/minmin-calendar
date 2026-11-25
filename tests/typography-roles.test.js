@@ -185,7 +185,7 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/index/index.wxss', '.home-status-text', 'control'],
   ['pages/index/index.wxss', '.home-status-countdown', 'assist'],
   ['pages/index/index.wxss', '.month-summary-text', 'assist'],
-  ['pages/index/index.wxss', '.back-today', 'control'],
+  ['pages/index/index.wxss', '.back-today-inline-surface', 'control'],
   ['pages/shared/nav-bar.wxss', '.nav-tool', 'control'],
   ['pages/index/index.wxss', '.quick-text', 'control'],
   ['pages/index/index.wxss', '.empty-guide-text', 'assist'],

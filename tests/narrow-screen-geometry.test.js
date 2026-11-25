@@ -277,7 +277,7 @@ test('calendar day cells keep the 44px touch height at 320px in both densities',
   const cell = findDecls(rules, '.day-cell')
   const compactCell = findDecls(rules, '.calendar-density-compact .day-cell')
   const content = findDecls(rules, '.content')
-  const grid = findDecls(rules, '.calendar-grid')
+  const grid = findDecls(rules, '.calendar-swipe')
 
   const widthPct = Number(/(\d+(?:\.\d+)?)%/.exec(cell.width)[1])
   const fullHeight = rpxNumber(cell, 'height')
@@ -315,28 +315,28 @@ test('joint ledger: 320/375/390 × both densities × 5/6 rows × back-to-today n
   // 完整密度要 159rpx 一行：320、375 上 5 行也放不下；390 上当月 5 行刚好放下，周头少一条底边后带「回到今天」的 5 行也刚好放下，6 行靠滚动。
   // 清爽色带加厚后，375 上6行带「回到今天」及320上6行的最矮情形靠滚动；其他组合按可用高度合并。
   const expected = {
-    '320:compact:5:0': [56.37, true, true],
-    '320:compact:5:1': [48.86, true, true],
-    '320:compact:6:0': [46.98, true, true],
-    '320:compact:6:1': [46.08, true, false],
+    '320:compact:5:0': [56.12, true, true],
+    '320:compact:5:1': [56.12, true, true],
+    '320:compact:6:0': [46.77, true, true],
+    '320:compact:6:1': [46.77, true, true],
     '320:full:5:0': [67.84, false, false],
     '320:full:5:1': [67.84, false, false],
     '320:full:6:0': [67.84, false, false],
     '320:full:6:1': [67.84, false, false],
-    '375:compact:5:0': [70.4, true, true],
-    '375:compact:5:1': [61.6, true, true],
-    '375:compact:6:0': [58.66, true, true],
-    '375:compact:6:1': [54, true, false],
+    '375:compact:5:0': [70, true, true],
+    '375:compact:5:1': [70, true, true],
+    '375:compact:6:0': [58.33, true, true],
+    '375:compact:6:1': [58.33, true, true],
     '375:full:5:0': [79.5, false, false],
     '375:full:5:1': [79.5, false, false],
     '375:full:6:0': [79.5, false, false],
     '375:full:6:1': [79.5, false, false],
     '390:compact:5:0': [76.96, false, true],
     '390:compact:5:1': [76.96, false, true],
-    '390:compact:6:0': [76.52, false, true],
-    '390:compact:6:1': [68.89, true, true],
+    '390:compact:6:0': [76.15, false, true],
+    '390:compact:6:1': [76.15, false, true],
     '390:full:5:0': [83.2, false, true],
-    '390:full:5:1': [82.68, false, true],
+    '390:full:5:1': [83.2, false, true],
     '390:full:6:0': [82.68, false, false],
     '390:full:6:1': [82.68, false, false]
   }
@@ -425,10 +425,10 @@ test('compact density merges the holiday row into the mark row only when the sta
   })
   assert.equal(short.infoMerged, true)
   assert.equal(short.contentMinPx, 54)
-  assert.equal(short.heightPx, 54)
-  assert.equal(short.actionsFit, false)
+  assert.equal(short.heightPx, 58.33)
+  assert.equal(short.actionsFit, true)
 
-  // 390×844 当月：首屏描边为 6px，每行可用 (761 − 91 − 210.88) / 6 = 76.52px，常规清爽格放得下，不合并，行高低于148rpx上限
+  // 390×844 当月：首屏描边为 3px，每行可用 (761 − 91 − 213.08) / 6 = 76.15px，常规清爽格放得下，不合并，行高低于148rpx上限
   const roomy = computeCalendarRowHeight({
     viewportWidth: 390,
     viewportHeight: 761,
@@ -438,7 +438,7 @@ test('compact density merges the holiday row into the mark row only when the sta
   })
   assert.equal(roomy.infoMerged, false)
   assert.equal(roomy.contentMinPx, 75.92)
-  assert.equal(roomy.heightPx, 76.52)
+  assert.equal(roomy.heightPx, 76.15)
   assert.equal(roomy.actionsFit, true)
 })
 
@@ -464,8 +464,8 @@ test('a month merges only when every day fits its holiday tag and marks on one l
   ]) {
     const row = geometryWith(cell)
     assert.equal(row.infoMerged, true, `${JSON.stringify(cell)} fits the merged row`)
-    assert.equal(row.heightPx, 54)
-    assert.equal(row.actionsFit, false)
+    assert.equal(row.heightPx, 58.33)
+    assert.equal(row.actionsFit, true)
   }
 
   for (const cell of [
@@ -505,6 +505,39 @@ test('month arrows and shared sheet close circles use border-box flex centering'
   }
 })
 
+test('inline back-to-today keeps the month title centered and overflow-free at 320px', () => {
+  const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
+  const appTokens = readAppTokens()
+  const content = findDecls(rules, '.content')
+  const title = findDecls(rules, '.month-title-trigger')
+  const today = findDecls(rules, '.back-today-inline')
+  const todaySurface = findDecls(rules, '.back-today-inline-surface')
+  const navWidth = 750 - 2 * horizontalPaddingRpx(content, appTokens)[0]
+  const titleWidth = rpxNumber(title, 'width')
+  const titleLeft = (navWidth - titleWidth) / 2
+  const titleRight = titleLeft + titleWidth
+  const todayLeft = navWidth - rpxNumber(today, 'right') - rpxNumber(today, 'width')
+  const previousRight = rpxNumber(findDecls(rules, '.month-nav > .nav-btn:first-child'), 'left') + 88
+  const nextLeft = navWidth - rpxNumber(findDecls(rules, '.month-nav > .nav-btn:last-child'), 'right') - 88
+
+  assert.equal(titleLeft + titleWidth / 2, navWidth / 2, 'the month title stays on the screen axis')
+  assert.ok(previousRight <= titleLeft, 'the previous arrow does not overlap the month capsule')
+  assert.ok(titleRight <= todayLeft, 'the inline today hit area does not overlap the month capsule')
+  assert.ok(todayLeft + 88 <= nextLeft, 'the inline today and next-month hit areas do not overlap')
+  assert.ok(nextLeft + 88 <= navWidth, 'the next arrow stays inside the 320px navigation row')
+  assert.equal(rpxNumber(today, 'width'), 88)
+  assert.equal(rpxNumber(today, 'height'), 88)
+  assert.equal(rpxNumber(todaySurface, 'height'), 56)
+
+  const monthFont = fontSizeRpx(findDecls(rules, '.month-title'), appTokens)
+  const tracking = tokenRpx('var(--letter-spacing-display)', appTokens)
+  const gap = rpxNumber(title, 'gap')
+  const caret = rpxNumber(findDecls(parseWxssRules(readRepo('pages/shared/vector-icons.wxss')), '.ui-icon-24'), 'width')
+  const worstCopy = 6 * 0.6 * monthFont + 2 * monthFont + 7 * tracking + tracking + gap + caret
+  const contentWidth = titleWidth - 2 * horizontalPaddingRpx(title, appTokens)[0] - 2 * borderPx(title) * 750 / 320
+  assert.ok(worstCopy <= contentWidth, `2026年12月 needs ${worstCopy}rpx, more than the ${contentWidth}rpx title content box`)
+})
+
 // issue #153：首屏账本就是记录入口以上的 CSS 文档流；每一项都从样式里读回来核对
 test('the first-screen ledger is the CSS flow above the record actions', async () => {
   const { CALENDAR_LEDGER } = require('../utils/calendarRowHeight')
@@ -514,19 +547,19 @@ test('the first-screen ledger is the CSS flow above the record actions', async (
   const sticky = findDecls(rules, '.home-sticky')
   const week = findDecls(rules, '.week-header')
   const grid = findDecls(rules, '.calendar-grid')
+  const card = findDecls(rules, '.calendar-swipe')
 
-  // 吸顶区 = 月份导航（外边距 + 内边距 + 88rpx 控件）+ 状态行；占位再加月份导航 1px 上下描边与 R5 吸顶底边，下方内容不被盖住
+  // 吸顶区恒为月份导航（外边距 + 内边距 + 88rpx 控件）+ 状态行；内嵌「今」不占独立槽。
   const monthNavBox = verticalMarginRpx(monthNav) + verticalPaddingRpx(monthNav) + rpxNumber(findDecls(rules, '.nav-btn'), 'height')
   assert.equal(ledger.stickySpacer, monthNavBox + rpxNumber(findDecls(rules, '.home-status'), 'height'))
-  assert.equal(ledger.backToToday, rpxNumber(findDecls(rules, '.back-today'), 'height'))
-  const navBorder = 2 * borderPx(monthNav)
+  assert.equal(ledger.backToToday, undefined)
+  assert.equal(rpxNumber(findDecls(rules, '.back-today-inline'), 'width'), 88)
+  assert.equal(rpxNumber(findDecls(rules, '.back-today-inline'), 'height'), 88)
+  assert.equal(rpxNumber(findDecls(rules, '.back-today-inline-surface'), 'height'), 56)
+  assert.equal(monthNav.border, '0')
   const stickyBorder = borderPx(sticky, 'border-bottom')
-  const spacerBorder = navBorder + stickyBorder
-  assert.equal(findDecls(rules, '.home-sticky-spacer').height, `calc(${ledger.stickySpacer}rpx + ${spacerBorder}px)`)
-  assert.equal(
-    findDecls(rules, '.home-sticky-spacer.with-back-today').height,
-    `calc(${ledger.stickySpacer + ledger.backToToday}rpx + ${spacerBorder}px)`
-  )
+  assert.equal(findDecls(rules, '.home-sticky-spacer').height, `calc(${ledger.stickySpacer}rpx + ${stickyBorder}px)`)
+  assert.equal(rules.some(rule => rule.selectors.includes('.home-sticky-spacer.with-back-today')), false)
 
   // 行内重试行：border-box 的最小高 + 下外边距；最长的失败文案在 320px 下也只占一行
   const retry = findDecls(rules, '.refresh-retry')
@@ -550,12 +583,13 @@ test('the first-screen ledger is the CSS flow above the record actions', async (
   const quickBtn = findDecls(rules, '.quick-btn')
   assert.equal(quickBtn['box-sizing'], 'border-box')
   assert.equal(ledger.quickActions, rpxNumber(findDecls(rules, '.quick-actions'), 'margin-top') + rpxNumber(quickBtn, 'min-height'))
-  assert.equal(ledger.partnerWelcome, 103.2)
+  assert.equal(ledger.partnerWelcome, 119.2)
 
-  // 月份导航与日历网格各有 1px 上下描边，R5 吸顶区底部有 1px；周头只保留顶边，底边由网格顶线单独承担。
-  assert.equal(week['border-bottom'], '0')
-  assert.equal(CALENDAR_LEDGER.firstScreenBorderPx, 6)
-  assert.equal(CALENDAR_LEDGER.firstScreenBorderPx, navBorder + stickyBorder + borderPx(week) + 2 * borderPx(grid))
+  // 月份导航无外框；周头与网格透明合并进同一张日历卡，只保留卡片上下边和 R5 吸顶底边。
+  assert.equal(week.border, '0')
+  assert.equal(grid.border, '0')
+  assert.equal(CALENDAR_LEDGER.firstScreenBorderPx, 3)
+  assert.equal(CALENDAR_LEDGER.firstScreenBorderPx, stickyBorder + 2 * borderPx(card))
 })
 
 // issue #159：进行中经期的记录入口「经期第 N 天 · 记结束」一行放不下。连写的中文不拆开，只在文案里的空格处折行，
@@ -731,7 +765,7 @@ test('the prediction summary starts the window clause on its own line and each c
 // issue #151 的行内重试行（首次加载只有一个集合失败时也会出现）同样在吸顶占位之后的文档流里，占首屏高度
 test('the inline sync-retry row is an explicit input of the first-screen ledger', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
-  // 375×667 当月 6 行：首屏 394rpx + 6px 描边 = 203px，每行 (619 − 64 − 203) / 6 = 58.66px（合并信息行）。
+  // 375×667 当月 6 行：首屏 404rpx + 3px 描边 = 205px，每行 (619 − 64 − 205) / 6 = 58.33px（合并信息行）。
   // 重试行 = 最小高 88 + 下外边距 8 = 96rpx = 48px：每行 (619 − 64 − 251) / 6 = 50.66px，低于加厚色带后的合并最小54px。
   // 再显示「回到今天」88rpx：每行只剩 43.33px，行高停在54px，记录入口移出首屏。
   const base = { viewportWidth: 375, viewportHeight: 619, navBarHeightPx: 64, density: 'compact', days: monthDays(6) }
@@ -739,7 +773,7 @@ test('the inline sync-retry row is an explicit input of the first-screen ledger'
   const retry = computeCalendarRowHeight({ ...base, showRefreshRetry: true })
   const retryAway = computeCalendarRowHeight({ ...base, showRefreshRetry: true, showBackToToday: true })
 
-  assert.deepEqual([plain.heightPx, plain.infoMerged, plain.actionsFit], [58.66, true, true])
+  assert.deepEqual([plain.heightPx, plain.infoMerged, plain.actionsFit], [58.33, true, true])
   assert.deepEqual([retry.heightPx, retry.infoMerged, retry.actionsFit], [54, true, false])
   assert.deepEqual([retryAway.heightPx, retryAway.contentMinPx, retryAway.actionsFit], [54, 54, false])
 })
@@ -751,12 +785,12 @@ test('the one-time partner welcome bar is an explicit input of the calendar row-
   // 页高 = 手机高度 − 底栏；without / with 是不显示 / 显示欢迎条时的行高，fits 是显示时记录入口是否仍在首屏。
   // 放不下时行高停在内容最小高度（清爽合并108rpx与44px取大、完整 159rpx），记录入口靠滚动触达（issue #153）。
   const samples = [
-    { width: 390, height: 761, nav: 91, density: 'compact', rows: 6, showBackToToday: false, without: 76.52, with: 67.57, fits: true },
+    { width: 390, height: 761, nav: 91, density: 'compact', rows: 6, showBackToToday: false, without: 76.15, with: 65.82, fits: true },
     { width: 390, height: 761, nav: 91, density: 'full', rows: 5, showBackToToday: false, without: 83.2, with: 82.68, fits: false },
-    { width: 375, height: 619, nav: 64, density: 'compact', rows: 6, showBackToToday: false, without: 58.66, with: 54, fits: false },
-    { width: 375, height: 619, nav: 64, density: 'compact', rows: 6, showBackToToday: true, without: 54, with: 54, fits: false, plainFits: false },
-    { width: 320, height: 520, nav: 64, density: 'compact', rows: 5, showBackToToday: false, without: 56.37, with: 47.57, fits: true },
-    { width: 320, height: 520, nav: 64, density: 'compact', rows: 6, showBackToToday: false, without: 46.98, with: 46.08, fits: false }
+    { width: 375, height: 619, nav: 64, density: 'compact', rows: 6, showBackToToday: false, without: 58.33, with: 54, fits: false },
+    { width: 375, height: 619, nav: 64, density: 'compact', rows: 6, showBackToToday: true, without: 58.33, with: 54, fits: false },
+    { width: 320, height: 520, nav: 64, density: 'compact', rows: 5, showBackToToday: false, without: 56.12, with: 46.08, fits: false },
+    { width: 320, height: 520, nav: 64, density: 'compact', rows: 6, showBackToToday: false, without: 46.77, with: 46.08, fits: false }
   ]
 
   for (const sample of samples) {
@@ -800,10 +834,10 @@ test('the clickable partner welcome copy fits two rpx lines and its box matches 
   const bar = findDecls(rules, '.partner-welcome')
   assert.equal(bar.position, undefined, 'welcome bar stays in normal flow')
   assert.equal(bar['font-size'], 'var(--font-size-caption)')
-  assert.equal(bar['line-height'], 'var(--line-height-body)')
+  assert.equal(bar['line-height'], 'var(--line-height-assist)')
   const margin = splitCssTokens(bar.margin)
   const padding = splitCssTokens(bar.padding)
-  assert.deepEqual(margin, ['0'], 'the banner aligns with the calendar instead of adding 24rpx side insets')
+  assert.deepEqual(margin, ['8rpx', '0'], 'the banner keeps 8rpx vertical breathing margins and no side insets')
   assert.equal(padding.length, 3, 'padding is top / horizontal / bottom')
   assert.equal(padding[1], '16rpx')
   const borderRpx = borderPx(bar) * 750 / 320
@@ -811,7 +845,7 @@ test('the clickable partner welcome copy fits two rpx lines and its box matches 
   assert.equal(bar['border-radius'], 'var(--radius-card)')
   assert.equal(bar.background, 'linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback)')
   const fontRpx = fontSizeRpx(bar, appTokens)
-  const lineHeight = Number(appTokens['--line-height-body'])
+  const lineHeight = Number(appTokens['--line-height-assist'])
 
   // 文案恰好两行：CJK 与全角标点 1em；拉丁字母 0.5–0.7em、空格 0.25–0.5em、♥ 0.5–1em 取上下界。
   // 超长时缩短说明文字，caption 字号不变。
@@ -828,7 +862,7 @@ test('the clickable partner welcome copy fits two rpx lines and its box matches 
   const boxRpx = narrowLengthRpx(padding[0]) + 2 * fontRpx * lineHeight + narrowLengthRpx(padding[2]) + 2 * borderRpx
   assert.ok(Math.abs(boxRpx - 103.2) < 1e-9, `welcome box ${boxRpx}rpx includes its borders`)
   assert.ok(boxRpx * 320 / 750 >= 44, 'the whole welcome box remains a 44px touch target at 320px')
-  assert.equal(CALENDAR_LEDGER.firstScreenRpx.partnerWelcome, 103.2, 'ledger entry must equal the rendered welcome box')
+  assert.equal(CALENDAR_LEDGER.firstScreenRpx.partnerWelcome, boxRpx + 2 * narrowLengthRpx(margin[0]), 'ledger entry includes the welcome box and its vertical margins')
 })
 
 test('waiting invitation and creator welcome use the same calendar ledger slot without overlapping', async () => {
@@ -884,14 +918,14 @@ test('waiting invitation and creator welcome use the same calendar ledger slot w
     assert.equal(share.background, 'rgba(232,144,158,0.1)')
     const appTokens = readAppTokens()
     const fontRpx = fontSizeRpx(invite, appTokens)
-    const lineHeight = Number(appTokens['--line-height-body'])
+    const lineHeight = Number(appTokens['--line-height-assist'])
     const invitePadding = splitCssTokens(invite.padding)
     const shareMargin = splitCssTokens(share.margin).map(narrowLengthRpx)
     const inviteBorderRpx = borderPx(invite) * 750 / 320
     const slotHeight = narrowLengthRpx(invitePadding[0]) + narrowLengthRpx(invitePadding[2]) + Math.max(
       2 * fontRpx * lineHeight,
       shareHeight + shareMargin[0] + shareMargin[2]
-    ) + 2 * inviteBorderRpx
+    ) + 2 * inviteBorderRpx + 2 * narrowLengthRpx(splitCssTokens(invite.margin)[0])
     assert.ok(Math.abs(slotHeight - CALENDAR_LEDGER.firstScreenRpx.partnerWelcome) < 1e-9,
       `padding, 88rpx button, negative margins and borders must absorb into ${CALENDAR_LEDGER.firstScreenRpx.partnerWelcome}rpx`)
 
@@ -935,6 +969,7 @@ test('bind ghost enter-app button keeps a 44px touch height at 320px', () => {
 test('leftmost and rightmost calendar columns keep their content off the grid border', () => {
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
   const grid = findDecls(rules, '.calendar-grid')
+  const card = findDecls(rules, '.calendar-swipe')
   const week = findDecls(rules, '.week-header')
   const cell = findDecls(rules, '.day-cell')
   const content = findDecls(rules, '.content')
@@ -944,7 +979,7 @@ test('leftmost and rightmost calendar columns keep their content off the grid bo
 
   const widthPct = Number(/(\d+(?:\.\d+)?)%/.exec(cell.width)[1])
   const contentPadRpx = horizontalPaddingRpx(content)[0]
-  const gridBorderPx = Number(/(\d+(?:\.\d+)?)px/.exec(grid.border)[1])
+  const gridBorderPx = Number(/(\d+(?:\.\d+)?)px/.exec(card.border)[1])
   const gridPadRpx = 10
   for (const viewportPx of [320, 375, 390]) {
     const gridInnerPx = viewportPx

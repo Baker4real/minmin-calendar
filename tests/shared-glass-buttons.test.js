@@ -39,7 +39,7 @@ test('glass surfaces share one structural base while modifiers keep their tint a
 
   const modifiers = [
     ['app.wxss', '.premium-card', 'linear-gradient(rgba(255,255,255,0.095), rgba(255,255,255,0.035)), var(--glass-fallback)', undefined],
-    ['pages/index/index.wxss', '.month-nav', 'linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback)', '1px solid rgba(255,255,255,0.15)'],
+    ['pages/index/index.wxss', '.calendar-swipe', 'linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback)', '1px solid rgba(255,255,255,0.1)'],
     ['pages/period/period.wxss', '.cycle-card', 'linear-gradient(135deg, rgba(232,144,158,0.18), rgba(196,160,210,0.12)), var(--glass-fallback)', '1px solid rgba(255,255,255,0.12)'],
     ['pages/period/period.wxss', '.skeleton-card', 'linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback)', '1px solid rgba(255,255,255,0.12)']
   ]
@@ -59,7 +59,11 @@ test('glass surfaces share one structural base while modifiers keep their tint a
       selfContainedPremiumCard ? '.premium-card clips its own prism hairline' : `${selector} leaves clipping to the shared base`
     )
   }
-  assertEveryInstanceHasBase('glass-surface', ['premium-card', 'cycle-card', 'month-nav', 'skeleton-card'])
+  assertEveryInstanceHasBase('glass-surface', ['premium-card', 'cycle-card', 'skeleton-card'])
+  const monthNav = rawDeclarations('pages/index/index.wxss', '.month-nav')
+  assert.equal(monthNav.background, 'transparent', '#272 removes the nested month-navigation glass surface')
+  assert.equal(monthNav.border, '0')
+  assert.equal(monthNav['box-shadow'], 'none')
 })
 
 test('rose fill buttons share one flex and positioning base while modifiers keep their rendered values', () => {

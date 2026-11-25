@@ -92,7 +92,7 @@ function readReducedMotionProbe(width) {
 
 // 微信逻辑层没有 matchMedia。探针宽度在减弱动效下是 1px，computed style 会保留这个用值。
 // 页面要放一个 .reduced-motion-probe 节点；结果记在页面上，tabBar 隐藏和恢复据此决定是否播动画。
-function probeReducedMotion(page) {
+function probeReducedMotion(page, onChange) {
   if (typeof wx === 'undefined' || !wx || typeof wx.createSelectorQuery !== 'function') return
   wx.createSelectorQuery()
     .select('.reduced-motion-probe')
@@ -100,6 +100,7 @@ function probeReducedMotion(page) {
     .exec((res) => {
       const width = res && res[0] && res[0].width
       page._reducedMotion = readReducedMotionProbe(width)
+      if (typeof onChange === 'function') onChange(page._reducedMotion)
     })
 }
 
