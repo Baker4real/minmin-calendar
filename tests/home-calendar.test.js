@@ -482,9 +482,35 @@ test('empty rooms show the first-record guide and records supply status, recap a
   assert.equal(app.wx.toasts.at(-1).title, '已复制小结')
   await closeSheet(app, home, 'infoSheet')
   await tap(app, home, 'prevMonth')
-  assert.equal(visible('back-today', app.rendered(home)), true)
+  assert.equal(visible('back-today-inline', app.rendered(home)), true)
   await tap(app, home, 'jumpToToday')
-  assert.equal(visible('back-today', app.rendered(home)), false)
+  assert.equal(visible('back-today-inline', app.rendered(home)), false)
+})
+
+test('inline back-to-today preserves sticky geometry and triggers the today halo without shifting the month title', async t => {
+  const app = homeApp(t)
+  const home = await launch(app)
+  const current = app.rendered(home)
+  assert.equal(visible('back-today-inline', current), false)
+  const currentRowHeight = current.calendarRowHeightPx
+  const currentStickyClass = attr('home-sticky-spacer', 'class', current)
+
+  await tap(app, home, 'prevMonth')
+  const previous = app.rendered(home)
+  assert.equal(visible('back-today-inline', previous), true)
+  assert.equal(attr('back-today-inline', 'aria-label', previous), '回到今天')
+  assert.equal(attr('back-today-inline', 'bindtap', previous), 'jumpToToday')
+  assert.equal(previous.calendarRowHeightPx, currentRowHeight)
+  assert.equal(attr('home-sticky-spacer', 'class', previous), currentStickyClass)
+  assert.doesNotMatch(currentStickyClass, /with-back-today/)
+
+  const monthTitle = tagWith('month-title-trigger')
+  const nav = tagWith('month-nav')
+  assert.equal(monthTitle.attrs.class.includes('month-title-trigger'), true)
+  assert.equal(nav.attrs.class.includes('glass-surface'), false)
+  await tap(app, home, 'jumpToToday')
+  assert.equal(visible('back-today-inline', app.rendered(home)), false)
+  assert.equal(calendarAnimation(app, home, 'emphasis'), 'calendar-emphasis-today-a')
 })
 
 for (const ongoing of [false, true]) {
@@ -1321,7 +1347,7 @@ test('month selection, arrows, year rollover and back-to-today commit a matching
     await app.advance(200); app.commit(home)
     await tap(app, home, 'openMonthPicker')
   }
-  assert.equal(visible('back-today', app.rendered(home)), false)
+  assert.equal(visible('back-today-inline', app.rendered(home)), false)
   assert.equal(app.wx.modals.length, 0)
   assert.equal(app.wx.actionSheets.length, 0)
 })
@@ -1368,6 +1394,68 @@ test('real calendar WXS touchcancel resets without flipping and allows a later s
   assert.deepEqual(app.rendered(home).days, before.days)
   await swipe(app, home, -80)
   assert.equal(app.rendered(home).month, before.month + 1)
+})
+
+test('real WXS follows horizontal drags at 0.28 damping and springs back below the threshold without flipping', async t => {
+  const app = homeApp(t)
+  const home = await launch(app)
+  const before = app.rendered(home)
+  const start = { identifier: 1, pageX: 150, pageY: 200 }
+  const move = { ...start, pageX: 110 }
+  app.dispatch(home, 'monthSwipe.touchStart', { touches: [start] })
+  app.dispatch(home, 'monthSwipe.touchMove', { touches: [move] })
+  assert.equal(app.viewStyle(home, '.calendar-days').transform, 'translateX(-11.2px)')
+  app.dispatch(home, 'monthSwipe.touchEnd', { changedTouches: [move] })
+  const settled = app.viewStyle(home, '.calendar-days')
+  assert.equal(settled.transform, 'translateX(0px)')
+  assert.match(settled.transition, /var\(--duration-state\)/)
+  assert.deepEqual([app.rendered(home).year, app.rendered(home).month], [before.year, before.month])
+
+  const end = { ...start, pageX: 70 }
+  app.dispatch(home, 'monthSwipe.touchStart', { touches: [start] })
+  app.dispatch(home, 'monthSwipe.touchMove', { touches: [end] })
+  assert.equal(app.viewStyle(home, '.calendar-days').transform, 'translateX(-22.4px)')
+  app.dispatch(home, 'monthSwipe.touchEnd', { changedTouches: [end] })
+  await app.settle()
+  app.commit(home)
+  assert.equal(app.rendered(home).month, before.month + 1)
+  assert.equal(app.viewStyle(home, '.calendar-days').transform, 'translateX(0px)')
+})
+
+for (const [year, month, dx] of [[2001, 0, 80], [2035, 11, -80]]) {
+  test(`real WXS applies 0.12 edge damping at ${year}-${month + 1} and springs back without crossing the boundary`, async t => {
+    const app = homeApp(t)
+    const home = await launch(app)
+    await selectMonth(app, home, year, month)
+    const start = { identifier: 1, pageX: 150, pageY: 200 }
+    const end = { ...start, pageX: 150 + dx }
+    const dataset = { prevDisabled: year === 2001, nextDisabled: year === 2035 }
+    app.dispatch(home, 'monthSwipe.touchStart', { currentTarget: { dataset }, touches: [start] })
+    app.dispatch(home, 'monthSwipe.touchMove', { currentTarget: { dataset }, touches: [end] })
+    assert.equal(app.viewStyle(home, '.calendar-days').transform, `translateX(${dx * 0.12}px)`)
+    app.dispatch(home, 'monthSwipe.touchCancel', { currentTarget: { dataset }, changedTouches: [end] })
+    assert.equal(app.viewStyle(home, '.calendar-days').transform, 'translateX(0px)')
+    assert.match(app.viewStyle(home, '.calendar-days').transition, /var\(--duration-state\)/)
+    assert.deepEqual([app.rendered(home).year, app.rendered(home).month], [year, month])
+  })
+}
+
+test('reduced-motion calendar swipes never follow the finger and replace the month immediately', async t => {
+  const app = homeApp(t, { reducedMotion: true })
+  const home = await launch(app)
+  const before = app.rendered(home)
+  assert.equal(before.calendarReducedMotion, true)
+  const start = { identifier: 1, pageX: 150, pageY: 200 }
+  const end = { ...start, pageX: 70 }
+  app.dispatch(home, 'monthSwipe.touchStart', { currentTarget: { dataset: { reducedMotion: true } }, touches: [start] })
+  app.dispatch(home, 'monthSwipe.touchMove', { currentTarget: { dataset: { reducedMotion: true } }, touches: [end] })
+  assert.deepEqual(app.viewStyle(home, '.calendar-days'), {})
+  app.dispatch(home, 'monthSwipe.touchEnd', { currentTarget: { dataset: { reducedMotion: true } }, changedTouches: [end] })
+  await app.settle()
+  app.commit(home)
+  assert.equal(app.rendered(home).month, before.month + 1)
+  assert.equal(app.viewStyle(home, '.calendar-days').transform, 'translateX(0px)')
+  assert.equal(app.viewStyle(home, '.calendar-days').transition, 'none')
 })
 
 for (const [dx, dy, delta] of [[-49, 0, 1], [49, 0, -1], [-80, 79, 1], [80, 10, -1], [-48, 0, 0], [48, 0, 0], [-49, 49, 0], [-49, 50, 0], [10, 0, 0], [0, 80, 0]]) {

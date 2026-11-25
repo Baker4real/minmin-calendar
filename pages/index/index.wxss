@@ -12,6 +12,9 @@
   position: relative;
   z-index: 1;
 }
+.content.home-content-reveal {
+  animation: fadeIn var(--duration-enter) var(--ease-out) both;
+}
 .content-refreshing .calendar-grid,
 .content-refreshing .month-summary,
 .content-refreshing .empty-guide,
@@ -24,9 +27,9 @@
 .partner-invite {
   display: block;
   align-items: center;
-  margin: 0;
-  /* 各用 1px padding 吸收描边，文案、按钮与边框合计仍严守 103.2rpx 槽高。 */
-  padding: calc(8rpx - 1px) 16rpx calc(12rpx - 1px);
+  margin: 8rpx 0;
+  /* 各用 1px padding 吸收描边；1.4 行高释放内边距，上下 8rpx 外边距计入首屏账本。 */
+  padding: calc(13.2rpx - 1px) 16rpx calc(17.2rpx - 1px);
   box-sizing: border-box;
   border: 1px solid rgba(232,144,158,0.2);
   border-radius: var(--radius-card);
@@ -34,7 +37,7 @@
   text-align: left;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-body);
-  line-height: var(--line-height-body);
+  line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.85);
 }
 .partner-welcome {
@@ -71,8 +74,8 @@ button.home-share-invite {
   width: auto;
   min-width: 112rpx;
   min-height: 88rpx;
-  /* 88 - 2 × 2.4 = 83.2rpx，与左侧两行 caption 同高，不撑大共享槽位。 */
-  margin: -2.4rpx 0 -2.4rpx 12rpx;
+  /* 88 - 2 × 7.6 = 72.8rpx，与 1.4 行高的两行 caption 同高；热区仍完整落在条内。 */
+  margin: -7.6rpx 0 -7.6rpx 12rpx;
   padding: 0 16rpx;
   display: flex;
   align-items: center;
@@ -94,27 +97,27 @@ button.home-share-invite {
 
 /* 刷新失败重试句的位置仍在月份导航与周头之间；整行玫瑰句外观共用 shared/retry-row.wxss（#234）。 */
 
-/* ===== Month Navigation – Glassmorphism ===== */
+/* ===== Month Navigation – 无外框、固定中轴 ===== */
 .month-nav {
+  position: relative;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   padding: 12rpx 24rpx;
-  background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
-  border: 1px solid rgba(255,255,255,0.15);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
-  border-radius: var(--radius-card);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
   margin: 10rpx 0 8rpx;
 }
-.month-nav::before {
-  content: '';
+.month-nav > .nav-btn {
   position: absolute;
-  top: -50%;
-  left: -30%;
-  width: 160%;
-  height: 200%;
-  background: radial-gradient(ellipse at 40% 30%, rgba(232,144,158,0.1) 0%, transparent 50%);
-  pointer-events: none;
+  top: 12rpx;
+}
+.month-nav > .nav-btn:first-child {
+  left: 24rpx;
+}
+.month-nav > .nav-btn:last-child {
+  right: 24rpx;
 }
 .month-title {
   font-size: var(--font-size-month-title);
@@ -131,12 +134,13 @@ button.home-share-invite {
 /* 最小宽度兜住最坏文案「2026年12月」：1 位数和 2 位数月份同宽，切月时胶囊不变宽、不挪位（issue #164） */
 .month-title-trigger {
   min-height: 88rpx;
-  min-width: 352rpx;
-  padding: 16rpx 28rpx;
+  width: 300rpx;
+  min-width: 300rpx;
+  padding: 16rpx 6rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10rpx;
+  gap: 3.9rpx;
   box-sizing: border-box;
   border-radius: var(--radius-full);
   background: rgba(232,144,158,0.09);
@@ -229,34 +233,48 @@ button.home-share-invite {
   -webkit-backdrop-filter: blur(6px);
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
-/* 占位 = 月份导航 130 + 状态行 88（+「回到今天」88），另加月份导航 1px 上下描边与 R5 吸顶底边 1px，下方第一行不被吸顶区盖住 */
+/* 占位恒为月份导航 130 + 状态行 88，加 R5 吸顶底边 1px；内嵌「今」不再改变文档流高度。 */
 .home-sticky-spacer {
-  height: calc(218rpx + 3px);
+  height: calc(218rpx + 1px);
   flex-shrink: 0;
 }
-.home-sticky-spacer.with-back-today {
-  height: calc(306rpx + 3px);
-}
-.back-today {
+.back-today-inline {
+  position: absolute;
+  top: 12rpx;
+  right: 112rpx;
+  z-index: 2;
+  width: 88rpx;
   height: 88rpx;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  margin: 0;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255,255,255,0.28);
   background: transparent;
-  color: var(--text-primary);
+}
+.back-today-inline-surface {
+  min-width: 56rpx;
+  height: 56rpx;
+  padding: 0 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(232,144,158,0.45);
+  background: rgba(232,144,158,0.12);
+  color: var(--aurora-pink);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
-  transition: background-color var(--duration-press) ease, transform var(--duration-press) var(--ease-out);
+  line-height: 1;
+  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-press) ease, border-color var(--duration-press) ease;
 }
-.back-today:active,
-.back-today.back-today-hover {
-  transform: scale(0.98);
-  background: rgba(255,255,255,0.08);
-  transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
+.back-today-inline:active .back-today-inline-surface,
+.back-today-inline.back-today-inline-hover .back-today-inline-surface {
+  transform: scale(0.96);
+  background: rgba(232,144,158,0.18);
+  border-color: rgba(232,144,158,0.62);
+  transition: transform var(--duration-press-in) var(--ease-out), background-color var(--duration-press-in) ease, border-color var(--duration-press-in) ease;
 }
 .home-status {
   height: 88rpx;
@@ -304,15 +322,20 @@ button.home-share-invite {
   transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 
-/* ===== Week Header ===== */
+/* ===== Week Header + Calendar Grid：同一张玻璃画布 ===== */
+.calendar-swipe {
+  overflow-x: hidden;
+  background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-card);
+  box-shadow: 0 16rpx 64rpx rgba(0,0,0,0.2);
+}
 .week-header {
   display: flex;
   padding: 8rpx 10rpx;
   margin-bottom: 0;
-  background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-bottom: 0;
-  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: transparent;
+  border: 0;
 }
 .week-cell {
   flex: 1;
@@ -321,16 +344,16 @@ button.home-share-invite {
   line-height: 34rpx;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
-  color: rgba(255,255,255,0.72);
+  color: var(--text-secondary);
 }
 
 /* ===== Calendar Grid – Glass ===== */
 .calendar-grid {
-  background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 0 0 var(--radius-card) var(--radius-card);
+  overflow-x: hidden;
+  background: transparent;
+  border: 0;
   padding: 6rpx 10rpx;
-  box-shadow: 0 16rpx 64rpx rgba(0,0,0,0.2);
+  box-shadow: none;
   transition: opacity var(--duration-state) ease;
 }
 /* 格子外的一层（issue #165）：翻月滑入只动这一层，卡片、周头和月份标题不动。这一层没有盒子
@@ -339,8 +362,8 @@ button.home-share-invite {
   display: flex;
   flex-wrap: wrap;
 }
-/* 翻月滑入（issue #165）：新月份的格子与月标题同一次更新换上，再从翻月方向滑入 10rpx、透明度 0.5 → 1。
-   10rpx 等于网格左右内边距，内容不出卡片、不用裁切。a、b 两份关键帧内容相同，记号交替才会从头重播；
+/* 翻月滑入（issue #165、#272）：新月份的格子与月标题同一次更新换上，再从翻月方向滑入 28rpx、透明度 0.5 → 1。
+   WXS 跟手位移在翻月前清零；合并卡与网格裁住横向溢出。a、b 两份关键帧内容相同，记号交替才会从头重播；
    接续、反向与取消的策略在 index.js（_calendarMarks）。减弱动效下即时替换 */
 .calendar-days.calendar-flip-next-a {
   animation: calendarFlipNextA var(--duration-enter) var(--ease-out);
@@ -355,19 +378,19 @@ button.home-share-invite {
   animation: calendarFlipPrevB var(--duration-enter) var(--ease-out);
 }
 @keyframes calendarFlipNextA {
-  from { opacity: 0.5; transform: translateX(10rpx); }
+  from { opacity: 0.5; transform: translateX(28rpx); }
   to { opacity: 1; transform: translateX(0); }
 }
 @keyframes calendarFlipNextB {
-  from { opacity: 0.5; transform: translateX(10rpx); }
+  from { opacity: 0.5; transform: translateX(28rpx); }
   to { opacity: 1; transform: translateX(0); }
 }
 @keyframes calendarFlipPrevA {
-  from { opacity: 0.5; transform: translateX(-10rpx); }
+  from { opacity: 0.5; transform: translateX(-28rpx); }
   to { opacity: 1; transform: translateX(0); }
 }
 @keyframes calendarFlipPrevB {
-  from { opacity: 0.5; transform: translateX(-10rpx); }
+  from { opacity: 0.5; transform: translateX(-28rpx); }
   to { opacity: 1; transform: translateX(0); }
 }
 
@@ -385,12 +408,7 @@ button.home-share-invite {
   border-radius: var(--radius-md);
   padding: 4rpx 0;
   box-sizing: border-box;
-  transition: transform var(--duration-press) var(--ease-out);
-}
-.day-cell:active,
-.day-cell.day-cell-hover {
-  transform: scale(0.94);
-  transition: transform var(--duration-press-in) var(--ease-out);
+  transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-press) ease;
 }
 .day-cell.empty {
   visibility: hidden;
@@ -466,7 +484,7 @@ button.home-share-invite {
 }
 /* 今天（issue #162）：围住日期数字的紧凑胶囊——浅玫瑰底、薰衣草细描边，数字仍是玫瑰色。格子本身不上色，
    整日点按范围仍是整格；农历、节日/调休与标记都在胶囊外。胶囊挂在日期身后（日期自成叠放层，见下方 z-index 1）。
-   完整密度：胶囊从格子顶画起（0–41rpx）。清爽与合并信息行：日期上方 5rpx 起。下沿都离下一槽
+   完整密度：胶囊从格子顶画起（0–38rpx），与 40rpx 起的经期色带留 2rpx 暗缝。清爽与合并信息行：日期上方 5rpx 起。下沿都离下一槽
    （农历字框、节日/调休或信息行）留 2rpx：rpx 按段取整成整数 px，贴着槽顶画会在部分屏宽上压到「班」1px。
    经期中的今天同样显示这枚胶囊，下方色带独立表示经期。
    今天的状态强调（issue #165）用同一个框：两档密度的几何只写在这里，胶囊和光晕各自只写颜色 */
@@ -479,7 +497,7 @@ button.home-share-invite {
   top: -4rpx;
   left: 50%;
   width: 60rpx;
-  height: 41rpx;
+  height: 38rpx;
   margin-left: -30rpx;
   box-sizing: border-box;
   border-radius: var(--radius-full);
@@ -551,7 +569,7 @@ button.home-share-invite {
 .day-tag-line {
   width: 100%;
   height: 38rpx;
-  margin-top: 2rpx;
+  margin-top: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -589,7 +607,7 @@ button.home-share-invite {
 .day-marks {
   display: flex;
   gap: 4rpx;
-  margin-top: 2rpx;
+  margin-top: 4rpx;
   height: 30rpx;
   align-items: center;
 }
@@ -633,6 +651,13 @@ button.home-share-invite {
 }
 .day-cell.period {
   border-radius: 0;
+}
+.day-cell:active,
+.day-cell.day-cell-hover {
+  transform: scale(0.94);
+  border-radius: var(--radius-md);
+  background-color: rgba(255,255,255,0.06);
+  transition: transform var(--duration-press-in) var(--ease-out), background-color var(--duration-press-in) ease;
 }
 /* 只有向右延续的格子放出 1rpx 色带；长标签仍裁在本格的信息行内。 */
 .day-cell.period-start,
@@ -689,6 +714,10 @@ button.home-share-invite {
   border-radius: 0;
   overflow: visible;
   color: var(--color-memory);
+  transform: translateY(6rpx);
+}
+.calendar-info-merged .memory-mark {
+  transform: translateY(0);
 }
 
 /* Predict Mark – Gold */
@@ -769,7 +798,7 @@ button.home-share-invite {
   box-sizing: border-box;
   border-radius: var(--radius-card);
   background: linear-gradient(rgba(255,255,255,0.05), rgba(255,255,255,0.05)), var(--glass-fallback);
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.06);
   color: var(--text-primary);
   transition: opacity var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
 }
@@ -800,7 +829,7 @@ button.home-share-invite {
 .quick-actions {
   display: flex;
   gap: 20rpx;
-  margin-top: 10rpx;
+  margin-top: 20rpx;
   transition: opacity var(--duration-state) ease;
 }
 .quick-btn {
@@ -872,6 +901,17 @@ button.home-share-invite {
 }
 .quick-btn.btn-ghost .quick-text {
   color: var(--aurora-pink);
+}
+.quick-btn.button-primary .quick-icon.sample-plate {
+  background: rgba(10,14,39,0.14);
+  box-shadow: none;
+}
+.quick-icon.sample-plate .action-sample .period-band {
+  border: 0;
+  background: var(--text-on-accent);
+}
+.quick-btn.btn-ghost .quick-icon.memory-tone {
+  transform: translateY(2rpx);
 }
 
 /* ===== Empty Room Guidance ===== */
@@ -1535,8 +1575,9 @@ button.home-share-invite {
 }
 .skeleton-month-title {
   min-height: 88rpx;
-  min-width: 352rpx;
-  padding: 0 28rpx;
+  width: 300rpx;
+  min-width: 300rpx;
+  padding: 0 6rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1557,22 +1598,22 @@ button.home-share-invite {
 .skeleton-cell {
   width: 14.28%;
   height: var(--calendar-row-height, 148rpx);
-  padding: 4rpx 2rpx;
+  padding: 8rpx 6rpx;
   box-sizing: border-box;
   background-clip: content-box;
 }
 .calendar-density-compact .skeleton-cell {
-  padding-bottom: 12rpx;
+  padding: 8rpx 6rpx;
 }
 .calendar-info-merged .skeleton-cell {
-  padding: 8rpx 2rpx 4rpx;
+  padding: 8rpx 6rpx;
 }
 .skeleton-control,
 .skeleton-month-title,
 .skeleton-status-bar,
 .skeleton-week-cell,
 .skeleton-cell {
-  background: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.05);
 }
 /* 翻月圆钮不再叠加真实按钮的玻璃底与平涂层，和其他骨架块保持同一弱白亮度。 */
 .nav-btn.skeleton-control {
@@ -1597,6 +1638,7 @@ button.home-share-invite {
   border-radius: var(--radius-md);
 }
 @media (prefers-reduced-motion: reduce) {
+  .content.home-content-reveal,
   .month-title-trigger,
   .nav-btn,
   .nav-btn::before,
@@ -1614,7 +1656,7 @@ button.home-share-invite {
   .calendar-days.calendar-flip-prev-b,
   .partner-welcome,
   .home-share-invite,
-  .back-today,
+  .back-today-inline-surface,
   .home-status,
   .month-summary,
   .calendar-grid,
@@ -1641,8 +1683,8 @@ button.home-share-invite {
   .nav-btn.nav-btn-hover.disabled,
   .nav-btn:active.disabled::before,
   .nav-btn.nav-btn-hover.disabled::before,
-  .back-today:active,
-  .back-today.back-today-hover,
+  .back-today-inline:active .back-today-inline-surface,
+  .back-today-inline.back-today-inline-hover .back-today-inline-surface,
   .home-status:active,
   .home-status.home-status-hover,
   .day-cell:active,

@@ -28,7 +28,7 @@ const OUT_CELL_CAPTION_SELECTORS = [
   '.week-cell',
   '.home-status-countdown',
   '.month-summary-text',
-  '.back-today',
+  '.back-today-inline-surface',
   '.nav-tool',
   '.sheet-subtitle',
   '.sheet-action-desc',
@@ -156,7 +156,7 @@ function cjkRunRpx(text, fontRpx, tracking) {
 
 function dayColumnRpx(wxss, viewportPx) {
   const contentPad = horizontalPaddingRpx(ruleBody(wxss, '.content'))
-  const gridBorder = ruleBody(wxss, '.calendar-grid').match(/border:\s*([^;]+);/)
+  const gridBorder = ruleBody(wxss, '.calendar-swipe').match(/border:\s*([^;]+);/)
   assert.ok(gridBorder, 'expected .calendar-grid border')
   const borderPx = Number(/(\d+(?:\.\d+)?)px/.exec(gridBorder[1])[1])
   const widthPct = Number(/(\d+(?:\.\d+)?)%/.exec(ruleBody(wxss, '.day-cell').match(/width:\s*([^;]+);/)[1])[1])
@@ -501,7 +501,7 @@ test('the month title stays rose and tappable without the month-nav glow', () =>
 
   const trigger = ruleBody(readWxss(), '.month-title-trigger')
   assert.match(trigger, /min-height:\s*88rpx/)
-  assert.match(trigger, /padding:\s*16rpx 28rpx/)
+  assert.match(trigger, /padding:\s*16rpx 6rpx/)
 })
 
 test('earlier/later month navigation buttons keep 44px touch targets', () => {
@@ -566,7 +566,7 @@ function cellHoldsContent(layout, height, wxss) {
 test('the cell slot ledger is the CSS stack and each layout holds its content exactly at the ledger minimum', () => {
   const { CALENDAR_LEDGER, calendarCellContentMinRpx } = require('../utils/calendarRowHeight')
   const wxss = readWxss()
-  // 完整：4 + 日期32 + 农历34 + 节日38 + 标记30，「预」垂出12再留格底3 → 159
+  // 完整：4 + 日期32 + 农历2+34 + 节日0+38 + 标记4+30，「预」垂出12再留格底3 → 159
   // 清爽：居中的 日期38 + 细条2+12 + 节日2+34 + 标记6+30，内边距4/12；「预」垂出12再留格底3 → 146
   // 合并：顶对齐8 + 日期38 + 细条2+12 + 信息行2+42 + 4 → 108
   const expectedMin = { full: 159, compact: 146, merged: 108 }
@@ -597,6 +597,7 @@ test('the merged info row ledger uses the CSS widths and its single row holds th
   const widths = CALENDAR_LEDGER.infoRowRpx
   const borders = CALENDAR_LEDGER.infoRowBorderPx
   const grid = ruleBody(wxss, '.calendar-grid')
+  const card = ruleBody(wxss, '.calendar-swipe')
   const compactTag = ruleBody(wxss, '.calendar-density-compact .day-tag')
   const workday = ruleBody(wxss, '.workday-tag')
   const predict = ruleBody(wxss, '.predict-mark')
@@ -615,7 +616,7 @@ test('the merged info row ledger uses the CSS widths and its single row holds th
     marksGap: declarationRpx(ruleBody(wxss, '.day-marks'), 'gap'),
     infoGap: declarationRpx(info, 'gap')
   })
-  assert.deepEqual(borders, { grid: borderWidthPx(grid), workday: borderWidthPx(workday), predict: borderWidthPx(predict) })
+  assert.deepEqual(borders, { grid: borderWidthPx(card), workday: borderWidthPx(workday), predict: borderWidthPx(predict) })
   // 「班」用 border-box：描边包含在固定盒内；♥ 行高 1，字宽按 1em 上限记账
   assert.match(workday, /box-sizing:\s*border-box/)
   assert.match(ruleBody(wxss, '.memory-mark'), /line-height:\s*1;/)
@@ -631,6 +632,31 @@ test('the merged info row ledger uses the CSS widths and its single row holds th
   assert.ok(rowHeight >= declarationRpx(compactTag, 'height'), 'merged row is shorter than the workday tag')
   for (const selector of ['.calendar-info-merged .day-tag-line', '.calendar-info-merged .day-marks']) {
     assert.equal(declarationRpx(ruleBody(wxss, selector), 'height'), rowHeight, `${selector} fills the merged row`)
+  }
+})
+
+test('ordinary days retire holiday dead slots while extreme cells keep proximity, today-band clearance and aligned marks', () => {
+  const wxml = readSource(path.join(__dirname, '..', 'pages/index/index.wxml'), 'utf8')
+  const tagLine = /<view\s+wx:if="([^"]+)"\s+class="day-tag-line">/.exec(wxml)
+  assert.ok(tagLine, 'the holiday/workday slot has its own render condition')
+  assert.equal(tagLine[1], '{{!item.isEmpty && (item.holidayName || item.isWorkday)}}')
+
+  const wxss = readWxss()
+  for (const selector of ['.day-marks', '.calendar-density-compact .day-marks']) {
+    const gap = optionalRpx(ruleBody(wxss, selector), 'margin-top')
+    assert.ok(gap >= 4 && gap <= 6, `${selector} follows lunar or the compact band by 4-6rpx, got ${gap}`)
+  }
+  assert.match(ruleBody(wxss, '.memory-mark'), /transform:\s*translateY\(6rpx\)/)
+  assert.match(ruleBody(wxss, '.calendar-info-merged .memory-mark'), /transform:\s*translateY\(0\)/)
+
+  const cell = cssCellLayout(wxss, 'full')
+  const capsule = todayCapsuleBox(wxss, 'full')
+  const bandTop = declarationRpx(ruleBody(wxss, '.period-slot'), 'top')
+  for (const height of [159, 160]) {
+    const dateTop = cell.paddingTop
+    const capsuleBottom = dateTop + capsule.top + capsule.height
+    const clearance = bandTop - capsuleBottom
+    assert.ok(clearance >= 2 && clearance <= 3, `full today capsule leaves a 2-3rpx dark seam, got ${clearance} at ${height}rpx`)
   }
 })
 
@@ -710,7 +736,7 @@ test('period bands stay below dates, center behind lunar text, and clear compact
 // 余量够 44rpx 时下限就回到票面（理由见 DESIGN.md 日历状态表「今天」）。
 const TODAY_CAPSULE_SELECTOR = '.day-cell.today .day-num::before'
 const COMPACT_TODAY_CAPSULE_SELECTOR = '.calendar-density-compact .day-cell.today .day-num::before'
-const TODAY_CAPSULE_TARGET_RPX = { min: 44, max: 52 }
+const TODAY_CAPSULE_TARGET_RPX = { min: 38, max: 52 }
 // 基础库把每段 rpx 各自换成整数 px：正长度向下取整，负偏移向零取整（开发者工具 3.16.1 在 390px 宽实测）。
 // 胶囊各段分开取整、下一槽的位置由好几段累加，两边差得出 1px；留 2rpx，375–430px 宽都碰不到下一槽
 const TODAY_CAPSULE_ROUNDING_RPX = 2
@@ -885,7 +911,8 @@ test('the CSS row-height fallbacks are the ledger caps for both densities', () =
 
 test('full density first-screen stack stays within the ratcheted budget', () => {
   const wxss = readWxss()
-  const FULL_STACK_RATCHET_RPX = 1442
+  // #272 只把快捷区上间距从 10rpx 提至 20rpx，其余首屏预算不放宽。
+  const FULL_STACK_RATCHET_RPX = 1452
   const SAFE_TOP_RPX = 88
   const NAV_BAR_RPX = 88
   const MONTH_NAV_CONTENT_RPX = 88
@@ -1019,7 +1046,7 @@ test('legend samples are calendar cells on the grid glass', () => {
   const legend = ruleBody(wxss, '.legend-sample.day-cell')
   assert.equal(
     anchoredDeclaration(legend, 'background'),
-    anchoredDeclaration(ruleBody(wxss, '.calendar-grid'), 'background'),
+    anchoredDeclaration(ruleBody(wxss, '.calendar-swipe'), 'background'),
     'the legend sample paints the calendar grid glass'
   )
   // 与经期格的直角同特异度，图例规则写在后面才压得住，经期样本也保留格子圆角

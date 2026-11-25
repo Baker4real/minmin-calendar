@@ -316,6 +316,7 @@ const LITERAL_DURATION_ANIMATIONS = new Set([...Object.keys(CONTINUOUS_ANIMATION
 const RETURN_DELAY = 'var(--delay-return)'
 const ONE_SHOT_ANIMATIONS = {
   pageEnter: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
+  homeContentReveal: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   bindReveal: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' },
   heroBloom: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)' },
   dayDetailFade: { duration: 'var(--duration-state)', easing: 'var(--ease-out)' },
@@ -330,10 +331,11 @@ const ONE_SHOT_ANIMATIONS = {
   segmentPanelIn: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' }
 }
 
-// pageEnter、recordAppear、dayDetailFade 共用 fadeIn 关键帧；选择器仍决定各自的时长、延迟和减弱动效政策。
+// pageEnter、homeContentReveal、recordAppear、dayDetailFade 共用 fadeIn 关键帧；选择器仍决定各自的时长、延迟和减弱动效政策。
 const SHARED_FADE = 'fadeIn'
 const SHARED_FADE_ROLES = new Map([
   ['.page', 'pageEnter'],
+  ['.content.home-content-reveal', 'homeContentReveal'],
   ['.day-detail-fade', 'dayDetailFade'],
   ['.calendar-days .day-cell.record-feedback-period .period-band', 'recordAppear'],
   ['.calendar-days .day-cell.record-feedback-memory .memory-mark', 'recordAppear'],

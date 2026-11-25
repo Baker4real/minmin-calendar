@@ -23,7 +23,7 @@ function numberDecl(body, property) {
 test('the refresh retry sentence is a tappable in-flow row below the month title', () => {
   const wxml = readIndexWxml()
   const contentIndex = wxml.indexOf('wx:else class="content')
-  const monthNavIndex = wxml.indexOf('class="month-nav glass-surface"')
+  const monthNavIndex = wxml.indexOf('class="month-nav"')
   const retryIndex = wxml.indexOf('class="refresh-retry"')
   const weekHeaderIndex = wxml.indexOf('class="week-header"')
   assert.ok(retryIndex !== -1)
@@ -94,7 +94,7 @@ test('partner welcome explains the calendar marks and the whole row opens the le
 
 test('homepage stacks navbar legend, sticky month and status, calendar, record actions, summary, then the empty guide', () => {
   const wxml = readIndexWxml()
-  const positions = ['class="nav-tool"', 'class="home-sticky"', 'class="month-nav glass-surface"', 'class="home-status', 'class="week-header"', 'class="calendar-grid', 'class="quick-actions"', 'class="month-summary"', 'class="empty-state empty-guide"'].map(value => wxml.indexOf(value))
+  const positions = ['class="nav-tool"', 'class="home-sticky"', 'class="month-nav"', 'class="home-status', 'class="week-header"', 'class="calendar-grid', 'class="quick-actions"', 'class="month-summary"', 'class="empty-state empty-guide"'].map(value => wxml.indexOf(value))
   assert.ok(positions.every(value => value !== -1))
   assert.ok(positions.every((value, index) => index === 0 || positions[index - 1] < value))
   assert.match(wxml, /class="home-sticky"[\s\S]*position:\s*fixed|class="home-sticky"/)
@@ -144,9 +144,11 @@ test('empty-state guide text meets the secondary-text contrast floor on its comp
 test('homepage status line is one named row with countdown and arrow, without reminder rows', () => {
   const wxml = readIndexWxml()
   const sticky = wxml.slice(wxml.indexOf('class="home-sticky"'), wxml.indexOf('class="home-sticky-spacer'))
-  assert.match(sticky, /class="month-nav glass-surface"/)
+  assert.match(sticky, /class="month-nav"/)
   assert.match(sticky, /wx:if="\{\{showBackToToday\}\}"/)
-  assert.match(sticky, /class="back-today"/)
+  assert.match(sticky, /class="back-today-inline"/)
+  assert.match(sticky, /aria-label="回到今天"/)
+  assert.doesNotMatch(sticky, /class="back-today"/)
   assert.match(sticky, /bindtap="openPredictionSheet"/)
   assert.match(sticky, /class="home-status-text">\{\{homeStatus\.text\}\}<\/text>/)
   assert.match(sticky, /wx:if="\{\{homeStatus\.countdownText\}\}" class="home-status-countdown">\{\{homeStatus\.countdownText\}\}<\/text>/)
@@ -258,7 +260,7 @@ test('status and monthly recap entries use rounded surfaces and a left-copy righ
   assert.match(summary, /padding:\s*0 24rpx/)
   assert.match(summary, /border-radius:\s*var\(--radius-card\)/)
   assert.match(summary, /background:\s*linear-gradient\(rgba\(255,255,255,0\.05\), rgba\(255,255,255,0\.05\)\), var\(--glass-fallback\)/)
-  assert.match(summary, /border:\s*1px solid rgba\(255,255,255,0\.12\)/)
+  assert.match(summary, /border:\s*1px solid rgba\(255,255,255,0\.06\)/)
 
   const arrow = ruleBody(wxss, '.month-summary-arrow')
   assert.match(arrow, /flex:\s*none/)
@@ -270,7 +272,7 @@ test('status and monthly recap entries use rounded surfaces and a left-copy righ
 test('navbar legend entry opens directly and keeps its 88rpx hit area around an unclipped 64rpx capsule', () => {
   const wxml = readIndexWxml()
   const nav = wxml.slice(wxml.indexOf('class="nav-bar'), wxml.indexOf('class="no-room"'))
-  const monthNav = wxml.slice(wxml.indexOf('class="month-nav glass-surface"'), wxml.indexOf('class="home-status'))
+  const monthNav = wxml.slice(wxml.indexOf('class="month-nav"'), wxml.indexOf('class="home-status'))
   assert.match(nav, /class="nav-tool"[^>]*bindtap="openLegendSheet"[^>]*aria-label="打开日历图例"[^>]*>\s*<view class="nav-tool-surface">图例<\/view>/)
   assert.doesNotMatch(monthNav, /openMonthMenu|month-menu-trigger|…/)
   assert.match(monthNav, /bindtap="prevMonth"/)
@@ -415,7 +417,7 @@ test('home sticky keeps the static D1 default gradient, paired light blur and 1p
   assert.match(sticky, /border-bottom:\s*1px solid rgba\(255,\s*255,\s*255,\s*0\.08\)/)
 })
 
-test('compact density preserves the thicker band and allows scrolling on a short 6-row month', () => {
+test('compact density preserves the thicker band and inline-today geometry on a short 6-row month', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
   const wxss = readIndexWxss()
   assert.match(ruleBody(wxss, '.calendar-density-compact .day-cell'), /height:\s*var\(--calendar-row-height,\s*148rpx\)/)
@@ -423,9 +425,9 @@ test('compact density preserves the thicker band and allows scrolling on a short
   assert.match(ruleBody(wxss, '.home-status.neutral'), /color:\s*var\(--text-secondary\)/)
   assert.doesNotMatch(ruleBody(wxss, '.home-status.neutral'), /#F97373|249,\s*115,\s*115/)
   const row = computeCalendarRowHeight({ viewportWidth: 375, viewportHeight: 619, navBarHeightPx: 64, density: 'compact', days: Array.from({ length: 42 }, () => ({ isEmpty: true })), showBackToToday: true })
-  assert.equal(row.heightPx, 54)
+  assert.equal(row.heightPx, 58.33)
   assert.equal(row.infoMerged, true)
-  assert.equal(row.actionsFit, false)
+  assert.equal(row.actionsFit, true)
   assert.ok(row.heightPx >= row.contentMinPx)
   assert.ok(row.heightPx <= 74)
 })
@@ -451,9 +453,9 @@ test('home skeleton mirrors the real content margins, sticky slot and ledger row
   const wxss = readIndexWxss()
   assert.match(ruleBody(wxss, '.calendar-skeleton'), /padding:\s*0 var\(--space-page-gutter\)/)
   assert.match(ruleBody(wxss, '.skeleton-cell'), /height:\s*var\(--calendar-row-height/)
-  assert.match(ruleBody(wxss, '.skeleton-cell'), /padding:\s*4rpx 2rpx/)
+  assert.match(ruleBody(wxss, '.skeleton-cell'), /padding:\s*8rpx 6rpx/)
   assert.match(ruleBody(wxss, '.skeleton-cell'), /background-clip:\s*content-box/)
-  assert.match(ruleBody(wxss, '.calendar-info-merged .skeleton-cell'), /padding:\s*8rpx 2rpx 4rpx/)
+  assert.match(ruleBody(wxss, '.calendar-info-merged .skeleton-cell'), /padding:\s*8rpx 6rpx/)
   assert.match(ruleBody(wxss, '.skeleton-cell.skeleton-cell-empty'), /background:\s*transparent/)
   assert.match(ruleBody(wxss, '.nav-btn.skeleton-control'), /background:\s*rgba\(255,255,255,0\.08\)/)
   assert.match(ruleBody(wxss, '.nav-btn.skeleton-control::before'), /background-color:\s*transparent/)
@@ -540,7 +542,54 @@ test('month jump removes back-to-today top margin and overlays a subtle real-mon
   assert.match(wxml, /<view wx:if="\{\{item\.isRealTodayMonth\}\}" class="jump-real-today-dot" aria-hidden="true"><\/view>/)
 })
 
-test('the calendar area tracks month swipes in WXS and does not follow the finger', () => {
+test('quick icons, pressed cells and the skeleton-to-content reveal keep soft physical feedback', () => {
+  const wxml = readIndexWxml()
+  const wxss = readIndexWxss()
+  assert.match(wxml, /wx:else class="content home-content-reveal /)
+  assert.match(ruleBody(wxss, '.content.home-content-reveal'), /animation:\s*fadeIn var\(--duration-enter\) var\(--ease-out\) both/)
+
+  const pressed = /\.day-cell:active,\s*\.day-cell\.day-cell-hover\s*\{([^}]+)\}/.exec(wxss)
+  assert.ok(pressed)
+  assert.match(pressed[1], /background-color:\s*rgba\(255,255,255,0\.06\)/)
+  assert.match(pressed[1], /border-radius:\s*var\(--radius-md\)/)
+  assert.ok(wxss.indexOf('.day-cell:active,') > wxss.indexOf('.day-cell.period {'), 'the shared pressed rule follows the period square-corner reset')
+
+  assert.match(ruleBody(wxss, '.quick-btn.button-primary .quick-icon.sample-plate'), /background:\s*rgba\(10,14,39,0\.14\)/)
+  assert.match(ruleBody(wxss, '.quick-icon.sample-plate .action-sample .period-band'), /background:\s*var\(--text-on-accent\)/)
+  assert.match(ruleBody(wxss, '.quick-btn.btn-ghost .quick-icon.memory-tone'), /transform:\s*translateY\(2rpx\)/)
+
+  const skeleton = ruleBody(wxss, '.skeleton-cell')
+  assert.match(skeleton, /padding:\s*8rpx 6rpx/)
+  assert.match(ruleBody(wxss, '.skeleton-control'), /rgba\(255,255,255,0\.05\)/)
+  assert.match(ruleBody(wxss, '.calendar-info-merged .skeleton-cell'), /padding:\s*8rpx 6rpx/)
+})
+
+test('week header and days share one quiet calendar card with breathable banners and quick-action spacing', () => {
+  const wxss = readIndexWxss()
+  const card = ruleBody(wxss, '.calendar-swipe')
+  assert.match(card, /background:\s*linear-gradient\(rgba\(255,255,255,0\.05\), rgba\(255,255,255,0\.05\)\), var\(--glass-fallback\)/)
+  assert.match(card, /border:\s*1px solid rgba\(255,255,255,0\.1\)/)
+  assert.match(card, /border-radius:\s*var\(--radius-card\)/)
+  assert.match(card, /overflow-x:\s*hidden/)
+  const week = ruleBody(wxss, '.week-header')
+  assert.match(week, /background:\s*transparent/)
+  assert.match(week, /border:\s*0/)
+  assert.match(ruleBody(wxss, '.week-cell'), /color:\s*var\(--text-secondary\)/)
+  const grid = ruleBody(wxss, '.calendar-grid')
+  assert.match(grid, /background:\s*transparent/)
+  assert.match(grid, /border:\s*0/)
+  assert.match(grid, /box-shadow:\s*none/)
+  assert.match(grid, /overflow-x:\s*hidden/)
+
+  const banner = ruleBody(wxss, '.partner-welcome')
+  assert.match(banner, /margin:\s*8rpx 0/)
+  assert.match(banner, /line-height:\s*var\(--line-height-assist\)/)
+  assert.equal(ruleBody(wxss, '.partner-invite'), ruleBody(wxss, '.partner-welcome'))
+  assert.match(ruleBody(wxss, '.quick-actions'), /margin-top:\s*20rpx/)
+  assert.match(ruleBody(wxss, '.month-summary'), /border:\s*1px solid rgba\(255,255,255,0\.06\)/)
+})
+
+test('the calendar area tracks real WXS swipes with damped view-layer movement and a 28rpx month entrance', () => {
   const wxml = readIndexWxml()
   const swipeStart = wxml.indexOf('class="calendar-swipe"')
   const weekHeader = wxml.indexOf('class="week-header"')
@@ -559,5 +608,13 @@ test('the calendar area tracks month swipes in WXS and does not follow the finge
   assert.match(inline[1], /var SWIPE_PX = 48/)
   assert.match(inline[1], /absX > SWIPE_PX && absX > absY/)
   assert.match(inline[1], /callMethod\('onCalendarSwipe'/)
-  assert.doesNotMatch(inline[1], /setStyle|translateX|animation/)
+  assert.match(inline[1], /FOLLOW_DAMPING = 0\.28/)
+  assert.match(inline[1], /EDGE_DAMPING = 0\.12/)
+  assert.match(inline[1], /selectComponent\('\.calendar-days'\)/)
+  assert.match(inline[1], /setStyle/)
+  assert.match(inline[1], /translateX/)
+  assert.match(inline[1], /transition = immediate \? 'none' : 'transform var\(--duration-state\) var\(--ease-out\)'/)
+  const wxss = readIndexWxss()
+  assert.match(wxss, /@keyframes calendarFlipNextA \{\s*from \{ opacity: 0\.5; transform: translateX\(28rpx\); \}/)
+  assert.match(wxss, /@keyframes calendarFlipPrevA \{\s*from \{ opacity: 0\.5; transform: translateX\(-28rpx\); \}/)
 })

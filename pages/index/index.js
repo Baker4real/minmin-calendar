@@ -51,14 +51,13 @@ function readPageViewport() {
 }
 
 // 行高与清爽密度是否合并信息行只从 utils/calendarRowHeight.js 的几何账本一次求出（issue #153）
-function calendarGeometry({ viewport = DEFAULT_PAGE_VIEWPORT, days, density, navBarHeightPx, showBackToToday, showPartnerWelcome = false, showRefreshRetry = false }) {
+function calendarGeometry({ viewport = DEFAULT_PAGE_VIEWPORT, days, density, navBarHeightPx, showPartnerWelcome = false, showRefreshRetry = false }) {
   const row = computeCalendarRowHeight({
     viewportWidth: viewport.viewportWidth,
     viewportHeight: viewport.viewportHeight,
     navBarHeightPx,
     density: density === 'full' ? 'full' : 'compact',
     days,
-    showBackToToday,
     showPartnerWelcome,
     showRefreshRetry
   })
@@ -125,6 +124,7 @@ Page(withPageVisibility({
     ...monthNavState(INITIAL_VIEW_DATE.getFullYear(), INITIAL_VIEW_DATE.getMonth()),
     ...homepageSheetData(),
     calendarDensity: 'compact',
+    calendarReducedMotion: false,
     // 翻月方向记号（next-a/next-b/prev-a/prev-b）挂在 .calendar-days 上，空串即不滑动（issue #165）
     calendarFlip: '',
     // 一次性状态强调（today-a/today-b/predict-a/predict-b），只跟着触发它的那次日历提交（issue #165）
@@ -138,8 +138,7 @@ Page(withPageVisibility({
     ...calendarGeometry({
       days: INITIAL_HOME_STATE.days,
       density: 'compact',
-      navBarHeightPx: safeArea.getNavBarHeight(),
-      showBackToToday: INITIAL_HOME_STATE.showBackToToday
+      navBarHeightPx: safeArea.getNavBarHeight()
     }),
     infoSheetMode: '',
     infoSheetName: '',
@@ -270,7 +269,7 @@ Page(withPageVisibility({
     }))
   },
 
-  // 日历几何的唯一出口（issue #153）：改动日期格、密度、顶栏、「回到今天」、欢迎条或行内重试行的 setData
+  // 日历几何的唯一出口（issue #153、#272）：改动日期格、密度、顶栏、欢迎条或行内重试行的 setData
   // 都经这里，用改动后的数据一次求出行高与是否合并信息行，与这些改动同一次提交
   withCalendarGeometry(patch) {
     const next = { ...this.data, ...patch }
@@ -281,7 +280,6 @@ Page(withPageVisibility({
         days: next.days,
         density: next.calendarDensity,
         navBarHeightPx: next.navBarHeight,
-        showBackToToday: next.showBackToToday,
         showPartnerWelcome: next.partnerWelcome || next.partnerInvite,
         showRefreshRetry: next.refreshRetryVisible
       })
@@ -293,7 +291,9 @@ Page(withPageVisibility({
   },
 
   refreshReducedMotion() {
-    probeReducedMotion(this)
+    probeReducedMotion(this, reducedMotion => {
+      if (this.data.calendarReducedMotion !== reducedMotion) this.setData({ calendarReducedMotion: reducedMotion })
+    })
   },
 
   renderRecordsSync(state, { calendarChanged, recordChange }, extraFields = {}) {
@@ -438,7 +438,7 @@ Page(withPageVisibility({
     return { calendarFlip: '', calendarEmphasis: '', recordFeedback: {} }
   },
 
-  // 日历滑动松手：判定在纯函数里，页面只做一次既有翻月更新（和箭头同一段滑入，issue #165），不跟手。
+  // WXS 已在视图层完成阻尼跟手与回弹；只有过阈值才到这里，页面仍只做一次既有翻月更新。
   onCalendarSwipe(detail) {
     const decision = util.decideMonthSwipe(detail && detail.dx, detail && detail.dy)
     if (decision === 'next') this.nextMonth()
