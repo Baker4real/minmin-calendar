@@ -1053,7 +1053,11 @@ test('both edit pages reserve one-save fixed-bar geometry with an opaque navy gr
     assert.equal(fixed['box-shadow'], 'inset 0 1px 0 rgba(255,255,255,0.08), 0 -12rpx 32rpx rgba(5,8,22,0.55)')
     assert.match(fixed.padding, /var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)
     assert.equal(findDecls(rules, '.record-actions-fixed .btns')['margin-top'], '0')
-    assert.equal(findDecls(rules, '.record-actions-fixed.record-actions-hidden').display, 'none')
+    const hidden = findDecls(rules, '.record-actions-fixed.record-actions-hidden')
+    assert.equal(hidden.display, undefined, 'fixed actions stay mounted while the keyboard hides them')
+    assert.equal(hidden.opacity, '0')
+    assert.equal(hidden.transform, 'translateY(100%)')
+    assert.equal(hidden['pointer-events'], 'none')
 
     const content = findDecls(rules, '.content')
     assert.match(content.padding, /calc\(144rpx \+ var\(--safe-bottom,\s*env\(safe-area-inset-bottom/)

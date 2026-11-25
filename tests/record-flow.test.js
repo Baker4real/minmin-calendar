@@ -362,10 +362,10 @@ test('record edit pages isolate delete loading, constrain period dates, and cap 
   assert.match(memoryEditWxml, /wx:else class="btn-premium disabled button-primary"[^>]*>保存</)
   const periodRawWxml = readRawPageFile('pages/period/edit/edit.wxml')
   assert.doesNotMatch(periodEditWxml, /<picker mode="date"/)
-  assert.match(periodRawWxml, /startDate: startDate, maxDate: maxDate, saving: saving, tapHandler: 'openEndDatePicker'/)
+  assert.match(periodRawWxml, /startDate: startDate, maxDate: maxDate, saving: saving \|\| status !== 'known-end', tapHandler: 'openEndDatePicker'/)
   assert.match(periodRawWxml, /maxDate: maxDate, saving: saving, tapHandler: 'openStartDatePicker'/)
-  // 结束日期选择器只在已知结束状态出现；开始日期选择器上限为今天
-  assert.match(periodEditWxml, /<view class="form-item" wx:if="\{\{status === 'known-end'\}\}"[^>]*>/)
+  // 结束日期字段常驻并在收起时读屏隐藏；开始日期选择器上限为今天
+  assert.match(periodRawWxml, /class="form-item end-date-disclosure[^"]*" id="field-endDate" aria-hidden="\{\{status !== 'known-end'\}\}"/)
   assert.match(periodEditWxml, /bindtap="\{\{tapHandler\}\}"/)
   assert.match(readRawPageFile('pages/period/edit/edit.wxml'), /tapHandler: 'selectStatus'[\s\S]*ariaLabel: '经期状态 ' \+ item\.label/)
   assert.match(periodEditWxml, /maxlength="500"/)
@@ -478,7 +478,7 @@ test('edit forms read each displayed date and keep its own error inside that pic
     const raw = readRawPageFile(file)
     assert.ok(raw.includes(`ariaLabel: ${nameExpression}`), `${file} ${field} keeps its date announcement`)
     assert.ok(raw.includes(`error: fieldErrors.${field}`), `${file} ${field} passes its own error`)
-    const opening = new RegExp(`<view class="form-item"[^>]*\\sid="field-${field}"[^>]*>`).exec(wxml)
+    const opening = new RegExp(`<view class="form-item[^"]*"[^>]*\\sid="field-${field}"[^>]*>`).exec(wxml)
     assert.ok(opening, `${file} marks the ${field} form item as #field-${field}`)
     const nextItem = wxml.indexOf('class="form-item', opening.index + opening[0].length)
     const item = wxml.slice(opening.index, nextItem === -1 ? undefined : nextItem)

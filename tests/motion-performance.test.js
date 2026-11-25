@@ -446,6 +446,18 @@ function sheetMotionExpectation(selector, prop) {
   if (normalized === '.sync-pill.sync-open' && (prop === 'opacity' || prop === 'transform')) {
     return { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' }
   }
+  if (normalized === '.record-actions-fixed' && (prop === 'opacity' || prop === 'transform')) {
+    return { duration: 'var(--duration-enter)', easing: EASE_OUT_TOKEN }
+  }
+  if (normalized === '.record-actions-fixed.record-actions-hidden' && (prop === 'opacity' || prop === 'transform')) {
+    return { duration: 'var(--duration-exit)', easing: EASE_OUT_TOKEN }
+  }
+  if (normalized === '.end-date-disclosure' && prop === 'grid-template-rows') {
+    return { duration: STATE_DURATION, easing: EASE_OUT_TOKEN }
+  }
+  if (normalized === '.end-date-inner' && prop === 'opacity') {
+    return { duration: STATE_DURATION, easing: EASE_OUT_TOKEN }
+  }
   return null
 }
 

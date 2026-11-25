@@ -194,6 +194,26 @@ test('period: constant options are initial page data, not session render patches
   assert.deepEqual(page.data.selectedSymptoms, { cramps: true })
 })
 
+test('period: status thumb follows public selection and flow degree dots preserve tap-again cancellation', async (t) => {
+  const app = setup(t)
+  const { page } = await openEditor(app, period)
+  assert.deepEqual(page.data.flowOptions.map(item => item.degreeDots?.length), [1, 2, 3])
+
+  const thumb = wxmlOpeningTags(readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8'))
+    .find(tag => tag.classes.includes('segment-thumb'))
+  assert.ok(thumb, 'the public status control renders its shared thumb')
+  assert.ok(renderWxmlClasses(thumb.attrs.class, page.data).includes('segment-thumb-index-0'))
+  await app.dispatch(page, 'selectStatus', dataset({ value: 'known-end' }))
+  assert.ok(renderWxmlClasses(thumb.attrs.class, page.data).includes('segment-thumb-index-2'))
+  await app.dispatch(page, 'selectStatus', dataset({ value: 'unknown-end' }))
+  assert.ok(renderWxmlClasses(thumb.attrs.class, page.data).includes('segment-thumb-index-1'))
+
+  await app.dispatch(page, 'selectFlow', dataset({ value: 'heavy' }))
+  assert.equal(page.data.flow, 'heavy')
+  await app.dispatch(page, 'selectFlow', dataset({ value: 'heavy' }))
+  assert.equal(page.data.flow, '', 'the same checkbox tap cancels the flow without changing its role')
+})
+
 test('period: legacy draft restores its known dates, labels, flow and selected symptoms', async (t) => {
   const app = setup(t, { storage: { 'recordDraft:periods:legacy': JSON.stringify({ startDate: '2026-09-02', endDate: '2026-09-04', note: '旧草稿', flow: 'light', symptoms: ['cramps'] }) } })
   const { page } = await openEditor(app, period, { id: 'legacy', startDate: '2026-09-01', endDate: '2026-09-03' })
@@ -785,6 +805,56 @@ test('period: status option screen-reader names include each option consequence'
   ])
 })
 
+test('period: end-date grid is inert while collapsed and preserves validation scroll and save when expanded', async (t) => {
+  const app = setup(t)
+  const { page } = await openEditor(app, period)
+  const region = wxmlOpeningTags(readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8'))
+    .find(tag => tag.attrs.id === 'field-endDate')
+  assert.ok(region, 'the end-date region keeps its public validation anchor')
+  assert.ok(region.attrs['aria-hidden'], 'the region exposes its collapsed state to screen readers')
+  const renderedRegion = () => ({
+    hidden: renderWxmlAttribute(region.attrs['aria-hidden'], page.data),
+    classes: renderWxmlClasses(region.attrs.class, page.data),
+    pickerSaving: sharedTemplateData(period, 'sharedDateField', 'tapHandler', 'openEndDatePicker', page.data).saving
+  })
+
+  assert.equal(page.data.status, 'ongoing')
+  assert.equal(renderedRegion().hidden, 'true')
+  assert.equal(renderedRegion().classes.includes('end-date-expanded'), false)
+  assert.equal(renderedRegion().pickerSaving, true)
+  await app.dispatch(page, 'openEndDatePicker')
+  assert.equal(page.data.datePickerMounted, false, 'a collapsed picker cannot open even through a direct event')
+
+  await app.dispatch(page, 'selectStatus', dataset({ value: 'known-end' }))
+  assert.equal(renderedRegion().hidden, 'false')
+  assert.ok(renderedRegion().classes.includes('end-date-expanded'))
+  assert.equal(renderedRegion().pickerSaving, false)
+  await app.dispatch(page, 'openEndDatePicker')
+  await app.settle()
+  assert.equal(page.data.datePickerPhase, 'open')
+  await app.dispatch(page, 'onDatePickerClose')
+  await app.advance(200)
+
+  page.onEndChange(value(''))
+  await app.dispatch(page, 'save')
+  assert.deepEqual(page.data.fieldErrors, { endDate: '请选择结束日期；还没结束可以选「进行中」' })
+  assert.equal(app.platformCalls.pageScrollTo.at(-1).selector, '#field-endDate')
+  assert.deepEqual(writes(app), [])
+
+  await app.dispatch(page, 'selectStatus', dataset({ value: 'ongoing' }))
+  assert.deepEqual(page.data.fieldErrors, {})
+  assert.equal(renderedRegion().hidden, 'true')
+  await app.dispatch(page, 'selectStatus', dataset({ value: 'known-end' }))
+  cloudRoute(app, period, 'add').reply({ code: 0, record: {
+    _id: 'saved', startDate: '2026-09-20', endDate: '2026-09-20', status: 'known-end',
+    note: '', duration: 1, flow: '', symptoms: []
+  } })
+  await app.dispatch(page, 'save')
+  assert.deepEqual(writes(app).map(call => [call.action, call.data.status, call.data.endDate, call.data.duration]), [
+    ['add', 'known-end', '2026-09-20', 1]
+  ])
+})
+
 test('period: status hints change without inventing a backfill end; history drives the length warning', async (t) => {
   const app = setup(t)
   cloudRoute(app, period, 'list').reply({ code: 0, data: [
@@ -1276,14 +1346,24 @@ test('edit pages derive a quiet note counter only from 350 through 500 character
 test('period: fixed actions hide on note focus, restore on blur, and save only once', async (t) => {
   const app = setup(t)
   const { page } = await openEditor(app, period)
+  const actionBar = wxmlOpeningTags(readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8'))
+    .find(tag => tag.classes.includes('record-actions'))
+  assert.ok(actionBar, 'the fixed action bar stays in the expanded public template')
+  assert.equal(actionBar.attrs['wx:if'], undefined, 'focus never unmounts the action bar')
+  const actionClasses = () => renderWxmlClasses(actionBar.attrs.class, {
+    actionsClass: 'record-actions-fixed', actionsHidden: page.data.noteFocused
+  })
+  assert.equal(actionClasses().includes('record-actions-hidden'), false)
   await assertNoteFocusToggle(app, page, period, {
     onFocus: () => {
       const actions = sharedTemplateData(period, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
       assert.equal(actions.actionsHidden, true)
+      assert.ok(actionClasses().includes('record-actions-hidden'))
     },
     onBlur: () => {
       const actions = sharedTemplateData(period, 'sharedRecordActions', 'actionsClass', 'record-actions-fixed', page.data)
       assert.equal(Boolean(actions.actionsHidden), false)
+      assert.equal(actionClasses().includes('record-actions-hidden'), false)
     }
   })
 

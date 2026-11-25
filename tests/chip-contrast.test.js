@@ -3,7 +3,6 @@ const path = require('node:path')
 const test = require('node:test')
 const { readSource } = require('./sourceFiles')
 
-const { contrastRatio, meetsContrast } = require('./contrast')
 
 const PERIOD_EDIT_WXSS = readSource(
   path.join(__dirname, '..', 'pages/period/edit/edit.wxss'),
@@ -108,34 +107,24 @@ function ruleTextFor(wxss, selector) {
   return rule ? Object.entries(rule.decls).map(([prop, value]) => `${prop}: ${value}`).join('; ') : ''
 }
 
-function assertReadableChip(chipClass, label) {
-  const { color, fill } = activeChipPair(PERIOD_EDIT_WXSS, chipClass)
-  const ratio = contrastRatio(color, fill)
-  assert.equal(
-    meetsContrast(color, fill),
-    true,
-    `${label} ${color} on ${fill} is ${ratio.toFixed(2)}:1, need ≥4.5:1`
-  )
-}
-
-test('active flow chip navy type meets 4.5:1 against rose fill', () => {
-  assertReadableChip('flow-chip', 'flow chip')
-})
-
-test('active symptom chip navy type meets 4.5:1 against rose fill', () => {
-  assertReadableChip('symptom-chip', 'symptom chip')
-})
-
-test('active flow and symptom chips share the same rose fill and navy type', () => {
+test('active flow chip uses rose type over the quiet eight-percent treatment', () => {
   const flow = activeChipPair(PERIOD_EDIT_WXSS, 'flow-chip')
-  const symptom = activeChipPair(PERIOD_EDIT_WXSS, 'symptom-chip')
-  assert.equal(flow.fill, '#E8909E')
-  assert.equal(flow.color, '#0A0E27')
-  assert.equal(symptom.fill, '#E8909E')
-  assert.equal(symptom.color, '#0A0E27')
+  assert.equal(flow.color, '#E8909E')
+  assert.equal(declarationFor(PERIOD_EDIT_WXSS, '.flow-chip.active', 'background'), 'rgba(232,144,158,0.08)')
+  assert.equal(declarationFor(PERIOD_EDIT_WXSS, '.flow-chip.active', 'border-color'), 'rgba(232,144,158,0.45)')
 })
 
-test('period edit chips keep min-height 88rpx', () => {
+test('active symptom chip uses rose type, a sixteen-percent fill and a sixty-two-percent outline', () => {
+  const color = cascadedDeclaration(PERIOD_EDIT_WXSS, 'symptom-chip', 'color', selectorIsActiveChip)
+  assert.equal(cssColorToHex(color), '#E8909E')
+  assert.equal(
+    declarationFor(PERIOD_EDIT_WXSS, '.symptom-chip.active', 'background'),
+    'linear-gradient(rgba(232,144,158,0.16), rgba(232,144,158,0.16)), var(--glass-fallback)'
+  )
+  assert.equal(declarationFor(PERIOD_EDIT_WXSS, '.symptom-chip.active', 'border-color'), 'rgba(232,144,158,0.62)')
+})
+
+test('period edit chips keep the 88rpx touch floor', () => {
   assert.equal(
     cascadedDeclaration(PERIOD_EDIT_WXSS, 'flow-chip', 'min-height', selectorTargetsChip),
     '88rpx'
@@ -144,13 +133,6 @@ test('period edit chips keep min-height 88rpx', () => {
     cascadedDeclaration(PERIOD_EDIT_WXSS, 'symptom-chip', 'min-height', selectorTargetsChip),
     '88rpx'
   )
-})
-
-test('white type on active chip fills fails 4.5:1', () => {
-  const flow = activeChipPair(PERIOD_EDIT_WXSS, 'flow-chip')
-  const symptom = activeChipPair(PERIOD_EDIT_WXSS, 'symptom-chip')
-  assert.equal(meetsContrast('#FFFFFF', flow.fill), false)
-  assert.equal(meetsContrast('#FFFFFF', symptom.fill), false)
 })
 
 // issue #225 的列表经量弱态保持不变；#270 后分段选中底与描边由滑块承载，不再与标签共用一层样式。
@@ -172,8 +154,8 @@ test('list flow tag quiet treatment leaves the in-progress duration solid', () =
   assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-duration.ongoing', 'color'), 'var(--text-on-accent)')
   assert.equal(declarationFor(PERIOD_LIST_WXSS, '.item-duration.ongoing', 'background'), 'rgba(232,144,158,0.92)')
   const editChip = activeChipPair(PERIOD_EDIT_WXSS, 'flow-chip')
-  assert.equal(editChip.fill, '#E8909E')
-  assert.equal(editChip.color, '#0A0E27')
+  assert.equal(editChip.color, '#E8909E')
+  assert.equal(declarationFor(PERIOD_EDIT_WXSS, '.flow-chip.active', 'background'), 'rgba(232,144,158,0.08)')
 })
 
 test('list symptom tags stay neutral — no rose fill, no gold', () => {

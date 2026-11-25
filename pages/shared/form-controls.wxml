@@ -24,7 +24,12 @@
     aria-role="{{role}}"
     aria-label="{{ariaLabel}}"
     aria-checked="{{checked}}"
-    aria-disabled="{{saving}}" hover-start-time="20" hover-stay-time="70" hover-class="{{chipClass}}-hover">{{item.label}}</view>
+    aria-disabled="{{saving}}" hover-start-time="20" hover-stay-time="70" hover-class="{{chipClass}}-hover">
+    <text class="choice-chip-label">{{item.label}}</text>
+    <view wx:if="{{degreeDots}}" class="flow-degree" aria-hidden="true">
+      <view wx:for="{{degreeDots}}" wx:key="*this" class="flow-degree-dot"></view>
+    </view>
+  </view>
 </template>
 
 <template name="sharedRecordActions">
