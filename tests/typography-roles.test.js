@@ -39,6 +39,7 @@ const TYPOGRAPHY_EXCEPTIONS = [
   // #258：周期概览大数字旁的次要「天」单位，与 44rpx 主数字共享基线。
   { file: 'pages/period/period.wxss', selector: '.cycle-unit', kind: 'display', value: '24rpx' },
   { file: 'pages/period/period.wxss', selector: '.memory-heart', kind: 'glyph', value: '36rpx' },
+  { file: 'pages/memory/edit/edit.wxss', selector: '.memory-heart', kind: 'glyph', value: '36rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-icon', kind: 'glyph', value: '120rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-title', kind: 'display', value: '48rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.code-input', kind: 'display', value: '40rpx' }
@@ -183,7 +184,7 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/index/index.wxss', '.day-tag', 'assist'],
   ['pages/index/index.wxss', '.predict-mark', 'assist'],
   ['pages/index/index.wxss', '.week-cell', 'assist'],
-  ['pages/index/index.wxss', '.sync-text', 'assist'],
+  ['pages/shared/nav-bar.wxss', '.sync-text', 'assist'],
   ['pages/index/index.wxss', '.home-status-text', 'control'],
   ['pages/index/index.wxss', '.home-status-countdown', 'assist'],
   ['pages/index/index.wxss', '.month-summary-text', 'assist'],
@@ -239,6 +240,8 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/period/period.wxss', '.item-note', 'assist'],
   ['pages/period/period.wxss', '.item-tag', 'assist'],
   ['pages/period/period.wxss', '.item-duration', 'assist'],
+  ['pages/period/period.wxss', '.memory-note', 'body'],
+  ['pages/period/period.wxss', '.memory-date', 'assist'],
   ['pages/period/period.wxss', '.record-empty', 'body'],
   ['pages/period/edit/edit.wxss', '.form-label', 'assist'],
   ['pages/period/edit/edit.wxss', '.form-hint', 'assist'],
@@ -249,6 +252,8 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/period/edit/edit.wxss', '.symptom-chip', 'control'],
   ['pages/memory/edit/edit.wxss', '.form-label', 'assist'],
   ['pages/memory/edit/edit.wxss', '.form-picker', 'body'],
+  ['pages/memory/edit/edit.wxss', '.memory-date-value', 'body'],
+  ['pages/memory/edit/edit.wxss', '.memory-date-action', 'assist'],
   ['pages/memory/edit/edit.wxss', '.form-input', 'body']
 ]
 
@@ -301,7 +306,8 @@ const BODY_LINE_HEIGHT = [
   ['pages/index/index.wxss', '.recap-main'],
   ['pages/index/index.wxss', '.recap-highlight'],
   ['pages/index/index.wxss', '.detail-main'],
-  ['pages/period/period.wxss', '.record-empty']
+  ['pages/period/period.wxss', '.record-empty'],
+  ['pages/period/period.wxss', '.memory-note']
 ]
 
 function ruleMap(relative) {
@@ -534,7 +540,7 @@ test('flowing body copy uses the body line-height role', () => {
 // 标题与单行标签（含会折成两行的短标签）共用标题行高，不再写 1.25 这类近似值（issue #164）。
 const TITLE_LINE_HEIGHT = [
   ['pages/index/index.wxss', '.month-title'],
-  ['pages/index/index.wxss', '.sync-text'],
+  ['pages/shared/nav-bar.wxss', '.sync-text'],
   ['pages/index/index.wxss', '.sheet-action-title'],
   ['pages/index/index.wxss', '.legend-title'],
   ['pages/bind/bind.wxss', '.hero-title']

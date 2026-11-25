@@ -690,7 +690,8 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['app.wxss', '.premium-card'],
     ['app.wxss', '.header-gradient'],
     ['pages/shared/nav-bar.wxss', '.header-gradient'],
-    ['pages/index/index.wxss', '.sync-pill'],
+    ['app.wxss', '.sync-pill'],
+    ['pages/shared/nav-bar.wxss', '.sync-pill'],
     ['pages/index/index.wxss', '.month-nav'],
     ['pages/index/index.wxss', '.nav-btn:active'],
     ['pages/index/index.wxss', '.week-header'],
@@ -746,7 +747,8 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
 const SOLID_ROSE_FILL_ALLOWLIST = new Set(
   [
     // 状态点/日历标记/卡片 rail：装饰性玫瑰实色小块，非可操作填充
-    ['pages/index/index.wxss', '.sync-pill.syncing .sync-dot'],
+    ['app.wxss', '.sync-pill.syncing .sync-dot'],
+    ['pages/shared/nav-bar.wxss', '.sync-pill.syncing .sync-dot'],
     ['pages/index/index.wxss', '.detail-rail']
   ].map(([file, selector]) => `${file}::${selector}`)
 )
@@ -1034,7 +1036,7 @@ test('glow stays on primary buttons and the copy control', () => {
 
   const monthNav = declsFor('pages/index/index.wxss', '.month-nav')['box-shadow'] || ''
   assert.doesNotMatch(monthNav, /232,\s*144,\s*158/)
-  assert.equal(declsFor('pages/index/index.wxss', '.sync-dot')['box-shadow'], undefined)
+  assert.equal(declsFor('pages/shared/nav-bar.wxss', '.sync-dot')['box-shadow'], undefined)
 
   const heart = declsFor('pages/bind/bind.wxss', '.hero-icon')['text-shadow']
   assert.equal(heart, '0 0 18rpx rgba(240,196,192,0.32)')
