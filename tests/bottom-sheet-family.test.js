@@ -129,26 +129,62 @@ test('settings help adopts home sheet geometry while month and day keep their vi
   assert.match(shared.background, /rgba\(18,22,61,0\.94\)/)
 })
 
-test('date picker uses navy masks, a rose indicator and a semi-transparent native disabled confirm', () => {
+test('date picker disables native masks, aligns pixel geometry and keeps the disabled confirm contract', () => {
   const shared = fs.readFileSync(path.join(repoRoot, 'pages/shared/confirmation-sheet.wxml'), 'utf8')
   const nodes = wxmlOpeningTags(shared)
+  const frame = nodes.find(tag => tag.classes.includes('date-picker-columns'))
   const picker = nodes.find(tag => tag.tag === 'picker-view')
+  assert.ok(frame)
   assert.ok(picker)
-  assert.equal(
-    picker.attrs['mask-style'],
-    'background: linear-gradient(to bottom, rgba(28,32,71,0.92) 0%, rgba(28,32,71,0) 40%, rgba(28,32,71,0) 60%, rgba(28,32,71,0.92) 100%); border: 0;'
-  )
+  assert.equal(frame.attrs.style, 'height: {{datePickerHeight}}px; --date-picker-mask-height: {{datePickerMaskHeight}}px;')
+  assert.equal(picker.attrs.style, 'height: {{datePickerHeight}}px;')
+  assert.equal(picker.attrs['mask-style'], 'background-image: none; border: 0;')
 
   const indicator = Object.fromEntries(picker.attrs['indicator-style'].split(';').map(part => part.trim()).filter(Boolean).map(part => {
     const separator = part.indexOf(':')
     return [part.slice(0, separator).trim(), part.slice(separator + 1).trim()]
   }))
-  assert.equal(indicator.height, '88rpx')
+  assert.equal(indicator.height, '{{datePickerRowHeight}}px')
+  assert.equal(indicator.top, '{{datePickerIndicatorTop}}px')
   assert.equal(indicator['box-sizing'], 'border-box')
   assert.equal(indicator['background-color'], 'rgba(232,144,158,0.10)')
   assert.equal(indicator.border, '0', 'the default bright column separators are cleared')
   assert.equal(indicator['border-top'], '1px solid rgba(232,144,158,0.32)')
   assert.equal(indicator['border-bottom'], '1px solid rgba(232,144,158,0.32)')
+
+  const options = nodes.filter(tag => tag.classes.includes('date-picker-option'))
+  assert.equal(options.length, 3)
+  for (const option of options) {
+    assert.equal(option.attrs.style, 'height: {{datePickerRowHeight}}px; line-height: {{datePickerRowHeight}}px;')
+  }
+
+  const columns = declarations('pages/shared/confirmation-sheet.wxss', '.date-picker-columns')
+  assert.equal(columns.position, 'relative')
+  assert.equal(columns.padding, '0 24rpx')
+  assert.equal(columns['box-sizing'], 'border-box')
+  assert.equal(columns.height, undefined, 'runtime pixels replace the fixed rpx container height')
+  assert.equal(declarations('pages/shared/confirmation-sheet.wxss', '.date-picker-view').height, undefined)
+  const option = declarations('pages/shared/confirmation-sheet.wxss', '.date-picker-option')
+  assert.equal(option.height, undefined)
+  assert.equal(option['line-height'], undefined)
+
+  for (const [selector, edge, direction] of [
+    ['.date-picker-columns::before', 'top', 'bottom'],
+    ['.date-picker-columns::after', 'bottom', 'top']
+  ]) {
+    const mask = declarations('pages/shared/confirmation-sheet.wxss', selector)
+    assert.equal(mask.content, "''")
+    assert.equal(mask.position, 'absolute')
+    assert.equal(mask[edge], '0')
+    assert.equal(mask.left, '0')
+    assert.equal(mask.right, '0')
+    assert.equal(mask.height, 'var(--date-picker-mask-height)')
+    assert.equal(mask['background-image'], `linear-gradient(to ${direction}, var(--glass-fallback) 0%, rgba(18,22,61,0) 100%)`)
+    assert.equal(mask['background-repeat'], 'no-repeat')
+    assert.equal(mask['pointer-events'], 'none')
+  }
+  assert.doesNotMatch(shared, /rgba\(28,32,71/)
+  assert.doesNotMatch(fs.readFileSync(path.join(repoRoot, 'pages/shared/confirmation-sheet.wxss'), 'utf8'), /rgba\(28,32,71/)
 
   const confirm = nodes.find(tag => tag.attrs.bindtap === 'onDatePickerConfirm')
   assert.ok(confirm)
@@ -177,6 +213,7 @@ test('shared bottom sheet calls keep template data flat for the WXML compiler', 
     'infoSheetMode', 'predictionExplanation', 'monthlyRecap', 'legendItems', 'helpTopics',
     'confirmationDateText', 'confirmationContent', 'confirmationActions',
     'datePickerName', 'datePickerYears', 'datePickerMonths', 'datePickerDays', 'datePickerValue', 'datePickerPicking',
+    'datePickerRowHeight', 'datePickerHeight', 'datePickerMaskHeight', 'datePickerIndicatorTop',
     'datePickerYearAria', 'datePickerMonthAria', 'datePickerDayAria', 'datePickerConfirmAria'
   ]
   for (const field of forwarded) assert.ok(shared.includes(`${field}: ${field}`), `${field} is forwarded to the selected body template`)

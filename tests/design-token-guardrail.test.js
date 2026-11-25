@@ -687,13 +687,24 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/shared/record-form.wxss', '.record-actions-fixed'],
     ['pages/period/edit/edit.wxss', '.record-actions-fixed'],
     ['pages/memory/edit/edit.wxss', '.record-actions-fixed'],
-    // #243：自有日期面板的滚轮槽沿用表单平涂；共享规则及全部展开调用页登记同一来源。
+    // #243：自有日期面板的滚轮槽沿用表单平涂；#264 的上下伪元素只用标准海军渐隐。
     ['pages/shared/confirmation-sheet.wxss', '.date-picker-columns'],
     ['pages/index/index.wxss', '.date-picker-columns'],
     ['pages/bind/bind.wxss', '.date-picker-columns'],
     ['pages/settings/settings.wxss', '.date-picker-columns'],
     ['pages/period/edit/edit.wxss', '.date-picker-columns'],
-    ['pages/memory/edit/edit.wxss', '.date-picker-columns']
+    ['pages/memory/edit/edit.wxss', '.date-picker-columns'],
+    ...[
+      'pages/shared/confirmation-sheet.wxss',
+      'pages/index/index.wxss',
+      'pages/bind/bind.wxss',
+      'pages/settings/settings.wxss',
+      'pages/period/edit/edit.wxss',
+      'pages/memory/edit/edit.wxss'
+    ].flatMap(file => [
+      [file, '.date-picker-columns::before'],
+      [file, '.date-picker-columns::after']
+    ])
   ].map(([file, selector]) => `${file}::${selector}`)
 )
 

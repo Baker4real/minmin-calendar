@@ -16,7 +16,7 @@
           </view>
         </view>
         <view class="sheet-body">
-          <template is="{{bodyTemplate}}" data="{{year: year, month: month, jumpYear: jumpYear, jumpMonth: jumpMonth, jumpYearAtMin: jumpYearAtMin, jumpYearAtMax: jumpYearAtMax, jumpMonths: jumpMonths, selectedDayDetail: selectedDayDetail, daySheetMode: daySheetMode, dayDetailFade: dayDetailFade, periodBandSample: periodBandSample, calendarDensity: calendarDensity, infoSheetMode: infoSheetMode, predictionExplanation: predictionExplanation, monthlyRecap: monthlyRecap, legendItems: legendItems, helpTopics: helpTopics, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions, datePickerName: datePickerName, datePickerYears: datePickerYears, datePickerMonths: datePickerMonths, datePickerDays: datePickerDays, datePickerValue: datePickerValue, datePickerPicking: datePickerPicking, datePickerYearAria: datePickerYearAria, datePickerMonthAria: datePickerMonthAria, datePickerDayAria: datePickerDayAria, datePickerConfirmAria: datePickerConfirmAria}}" />
+          <template is="{{bodyTemplate}}" data="{{year: year, month: month, jumpYear: jumpYear, jumpMonth: jumpMonth, jumpYearAtMin: jumpYearAtMin, jumpYearAtMax: jumpYearAtMax, jumpMonths: jumpMonths, selectedDayDetail: selectedDayDetail, daySheetMode: daySheetMode, dayDetailFade: dayDetailFade, periodBandSample: periodBandSample, calendarDensity: calendarDensity, infoSheetMode: infoSheetMode, predictionExplanation: predictionExplanation, monthlyRecap: monthlyRecap, legendItems: legendItems, helpTopics: helpTopics, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions, datePickerName: datePickerName, datePickerYears: datePickerYears, datePickerMonths: datePickerMonths, datePickerDays: datePickerDays, datePickerValue: datePickerValue, datePickerPicking: datePickerPicking, datePickerRowHeight: datePickerRowHeight, datePickerHeight: datePickerHeight, datePickerMaskHeight: datePickerMaskHeight, datePickerIndicatorTop: datePickerIndicatorTop, datePickerYearAria: datePickerYearAria, datePickerMonthAria: datePickerMonthAria, datePickerDayAria: datePickerDayAria, datePickerConfirmAria: datePickerConfirmAria}}" />
         </view>
       </view>
     </view>
@@ -234,16 +234,16 @@
 </template>
 
 <template name="datePickerSheetBody">
-  <view class="date-picker-columns">
-    <picker-view class="date-picker-view" value="{{datePickerValue}}" bindchange="onDatePickerChange" bindpickstart="onDatePickerPickStart" bindpickend="onDatePickerPickEnd" immediate-change="{{true}}" mask-style="background: linear-gradient(to bottom, rgba(28,32,71,0.92) 0%, rgba(28,32,71,0) 40%, rgba(28,32,71,0) 60%, rgba(28,32,71,0.92) 100%); border: 0;" indicator-style="height: 88rpx; box-sizing: border-box; background-color: rgba(232,144,158,0.10); border: 0; border-top: 1px solid rgba(232,144,158,0.32); border-bottom: 1px solid rgba(232,144,158,0.32);" aria-role="listbox" aria-label="{{datePickerName}}">
+  <view class="date-picker-columns" style="height: {{datePickerHeight}}px; --date-picker-mask-height: {{datePickerMaskHeight}}px;">
+    <picker-view class="date-picker-view" style="height: {{datePickerHeight}}px;" value="{{datePickerValue}}" bindchange="onDatePickerChange" bindpickstart="onDatePickerPickStart" bindpickend="onDatePickerPickEnd" immediate-change="{{true}}" mask-style="background-image: none; border: 0;" indicator-style="height: {{datePickerRowHeight}}px; top: {{datePickerIndicatorTop}}px; box-sizing: border-box; background-color: rgba(232,144,158,0.10); border: 0; border-top: 1px solid rgba(232,144,158,0.32); border-bottom: 1px solid rgba(232,144,158,0.32);" aria-role="listbox" aria-label="{{datePickerName}}">
       <picker-view-column class="date-picker-column" aria-label="{{datePickerYearAria}}">
-        <view wx:for="{{datePickerYears}}" wx:key="value" class="date-picker-option">{{item.label}}</view>
+        <view wx:for="{{datePickerYears}}" wx:key="value" class="date-picker-option" style="height: {{datePickerRowHeight}}px; line-height: {{datePickerRowHeight}}px;">{{item.label}}</view>
       </picker-view-column>
       <picker-view-column class="date-picker-column" aria-label="{{datePickerMonthAria}}">
-        <view wx:for="{{datePickerMonths}}" wx:key="value" class="date-picker-option">{{item.label}}</view>
+        <view wx:for="{{datePickerMonths}}" wx:key="value" class="date-picker-option" style="height: {{datePickerRowHeight}}px; line-height: {{datePickerRowHeight}}px;">{{item.label}}</view>
       </picker-view-column>
       <picker-view-column class="date-picker-column" aria-label="{{datePickerDayAria}}">
-        <view wx:for="{{datePickerDays}}" wx:key="value" class="date-picker-option">{{item.label}}</view>
+        <view wx:for="{{datePickerDays}}" wx:key="value" class="date-picker-option" style="height: {{datePickerRowHeight}}px; line-height: {{datePickerRowHeight}}px;">{{item.label}}</view>
       </picker-view-column>
     </picker-view>
   </view>

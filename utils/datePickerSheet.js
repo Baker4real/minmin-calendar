@@ -73,6 +73,35 @@ function buildRangeState(parts, min, max) {
   }
 }
 
+function readDatePickerWindowWidth() {
+  try {
+    if (typeof wx === 'undefined') return null
+    if (typeof wx.getWindowInfo === 'function') {
+      const info = wx.getWindowInfo()
+      if (info && Number.isFinite(info.windowWidth) && info.windowWidth > 0) return info.windowWidth
+    }
+    if (typeof wx.getSystemInfoSync === 'function') {
+      const legacy = wx.getSystemInfoSync()
+      if (legacy && Number.isFinite(legacy.windowWidth) && legacy.windowWidth > 0) return legacy.windowWidth
+    }
+  } catch (e) {
+    // 查询失败使用 44px 单行兜底。
+  }
+  return null
+}
+
+function datePickerGeometry(windowWidth) {
+  const rowHeight = Number.isFinite(windowWidth) && windowWidth > 0
+    ? Math.round(windowWidth * 88 / 750)
+    : 44
+  return {
+    datePickerRowHeight: rowHeight,
+    datePickerHeight: rowHeight * 5,
+    datePickerMaskHeight: rowHeight * 2,
+    datePickerIndicatorTop: rowHeight * 2
+  }
+}
+
 function buildDatePickerContent({ label, value, minDate, maxDate }) {
   const max = parseDate(maxDate) || parseDate(util.formatDate(new Date()))
   let min = parseDate(minDate) || parseDate(DEFAULT_MIN_DATE)
@@ -82,6 +111,7 @@ function buildDatePickerContent({ label, value, minDate, maxDate }) {
     datePickerName: label,
     datePickerTitle: label,
     datePickerSubtitle: '选择年、月、日',
+    ...datePickerGeometry(readDatePickerWindowWidth()),
     ...buildRangeState(initial, min, max),
     datePickerPicking: false,
     _datePickerMin: min,
@@ -105,6 +135,7 @@ function emptyDatePickerContent() {
     datePickerMonths: [],
     datePickerDays: [],
     datePickerValue: [0, 0, 0],
+    ...datePickerGeometry(),
     datePickerYearAria: '',
     datePickerMonthAria: '',
     datePickerDayAria: '',

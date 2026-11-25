@@ -14,6 +14,8 @@
     "deps:report": "node tests/tools/dependencyTools.cjs report",
     "test:clock": "node tests/tools/clockRegression.cjs",
     "holidays:generate": "node tests/tools/generateHolidays.cjs",
+    "assets:generate": "node tests/tools/generateBrandAssets.cjs",
+    "assets:check": "node tests/tools/generateBrandAssets.cjs --check",
     "release:prepare": "node tests/tools/prepareRelease.cjs",
     "browser:install": "node tests/tools/installBrowser.cjs",
     "test:hit": "node tests/tools/navHitTest.cjs",
