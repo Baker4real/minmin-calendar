@@ -385,7 +385,9 @@ button.share-invite::after {
    全是 transition，中途反向从当前帧接着走。不拦点按、不改显隐：内容里的操作从第一帧起就能点。
    首页、设置「使用说明」与确认面板都挂在共享 .sheet-slide 上 */
 .sheet-body {
-  flex: 1;
+  flex: 0 0 auto;
+  /* 短面板保持内容高；长面板由原生视口上限产生真实滚动，而不是被 flex grow 拉成不可滚动的内容高。 */
+  max-height: calc(82vh - 176rpx - 2px - var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
   min-height: 0;
   overflow-y: auto;
   scrollbar-width: none;
@@ -393,6 +395,12 @@ button.share-invite::after {
   opacity: 0;
   transform: translateY(16rpx);
   transition: opacity var(--duration-exit) var(--ease-out), transform var(--duration-exit) var(--ease-out);
+}
+.calendar-jump-sheet .sheet-body {
+  max-height: calc(86vh - 178rpx - 2px - var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+}
+.calendar-info-panel .sheet-body {
+  max-height: calc(84vh - 176rpx - 2px - var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
 }
 .sheet-body::-webkit-scrollbar {
   width: 0;

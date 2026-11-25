@@ -1037,7 +1037,8 @@ test('the settings help sheet scrolls within the bottom-sheet height band so its
   assert.equal(sheet.overflow, 'hidden', 'the shared outer frame crops content at its rounded corners')
   const body = findDecls(parseWxssRules(readRepo('app.wxss')), '.sheet-body')
   assert.equal(body['overflow-y'], 'auto', 'the shared inner body scrolls while the close stays in the fixed title row')
-  assert.equal(body.flex, '1')
+  assert.equal(body.flex, '0 0 auto', 'native scroll-view keeps content height until the shared max-height band')
+  assert.match(body['max-height'] || '', /^calc\(82vh - /, 'long help content is bounded below the fixed close row')
   for (const host of ['.sheet-host', '.sheet-slide']) {
     assert.doesNotMatch(findDecls(rules, host).overflow || '', /hidden/, `${host} must not clip the sheet`)
   }

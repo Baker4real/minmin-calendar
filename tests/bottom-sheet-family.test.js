@@ -113,6 +113,15 @@ test('shared sheet masks catch touch move and page-meta locks scrolling only whi
 })
 
 test('shared sheets keep chrome fixed above a cropped independently scrolling body with concentric close geometry', () => {
+  const nativeWxml = fs.readFileSync(path.join(repoRoot, 'pages/shared/confirmation-sheet.wxml'), 'utf8')
+  const nativeBody = wxmlOpeningTags(nativeWxml).find(tag => tag.classes.includes('sheet-body'))
+  assert.ok(nativeBody)
+  assert.equal(nativeBody.tag, 'scroll-view')
+  assert.equal(nativeBody.attrs['scroll-y'], '{{true}}')
+  assert.equal(nativeBody.attrs.enhanced, '{{true}}')
+  assert.equal(nativeBody.attrs['show-scrollbar'], '{{false}}')
+  assert.equal(nativeBody.attrs['scroll-top'], undefined, 'scrolling remains native and uncontrolled')
+
   const panel = declarations('pages/shared/confirmation-sheet.wxss', '.day-action-sheet')
   assert.equal(panel.display, 'flex')
   assert.equal(panel['flex-direction'], 'column')
@@ -122,7 +131,11 @@ test('shared sheets keep chrome fixed above a cropped independently scrolling bo
   assert.equal(declarations('pages/shared/confirmation-sheet.wxss', '.sheet-drag-zone').flex, '0 0 auto')
 
   const body = declarations('app.wxss', '.sheet-body')
-  assert.equal(body.flex, '1')
+  assert.equal(body.flex, '0 0 auto')
+  assert.equal(body.height, undefined, 'short sheets remain content-sized')
+  assert.equal(body['max-height'], 'calc(82vh - 176rpx - 2px - var(--safe-bottom, env(safe-area-inset-bottom, 0px)))')
+  assert.equal(declarations('app.wxss', '.calendar-jump-sheet .sheet-body')['max-height'], 'calc(86vh - 178rpx - 2px - var(--safe-bottom, env(safe-area-inset-bottom, 0px)))')
+  assert.equal(declarations('app.wxss', '.calendar-info-panel .sheet-body')['max-height'], 'calc(84vh - 176rpx - 2px - var(--safe-bottom, env(safe-area-inset-bottom, 0px)))')
   assert.equal(body['min-height'], '0')
   assert.equal(body['overflow-y'], 'auto')
   assert.equal(body['scrollbar-width'], 'none')
