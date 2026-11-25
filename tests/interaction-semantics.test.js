@@ -316,7 +316,7 @@ test('day detail record rows show edit arrows while meaning blocks stay borderle
     assert.equal(arrow.parent.attrs.bindtap, 'onDayRecordTap')
     assert.equal(arrow.attrs['aria-hidden'], 'true')
   }
-  assert.equal((readPage(file).match(/<text class="detail-arrow" aria-hidden="true">›<\/text>/g) || []).length, 2)
+  assert.equal((readPage(file).match(/<view class="ui-icon ui-icon-right ui-icon-24 detail-arrow" aria-hidden="true"><\/view>/g) || []).length, 2)
   assertPressScaleInBand('pages/index/index.wxss', '.day-detail-row')
 
   const detailArrow = declsOf('pages/index/index.wxss', '.detail-arrow')

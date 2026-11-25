@@ -1,3 +1,4 @@
+const util = require('../../utils/util')
 const roomSession = require('../../utils/room')
 const { buildRoomShareCard } = require('../../utils/roomShare')
 const settingsFlow = require('../../utils/settingsFlow')
@@ -32,7 +33,7 @@ async function restoredRoomNotice() {
     if (!periods || periods.kind !== 'success' || !memories || memories.kind !== 'success') return ''
     const count = (periods.data || []).length + (memories.data || []).length
     if (count <= 0) return ''
-    return `已恢复原来的房间和 ${count} 条记录`
+    return `已恢复原来的房间和 ${util.formatQuantity(count, '条')}记录`
   } catch (error) {
     return ''
   }

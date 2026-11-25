@@ -133,7 +133,7 @@ function createRoomSession(options = {}) {
     async joinRoom(rawRoomCode) {
       const roomCode = normalizeRoomCode(rawRoomCode)
       if (roomCode.length !== 6) {
-        return roomEntryFailure({ msg: '请输入6位房间码' }, logger)
+        return roomEntryFailure({ msg: '请输入 6 位房间码' }, logger)
       }
 
       try {

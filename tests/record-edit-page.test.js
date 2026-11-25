@@ -147,10 +147,10 @@ for (const scenario of statusCases) {
     await app.dispatch(page, 'selectStatus', dataset({ value: scenario.target }))
     if (scenario.target === 'known-end') {
       assert.equal(page.data.endDate, scenario.defaultEnd)
-      assert.equal(page.data.periodDayCountText, scenario.defaultEnd ? '共 11 天' : '')
-      assert.equal(page.data.periodLengthHint, scenario.defaultEnd ? '比你通常的 5 天长，确认一下结束日？' : '')
+      assert.equal(page.data.periodDayCountText, scenario.defaultEnd ? '共 11 天' : '')
+      assert.equal(page.data.periodLengthHint, scenario.defaultEnd ? '比你通常的 5 天长，确认一下结束日？' : '')
       await changeEditorDate(app, page, 'onEndChange', scenario.end)
-      assert.equal(page.data.periodDayCountText, `共 ${scenario.duration} 天`)
+      assert.equal(page.data.periodDayCountText, `共 ${scenario.duration} 天`)
       assert.equal(page.data.periodLengthHint, '')
     }
     const payload = { ...period.payload, startDate: '2026-09-10', endDate: scenario.end, status: scenario.target, duration: scenario.duration }
@@ -198,8 +198,8 @@ test('period: legacy draft restores its known dates, labels, flow and selected s
   const app = setup(t, { storage: { 'recordDraft:periods:legacy': JSON.stringify({ startDate: '2026-09-02', endDate: '2026-09-04', note: '旧草稿', flow: 'light', symptoms: ['cramps'] }) } })
   const { page } = await openEditor(app, period, { id: 'legacy', startDate: '2026-09-01', endDate: '2026-09-03' })
   assert.deepEqual(form(page, period), { startDate: '2026-09-02', endDate: '2026-09-04', status: 'known-end', note: '旧草稿', flow: 'light', symptoms: ['cramps'] })
-  assert.equal(page.data.startDateLabel, '9月2日')
-  assert.equal(page.data.endDateLabel, '9月4日')
+  assert.equal(page.data.startDateLabel, '9月2⁠日')
+  assert.equal(page.data.endDateLabel, '9月4⁠日')
   assert.equal(page.data.draftRestored, true)
   assert.deepEqual(Object.keys(page.data.selectedSymptoms || {}).filter(key => page.data.selectedSymptoms[key]), ['cramps'])
 })
@@ -216,30 +216,30 @@ test('R2 date panel: period start opens three bounded columns and confirms the d
   assert.equal(page.data.datePickerYears[0].label, '1900年')
   assert.equal(page.data.datePickerYears.at(-1).label, '2026年')
   assert.equal(page.data.datePickerMonths.at(-1).label, '12月')
-  assert.equal(page.data.datePickerDays.at(-1).label, '31日')
+  assert.equal(page.data.datePickerDays.at(-1).label, '31⁠日')
   assert.deepEqual(page.data.datePickerValue, [125, 11, 29])
 
   const expanded = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
   const columns = wxmlOpeningTags(expanded).filter(tag => tag.tag === 'picker-view-column')
   assert.equal(columns.length, 3)
   assert.deepEqual(columns.map(column => renderWxmlAttribute(column.attrs['aria-label'], page.data)), [
-    '年份，2025年', '月份，12月', '日，30日'
+    '年份，2025年', '月份，12月', '日，30⁠日'
   ])
   const confirm = wxmlOpeningTags(expanded).find(tag => tag.attrs.bindtap === 'onDatePickerConfirm')
   assert.ok(confirm)
-  assert.equal(renderWxmlAttribute(confirm.attrs['aria-label'], page.data), '确定，2025年12月30日')
+  assert.equal(renderWxmlAttribute(confirm.attrs['aria-label'], page.data), '确定，2025年12月30⁠日')
 
   await app.dispatch(page, 'onDatePickerChange', { detail: { value: [126, 11, 29] } })
   assert.equal(page.data.datePickerDraft, '2026-09-20', 'today is the inclusive upper bound')
   assert.equal(page.data.datePickerMonths.at(-1).label, '9月')
-  assert.equal(page.data.datePickerDays.at(-1).label, '20日')
+  assert.equal(page.data.datePickerDays.at(-1).label, '20⁠日')
 
   await app.dispatch(page, 'onDatePickerChange', { detail: { value: [125, 0, 0] } })
   assert.equal(page.data.datePickerDraft, '2025-01-01')
   assert.deepEqual(columns.map(column => renderWxmlAttribute(column.attrs['aria-label'], page.data)), [
-    '年份，2025年', '月份，1月', '日，1日'
+    '年份，2025年', '月份，1月', '日，1⁠日'
   ])
-  assert.equal(renderWxmlAttribute(confirm.attrs['aria-label'], page.data), '确定，2025年1月1日')
+  assert.equal(renderWxmlAttribute(confirm.attrs['aria-label'], page.data), '确定，2025年1月1⁠日')
   await app.dispatch(page, 'onDatePickerConfirm')
   await app.settle()
   assert.equal(page.data.startDate, '2025-01-01')
@@ -597,11 +597,11 @@ test('R2 date panel: period end and memory date reuse one shared panel with exis
     assert.equal(page.data.datePickerYears[0].label, '2025年')
     assert.equal(page.data.datePickerYears.at(-1).label, '2026年')
     assert.equal(page.data.datePickerMonths[0].label, '12月')
-    assert.equal(page.data.datePickerDays[0].label, '30日')
+    assert.equal(page.data.datePickerDays[0].label, '30⁠日')
     assert.equal(page.data.datePickerYearAria, '年份，2025年')
     assert.equal(page.data.datePickerMonthAria, '月份，12月')
-    assert.equal(page.data.datePickerDayAria, '日，30日')
-    assert.equal(page.data.datePickerConfirmAria, '确定，2025年12月30日')
+    assert.equal(page.data.datePickerDayAria, '日，30⁠日')
+    assert.equal(page.data.datePickerConfirmAria, '确定，2025年12月30⁠日')
 
     await app.dispatch(page, 'onDatePickerChange', { detail: { value: [0, 0, 1] } })
     await app.dispatch(page, 'onDatePickerConfirm')
@@ -623,7 +623,7 @@ test('R2 date panel: period end and memory date reuse one shared panel with exis
     assert.equal(page.data.datePickerYears[0].label, '1900年')
     assert.equal(page.data.datePickerYears.at(-1).label, '2026年')
     assert.equal(page.data.datePickerDraft, '2025-12-31')
-    assert.equal(page.data.datePickerConfirmAria, '确定，2025年12月31日')
+    assert.equal(page.data.datePickerConfirmAria, '确定，2025年12月31⁠日')
     await app.dispatch(page, 'onDatePickerChange', { detail: { value: [125, 0, 0] } })
     await app.dispatch(page, 'onDatePickerConfirm')
     await app.settle()
@@ -684,15 +684,15 @@ test('date fields read the same current and cross-year display dates, then appen
   await t.test('period start and selected end dates', async (t) => {
     const app = setup(t)
     const { page } = await openEditor(app, period, { id: 'p-date', startDate: '2025-12-30', endDate: '2026-01-02' })
-    assert.equal(page.data.startDateLabel, '2025年12月30日')
-    assert.equal(page.data.endDateLabel, '1月2日')
+    assert.equal(page.data.startDateLabel, '2025年12月30⁠日')
+    assert.equal(page.data.endDateLabel, '1月2⁠日')
     assert.equal(datePickerName(period, 'openStartDatePicker', page.data), `开始日期，${page.data.startDateLabel}，点按修改`)
     assert.equal(datePickerName(period, 'openEndDatePicker', page.data), `结束日期，${page.data.endDateLabel}，点按修改`)
 
     page.onStartChange(value('2026-09-25'))
     await app.dispatch(page, 'save')
     assert.deepEqual(page.data.fieldErrors, { startDate: '开始日期不能晚于今天', endDate: '结束日期不能晚于今天' })
-    assert.equal(page.data.startDateLabel, '9月25日')
+    assert.equal(page.data.startDateLabel, '9月25⁠日')
     assert.equal(datePickerName(period, 'openStartDatePicker', page.data), `开始日期，${page.data.startDateLabel}，点按修改，${page.data.fieldErrors.startDate}`)
     assert.equal(datePickerName(period, 'openEndDatePicker', page.data), `结束日期，${page.data.endDateLabel}，点按修改，${page.data.fieldErrors.endDate}`)
   })
@@ -709,11 +709,11 @@ test('date fields read the same current and cross-year display dates, then appen
   await t.test('memory date', async (t) => {
     const app = setup(t)
     const { page } = await openEditor(app, records[1], { date: '2025-12-31' })
-    assert.equal(page.data.dateLabel, '2025年12月31日')
+    assert.equal(page.data.dateLabel, '2025年12月31⁠日')
     assert.equal(datePickerName(records[1], 'openMemoryDatePicker', page.data), `日期，${page.data.dateLabel}，点按修改`)
     page.onDateChange(value('2026-09-21'))
     await app.dispatch(page, 'save')
-    assert.equal(page.data.dateLabel, '9月21日')
+    assert.equal(page.data.dateLabel, '9月21⁠日')
     assert.equal(datePickerName(records[1], 'openMemoryDatePicker', page.data), `日期，${page.data.dateLabel}，点按修改，${page.data.fieldErrors.date}`)
   })
 })
@@ -768,8 +768,8 @@ test('period: status hints change without inventing a backfill end; history driv
   await app.dispatch(page, 'save')
   assert.deepEqual(page.data.fieldErrors, { endDate: '请选择结束日期；还没结束可以选「进行中」' })
   await changeEditorDate(app, page, 'onEndChange', '2026-09-14')
-  assert.equal(page.data.periodDayCountText, '共 4 天')
-  assert.equal(page.data.periodLengthHint, '比你通常的 3 天长，确认一下结束日？')
+  assert.equal(page.data.periodDayCountText, '共 4 天')
+  assert.equal(page.data.periodLengthHint, '比你通常的 3 天长，确认一下结束日？')
   for (const [status, hint] of [['unknown-end', '结束日不清楚，日历只标开始那天'], ['ongoing', '进行中可稍后补结束日期']]) {
     await app.dispatch(page, 'selectStatus', dataset({ value: status }))
     assert.equal(page.data.statusHint, hint)
@@ -816,7 +816,7 @@ test('period: new start date shows its owning period inline only while covered',
   const existing = { _id: 'covered', startDate: '2026-09-01', endDate: '2026-09-05', status: 'known-end' }
   cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
   const { page } = await openEditor(app, period, { startDate: '2026-09-03' })
-  assert.equal(page.data.startDateOwnerText, '这一天已在 9月1日 开始的那次经期里')
+  assert.equal(page.data.startDateOwnerText, '这一天已在 9月1⁠日 开始的那次经期里')
 
   const template = readSource(path.join(__dirname, '../pages/period/edit/edit.wxml'), 'utf8')
   const startField = template.slice(template.indexOf('id="field-startDate"'), template.indexOf('id="field-endDate"'))
@@ -825,7 +825,7 @@ test('period: new start date shows its owning period inline only while covered',
   await changeEditorDate(app, page, 'onStartChange', '2026-09-06')
   assert.equal(page.data.startDateOwnerText, '')
   await changeEditorDate(app, page, 'onStartChange', '2026-09-04')
-  assert.equal(page.data.startDateOwnerText, '这一天已在 9月1日 开始的那次经期里')
+  assert.equal(page.data.startDateOwnerText, '这一天已在 9月1⁠日 开始的那次经期里')
 
   app.wx.navigateTo({ url: editUrl(period, { id: existing._id, ...existing }) })
   await app.settle()
@@ -838,7 +838,7 @@ test('period: inline owner uses the existing cross-year display date', async (t)
   const existing = { _id: 'cross-year', startDate: '2025-12-28', endDate: '2026-01-03', status: 'known-end' }
   cloudRoute(app, period, 'list').reply({ code: 0, data: [existing] })
   const { page } = await openEditor(app, period, { startDate: '2026-01-02' })
-  assert.equal(page.data.startDateOwnerText, '这一天已在 2025年12月28日 开始的那次经期里')
+  assert.equal(page.data.startDateOwnerText, '这一天已在 2025年12月28⁠日 开始的那次经期里')
 })
 
 test('period: opening the inline owner matches editing that owner and preserves the new draft', async (t) => {
@@ -902,7 +902,7 @@ for (const choice of [
     const saving = app.dispatch(page, 'save')
     await app.settle()
     assert.equal(page.data.confirmationTitle, '这一天已有经期')
-    assert.equal(page.data.confirmationContent, '开始日落在 9月1日 开始的那次经期里；仍然新建会另存一条，这几天会被两条经期覆盖')
+    assert.equal(page.data.confirmationContent, '开始日落在 9月1⁠日 开始的那次经期里；仍然新建会另存一条，这几天会被两条经期覆盖')
     assert.deepEqual(page.data.confirmationActions, [
       { id: 'edit', text: '编辑那条', kind: 'primary' },
       { id: 'create', text: '仍然新建', kind: 'secondary' },
@@ -1019,7 +1019,7 @@ for (const scenario of overlapOwners) {
       cloudRoute(app, period, 'list').reply({ code: 0, data: scenario.records })
       const { home, page } = await openEditor(app, period, { startDate: '2026-09-18', status: 'unknown-end' })
       const ownerCell = cell(home, '2026-09-18')
-      assert.ok(ownerCell.ariaLabel.includes(`经期第${scenario.day}天`))
+      assert.ok(ownerCell.ariaLabel.includes(`经期第 ${scenario.day} 天`))
       assert.equal(ownerCell.ariaLabel.includes('经期进行中'), scenario.status === 'ongoing')
       assert.equal(ownerCell.ariaLabel.includes('结束日期不详'), scenario.status === 'unknown-end')
       assert.equal(Object.hasOwn(ownerCell, 'periodDayCount'), false)
@@ -1117,7 +1117,7 @@ test('period: merge replaces visible labels and draft baseline before the same e
   app.respondNext('showModal', { confirm: true })
   await app.dispatch(page, 'save')
   assert.equal(page.data.id, 'ongoing')
-  assert.equal(page.data.startDateLabel, '9月1日')
+  assert.equal(page.data.startDateLabel, '9月1⁠日')
   assert.equal(page.data.endDateLabel, '')
   assert.equal(page.data.note, '已有备注')
   app.hide()
@@ -1430,7 +1430,7 @@ for (const spec of records) {
       assert.deepEqual(form(page, spec), stored)
       assert.equal(page.data.draftRestored, true)
       assert.equal(page.data.draftNoticeText, mode === 'new'
-        ? `已恢复 ${routeDate.startsWith('2025-') ? '2025年9月18日' : '9月18日'} 没填完的内容`
+        ? `已恢复 ${routeDate.startsWith('2025-') ? '2025年9月18⁠日' : '9月18⁠日'} 没填完的内容`
         : '已恢复上次没保存的修改')
       assert.equal(page.data.draftDiscardText, mode === 'new' ? '放弃' : '放弃修改')
       assert.deepEqual(app.wx.toasts, [], 'the alert row replaces the restore toast')
@@ -1505,7 +1505,7 @@ for (const spec of records) {
     assert.deepEqual(form(restored, spec), { ...expected, note: '卸载前又改了' })
     assert.equal(restored.data.draftRestored, true)
     assert.deepEqual(app.wx.toasts, [], 'the alert row replaces the restore toast')
-    assert.equal(restored.data[spec.kind === 'period' ? 'startDateLabel' : 'dateLabel'], '9月17日')
+    assert.equal(restored.data[spec.kind === 'period' ? 'startDateLabel' : 'dateLabel'], '9月17⁠日')
     if (spec.kind === 'period') {
       assert.deepEqual(Object.keys(restored.data.selectedSymptoms || {}).filter(key => restored.data.selectedSymptoms[key]), ['cramps'])
       await app.dispatch(restored, 'selectFlow', dataset({ value: 'heavy' }))
@@ -1656,8 +1656,8 @@ for (const spec of records) {
     const cancelled = app.dispatch(page, 'delete')
     await app.settle()
     assert.equal(page.data.confirmationTitle, spec.deleteTitle)
-    if (spec.kind === 'period') assert.match(page.data.confirmationDateText, /^9月18日.*9月20日$/)
-    else assert.equal(page.data.confirmationDateText, '9月20日')
+    if (spec.kind === 'period') assert.match(page.data.confirmationDateText, /^9月18⁠日.*9月20⁠日$/)
+    else assert.equal(page.data.confirmationDateText, '9月20⁠日')
     assert.equal(page.data.confirmationContent, '删除后你们两人的日历里都会移除')
     assert.deepEqual(page.data.confirmationActions, [
       { id: 'confirm', text: '删除', kind: 'danger' },
@@ -1862,14 +1862,14 @@ test('period: an editor opened while the shared records are loading joins that l
   await app.settle()
   const page = app.currentPage
   assert.deepEqual(lists(app), ['periods', 'memories'], 'the editor reads nothing of its own')
-  assert.equal(page.data.periodDayCountText, '共 5 天')
+  assert.equal(page.data.periodDayCountText, '共 5 天')
   assert.equal(page.data.periodLengthHint, '', 'no history yet: the default 5 days')
   periods.resolve({ code: 0, data: [
     { _id: 'old1', startDate: '2026-05-01', endDate: '2026-05-03' },
     { _id: 'old2', startDate: '2026-06-01', endDate: '2026-06-03' }
   ] })
   await app.settle()
-  assert.equal(page.data.periodLengthHint, '比你通常的 3 天长，确认一下结束日？')
+  assert.equal(page.data.periodLengthHint, '比你通常的 3 天长，确认一下结束日？')
   assert.deepEqual(lists(app), ['periods', 'memories'])
 })
 
@@ -1878,7 +1878,7 @@ test('period: periods this device cannot read leave the default length and no ov
   periodsUnread(app)
   const { page } = await openEditor(app, period, { startDate: '2026-09-03', endDate: '2026-09-09' })
   assert.deepEqual(lists(app), ['periods', 'memories', 'periods', 'memories'], 'opening asks the shared records once')
-  assert.equal(page.data.periodLengthHint, '比你通常的 5 天长，确认一下结束日？')
+  assert.equal(page.data.periodLengthHint, '比你通常的 5 天长，确认一下结束日？')
   const saved = { _id: 'saved', ...period.payload, startDate: '2026-09-03', endDate: '2026-09-09', status: 'known-end', duration: 7 }
   cloudRoute(app, period, 'add').reply({ code: 0, record: saved })
   await app.dispatch(page, 'save')
@@ -1901,7 +1901,7 @@ test('period: a period saved here and not yet confirmed by a list counts for the
   app.wx.navigateTo({ url: editUrl(period, { startDate: '2026-09-11', endDate: '2026-09-15' }) })
   await app.settle()
   const next = app.currentPage
-  assert.equal(next.data.periodLengthHint, '比你通常的 3 天长，确认一下结束日？')
+  assert.equal(next.data.periodLengthHint, '比你通常的 3 天长，确认一下结束日？')
   const saving = app.dispatch(next, 'save')
   await app.settle()
   assert.equal(next.data.confirmationTitle, '这一天已有经期')

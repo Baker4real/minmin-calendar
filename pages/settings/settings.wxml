@@ -64,7 +64,7 @@
       <view class="premium-card glass-surface">
         <view class="menu-item" bindtap="exportData" aria-role="button" aria-label="导出数据" hover-class="menu-item-hover">
           <text class="menu-text">导出数据</text>
-          <text class="menu-arrow">›</text>
+          <view class="ui-icon ui-icon-right ui-icon-24 menu-arrow" aria-hidden="true"></view>
         </view>
       </view>
     </view>
@@ -78,7 +78,7 @@
         </view>
         <view class="menu-item" bindtap="openHelp" aria-role="button" aria-label="使用说明" hover-class="menu-item-hover">
           <text class="menu-text">使用说明</text>
-          <text class="menu-arrow">›</text>
+          <view class="ui-icon ui-icon-right ui-icon-24 menu-arrow" aria-hidden="true"></view>
         </view>
       </view>
     </view>
@@ -86,7 +86,7 @@
     <view class="settings-danger-zone">
       <view wx:if="{{roomCode}}" class="menu-item danger button-danger" hover-class="danger-hover" bindtap="unbind" aria-role="button" aria-label="解除绑定">
         <text class="menu-text">解除绑定</text>
-        <text class="menu-arrow">›</text>
+        <view class="ui-icon ui-icon-right ui-icon-24 menu-arrow" aria-hidden="true"></view>
       </view>
     </view>
   </view>

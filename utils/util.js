@@ -7,6 +7,8 @@ const {
 } = require('./chinaHolidays')
 
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+const WORD_JOINER = String.fromCharCode(0x2060)
+const NON_BREAKING_SPACE = String.fromCharCode(0x00a0)
 
 const LUNAR_INFO = [
   0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2,
@@ -66,12 +68,20 @@ function daysBetween(d1, d2) {
   return Math.round((t2 - t1) / (24 * 60 * 60 * 1000))
 }
 
+function formatDisplayDay(day) {
+  return `${day}${WORD_JOINER}日`
+}
+
+function formatQuantity(value, unit) {
+  return `${value}${NON_BREAKING_SPACE}${unit}`
+}
+
 function formatDisplayDate(dateStr, options = {}) {
   if (!isValidDateString(dateStr)) return ''
   const date = parseDate(dateStr)
   const today = resolveDisplayToday(options.today)
   const yearPrefix = date.getFullYear() === today.getFullYear() ? '' : `${date.getFullYear()}年`
-  const text = `${yearPrefix}${date.getMonth() + 1}月${date.getDate()}日`
+  const text = `${yearPrefix}${date.getMonth() + 1}月${formatDisplayDay(date.getDate())}`
   return options.withWeekday ? `${text} ${WEEKDAYS[date.getDay()]}` : text
 }
 
@@ -283,6 +293,8 @@ module.exports = {
   getDaysInMonth,
   getFirstDayOfMonth,
   daysBetween,
+  formatDisplayDay,
+  formatQuantity,
   formatDisplayDate,
   formatDisplayDateRange,
   getChineseDateMeta,

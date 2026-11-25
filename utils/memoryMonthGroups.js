@@ -74,7 +74,7 @@ function buildMemoryMonthGroups(memories, options = {}) {
         ...group,
         records,
         excerpt: firstNoteExcerpt(records),
-        title: `${group.year}年${group.month}月 · ${group.count} 条`
+        title: `${group.year}年${group.month}月 · ${util.formatQuantity(group.count, '条')}`
       }
     })
 }
@@ -98,7 +98,7 @@ function applyMemoryMonthExpansion(groups, choices) {
       ...group,
       expanded,
       toggleLabel: expanded ? '收起' : '展开',
-      ariaLabel: `${group.year}年${group.month}月，${group.count} 条欢乐时光，${detail}`
+      ariaLabel: `${group.year}年${group.month}月，${util.formatQuantity(group.count, '条')}欢乐时光，${detail}`
     }
   })
 }

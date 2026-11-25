@@ -1,4 +1,5 @@
 @import './pages/shared/nav-bar.wxss';
+@import './pages/shared/vector-icons.wxss';
 @import './pages/shared/glass-buttons.wxss';
 @import './pages/shared/text-pair.wxss';
 
@@ -43,7 +44,10 @@ page {
   --line-height-body: 1.6;
   --line-height-assist: 1.4;
   --line-height-title: 1.2;
+  --line-height-snug: 1.32;
   --letter-spacing-assist: 1rpx;
+  --letter-spacing-display: 1rpx;
+  --letter-spacing-control-sm: 0.5rpx;
   --letter-spacing-room-code: 6rpx;
   --letter-spacing-code-input: 12rpx;
 

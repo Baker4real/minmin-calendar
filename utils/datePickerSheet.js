@@ -31,7 +31,7 @@ function daysInMonth(year, month) {
 }
 
 function options(values, suffix) {
-  return values.map(value => ({ value, label: `${value}${suffix}` }))
+  return values.map(value => ({ value, label: suffix === '日' ? util.formatDisplayDay(value) : `${value}${suffix}` }))
 }
 
 function range(first, last) {
@@ -68,8 +68,8 @@ function buildRangeState(parts, min, max) {
     ],
     datePickerYearAria: `年份，${selected.year}年`,
     datePickerMonthAria: `月份，${selected.month}月`,
-    datePickerDayAria: `日，${selected.day}日`,
-    datePickerConfirmAria: `确定，${selected.year}年${selected.month}月${selected.day}日`
+    datePickerDayAria: `日，${util.formatDisplayDay(selected.day)}`,
+    datePickerConfirmAria: `确定，${selected.year}年${selected.month}月${util.formatDisplayDay(selected.day)}`
   }
 }
 

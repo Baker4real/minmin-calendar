@@ -112,7 +112,9 @@ module.exports = {
   <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}" aria-hidden="{{pageObscured}}">
     <view class="home-sticky">
       <view class="month-nav glass-surface">
-        <view class="nav-btn {{prevMonthDisabled ? 'disabled' : ''}}" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月" aria-disabled="{{prevMonthDisabled}}">‹</view>
+        <view class="nav-btn {{prevMonthDisabled ? 'disabled' : ''}}" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月" aria-disabled="{{prevMonthDisabled}}">
+          <view class="ui-icon ui-icon-left ui-icon-36 ui-icon-circle" aria-hidden="true"></view>
+        </view>
         <view
           class="month-title month-title-trigger"
           bindtap="openMonthPicker"
@@ -121,9 +123,11 @@ module.exports = {
           hover-class="month-title-trigger-hover"
         >
           <text>{{year}}年{{month + 1}}月</text>
-          <text class="month-title-caret">⌄</text>
+          <view class="ui-icon ui-icon-down ui-icon-24 month-title-caret" aria-hidden="true"></view>
         </view>
-        <view class="nav-btn {{nextMonthDisabled ? 'disabled' : ''}}" hover-class="nav-btn-hover" bindtap="nextMonth" aria-role="button" aria-label="下一个月" aria-disabled="{{nextMonthDisabled}}">›</view>
+        <view class="nav-btn {{nextMonthDisabled ? 'disabled' : ''}}" hover-class="nav-btn-hover" bindtap="nextMonth" aria-role="button" aria-label="下一个月" aria-disabled="{{nextMonthDisabled}}">
+          <view class="ui-icon ui-icon-right ui-icon-36 ui-icon-circle" aria-hidden="true"></view>
+        </view>
       </view>
       <view
         wx:if="{{showBackToToday}}"
@@ -142,7 +146,7 @@ module.exports = {
       >
         <text class="home-status-text">{{homeStatus.text}}</text>
         <text wx:if="{{homeStatus.countdownText}}" class="home-status-countdown">{{homeStatus.countdownText}}</text>
-        <text class="home-status-arrow" aria-hidden="true">›</text>
+        <view class="ui-icon ui-icon-right ui-icon-24 home-status-arrow" aria-hidden="true"></view>
       </view>
     </view>
     <view class="home-sticky-spacer {{showBackToToday ? 'with-back-today' : ''}}"></view>
@@ -233,7 +237,7 @@ module.exports = {
       aria-label="查看本月小结，{{monthSummaryLine}}"
     >
       <text class="month-summary-text">{{monthSummaryLine}}</text>
-      <text class="month-summary-arrow" aria-hidden="true">›</text>
+      <view class="ui-icon ui-icon-right ui-icon-24 month-summary-arrow" aria-hidden="true"></view>
     </view>
 
     <view wx:if="{{!hasRecords}}" class="empty-state empty-guide">

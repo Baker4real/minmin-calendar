@@ -7,7 +7,7 @@
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
   letter-spacing: var(--letter-spacing-room-code);
-  word-break: break-all;
+  word-break: normal;
 }
 .room-code-value.muted {
   color: var(--text-secondary);

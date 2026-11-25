@@ -40,7 +40,7 @@
   min-height: 88rpx;
   font-size: var(--font-size-body-lg);
   font-weight: var(--font-weight-body);
-  line-height: var(--line-height-body);
+  line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.85);
   padding: 22rpx;
   background: linear-gradient(rgba(255,255,255,0.06), rgba(255,255,255,0.06)), var(--glass-fallback);
@@ -48,7 +48,6 @@
   transition: border-color var(--duration-press) ease;
 }
 .form-picker-arrow {
-  font-size: 32rpx;
   color: var(--text-secondary);
   line-height: 1;
 }
@@ -101,7 +100,7 @@
 .micro-notice-text {
   flex: 1;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .micro-notice-action {
   display: inline-flex;

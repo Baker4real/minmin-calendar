@@ -115,7 +115,7 @@ for (const rebound of [null, B]) {
     assert.deepEqual(marked(app, home, 'isMemory'), [])
     if (rebound) {
       assert.deepEqual(marked(app, home, 'isPeriod'), ['2026-06-20'])
-      assert.equal(app.rendered(home).monthSummaryLine, '本月 经期 1 天 · 欢乐时光未同步')
+      assert.equal(app.rendered(home).monthSummaryLine, '本月 经期 1 天 · 欢乐时光未同步')
       // The other Room brought back no pairing, so Room A's pairing does not name the author.
       assert.deepEqual(await dayAuthors(app, home, '2026-06-20'), [''])
     } else {
@@ -230,7 +230,7 @@ for (const [entry, failed] of [['createRoom', 'memories'], ['joinRoom', 'periods
     assert.deepEqual(marked(app, home, 'isPeriod'), failed === 'periods' ? [] : ['2026-06-20'])
     assert.deepEqual(marked(app, home, 'isMemory'), failed === 'memories' ? [] : ['2026-06-12'])
     assert.equal(app.rendered(home).monthSummaryLine, failed === 'periods'
-      ? '本月 经期未同步 · 欢乐时光 1 条' : '本月 经期 1 天 · 欢乐时光未同步')
+      ? '本月 经期未同步 · 欢乐时光 1 条' : '本月 经期 1 天 · 欢乐时光未同步')
     assert.deepEqual(home.setDataCalls.filter(showsRoomA), [], 'no frame of the new Home carries Room A')
     // Room A's pairing went with its records: Room B brought back none, so no author is named.
     assert.deepEqual(await dayAuthors(app, home, failed === 'periods' ? '2026-06-12' : '2026-06-20'), [''])
@@ -267,7 +267,7 @@ for (const [entry, failed] of [['createRoom', 'memories'], ['joinRoom', 'periods
     app.wx.navigateTo({ url: '/pages/period/edit/edit?startDate=2026-06-10&endDate=2026-06-12' })
     await app.settle()
     const edit = app.currentPage
-    assert.equal(app.rendered(edit).periodDayCountText, '共 3 天')
+    assert.equal(app.rendered(edit).periodDayCountText, '共 3 天')
     assert.equal(app.rendered(edit).periodLengthHint, '', 'Room A\'s one-day period is no history here')
   })
 }
@@ -369,7 +369,7 @@ test('a period editor opened after the device moved to another Room hints and as
   await app.settle()
   const edit = app.currentPage
   // Room A's one-day period is no history here: three days stay within the default five.
-  assert.equal(app.rendered(edit).periodDayCountText, '共 3 天')
+  assert.equal(app.rendered(edit).periodDayCountText, '共 3 天')
   assert.equal(app.rendered(edit).periodLengthHint, '')
   assert.deepEqual(marked(app, home, 'isPeriod'), [])
   const saved = period('b-new', '2026-06-01', { endDate: '2026-06-03' })
@@ -394,7 +394,7 @@ test('a period editor whose save moved the device to another Room hints and asks
   app.wx.navigateTo({ url: '/pages/period/edit/edit?startDate=2026-06-10&endDate=2026-06-13' })
   await app.settle()
   const edit = app.currentPage
-  assert.equal(app.rendered(edit).periodLengthHint, '比你通常的 3 天长，确认一下结束日？', 'Room A\'s three-day period is this Room\'s history')
+  assert.equal(app.rendered(edit).periodLengthHint, '比你通常的 3 天长，确认一下结束日？', 'Room A\'s three-day period is this Room\'s history')
 
   // The add into Room A is refused as stale; the repair finds this member in Room B now.
   app.cloud.when({ name: 'dataOp', data: { action: 'add', collection: 'periods', roomCode: A } })
@@ -411,7 +411,7 @@ test('a period editor whose save moved the device to another Room hints and asks
 
   // A start day inside Room A's period asks nothing: Room B's periods are read once, then the save goes on.
   await changeEditorDate(app, edit, 'onStartChange', '2026-06-02')
-  assert.equal(app.rendered(edit).periodLengthHint, '比你通常的 5 天长，确认一下结束日？', 'Room B has no history, so the default rather than Room A\'s three-day history applies')
+  assert.equal(app.rendered(edit).periodLengthHint, '比你通常的 5 天长，确认一下结束日？', 'Room B has no history, so the default rather than Room A\'s three-day history applies')
   const periodsB = listRoute(app, 'periods', B).defer()
   listRoute(app, 'memories', B).reply(listed([]))
   const saved = period('b-new', '2026-06-02', { endDate: '2026-06-13' })

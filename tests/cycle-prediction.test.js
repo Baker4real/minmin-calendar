@@ -64,7 +64,7 @@ test('predictNextPeriod ignores records with impossible calendar dates', () => {
   assert.equal(typeof cycle.predictNextPeriod, 'function')
 
   // 两条坏日期只要有一条被算进来，就会多出周期间隔或推后最近起点；
-  // 只剩两条有效记录时是从 1月29日 起算的单周期低置信预测
+  // 只剩两条有效记录时是从 1月29⁠日 起算的单周期低置信预测
   const prediction = cycle.predictNextPeriod([
     period('2026-01-01', '2026-01-05'),
     period('2026-01-29', '2026-02-02'),
@@ -163,10 +163,10 @@ test('buildPeriodPayload and decoratePeriod normalize optional flow and symptom 
     flowLabel: '量多',
     symptomLabels: ['痛经', '头痛'],
     symptomText: '痛经、头痛',
-    endDateDisplay: '6月12日',
-    durationText: '3天',
-    dateLabel: '6月10日–6月12日',
-    rangeSummary: '6月10日–6月12日'
+    endDateDisplay: '6月12⁠日',
+    durationText: '3 天',
+    dateLabel: '6月10⁠日–6月12⁠日',
+    rangeSummary: '6月10⁠日–6月12⁠日'
   })
 })
 
@@ -337,18 +337,18 @@ test('decoratePeriod exposes ongoing and unknown-end status copy instead of a bl
     { today: '2026-09-24' }
   )
   assert.equal(ongoing.statusLabel, '进行中')
-  assert.equal(ongoing.endDateDisplay, '9月24日')
+  assert.equal(ongoing.endDateDisplay, '9月24⁠日')
   assert.equal(ongoing.durationText, '进行中')
-  assert.equal(ongoing.dateLabel, '9月20日–9月24日')
-  assert.equal(ongoing.rangeSummary, '9月20日–9月24日，进行中')
+  assert.equal(ongoing.dateLabel, '9月20⁠日–9月24⁠日')
+  assert.equal(ongoing.rangeSummary, '9月20⁠日–9月24⁠日，进行中')
   assert.equal(ongoing.duration, 0)
 
   const unknownEnd = cycle.decoratePeriod({ _id: 'p3', startDate: '2026-08-01', endDate: '' })
   assert.equal(unknownEnd.statusLabel, '结束日期不详')
   assert.equal(unknownEnd.endDateDisplay, '结束日期不详')
   assert.equal(unknownEnd.durationText, '结束日期不详')
-  assert.equal(unknownEnd.dateLabel, '8月1日')
-  assert.equal(unknownEnd.rangeSummary, '8月1日，结束日期不详')
+  assert.equal(unknownEnd.dateLabel, '8月1⁠日')
+  assert.equal(unknownEnd.rangeSummary, '8月1⁠日，结束日期不详')
   assert.equal(unknownEnd.duration, 0)
 })
 
@@ -366,7 +366,7 @@ test('an ongoing start counts as a cycle start but never contributes an exact du
   const prediction = cycle.predictNextPeriod(withOngoing)
 
   // 进行中的开始日参与周期起点：lastStart 推到 2026-09-20，
-  // 到它的 55 天间隔被稳定性过滤忽略，周期长度沿用历史 28 天
+  // 到它的 55 天间隔被稳定性过滤忽略，周期长度沿用历史 28 天
   assert.equal(prediction.canPredict, true)
   assert.equal(prediction.nextStart, '2026-10-18')
   assert.equal(prediction.usedCycleCount, 2)
@@ -476,7 +476,7 @@ test('describeKnownPeriodLength counts inclusive days and flags spans past the c
   })
   assert.deepEqual(within, {
     days: 5,
-    text: '共 5 天',
+    text: '共 5 天',
     exceedsExpected: false,
     expectedDays: 5,
     expectedSource: 'history',
@@ -489,11 +489,11 @@ test('describeKnownPeriodLength counts inclusive days and flags spans past the c
     periods
   })
   assert.equal(over.days, 6)
-  assert.equal(over.text, '共 6 天')
+  assert.equal(over.text, '共 6 天')
   assert.equal(over.exceedsExpected, true)
   assert.equal(over.expectedDays, 5)
   assert.equal(over.expectedSource, 'history')
-  assert.equal(over.hint, '比你通常的 5 天长，确认一下结束日？')
+  assert.equal(over.hint, '比你通常的 5 天长，确认一下结束日？')
 
   const unknownOnly = [
     { startDate: '2026-08-01', endDate: '', status: 'unknown-end', duration: 9 }
@@ -514,7 +514,7 @@ test('describeKnownPeriodLength counts inclusive days and flags spans past the c
     periods: unknownOnly
   })
   assert.equal(overDefault.days, 6)
-  assert.equal(overDefault.hint, '比你通常的 5 天长，确认一下结束日？')
+  assert.equal(overDefault.hint, '比你通常的 5 天长，确认一下结束日？')
 
   const open = cycle.describeKnownPeriodLength({
     startDate: '2026-09-01',
@@ -539,8 +539,8 @@ test('buildPeriodQuickAction names the ongoing period day and otherwise stays a 
   const snapshot = JSON.parse(JSON.stringify(periods))
 
   assert.deepEqual(cycle.buildPeriodQuickAction(periods, { today: '2026-06-26' }), {
-    label: '经期第 7 天 · 记结束',
-    ariaLabel: '经期第 7 天 · 记结束',
+    label: '经期第 7 天 · 记结束',
+    ariaLabel: '经期第 7 天 · 记结束',
     mode: 'complete'
   })
   assert.deepEqual(cycle.buildPeriodQuickAction([
@@ -602,14 +602,14 @@ test('home status line counts ongoing and finished periods that include today', 
     period('2026-06-15', '2026-06-19'),
     { startDate: '2026-07-13', endDate: '', status: 'ongoing' }
   ], { today: '2026-07-15' }), {
-    status: 'in-period', text: '经期第 3 天', countdownText: '', tone: 'default'
+    status: 'in-period', text: '经期第 3 天', countdownText: '', tone: 'default'
   })
   assert.deepEqual(cycle.buildHomeStatusLine([
     period('2026-05-18', '2026-05-22'),
     period('2026-06-15', '2026-06-19'),
     period('2026-08-08', '2026-08-12')
   ], { today: '2026-08-10' }), {
-    status: 'in-period', text: '经期第 3 天', countdownText: '', tone: 'default'
+    status: 'in-period', text: '经期第 3 天', countdownText: '', tone: 'default'
   })
 })
 
@@ -621,10 +621,10 @@ test('home status line covers period duration, countdown, late boundaries and un
   ]
   const ongoing = [{ _id: 'live', startDate: '2026-07-13', endDate: '', status: 'ongoing' }]
   assert.deepEqual(cycle.buildHomeStatusLine(ongoing, { today: '2026-07-17' }), {
-    status: 'in-period', text: '经期第 5 天', countdownText: '', tone: 'default'
+    status: 'in-period', text: '经期第 5 天', countdownText: '', tone: 'default'
   })
   assert.deepEqual(cycle.buildHomeStatusLine(ongoing, { today: '2026-07-18' }), {
-    status: 'in-period', text: '经期第 6 天 · 比预期多 1 天', countdownText: '', tone: 'default'
+    status: 'in-period', text: '经期第 6 天 · 比预期多 1 天', countdownText: '', tone: 'default'
   })
 
   const medianHistory = [
@@ -633,31 +633,31 @@ test('home status line covers period duration, countdown, late boundaries and un
     period('2026-07-01', '2026-07-08'),
     { _id: 'median-live', startDate: '2026-08-01', endDate: '', status: 'ongoing' }
   ]
-  assert.equal(cycle.buildHomeStatusLine(medianHistory, { today: '2026-08-05' }).text, '经期第 5 天')
-  assert.equal(cycle.buildHomeStatusLine(medianHistory, { today: '2026-08-06' }).text, '经期第 6 天 · 比预期多 1 天')
+  assert.equal(cycle.buildHomeStatusLine(medianHistory, { today: '2026-08-05' }).text, '经期第 5 天')
+  assert.equal(cycle.buildHomeStatusLine(medianHistory, { today: '2026-08-06' }).text, '经期第 6 天 · 比预期多 1 天')
 
   assert.deepEqual(cycle.buildHomeStatusLine(predictable, { today: '2026-08-01' }), {
-    status: 'before-window', text: '预计 8月10日 开始', countdownText: '还有 9 天', tone: 'default'
+    status: 'before-window', text: '预计 8月10⁠日 开始', countdownText: '还有 9 天', tone: 'default'
   })
   assert.deepEqual(cycle.buildHomeStatusLine([], {
     today: '2026-12-01',
     prediction: { canPredict: true, nextStart: '2027-01-05', rangeStart: '2027-01-03', rangeEnd: '2027-01-07' }
   }), {
-    status: 'before-window', text: '预计 2027年1月5日 开始', countdownText: '还有 35 天', tone: 'default'
+    status: 'before-window', text: '预计 2027年1月5⁠日 开始', countdownText: '还有 35 天', tone: 'default'
   })
   assert.deepEqual(cycle.buildHomeStatusLine(predictable, { today: '2026-08-10' }), {
     status: 'in-window', text: '这几天可能开始', countdownText: '', tone: 'default'
   })
 
-  // 预计 8月10日，窗口到 8月11日：窗口后第 1 / 7 天仍数晚几天，第 8 天改为上次记录。
+  // 预计 8月10⁠日，窗口到 8月11⁠日：窗口后第 1 / 7 天仍数晚几天，第 8 天改为上次记录。
   assert.deepEqual(cycle.buildHomeStatusLine(predictable, { today: '2026-08-12' }), {
-    status: 'late', text: '比预计晚 2 天', countdownText: '', tone: 'neutral'
+    status: 'late', text: '比预计晚 2 天', countdownText: '', tone: 'neutral'
   })
   assert.deepEqual(cycle.buildHomeStatusLine(predictable, { today: '2026-08-18' }), {
-    status: 'late', text: '比预计晚 8 天', countdownText: '', tone: 'neutral'
+    status: 'late', text: '比预计晚 8 天', countdownText: '', tone: 'neutral'
   })
   assert.deepEqual(cycle.buildHomeStatusLine(predictable, { today: '2026-08-19' }), {
-    status: 'late-too-long', text: '上次记录 7月13日 开始 · 可以补记', countdownText: '', tone: 'neutral'
+    status: 'late-too-long', text: '上次记录 7月13⁠日 开始 · 可以补记', countdownText: '', tone: 'neutral'
   })
   assert.deepEqual(cycle.buildHomeStatusLine([
     period('2025-11-01', '2025-11-05'),
@@ -667,7 +667,7 @@ test('home status line covers period duration, countdown, late boundaries and un
     today: '2027-01-28',
     prediction: { canPredict: true, lastStart: '2025-12-29', nextStart: '2027-01-17', rangeStart: '2027-01-16', rangeEnd: '2027-01-20' }
   }), {
-    status: 'late-too-long', text: '上次记录 2025年12月29日 开始 · 可以补记', countdownText: '', tone: 'neutral'
+    status: 'late-too-long', text: '上次记录 2025年12月29⁠日 开始 · 可以补记', countdownText: '', tone: 'neutral'
   })
 
   assert.equal(cycle.buildPredictionThresholdText([]), '记两次经期后就能估下次')

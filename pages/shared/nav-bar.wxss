@@ -23,6 +23,8 @@
   text-align: center;
   font-size: var(--font-size-title);
   font-weight: var(--font-weight-title);
+  letter-spacing: var(--letter-spacing-display);
+  text-indent: var(--letter-spacing-display);
   color: rgba(255,255,255,0.92);
 }
 .nav-back {
@@ -34,7 +36,6 @@
   box-sizing: border-box;
   padding: 0;
   text-align: center;
-  font-size: 46rpx;
   line-height: 1;
   color: rgba(255,255,255,0.92);
   text-shadow: 0 2rpx 10rpx rgba(10,14,39,0.35);
