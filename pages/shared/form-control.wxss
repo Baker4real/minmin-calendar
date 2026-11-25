@@ -2,7 +2,8 @@
 .form-control {
   box-sizing: border-box;
   width: 100%;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 2rpx 6rpx rgba(0,0,0,0.28);
   transition: border-color var(--duration-state) ease, box-shadow var(--duration-state) ease;
 }
 
@@ -10,6 +11,7 @@
    默认态承担双向过渡，聚焦与失焦都不另换时序。 */
 .form-control.form-control-focused {
   border-color: var(--aurora-pink);
+  box-shadow: inset 0 2rpx 6rpx rgba(0,0,0,0.28), 0 0 0 4rpx rgba(232,144,158,0.14);
 }
 
 @media (prefers-reduced-motion: reduce) {

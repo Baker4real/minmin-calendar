@@ -503,9 +503,9 @@ test('one-shot transitions and animations use the shared duration tokens and rol
 
       if (!rule.decls.transition || rule.decls.transition === 'none') continue
       for (const segment of splitTopLevelComma(rule.decls.transition)) {
-        // 按压柔光仍落在柔光层透明度上（issue #166）；#252 仅登记共享表单焦点阴影的状态过渡。
+        // 按压柔光仍落在柔光层透明度上（issue #166）；#252 / #269 仅登记共享表单焦点阴影的状态过渡。
         if (segment.startsWith('box-shadow')) {
-          const formControlFocusShadow = rule.selectors.length === 1 && rule.selectors[0] === '.form-control' &&
+          const formControlFocusShadow = rule.selectors.length === 1 && ['.form-control', '.form-picker'].includes(rule.selectors[0]) &&
             segment === `box-shadow ${STATE_DURATION} ease`
           if (formControlFocusShadow) continue
           violations.push(`${where} still transitions box-shadow ("${segment}")`)

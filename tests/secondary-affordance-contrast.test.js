@@ -179,7 +179,15 @@ const CASES = [
   { file: 'pages/index/index.wxss', selector: '.month-summary-arrow', surfaces: [['pages/index/index.wxss', '.month-summary']], note: '本月小结横幅右箭头' },
   { file: 'pages/index/index.wxss', selector: 'button.home-share-invite', surfaces: [['pages/index/index.wxss', '.partner-invite']], note: '等待邀请横幅发邀请胶囊钮' },
   { file: 'app.wxss', selector: '.btn-danger', surfaces: [], note: '危险操作（删除记录/解除绑定）' },
+  // issue #269：深海内凹槽里的实际输入与日期文字同样在两处背景上验收。
+  { file: 'pages/bind/bind.wxss', selector: '.code-input', surfaces: [['app.wxss', '.premium-card']], note: '绑定页房间码输入文字' },
+  { file: 'pages/period/edit/edit.wxss', selector: '.form-picker', surfaces: [['app.wxss', '.premium-card']], note: '经期编辑日期文字' },
+  { file: 'pages/memory/edit/edit.wxss', selector: '.form-picker', surfaces: [['app.wxss', '.premium-card']], note: '欢乐时光编辑日期文字' },
+  { file: 'pages/period/edit/edit.wxss', selector: '.form-input', surfaces: [['app.wxss', '.premium-card']], note: '经期编辑备注文字' },
+  { file: 'pages/memory/edit/edit.wxss', selector: '.form-input', surfaces: [['app.wxss', '.premium-card']], note: '欢乐时光编辑备注文字' },
   // issue #144：备注占位符不再用 0.35 白，颜色档位不弱于次要文字，落在输入框合成面上
+  { file: 'app.wxss', selector: '.input-placeholder', surfaces: [['app.wxss', '.premium-card'], ['pages/period/edit/edit.wxss', '.form-picker']], note: '经期编辑日期占位' },
+  { file: 'app.wxss', selector: '.input-placeholder', surfaces: [['app.wxss', '.premium-card'], ['pages/memory/edit/edit.wxss', '.form-picker']], note: '欢乐时光编辑日期占位' },
   { file: 'app.wxss', selector: '.input-placeholder', surfaces: [['app.wxss', '.premium-card'], ['pages/period/edit/edit.wxss', '.form-input']], note: '经期编辑备注占位' },
   { file: 'app.wxss', selector: '.input-placeholder', surfaces: [['app.wxss', '.premium-card'], ['pages/memory/edit/edit.wxss', '.form-input']], note: '欢乐时光备注占位' },
   { file: 'app.wxss', selector: '.input-placeholder', surfaces: [['app.wxss', '.premium-card'], ['pages/bind/bind.wxss', '.code-input']], note: '绑定页房间码占位' },

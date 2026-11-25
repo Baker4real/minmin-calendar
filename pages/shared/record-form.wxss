@@ -43,18 +43,18 @@
   line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.85);
   padding: 22rpx;
-  background: linear-gradient(rgba(255,255,255,0.06), rgba(255,255,255,0.06)), var(--glass-fallback);
-  border: 1px solid rgba(255,255,255,0.12);
-  transition: border-color var(--duration-press) ease;
+  background: rgba(10,14,39,0.88);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: border-color var(--duration-press) ease, box-shadow var(--duration-state) ease;
 }
 .form-picker-arrow {
   color: var(--text-secondary);
   line-height: 1;
 }
-/* 按下只换玫瑰描边，和输入框焦点同一种 1px 实线、不加光晕（issue #81、#166） */
+/* 按下只换玫瑰描边；日期面板挂载期间由共享 focus 类保留同一道玫瑰光环。 */
 .form-picker:active,
 .form-picker.form-picker-hover {
-  border-color: rgba(232,144,158,0.4);
+  border-color: var(--aurora-pink);
 }
 /* 保存中日期选择器停用：字段跟着变淡、不再亮描边，和状态芯片同一档（issue #166） */
 .form-picker.disabled {
@@ -68,15 +68,14 @@
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.85);
   padding: 22rpx;
-  background: linear-gradient(rgba(255,255,255,0.06), rgba(255,255,255,0.06)), var(--glass-fallback);
-  border: 1px solid rgba(255,255,255,0.12);
-  transition: border-color var(--duration-state) ease;
+  background: rgba(10,14,39,0.88);
+  border: 1px solid rgba(255,255,255,0.08);
 }
 .form-input.disabled {
   opacity: 0.5;
   pointer-events: none;
 }
-/* R10：焦点描边由 shared/form-control.wxss 的 form-control-focused 统一绘制，不加光晕。 */
+/* R10 / #269：焦点玫瑰描边与外柔光环由 shared/form-control.wxss 统一绘制。 */
 .input-placeholder {
   line-height: var(--line-height-body);
 }
