@@ -134,7 +134,7 @@ test('export mask, close, drag and system back all cancel before any record read
         const touch = { identifier: 1, pageX: 100, pageY: 100 }
         app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
         app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
-        await app.advance(100)
+        await app.advance(60)
         app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
       } else {
         await app.dispatch(page, close.handler)
@@ -209,7 +209,7 @@ test('share-failure mask, close, drag and system back all cancel without copying
         const touch = { identifier: 1, pageX: 100, pageY: 100 }
         app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
         app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
-        await app.advance(100)
+        await app.advance(60)
         app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
       } else {
         await app.dispatch(page, close.handler)
@@ -338,7 +338,7 @@ test('resync mask, close, drag and system back all cancel without clearing the r
         const touch = { identifier: 1, pageX: 100, pageY: 100 }
         app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
         app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
-        await app.advance(100)
+        await app.advance(60)
         app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
       } else {
         await app.dispatch(page, close.handler)
@@ -423,7 +423,7 @@ test('settings unbind mask, close, drag and system back all cancel without leavi
         const touch = { identifier: 1, pageX: 100, pageY: 100 }
         app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
         app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
-        await app.advance(100)
+        await app.advance(60)
         app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
       } else {
         await app.dispatch(page, close.handler)
@@ -825,7 +825,7 @@ test('settings help closes from a downward drag without leaving settings', async
   const touch = { identifier: 1, pageX: 100, pageY: 100 }
   app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
   app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 240 }] })
-  await app.advance(100)
+  await app.advance(60)
   app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 240 }] })
 
   assert.equal(page.data.helpPhase, 'leaving')

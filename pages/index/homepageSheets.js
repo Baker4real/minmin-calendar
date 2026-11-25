@@ -87,7 +87,7 @@ function homepageSheets(page) {
       dragRelease(detail) {
         const entry = detail && find(detail.sheet)
         if (!entry || page.data[entry.phaseKey] !== 'open') return
-        const action = decideSheetDragRelease(detail.displacement, detail.elapsed, detail.panelHeight)
+        const action = decideSheetDragRelease(detail.displacement, detail.elapsed, detail.panelHeight, detail.velocity)
         const extra = dragClearPatch(entry, action)
         if (action === 'close') close(entry, extra)
         else page.setData(extra)

@@ -650,7 +650,7 @@ test('R2 date panel: mask, close, drag and system back cancel; touchcancel only 
       const touch = { identifier: 1, pageX: 100, pageY: 100 }
       app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
       app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
-      await app.advance(100)
+      await app.advance(60)
       app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
     } else {
       await app.dispatch(page, close.handler)
@@ -967,7 +967,7 @@ test('period: overlap panel mask, close, drag and system back all cancel without
       const touch = { identifier: 1, pageX: 100, pageY: 100 }
       app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
       app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
-      await app.advance(100)
+      await app.advance(60)
       app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
       assert.deepEqual(page.data.confirmationDragClear, { token: 1, action: 'close', sheet: 'confirmation' })
     } else {
@@ -1736,7 +1736,7 @@ for (const spec of records) {
         const touch = { identifier: 1, pageX: 100, pageY: 100 }
         app.dispatch(page, 'sheetDrag.touchStart', { currentTarget, touches: [touch] })
         app.dispatch(page, 'sheetDrag.touchMove', { currentTarget, touches: [{ ...touch, pageY: 200 }] })
-        await app.advance(100)
+        await app.advance(60)
         app.dispatch(page, 'sheetDrag.touchEnd', { currentTarget, changedTouches: [{ ...touch, pageY: 200 }] })
       } else {
         await app.dispatch(page, close.handler, close.event)

@@ -146,7 +146,9 @@ test('buildMonthlyRecap creates a gentle shareable recap with projected highligh
     prediction
   })
 
-  assert.equal(recap.title, '2026年8月小结')
+  assert.equal(recap.title, '本月小结')
+  assert.equal(recap.subtitle, '2026年8月')
+  assert.equal(recap.shareTitle, '2026年8月小结')
   assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 5 天')
   assert.equal(recap.memorySummary, '留下 2 条欢乐时光')
   assert.equal(recap.predictionSummary, '下次预测 8月8⁠日，区间 8月7⁠日–8月9⁠日，已经有几次记录，大致可以参考')
@@ -156,11 +158,29 @@ test('buildMonthlyRecap creates a gentle shareable recap with projected highligh
     '欢乐时光：8月22⁠日，一起看电影'
   ])
   assert.deepEqual(recap.highlightItems, [
-    { key: 'recap:0', kind: 'period', text: '经期：8月9⁠日–8月13⁠日，5 天，经量 量多，痛经' },
-    { key: 'recap:1', kind: 'memory', text: '欢乐时光：8月7⁠日，七夕晚餐' },
-    { key: 'recap:2', kind: 'memory', text: '欢乐时光：8月22⁠日，一起看电影' }
+    {
+      key: 'recap:0',
+      kind: 'period',
+      text: '经期：8月9⁠日–8月13⁠日，5 天，经量 量多，痛经',
+      dateBadge: '8月9⁠日–8月13⁠日',
+      summary: '5 天，经量 量多，痛经'
+    },
+    {
+      key: 'recap:1',
+      kind: 'memory',
+      text: '欢乐时光：8月7⁠日，七夕晚餐',
+      dateBadge: '8月7⁠日',
+      summary: '七夕晚餐'
+    },
+    {
+      key: 'recap:2',
+      kind: 'memory',
+      text: '欢乐时光：8月22⁠日，一起看电影',
+      dateBadge: '8月22⁠日',
+      summary: '一起看电影'
+    }
   ])
-  assert.match(recap.shareText, /2026年8月小结/)
+  assert.equal(recap.shareText.split('\n')[0], '2026年8月小结')
   assert.match(recap.shareText, /本月记录了 1 次经期，共 5 天/)
   assert.match(recap.shareText, /留下 2 条欢乐时光/)
   assert.match(recap.shareText, /下次预测 8月8⁠日，区间 8月7⁠日–8月9⁠日，已经有几次记录，大致可以参考/)
@@ -419,8 +439,20 @@ test('buildMonthlyRecap gives duplicate highlight text unique render keys', () =
     '经期：8月9⁠日–8月9⁠日，1 天'
   ])
   assert.deepEqual(recap.highlightItems, [
-    { key: 'recap:0', kind: 'period', text: '经期：8月9⁠日–8月9⁠日，1 天' },
-    { key: 'recap:1', kind: 'period', text: '经期：8月9⁠日–8月9⁠日，1 天' }
+    {
+      key: 'recap:0',
+      kind: 'period',
+      text: '经期：8月9⁠日–8月9⁠日，1 天',
+      dateBadge: '8月9⁠日–8月9⁠日',
+      summary: '1 天'
+    },
+    {
+      key: 'recap:1',
+      kind: 'period',
+      text: '经期：8月9⁠日–8月9⁠日，1 天',
+      dateBadge: '8月9⁠日–8月9⁠日',
+      summary: '1 天'
+    }
   ])
 })
 

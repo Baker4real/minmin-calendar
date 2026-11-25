@@ -993,7 +993,7 @@ for (const id of Object.keys(openers)) {
   test(`${id} real WXS drag uses speed, distance and direction`, async t => {
     const app = homeApp(t, { selectors: { [`.sheet-slide-${id}`]: { height: 400 } } })
     const home = await launch(app)
-    for (const [dy, elapsed, closes] of [[12, 100, true], [101, 10000, true], [40, 1000, false], [-120, 50, false]]) {
+    for (const [dy, elapsed, closes] of [[12, 60, true], [101, 10000, true], [40, 1000, false], [-120, 50, false]]) {
       await openSheet(app, home, id)
       const touch = { identifier: 1, pageX: 100, pageY: 100 }
       const currentTarget = { dataset: { sheet: id } }
@@ -1012,6 +1012,41 @@ for (const id of Object.keys(openers)) {
     }
   })
 }
+
+test('real WXS sheet release uses the latest 80ms for pause-then-flick and upward reversal', async t => {
+  const app = homeApp(t, { selectors: { '.sheet-slide-monthPicker': { height: 400 } } })
+  const home = await launch(app)
+  const currentTarget = { dataset: { sheet: 'monthPicker' } }
+  const touch = { identifier: 1, pageX: 100, pageY: 100 }
+  const dispatch = (handler, pageY, timeStamp, changed = false) => {
+    app.dispatch(home, handler, {
+      currentTarget,
+      [changed ? 'changedTouches' : 'touches']: [{ ...touch, pageY }],
+      timeStamp
+    })
+  }
+
+  await openSheet(app, home, 'monthPicker')
+  dispatch('sheetDrag.touchStart', 100, 1000)
+  dispatch('sheetDrag.touchMove', 140, 1100)
+  dispatch('sheetDrag.touchMove', 150, 2020)
+  dispatch('sheetDrag.touchMove', 170, 2040)
+  dispatch('sheetDrag.touchEnd', 190, 2060, true)
+  await app.settle()
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-leaving', 'a fresh downward flick closes after a long stationary hold')
+  await app.advance(200)
+
+  await openSheet(app, home, 'monthPicker')
+  dispatch('sheetDrag.touchStart', 100, 3000)
+  dispatch('sheetDrag.touchMove', 260, 3100)
+  dispatch('sheetDrag.touchMove', 250, 3120)
+  dispatch('sheetDrag.touchEnd', 220, 3140, true)
+  await app.settle()
+  assert.equal(sheet(app, home, 'monthPicker').pose, 'sheet-open', 'an upward release faster than -0.08 px/ms cancels a pull that remains beyond the distance threshold')
+  await app.advance(16)
+  assert.equal(app.viewStyle(home, '.sheet-slide-monthPicker').transform, '')
+  await closeSheet(app, home, 'monthPicker')
+})
 
 test('real WXS same-frame A→B→A resets keep each sheet latest clear signal', async t => {
   const app = homeApp(t, {

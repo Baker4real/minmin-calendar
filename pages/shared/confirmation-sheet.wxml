@@ -11,7 +11,9 @@
               <text wx:if="{{sheetSubtitle}}" class="text-pair-desc sheet-subtitle">{{sheetSubtitle}}</text>
             </view>
             <view class="sheet-close" bindtap="{{closeHandler}}" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">
-              <view class="ui-icon ui-icon-close ui-icon-36" aria-hidden="true"></view>
+              <view class="sheet-close-surface">
+                <view class="ui-icon ui-icon-close ui-icon-36" aria-hidden="true"></view>
+              </view>
             </view>
           </view>
         </view>
@@ -190,7 +192,9 @@
   </view>
 
   <view wx:elif="{{infoSheetMode == 'prediction'}}" class="prediction-explanation">
-    <text class="text-pair-title prediction-summary">{{predictionExplanation.summary}}</text>
+    <view class="prediction-hero">
+      <text class="text-pair-title prediction-summary">{{predictionExplanation.summary}}</text>
+    </view>
     <text
       wx:for="{{predictionExplanation.lineItems}}"
       wx:key="key"
@@ -217,9 +221,10 @@
         wx:for="{{monthlyRecap.highlightItems}}"
         wx:key="key"
         class="recap-highlight-row recap-highlight-{{item.kind}}"
+        aria-label="{{item.text}}"
       >
-        <view class="recap-highlight-rail" aria-hidden="true"></view>
-        <text class="text-pair-desc recap-highlight">{{item.text}}</text>
+        <text class="recap-date-badge" aria-hidden="true">{{item.dateBadge}}</text>
+        <text class="text-pair-desc recap-highlight" aria-hidden="true">{{item.summary}}</text>
       </view>
     </view>
     <view class="copy-recap button-primary" bindtap="copyMonthlyRecap" aria-role="button" aria-label="复制小结" hover-class="copy-recap-hover">复制小结</view>

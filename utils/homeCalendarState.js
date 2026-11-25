@@ -115,7 +115,7 @@ function buildHomeCalendarState({
   if (!memoriesSynced) monthlyRecap.memorySummary = '本月欢乐时光未同步'
   if (!periodsSynced || !memoriesSynced) {
     monthlyRecap.summaryLine = `本月 ${periodsSynced ? `经期 ${util.formatQuantity(monthlyRecap.periodDays, '天')}` : '经期未同步'} · ${memoriesSynced ? `欢乐时光 ${util.formatQuantity(monthlyRecap.memoryCount, '条')}` : '欢乐时光未同步'}`
-    monthlyRecap.shareText = [monthlyRecap.title, monthlyRecap.periodSummary, monthlyRecap.memorySummary,
+    monthlyRecap.shareText = [monthlyRecap.shareTitle, monthlyRecap.periodSummary, monthlyRecap.memorySummary,
       monthlyRecap.predictionSummary, ...monthlyRecap.highlights].filter(Boolean).join('\n')
   }
 

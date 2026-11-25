@@ -359,6 +359,17 @@ test('confirmation danger action keeps warning-red text above 4.5:1 on every dar
   }
 })
 
+test('prediction hero keeps its emphasized neutral summary above 4.5:1 on every sheet composite', () => {
+  const text = layerPaint(declarationOf('pages/index/index.wxss', '.prediction-summary', 'color'))
+  for (const surface of stackSurfaces([
+    ['pages/shared/confirmation-sheet.wxss', '.day-action-sheet'],
+    ['pages/index/index.wxss', '.prediction-hero']
+  ])) {
+    const ratio = contrastOn(text, surface)
+    assert.ok(ratio >= 4.5, `prediction summary on ${toHex(surface)} is ${ratio.toFixed(2)}:1, below 4.5:1`)
+  }
+})
+
 test('edit-form field errors reuse the one warning red and clear 4.5:1 on the form card', () => {
   // issue #156：字段错误是警示红族的一种形态，不另立一种红；红字直接落在表单玻璃卡上
   // 两个编辑页共用 app.wxss 的同一条规则

@@ -372,9 +372,19 @@ button.share-invite::after {
    全是 transition，中途反向从当前帧接着走。不拦点按、不改显隐：内容里的操作从第一帧起就能点。
    首页、设置「使用说明」与确认面板都挂在共享 .sheet-slide 上 */
 .sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  scrollbar-color: transparent transparent;
   opacity: 0;
   transform: translateY(16rpx);
   transition: opacity var(--duration-exit) var(--ease-out), transform var(--duration-exit) var(--ease-out);
+}
+.sheet-body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  color: transparent;
 }
 .sheet-slide.sheet-open .sheet-body {
   opacity: 1;

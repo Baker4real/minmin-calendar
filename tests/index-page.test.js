@@ -311,13 +311,13 @@ test('homepage retires the tools menu and keeps direct prediction, recap and hel
   assert.match(legend, /更多用法请前往「设置 → 使用说明」。/)
 })
 
-test('monthly recap uses a glass overview, projected semantic rails and 24rpx copy spacing', () => {
+test('monthly recap uses a glass overview, projected date badges and 24rpx copy spacing', () => {
   const wxml = readIndexWxml()
   const recap = wxml.slice(wxml.indexOf('class="monthly-recap"'), wxml.indexOf('class="copy-recap"'))
   assert.match(recap, /<view class="recap-overview">\s*<text class="text-pair-title recap-summary recap-main">\{\{monthlyRecap\.periodSummary\}\}/)
   assert.match(recap, /class="text-pair-desc recap-summary">\{\{monthlyRecap\.memorySummary\}\}/)
   assert.match(recap, /class="text-pair-desc recap-summary">\{\{monthlyRecap\.predictionSummary\}\}/)
-  assert.match(recap, /<view\s+wx:for="\{\{monthlyRecap\.highlightItems\}\}"\s+wx:key="key"\s+class="recap-highlight-row recap-highlight-\{\{item\.kind\}\}"\s*>\s*<view class="recap-highlight-rail" aria-hidden="true"><\/view>\s*<text class="text-pair-desc recap-highlight">\{\{item\.text\}\}<\/text>/)
+  assert.match(recap, /<view\s+wx:for="\{\{monthlyRecap\.highlightItems\}\}"\s+wx:key="key"\s+class="recap-highlight-row recap-highlight-\{\{item\.kind\}\}"\s+aria-label="\{\{item\.text\}\}"\s*>\s*<text class="recap-date-badge" aria-hidden="true">\{\{item\.dateBadge\}\}<\/text>\s*<text class="text-pair-desc recap-highlight" aria-hidden="true">\{\{item\.summary\}\}<\/text>/)
 
   const wxss = readIndexWxss()
   const overview = ruleBody(wxss, '.recap-overview')
@@ -325,11 +325,11 @@ test('monthly recap uses a glass overview, projected semantic rails and 24rpx co
   assert.match(overview, /border-radius:\s*var\(--radius-md\)/)
   assert.match(overview, /background:\s*var\(--glass-bg\)/)
   assert.match(overview, /border:\s*1px solid var\(--glass-border\)/)
-  const rail = ruleBody(wxss, '.recap-highlight-rail')
-  assert.match(rail, /width:\s*4rpx/)
-  assert.match(rail, /border-radius:\s*var\(--radius-full\)/)
-  assert.match(rail, /background:\s*var\(--aurora-pink\)/)
-  assert.match(ruleBody(wxss, '.recap-highlight-memory .recap-highlight-rail'), /background:\s*var\(--memory-gold\)/)
+  const badge = ruleBody(wxss, '.recap-date-badge')
+  assert.match(badge, /border-radius:\s*var\(--radius-sm\)/)
+  assert.match(badge, /background:\s*var\(--glass-bg\)/)
+  assert.match(badge, /color:\s*var\(--aurora-pink\)/)
+  assert.match(ruleBody(wxss, '.recap-highlight-memory .recap-date-badge'), /color:\s*var\(--memory-gold\)/)
   assert.match(readSource(path.join(repoRoot, 'app.wxss'), 'utf8'), /--memory-gold:\s*var\(--aurora-gold\)/)
 
   const main = ruleBody(wxss, '.recap-main')

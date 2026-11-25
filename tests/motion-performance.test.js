@@ -768,6 +768,20 @@ test('every transition switches instantly under reduced motion', () => {
   assert.deepEqual(violations, [])
 })
 
+test('month picker selected glow uses pseudo-element opacity and becomes instant under reduced motion', () => {
+  const file = analyzeFile(readRepo('pages/index/index.wxss'))
+  const halo = declsOf(file, '.jump-option::after')
+  assert.equal(halo.content, "''")
+  assert.equal(halo.position, 'absolute')
+  assert.equal(halo.opacity, '0')
+  assert.equal(halo['pointer-events'], 'none')
+  assert.equal(halo['box-shadow'], '0 12rpx 28rpx rgba(232,144,158,0.18)')
+  assert.equal(halo.transition, 'opacity var(--duration-state) ease')
+  assert.equal(declsOf(file, '.jump-option.active::after').opacity, '1')
+  assert.equal(declsOf(file, '.jump-option.active')['box-shadow'], undefined)
+  assert.equal(declsOf(file, '.jump-option::after', { reduced: true }).transition, 'none')
+})
+
 // 微信逻辑层没有 matchMedia：有弹层的页面放一个探针，减弱动效下它变宽，tabBar 的隐藏和恢复据此不播动画
 const SHEET_PAGES = ['pages/index/index', 'pages/settings/settings']
 const REDUCED_MOTION_PROBE = '.reduced-motion-probe'
