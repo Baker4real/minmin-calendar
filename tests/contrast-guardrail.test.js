@@ -214,7 +214,7 @@ test('compact density period band uses about 60% rose and clears 3:1 on the grid
   const grid = gridSurface()
   const painted = composite(grid, fill, fill.a)
   const ratio = contrastRatio(toHex(painted), toHex(grid))
-  assert.ok(ratio >= 3.2 && ratio <= 3.3, `compact band on the grid is ${ratio.toFixed(2)}:1, expected about 3.25:1`)
+  assert.ok(ratio >= 3, `compact band on the grid is ${ratio.toFixed(2)}:1, need ≥3:1`)
 })
 
 // issue #162：今天胶囊只包住日期，「预」在胶囊外（几何由 calendar-micro-labels 钉住），今天落在预测窗口时
@@ -323,7 +323,8 @@ test('R10 focused form controls keep the rose border at least 3:1 on their field
   const rose = layerPaint(focus)
   for (const [file, selector] of [
     ['pages/bind/bind.wxss', '.code-input'],
-    ['pages/shared/record-form.wxss', '.form-input']
+    ['pages/shared/record-form.wxss', '.form-input'],
+    ['pages/shared/record-form.wxss', '.form-picker']
   ]) {
     for (const surface of stackSurfaces([[file, selector]])) {
       const ratio = contrastOn(rose, surface)

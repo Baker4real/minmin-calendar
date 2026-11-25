@@ -84,13 +84,22 @@ test('room-code and edit inputs share box structure and focus timing while modif
   assert.deepEqual(base.decls, {
     'box-sizing': 'border-box',
     width: '100%',
-    'border-radius': 'var(--radius-sm)',
+    'border-radius': 'var(--radius-md)',
+    'box-shadow': 'inset 0 2rpx 6rpx rgba(0,0,0,0.28)',
     transition: 'border-color var(--duration-state) ease, box-shadow var(--duration-state) ease'
   })
 
+  const focus = parseWxssRules(readRaw(sharedPath)).find(rule => rule.selectors.includes('.form-control.form-control-focused'))
+  assert.ok(focus, 'the shared focus ring exists')
+  assert.equal(focus.decls['border-color'], 'var(--aurora-pink)')
+  assert.equal(
+    focus.decls['box-shadow'],
+    'inset 0 2rpx 6rpx rgba(0,0,0,0.28), 0 0 0 4rpx rgba(232,144,158,0.14)'
+  )
+
   assert.match(readRaw('pages/shared/record-form.wxss'), /@import '\.\/form-control\.wxss';/)
   assert.match(readRaw('pages/bind/bind.wxss'), /@import '\.\.\/shared\/form-control\.wxss';/)
-  assert.match(readRaw('pages/shared/form-controls.wxml'), /class="form-picker form-control\{\{saving/)
+  assert.match(readRaw('pages/shared/form-controls.wxml'), /class="form-picker form-control\{\{focused \? ' form-control-focused' : ''\}\}\{\{saving/)
   assert.match(readRaw('pages/bind/bind.wxml'), /class="code-input form-control\s/)
   for (const kind of ['period', 'memory']) {
     assert.match(readRaw(`pages/${kind}/edit/edit.wxml`), /class="form-input(?: memory-note-input)? form-control\{\{noteFocused/)
@@ -104,6 +113,24 @@ test('room-code and edit inputs share box structure and focus timing while modif
     const modifier = parseWxssRules(readRaw(file)).find(rule => rule.selectors.includes(selector))
     for (const property of ['box-sizing', 'width', 'border-radius']) {
       assert.equal(modifier.decls[property], undefined, `${file} ${selector} leaves ${property} to the shared base`)
+    }
+    assert.equal(modifier.decls.background, 'rgba(10,14,39,0.88)', `${file} ${selector} uses the deep-sea well`)
+    assert.equal(modifier.decls.border, '1px solid rgba(255,255,255,0.08)', `${file} ${selector} uses the weak outer edge`)
+  }
+
+  const pickerPress = parseWxssRules(readRaw('pages/shared/record-form.wxss'))
+    .find(rule => rule.selectors.includes('.form-picker:active'))
+  assert.ok(pickerPress, 'the date well shares the rose focus treatment on press')
+  assert.equal(pickerPress.decls['border-color'], 'var(--aurora-pink)')
+  assert.equal(pickerPress.decls['box-shadow'], undefined, 'press keeps the existing shadow; the mounted date panel owns focus')
+
+  for (const [file, labels] of [
+    ['pages/period/edit/edit.wxml', ['开始日期', '结束日期']],
+    ['pages/memory/edit/edit.wxml', ['日期']]
+  ]) {
+    const wxml = readRaw(file)
+    for (const label of labels) {
+      assert.ok(wxml.includes(`focused: datePickerMounted && datePickerName === '${label}'`), `${file} focuses ${label} while its date panel is mounted`)
     }
   }
 })

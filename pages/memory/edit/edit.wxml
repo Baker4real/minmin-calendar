@@ -16,7 +16,7 @@
         <text class="draft-discard micro-notice-action" hover-class="draft-discard-hover" bindtap="discardDraft" aria-role="button" aria-label="{{draftDiscardText}}">{{draftDiscardText}}</text>
       </view>
       <view class="form-item" id="field-date">
-        <template is="sharedDateField" data="{{label: '日期', value: date, displayValue: dateLabel, placeholder: '', ariaLabel: '日期，' + dateLabel + '，点按修改', error: fieldErrors.date, maxDate: maxDate, saving: saving, tapHandler: 'openMemoryDatePicker'}}" />
+        <template is="sharedDateField" data="{{label: '日期', value: date, displayValue: dateLabel, placeholder: '', ariaLabel: '日期，' + dateLabel + '，点按修改', error: fieldErrors.date, maxDate: maxDate, saving: saving, tapHandler: 'openMemoryDatePicker', focused: datePickerMounted && datePickerName === '日期'}}" />
       </view>
       <view class="form-item">
         <view class="form-label-row">
