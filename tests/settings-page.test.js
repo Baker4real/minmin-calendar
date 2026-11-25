@@ -289,10 +289,18 @@ test('reentering settings reads the current cache before verification and unboun
   assert.equal(page.data.roomCodeDisplay, 'ROOM03')
 })
 
-test('resync uses the shared sheet and announces only after room resolution completes', async (t) => {
+test('resync from the data card uses the shared sheet and announces only after room resolution completes', async (t) => {
   const app = settingsApp(t, { storage: { roomCode: 'ROOM01', calendarDensity: 'full' } })
   const page = app.launch('/pages/settings/settings')
   await app.settle()
+  const wxml = readSource(path.join(__dirname, '..', 'pages/settings/settings.wxml'), 'utf8')
+  const data = wxml.slice(wxml.indexOf('>数据<'), wxml.indexOf('>关于<'))
+  const resyncEntry = wxmlOpeningTags(data).find(tag => tag.attrs.bindtap === 'clearData')
+  assert.ok(resyncEntry, 'the data card owns the resync entry')
+  assert.ok(resyncEntry.classes.includes('menu-item'))
+  assert.ok(resyncEntry.classes.includes('resync-room-btn'))
+  assert.match(data, /bindtap="exportData"/)
+  assert.doesNotMatch(wxml.slice(wxml.indexOf('>房间<'), wxml.indexOf('>日历显示<')), /bindtap="clearData"/)
   const resyncing = app.dispatch(page, 'clearData')
   await app.settle()
   assert.equal(page.data.confirmationTitle, '重新同步房间？')

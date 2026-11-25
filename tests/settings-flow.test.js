@@ -1009,7 +1009,7 @@ test('exportRecordsAsJson stops without touching data when the shared-sheet expl
 
 test('settings room-code card swaps the dead sentence for tappable retry and go-bind rows when no code is available', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
-  const cardStart = wxml.indexOf('class="menu-item room-code-item')
+  const cardStart = wxml.indexOf('class="room-code-item')
   const cardEnd = wxml.indexOf('日历显示')
   assert.ok(cardStart !== -1 && cardEnd > cardStart, 'expected the room-code card')
   const card = wxml.slice(cardStart, cardEnd)
@@ -1051,7 +1051,7 @@ test('settings room actions are rose tappable rows with the shared small-action 
 
 test('settings room group keeps copy and retry, and does not host unbind', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
-  const cardStart = wxml.indexOf('class="menu-item room-code-item')
+  const cardStart = wxml.indexOf('class="room-code-item')
   const cardEnd = wxml.indexOf('日历显示')
   assert.ok(cardStart !== -1 && cardEnd > cardStart, 'expected the room-code card')
   const card = wxml.slice(cardStart, cardEnd)
@@ -1070,9 +1070,9 @@ test('settings page leads with room info in named groups and keeps unbind in the
   assert.deepEqual(titles, ['房间', '日历显示', '数据', '关于'])
 
   const room = wxml.slice(wxml.indexOf('>房间<'), wxml.indexOf('>日历显示<'))
-  assert.match(room, /class="menu-item room-code-item/)
+  assert.match(room, /class="room-code-item/)
   assert.match(room, /bindtap="copyRoomCode"/)
-  assert.match(room, /class="room-action-btn resync-room-btn button-outline" bindtap="clearData"/)
+  assert.doesNotMatch(room, /bindtap="clearData"/)
   assert.doesNotMatch(room, /bindtap="unbind"/)
 
   const calendar = wxml.slice(wxml.indexOf('>日历显示<'), wxml.indexOf('>数据<'))
@@ -1082,8 +1082,10 @@ test('settings page leads with room info in named groups and keeps unbind in the
   assert.doesNotMatch(calendar, /class="menu-item/)
 
   const data = wxml.slice(wxml.indexOf('>数据<'), wxml.indexOf('>关于<'))
+  assert.match(data, /class="menu-item resync-room-btn" bindtap="clearData"/)
   assert.match(data, /bindtap="exportData"/)
-  assert.doesNotMatch(data, /bindtap="clearData"/)
+  assert.ok(data.indexOf('bindtap="clearData"') < data.indexOf('bindtap="exportData"'), 'resync and export share one ordered data card')
+  assert.equal((data.match(/class="menu-item(?:\s|\")/g) || []).length, 2, 'the data group is one two-row card')
   assert.doesNotMatch(data, /class="[^"]*danger/)
 
   const aboutAt = wxml.indexOf('>关于<')
@@ -1110,7 +1112,7 @@ test('settings room group keeps member status separate from the danger zone', ()
   assert.doesNotMatch(wxml.slice(0, wxml.indexOf('settings-danger-zone')), /bindtap="unbind"/)
 })
 
-test('settings room card aligns its code, inline membership badge and separated bottom actions', () => {
+test('settings room card left-clusters its membership badge and keeps only invitation in the bottom actions', () => {
   const wxml = readPageFile('pages/settings/settings.wxml')
   const room = wxml.slice(wxml.indexOf('>房间<'), wxml.indexOf('>日历显示<'))
   const heading = /<view class="room-code-heading">([\s\S]*?)<\/view>/.exec(room)
@@ -1124,19 +1126,18 @@ test('settings room card aligns its code, inline membership badge and separated 
   assert.ok(actions, 'bound-room actions share a dedicated bottom region')
   assert.match(actions[1], /open-type="share"/)
   assert.match(actions[1], />再发邀请</)
-  assert.match(actions[1], /bindtap="clearData"/)
-  assert.match(actions[1], />重新同步房间$/)
+  assert.doesNotMatch(actions[1], /bindtap="clearData"|重新同步房间/)
 
   const wxss = readPageFile('pages/settings/settings.wxss')
-  assert.doesNotMatch(wxssRuleBody(wxss, '.room-code-content .room-code-value'), /text-indent/)
+  assert.doesNotMatch(wxssRuleBody(wxss, '.room-credential-ticket .room-code-value'), /text-indent/)
   assert.match(wxssRuleBody(wxss, '.room-code-heading'), /display:\s*flex/)
-  assert.match(wxssRuleBody(wxss, '.room-code-heading'), /justify-content:\s*space-between/)
+  assert.match(wxssRuleBody(wxss, '.room-code-heading'), /justify-content:\s*flex-start/)
+  assert.match(wxssRuleBody(wxss, '.room-code-heading'), /gap:\s*12rpx/)
   const actionStyle = wxssRuleBody(wxss, '.room-card-actions')
   assert.match(actionStyle, /padding:\s*16rpx var\(--space-page-row-inset\) 30rpx/)
   assert.match(actionStyle, /gap:\s*16rpx/)
   assert.match(wxssRuleBody(wxss, 'button.settings-share-invite'), /width:\s*100%/)
   assert.match(wxssRuleBody(wxss, 'button.settings-share-invite'), /margin:\s*0/)
-  assert.match(wxssRuleBody(wxss, '.resync-room-btn'), /margin:\s*0/)
   assert.match(wxssRuleBody(wxss, '.room-member-badge'), /border-radius:\s*var\(--radius-full\)/)
   assert.match(wxssRuleBody(wxss, '.room-member-badge.paired'), /color:\s*var\(--aurora-pink\)/)
   assert.match(wxssRuleBody(wxss, '.room-member-badge.paired'), /background:\s*rgba\(232,144,158,0\.12\)/)

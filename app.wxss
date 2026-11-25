@@ -1,5 +1,6 @@
 @import './pages/shared/nav-bar.wxss';
 @import './pages/shared/vector-icons.wxss';
+@import './pages/shared/brand-hearts.wxss';
 @import './pages/shared/glass-buttons.wxss';
 @import './pages/shared/text-pair.wxss';
 

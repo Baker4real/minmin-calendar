@@ -172,6 +172,9 @@ const CASES = [
   // issue #104：成功标题回到主色玫瑰 #E8909E（DESIGN.md「成功态用主色玫瑰」），
   // 在海军卡合成面上钉住 ≥4.5:1
   { file: 'pages/bind/bind.wxss', selector: '.bound-status', surfaces: [['app.wxss', '.premium-card']], note: '绑定页已绑定成功标题' },
+  // #271：两页复制胶囊的玫瑰字在深海票根与 14% 玫瑰淡底的实际合成面上验收。
+  { file: 'pages/bind/bind.wxss', selector: '.copy-btn-surface', surfaces: [['app.wxss', '.premium-card'], ['pages/shared/room-code.wxss', '.room-credential-ticket']], note: '绑定页凭证复制胶囊' },
+  { file: 'pages/settings/settings.wxss', selector: '.copy-btn-surface', surfaces: [['app.wxss', '.premium-card'], ['pages/shared/room-code.wxss', '.room-credential-ticket']], note: '设置页凭证复制胶囊' },
   { file: 'pages/bind/bind.wxss', selector: '.tab', surfaces: [['app.wxss', '.premium-card'], ['pages/bind/bind.wxss', '.tab-bar']], note: '绑定页未选中 tab' },
   // issue #149：刚创建房间时的幽灵「进入应用」，玫瑰字落在卡片合成面上
   { file: 'pages/bind/bind.wxss', selector: '.btn-ghost', surfaces: [['app.wxss', '.premium-card']], note: '绑定页次操作进入应用' },

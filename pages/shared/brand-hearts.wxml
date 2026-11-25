@@ -1,0 +1,11 @@
+<template name="brandGlassHearts">
+  <view class="brand-glass-hearts" aria-hidden="true">
+    <view class="brand-heart-frame"></view>
+    <view class="brand-heart brand-heart-lavender"></view>
+    <view class="brand-heart brand-heart-rose"></view>
+    <view class="brand-heart-secondary-echo">
+      <view class="brand-heart brand-heart-lavender brand-heart-echo-asset"></view>
+    </view>
+    <view class="brand-heart-ring-echo"></view>
+  </view>
+</template>

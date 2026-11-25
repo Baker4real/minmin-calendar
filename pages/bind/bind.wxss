@@ -26,40 +26,16 @@
 }
 .hero-icon {
   position: relative;
-  font-size: 120rpx;
-  /* 品牌心：玫瑰文本字形，不再用红色心形表情（issue #77） */
-  color: var(--aurora-pink);
   margin-bottom: 20rpx;
   animation: heroIn 0.6s var(--ease-out) both;
-  /* ♥ 字形只留一层浅粉字阴影。不可点元素不再叠远层光晕（issue #146）。
-     heroIn 无回弹入场保留，辉光本身无持续动画，减弱动效由本页文件末尾的减弱动效块静止 */
-  text-shadow: 0 0 18rpx rgba(240,196,192,0.32);
 }
 /* 入场只做淡入 + 轻微放大，不做 overshoot 回弹（issue #58） */
 @keyframes heroIn {
   from { opacity: 0; transform: scale(0.92); }
   to { opacity: 1; transform: scale(1); }
 }
-/* 刚建好房间（issue #167）：♥ 向外漾开一次。回声是同一个字形的半透明副本，从心上放大淡出，
-   播完即透明；不带字阴影，心仍只有那一层浅粉辉光（issue #146）。动画挂在伪元素上，
-   再次校验去掉 hero-bloom 时心本身的 heroIn 不重播 */
-.hero.hero-bloom .hero-icon::after {
-  content: '♥';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  text-align: center;
-  text-shadow: none;
-  opacity: 0;
-  pointer-events: none;
-  animation: heroBloom var(--duration-emphasis) var(--ease-out) both;
-}
-@keyframes heroBloom {
-  from { opacity: 0.6; transform: scale(1); }
-  to { opacity: 0; transform: scale(1.6); }
-}
+/* #271：副心回声与外圈柔光环的一次性涟漪由 shared/brand-hearts.wxss 承载；
+   再次校验去掉 hero-bloom 不会重播品牌徽章本身的 heroIn。 */
 .hero-title {
   max-width: 100%;
   font-size: 48rpx;
@@ -115,6 +91,26 @@
 .tab-bar.tab-bar-unselected {
   margin-bottom: 0;
 }
+/* #271：外层网格测高，内层裁切与禁点；不要改回 wx:if 卸载硬切。 */
+.bind-form-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  width: 100%;
+  opacity: 0;
+  transition: grid-template-rows var(--duration-state) var(--ease-out), opacity var(--duration-state) ease;
+}
+.bind-form-panel.bind-form-panel-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.bind-form-panel-inner {
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.bind-form-panel-open .bind-form-panel-inner {
+  pointer-events: auto;
+}
 .info-text {
   display: block;
   font-size: var(--font-size-caption);
@@ -163,47 +159,20 @@
   margin-bottom: 20rpx;
   color: var(--aurora-pink);
 }
-/* 房间码是行内纯展示文本（issue #83/#84），展示样式与设置页共用 shared/room-code.wxss（#232）。 */
-/* 建房成功凭证票根（issue #252）：房间码左对齐，紧凑复制胶囊嵌在深色凹槽右侧。 */
-.bound-code-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 16rpx;
-  margin-bottom: 30rpx;
-  padding: 20rpx 24rpx;
-  border-radius: var(--radius-md);
-  background: rgba(10,14,39,0.52);
-  border: 1px solid rgba(232,144,158,0.20);
-}
-.bound-code-row .room-code-value {
-  flex: 1;
-  min-width: 0;
-  text-align: left;
-}
-.bound-code-row .copy-btn {
-  padding: 0 24rpx;
-  background: rgba(232,144,158,0.14);
-  color: var(--aurora-pink);
-  border: 1px solid rgba(232,144,158,0.45);
-  border-radius: var(--radius-full);
-}
-.bound-code-row .copy-btn::before {
-  border-radius: inherit;
-}
-/* 复制键的触控高度、按压与减弱动效仍共用 shared/room-code.wxss（#232）。 */
+/* #271：房间码、深海凭证票根与 88/60 复制胶囊全部共用 shared/room-code.wxss。 */
 /* 原生分享按钮的玫瑰主操作与按压样式在 app.wxss，由绑定和设置共用（issue #218）。 */
-/* 刚创建房间时的次操作「进入应用」（issue #149）：DESIGN.md button-ghost——透明底、玫瑰描边和玫瑰字，
-   居中胶囊，视觉权重低于整宽实底的「发给 TA」，不加投影。上下 12px 内边距让 320px 宽下触控高度仍 ≥44px */
+/* 刚创建房间时的次操作「进入应用」（issue #149、#271）：透明底、玫瑰描边和玫瑰字，
+   与主按钮同为整宽和 --radius-md，视觉权重仍低于实底「发给 TA」。上下 12px 内边距让 320px 宽下触控高度仍 ≥44px */
 .btn-ghost {
-  width: fit-content;
-  margin: 0 auto;
+  width: 100%;
+  min-height: 88rpx;
+  margin: 0;
   padding: 12px 28px;
   box-sizing: border-box;
   background: transparent;
   color: var(--aurora-pink);
   border: 1.5px solid var(--aurora-pink);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-assist);
@@ -248,13 +217,13 @@
    政策见 DESIGN.md「动效与性能边界」——按压 = 即时 scale + 既有底色变化 */
 @media (prefers-reduced-motion: reduce) {
   .btn-ghost,
+  .bind-form-panel,
   .bind-reveal,
   .hero-icon {
     animation: none;
     transition: none;
   }
-  /* 刚建好房间（issue #167）：♥ 不漾开（回声静止透明），已绑定卡直接出现 */
-  .hero.hero-bloom .hero-icon::after,
+  /* 刚建好房间：已绑定卡直接出现；副心与外圈回声的静止透明覆盖在共享品牌样式中。 */
   .premium-card.bound-reveal {
     animation: none;
   }

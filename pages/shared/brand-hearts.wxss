@@ -1,0 +1,86 @@
+/* #271 / #265: zero-request inline SVG glass hearts, sharing invitation geometry and materials. */
+.brand-glass-hearts {
+  position: relative;
+  width: 220rpx;
+  height: 190rpx;
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+.brand-heart-frame,
+.brand-heart-ring-echo {
+  position: absolute;
+  left: 35rpx;
+  top: 16rpx;
+  width: 150rpx;
+  height: 150rpx;
+  box-sizing: border-box;
+  border: 1px solid rgba(196,160,210,0.22);
+  border-radius: var(--radius-circle);
+  box-shadow: 0 0 24rpx rgba(232,144,158,0.14);
+  pointer-events: none;
+}
+.brand-heart-frame {
+  opacity: 0.72;
+}
+.brand-heart {
+  position: absolute;
+  width: 160rpx;
+  height: 164rpx;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  pointer-events: none;
+}
+.brand-heart-rose {
+  left: 12rpx;
+  top: 18rpx;
+  z-index: 2;
+  transform: rotate(-7deg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%22-100 -105 200 205%22%3E%3Cdefs%3E%3ClinearGradient id=%22rose-fill%22 x1=%220%22 y1=%22-88%22 x2=%2220%22 y2=%2284%22 gradientUnits=%22userSpaceOnUse%22%3E%3Cstop offset=%220%22 stop-color=%22%23E8909E%22 stop-opacity=%22.36%22/%3E%3Cstop offset=%22.46%22 stop-color=%22%23E8909E%22 stop-opacity=%22.21%22/%3E%3Cstop offset=%221%22 stop-color=%22%23E8909E%22 stop-opacity=%22.10%22/%3E%3C/linearGradient%3E%3ClinearGradient id=%22rose-edge%22 x1=%22-75%22 y1=%22-75%22 x2=%2270%22 y2=%2275%22 gradientUnits=%22userSpaceOnUse%22%3E%3Cstop offset=%220%22 stop-color=%22%23FFFFFF%22 stop-opacity=%22.80%22/%3E%3Cstop offset=%22.28%22 stop-color=%22%23E8909E%22 stop-opacity=%22.82%22/%3E%3Cstop offset=%221%22 stop-color=%22%23E8909E%22 stop-opacity=%22.28%22/%3E%3C/linearGradient%3E%3ClinearGradient id=%22rose-sheen%22 x1=%22-60%22 y1=%22-65%22 x2=%2260%22 y2=%2230%22 gradientUnits=%22userSpaceOnUse%22%3E%3Cstop offset=%220%22 stop-color=%22%23FFFFFF%22 stop-opacity=%22.22%22/%3E%3Cstop offset=%22.48%22 stop-color=%22%23FFFFFF%22 stop-opacity=%22.035%22/%3E%3Cstop offset=%221%22 stop-color=%22%23FFFFFF%22 stop-opacity=%220%22/%3E%3C/linearGradient%3E%3CclipPath id=%22rose-clip%22%3E%3Cpath d=%22M 0 82 C -11 69 -82 19 -82 -34 C -82 -76 -28 -92 0 -50 C 28 -92 82 -76 82 -34 C 82 19 11 69 0 82 Z%22/%3E%3C/clipPath%3E%3C/defs%3E%3Cpath d=%22M 0 82 C -11 69 -82 19 -82 -34 C -82 -76 -28 -92 0 -50 C 28 -92 82 -76 82 -34 C 82 19 11 69 0 82 Z%22 fill=%22url(%23rose-fill)%22/%3E%3Cg clip-path=%22url(%23rose-clip)%22%3E%3Cpath d=%22M -80 -28 C -72 -66 -37 -82 -8 -57 C 22 -79 63 -65 79 -31 C 33 -47 -22 -31 -69 11 Z%22 fill=%22url(%23rose-sheen)%22/%3E%3Cpath d=%22M 0 82 C -11 69 -82 19 -82 -34 C -82 -76 -28 -92 0 -50 C 28 -92 82 -76 82 -34 C 82 19 11 69 0 82 Z%22 fill=%22none%22 stroke=%22url(%23rose-edge)%22 stroke-width=%223.2%22/%3E%3Cpath d=%22M -78 -29 C -80 -50 -66 -70 -48 -75%22 fill=%22none%22 stroke=%22%23FFFFFF%22 stroke-opacity=%22.42%22 stroke-width=%222.4%22 stroke-linecap=%22round%22/%3E%3C/g%3E%3Cpath d=%22M 0 82 C -11 69 -82 19 -82 -34 C -82 -76 -28 -92 0 -50 C 28 -92 82 -76 82 -34 C 82 19 11 69 0 82 Z%22 fill=%22none%22 stroke=%22%23E8909E%22 stroke-opacity=%22.50%22 stroke-width=%221.15%22/%3E%3C/svg%3E");
+}
+.brand-heart-lavender {
+  left: 54rpx;
+  top: 0;
+  z-index: 1;
+  transform: rotate(7deg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%22-100 -105 200 205%22%3E%3Cdefs%3E%3ClinearGradient id=%22lavender-fill%22 x1=%220%22 y1=%22-88%22 x2=%2220%22 y2=%2284%22 gradientUnits=%22userSpaceOnUse%22%3E%3Cstop offset=%220%22 stop-color=%22%23C4A0D2%22 stop-opacity=%22.36%22/%3E%3Cstop offset=%22.46%22 stop-color=%22%23C4A0D2%22 stop-opacity=%22.21%22/%3E%3Cstop offset=%221%22 stop-color=%22%23C4A0D2%22 stop-opacity=%22.10%22/%3E%3C/linearGradient%3E%3ClinearGradient id=%22lavender-edge%22 x1=%22-75%22 y1=%22-75%22 x2=%2270%22 y2=%2275%22 gradientUnits=%22userSpaceOnUse%22%3E%3Cstop offset=%220%22 stop-color=%22%23FFFFFF%22 stop-opacity=%22.80%22/%3E%3Cstop offset=%22.28%22 stop-color=%22%23C4A0D2%22 stop-opacity=%22.82%22/%3E%3Cstop offset=%221%22 stop-color=%22%23C4A0D2%22 stop-opacity=%22.28%22/%3E%3C/linearGradient%3E%3ClinearGradient id=%22lavender-sheen%22 x1=%22-60%22 y1=%22-65%22 x2=%2260%22 y2=%2230%22 gradientUnits=%22userSpaceOnUse%22%3E%3Cstop offset=%220%22 stop-color=%22%23FFFFFF%22 stop-opacity=%22.22%22/%3E%3Cstop offset=%22.48%22 stop-color=%22%23FFFFFF%22 stop-opacity=%22.035%22/%3E%3Cstop offset=%221%22 stop-color=%22%23FFFFFF%22 stop-opacity=%220%22/%3E%3C/linearGradient%3E%3CclipPath id=%22lavender-clip%22%3E%3Cpath d=%22M 0 82 C -11 69 -82 19 -82 -34 C -82 -76 -28 -92 0 -50 C 28 -92 82 -76 82 -34 C 82 19 11 69 0 82 Z%22/%3E%3C/clipPath%3E%3C/defs%3E%3Cpath d=%22M 0 82 C -11 69 -82 19 -82 -34 C -82 -76 -28 -92 0 -50 C 28 -92 82 -76 82 -34 C 82 19 11 69 0 82 Z%22 fill=%22url(%23lavender-fill)%22/%3E%3Cg clip-path=%22url(%23lavender-clip)%22%3E%3Cpath d=%22M -80 -28 C -72 -66 -37 -82 -8 -57 C 22 -79 63 -65 79 -31 C 33 -47 -22 -31 -69 11 Z%22 fill=%22url(%23lavender-sheen)%22/%3E%3Cpath d=%22M 0 82 C -11 69 -82 19 -82 -34 C -82 -76 -28 -92 0 -50 C 28 -92 82 -76 82 -34 C 82 19 11 69 0 82 Z%22 fill=%22none%22 stroke=%22url(%23lavender-edge)%22 stroke-width=%223.2%22/%3E%3Cpath d=%22M -78 -29 C -80 -50 -66 -70 -48 -75%22 fill=%22none%22 stroke=%22%23FFFFFF%22 stroke-opacity=%22.42%22 stroke-width=%222.4%22 stroke-linecap=%22round%22/%3E%3C/g%3E%3Cpath d=%22M 0 82 C -11 69 -82 19 -82 -34 C -82 -76 -28 -92 0 -50 C 28 -92 82 -76 82 -34 C 82 19 11 69 0 82 Z%22 fill=%22none%22 stroke=%22%23C4A0D2%22 stroke-opacity=%22.50%22 stroke-width=%221.15%22/%3E%3C/svg%3E");
+}
+.brand-heart-secondary-echo,
+.brand-heart-ring-echo {
+  opacity: 0;
+  pointer-events: none;
+}
+.brand-heart-secondary-echo {
+  position: absolute;
+  left: 54rpx;
+  top: 0;
+  z-index: 3;
+  width: 160rpx;
+  height: 164rpx;
+}
+.brand-heart-secondary-echo .brand-heart-echo-asset {
+  left: 0;
+  top: 0;
+}
+.hero.hero-bloom .brand-heart-secondary-echo,
+.hero.hero-bloom .brand-heart-ring-echo {
+  opacity: 0;
+  pointer-events: none;
+  animation: heroBloom var(--duration-emphasis) var(--ease-out) both;
+}
+@keyframes heroBloom {
+  from {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero.hero-bloom .brand-heart-secondary-echo,
+  .hero.hero-bloom .brand-heart-ring-echo {
+    animation: none;
+  }
+}

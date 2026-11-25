@@ -1,5 +1,6 @@
 <import src="/pages/shared/confirmation-sheet.wxml" />
 <import src="/pages/shared/nav-bar.wxml" />
+<import src="/pages/shared/brand-hearts.wxml" />
 <page-meta page-style="{{pageObscured ? 'overflow: hidden;' : ''}}"></page-meta>
 <template is="sharedSheetPage" data="{{sheetExitGuard: sheetExitGuard}}" />
 <view class="page safe-top {{pageObscured ? 'page-obscured' : ''}} {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px; --nav-title-padding-left: {{navTitlePaddingLeft}}px; --nav-title-padding-right: {{navTitlePaddingRight}}px">
@@ -9,8 +10,8 @@
   <view class="content" aria-hidden="{{pageObscured}}">
     <!-- issue #167：刚建好房间时 hero-bloom 让品牌心向外漾开一次 -->
     <view class="hero {{justCreated ? 'hero-bloom' : ''}}">
-      <!-- 品牌心是文本字形（颜色走 wxss），不用红色心形表情（issue #77） -->
-      <view class="hero-icon" aria-hidden="true">♥</view>
+      <!-- #271 / #265：暖玫瑰与柔薰衣草交叠双琉璃心，装饰图形不进入读屏。 -->
+      <view class="hero-icon" aria-hidden="true"><template is="brandGlassHearts" /></view>
       <text wx:if="{{openingCalendarHint}}" class="hero-desc opening-calendar">正在打开日历…</text>
       <!-- issue #167：大标题和说明跟下面的卡片同一刻、同一个显现进来 -->
       <view wx:if="{{revealed}}" class="bind-reveal">
@@ -27,9 +28,9 @@
       <text wx:if="{{justCreated}}" class="info-text">把房间码发给 TA，一起共享这份日历</text>
       <!-- issue #252：房间码与复制键组成左对齐的深色凭证票根；
            issue #84：房间码回归纯展示文本，复制键是唯一复制入口 -->
-      <view class="bound-code-row">
+      <view class="room-credential-ticket">
         <text class="room-code-value">{{roomCode}}</text>
-        <view class="copy-btn button-primary" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码" hover-start-time="20" hover-stay-time="70" hover-class="copy-btn-hover">复制</view>
+        <view class="copy-btn button-primary" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码" hover-start-time="20" hover-stay-time="70" hover-class="copy-btn-hover"><text class="copy-btn-surface">复制</text></view>
       </view>
       <!-- issue #102：复制键仍是唯一复制入口，不新增第二个 -->
       <text wx:if="{{restoredNotice}}" class="info-text">{{restoredNotice}}</text>
@@ -42,25 +43,30 @@
     </view>
 
     <view wx:else class="premium-card glass-surface">
-      <text class="info-text">房间只有你们两个人能看到</text>
       <view class="tab-bar {{!tab ? 'tab-bar-unselected' : ''}}" aria-role="radiogroup" aria-label="绑定方式">
         <view wx:if="{{tab}}" class="segment-thumb segment-thumb-index-{{tab === 'join' ? 1 : 0}}" aria-hidden="true"></view>
         <view class="tab {{tab==='create' ? 'active' : ''}} {{!tab ? 'tab-equal' : ''}}" bindtap="switchTab" data-tab="create" aria-role="radio" aria-label="我来建房间" aria-checked="{{tab==='create'}}" hover-start-time="20" hover-stay-time="70" hover-class="tab-hover">我来建房间</view>
         <view class="tab {{tab==='join' ? 'active' : ''}} {{!tab ? 'tab-equal' : ''}}" bindtap="switchTab" data-tab="join" aria-role="radio" aria-label="我有房间码" aria-checked="{{tab==='join'}}" hover-start-time="20" hover-stay-time="70" hover-class="tab-hover">我有房间码</view>
       </view>
 
-      <view wx:if="{{tab === 'create'}}">
-        <text class="info-text">生成房间码，把码发给对方加入</text>
-        <view wx:if="{{loading}}" class="btn-premium loading button-primary" aria-role="button" aria-disabled="true">创建中...</view>
-        <view wx:else class="btn-premium button-primary" bindtap="createRoom" aria-role="button" aria-label="创建我的房间" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">创建我的房间</view>
+      <!-- #271：两个子表单保持挂载，以双层网格 0fr / 1fr 和透明度呼吸展开；
+           收起时读屏隐藏、内部禁点，原生输入同时 disabled，避免焦点落入不可见区域。 -->
+      <view class="bind-form-panel {{tab === 'create' ? 'bind-form-panel-open' : ''}}" data-flow="create" aria-hidden="{{tab !== 'create'}}">
+        <view class="bind-form-panel-inner">
+          <text class="info-text">生成房间码，把码发给对方加入</text>
+          <view wx:if="{{loading}}" class="btn-premium loading button-primary" aria-role="button" aria-disabled="true">创建中...</view>
+          <view wx:else class="btn-premium button-primary" bindtap="createRoom" aria-role="button" aria-label="创建我的房间" aria-disabled="{{tab !== 'create'}}" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">创建我的房间</view>
+        </view>
       </view>
 
-      <view wx:if="{{tab === 'join'}}">
-        <text class="info-text">输入对方给你的房间码</text>
-        <input class="code-input form-control {{joinCode ? 'code-input-filled' : 'code-input-empty'}}{{codeFocused ? ' form-control-focused' : ''}}" placeholder-class="input-placeholder" placeholder="输入 6 位码" value="{{joinCode}}" bindinput="onCodeInput" bindfocus="onCodeFocus" bindblur="onCodeBlur" confirm-type="done" bindconfirm="joinRoom" aria-label="输入 6 位房间码"/>
-        <view wx:if="{{joinCode.length < 6 && !loading}}" class="btn-premium disabled button-primary" aria-role="button" aria-disabled="true">请输入 6 位房间码</view>
-        <view wx:elif="{{loading}}" class="btn-premium loading button-primary" aria-role="button" aria-disabled="true">加入中...</view>
-        <view wx:elif="{{joinCode.length === 6}}" class="btn-premium button-primary" bindtap="joinRoom" aria-role="button" aria-label="加入房间" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">加入房间</view>
+      <view class="bind-form-panel {{tab === 'join' ? 'bind-form-panel-open' : ''}}" data-flow="join" aria-hidden="{{tab !== 'join'}}">
+        <view class="bind-form-panel-inner">
+          <text class="info-text">输入对方给你的房间码</text>
+          <input class="code-input form-control {{joinCode ? 'code-input-filled' : 'code-input-empty'}}{{codeFocused ? ' form-control-focused' : ''}}" placeholder-class="input-placeholder" placeholder="输入 6 位码" value="{{joinCode}}" bindinput="onCodeInput" bindfocus="onCodeFocus" bindblur="onCodeBlur" confirm-type="done" bindconfirm="joinRoom" aria-label="输入 6 位房间码" disabled="{{tab !== 'join'}}"/>
+          <view wx:if="{{joinCode.length < 6 && !loading}}" class="btn-premium disabled button-primary" aria-role="button" aria-disabled="true">请输入 6 位房间码</view>
+          <view wx:elif="{{loading}}" class="btn-premium loading button-primary" aria-role="button" aria-disabled="true">加入中...</view>
+          <view wx:elif="{{joinCode.length === 6}}" class="btn-premium button-primary" bindtap="joinRoom" aria-role="button" aria-label="加入房间" aria-disabled="{{tab !== 'join'}}" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">加入房间</view>
+        </view>
       </view>
 
       <view wx:if="{{needUnbind}}" class="btn-danger unbind-inline button-danger" bindtap="unbind" aria-role="button" aria-label="解除绑定" hover-start-time="20" hover-stay-time="70" hover-class="btn-danger-hover">解除绑定</view>
