@@ -29,11 +29,21 @@ test('all bottom sheets use one shared shell, page guard and reduced-motion prob
     assert.equal(invocations.filter(tag => tag.attrs.is === 'sharedSheetPage').length, 1, `${file} shares one page guard and probe`)
 
     const expanded = readSource(path.join(repoRoot, file), 'utf8')
+    assert.equal((expanded.match(/<wxs\s+module="sheetDrag"\s/g) || []).length, 1, `${file} expands the template-local WXS module once`)
     const nodes = wxmlOpeningTags(expanded)
     assert.equal(nodes.filter(tag => tag.classes.includes('reduced-motion-probe')).length, 1, `${file} mounts one probe`)
     assert.equal(nodes.filter(tag => tag.tag === 'page-container' && tag.attrs.bindbeforeleave === 'onSheetSystemBack').length, 1, `${file} mounts one return guard`)
     assert.equal(nodes.filter(tag => tag.classes.includes('day-sheet-mask')).length, sheetCount, `${file} uses the shared mask`)
     assert.equal(nodes.filter(tag => tag.classes.includes('sheet-drag-zone') && tag.attrs.bindtouchcancel === '{{sheetDrag.touchCancel}}').length, sheetCount, `${file} routes every touch cancellation through sheetDrag`)
+  }
+})
+
+test('shared sheet templates own their WXS module scope instead of relying on each host page', () => {
+  const shared = fs.readFileSync(path.join(repoRoot, 'pages/shared/confirmation-sheet.wxml'), 'utf8')
+  assert.equal((shared.match(/<wxs\s+module="sheetDrag"\s+src="\.\.\/\.\.\/utils\/sheetDrag\.wxs"><\/wxs>/g) || []).length, 1)
+  for (const [file] of pages) {
+    const raw = fs.readFileSync(path.join(repoRoot, file), 'utf8')
+    assert.equal(raw.includes('<wxs module="sheetDrag"'), false, `${file} must consume the template-local WXS binding`)
   }
 })
 

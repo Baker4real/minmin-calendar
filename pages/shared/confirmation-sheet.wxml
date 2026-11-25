@@ -1,3 +1,4 @@
+<wxs module="sheetDrag" src="../../utils/sheetDrag.wxs"></wxs>
 <template name="sharedBottomSheet">
   <view wx:if="{{sheetMounted}}" class="sheet-host {{sheetHostClass}}">
     <view class="day-sheet-mask sheet-{{sheetPhase}}" bindtap="{{maskHandler}}" catchtouchmove="noop" aria-role="button" aria-label="关闭{{sheetName}}" hover-start-time="20" hover-stay-time="70" hover-class="day-sheet-mask-hover"></view>
