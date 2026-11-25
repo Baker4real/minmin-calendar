@@ -424,7 +424,7 @@ test('compact density preserves the thicker band and inline-today geometry on a 
   assert.match(ruleBody(wxss, '.home-sticky'), /position:\s*fixed/)
   assert.match(ruleBody(wxss, '.home-status.neutral'), /color:\s*var\(--text-secondary\)/)
   assert.doesNotMatch(ruleBody(wxss, '.home-status.neutral'), /#F97373|249,\s*115,\s*115/)
-  const row = computeCalendarRowHeight({ viewportWidth: 375, viewportHeight: 619, navBarHeightPx: 64, density: 'compact', days: Array.from({ length: 42 }, () => ({ isEmpty: true })), showBackToToday: true })
+  const row = computeCalendarRowHeight({ viewportWidth: 375, viewportHeight: 619, navBarHeightPx: 64, density: 'compact', days: Array.from({ length: 42 }, () => ({ isEmpty: true })) })
   assert.equal(row.heightPx, 58.33)
   assert.equal(row.infoMerged, true)
   assert.equal(row.actionsFit, true)

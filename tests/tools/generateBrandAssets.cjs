@@ -4,7 +4,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const zlib = require('node:zlib')
 const { browsersPath, workspaceRequire } = require('./playwrightBrowsers.cjs')
-const { addIndexedBlueNoise } = require('./indexedBlueNoise.cjs')
+const { addIndexedBlueNoise, highPass } = require('./indexedBlueNoise.cjs')
 
 const root = path.resolve(__dirname, '../..')
 const out = path.join(root, '.scratch', 'brand-assets')
@@ -142,24 +142,14 @@ async function renderArtwork(browser, width, height, applicationIcon = false, wi
   }
 }
 
-function random01(x, y, seed) {
-  let value = Math.imul(x + seed, 0x1f123bb5) ^ Math.imul(y - seed, 0x5f356495)
-  value = Math.imul(value ^ (value >>> 15), 0x2c1b3c6d)
-  value = Math.imul(value ^ (value >>> 12), 0x297a2d39)
-  return ((value ^ (value >>> 15)) >>> 0) / 0xffffffff
-}
-
 // Zero-mean high-pass noise removes low-frequency clumps. Its RMS is about one percent of 255.
 function addBlueNoise(bitmap, seed) {
   const { width, height, data } = bitmap
   const source = Buffer.from(data)
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const highPass = 1.6 * random01(x, y, seed) - 0.4 * (
-        random01(x - 1, y, seed) + random01(x + 1, y, seed) +
-        random01(x, y - 1, seed) + random01(x, y + 1, seed)
-      )
-      const delta = Math.round((highPass - 0.0) * 4.2)
+      const noise = highPass(x, y, seed)
+      const delta = Math.round((noise - 0.0) * 4.2)
       const offset = (y * width + x) * 4
       for (let channel = 0; channel < 3; channel++) {
         data[offset + channel] = Math.max(0, Math.min(255, source[offset + channel] + delta))
@@ -214,6 +204,8 @@ function iconPixel(kind, x, y) {
 }
 
 async function renderIcon(kind, hex) {
+  // The 108px deliverable is 3x the 36px logical icon. scale=4 is only the
+  // internal 4x4 coverage grid per output pixel, not a 432px delivered asset.
   const scale = 4
   const size = 108
   const high = size * scale

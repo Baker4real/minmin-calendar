@@ -301,7 +301,7 @@ test('calendar day cells keep the 44px touch height at 320px in both densities',
   assert.equal(cell['margin-right'], undefined)
 })
 
-test('joint ledger: 320/375/390 × both densities × 5/6 rows × back-to-today never squeeze a cell', () => {
+test('joint ledger: 320/375/390 × both densities × 5/6 rows never squeeze a cell', () => {
   const { computeCalendarRowHeight, calendarCellContentMinRpx } = require('../utils/calendarRowHeight')
   // 页高 = 手机高度 − 底栏，顶栏含状态栏。月份按「每一天都并得进一行」算；放不下的月份见上面的合并测试。
   const phones = [
@@ -310,56 +310,41 @@ test('joint ledger: 320/375/390 × both densities × 5/6 rows × back-to-today n
     { width: 390, screen: 844, tabBar: 83, nav: 91 }
   ]
   // [行高 px, 清爽密度是否合并信息行, 记录入口是否在首屏]。
-  // 完整密度要 159rpx 一行：320、375 上 5 行也放不下；390 上当月 5 行刚好放下，周头少一条底边后带「回到今天」的 5 行也刚好放下，6 行靠滚动。
-  // 清爽色带加厚后，375 上6行带「回到今天」及320上6行的最矮情形靠滚动；其他组合按可用高度合并。
+  // 完整密度要 159rpx 一行：320、375 上 5 行也放不下；390 上 5 行刚好放下，6 行靠滚动。
+  // 清爽色带加厚后，375 与 320 上 6 行的最矮情形靠滚动；其他组合按可用高度合并。
   const expected = {
-    '320:compact:5:0': [56.12, true, true],
-    '320:compact:5:1': [56.12, true, true],
-    '320:compact:6:0': [46.77, true, true],
-    '320:compact:6:1': [46.77, true, true],
-    '320:full:5:0': [67.84, false, false],
-    '320:full:5:1': [67.84, false, false],
-    '320:full:6:0': [67.84, false, false],
-    '320:full:6:1': [67.84, false, false],
-    '375:compact:5:0': [70, true, true],
-    '375:compact:5:1': [70, true, true],
-    '375:compact:6:0': [58.33, true, true],
-    '375:compact:6:1': [58.33, true, true],
-    '375:full:5:0': [79.5, false, false],
-    '375:full:5:1': [79.5, false, false],
-    '375:full:6:0': [79.5, false, false],
-    '375:full:6:1': [79.5, false, false],
-    '390:compact:5:0': [76.96, false, true],
-    '390:compact:5:1': [76.96, false, true],
-    '390:compact:6:0': [76.15, false, true],
-    '390:compact:6:1': [76.15, false, true],
-    '390:full:5:0': [83.2, false, true],
-    '390:full:5:1': [83.2, false, true],
-    '390:full:6:0': [82.68, false, false],
-    '390:full:6:1': [82.68, false, false]
+    '320:compact:5': [56.12, true, true],
+    '320:compact:6': [46.77, true, true],
+    '320:full:5': [67.84, false, false],
+    '320:full:6': [67.84, false, false],
+    '375:compact:5': [70, true, true],
+    '375:compact:6': [58.33, true, true],
+    '375:full:5': [79.5, false, false],
+    '375:full:6': [79.5, false, false],
+    '390:compact:5': [76.96, false, true],
+    '390:compact:6': [76.15, false, true],
+    '390:full:5': [83.2, false, true],
+    '390:full:6': [82.68, false, false]
   }
 
   for (const phone of phones) {
     for (const density of ['compact', 'full']) {
       for (const rows of [5, 6]) {
-        for (const showBackToToday of [false, true]) {
-          const key = `${phone.width}:${density}:${rows}:${showBackToToday ? 1 : 0}`
-          const row = computeCalendarRowHeight({
-            viewportWidth: phone.width,
-            viewportHeight: phone.screen - phone.tabBar,
-            navBarHeightPx: phone.nav,
-            density,
-            days: monthDays(rows),
-            showBackToToday
-          })
-          assert.deepEqual([row.heightPx, row.infoMerged, row.actionsFit], expected[key], key)
-          // 行高夹在内容最小高度与原上限之间；内容最小高度本身不低于 44px 触控高度，也不低于该排版 CSS 槽位之和
-          const layout = density === 'full' ? 'full' : (row.infoMerged ? 'merged' : 'compact')
-          assert.ok(row.contentMinPx >= 44, `${key} content minimum under 44px`)
-          assert.ok(row.contentMinPx >= calendarCellContentMinRpx(layout) * phone.width / 750 - 0.001, `${key} content minimum under the ${layout} slots`)
-          assert.ok(row.heightPx >= row.contentMinPx, `${key} squeezes the cell below its content`)
-          assert.ok(row.heightPx <= row.capPx, `${key} above the cap`)
-        }
+        const key = `${phone.width}:${density}:${rows}`
+        const row = computeCalendarRowHeight({
+          viewportWidth: phone.width,
+          viewportHeight: phone.screen - phone.tabBar,
+          navBarHeightPx: phone.nav,
+          density,
+          days: monthDays(rows)
+        })
+        assert.deepEqual([row.heightPx, row.infoMerged, row.actionsFit], expected[key], key)
+        // 行高夹在内容最小高度与原上限之间；内容最小高度本身不低于 44px 触控高度，也不低于该排版 CSS 槽位之和
+        const layout = density === 'full' ? 'full' : (row.infoMerged ? 'merged' : 'compact')
+        assert.ok(row.contentMinPx >= 44, `${key} content minimum under 44px`)
+        assert.ok(row.contentMinPx >= calendarCellContentMinRpx(layout) * phone.width / 750 - 0.001, `${key} content minimum under the ${layout} slots`)
+        assert.ok(row.heightPx >= row.contentMinPx, `${key} squeezes the cell below its content`)
+        assert.ok(row.heightPx <= row.capPx, `${key} above the cap`)
       }
     }
   }
@@ -387,8 +372,7 @@ test('a calendar row never drops below the cell content minimum; full density sc
     viewportHeight: 761,
     navBarHeightPx: 91,
     density: 'full',
-    days: monthDays(6),
-    showBackToToday: true
+    days: monthDays(6)
   })
   assert.equal(sixRows.contentMinPx, 82.68)
   assert.equal(sixRows.heightPx, 82.68, 'six full rows keep their content height instead of shrinking to the screen')
@@ -409,7 +393,7 @@ test('a calendar row never drops below the cell content minimum; full density sc
 
 test('compact density merges the holiday row into the mark row only when the standard stack does not fit', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
-  // 375×667：页高 619、顶栏 64，6 行且显示「回到今天」。首屏 = 吸顶占位 306 + 周头 50 + 网格内边距 12 + 记录入口 114
+  // 375×667：页高 619、顶栏 64、6 行。首屏 = 吸顶占位 306 + 周头 50 + 网格内边距 12 + 记录入口 114
   // = 482rpx = 241px，移除周头底边后另有 6px 描边：每行可用 (619 − 64 − 247) / 6 = 51.33px，低于合并最小高度。
   // 常规清爽格加上2+12rpx经期槽后需要146rpx = 73px，放不下；
   // 合并后8 + 日期38 + 色带2+12 + 信息2+42 + 底4 = 108rpx = 54px，仍需自然滚动。
@@ -418,8 +402,7 @@ test('compact density merges the holiday row into the mark row only when the sta
     viewportHeight: 619,
     navBarHeightPx: 64,
     density: 'compact',
-    days: monthDays(6),
-    showBackToToday: true
+    days: monthDays(6)
   })
   assert.equal(short.infoMerged, true)
   assert.equal(short.contentMinPx, 54)
@@ -442,7 +425,7 @@ test('compact density merges the holiday row into the mark row only when the sta
 
 test('a month merges only when every day fits its holiday tag and marks on one line, otherwise it scrolls', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
-  // 同上 375×667、6 行带「回到今天」。一列宽 = (375 − 2×(24 + 10)×0.5 − 2px 网格描边) × 14.28% = 48.41px。
+  // 同上 375×667、6 行。一列宽 = (375 − 2×(24 + 10)×0.5 − 2px 网格描边) × 14.28% = 48.41px。
   // 合并行 = 节日/调休胶囊 + 4rpx + 标记，按字宽 1em 上限算：
   //   「中秋」+ ♥ = (2×24 + 2×8)×0.5 + 2 + 24×0.5 = 46px        → 放得下
   //   「班」+ ♥   = (24 + 2×8)×0.5 + 2px 描边 + 2 + 12 = 36px    → 放得下
@@ -450,7 +433,7 @@ test('a month merges only when every day fits its holiday tag and marks on one l
   //   「班」+「预」  = 22 + 2 + 25 = 49px                         → 放不下
   //   「劳动节」+ ♥ = (3×24 + 16)×0.5 + 2 + 12 = 58px             → 放不下
   // 放不下的日子在合并行里只能被裁掉，所以整月保持常规清爽格：行高停在146rpx = 73px，记录入口改由滚动触达。
-  const base = { viewportWidth: 375, viewportHeight: 619, navBarHeightPx: 64, density: 'compact', showBackToToday: true }
+  const base = { viewportWidth: 375, viewportHeight: 619, navBarHeightPx: 64, density: 'compact' }
   const geometryWith = cell => computeCalendarRowHeight({ ...base, days: monthDays(6, { 10: cell }) })
 
   for (const cell of [
@@ -765,41 +748,39 @@ test('the inline sync-retry row is an explicit input of the first-screen ledger'
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
   // 375×667 当月 6 行：首屏 404rpx + 3px 描边 = 205px，每行 (619 − 64 − 205) / 6 = 58.33px（合并信息行）。
   // 重试行 = 最小高 88 + 下外边距 8 = 96rpx = 48px：每行 (619 − 64 − 251) / 6 = 50.66px，低于加厚色带后的合并最小54px。
-  // 再显示「回到今天」88rpx：每行只剩 43.33px，行高停在54px，记录入口移出首屏。
+  // 行高因此停在 54px 的内容最小值，记录入口移出首屏；内嵌「今」胶囊不再占额外高度。
   const base = { viewportWidth: 375, viewportHeight: 619, navBarHeightPx: 64, density: 'compact', days: monthDays(6) }
   const plain = computeCalendarRowHeight(base)
   const retry = computeCalendarRowHeight({ ...base, showRefreshRetry: true })
-  const retryAway = computeCalendarRowHeight({ ...base, showRefreshRetry: true, showBackToToday: true })
+  const retryAway = computeCalendarRowHeight({ ...base, showRefreshRetry: true })
 
   assert.deepEqual([plain.heightPx, plain.infoMerged, plain.actionsFit], [58.33, true, true])
   assert.deepEqual([retry.heightPx, retry.infoMerged, retry.actionsFit], [54, true, false])
   assert.deepEqual([retryAway.heightPx, retryAway.contentMinPx, retryAway.actionsFit], [54, 54, false])
 })
 
-// issue #149：一次性配对欢迎条在吸顶占位之后的正常文档流里，显示时和「回到今天」一样占掉可用高度。
+// issue #149：一次性配对欢迎条在吸顶占位之后的正常文档流里，显示时占掉可用高度。
 // 它是行高账本的显式输入：行高随之变矮但守 44px 下限，记录入口放不进首屏时如实报告。
 test('the one-time partner welcome bar is an explicit input of the calendar row-height ledger', () => {
   const { computeCalendarRowHeight } = require('../utils/calendarRowHeight')
   // 页高 = 手机高度 − 底栏；without / with 是不显示 / 显示欢迎条时的行高，fits 是显示时记录入口是否仍在首屏。
   // 放不下时行高停在内容最小高度（清爽合并108rpx与44px取大、完整 159rpx），记录入口靠滚动触达（issue #153）。
   const samples = [
-    { width: 390, height: 761, nav: 91, density: 'compact', rows: 6, showBackToToday: false, without: 76.15, with: 65.82, fits: true },
-    { width: 390, height: 761, nav: 91, density: 'full', rows: 5, showBackToToday: false, without: 83.2, with: 82.68, fits: false },
-    { width: 375, height: 619, nav: 64, density: 'compact', rows: 6, showBackToToday: false, without: 58.33, with: 54, fits: false },
-    { width: 375, height: 619, nav: 64, density: 'compact', rows: 6, showBackToToday: true, without: 58.33, with: 54, fits: false },
-    { width: 320, height: 520, nav: 64, density: 'compact', rows: 5, showBackToToday: false, without: 56.12, with: 46.08, fits: false },
-    { width: 320, height: 520, nav: 64, density: 'compact', rows: 6, showBackToToday: false, without: 46.77, with: 46.08, fits: false }
+    { width: 390, height: 761, nav: 91, density: 'compact', rows: 6, without: 76.15, with: 65.82, fits: true },
+    { width: 390, height: 761, nav: 91, density: 'full', rows: 5, without: 83.2, with: 82.68, fits: false },
+    { width: 375, height: 619, nav: 64, density: 'compact', rows: 6, without: 58.33, with: 54, fits: false },
+    { width: 320, height: 520, nav: 64, density: 'compact', rows: 5, without: 56.12, with: 46.08, fits: false },
+    { width: 320, height: 520, nav: 64, density: 'compact', rows: 6, without: 46.77, with: 46.08, fits: false }
   ]
 
   for (const sample of samples) {
-    const key = `${sample.width}x${sample.height} ${sample.density} ${sample.rows} rows${sample.showBackToToday ? ' + back-today' : ''}`
+    const key = `${sample.width}x${sample.height} ${sample.density} ${sample.rows} rows`
     const input = {
       viewportWidth: sample.width,
       viewportHeight: sample.height,
       navBarHeightPx: sample.nav,
       density: sample.density,
-      days: monthDays(sample.rows),
-      showBackToToday: sample.showBackToToday
+      days: monthDays(sample.rows)
     }
     const plain = computeCalendarRowHeight(input)
     const welcomed = computeCalendarRowHeight({ ...input, showPartnerWelcome: true })
@@ -884,7 +865,6 @@ test('waiting invitation and creator welcome use the same calendar ledger slot w
       navBarHeightPx: waiting.navBarHeight,
       density: waiting.calendarDensity,
       days: waiting.days,
-      showBackToToday: waiting.showBackToToday,
       showPartnerWelcome: true,
       showRefreshRetry: waiting.refreshRetryVisible
     })

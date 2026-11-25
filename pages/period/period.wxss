@@ -1,4 +1,5 @@
 @import '../shared/segmented-control.wxss';
+@import '../shared/disclosure.wxss';
 @import '../shared/retry-row.wxss';
 @import '../shared/empty-state.wxss';
 
@@ -123,23 +124,7 @@
   transition: opacity var(--duration-press-in) ease;
 }
 
-/* 双层网格：行数据保留用于连续伸缩，收起层同时退出读屏与指针命中。 */
-.fold-grid {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  pointer-events: none;
-  transition: grid-template-rows var(--duration-state) var(--ease-out), opacity var(--duration-state) var(--ease-out);
-}
-.fold-grid.fold-grid-expanded {
-  grid-template-rows: 1fr;
-  opacity: 1;
-  pointer-events: auto;
-}
-.fold-inner {
-  min-height: 0;
-  overflow: hidden;
-}
+/* 双层网格由 shared/disclosure.wxss 提供；本页只保留折角外观。 */
 .fold-caret {
   color: var(--text-secondary);
   transform: rotate(0deg);
@@ -496,6 +481,7 @@
   .segment-panel-b {
     animation: none;
   }
+  .disclosure-grid,
   .fold-grid,
   .fold-caret,
   .list-item,

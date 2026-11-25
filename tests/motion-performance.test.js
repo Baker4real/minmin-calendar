@@ -575,7 +575,7 @@ test('one-shot transitions and animations use the shared duration tokens and rol
           continue
         }
         const expectedDuration = expectedDurations[0]
-        const expectedEasing = prop === 'transform' || prop === 'grid-template-rows' || rule.selectors.every(selector => lastCompound(selector) === '.fold-grid')
+        const expectedEasing = prop === 'transform' || prop === 'grid-template-rows' || rule.selectors.every(selector => ['.fold-grid', '.disclosure-grid'].includes(lastCompound(selector)))
           ? EASE_OUT_TOKEN
           : 'ease'
         if (duration !== expectedDuration || easing !== expectedEasing) {

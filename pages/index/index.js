@@ -12,15 +12,14 @@ const roomSession = require('../../utils/room')
 const { buildRoomShareCard } = require('../../utils/roomShare')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 const {
-  createSheetLifecycle,
   probeReducedMotion,
   restoreTabBarOnShow
 } = require('../../utils/sheetLifecycle')
+const { syncPill } = require('../../utils/syncPill')
 const { homepageSheetData, homepageSheets } = require('./homepageSheets')
 
 // 与 pages/settings/settings.js 共享同一存储键；写入方在设置页
 const CALENDAR_DENSITY_STORAGE_KEY = 'calendarDensity'
-const SYNC_STATUS_CLEAR_DELAY = 1600
 const JUMP_YEAR_MIN = 2001
 const JUMP_YEAR_MAX = 2035
 // issue #155：信息弹层按显示的内容命名。遮罩读「关闭」加这个名称，面板以它作对话框名。
@@ -670,6 +669,7 @@ Page(withPageVisibility({
 
   onUnload() {
     if (this._unsubscribeRecords) this._unsubscribeRecords()
+    syncPill(this).clear()
   },
   quickMemory() {
     this.openProjectedEntry(this._memoryQuickAction)
@@ -695,52 +695,13 @@ Page(withPageVisibility({
   },
 
   showSyncStatus(text, options = {}) {
-    this.clearSyncStatusTimer()
-    syncPill(this).open(this, { syncStatusText: text })
-
-    if (options.autoHide === false) return
-
-    const timer = setTimeout(() => {
-      this._syncStatusTimer = null
-      this.hideSyncStatus()
-    }, SYNC_STATUS_CLEAR_DELAY)
-    if (timer && typeof timer.unref === 'function') timer.unref()
-    this._syncStatusTimer = timer
+    syncPill(this).show(text, options)
   },
 
   hideSyncStatus() {
-    this.clearSyncStatusTimer()
-    if (!this.data.syncStatusVisible && !this.data.syncStatusText) return
-    if (!this.data.syncStatusMounted) {
-      this.setData({
-        syncStatusVisible: false,
-        syncStatusText: ''
-      })
-      return
-    }
-    // issue #120：离场过程中文案和朗读名保持可见，胶囊卸载后再清掉。
-    syncPill(this).leave(this, () => {
-      this.setData({ syncStatusText: '' })
-    })
-  },
-
-  clearSyncStatusTimer() {
-    if (!this._syncStatusTimer) return
-    clearTimeout(this._syncStatusTimer)
-    this._syncStatusTimer = null
+    syncPill(this).hide()
   }
 }))
-
-function syncPill(page) {
-  if (!page._syncPill) {
-    page._syncPill = createSheetLifecycle({
-      visibleKey: 'syncStatusVisible',
-      mountedKey: 'syncStatusMounted',
-      phaseKey: 'syncStatusPhase'
-    })
-  }
-  return page._syncPill
-}
 
 // 日历动画记号在 a、b 间交替：同一段动画要从头再播，类名必须变（issue #165）
 function nextCalendarToken(current, kind) {

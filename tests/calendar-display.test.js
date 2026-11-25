@@ -28,6 +28,17 @@ test('formatDisplayDate appends the weekday when a date needs it', () => {
   )
 })
 
+test('formatDisplayDate offers full weekday names without caller-side text rewriting', () => {
+  assert.equal(
+    util.formatDisplayDate('2026-06-24', { today: '2026-10-10', fullWeekday: true }),
+    '6月24⁠日 星期三'
+  )
+  assert.equal(
+    util.formatDisplayDate('2025-06-24', { today: '2026-10-10', fullWeekday: true }),
+    '2025年6月24⁠日 星期二'
+  )
+})
+
 test('formatDisplayDateRange joins the two ends with an en dash', () => {
   assert.equal(
     util.formatDisplayDateRange('2026-09-26', '2026-10-01', { today: '2026-10-10' }),

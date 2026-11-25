@@ -208,4 +208,4 @@ function addIndexedBlueNoise(png, seed = 2651000) {
   }
 }
 
-module.exports = { addIndexedBlueNoise, decodeIndexedPng, encodeIndexedPng }
+module.exports = { addIndexedBlueNoise, highPass }

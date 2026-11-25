@@ -3,6 +3,8 @@
 // 导致自定义导航栏顶进系统状态栏、底部 sheet/表单操作贴进手势区；统一由 JS 计算，
 // 经页面根节点的 CSS 变量注入（--safe-top、--nav-bar-height、--capsule-right、
 // --safe-bottom）。顶栏高度由状态栏和胶囊矩形推出，右侧让出胶囊宽度。
+const { getWindowWidth } = require('./wxWindow')
+
 let cachedSafeTop = null
 let cachedSafeBottom = null
 let cachedCapsule = null
@@ -107,17 +109,7 @@ function queryWindowWidth() {
 }
 
 function readWindowWidth() {
-  try {
-    if (typeof wx.getWindowInfo === 'function') {
-      const info = wx.getWindowInfo()
-      if (info && info.windowWidth > 0) return info.windowWidth
-    }
-    const legacy = wx.getSystemInfoSync()
-    if (legacy && legacy.windowWidth > 0) return legacy.windowWidth
-  } catch (e) {
-    // 查询失败走兜底
-  }
-  return 375
+  return getWindowWidth() || 375
 }
 
 function getNavBarHeight() {
