@@ -1,16 +1,16 @@
 <template name="sharedBottomSheet">
   <view wx:if="{{sheetMounted}}" class="sheet-host {{sheetHostClass}}">
-    <view class="day-sheet-mask sheet-{{sheetPhase}}" bindtap="{{maskHandler}}" catchtouchmove="noop" aria-role="button" aria-label="关闭{{sheetName}}" hover-class="day-sheet-mask-hover"></view>
+    <view class="day-sheet-mask sheet-{{sheetPhase}}" bindtap="{{maskHandler}}" catchtouchmove="noop" aria-role="button" aria-label="关闭{{sheetName}}" hover-start-time="20" hover-stay-time="70" hover-class="day-sheet-mask-hover"></view>
     <view class="sheet-slide sheet-slide-{{sheetId}} sheet-{{sheetPhase}}" change:reset="{{sheetDrag.clearInline}}" reset="{{sheetDragClear}}">
       <view class="day-action-sheet {{sheetPanelClass}}" catchtap="noop" aria-label="{{sheetName}}">
-        <view class="sheet-drag-zone" data-sheet="{{sheetId}}" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}" hover-class="sheet-drag-zone-hover">
+        <view class="sheet-drag-zone" data-sheet="{{sheetId}}" bindtouchstart="{{sheetDrag.touchStart}}" bindtouchmove="{{sheetDrag.touchMove}}" bindtouchend="{{sheetDrag.touchEnd}}" bindtouchcancel="{{sheetDrag.touchCancel}}" hover-start-time="20" hover-stay-time="70" hover-class="sheet-drag-zone-hover">
           <view class="sheet-handle" aria-hidden="true"></view>
           <view class="sheet-head">
             <view class="sheet-date-copy">
               <text class="text-pair-title sheet-title">{{sheetTitle}}</text>
               <text wx:if="{{sheetSubtitle}}" class="text-pair-desc sheet-subtitle">{{sheetSubtitle}}</text>
             </view>
-            <view class="sheet-close" bindtap="{{closeHandler}}" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">
+            <view class="sheet-close" bindtap="{{closeHandler}}" aria-role="button" aria-label="关闭" hover-start-time="20" hover-stay-time="70" hover-class="sheet-close-hover">
               <view class="ui-icon ui-icon-close ui-icon-36" aria-hidden="true"></view>
             </view>
           </view>
@@ -43,7 +43,7 @@
     class="jump-today"
     bindtap="jumpToToday"
     aria-role="button"
-    aria-label="回到今天所在月份" hover-class="jump-today-hover">
+    aria-label="回到今天所在月份" hover-start-time="20" hover-stay-time="70" hover-class="jump-today-hover">
     <text class="jump-today-label">回到今天</text>
     <text class="jump-today-date">定位到当前月份</text>
   </view>
@@ -57,7 +57,7 @@
         bindtap="shiftJumpYear"
         aria-role="button"
         aria-label="上一年"
-        aria-disabled="{{jumpYearAtMin}}" hover-class="jump-year-step-hover">
+        aria-disabled="{{jumpYearAtMin}}" hover-start-time="20" hover-stay-time="70" hover-class="jump-year-step-hover">
         <view class="ui-icon ui-icon-left ui-icon-28 ui-icon-circle" aria-hidden="true"></view>
       </view>
       <text class="jump-year-value">{{jumpYear}}年</text>
@@ -67,7 +67,7 @@
         bindtap="shiftJumpYear"
         aria-role="button"
         aria-label="下一年"
-        aria-disabled="{{jumpYearAtMax}}" hover-class="jump-year-step-hover">
+        aria-disabled="{{jumpYearAtMax}}" hover-start-time="20" hover-stay-time="70" hover-class="jump-year-step-hover">
         <view class="ui-icon ui-icon-right ui-icon-28 ui-icon-circle" aria-hidden="true"></view>
       </view>
     </view>
@@ -84,7 +84,7 @@
         bindtap="selectJumpMonth"
         aria-role="radio"
         aria-label="选择{{item.label}}{{item.isRealTodayMonth ? '，本月' : ''}}"
-        aria-checked="{{jumpYear == year && item.value == jumpMonth}}" hover-class="jump-option-hover">{{item.label}}<view wx:if="{{item.isRealTodayMonth}}" class="jump-real-today-dot" aria-hidden="true"></view></view>
+        aria-checked="{{jumpYear == year && item.value == jumpMonth}}" hover-start-time="20" hover-stay-time="70" hover-class="jump-option-hover">{{item.label}}<view wx:if="{{item.isRealTodayMonth}}" class="jump-real-today-dot" aria-hidden="true"></view></view>
     </view>
   </view>
 </template>
@@ -115,7 +115,7 @@
       bindtap="onDayRecordTap"
       aria-role="button"
       aria-label="{{item.ariaLabel}}"
-      hover-class="day-detail-row-hover"
+      hover-start-time="20" hover-stay-time="70" hover-class="day-detail-row-hover"
     >
       <view class="detail-rail"></view>
       <view class="detail-copy">
@@ -137,7 +137,7 @@
       bindtap="onDayRecordTap"
       aria-role="button"
       aria-label="{{item.ariaLabel}}"
-      hover-class="day-detail-row-hover"
+      hover-start-time="20" hover-stay-time="70" hover-class="day-detail-row-hover"
     >
       <view class="detail-rail"></view>
       <view class="detail-copy">
@@ -158,7 +158,7 @@
       bindtap="onDayActionTap"
       aria-role="button"
       aria-label="{{item.label}}"
-      hover-class="sheet-action-hover"
+      hover-start-time="20" hover-stay-time="70" hover-class="sheet-action-hover"
     >
       <view wx:if="{{item.key == 'period'}}" class="sheet-action-icon sample-plate">
         <template is="periodBandSample" data="{{...periodBandSample, calendarDensity: calendarDensity}}" />
@@ -202,7 +202,7 @@
       bindtap="quickPeriod"
       aria-role="button"
       aria-label="{{predictionExplanation.periodAction.label}}"
-      hover-class="btn-premium-hover"
+      hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover"
     >{{predictionExplanation.periodAction.label}}</view>
   </view>
 
@@ -222,7 +222,7 @@
         <text class="text-pair-desc recap-highlight">{{item.text}}</text>
       </view>
     </view>
-    <view class="copy-recap button-primary" bindtap="copyMonthlyRecap" aria-role="button" aria-label="复制小结" hover-class="copy-recap-hover">复制小结</view>
+    <view class="copy-recap button-primary" bindtap="copyMonthlyRecap" aria-role="button" aria-label="复制小结" hover-start-time="20" hover-stay-time="70" hover-class="copy-recap-hover">复制小结</view>
   </view>
 </template>
 
@@ -247,7 +247,7 @@
       </picker-view-column>
     </picker-view>
   </view>
-  <button class="btn-premium button-primary date-picker-confirm {{datePickerPicking ? 'disabled' : ''}}" bindtap="onDatePickerConfirm" disabled="{{datePickerPicking}}" aria-role="button" aria-disabled="{{datePickerPicking}}" aria-label="{{datePickerConfirmAria}}" hover-class="btn-premium-hover">确定</button>
+  <button class="btn-premium button-primary date-picker-confirm {{datePickerPicking ? 'disabled' : ''}}" bindtap="onDatePickerConfirm" disabled="{{datePickerPicking}}" aria-role="button" aria-disabled="{{datePickerPicking}}" aria-label="{{datePickerConfirmAria}}" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">确定</button>
 </template>
 
 <template name="confirmationSheetBody">
@@ -255,9 +255,9 @@
   <text class="confirmation-copy">{{confirmationContent}}</text>
   <view class="confirmation-actions">
     <block wx:for="{{confirmationActions}}" wx:key="id">
-      <view wx:if="{{item.kind === 'danger'}}" class="btn-danger confirmation-action button-danger" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="btn-danger-hover">{{item.text}}</view>
-      <view wx:elif="{{item.kind === 'primary'}}" class="btn-premium confirmation-action button-primary" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="btn-premium-hover">{{item.text}}</view>
-      <view wx:else class="confirmation-secondary confirmation-action button-outline" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-class="confirmation-secondary-hover">{{item.text}}</view>
+      <view wx:if="{{item.kind === 'danger'}}" class="btn-danger confirmation-action button-danger" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-start-time="20" hover-stay-time="70" hover-class="btn-danger-hover">{{item.text}}</view>
+      <view wx:elif="{{item.kind === 'primary'}}" class="btn-premium confirmation-action button-primary" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">{{item.text}}</view>
+      <view wx:else class="confirmation-secondary confirmation-action button-outline" bindtap="onConfirmationAction" data-action="{{item.id}}" aria-role="button" aria-label="{{item.text}}" hover-start-time="20" hover-stay-time="70" hover-class="confirmation-secondary-hover">{{item.text}}</view>
     </block>
   </view>
 </template>

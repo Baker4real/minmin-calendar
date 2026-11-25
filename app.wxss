@@ -86,7 +86,8 @@ page {
 
   /* Transitions — 逐属性声明，禁止 all；缓动只有 --ease-out。一次性时长用 --duration-*（issue #111） */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --duration-press: 160ms;
+  --duration-press-in: 90ms;
+  --duration-press: 180ms;
   --duration-state: 200ms;
   --duration-enter: 240ms;
   --duration-exit: 200ms;
@@ -251,6 +252,7 @@ page {
 .copy-recap:active::before,
 .copy-recap.copy-recap-hover::before {
   opacity: 0.15;
+  transition: opacity var(--duration-press-in) ease;
 }
 .btn-premium::before {
   box-shadow: 0 8rpx 30rpx rgba(232,144,158,0.28);
@@ -258,6 +260,7 @@ page {
 .btn-premium:active,
 .btn-premium.btn-premium-hover {
   transform: scale(0.96);
+  transition: transform var(--duration-press-in) var(--ease-out);
 }
 .btn-premium.loading,
 .btn-premium.disabled {
@@ -300,9 +303,11 @@ button.share-invite::after {
 }
 .share-invite.share-invite-hover {
   transform: scale(0.96);
+  transition: transform var(--duration-press-in) var(--ease-out);
 }
 .share-invite.share-invite-hover::before {
   opacity: 0.15;
+  transition: opacity var(--duration-press-in) ease;
 }
 
 /* ===== Danger Button — 柔红，与玫瑰体系同族 ===== */
@@ -327,10 +332,12 @@ button.share-invite::after {
 .btn-danger.btn-danger-hover {
   transform: scale(0.95);
   border-color: rgba(249,115,115,0.4);
+  transition: border-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 .btn-danger:active::before,
 .btn-danger.btn-danger-hover::before {
   background-color: rgba(249,115,115,0.12);
+  transition: background-color var(--duration-press-in) ease;
 }
 /* 删除中与不可删（issue #166）：用类名表达，不写内联透明度；按下不缩放、描边和平涂层停在静止值 */
 .btn-danger.loading,
@@ -432,6 +439,7 @@ button.share-invite::after {
 .menu-item:not(.non-interactive):active,
 .menu-item:not(.non-interactive).menu-item-hover {
   transform: scale(0.97);
+  transition: transform var(--duration-press-in) var(--ease-out);
 }
 
 /* ===== Calendar Grid Transition ===== */
@@ -471,6 +479,42 @@ button.share-invite::after {
   .nav-btn,
   .calendar-grid {
     animation: none;
+    transition: none;
+  }
+  .btn-premium:active::before,
+  .btn-premium.btn-premium-hover::before,
+  .quick-btn:active::before,
+  .quick-btn.quick-btn-hover::before,
+  .copy-recap:active::before,
+  .copy-recap.copy-recap-hover::before,
+  .btn-premium:active,
+  .btn-premium.btn-premium-hover,
+  .btn-premium:active.loading,
+  .btn-premium.btn-premium-hover.loading,
+  .btn-premium:active.disabled,
+  .btn-premium.btn-premium-hover.disabled,
+  .btn-premium:active.loading::before,
+  .btn-premium.btn-premium-hover.loading::before,
+  .btn-premium:active.disabled::before,
+  .btn-premium.btn-premium-hover.disabled::before,
+  .share-invite.share-invite-hover,
+  .share-invite.share-invite-hover::before,
+  .btn-danger:active,
+  .btn-danger.btn-danger-hover,
+  .btn-danger:active::before,
+  .btn-danger.btn-danger-hover::before,
+  .btn-danger:active.loading,
+  .btn-danger.btn-danger-hover.loading,
+  .btn-danger:active.disabled,
+  .btn-danger.btn-danger-hover.disabled,
+  .btn-danger:active.loading::before,
+  .btn-danger.btn-danger-hover.loading::before,
+  .btn-danger:active.disabled::before,
+  .btn-danger.btn-danger-hover.disabled::before,
+  .list-item:not(.non-interactive):active,
+  .list-item:not(.non-interactive).list-item-hover,
+  .menu-item:not(.non-interactive):active,
+  .menu-item:not(.non-interactive).menu-item-hover {
     transition: none;
   }
 }

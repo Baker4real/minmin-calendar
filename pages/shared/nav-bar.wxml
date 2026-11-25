@@ -1,9 +1,9 @@
 <template name="sharedNavbar">
   <view class="nav-bar header-gradient{{variant === 'immersive' ? ' nav-bar-immersive' : ''}}" aria-hidden="{{pageObscured}}">
-    <view wx:if="{{variant === 'home'}}" class="nav-tool" hover-class="nav-tool-hover" bindtap="openLegendSheet" aria-role="button" aria-label="打开日历图例">
+    <view wx:if="{{variant === 'home'}}" class="nav-tool" hover-start-time="20" hover-stay-time="70" hover-class="nav-tool-hover" bindtap="openLegendSheet" aria-role="button" aria-label="打开日历图例">
       <view class="nav-tool-surface">图例</view>
     </view>
-    <view wx:elif="{{variant === 'back'}}" class="nav-back" hover-class="nav-back-hover" bindtap="goBack" aria-role="button" aria-label="返回">
+    <view wx:elif="{{variant === 'back'}}" class="nav-back" hover-start-time="20" hover-stay-time="70" hover-class="nav-back-hover" bindtap="goBack" aria-role="button" aria-label="返回">
       <view class="nav-back-surface"></view>
       <view class="ui-icon ui-icon-left ui-icon-36 ui-icon-circle nav-back-icon" aria-hidden="true"></view>
     </view>

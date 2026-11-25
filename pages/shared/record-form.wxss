@@ -55,6 +55,7 @@
 .form-picker:active,
 .form-picker.form-picker-hover {
   border-color: var(--aurora-pink);
+  transition: border-color var(--duration-press-in) ease;
 }
 /* 保存中日期选择器停用：字段跟着变淡、不再亮描边，和状态芯片同一档（issue #166） */
 .form-picker.disabled {
@@ -125,6 +126,7 @@
 .draft-discard:active,
 .draft-discard.draft-discard-hover {
   transform: scale(0.96);
+  transition: transform var(--duration-press-in) var(--ease-out);
 }
 
 /* Buttons：删除留在滚动流末尾；保存使用两页共用的单按钮固定栏。 */
@@ -163,6 +165,12 @@
   .form-input,
   .draft-discard,
   .start-date-owner-action {
+    transition: none;
+  }
+  .form-picker:active,
+  .form-picker.form-picker-hover,
+  .draft-discard:active,
+  .draft-discard.draft-discard-hover {
     transition: none;
   }
 }

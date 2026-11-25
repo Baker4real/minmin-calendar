@@ -46,16 +46,24 @@
 .copy-btn:active,
 .copy-btn.copy-btn-hover {
   transform: scale(0.94);
+  transition: transform var(--duration-press-in) var(--ease-out);
 }
 .copy-btn:active::before,
 .copy-btn.copy-btn-hover::before {
   opacity: 0.5;
+  transition: opacity var(--duration-press-in) ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .copy-btn,
   .copy-btn::before {
     animation: none;
+    transition: none;
+  }
+  .copy-btn:active,
+  .copy-btn.copy-btn-hover,
+  .copy-btn:active::before,
+  .copy-btn.copy-btn-hover::before {
     transition: none;
   }
 }

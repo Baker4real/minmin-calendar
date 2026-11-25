@@ -57,6 +57,7 @@ button.settings-share-invite {
 .menu-item:not(.non-interactive):not(.danger):active,
 .menu-item:not(.non-interactive):not(.danger).menu-item-hover {
   background: rgba(255,255,255,0.05);
+  transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 .menu-text {
   flex: 1;
@@ -132,10 +133,12 @@ button.settings-share-invite {
 .menu-item.danger.danger-hover {
   transform: scale(0.95);
   border-color: rgba(249,115,115,0.4);
+  transition: border-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 .menu-item.danger:active::before,
 .menu-item.danger.danger-hover::before {
   background-color: rgba(249,115,115,0.12);
+  transition: background-color var(--duration-press-in) ease;
 }
 
 /* Room Code Item */
@@ -210,6 +213,7 @@ button.settings-share-invite {
 .room-action-btn.room-action-btn-hover {
   transform: scale(0.95);
   background: rgba(232,144,158,0.14);
+  transition: transform var(--duration-press-in) var(--ease-out), background-color var(--duration-press-in) ease;
 }
 
 /* Calendar Density Preference — 首页日历密度的设置入口（issue #55 迁入） */
@@ -235,6 +239,16 @@ button.settings-share-invite {
   .menu-item.danger,
   .menu-item.danger::before {
     animation: none;
+    transition: none;
+  }
+  .menu-item:not(.non-interactive):not(.danger):active,
+  .menu-item:not(.non-interactive):not(.danger).menu-item-hover,
+  .menu-item.danger:active,
+  .menu-item.danger.danger-hover,
+  .menu-item.danger:active::before,
+  .menu-item.danger.danger-hover::before,
+  .room-action-btn:active,
+  .room-action-btn.room-action-btn-hover {
     transition: none;
   }
 }

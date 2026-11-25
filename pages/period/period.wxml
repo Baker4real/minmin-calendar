@@ -6,20 +6,21 @@
   <view class="content">
     <!-- 记录分类：经期 / 欢乐时光 同级可达，单选 radio 语义（issue #103） -->
     <view class="segment-control" aria-role="radiogroup" aria-label="记录分类">
+      <view class="segment-thumb segment-thumb-index-{{segment === 'memory' ? 1 : 0}}" aria-hidden="true"></view>
       <view
         class="segment-option {{segment === 'period' ? 'active' : ''}}"
         data-segment="period"
         bindtap="selectSegment"
         aria-role="radio"
         aria-label="经期记录"
-        aria-checked="{{segment === 'period'}}" hover-class="segment-option-hover">经期</view>
+        aria-checked="{{segment === 'period'}}" hover-start-time="20" hover-stay-time="70" hover-class="segment-option-hover">经期</view>
       <view
         class="segment-option {{segment === 'memory' ? 'active' : ''}}"
         data-segment="memory"
         bindtap="selectSegment"
         aria-role="radio"
         aria-label="欢乐时光"
-        aria-checked="{{segment === 'memory'}}" hover-class="segment-option-hover">欢乐时光</view>
+        aria-checked="{{segment === 'memory'}}" hover-start-time="20" hover-stay-time="70" hover-class="segment-option-hover">欢乐时光</view>
     </view>
 
     <view wx:if="{{refreshing}}" class="refresh-status" aria-role="status" aria-label="正在刷新">正在刷新</view>
@@ -63,26 +64,26 @@
         </view>
       </view>
 
-      <view class="btn-premium button-primary" bindtap="addPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-class="btn-premium-hover">
+      <view class="btn-premium button-primary" bindtap="addPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">
         <view wx:if="{{periodQuickMode === 'add'}}" class="ui-icon ui-icon-plus ui-icon-28" aria-hidden="true"></view>
         <text>{{periodQuickLabel}}</text>
       </view>
 
       <!-- 未同步（从未读取成功）：重试是可识别的操作，不是与空列表一样的安静说明；
            本机已保存、还没同步的记录照常列在它下面（#194） -->
-      <view wx:if="{{loadFailed && !hasLoaded && !loading}}" class="empty-state record-empty load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试" hover-class="load-failed-hover">
+      <view wx:if="{{loadFailed && !hasLoaded && !loading}}" class="empty-state record-empty load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试" hover-start-time="20" hover-stay-time="70" hover-class="load-failed-hover">
         <text class="load-failed-text">经期记录加载失败</text>
-        <view class="btn-premium button-primary retry-btn" hover-class="btn-premium-hover">重试</view>
+        <view class="btn-premium button-primary retry-btn" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">重试</view>
       </view>
       <view wx:if="{{periodCount > 0 && !loading}}" class="period-year-list">
         <view class="period-year" wx:for="{{periodGroups}}" wx:key="key" wx:for-item="yearGroup">
-          <view class="period-year-title" bindtap="togglePeriodYear" data-key="{{yearGroup.key}}" aria-role="button" aria-label="{{yearGroup.ariaLabel}}" aria-expanded="{{yearGroup.expanded}}" hover-class="period-year-title-hover">
+          <view class="period-year-title" bindtap="togglePeriodYear" data-key="{{yearGroup.key}}" aria-role="button" aria-label="{{yearGroup.ariaLabel}}" aria-expanded="{{yearGroup.expanded}}" hover-start-time="20" hover-stay-time="70" hover-class="period-year-title-hover">
             <text>{{yearGroup.title}}</text>
             <text class="year-toggle">{{yearGroup.toggleLabel}}</text>
           </view>
           <view wx:if="{{yearGroup.expanded}}">
           <view class="premium-card glass-surface month-card" wx:for="{{yearGroup.months}}" wx:key="key" wx:for-item="group">
-            <view class="month-header" bindtap="togglePeriodMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-class="month-header-hover">
+            <view class="month-header" bindtap="togglePeriodMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-start-time="20" hover-stay-time="70" hover-class="month-header-hover">
               <view class="month-header-text">
                 <text>{{group.title}}</text>
                 <text wx:if="{{!group.expanded}}" class="month-count" aria-hidden="true">· {{group.count}} 条</text>
@@ -90,7 +91,7 @@
               <text class="month-toggle">{{group.toggleLabel}}</text>
             </view>
             <block wx:if="{{group.expanded}}">
-              <view class="list-item" wx:for="{{group.records}}" wx:key="_id" bindtap="editPeriod" data-id="{{item._id}}" aria-role="button" aria-label="编辑经期记录 {{item.rangeSummary}}" hover-class="list-item-hover">
+              <view class="list-item" wx:for="{{group.records}}" wx:key="_id" bindtap="editPeriod" data-id="{{item._id}}" aria-role="button" aria-label="编辑经期记录 {{item.rangeSummary}}" hover-start-time="20" hover-stay-time="70" hover-class="list-item-hover">
                 <view class="item-left">
                   <view class="item-date">
                     <text>{{item.dateLabel}}</text><text wx:if="{{item.authorLabel}}" class="item-author"> · {{item.authorLabel}}</text>
@@ -118,7 +119,7 @@
       </view>
 
       <!-- 已成功加载过再失败：保留上次列表与数字，重试留在列表区域 -->
-      <view wx:if="{{loadFailed && hasLoaded && !loading}}" class="list-retry" bindtap="loadData" aria-role="button" aria-label="刷新失败，点按重试" hover-class="list-retry-hover">
+      <view wx:if="{{loadFailed && hasLoaded && !loading}}" class="list-retry" bindtap="loadData" aria-role="button" aria-label="刷新失败，点按重试" hover-start-time="20" hover-stay-time="70" hover-class="list-retry-hover">
         <text class="list-retry-text">刷新失败，正在显示上次的内容</text>
       </view>
 
@@ -134,22 +135,22 @@
     </view>
 
     <view wx:else>
-      <view class="btn-premium button-primary" bindtap="addMemory" aria-role="button" aria-label="记欢乐时光" hover-class="btn-premium-hover">
+      <view class="btn-premium button-primary" bindtap="addMemory" aria-role="button" aria-label="记欢乐时光" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">
         <view class="ui-icon ui-icon-plus ui-icon-28" aria-hidden="true"></view>
         <text>记欢乐时光</text>
       </view>
 
       <!-- 未同步（从未读取成功）：重试是可识别的操作，不是与空列表一样的安静说明；
            本机已保存、还没同步的记录照常列在它下面（#194） -->
-      <view wx:if="{{memoryLoadFailed && !memoryHasLoaded && !memoryLoading}}" class="empty-state record-empty load-failed" bindtap="loadMemoryData" aria-role="button" aria-label="加载失败，点按重试" hover-class="load-failed-hover">
+      <view wx:if="{{memoryLoadFailed && !memoryHasLoaded && !memoryLoading}}" class="empty-state record-empty load-failed" bindtap="loadMemoryData" aria-role="button" aria-label="加载失败，点按重试" hover-start-time="20" hover-stay-time="70" hover-class="load-failed-hover">
         <text class="load-failed-text">欢乐时光加载失败</text>
-        <view class="btn-premium button-primary retry-btn" hover-class="btn-premium-hover">重试</view>
+        <view class="btn-premium button-primary retry-btn" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">重试</view>
       </view>
       <!-- 欢乐时光月份分组（issue #108）：每月一张玻璃卡，卡头写年月与条数；
            点卡头切换展开/收起，默认全部收起（2026-11-14 取代 #143 的最近三个月默认展开），收起时组内行不渲染 -->
       <view wx:if="{{memoryCount > 0 && !memoryLoading}}" class="memory-month-list">
         <view class="premium-card glass-surface month-card" wx:for="{{memoryGroups}}" wx:key="key" wx:for-item="group">
-          <view class="month-header" bindtap="toggleMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-class="month-header-hover">
+          <view class="month-header" bindtap="toggleMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-start-time="20" hover-stay-time="70" hover-class="month-header-hover">
             <view class="month-header-main">
               <text class="month-header-text">{{group.title}}</text>
               <text wx:if="{{!group.expanded && group.excerpt}}" class="month-excerpt" aria-hidden="true">{{group.excerpt}}</text>
@@ -157,7 +158,7 @@
             <text class="month-toggle">{{group.toggleLabel}}</text>
           </view>
           <block wx:if="{{group.expanded}}">
-            <view class="list-item" wx:for="{{group.records}}" wx:key="_id" bindtap="editMemory" data-id="{{item._id}}" aria-role="button" aria-label="{{item.ariaLabel}}" hover-class="list-item-hover">
+            <view class="list-item" wx:for="{{group.records}}" wx:key="_id" bindtap="editMemory" data-id="{{item._id}}" aria-role="button" aria-label="{{item.ariaLabel}}" hover-start-time="20" hover-stay-time="70" hover-class="list-item-hover">
               <view class="memory-left">
                 <text class="memory-heart" aria-hidden="true">♥</text>
                 <view class="memory-info">
@@ -178,7 +179,7 @@
       </view>
 
       <!-- 已成功加载过再失败：保留上次列表，重试留在列表区域；和经期段同一条重试行（issue #166） -->
-      <view wx:if="{{memoryLoadFailed && memoryHasLoaded && !memoryLoading}}" class="list-retry" bindtap="loadMemoryData" aria-role="button" aria-label="刷新失败，点按重试" hover-class="list-retry-hover">
+      <view wx:if="{{memoryLoadFailed && memoryHasLoaded && !memoryLoading}}" class="list-retry" bindtap="loadMemoryData" aria-role="button" aria-label="刷新失败，点按重试" hover-start-time="20" hover-stay-time="70" hover-class="list-retry-hover">
         <text class="list-retry-text">刷新失败，正在显示上次的内容</text>
       </view>
 

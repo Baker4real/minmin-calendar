@@ -29,29 +29,30 @@
            issue #84：房间码回归纯展示文本，复制键是唯一复制入口 -->
       <view class="bound-code-row">
         <text class="room-code-value">{{roomCode}}</text>
-        <view class="copy-btn button-primary" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码" hover-class="copy-btn-hover">复制</view>
+        <view class="copy-btn button-primary" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码" hover-start-time="20" hover-stay-time="70" hover-class="copy-btn-hover">复制</view>
       </view>
       <!-- issue #102：复制键仍是唯一复制入口，不新增第二个 -->
       <text wx:if="{{restoredNotice}}" class="info-text">{{restoredNotice}}</text>
-      <button wx:if="{{justCreated}}" class="btn-premium share-invite button-primary" open-type="share" hover-class="share-invite-hover" aria-role="button" aria-label="发给 TA">发给 TA</button>
+      <button wx:if="{{justCreated}}" class="btn-premium share-invite button-primary" open-type="share" hover-start-time="20" hover-stay-time="70" hover-class="share-invite-hover" aria-role="button" aria-label="发给 TA">发给 TA</button>
       <!-- issue #102：已绑定冷启动由 checkRoom 自动进首页，「进入应用」只在跳转失败或刚创建房间时出现；
            issue #149：刚创建时「发给 TA」是唯一主按钮，「进入应用」退为幽灵次按钮；已有房间跳转失败时它才是主按钮兜底。
            「解除绑定」移到设置页房间卡，本卡不再提供 -->
-      <view wx:if="{{justCreated}}" class="btn-ghost button-outline" bindtap="goHome" aria-role="button" aria-label="进入应用" hover-class="btn-ghost-hover">进入应用</view>
-      <view wx:elif="{{homeJumpFailed}}" class="btn-premium button-primary" bindtap="goHome" aria-role="button" aria-label="进入应用" hover-class="btn-premium-hover">进入应用</view>
+      <view wx:if="{{justCreated}}" class="btn-ghost button-outline" bindtap="goHome" aria-role="button" aria-label="进入应用" hover-start-time="20" hover-stay-time="70" hover-class="btn-ghost-hover">进入应用</view>
+      <view wx:elif="{{homeJumpFailed}}" class="btn-premium button-primary" bindtap="goHome" aria-role="button" aria-label="进入应用" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">进入应用</view>
     </view>
 
     <view wx:else class="premium-card glass-surface">
       <text class="info-text">房间只有你们两个人能看到</text>
       <view class="tab-bar {{!tab ? 'tab-bar-unselected' : ''}}" aria-role="radiogroup" aria-label="绑定方式">
-        <view class="tab {{tab==='create' ? 'active' : ''}} {{!tab ? 'tab-equal' : ''}}" bindtap="switchTab" data-tab="create" aria-role="radio" aria-label="我来建房间" aria-checked="{{tab==='create'}}" hover-class="tab-hover">我来建房间</view>
-        <view class="tab {{tab==='join' ? 'active' : ''}} {{!tab ? 'tab-equal' : ''}}" bindtap="switchTab" data-tab="join" aria-role="radio" aria-label="我有房间码" aria-checked="{{tab==='join'}}" hover-class="tab-hover">我有房间码</view>
+        <view wx:if="{{tab}}" class="segment-thumb segment-thumb-index-{{tab === 'join' ? 1 : 0}}" aria-hidden="true"></view>
+        <view class="tab {{tab==='create' ? 'active' : ''}} {{!tab ? 'tab-equal' : ''}}" bindtap="switchTab" data-tab="create" aria-role="radio" aria-label="我来建房间" aria-checked="{{tab==='create'}}" hover-start-time="20" hover-stay-time="70" hover-class="tab-hover">我来建房间</view>
+        <view class="tab {{tab==='join' ? 'active' : ''}} {{!tab ? 'tab-equal' : ''}}" bindtap="switchTab" data-tab="join" aria-role="radio" aria-label="我有房间码" aria-checked="{{tab==='join'}}" hover-start-time="20" hover-stay-time="70" hover-class="tab-hover">我有房间码</view>
       </view>
 
       <view wx:if="{{tab === 'create'}}">
         <text class="info-text">生成房间码，把码发给对方加入</text>
         <view wx:if="{{loading}}" class="btn-premium loading button-primary" aria-role="button" aria-disabled="true">创建中...</view>
-        <view wx:else class="btn-premium button-primary" bindtap="createRoom" aria-role="button" aria-label="创建我的房间" hover-class="btn-premium-hover">创建我的房间</view>
+        <view wx:else class="btn-premium button-primary" bindtap="createRoom" aria-role="button" aria-label="创建我的房间" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">创建我的房间</view>
       </view>
 
       <view wx:if="{{tab === 'join'}}">
@@ -59,15 +60,15 @@
         <input class="code-input form-control {{joinCode ? 'code-input-filled' : 'code-input-empty'}}{{codeFocused ? ' form-control-focused' : ''}}" placeholder-class="input-placeholder" placeholder="输入 6 位码" value="{{joinCode}}" bindinput="onCodeInput" bindfocus="onCodeFocus" bindblur="onCodeBlur" confirm-type="done" bindconfirm="joinRoom" aria-label="输入 6 位房间码"/>
         <view wx:if="{{joinCode.length < 6 && !loading}}" class="btn-premium disabled button-primary" aria-role="button" aria-disabled="true">请输入 6 位房间码</view>
         <view wx:elif="{{loading}}" class="btn-premium loading button-primary" aria-role="button" aria-disabled="true">加入中...</view>
-        <view wx:elif="{{joinCode.length === 6}}" class="btn-premium button-primary" bindtap="joinRoom" aria-role="button" aria-label="加入房间" hover-class="btn-premium-hover">加入房间</view>
+        <view wx:elif="{{joinCode.length === 6}}" class="btn-premium button-primary" bindtap="joinRoom" aria-role="button" aria-label="加入房间" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">加入房间</view>
       </view>
 
-      <view wx:if="{{needUnbind}}" class="btn-danger unbind-inline button-danger" bindtap="unbind" aria-role="button" aria-label="解除绑定" hover-class="btn-danger-hover">解除绑定</view>
+      <view wx:if="{{needUnbind}}" class="btn-danger unbind-inline button-danger" bindtap="unbind" aria-role="button" aria-label="解除绑定" hover-start-time="20" hover-stay-time="70" hover-class="btn-danger-hover">解除绑定</view>
     </view>
 
     <text wx:if="{{errorMsg}}" class="error-msg" aria-role="alert">{{errorMsg}}</text>
     <!-- issue #102：房间校验失败给出可点重试（重跑校验），停留在本页，不导向重新绑定 -->
-    <view wx:if="{{checkFailed}}" class="error-retry" bindtap="retryCheck" aria-role="button" aria-label="重试" hover-class="error-retry-hover">重试</view>
+    <view wx:if="{{checkFailed}}" class="error-retry" bindtap="retryCheck" aria-role="button" aria-label="重试" hover-start-time="20" hover-stay-time="70" hover-class="error-retry-hover">重试</view>
     </view>
   </view>
   <template is="sharedBottomSheet" data="{{sheetId: 'confirmation', sheetMounted: confirmationMounted, sheetPhase: confirmationPhase, sheetHostClass: '', sheetPanelClass: 'confirmation-panel', sheetName: confirmationName, sheetTitle: confirmationTitle, sheetSubtitle: '', maskHandler: 'onConfirmationMask', closeHandler: 'onConfirmationClose', bodyTemplate: 'confirmationSheetBody', sheetDragClear: confirmationDragClear, confirmationDateText: confirmationDateText, confirmationContent: confirmationContent, confirmationActions: confirmationActions}}" />

@@ -131,7 +131,7 @@ test('period list failure retry is a recognizable operation, distinct from the q
     /wx:if="\{\{loadFailed && !hasLoaded && !loading\}\}" class="empty-state record-empty load-failed" bindtap="loadData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(periodWxml, /class="load-failed-text">经期记录加载失败</)
-  assert.match(periodWxml, /class="btn-premium button-primary retry-btn" hover-class="btn-premium-hover">重试</)
+  assert.match(periodWxml, /class="btn-premium button-primary retry-btn" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">重试</)
 
   // 真空态仍是安静说明：不带重试按钮，也不可点；失败期间不显示断言式空态句（!loadFailed）
   const emptyBlock = /wx:elif="\{\{periodCount === 0 && !loading && !loadFailed\}\}" class="empty-state record-empty">([\s\S]*?)<\/view>/.exec(periodWxml)
@@ -207,7 +207,7 @@ test('record tab memory segment mirrors the standalone memory list state contrac
     /wx:if="\{\{memoryLoadFailed && !memoryHasLoaded && !memoryLoading\}\}" class="empty-state record-empty load-failed" bindtap="loadMemoryData" aria-role="button" aria-label="加载失败，点按重试"/
   )
   assert.match(periodWxml, /class="load-failed-text">欢乐时光加载失败</)
-  assert.match(periodWxml, /class="btn-premium button-primary retry-btn" hover-class="btn-premium-hover">重试</)
+  assert.match(periodWxml, /class="btn-premium button-primary retry-btn" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">重试</)
 
   // 空列表说明保持安静：没有按钮、不可点；失败期间不显示断言式空态句
   const emptyBlock = /wx:elif="\{\{memoryCount === 0 && !memoryLoading && !memoryLoadFailed\}\}" class="empty-state record-empty">([\s\S]*?)<\/view>/.exec(periodWxml)
@@ -220,7 +220,7 @@ test('record tab memory segment mirrors the standalone memory list state contrac
   // 按下时说明文字在极光上同样读得清（issue #166）
   assert.match(
     periodWxml,
-    /wx:if="\{\{memoryLoadFailed && memoryHasLoaded && !memoryLoading\}\}" class="list-retry" bindtap="loadMemoryData" aria-role="button" aria-label="刷新失败，点按重试" hover-class="list-retry-hover"/
+    /wx:if="\{\{memoryLoadFailed && memoryHasLoaded && !memoryLoading\}\}" class="list-retry" bindtap="loadMemoryData" aria-role="button" aria-label="刷新失败，点按重试" hover-start-time="20" hover-stay-time="70" hover-class="list-retry-hover"/
   )
   assert.equal((periodWxml.match(/class="list-retry-text">刷新失败，正在显示上次的内容</g) || []).length, 2,
     'both segments explain the refresh failure with the same retry row text')
@@ -276,12 +276,13 @@ test('record tab memory segment renders month cards with the grouped row contrac
   assert.match(periodWxml, /class="memory-date">\{\{item\.dayLabel\}\}/)
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}" class="memory-note">\{\{item\.note\}\}/)
 
-  // 展开/收起即时切换、无动画：卡头与切换文字的基类规则不引入 transition/animation
-  for (const selector of ['month-header', 'month-toggle']) {
-    const rule = new RegExp(`\\.${selector}\\s*\\{[^}]*\\}`).exec(periodWxss)
-    assert.ok(rule, `expected the .${selector} rule`)
-    assert.doesNotMatch(rule[0], /transition|animation/)
-  }
+  // 展开/收起即时切换，切换文字不引入动画；卡头只为按压反馈使用 #270 的释放拍。
+  const toggleRule = /\.month-toggle\s*\{[^}]*\}/.exec(periodWxss)
+  assert.ok(toggleRule, 'expected the .month-toggle rule')
+  assert.doesNotMatch(toggleRule[0], /transition|animation/)
+  const headerRule = /\.month-header\s*\{[^}]*\}/.exec(periodWxss)
+  assert.ok(headerRule, 'expected the .month-header rule')
+  assert.match(headerRule[0], /transition:\s*background-color var\(--duration-press\) ease/)
 })
 
 test('record edit pages isolate delete loading, constrain period dates, and cap notes', () => {

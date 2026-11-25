@@ -7,6 +7,13 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10rpx;
   box-sizing: border-box;
+  position: relative;
+}
+
+.segment-control.segment-columns-3,
+.density-control.segment-columns-3,
+.tab-bar.segment-columns-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 /* 卡内变体：绑定与设置共用内凹深色轻玻璃轨道。 */
@@ -26,10 +33,53 @@
   border: 1px solid rgba(255,255,255,0.11);
 }
 
+/* #270：同一枚实体滑块按选中索引滑移；连点只改 transform，过渡从当前帧自然折返。 */
+.segment-thumb {
+  position: absolute;
+  z-index: 0;
+  top: 6rpx;
+  bottom: 6rpx;
+  left: 6rpx;
+  box-sizing: border-box;
+  background: rgba(232,144,158,0.14);
+  border: 1px solid rgba(232,144,158,0.48);
+  border-radius: var(--radius-md);
+  pointer-events: none;
+  transition: transform var(--duration-state) var(--ease-out);
+}
+.tab-bar .segment-thumb,
+.density-control .segment-thumb {
+  width: calc((100% - 22rpx) / 2);
+}
+.segment-control .segment-thumb {
+  top: 4rpx;
+  bottom: 4rpx;
+  left: 4rpx;
+  width: calc((100% - 18rpx) / 2);
+}
+.tab-bar .segment-thumb.segment-thumb-columns-3,
+.density-control .segment-thumb.segment-thumb-columns-3 {
+  width: calc((100% - 32rpx) / 3);
+}
+.segment-control .segment-thumb.segment-thumb-columns-3 {
+  width: calc((100% - 28rpx) / 3);
+}
+.segment-thumb.segment-thumb-index-0 {
+  transform: translateX(0);
+}
+.segment-thumb.segment-thumb-index-1 {
+  transform: translateX(calc(100% + 10rpx));
+}
+.segment-thumb.segment-thumb-index-2 {
+  transform: translateX(calc(200% + 20rpx));
+}
+
 .segment-option,
 .density-option,
 .tab {
   min-height: 88rpx;
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -55,8 +105,8 @@
 .density-option.active,
 .tab.active {
   color: var(--aurora-pink);
-  background: rgba(232,144,158,0.08);
-  border-color: rgba(232,144,158,0.45);
+  background: transparent;
+  border-color: transparent;
   font-weight: var(--font-weight-control);
   box-shadow: none;
   transition: background-color var(--duration-press) ease, border-color var(--duration-press) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
@@ -70,6 +120,7 @@
 .tab.tab-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.1);
+  transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 
 .segment-option:active.active,
@@ -81,9 +132,11 @@
   transform: scale(0.98);
   background: rgba(232,144,158,0.14);
   border-color: rgba(232,144,158,0.58);
+  transition: background-color var(--duration-press-in) ease, border-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .segment-thumb,
   .segment-option,
   .segment-option.active,
   .density-option,
@@ -91,6 +144,20 @@
   .tab,
   .tab.active {
     animation: none;
+    transition: none;
+  }
+  .segment-option:active,
+  .segment-option.segment-option-hover,
+  .density-option:active,
+  .density-option.density-option-hover,
+  .tab:active,
+  .tab.tab-hover,
+  .segment-option:active.active,
+  .segment-option.segment-option-hover.active,
+  .density-option:active.active,
+  .density-option.density-option-hover.active,
+  .tab:active.active,
+  .tab.tab-hover.active {
     transition: none;
   }
 }

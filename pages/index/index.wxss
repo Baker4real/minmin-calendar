@@ -93,6 +93,7 @@
 .partner-welcome:active,
 .partner-welcome.partner-welcome-hover {
   transform: scale(0.98);
+  transition: transform var(--duration-press-in) var(--ease-out);
 }
 .partner-invite {
   display: flex;
@@ -137,6 +138,7 @@ button.home-share-invite {
   transform: scale(0.96);
   background: rgba(232,144,158,0.16);
   border-color: rgba(232,144,158,0.45);
+  transition: transform var(--duration-press-in) var(--ease-out), background-color var(--duration-press-in) ease, border-color var(--duration-press-in) ease;
 }
 
 /* 刷新失败重试句的位置仍在月份导航与周头之间；整行玫瑰句外观共用 shared/retry-row.wxss（#234）。 */
@@ -194,6 +196,7 @@ button.home-share-invite {
 .month-title-trigger.month-title-trigger-hover {
   transform: scale(0.97);
   background: rgba(232,144,158,0.16);
+  transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 /* 和月份标题同一玫瑰：按吸顶区 → 月份导航 → 触发钮的实际合成面算，85% 玫瑰只有约 4.2:1（issue #163） */
 .month-title-caret {
@@ -236,10 +239,12 @@ button.home-share-invite {
 .nav-btn.nav-btn-hover {
   transform: scale(0.96);
   border-color: rgba(255,255,255,0.3);
+  transition: border-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 .nav-btn:active::before,
 .nav-btn.nav-btn-hover::before {
   background-color: rgba(255,255,255,0.2);
+  transition: background-color var(--duration-press-in) ease;
 }
 /* 到了最早或最晚可看的月份（issue #159），那一侧的箭头禁用：变淡，按下不缩放、底色和描边不变 */
 .nav-btn.disabled {
@@ -300,6 +305,7 @@ button.home-share-invite {
 .back-today.back-today-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.08);
+  transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 .home-status {
   height: 88rpx;
@@ -344,6 +350,7 @@ button.home-share-invite {
 .home-status.home-status-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.06);
+  transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 
 /* ===== Week Header ===== */
@@ -432,6 +439,7 @@ button.home-share-invite {
 .day-cell:active,
 .day-cell.day-cell-hover {
   transform: scale(0.94);
+  transition: transform var(--duration-press-in) var(--ease-out);
 }
 .day-cell.empty {
   visibility: hidden;
@@ -834,6 +842,7 @@ button.home-share-invite {
 .month-summary:active,
 .month-summary.month-summary-hover {
   transform: scale(0.98);
+  transition: transform var(--duration-press-in) var(--ease-out);
 }
 
 /* ===== Quick Actions — 经期实色主操作 + 欢乐时光 button-ghost 次操作 ===== */
@@ -864,6 +873,7 @@ button.home-share-invite {
 .quick-btn:active,
 .quick-btn.quick-btn-hover {
   transform: scale(0.96);
+  transition: transform var(--duration-press-in) var(--ease-out);
 }
 /* 记录入口图标 = 日历图例标记：海军圆盘上承载图例的单日经期色带 / 欢乐时光浅色心（.action-sample / .memory-tone） */
 .quick-icon {
@@ -907,6 +917,7 @@ button.home-share-invite {
 .quick-btn.btn-ghost:active,
 .quick-btn.btn-ghost.btn-ghost-hover {
   transform: scale(0.95);
+  transition: transform var(--duration-press-in) var(--ease-out);
 }
 .quick-btn.btn-ghost .quick-text {
   color: var(--aurora-pink);
@@ -1004,6 +1015,7 @@ button.home-share-invite {
 .jump-today.jump-today-hover {
   transform: scale(0.98);
   background: rgba(232,144,158,0.18);
+  transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 .jump-today-label {
   flex: 0 0 auto;
@@ -1053,6 +1065,7 @@ button.home-share-invite {
 .jump-year-step.jump-year-step-hover {
   transform: scale(0.94);
   background: rgba(255,255,255,0.14);
+  transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 .jump-year-step.disabled {
   opacity: 0.35;
@@ -1099,6 +1112,7 @@ button.home-share-invite {
 .jump-option.jump-option-hover {
   transform: scale(0.97);
   background: rgba(255,255,255,0.13);
+  transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 .jump-option.real-today {
   color: var(--aurora-pink);
@@ -1143,6 +1157,7 @@ button.home-share-invite {
 .sheet-action.sheet-action-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.13);
+  transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 .sheet-action-icon {
   flex: 0 0 auto;
@@ -1240,6 +1255,7 @@ button.home-share-invite {
 .day-detail-row.day-detail-row-hover {
   transform: scale(0.98);
   background: rgba(255,255,255,0.13);
+  transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 .detail-meaning-list {
   display: flex;
@@ -1527,6 +1543,7 @@ button.home-share-invite {
 .copy-recap:active,
 .copy-recap.copy-recap-hover {
   transform: scale(0.96);
+  transition: transform var(--duration-press-in) var(--ease-out);
 }
 /* 骨架复用真实 .content 页边距、吸顶占位、周头和网格；只有父容器脉冲（issue #239） */
 .calendar-skeleton {
@@ -1630,6 +1647,48 @@ button.home-share-invite {
   .copy-recap,
   .no-room-icon {
     animation: none;
+    transition: none;
+  }
+  .partner-welcome:active,
+  .partner-welcome.partner-welcome-hover,
+  .home-share-invite:active,
+  .home-share-invite.home-share-invite-hover,
+  .month-title-trigger:active,
+  .month-title-trigger.month-title-trigger-hover,
+  .nav-btn:active,
+  .nav-btn.nav-btn-hover,
+  .nav-btn:active::before,
+  .nav-btn.nav-btn-hover::before,
+  .nav-btn:active.disabled,
+  .nav-btn.nav-btn-hover.disabled,
+  .nav-btn:active.disabled::before,
+  .nav-btn.nav-btn-hover.disabled::before,
+  .back-today:active,
+  .back-today.back-today-hover,
+  .home-status:active,
+  .home-status.home-status-hover,
+  .day-cell:active,
+  .day-cell.day-cell-hover,
+  .month-summary:active,
+  .month-summary.month-summary-hover,
+  .quick-btn:active,
+  .quick-btn.quick-btn-hover,
+  .quick-btn.btn-ghost:active,
+  .quick-btn.btn-ghost.btn-ghost-hover,
+  .jump-today:active,
+  .jump-today.jump-today-hover,
+  .jump-year-step:active,
+  .jump-year-step.jump-year-step-hover,
+  .jump-year-step:active.disabled,
+  .jump-year-step.jump-year-step-hover.disabled,
+  .jump-option:active,
+  .jump-option.jump-option-hover,
+  .sheet-action:active,
+  .sheet-action.sheet-action-hover,
+  .day-detail-row:active,
+  .day-detail-row.day-detail-row-hover,
+  .copy-recap:active,
+  .copy-recap.copy-recap-hover {
     transition: none;
   }
   /* 记录成功的 ♥ 只淡入、不缩放；色带本来就只动透明度，照常（issue #167） */

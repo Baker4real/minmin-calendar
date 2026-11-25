@@ -46,6 +46,7 @@
 .day-sheet-mask:active::after,
 .day-sheet-mask.day-sheet-mask-hover::after {
   background-color: rgba(10,14,39,0.28);
+  transition: background-color var(--duration-press-in) ease;
 }
 .day-sheet-mask.sheet-open {
   opacity: 1;
@@ -110,6 +111,7 @@
 .sheet-drag-zone:active .sheet-handle,
 .sheet-drag-zone.sheet-drag-zone-hover .sheet-handle {
   background-color: rgba(232,144,158,0.55);
+  transition: background-color var(--duration-press-in) ease;
 }
 .sheet-head {
   display: flex;
@@ -165,6 +167,7 @@
 .sheet-close.sheet-close-hover {
   transform: scale(0.96);
   background: rgba(255,255,255,0.14);
+  transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 .confirmation-date {
   display: block;
@@ -209,6 +212,7 @@
 .confirmation-secondary.confirmation-secondary-hover {
   transform: scale(0.96);
   background-color: rgba(232,144,158,0.08);
+  transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 .date-picker-columns {
   position: relative;
@@ -288,6 +292,16 @@ button.date-picker-confirm::after {
   .sheet-close,
   .sheet-handle,
   .confirmation-secondary {
+    transition: none;
+  }
+  .day-sheet-mask:active::after,
+  .day-sheet-mask.day-sheet-mask-hover::after,
+  .sheet-drag-zone:active .sheet-handle,
+  .sheet-drag-zone.sheet-drag-zone-hover .sheet-handle,
+  .sheet-close:active,
+  .sheet-close.sheet-close-hover,
+  .confirmation-secondary:active,
+  .confirmation-secondary.confirmation-secondary-hover {
     transition: none;
   }
 }
