@@ -1335,7 +1335,7 @@ test('shared navbar is fixed, reserves the capsule, and content starts at the ba
   assert.match(readRawRepo('app.wxss'), /@import '\.\/pages\/shared\/nav-bar\.wxss';/)
 
   const expectedWiring = new Map([
-    ['pages/bind/bind', ['placeholder', "title: ''"]],
+    ['pages/bind/bind', ['immersive', "title: ''"]],
     ['pages/index/index', ['home', "title: '美少女的日历'"]],
     ['pages/memory/memory', ['placeholder', "title: '欢乐时光'"]],
     ['pages/memory/edit/edit', ['back', 'title: pageTitle']],
@@ -1384,11 +1384,63 @@ test('shared navbar is fixed, reserves the capsule, and content starts at the ba
   assert.match(geometry, /胶囊/)
 })
 
+test('bind immersive navbar preserves the safe-area slot without background, hairline, or floating orbs', () => {
+  const sharedTemplate = readRawRepo('pages/shared/nav-bar.wxml')
+  assert.match(sharedTemplate, /class="nav-bar header-gradient\{\{variant === 'immersive' \? ' nav-bar-immersive' : ''\}\}"/)
+  assert.match(readRawRepo('pages/bind/bind.wxml'), /<template is="sharedNavbar" data="\{\{variant: 'immersive', title: '', pageObscured: pageObscured\}\}" \/>/)
+
+  const rules = parseWxssRules(readRepo('app.wxss'))
+  const immersive = findDecls(rules, '.header-gradient.nav-bar-immersive')
+  assert.equal(immersive.background, 'transparent')
+  assert.equal(immersive['border-bottom'], '0')
+  assert.equal(immersive['backdrop-filter'], 'none')
+  assert.equal(immersive['-webkit-backdrop-filter'], 'none')
+  for (const property of ['height', 'padding-top', 'padding-right', 'position']) {
+    assert.equal(immersive[property], undefined, `${property} stays on the shared safe-area geometry rule`)
+  }
+  const orbs = rules.find(rule => rule.selectors.includes('.header-gradient.nav-bar-immersive::before') && rule.selectors.includes('.header-gradient.nav-bar-immersive::after'))
+  assert.ok(orbs, 'both immersive header pseudos are explicitly suppressed')
+  assert.equal(orbs.decls.display, 'none')
+
+  const nav = findDecls(rules, '.nav-bar')
+  const safeTop = findDecls(rules, '.safe-top')
+  assert.match(nav.height, /var\(--nav-bar-height/)
+  assert.match(nav['padding-top'], /var\(--safe-top/)
+  assert.match(nav['padding-right'], /var\(--capsule-right/)
+  assert.equal(safeTop['padding-top'], nav.height)
+})
+
+test('edit navbars keep an 88rpx back hit slot around a 64rpx light-glass circle and 36rpx icon', () => {
+  const sharedTemplate = readRawRepo('pages/shared/nav-bar.wxml')
+  assert.match(sharedTemplate, /<view class="nav-back-surface"><\/view>\s*<view class="ui-icon ui-icon-left ui-icon-36 ui-icon-circle nav-back-icon" aria-hidden="true"><\/view>/)
+
+  const rules = parseWxssRules(readRepo('app.wxss'))
+  const hitSlot = findDecls(rules, '.nav-back')
+  assert.ok(rpxNumber(hitSlot, 'width') >= 88)
+  assert.ok(rpxNumber(hitSlot, 'height') >= 88)
+  assert.ok(!hitSlot.background || hitSlot.background === 'transparent')
+
+  const surface = findDecls(rules, '.nav-back-surface')
+  for (const edge of ['top', 'right', 'bottom', 'left']) assert.equal(surface[edge], '12rpx')
+  assert.equal(surface['border-radius'], 'var(--radius-full)')
+  assert.equal(surface.background, 'var(--glass-bg)')
+  assert.equal(surface.border, '1px solid rgba(255,255,255,0.28)')
+  assert.equal(surface['box-shadow'], undefined)
+
+  const icon = findDecls(rules, '.ui-icon-36')
+  assert.equal(icon.width, '36rpx')
+  assert.equal(icon.height, '36rpx')
+  for (const [viewport, navContentHeight] of [[320, 40], [375, 44], [430, 44]]) {
+    const surfaceHeight = (88 - 24) * viewport / 750
+    assert.ok(surfaceHeight < navContentHeight, `${viewport}px: ${surfaceHeight}px back surface must fit the ${navContentHeight}px navbar content row`)
+  }
+})
+
 // 同步胶囊（issue #120 进出、#151 单集合失败）住在首页顶栏的标题槽里，挂载期间替换应用标题。
 // 顶栏整条在吸顶区之上，胶囊因此盖不住月份标题和状态行；每条胶囊文案在 320px 宽（胶囊右侧占位 94px）的标题槽里单行完整显示
 test('the sync pill takes the navbar title slot, clear of the sticky month title, and every status fits it at 320px', async () => {
   const wxml = readRepo('pages/index/index.wxml')
-  const navStart = wxml.indexOf('class="nav-bar header-gradient"')
+  const navStart = wxml.indexOf('class="nav-bar header-gradient')
   const navEnd = wxml.indexOf('<view wx:if="{{noRoom}}"', navStart)
   assert.ok(navStart !== -1 && navEnd !== -1, 'expected the home navbar ahead of the page states')
   assert.match(

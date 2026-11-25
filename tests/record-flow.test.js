@@ -116,7 +116,7 @@ test('legacy memory route keeps only the navbar style its markup renders', () =>
   const wxml = readPageFile('pages/memory/memory.wxml')
   const wxss = readPageFile('pages/memory/memory.wxss')
   assert.match(raw, /variant: 'placeholder', title: '欢乐时光'/)
-  assert.match(wxml, /<view class="nav-bar header-gradient" aria-hidden="\{\{pageObscured\}\}">/)
+  assert.match(wxml, /<view class="nav-bar header-gradient[^"]*" aria-hidden="\{\{pageObscured\}\}">/)
   assert.match(wxml, /<view wx:elif="\{\{title\}\}" class="nav-title">\{\{title\}\}<\/view>/)
   assert.deepEqual(parseWxssRules(wxss).flatMap(rule => rule.selectors), [])
 })
