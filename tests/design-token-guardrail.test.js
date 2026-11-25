@@ -704,11 +704,14 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/index/index.wxss', '.legend-sample.day-cell'],
     ['pages/bind/bind.wxss', '.code-input'],
     ['pages/bind/bind.wxss', '.error-msg'],
-    // #233：画布上变体只有这一处；共享文件及三个 @import 调用页都按展开结果核对。
+    // #233：画布上变体只有这一处；共享文件及 @import 调用页都按展开结果核对。
     ['pages/shared/segmented-control.wxss', '.segment-control'],
     ['pages/bind/bind.wxss', '.segment-control'],
     ['pages/settings/settings.wxss', '.segment-control'],
     ['pages/period/period.wxss', '.segment-control'],
+    ['pages/period/edit/edit.wxss', '.segment-control'],
+    // #273：症状选中态的 16% 玫瑰平涂叠玻璃回退，不是实色主按钮。
+    ['pages/period/edit/edit.wxss', '.symptom-chip.active'],
     ['pages/period/period.wxss', '.skeleton-card'],
     ['pages/period/period.wxss', '.record-empty'],
     // #236：共享表单规则及两个 @import 调用页核对同一份既有平涂登记。
@@ -801,7 +804,8 @@ test('CTA fill guardrail flags unregistered gradient and literal rose fills', ()
     ['pages/period/period.wxss', '.cycle-card { background: linear-gradient(135deg, rgba(232,144,158,0.18), rgba(196,160,210,0.12)), var(--glass-fallback); }'],
     // issue #104：绑定页选中 tab 收敛回 var(--aurora-pink) 玫瑰填充，var() 填充照旧不误伤
     ['pages/bind/bind.wxss', '.tab.active { background: var(--aurora-pink); }'],
-    ['pages/period/edit/edit.wxss', '.flow-chip.active { background: rgba(232,144,158,0.92); }']
+    ['pages/period/edit/edit.wxss', '.flow-chip.active { background: rgba(232,144,158,0.08); }'],
+    ['pages/period/edit/edit.wxss', '.symptom-chip.active { background: linear-gradient(rgba(232,144,158,0.16), rgba(232,144,158,0.16)), var(--glass-fallback); }']
   ]
   assert.deepEqual(legit.flatMap(([f, css]) => scanCtaFillDiscipline(f, css)), [])
 })
@@ -1069,8 +1073,8 @@ const REGISTERED_GLOWS = [
   'pages/memory/edit/edit.wxss .form-control.form-control-focused',
   // 选月面板的静态玫瑰光只经伪元素透明度切换（issue #268）
   'pages/index/index.wxss .jump-option::after',
-  'pages/period/edit/edit.wxss .flow-chip.active',
-  'pages/period/edit/edit.wxss .symptom-chip.active',
+  'pages/period/edit/edit.wxss .flow-chip::after',
+  'pages/period/edit/edit.wxss .symptom-chip::after',
   // 情感装饰
   'pages/bind/bind.wxss .hero-icon',
   'pages/period/period.wxss .memory-heart',
