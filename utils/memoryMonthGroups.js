@@ -99,7 +99,6 @@ function applyMemoryMonthExpansion(groups, choices) {
     return {
       ...group,
       expanded,
-      toggleLabel: expanded ? '收起' : '展开',
       ariaLabel: `${group.year}年${group.month}月，${util.formatQuantity(group.count, '条')}欢乐时光，${detail}`
     }
   })

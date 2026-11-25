@@ -29,11 +29,21 @@ test('all bottom sheets use one shared shell, page guard and reduced-motion prob
     assert.equal(invocations.filter(tag => tag.attrs.is === 'sharedSheetPage').length, 1, `${file} shares one page guard and probe`)
 
     const expanded = readSource(path.join(repoRoot, file), 'utf8')
+    assert.equal((expanded.match(/<wxs\s+module="sheetDrag"\s/g) || []).length, 1, `${file} expands the template-local WXS module once`)
     const nodes = wxmlOpeningTags(expanded)
     assert.equal(nodes.filter(tag => tag.classes.includes('reduced-motion-probe')).length, 1, `${file} mounts one probe`)
     assert.equal(nodes.filter(tag => tag.tag === 'page-container' && tag.attrs.bindbeforeleave === 'onSheetSystemBack').length, 1, `${file} mounts one return guard`)
     assert.equal(nodes.filter(tag => tag.classes.includes('day-sheet-mask')).length, sheetCount, `${file} uses the shared mask`)
     assert.equal(nodes.filter(tag => tag.classes.includes('sheet-drag-zone') && tag.attrs.bindtouchcancel === '{{sheetDrag.touchCancel}}').length, sheetCount, `${file} routes every touch cancellation through sheetDrag`)
+  }
+})
+
+test('shared sheet templates own their WXS module scope instead of relying on each host page', () => {
+  const shared = fs.readFileSync(path.join(repoRoot, 'pages/shared/confirmation-sheet.wxml'), 'utf8')
+  assert.equal((shared.match(/<wxs\s+module="sheetDrag"\s+src="\.\.\/\.\.\/utils\/sheetDrag\.wxs"><\/wxs>/g) || []).length, 1)
+  for (const [file] of pages) {
+    const raw = fs.readFileSync(path.join(repoRoot, file), 'utf8')
+    assert.equal(raw.includes('<wxs module="sheetDrag"'), false, `${file} must consume the template-local WXS binding`)
   }
 })
 
@@ -103,6 +113,15 @@ test('shared sheet masks catch touch move and page-meta locks scrolling only whi
 })
 
 test('shared sheets keep chrome fixed above a cropped independently scrolling body with concentric close geometry', () => {
+  const nativeWxml = fs.readFileSync(path.join(repoRoot, 'pages/shared/confirmation-sheet.wxml'), 'utf8')
+  const nativeBody = wxmlOpeningTags(nativeWxml).find(tag => tag.classes.includes('sheet-body'))
+  assert.ok(nativeBody)
+  assert.equal(nativeBody.tag, 'scroll-view')
+  assert.equal(nativeBody.attrs['scroll-y'], '{{true}}')
+  assert.equal(nativeBody.attrs.enhanced, '{{true}}')
+  assert.equal(nativeBody.attrs['show-scrollbar'], '{{false}}')
+  assert.equal(nativeBody.attrs['scroll-top'], undefined, 'scrolling remains native and uncontrolled')
+
   const panel = declarations('pages/shared/confirmation-sheet.wxss', '.day-action-sheet')
   assert.equal(panel.display, 'flex')
   assert.equal(panel['flex-direction'], 'column')
@@ -112,7 +131,11 @@ test('shared sheets keep chrome fixed above a cropped independently scrolling bo
   assert.equal(declarations('pages/shared/confirmation-sheet.wxss', '.sheet-drag-zone').flex, '0 0 auto')
 
   const body = declarations('app.wxss', '.sheet-body')
-  assert.equal(body.flex, '1')
+  assert.equal(body.flex, '0 0 auto')
+  assert.equal(body.height, undefined, 'short sheets remain content-sized')
+  assert.equal(body['max-height'], 'calc(82vh - 176rpx - 2px - var(--safe-bottom, env(safe-area-inset-bottom, 0px)))')
+  assert.equal(declarations('app.wxss', '.calendar-jump-sheet .sheet-body')['max-height'], 'calc(86vh - 178rpx - 2px - var(--safe-bottom, env(safe-area-inset-bottom, 0px)))')
+  assert.equal(declarations('app.wxss', '.calendar-info-panel .sheet-body')['max-height'], 'calc(84vh - 176rpx - 2px - var(--safe-bottom, env(safe-area-inset-bottom, 0px)))')
   assert.equal(body['min-height'], '0')
   assert.equal(body['overflow-y'], 'auto')
   assert.equal(body['scrollbar-width'], 'none')

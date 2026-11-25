@@ -185,7 +185,11 @@ test('Chinese display copy keeps date and quantity units intact and flowing WXSS
     `留下 1${nbsp}条欢乐时光`,
     'recap counts use the same non-breaking quantity space'
   )
-  assert.match(readRaw('pages/bind/bind.wxml'), new RegExp(`placeholder="输入${nbsp}6${nbsp}位码"`))
+  const bindWxml = readRaw('pages/bind/bind.wxml')
+  assert.match(bindWxml, /placeholder="\{\{roomCodePlaceholder\}\}"/)
+  assert.match(bindWxml, /aria-label="\{\{roomCodeInputAriaLabel\}\}"/)
+  assert.doesNotMatch(bindWxml, / /, 'static room-code copy is projected by searchable JavaScript constants')
+  assert.doesNotMatch(readRaw('pages/period/period.wxml'), / /, 'dynamic quantities do not hide NBSP in templates')
 
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {

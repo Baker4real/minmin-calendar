@@ -1,0 +1,26 @@
+/* Shared two-layer disclosure/fold structure (ADR-0009).
+   Pages keep their own state predicates, ARIA/disabled conditions and modifiers. */
+.disclosure-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+  transition: grid-template-rows var(--duration-state) var(--ease-out), opacity var(--duration-state) var(--ease-out);
+}
+.disclosure-grid.bind-form-panel-open,
+.disclosure-grid.end-date-expanded,
+.disclosure-grid.fold-grid-expanded {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  pointer-events: auto;
+}
+.disclosure-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disclosure-grid {
+    transition: none;
+  }
+}

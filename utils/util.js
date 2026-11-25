@@ -82,7 +82,8 @@ function formatDisplayDate(dateStr, options = {}) {
   const today = resolveDisplayToday(options.today)
   const yearPrefix = date.getFullYear() === today.getFullYear() ? '' : `${date.getFullYear()}年`
   const text = `${yearPrefix}${date.getMonth() + 1}月${formatDisplayDay(date.getDate())}`
-  return options.withWeekday ? `${text} ${WEEKDAYS[date.getDay()]}` : text
+  const weekday = options.fullWeekday ? `星期${WEEKDAYS[date.getDay()].slice(1)}` : WEEKDAYS[date.getDay()]
+  return options.withWeekday || options.fullWeekday ? `${text} ${weekday}` : text
 }
 
 function formatDisplayDateRange(startStr, endStr, options = {}) {

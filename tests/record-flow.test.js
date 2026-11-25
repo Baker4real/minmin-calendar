@@ -84,7 +84,7 @@ test('period overview columns all stack the label above the number', () => {
 test('collapsed period months show their existing count without repeating it while expanded', () => {
   const periodWxml = readPageFile('pages/period/period.wxml')
   const periodWxss = readPageFile('pages/period/period.wxss')
-  assert.match(periodWxml, /<view class="month-header-text">\s*<text>\{\{group\.title\}\}<\/text>\s*<text wx:if="\{\{!group\.expanded\}\}" class="month-count" aria-hidden="true">· \{\{group\.count\}\} 条<\/text>/)
+  assert.match(periodWxml, /<view class="month-header-text">\s*<text>\{\{group\.title\}\}<\/text>\s*<text wx:if="\{\{!group\.expanded\}\}" class="month-count" aria-hidden="true">· \{\{group\.countText\}\}<\/text>/)
   const countRule = /\.month-count\s*\{[^}]*\}/.exec(periodWxss)
   assert.ok(countRule, 'the collapsed month count has a secondary text role')
   assert.match(countRule[0], /color:\s*var\(--text-secondary\)/)
@@ -265,7 +265,7 @@ test('record tab memory segment renders month cards with the grouped row contrac
 
   assert.match(
     periodWxml,
-    /class="fold-grid \{\{group\.expanded \? 'fold-grid-expanded' : ''\}\}" aria-hidden="\{\{!group\.expanded\}\}">\s*<view class="fold-inner">\s*<view class="list-item" wx:for="\{\{group\.records\}\}" wx:key="_id" bindtap="editMemory"/
+    /class="disclosure-grid fold-grid \{\{group\.expanded \? 'fold-grid-expanded' : ''\}\}" aria-hidden="\{\{!group\.expanded\}\}">\s*<view class="disclosure-inner fold-inner">\s*<view class="list-item" wx:for="\{\{group\.records\}\}" wx:key="_id" bindtap="editMemory"/
   )
   assert.match(periodWxml, /class="memory-date">\s*<text>\{\{item\.dayLabel\}\}<\/text>/)
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}" class="memory-note">\{\{item\.note\}\}/)
@@ -279,10 +279,11 @@ test('record groups use accessible grid folds, rotating vector carets, pressed m
   const wxml = readPageFile('pages/period/period.wxml')
   const wxss = readPageFile('pages/period/period.wxss')
 
+  assert.match(readRawPageFile('pages/period/period.wxss'), /@import '\.\.\/shared\/disclosure\.wxss';/)
   const foldRules = parseWxssRules(wxss)
-  const fold = foldRules.find(rule => rule.selectors.includes('.fold-grid'))
-  const expanded = foldRules.find(rule => rule.selectors.includes('.fold-grid.fold-grid-expanded'))
-  const inner = foldRules.find(rule => rule.selectors.includes('.fold-inner'))
+  const fold = foldRules.find(rule => rule.selectors.includes('.disclosure-grid'))
+  const expanded = foldRules.find(rule => rule.selectors.includes('.disclosure-grid.fold-grid-expanded'))
+  const inner = foldRules.find(rule => rule.selectors.includes('.disclosure-inner'))
   assert.ok(fold && expanded && inner, 'each collapsible region has the two-layer grid contract')
   assert.equal(fold.decls.display, 'grid')
   assert.equal(fold.decls['grid-template-rows'], '0fr')
@@ -297,7 +298,7 @@ test('record groups use accessible grid folds, rotating vector carets, pressed m
   assert.equal(inner.decls['min-height'], '0')
 
   for (const variable of ['yearGroup', 'group']) {
-    assert.match(wxml, new RegExp(`class="fold-grid \\{\\{${variable}\\.expanded \\? 'fold-grid-expanded' : ''\\}\\}" aria-hidden="\\{\\{!${variable}\\.expanded\\}\\}"`))
+    assert.match(wxml, new RegExp(`class="disclosure-grid fold-grid \\{\\{${variable}\\.expanded \\? 'fold-grid-expanded' : ''\\}\\}" aria-hidden="\\{\\{!${variable}\\.expanded\\}\\}"`))
   }
   assert.doesNotMatch(wxml, /<block wx:if="\{\{group\.expanded\}\}">/)
   assert.doesNotMatch(wxml, /class="(?:year-toggle|month-toggle)"/)
@@ -365,7 +366,7 @@ test('record edit pages isolate delete loading, constrain period dates, and cap 
   assert.match(periodRawWxml, /startDate: startDate, maxDate: maxDate, saving: saving \|\| status !== 'known-end', tapHandler: 'openEndDatePicker'/)
   assert.match(periodRawWxml, /maxDate: maxDate, saving: saving, tapHandler: 'openStartDatePicker'/)
   // 结束日期字段常驻并在收起时读屏隐藏；开始日期选择器上限为今天
-  assert.match(periodRawWxml, /class="form-item end-date-disclosure[^"]*" id="field-endDate" aria-hidden="\{\{status !== 'known-end'\}\}"/)
+  assert.match(periodRawWxml, /class="form-item disclosure-grid end-date-disclosure[^"]*" id="field-endDate" aria-hidden="\{\{status !== 'known-end'\}\}"/)
   assert.match(periodEditWxml, /bindtap="\{\{tapHandler\}\}"/)
   assert.match(readRawPageFile('pages/period/edit/edit.wxml'), /tapHandler: 'selectStatus'[\s\S]*ariaLabel: '经期状态 ' \+ item\.label/)
   assert.match(periodEditWxml, /maxlength="500"/)

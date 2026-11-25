@@ -9,10 +9,9 @@ const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const roomRecordsSync = require('../../utils/roomRecordsSync')
 const wxPrompts = require('../../utils/wxPrompts')
 const safeArea = require('../../utils/safeArea')
-const { createSheetLifecycle, restoreTabBarOnShow } = require('../../utils/sheetLifecycle')
+const { restoreTabBarOnShow } = require('../../utils/sheetLifecycle')
+const { syncPill } = require('../../utils/syncPill')
 const { withPageVisibility } = require('../../utils/pageVisibility')
-
-const SYNC_STATUS_CLEAR_DELAY = 1600
 
 Page(withPageVisibility({
   data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), ...safeArea.getNavTitlePadding('placeholder'), segment: 'period', segmentMotion: 'a', periodCount: 0, periodGroups: [], periodQuickLabel: '记经期', periodQuickMode: 'add', periodQuickAriaLabel: '记经期', predictionThresholdText: '记两次经期后就能估下次', avgCycle: null, avgDuration: null, loading: true, refreshing: false, loadFailed: false, hasLoaded: false, memoryCount: 0, memoryYearCount: 0, memoryGroups: [], memoryLoading: true, memoryLoadFailed: false, memoryHasLoaded: false, syncStatusVisible: false, syncStatusText: '', syncStatusMounted: false, syncStatusPhase: 'closed' },
@@ -34,7 +33,7 @@ Page(withPageVisibility({
 
   onUnload() {
     if (this._unsubscribeRecords) this._unsubscribeRecords()
-    this.clearSyncStatusTimer()
+    syncPill(this).clear()
   },
 
   onShow() {
@@ -284,51 +283,19 @@ Page(withPageVisibility({
       if (current.expanded === next.expanded && current.ariaLabel === next.ariaLabel) return
       const root = `memoryGroups[${nextIndex}]`
       patch[`${root}.expanded`] = next.expanded
-      patch[`${root}.toggleLabel`] = next.toggleLabel
       patch[`${root}.ariaLabel`] = next.ariaLabel
     })
     this.setData(patch)
   },
 
   showSyncStatus(text, options = {}) {
-    this.clearSyncStatusTimer()
-    syncPill(this).open(this, { syncStatusText: text })
-    if (options.autoHide === false) return
-    const timer = setTimeout(() => {
-      this._syncStatusTimer = null
-      this.hideSyncStatus()
-    }, SYNC_STATUS_CLEAR_DELAY)
-    if (timer && typeof timer.unref === 'function') timer.unref()
-    this._syncStatusTimer = timer
+    syncPill(this).show(text, options)
   },
 
   hideSyncStatus() {
-    this.clearSyncStatusTimer()
-    if (!this.data.syncStatusVisible && !this.data.syncStatusText) return
-    if (!this.data.syncStatusMounted) {
-      this.setData({ syncStatusVisible: false, syncStatusText: '' })
-      return
-    }
-    syncPill(this).leave(this, () => this.setData({ syncStatusText: '' }))
-  },
-
-  clearSyncStatusTimer() {
-    if (!this._syncStatusTimer) return
-    clearTimeout(this._syncStatusTimer)
-    this._syncStatusTimer = null
+    syncPill(this).hide()
   }
 }))
-
-function syncPill(page) {
-  if (!page._syncPill) {
-    page._syncPill = createSheetLifecycle({
-      visibleKey: 'syncStatusVisible',
-      mountedKey: 'syncStatusMounted',
-      phaseKey: 'syncStatusPhase'
-    })
-  }
-  return page._syncPill
-}
 
 function changedFields(data, update) {
   return Object.fromEntries(Object.entries(update).filter(([key, value]) => !Object.is(data[key], value)))
@@ -391,6 +358,7 @@ function buildPeriodGroups(periods, choices, yearChoices) {
       year.months.push(month)
     }
     month.count += 1
+    month.countText = util.formatQuantity(month.count, '条')
     month.records.push(record)
   }
   return years

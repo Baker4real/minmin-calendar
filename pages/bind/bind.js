@@ -10,6 +10,9 @@ const { confirmationSheet, confirmationSheetData } = require('../../utils/confir
 const { probeReducedMotion } = require('../../utils/sheetLifecycle')
 
 const ROOM_CODE_LENGTH = 6
+const ROOM_CODE_PLACEHOLDER = '输入\xA06\xA0位码'
+const ROOM_CODE_INPUT_ARIA_LABEL = '输入\xA06\xA0位房间码'
+const ROOM_CODE_REQUIRED_TEXT = '请输入\xA06\xA0位房间码'
 const OPENING_CALENDAR_HINT_DELAY = 800
 
 function normalizeRoomCode(value) {
@@ -56,6 +59,9 @@ Page(withPageVisibility({
     roomCode: '',
     roomStatus: '',
     joinCode: '',
+    roomCodePlaceholder: ROOM_CODE_PLACEHOLDER,
+    roomCodeInputAriaLabel: ROOM_CODE_INPUT_ARIA_LABEL,
+    roomCodeRequiredText: ROOM_CODE_REQUIRED_TEXT,
     codeFocused: false,
     loading: false,
     errorMsg: '',

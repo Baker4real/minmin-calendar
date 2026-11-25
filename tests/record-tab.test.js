@@ -804,6 +804,7 @@ test('period month choices are immediate, page-local and survive refresh failure
   assert.equal(app.navigation.length, navigations)
   assert.deepEqual(periodExpansion(page), [['2026-10', false], ['2025-10', true]])
   assert.equal(page.data.periodGroups[0].months[0].count, 1)
+  assert.equal(page.data.periodGroups[0].months[0].countText, '1 条')
   assert.ok(draws({ ...page.data, yearGroup: page.data.periodGroups[0], group: page.data.periodGroups[0].months[0] }, node => node === monthCount), 'the collapsed month draws its existing count')
   assert.equal(page.data.periodGroups[0].months[0].ariaLabel, '2026年10月，已收起，展开经期记录')
   assert.equal(page.data.periodGroups[0].months[0].toggleLabel, '展开')
@@ -983,7 +984,7 @@ test('memory months open only the newest by default, then preserve manual choice
   const june = page.data.memoryGroups[3]
   assert.equal(june.excerpt, '六月海边 傍晚')
   assert.equal(june.ariaLabel, '2026年6月，2 条欢乐时光，六月海边 傍晚，已收起')
-  assert.equal(june.toggleLabel, '展开')
+  assert.equal(Object.hasOwn(june, 'toggleLabel'), false, 'Memory has no visible toggle-label consumer; its ARIA name stays complete')
   assert.equal(page.data.memoryGroups[4].ariaLabel, '2026年5月，1 条欢乐时光，已收起')
   const navigationCount = app.navigation.length
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-06' }))
@@ -992,7 +993,7 @@ test('memory months open only the newest by default, then preserve manual choice
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-08' }))
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2030-01' }))
   assert.equal(app.navigation.length, navigationCount)
-  assert.equal(page.data.memoryGroups[3].toggleLabel, '收起')
+  assert.equal(Object.hasOwn(page.data.memoryGroups[3], 'toggleLabel'), false)
   assert.equal(page.data.memoryGroups[3].ariaLabel, '2026年6月，2 条欢乐时光，已展开')
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'period' }))
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
@@ -1343,9 +1344,9 @@ function memoriesForYears(years, count, longNote) {
 // #224: same deterministic records and cumulative UTF-8 JSON byte rule as the ticket's before/after measurement.
 // The later shared prediction-threshold copy adds 80 bytes to each recorded post-projection total.
 const byteScenarios = [
-  { title: '一年13+50累计字节', years: [2026], memoryCount: 50, longNote: false, expectedBytes: 18578, ticketBaselineKiB: 46 },
-  { title: '三年39+150累计字节', years: [2024, 2025, 2026], memoryCount: 150, longNote: false, expectedBytes: 57755, ticketBaselineKiB: 141 },
-  { title: '39+300长备注累计字节', years: [2024, 2025, 2026], memoryCount: 300, longNote: true, expectedBytes: 200044, ticketBaselineKiB: 386 }
+  { title: '一年13+50累计字节', years: [2026], memoryCount: 50, longNote: false, expectedBytes: 18554, ticketBaselineKiB: 46 },
+  { title: '三年39+150累计字节', years: [2024, 2025, 2026], memoryCount: 150, longNote: false, expectedBytes: 57683, ticketBaselineKiB: 141 },
+  { title: '39+300长备注累计字节', years: [2024, 2025, 2026], memoryCount: 300, longNote: true, expectedBytes: 199972, ticketBaselineKiB: 386 }
 ]
 
 for (const scenario of byteScenarios) {
@@ -1455,7 +1456,9 @@ test('collapsed grid wrappers keep row data mounted while hiding it from screen 
     const inner = row.parent
     const grid = inner.parent
     assert.ok(inner.classes.includes('fold-inner'))
+    assert.ok(inner.classes.includes('disclosure-inner'))
     assert.ok(grid.classes.includes('fold-grid'))
+    assert.ok(grid.classes.includes('disclosure-grid'))
     assert.equal(grid.attrs['aria-hidden'], '{{!group.expanded}}')
     assert.equal(grid.attrs['wx:if'], undefined)
     assert.equal(grid.attrs['wx:for'], undefined)

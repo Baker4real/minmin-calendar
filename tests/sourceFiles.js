@@ -214,11 +214,27 @@ function expandWxml(file, root, stack, expandIncludes) {
   const nextStack = [...stack, normalized]
   const definitions = templateDefinitions(normalized, root)
 
-  let expanded = transform(source, '.wxml', /<import\b([^>]*)\/\s*>/gi, () => '')
+  const importedDeclarations = []
+  let expanded = transform(source, '.wxml', /<import\b([^>]*)\/\s*>/gi, match => {
+    const reference = attribute(match[1], 'src')
+    if (!reference) throw new Error(`WXML import is missing src in ${normalized}`)
+    const imported = resolveReference(normalized, reference, root)
+    const importedSource = fs.readFileSync(imported, 'utf8')
+    const declarations = importedSource.match(/<wxs\b[^>]*>[\s\S]*?<\/wxs>/gi) || []
+    importedDeclarations.push(...declarations.map(declaration => {
+      const src = /\bsrc=["']([^"']+)["']/.exec(declaration)
+      if (!src) return declaration
+      const moduleFile = resolveReference(imported, src[1], root)
+      const relative = path.relative(path.dirname(normalized), moduleFile).replace(/\\/g, '/')
+      return declaration.replace(src[1], relative)
+    }))
+    return ''
+  })
   expanded = transform(expanded, '.wxml', /<template\b(?=[^>]*\bname\s*=)([^>]*)>[\s\S]*?<\/template\s*>/gi, match => {
     return attribute(match[1], 'name') ? '' : match[0]
   })
-  return expandWxmlFragment(expanded, normalized, definitions, root, nextStack, [], expandIncludes)
+  const fragment = expandWxmlFragment(expanded, normalized, definitions, root, nextStack, [], expandIncludes)
+  return [fragment, ...importedDeclarations].filter(Boolean).join('\n')
 }
 
 function readExpandedSource(file, { root = repoRoot, expandIncludes = true } = {}) {

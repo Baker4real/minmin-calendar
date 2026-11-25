@@ -1,4 +1,5 @@
 @import '../shared/confirmation-sheet.wxss';
+@import '../shared/disclosure.wxss';
 @import '../shared/form-control.wxss';
 @import '../shared/room-code.wxss';
 @import '../shared/segmented-control.wxss';
@@ -91,25 +92,10 @@
 .tab-bar.tab-bar-unselected {
   margin-bottom: 0;
 }
-/* #271：外层网格测高，内层裁切与禁点；不要改回 wx:if 卸载硬切。 */
+/* #271：共享双层网格只在本页保留全宽与 opacity 的 ease 修饰。 */
 .bind-form-panel {
-  display: grid;
-  grid-template-rows: 0fr;
   width: 100%;
-  opacity: 0;
   transition: grid-template-rows var(--duration-state) var(--ease-out), opacity var(--duration-state) ease;
-}
-.bind-form-panel.bind-form-panel-open {
-  grid-template-rows: 1fr;
-  opacity: 1;
-}
-.bind-form-panel-inner {
-  min-height: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-.bind-form-panel-open .bind-form-panel-inner {
-  pointer-events: auto;
 }
 .info-text {
   display: block;
@@ -217,6 +203,7 @@
    政策见 DESIGN.md「动效与性能边界」——按压 = 即时 scale + 既有底色变化 */
 @media (prefers-reduced-motion: reduce) {
   .btn-ghost,
+  .disclosure-grid,
   .bind-form-panel,
   .bind-reveal,
   .hero-icon {

@@ -4,7 +4,7 @@
 <page-meta page-style="{{pageObscured ? 'overflow: hidden;' : ''}}"></page-meta>
 <template is="sharedSheetPage" data="{{sheetExitGuard: sheetExitGuard}}" />
 <view class="page safe-top {{pageObscured ? 'page-obscured' : ''}} {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px; --nav-title-padding-left: {{navTitlePaddingLeft}}px; --nav-title-padding-right: {{navTitlePaddingRight}}px">
-  <wxs module="sheetDrag" src="../../../utils/sheetDrag.wxs"></wxs>
+  <!-- sheetDrag is declared by the shared bottom-sheet template -->
   <include src="/pages/shared/aurora.wxml" />
   <template is="sharedNavbar" data="{{variant: 'back', title: pageTitle, pageObscured: pageObscured}}" />
 
@@ -30,8 +30,8 @@
         </view>
         <text class="form-hint status-hint" aria-role="status">{{statusHint}}</text>
       </view>
-      <view class="form-item end-date-disclosure{{status === 'known-end' ? ' end-date-expanded' : ''}}" id="field-endDate" aria-hidden="{{status !== 'known-end'}}">
-        <view class="end-date-inner">
+      <view class="form-item disclosure-grid end-date-disclosure{{status === 'known-end' ? ' end-date-expanded' : ''}}" id="field-endDate" aria-hidden="{{status !== 'known-end'}}">
+        <view class="disclosure-inner end-date-inner">
           <template is="sharedDateField" data="{{label: '结束日期', value: endDate, displayValue: endDateLabel, placeholder: '选择结束日期', ariaLabel: endDate ? '结束日期，' + endDateLabel + '，点按修改' : '结束日期，还没选，点按选择', error: fieldErrors.endDate, startDate: startDate, maxDate: maxDate, saving: saving || status !== 'known-end', tapHandler: 'openEndDatePicker', focused: datePickerMounted && datePickerName === '结束日期'}}" />
           <text wx:if="{{periodDayCountText}}" class="form-hint period-length-hint">{{periodDayCountText}}</text>
           <text wx:if="{{periodLengthHint}}" class="form-hint period-length-hint">{{periodLengthHint}}</text>
