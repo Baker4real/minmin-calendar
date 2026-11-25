@@ -1,5 +1,5 @@
 <template name="sharedNavbar">
-  <view class="nav-bar header-gradient" aria-hidden="{{pageObscured}}">
+  <view class="nav-bar header-gradient{{variant === 'immersive' ? ' nav-bar-immersive' : ''}}" aria-hidden="{{pageObscured}}">
     <view wx:if="{{variant === 'home'}}" class="nav-tool" hover-class="nav-tool-hover" bindtap="openLegendSheet" aria-role="button" aria-label="打开日历图例">
       <view class="nav-tool-surface">图例</view>
     </view>

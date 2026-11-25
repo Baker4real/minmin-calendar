@@ -5,7 +5,7 @@
 <view class="page safe-top {{pageObscured ? 'page-obscured' : ''}} {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px; --nav-title-padding-left: {{navTitlePaddingLeft}}px; --nav-title-padding-right: {{navTitlePaddingRight}}px">
   <include src="/pages/shared/aurora.wxml" />
   <wxs module="sheetDrag" src="../../utils/sheetDrag.wxs"></wxs>
-  <template is="sharedNavbar" data="{{variant: 'placeholder', title: '', pageObscured: pageObscured}}" />
+  <template is="sharedNavbar" data="{{variant: 'immersive', title: '', pageObscured: pageObscured}}" />
   <view class="content" aria-hidden="{{pageObscured}}">
     <!-- issue #167：刚建好房间时 hero-bloom 让品牌心向外漾开一次 -->
     <view class="hero {{justCreated ? 'hero-bloom' : ''}}">

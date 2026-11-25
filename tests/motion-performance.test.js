@@ -662,6 +662,8 @@ test('retired decoration, loading and month-change animations stay gone', () => 
 const BLUR_RADIUS_CAP_PX = 20
 const MASK_BLUR_CAP_PX = 8
 const BLURRED_SURFACES = {
+  'app.wxss': ['.header-gradient'],
+  'pages/shared/nav-bar.wxss': ['.header-gradient'],
   'pages/index/index.wxss': ['.home-sticky', '.day-sheet-mask'],
   'pages/settings/settings.wxss': ['.day-sheet-mask'],
   'pages/bind/bind.wxss': ['.day-sheet-mask'],
@@ -677,7 +679,7 @@ test('blurred surfaces stay among the registered ones and within the radius caps
     for (const rule of file.rules) {
       if (rule.inReducedMotion) continue
       for (const prop of ['backdrop-filter', '-webkit-backdrop-filter']) {
-        if (!Object.prototype.hasOwnProperty.call(rule.decls, prop)) continue
+        if (!Object.prototype.hasOwnProperty.call(rule.decls, prop) || rule.decls[prop] === 'none') continue
         checked += 1
         const where = `${file.relative} ${rule.selectors.join(', ')} ${prop}`
         const radius = Number(/blur\((\d+)px\)/.exec(rule.decls[prop])?.[1])
