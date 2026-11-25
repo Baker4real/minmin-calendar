@@ -247,25 +247,23 @@ test('record tab memory month card header stays on one line at 320px', () => {
   const content = findDecls(rules, '.content')
   const header = findDecls(rules, '.month-header')
   const headerText = findDecls(rules, '.month-header-text')
-  const toggle = findDecls(rules, '.month-toggle')
+  const caret = findDecls(appRules, '.ui-icon-24')
 
   assert.equal(headerText['font-size'], 'var(--font-size-body)')
   assert.equal(headerText['white-space'], 'nowrap')
-  assert.equal(toggle['font-size'], 'var(--font-size-caption)')
-  assert.equal(toggle['white-space'], 'nowrap')
+  assert.equal(caret.width, '24rpx')
+  assert.equal(caret.height, '24rpx')
 
   const headerSizeRpx = fontSizeRpx(headerText, appTokens)
-  const toggleSizeRpx = fontSizeRpx(toggle, appTokens)
   const contentPadRpx = horizontalPaddingRpx(content)[0]
   const headerPadRpx = horizontalPaddingRpx(header, appTokens)[0]
   const headerGapRpx = Number(/(\d+)rpx/.exec(header.gap)[1])
   const availableRpx = 750 - 2 * contentPadRpx - 2 * headerPadRpx
 
-  // 卡头标题最坏文案「2026年12月 · 99 条」：8 位数字（0.6em）+ 年/月/条 3 个 CJK（1em）
-  // +「·」按全宽 1em + 两侧空格按 0.5em；切换文字最坏「收起」2 个 CJK（1em）
+  // 卡头标题最坏文案「2026年12月 · 99 条」加 #266 的 24rpx 几何下折角。
   const titleRpx = (8 * 0.6 + 3 + 1 + 2 * 0.5) * headerSizeRpx
-  const toggleRpx = 2 * toggleSizeRpx
-  const worstRpx = titleRpx + headerGapRpx + toggleRpx
+  const caretRpx = rpxNumber(caret, 'width')
+  const worstRpx = titleRpx + headerGapRpx + caretRpx
   assert.ok(
     worstRpx <= availableRpx,
     `month header worst case ${worstRpx}rpx exceeds the ${availableRpx}rpx available on a 750rpx viewport`
@@ -1497,7 +1495,8 @@ test('the sync pill takes the navbar title slot, clear of the sticky month title
 
   const appRules = parseWxssRules(readRepo('app.wxss'))
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))
-  const pill = findDecls(rules, '.sync-pill')
+  const navRules = parseWxssRules(readRepo('pages/shared/nav-bar.wxss'))
+  const pill = findDecls(navRules, '.sync-pill')
   for (const prop of ['position', 'top', 'left', 'width', 'z-index']) {
     assert.equal(pill[prop], undefined, `.sync-pill ${prop} lifts the pill out of the navbar slot`)
   }
@@ -1519,8 +1518,8 @@ test('the sync pill takes the navbar title slot, clear of the sticky month title
   const slotRpx = 750 - rpxNumber(findDecls(appRules, '.nav-bar'), 'padding-left') - toolSlotRpx - pxToRpx(94)
   // 同步胶囊 = 左右内边距 + 描边 + 圆点 + 间距 + 文案（caption，每字 1em）。
   const chromeRpx = 2 * parseFloat(horizontalPaddingTokens(pill)[0]) + 2 * pxToRpx(borderPx(pill)) +
-    rpxNumber(findDecls(rules, '.sync-dot'), 'width') + rpxNumber(pill, 'gap')
-  const syncText = findDecls(rules, '.sync-text')
+    rpxNumber(findDecls(navRules, '.sync-dot'), 'width') + rpxNumber(pill, 'gap')
+  const syncText = findDecls(navRules, '.sync-text')
   assert.equal(syncText['font-size'], 'var(--font-size-caption)')
   const captionRpx = fontSizeRpx(syncText)
   const { statuses } = await homeFeedbackCopy()
@@ -1593,7 +1592,7 @@ test('all seven pages inject regular-title compensation while the sync pill stay
   assert.equal(title['min-width'], '0')
   assert.match(title['padding-left'], /var\(--nav-title-padding-left,\s*0px\)/)
   assert.match(title['padding-right'], /var\(--nav-title-padding-right,\s*0px\)/)
-  const pill = findDecls(parseWxssRules(readRepo('pages/index/index.wxss')), '.sync-pill')
+  const pill = findDecls(parseWxssRules(readRepo('pages/shared/nav-bar.wxss')), '.sync-pill')
   for (const value of Object.values(pill)) assert.doesNotMatch(value, /nav-title-padding/)
 })
 

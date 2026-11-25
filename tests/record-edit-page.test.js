@@ -739,6 +739,38 @@ test('date fields read the same current and cross-year display dates, then appen
   })
 })
 
+test('memory journal letter opens the bounded date panel and saves the edited day and note', async (t) => {
+  const app = setup(t)
+  const memory = records[1]
+  const { page } = await openEditor(app, memory, { date: '2026-09-20' })
+  assert.equal(page.data.dateJournalLabel, '9月20⁠日 星期日')
+  const field = sharedTemplateData(memory, 'sharedDateField', 'tapHandler', 'openMemoryDatePicker', page.data)
+  assert.equal(field.journal, true)
+  assert.equal(field.displayValue, '9月20⁠日 星期日')
+  assert.equal(field.maxDate, '2026-09-20')
+
+  await app.dispatch(page, 'openMemoryDatePicker')
+  await app.settle()
+  assert.equal(page.data.datePickerTitle, '日期')
+  assert.equal(page.data.datePickerDraft, '2026-09-20')
+  const previousDay = [...page.data.datePickerValue]
+  previousDay[2] -= 1
+  await app.dispatch(page, 'onDatePickerChange', { detail: { value: previousDay } })
+  await app.dispatch(page, 'onDatePickerConfirm')
+  await app.settle()
+  assert.equal(page.data.date, '2026-09-19')
+  assert.equal(page.data.dateJournalLabel, '9月19⁠日 星期六')
+
+  await app.dispatch(page, 'onNoteInput', { detail: { value: '一起留住的小事' } })
+  const saved = { _id: 'journal-saved', date: '2026-09-19', note: '一起留住的小事' }
+  cloudRoute(app, memory, 'add').reply({ code: 0, record: saved })
+  await app.dispatch(page, 'save')
+  assert.equal(writes(app).at(-1).data.date, '2026-09-19')
+  assert.equal(writes(app).at(-1).data.note, '一起留住的小事')
+  await app.flush()
+  assert.equal(app.wx.toasts.at(-1).title, '已存进你们的欢乐时光')
+})
+
 test('period: completion intent keeps route status and end date while restoring the remaining draft fields', async (t) => {
   const app = setup(t, { storage: { 'recordDraft:periods:p2': JSON.stringify({
     startDate: '2026-09-10', endDate: '', status: 'ongoing', note: '草稿备注', flow: 'heavy', symptoms: ['cramps']
@@ -1297,7 +1329,9 @@ test('edit pages derive a quiet note counter only from 350 through 500 character
       const { page } = await openEditor(app, spec)
       assert.equal(page.data.noteCountText, '')
       const template = readSource(path.join(__dirname, `../pages/${spec.kind}/edit/edit.wxml`), 'utf8')
-      assert.match(template, /<text wx:if="\{\{noteCountText\}\}" class="note-count">\{\{noteCountText\}\}<\/text>/)
+      assert.match(template, spec.kind === 'memory'
+        ? /<text class="note-count">\{\{noteCountText\}\}<\/text>/
+        : /<text wx:if="\{\{noteCountText\}\}" class="note-count">\{\{noteCountText\}\}<\/text>/)
       const wxss = readSource(path.join(__dirname, `../pages/${spec.kind}/edit/edit.wxss`), 'utf8')
       assert.match(wxss, /\.note-count\s*\{[^}]*font-variant-numeric: tabular-nums[^}]*color: var\(--text-secondary\)/s)
 

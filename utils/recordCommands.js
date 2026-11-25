@@ -112,7 +112,10 @@ const EDIT_KINDS = {
       return null
     },
     buildPayload: ({ date, note }) => ({ date, note }),
-    describeForm: ({ date }, today) => ({ dateLabel: util.formatDisplayDate(date, { today }) }),
+    describeForm: ({ date }, today) => ({
+      dateLabel: util.formatDisplayDate(date, { today }),
+      dateJournalLabel: util.formatDisplayDate(date, { today, withWeekday: true }).replace(/周([日一二三四五六])$/, '星期$1')
+    }),
     successTitle: '已存进你们的欢乐时光',
     successIcon: 'none',
     confirmName: '删除欢乐时光确认',

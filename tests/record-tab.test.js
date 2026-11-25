@@ -81,7 +81,7 @@ test('period overview reserves three fixed-height number slots throughout loadin
   await app.settle()
   assert.equal(page.data.loading, true)
   assert.ok(draws(page.data, node => node.classes.includes('cycle-card')))
-  const placeholders = allElements(tabTemplate).filter(node => node.classes.includes('cycle-num-placeholder'))
+  const placeholders = allElements(tabTemplate).filter(node => node.classes.includes('cycle-num-placeholder') && !node.classes.includes('memory-overview-placeholder'))
   assert.equal(placeholders.length, 3)
   for (const placeholder of placeholders) {
     assert.ok(draws(page.data, node => node === placeholder), 'each loading number slot is drawn')
@@ -114,7 +114,73 @@ test('confirmed empty periods hide the overview and put the guide directly below
   assert.equal(nextVisible, guide, 'the empty guide is the first visible block after the add action')
 })
 
-test('pull-down refresh shows a status row below the segment control and removes it when settled', async (t) => {
+test('memory overview protects unsynced counts, counts the current year, and hides only after a confirmed empty list', async (t) => {
+  const app = setup(t, { segment: 'memory' })
+  const pending = list(app, 'memories').defer()
+  const page = app.launch(route)
+  await app.settle()
+
+  const overview = allElements(tabTemplate).find(node => node.classes.includes('memory-overview'))
+  assert.ok(overview, 'the memory segment has a shared-moments overview card')
+  assert.ok(draws(page.data, node => node === overview), 'first loading keeps the overview mounted')
+  const placeholders = allElements(tabTemplate).filter(node => node.classes.includes('memory-overview-placeholder'))
+  assert.equal(placeholders.length, 2, 'total and current-year counts reserve equal-height slots')
+  for (const placeholder of placeholders) assert.ok(draws(page.data, node => node === placeholder))
+
+  pending.reject(new Error('network down'))
+  await app.settle()
+  assert.equal(page.data.memoryHasLoaded, false)
+  assert.equal(page.data.memoryLoadFailed, true)
+  assert.ok(draws(page.data, node => node === overview), 'first failure keeps the overview mounted')
+  const unknownCounts = allElements(tabTemplate).filter(node => node.classes.includes('memory-overview-unknown'))
+  assert.equal(unknownCounts.length, 2)
+  for (const unknown of unknownCounts) assert.ok(draws(page.data, node => node === unknown), 'an unsynced count reads --, never a fabricated zero')
+
+  list(app, 'memories').reply({ code: 0, data: [
+    { _id: 'current', date: '2026-10-08', note: '散步' },
+    { _id: 'january', date: '2026-01-02', note: '新年' },
+    { _id: 'older', date: '2025-12-31', note: '跨年' }
+  ] })
+  await app.dispatch(page, 'loadMemoryData')
+  await app.flush()
+  assert.equal(page.data.memoryCount, 3)
+  assert.equal(page.data.memoryYearCount, 2)
+  assert.ok(draws(page.data, node => node === overview))
+
+  list(app, 'memories').reply({ code: 0, data: [] })
+  await app.dispatch(page, 'loadMemoryData')
+  await app.flush()
+  assert.equal(page.data.memoryHasLoaded, true)
+  assert.equal(page.data.memoryCount, 0)
+  assert.equal(draws(page.data, node => node === overview), false, 'a confirmed empty collection collapses its overview')
+})
+
+test('first loading renders skeleton-cta instead of either real record action', async (t) => {
+  for (const spec of [
+    { segment: 'period', collection: 'periods', loading: 'loading', loaded: 'hasLoaded', action: 'addPeriod' },
+    { segment: 'memory', collection: 'memories', loading: 'memoryLoading', loaded: 'memoryHasLoaded', action: 'addMemory' }
+  ]) {
+    const app = setup(t, { segment: spec.segment })
+    const pending = list(app, spec.collection).defer()
+    const page = app.launch(route)
+    await app.settle()
+    assert.equal(page.data[spec.loading], true)
+    assert.equal(page.data[spec.loaded], false)
+    const skeleton = allElements(tabTemplate).find(node => node.classes.includes('skeleton-cta') && node.attrs['data-segment'] === spec.segment)
+    assert.ok(skeleton, `${spec.segment} has its own CTA-shaped skeleton`)
+    const condition = skeleton.attrs['wx:if'].replace(/^\{\{|\}\}$/g, '')
+    assert.equal(Boolean(evaluateWxmlExpression(condition, page.data)), true, `${spec.segment} skeleton is visible during first load`)
+    const action = allElements(tabTemplate).find(node => node.attrs.bindtap === spec.action)
+    assert.ok(action, `${spec.segment} real action follows the skeleton`)
+    assert.match(tabWxml, new RegExp(`class="skeleton-cta" data-segment="${spec.segment}" aria-hidden="true"></view>\\s*<view wx:else class="btn-premium button-primary" bindtap="${spec.action}"`), `${spec.segment} real action is the complementary branch, never an early solid CTA`)
+    pending.resolve({ code: 0, data: [] })
+    await app.flush()
+    assert.equal(Boolean(evaluateWxmlExpression(condition, page.data)), false, `${spec.segment} skeleton leaves after data arrives`)
+    app.teardown()
+  }
+})
+
+test('pull-down refresh uses the shared navbar syncing pill and never inserts a segment status row', async (t) => {
   const app = setup(t)
   const page = app.launch(route)
   await app.flush()
@@ -122,22 +188,23 @@ test('pull-down refresh shows a status row below the segment control and removes
   const refresh = page.onPullDownRefresh()
   await app.settle()
   assert.equal(page.data.refreshing, true)
+  assert.equal(page.data.syncStatusText, '正在刷新')
+  assert.equal(page.data.syncStatusMounted, true)
+  assert.equal(page.data.syncStatusPhase, 'open')
 
-  const status = allElements(tabTemplate).find(node => node.classes.includes('refresh-status'))
-  assert.ok(status, 'the record tab has a refreshing status element')
-  assert.equal(status.attrs['aria-role'], 'status')
-  assert.equal(status.attrs['wx:if'], '{{refreshing}}')
-  assert.match(tabWxml, /<view wx:if="\{\{refreshing\}\}" class="refresh-status" aria-role="status" aria-label="正在刷新">正在刷新<\/view>/)
-  const segment = allElements(tabTemplate).find(node => node.classes.includes('segment-control'))
-  assert.equal(status.parent, segment.parent)
-  assert.equal(segment.parent.children.indexOf(status), segment.parent.children.indexOf(segment) + 1)
-  assert.ok(draws(page.data, node => node === status), 'the status is drawn during refresh')
+  const pill = allElements(tabTemplate).find(node => node.classes.includes('sync-pill'))
+  assert.ok(pill, 'the shared navbar renders the existing sync pill')
+  assert.equal(pill.attrs['aria-role'], 'status')
+  assert.equal(pill.attrs['aria-label'], '{{syncStatusText}}')
+  assert.match(pill.attrs.class, /refreshing \? 'syncing' : ''/)
+  assert.equal(allElements(tabTemplate).some(node => node.classes.includes('refresh-status')), false, 'no independent row can push the segment content down')
 
   pending.resolve({ code: 0, data: [] })
   await refresh
   await app.settle()
   assert.equal(page.data.refreshing, false)
-  assert.equal(draws(page.data, node => node === status), false, 'the status disappears when refresh ends')
+  await app.advance(200)
+  assert.equal(page.data.syncStatusMounted, false, 'the existing pill lifecycle unmounts after its exit')
 })
 
 const segments = [
@@ -653,12 +720,12 @@ test('memory month cards sort across years, preserve same-day records and match 
   assert.deepEqual(groups.map(group => [group.key, group.title]), [
     ['2026-10', '2026年10月 · 3 条'], ['2026-09', '2026年9月 · 1 条'], ['2025-12', '2025年12月 · 1 条']
   ])
-  assert.equal(groups[0].ariaLabel, '2026年10月，3 条欢乐时光，海边散步，已收起')
+  assert.equal(groups[0].ariaLabel, '2026年10月，3 条欢乐时光，已展开')
+  assert.deepEqual(groups[0].records.map(row => [row._id, row.dayLabel]), [['a1', '10月8⁠日'], ['a2', '10月8⁠日'], ['first', '10月1⁠日']])
+  assert.equal(groups[0].records[1].note, '')
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-10' }))
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2025-12' }))
   groups = page.data.memoryGroups
-  assert.deepEqual(groups[0].records.map(row => [row._id, row.dayLabel]), [['a1', '10月8⁠日'], ['a2', '10月8⁠日'], ['first', '10月1⁠日']])
-  assert.equal(groups[0].records[1].note, '')
   assert.equal(groups[2].records[0].dayLabel, '2025年12月31⁠日')
   const { buildHomeCalendarState } = require('../utils/homeCalendarState')
   const projection = buildHomeCalendarState({ year: 2026, month: 9, today: '2026-10-20', periods: [], memories: records })
@@ -906,13 +973,13 @@ const monthRecords = [
 ]
 const expansion = page => page.data.memoryGroups.map(group => [group.key, group.expanded])
 
-test('month headers start collapsed, toggle without navigation, retain choices across switches and refresh, and new months arrive collapsed', async (t) => {
+test('memory months open only the newest by default, then preserve manual choices and collapse newly arriving months', async (t) => {
   const app = setup(t, { segment: 'memory' })
   list(app, 'memories').reply({ code: 0, data: monthRecords })
   const page = app.launch(route)
   await app.flush()
-  assert.deepEqual(expansion(page), [['2026-09', false], ['2026-08', false], ['2026-07', false], ['2026-06', false], ['2026-05', false]])
-  assert.equal(page.data.memoryGroups[0].ariaLabel, '2026年9月，1 条欢乐时光，九月晚餐，已收起')
+  assert.deepEqual(expansion(page), [['2026-09', true], ['2026-08', false], ['2026-07', false], ['2026-06', false], ['2026-05', false]])
+  assert.equal(page.data.memoryGroups[0].ariaLabel, '2026年9月，1 条欢乐时光，已展开')
   const june = page.data.memoryGroups[3]
   assert.equal(june.excerpt, '六月海边 傍晚')
   assert.equal(june.ariaLabel, '2026年6月，2 条欢乐时光，六月海边 傍晚，已收起')
@@ -1228,7 +1295,7 @@ test('deleting rows through the editor removes an emptied month and retains othe
     await confirmDelete(app)
     await app.flush()
     assert.equal(app.currentPage, page)
-    assert.deepEqual(expansion(page), id === 'sep2' ? [['2026-10', true], ['2026-09', false]] : [['2026-10', true]])
+    assert.deepEqual(expansion(page), id === 'sep2' ? [['2026-10', false], ['2026-09', false]] : [['2026-10', false]])
   }
 })
 
@@ -1276,9 +1343,9 @@ function memoriesForYears(years, count, longNote) {
 // #224: same deterministic records and cumulative UTF-8 JSON byte rule as the ticket's before/after measurement.
 // The later shared prediction-threshold copy adds 80 bytes to each recorded post-projection total.
 const byteScenarios = [
-  { title: '一年13+50累计字节', years: [2026], memoryCount: 50, longNote: false, expectedBytes: 10139, ticketBaselineKiB: 46 },
-  { title: '三年39+150累计字节', years: [2024, 2025, 2026], memoryCount: 150, longNote: false, expectedBytes: 30812, ticketBaselineKiB: 141 },
-  { title: '39+300长备注累计字节', years: [2024, 2025, 2026], memoryCount: 300, longNote: true, expectedBytes: 50756, ticketBaselineKiB: 386 }
+  { title: '一年13+50累计字节', years: [2026], memoryCount: 50, longNote: false, expectedBytes: 18578, ticketBaselineKiB: 46 },
+  { title: '三年39+150累计字节', years: [2024, 2025, 2026], memoryCount: 150, longNote: false, expectedBytes: 57755, ticketBaselineKiB: 141 },
+  { title: '39+300长备注累计字节', years: [2024, 2025, 2026], memoryCount: 300, longNote: true, expectedBytes: 200044, ticketBaselineKiB: 386 }
 ]
 
 for (const scenario of byteScenarios) {
@@ -1304,7 +1371,7 @@ for (const scenario of byteScenarios) {
   })
 }
 
-test('record tab sends counts and groups without flat arrays or collapsed month rows', async (t) => {
+test('record tab sends counts and complete grouped rows without flat arrays', async (t) => {
   const app = setup(t, { segment: 'memory' })
   list(app, 'periods').reply({ code: 0, data: [
     { _id: 'p2', startDate: '2026-10-01', endDate: '2026-10-05' },
@@ -1321,11 +1388,11 @@ test('record tab sends counts and groups without flat arrays or collapsed month 
   assert.equal(page.data.periodCount, 2)
   assert.equal(page.data.memoryCount, 2)
   assert.deepEqual(periodRows(page).map(row => row._id), ['p2', 'p1'])
-  assert.deepEqual(memoryRowIds(page), [])
+  assert.deepEqual(memoryRowIds(page), ['m2', 'm1'])
   assert.ok(page.setDataCalls.every(patch => !('periods' in patch) && !('memories' in patch)))
 })
 
-test('month and year folding update only target paths and add or remove only visible rows', async (t) => {
+test('month and year folding update only expanded ARIA paths and retain every row for the grid animation', async (t) => {
   const app = setup(t, { segment: 'memory' })
   list(app, 'periods').reply({ code: 0, data: [
     { _id: 'p-oct', startDate: '2026-10-01', endDate: '2026-10-05' },
@@ -1341,15 +1408,15 @@ test('month and year folding update only target paths and add or remove only vis
   page.setDataCalls.length = 0
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-10' }))
   assert.equal(page.setDataCalls.length, 1)
-  const memoryExpand = page.setDataCalls[0]
-  assert.equal('memoryGroups' in memoryExpand, false)
-  assert.deepEqual(memoryExpand['memoryGroups[0].records'].map(row => row._id), ['m-oct'])
-  assert.ok(Object.keys(memoryExpand).every(key => key.startsWith('memoryGroups[0].')))
-  assert.deepEqual(page.data.memoryGroups[1].records, [])
+  const memoryCollapse = page.setDataCalls[0]
+  assert.equal(memoryCollapse['memoryGroups[0].expanded'], false)
+  assert.ok(Object.keys(memoryCollapse).every(key => key.startsWith('memoryGroups[0].') && !key.endsWith('.records')))
+  assert.deepEqual(page.data.memoryGroups[0].records.map(row => row._id), ['m-oct'])
+  assert.deepEqual(page.data.memoryGroups[1].records.map(row => row._id), ['m-sep'])
 
   page.setDataCalls.length = 0
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-10' }))
-  assert.equal(page.setDataCalls[0]['memoryGroups[0].records'].length, 0)
+  assert.equal(page.setDataCalls[0]['memoryGroups[0].expanded'], true)
   assert.equal('memoryGroups' in page.setDataCalls[0], false)
 
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'period' }))
@@ -1357,38 +1424,41 @@ test('month and year folding update only target paths and add or remove only vis
   await app.dispatch(page, 'togglePeriodMonth', dataset({ key: '2026-10' }))
   assert.equal(page.setDataCalls.length, 1)
   const periodCollapse = page.setDataCalls[0]
-  assert.equal('periodGroups' in periodCollapse, false)
-  assert.deepEqual(periodCollapse['periodGroups[0].months[0].records'], [])
-  assert.ok(Object.keys(periodCollapse).every(key => key.startsWith('periodGroups[0].months[0].')))
+  assert.equal(periodCollapse['periodGroups[0].months[0].expanded'], false)
+  assert.ok(Object.keys(periodCollapse).every(key => key.startsWith('periodGroups[0].months[0].') && !key.endsWith('.records')))
+  assert.deepEqual(page.data.periodGroups[0].months[0].records.map(row => row._id), ['p-oct'])
 
   page.setDataCalls.length = 0
   await app.dispatch(page, 'togglePeriodMonth', dataset({ key: '2026-10' }))
-  assert.deepEqual(page.setDataCalls[0]['periodGroups[0].months[0].records'].map(row => row._id), ['p-oct'])
+  assert.equal(page.setDataCalls[0]['periodGroups[0].months[0].expanded'], true)
   assert.equal('periodGroups[0].months[1].records' in page.setDataCalls[0], false)
 
   page.setDataCalls.length = 0
   await app.dispatch(page, 'togglePeriodYear', dataset({ key: '2026' }))
   const yearCollapse = page.setDataCalls[0]
   assert.equal(yearCollapse['periodGroups[0].expanded'], false)
-  assert.deepEqual(yearCollapse['periodGroups[0].months[0].records'], [])
-  assert.deepEqual(yearCollapse['periodGroups[0].months[1].records'], [])
-  assert.equal('periodGroups' in yearCollapse, false)
+  assert.equal(Object.keys(yearCollapse).some(key => key.endsWith('.records')), false)
+  assert.deepEqual(page.data.periodGroups[0].months[0].records.map(row => row._id), ['p-oct'])
+  assert.deepEqual(page.data.periodGroups[0].months[1].records.map(row => row._id), ['p-sep'])
 
   page.setDataCalls.length = 0
   await app.dispatch(page, 'togglePeriodYear', dataset({ key: '2026' }))
-  const yearExpand = page.setDataCalls[0]
-  assert.equal(yearExpand['periodGroups[0].expanded'], true)
-  assert.deepEqual(yearExpand['periodGroups[0].months[0].records'].map(row => row._id), ['p-oct'])
-  assert.deepEqual(yearExpand['periodGroups[0].months[1].records'].map(row => row._id), ['p-sep'])
+  assert.equal(page.setDataCalls[0]['periodGroups[0].expanded'], true)
+  assert.equal(Object.keys(page.setDataCalls[0]).some(key => key.endsWith('.records')), false)
 })
 
-test('collapsed row guards sit on wrappers outside the period and memory wx:for rows', () => {
+test('collapsed grid wrappers keep row data mounted while hiding it from screen readers and pointer input', () => {
   for (const handler of ['editPeriod', 'editMemory']) {
     const row = allElements(tabTemplate).find(node => node.attrs.bindtap === handler && node.classes.includes('list-item'))
     assert.ok(row, `${handler} row exists`)
-    assert.equal(row.attrs['wx:if'], undefined, `${handler} row has no same-node collapse guard`)
-    assert.equal(row.parent.attrs['wx:if'], '{{group.expanded}}')
-    assert.equal(row.parent.attrs['wx:for'], undefined)
+    assert.equal(row.attrs['wx:if'], undefined, `${handler} row stays mounted for the grid animation`)
+    const inner = row.parent
+    const grid = inner.parent
+    assert.ok(inner.classes.includes('fold-inner'))
+    assert.ok(grid.classes.includes('fold-grid'))
+    assert.equal(grid.attrs['aria-hidden'], '{{!group.expanded}}')
+    assert.equal(grid.attrs['wx:if'], undefined)
+    assert.equal(grid.attrs['wx:for'], undefined)
   }
 })
 
@@ -1418,8 +1488,8 @@ test('hidden record changes wait for show and redraw once, while an unchanged sh
   page.setDataCalls.length = 0
   app.show()
   await app.flush()
-  const unchangedShowWrites = page.setDataCalls.filter(patch => Object.keys(patch).some(key => key !== 'pageHidden'))
-  assert.deepEqual(unchangedShowWrites, [], 'unchanged records and Today send no page projection')
+  assert.equal(writes(page, 'periodGroups').length, 0, 'unchanged periods send no row projection')
+  assert.equal(writes(page, 'memoryGroups').length, 0, 'unchanged memories send no row projection; the navbar may still refresh its own pill')
 })
 
 test('onShow redraws ongoing rows only when Today advances', async (t) => {

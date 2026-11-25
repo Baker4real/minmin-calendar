@@ -16,14 +16,13 @@
         <text class="draft-discard micro-notice-action" hover-start-time="20" hover-stay-time="70" hover-class="draft-discard-hover" bindtap="discardDraft" aria-role="button" aria-label="{{draftDiscardText}}">{{draftDiscardText}}</text>
       </view>
       <view class="form-item" id="field-date">
-        <template is="sharedDateField" data="{{label: '日期', value: date, displayValue: dateLabel, placeholder: '', ariaLabel: '日期，' + dateLabel + '，点按修改', error: fieldErrors.date, maxDate: maxDate, saving: saving, tapHandler: 'openMemoryDatePicker', focused: datePickerMounted && datePickerName === '日期'}}" />
+        <template is="sharedDateField" data="{{label: '日期', journal: true, value: date, displayValue: dateJournalLabel, placeholder: '', ariaLabel: '日期，' + dateLabel + '，点按修改', error: fieldErrors.date, maxDate: maxDate, saving: saving, tapHandler: 'openMemoryDatePicker', focused: datePickerMounted && datePickerName === '日期'}}" />
       </view>
       <view class="form-item">
-        <view class="form-label-row">
-          <text class="form-label">内容</text>
-          <text wx:if="{{noteCountText}}" class="note-count">{{noteCountText}}</text>
+        <view wx:if="{{noteCountText}}" class="memory-note-meta">
+          <text class="note-count">{{noteCountText}}</text>
         </view>
-        <textarea class="form-input memory-note-input form-control{{noteFocused ? ' form-control-focused' : ''}}{{saving ? ' disabled' : ''}}" placeholder-class="input-placeholder" placeholder="记录这一天的欢乐时光..." value="{{note}}" bindinput="onNoteInput" bindfocus="onNoteFocus" bindblur="onNoteBlur" maxlength="500" auto-height show-confirm-bar="{{true}}" disabled="{{saving}}" aria-disabled="{{saving}}" aria-label="内容"/>
+        <textarea class="form-input memory-note-input form-control{{noteFocused ? ' form-control-focused' : ''}}{{saving ? ' disabled' : ''}}" placeholder-class="input-placeholder" placeholder="记下今天想留住的小事…" value="{{note}}" bindinput="onNoteInput" bindfocus="onNoteFocus" bindblur="onNoteBlur" maxlength="500" auto-height show-confirm-bar="{{true}}" disabled="{{saving}}" aria-disabled="{{saving}}" aria-label="内容"/>
       </view>
     </view>
 

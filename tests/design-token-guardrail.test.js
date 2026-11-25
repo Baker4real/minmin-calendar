@@ -686,7 +686,8 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['app.wxss', '.premium-card'],
     ['app.wxss', '.header-gradient'],
     ['pages/shared/nav-bar.wxss', '.header-gradient'],
-    ['pages/index/index.wxss', '.sync-pill'],
+    ['app.wxss', '.sync-pill'],
+    ['pages/shared/nav-bar.wxss', '.sync-pill'],
     ['pages/index/index.wxss', '.nav-btn:active'],
     ['pages/index/index.wxss', '.calendar-swipe'],
     // #255：吸顶海军渐变与首页轻玻璃横幅；均不是 CTA 填充。
@@ -743,7 +744,8 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
 const SOLID_ROSE_FILL_ALLOWLIST = new Set(
   [
     // 状态点/日历标记/卡片 rail：装饰性玫瑰实色小块，非可操作填充
-    ['pages/index/index.wxss', '.sync-pill.syncing .sync-dot'],
+    ['app.wxss', '.sync-pill.syncing .sync-dot'],
+    ['pages/shared/nav-bar.wxss', '.sync-pill.syncing .sync-dot'],
     ['pages/index/index.wxss', '.detail-rail']
   ].map(([file, selector]) => `${file}::${selector}`)
 )
@@ -1028,7 +1030,7 @@ test('glow stays on primary buttons while credential copy stays haze-free', () =
 
   const monthNav = declsFor('pages/index/index.wxss', '.month-nav')['box-shadow'] || ''
   assert.doesNotMatch(monthNav, /232,\s*144,\s*158/)
-  assert.equal(declsFor('pages/index/index.wxss', '.sync-dot')['box-shadow'], undefined)
+  assert.equal(declsFor('pages/shared/nav-bar.wxss', '.sync-dot')['box-shadow'], undefined)
 
   const brandFrame = declsFor('pages/shared/brand-hearts.wxss', '.brand-heart-frame')['box-shadow']
   assert.equal(brandFrame, '0 0 24rpx rgba(232,144,158,0.14)')

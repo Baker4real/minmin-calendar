@@ -9,14 +9,16 @@ const roomAccessOutcome = require('../../utils/roomAccessOutcome')
 const roomRecordsSync = require('../../utils/roomRecordsSync')
 const wxPrompts = require('../../utils/wxPrompts')
 const safeArea = require('../../utils/safeArea')
-const { restoreTabBarOnShow } = require('../../utils/sheetLifecycle')
+const { createSheetLifecycle, restoreTabBarOnShow } = require('../../utils/sheetLifecycle')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 
+const SYNC_STATUS_CLEAR_DELAY = 1600
+
 Page(withPageVisibility({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), ...safeArea.getNavTitlePadding('placeholder'), segment: 'period', periodCount: 0, periodGroups: [], periodQuickLabel: '记经期', periodQuickMode: 'add', periodQuickAriaLabel: '记经期', predictionThresholdText: '记两次经期后就能估下次', avgCycle: null, avgDuration: null, loading: true, refreshing: false, loadFailed: false, hasLoaded: false, memoryCount: 0, memoryGroups: [], memoryLoading: true, memoryLoadFailed: false, memoryHasLoaded: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), ...safeArea.getNavTitlePadding('placeholder'), segment: 'period', segmentMotion: 'a', periodCount: 0, periodGroups: [], periodQuickLabel: '记经期', periodQuickMode: 'add', periodQuickAriaLabel: '记经期', predictionThresholdText: '记两次经期后就能估下次', avgCycle: null, avgDuration: null, loading: true, refreshing: false, loadFailed: false, hasLoaded: false, memoryCount: 0, memoryYearCount: 0, memoryGroups: [], memoryLoading: true, memoryLoadFailed: false, memoryHasLoaded: false, syncStatusVisible: false, syncStatusText: '', syncStatusMounted: false, syncStatusPhase: 'closed' },
 
   // 欢乐时光月份卡的展开选择（issue #109）：页面内存按月份键记「用户点过卡头」的月份，
-  // 值为 memoryMonthGroups.EXPANDED / COLLAPSED；没点过的月份默认收起。
+  // 值为 memoryMonthGroups.EXPANDED / COLLAPSED；尚无选择时仅首月默认展开。
   // 不写本地存储，小程序重启后自然恢复默认
   memoryMonthChoices: {},
   periodMonthChoices: {},
@@ -32,6 +34,7 @@ Page(withPageVisibility({
 
   onUnload() {
     if (this._unsubscribeRecords) this._unsubscribeRecords()
+    this.clearSyncStatusTimer()
   },
 
   onShow() {
@@ -57,15 +60,18 @@ Page(withPageVisibility({
 
   consumeSegmentIntent() {
     const segment = recordPageSync.consumeRecordTabSegmentIntent()
-    if (segment) this.setData({ segment })
+    if (segment) this.showSegment(segment)
+  },
+
+  showSegment(segment) {
+    if (segment !== 'period' && segment !== 'memory') return
+    if (segment === this.data.segment) return
+    this.setData({ segment, segmentMotion: this.data.segmentMotion === 'a' ? 'b' : 'a' })
   },
 
   // 两个分段渲染同一份共享记录，切换分段不读取
   selectSegment(e) {
-    const segment = e.currentTarget.dataset.segment
-    if (segment !== 'period' && segment !== 'memory') return
-    if (segment === this.data.segment) return
-    this.setData({ segment })
+    this.showSegment(e.currentTarget.dataset.segment)
   },
 
   // 共享记录发布的记录变化（编辑页保存/删除成功后交给它的那一次，#195）：落到被改动记录所属分段、
@@ -137,6 +143,7 @@ Page(withPageVisibility({
       ...periodStats(state.collections.periods)
     }
     if (this._pendingSegment) {
+      if (this._pendingSegment !== this.data.segment) update.segmentMotion = this.data.segmentMotion === 'a' ? 'b' : 'a'
       update.segment = this._pendingSegment
       this._pendingSegment = ''
     }
@@ -147,6 +154,8 @@ Page(withPageVisibility({
       this._recordsDirty = false
       this._renderedToday = today
     }
+    if (state.pill) this.showSyncStatus(state.pill.text, state.pill)
+    else this.hideSyncStatus()
   },
 
   recordRows(state) {
@@ -164,6 +173,7 @@ Page(withPageVisibility({
       periodQuickAriaLabel: quickEntry.ariaLabel,
       predictionThresholdText: cycle.buildPredictionThresholdText(state.collections.periods.records),
       memoryCount: state.collections.memories.records.length,
+      memoryYearCount: state.collections.memories.records.filter(record => record.date.slice(0, 4) === today.slice(0, 4)).length,
       memoryGroups: this.memoryProjection(state)
     }
   },
@@ -181,12 +191,12 @@ Page(withPageVisibility({
     const memories = [...state.collections.memories.records]
       .sort((a, b) => b.date.localeCompare(a.date))
       .map(memory => withAuthorLabel(memory, state.roomPaired))
-    // 欢乐时光月份分组（issue #108）；展开状态由页面内存的手动选择推导（issue #109）：没点过的月份收起。
-    // 收起的月份只保留卡头，rows 不随 setData 下发（#224）。
+    // 欢乐时光月份分组：展开状态由页面内存选择推导；行数据在收起时仍保留，
+    // 由模板的读屏隐藏与禁点网格隔离，供 0fr / 1fr 连续伸缩（#274）。
     return memoryMonthGroups.applyMemoryMonthExpansion(
       memoryMonthGroups.buildMemoryMonthGroups(memories, { today }),
       this.memoryMonthChoices
-    ).map(group => group.expanded ? group : { ...group, records: [] })
+    )
   },
 
   addPeriod() {
@@ -219,10 +229,6 @@ Page(withPageVisibility({
       [`${root}.toggleLabel`]: next.toggleLabel,
       [`${root}.ariaLabel`]: next.ariaLabel
     }
-    next.months.forEach((month, monthIndex) => {
-      const before = year.months[monthIndex].records
-      if (before.length || month.records.length) patch[`${root}.months[${monthIndex}].records`] = month.records
-    })
     this.setData(patch)
   },
 
@@ -238,8 +244,7 @@ Page(withPageVisibility({
     this.setData({
       [`${root}.expanded`]: next.expanded,
       [`${root}.toggleLabel`]: next.toggleLabel,
-      [`${root}.ariaLabel`]: next.ariaLabel,
-      [`${root}.records`]: next.records
+      [`${root}.ariaLabel`]: next.ariaLabel
     })
   },
 
@@ -261,7 +266,7 @@ Page(withPageVisibility({
     wx.navigateTo({ url: recordEditRoute.buildMemoryEditUrl(withAuthorLabel(record, roomRecordsSync.getState().roomPaired)) })
   },
 
-  // 点月份卡头：切换该月展开/收起，立即生效、无动画、不跳转（issue #109）。
+  // 点月份卡头：切换该月展开/收起，不跳转；网格过渡由模板类与共享时长驱动。
   // 手动选择记进页面内存，重载/切分段后仍保留；不写本地存储
   toggleMonth(e) {
     const key = e.currentTarget.dataset.key
@@ -272,16 +277,58 @@ Page(withPageVisibility({
       ...this.memoryMonthChoices,
       [key]: target.expanded ? memoryMonthGroups.COLLAPSED : memoryMonthGroups.EXPANDED
     }
-    const next = this.memoryProjection(roomRecordsSync.readCurrentRoom())[index]
-    const root = `memoryGroups[${index}]`
-    this.setData({
-      [`${root}.expanded`]: next.expanded,
-      [`${root}.toggleLabel`]: next.toggleLabel,
-      [`${root}.ariaLabel`]: next.ariaLabel,
-      [`${root}.records`]: next.records
+    const nextGroups = this.memoryProjection(roomRecordsSync.readCurrentRoom())
+    const patch = {}
+    nextGroups.forEach((next, nextIndex) => {
+      const current = this.data.memoryGroups[nextIndex]
+      if (current.expanded === next.expanded && current.ariaLabel === next.ariaLabel) return
+      const root = `memoryGroups[${nextIndex}]`
+      patch[`${root}.expanded`] = next.expanded
+      patch[`${root}.toggleLabel`] = next.toggleLabel
+      patch[`${root}.ariaLabel`] = next.ariaLabel
     })
+    this.setData(patch)
+  },
+
+  showSyncStatus(text, options = {}) {
+    this.clearSyncStatusTimer()
+    syncPill(this).open(this, { syncStatusText: text })
+    if (options.autoHide === false) return
+    const timer = setTimeout(() => {
+      this._syncStatusTimer = null
+      this.hideSyncStatus()
+    }, SYNC_STATUS_CLEAR_DELAY)
+    if (timer && typeof timer.unref === 'function') timer.unref()
+    this._syncStatusTimer = timer
+  },
+
+  hideSyncStatus() {
+    this.clearSyncStatusTimer()
+    if (!this.data.syncStatusVisible && !this.data.syncStatusText) return
+    if (!this.data.syncStatusMounted) {
+      this.setData({ syncStatusVisible: false, syncStatusText: '' })
+      return
+    }
+    syncPill(this).leave(this, () => this.setData({ syncStatusText: '' }))
+  },
+
+  clearSyncStatusTimer() {
+    if (!this._syncStatusTimer) return
+    clearTimeout(this._syncStatusTimer)
+    this._syncStatusTimer = null
   }
 }))
+
+function syncPill(page) {
+  if (!page._syncPill) {
+    page._syncPill = createSheetLifecycle({
+      visibleKey: 'syncStatusVisible',
+      mountedKey: 'syncStatusMounted',
+      phaseKey: 'syncStatusPhase'
+    })
+  }
+  return page._syncPill
+}
 
 function changedFields(data, update) {
   return Object.fromEntries(Object.entries(update).filter(([key, value]) => !Object.is(data[key], value)))
@@ -344,7 +391,7 @@ function buildPeriodGroups(periods, choices, yearChoices) {
       year.months.push(month)
     }
     month.count += 1
-    if (year.expanded && month.expanded) month.records.push(record)
+    month.records.push(record)
   }
   return years
 }

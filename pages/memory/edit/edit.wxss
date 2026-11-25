@@ -21,8 +21,40 @@
   line-height: var(--line-height-assist);
   color: var(--text-secondary);
 }
+.memory-date-letter {
+  gap: 16rpx;
+}
+.memory-heart {
+  flex-shrink: 0;
+  font-size: 36rpx;
+  line-height: 1;
+  color: var(--color-memory);
+}
+.memory-date-copy {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+.memory-date-value {
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-body);
+  line-height: var(--line-height-assist);
+  color: rgba(255,255,255,0.92);
+}
+.memory-date-action {
+  flex-shrink: 0;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-assist);
+  line-height: var(--line-height-assist);
+  color: var(--text-secondary);
+}
+.memory-note-meta {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12rpx;
+}
 .memory-note-input {
-  min-height: 200rpx;
+  min-height: 280rpx;
 }
 
 /* 表单与草稿的减弱动效覆盖随共享规则收进 record-form.wxss。 */

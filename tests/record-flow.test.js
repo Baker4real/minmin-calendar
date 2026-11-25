@@ -20,7 +20,7 @@ test('period and memory list templates keep the REC-03 visible row contract', ()
   assert.match(periodWxml, /class="item-duration ongoing">\{\{item\.durationText\}\}/)
 
   // 欢乐时光行在记录 tab；旧页不再渲染自己的列表
-  assert.match(periodWxml, /class="memory-date">\{\{item\.dayLabel\}\}/)
+  assert.match(periodWxml, /class="memory-date">\s*<text>\{\{item\.dayLabel\}\}<\/text>/)
   assert.doesNotMatch(periodWxml, /class="memory-date">\{\{item\.date\}\}/)
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}" class="memory-note">\{\{item\.note\}\}/)
   assert.doesNotMatch(memoryWxml, /wx:for="\{\{memories\}\}"/)
@@ -70,7 +70,8 @@ test('record list pages show load-failed retry copy and reserve period stats whi
 test('period overview columns all stack the label above the number', () => {
   // 三列同一上下顺序：任一列颠倒，标签行和数字行就会错位
   const periodWxml = readPageFile('pages/period/period.wxml')
-  const items = periodWxml.match(/<view class="cycle-item">[\s\S]*?<\/view>/g)
+  const periodOverview = periodWxml.slice(periodWxml.indexOf('class="cycle-card glass-surface"'), periodWxml.indexOf('class="cycle-card memory-overview'))
+  const items = periodOverview.match(/<view class="cycle-item">[\s\S]*?<\/view>/g)
 
   assert.equal(items.length, 3)
   for (const item of items) {
@@ -230,32 +231,28 @@ test('record tab memory segment mirrors the standalone memory list state contrac
   assert.match(periodWxml, /class="skeleton-dot"/)
   const pulseRules = [...periodWxss.matchAll(/([^{}@]+)\{[^{}]*animation:\s*skeletonPulse[^{}]*\}/g)]
   assert.equal(pulseRules.length, 1, 'record list skeletons have one pulse layer')
-  assert.match(pulseRules[0][1], /\.skeleton-card/)
+  assert.match(pulseRules[0][1], /\.record-skeleton/)
   for (const selector of ['skeleton-line', 'skeleton-pill', 'skeleton-dot']) {
     const rule = new RegExp(`\\.${selector}\\s*\\{[^}]*\\}`).exec(periodWxss)
     assert.ok(rule, `expected the .${selector} shape`)
     assert.doesNotMatch(rule[0], /animation:/)
   }
   const rmBlock = periodWxss.slice(periodWxss.indexOf('@media (prefers-reduced-motion: reduce)'))
-  assert.match(rmBlock, /\.skeleton-card/)
+  assert.match(rmBlock, /\.record-skeleton/)
 })
 
 test('record tab memory segment renders month cards with the grouped row contract', () => {
   const periodWxml = readPageFile('pages/period/period.wxml')
   const periodWxss = readPageFile('pages/period/period.wxss')
 
-  // 月份卡：复用 app 级玻璃卡 premium-card，列表分支遍历分组数组
   assert.match(periodWxml, /class="premium-card glass-surface month-card" wx:for="\{\{memoryGroups\}\}" wx:key="key"/)
-
-  // 卡头（issue #109）：点按切换展开/收起，按 button 朗读，aria-expanded 与展开状态同条件绑定；
-  // 右侧是文字「展开/收起」（不用 ›/⌄ 字形），随状态由分组数据绑定
   assert.match(
     periodWxml,
-    /class="month-header" bindtap="toggleMonth" data-key="\{\{group\.key\}\}" aria-role="button" aria-label="\{\{group\.ariaLabel\}\}" aria-expanded="\{\{group\.expanded\}\}"/
+    /class="month-header \{\{group\.expanded \? 'month-header-expanded' : ''\}\}" bindtap="toggleMonth" data-key="\{\{group\.key\}\}" aria-role="button" aria-label="\{\{group\.ariaLabel\}\}" aria-expanded="\{\{group\.expanded\}\}"/
   )
   assert.match(periodWxml, /class="month-header-text">\{\{group\.title\}\}/)
-  assert.match(periodWxml, /class="month-toggle">\{\{group\.toggleLabel\}\}/)
-  // 收起的卡头显示该月第一条备注的单行摘要；展开时不重复渲染。溢出截断，读屏名走 ariaLabel
+  assert.match(periodWxml, /ui-icon ui-icon-down ui-icon-24 fold-caret \{\{group\.expanded \? 'fold-caret-expanded' : ''\}\}/)
+  assert.doesNotMatch(periodWxml, /class="month-toggle"/)
   assert.match(
     periodWxml,
     /wx:if="\{\{!group\.expanded && group\.excerpt\}\}" class="month-excerpt" aria-hidden="true">\{\{group\.excerpt\}\}/
@@ -266,23 +263,89 @@ test('record tab memory segment renders month cards with the grouped row contrac
   assert.match(excerptRule[0], /overflow:\s*hidden/)
   assert.match(excerptRule[0], /text-overflow:\s*ellipsis/)
 
-  // 行：收起时组内行不渲染（wx:if，不是 css 隐藏，读屏不会念出来）；
-  // 定位用记录 id；可见日期走显示格式，读屏名由月份分组按记录拼好（issue #157），
-  // ISO 日期仍留在行数据里供编辑跳转
   assert.match(
     periodWxml,
-    /<block wx:if="\{\{group\.expanded\}\}">\s*<view class="list-item" wx:for="\{\{group\.records\}\}" wx:key="_id" bindtap="editMemory" data-id="\{\{item\._id\}\}" aria-role="button" aria-label="\{\{item\.ariaLabel\}\}"/
+    /class="fold-grid \{\{group\.expanded \? 'fold-grid-expanded' : ''\}\}" aria-hidden="\{\{!group\.expanded\}\}">\s*<view class="fold-inner">\s*<view class="list-item" wx:for="\{\{group\.records\}\}" wx:key="_id" bindtap="editMemory"/
   )
-  assert.match(periodWxml, /class="memory-date">\{\{item\.dayLabel\}\}/)
+  assert.match(periodWxml, /class="memory-date">\s*<text>\{\{item\.dayLabel\}\}<\/text>/)
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}" class="memory-note">\{\{item\.note\}\}/)
 
-  // 展开/收起即时切换，切换文字不引入动画；卡头只为按压反馈使用 #270 的释放拍。
-  const toggleRule = /\.month-toggle\s*\{[^}]*\}/.exec(periodWxss)
-  assert.ok(toggleRule, 'expected the .month-toggle rule')
-  assert.doesNotMatch(toggleRule[0], /transition|animation/)
   const headerRule = /\.month-header\s*\{[^}]*\}/.exec(periodWxss)
   assert.ok(headerRule, 'expected the .month-header rule')
-  assert.match(headerRule[0], /transition:\s*background-color var\(--duration-press\) ease/)
+  assert.match(headerRule[0], /transition:\s*background-color var\(--duration-press\) ease, transform var\(--duration-press\) var\(--ease-out\)/)
+})
+
+test('record groups use accessible grid folds, rotating vector carets, pressed month headers, and a 12rpx segment reveal', () => {
+  const wxml = readPageFile('pages/period/period.wxml')
+  const wxss = readPageFile('pages/period/period.wxss')
+
+  const foldRules = parseWxssRules(wxss)
+  const fold = foldRules.find(rule => rule.selectors.includes('.fold-grid'))
+  const expanded = foldRules.find(rule => rule.selectors.includes('.fold-grid.fold-grid-expanded'))
+  const inner = foldRules.find(rule => rule.selectors.includes('.fold-inner'))
+  assert.ok(fold && expanded && inner, 'each collapsible region has the two-layer grid contract')
+  assert.equal(fold.decls.display, 'grid')
+  assert.equal(fold.decls['grid-template-rows'], '0fr')
+  assert.equal(fold.decls.opacity, '0')
+  assert.equal(fold.decls['pointer-events'], 'none')
+  assert.match(fold.decls.transition, /grid-template-rows var\(--duration-state\) var\(--ease-out\)/)
+  assert.match(fold.decls.transition, /opacity var\(--duration-state\) var\(--ease-out\)/)
+  assert.equal(expanded.decls['grid-template-rows'], '1fr')
+  assert.equal(expanded.decls.opacity, '1')
+  assert.equal(expanded.decls['pointer-events'], 'auto')
+  assert.equal(inner.decls.overflow, 'hidden')
+  assert.equal(inner.decls['min-height'], '0')
+
+  for (const variable of ['yearGroup', 'group']) {
+    assert.match(wxml, new RegExp(`class="fold-grid \\{\\{${variable}\\.expanded \\? 'fold-grid-expanded' : ''\\}\\}" aria-hidden="\\{\\{!${variable}\\.expanded\\}\\}"`))
+  }
+  assert.doesNotMatch(wxml, /<block wx:if="\{\{group\.expanded\}\}">/)
+  assert.doesNotMatch(wxml, /class="(?:year-toggle|month-toggle)"/)
+  assert.ok((wxml.match(/ui-icon ui-icon-down ui-icon-24 fold-caret/g) || []).length >= 3, 'year and both month headers use the #266 vector caret')
+  const caret = foldRules.find(rule => rule.selectors.includes('.fold-caret'))
+  const caretExpanded = foldRules.find(rule => rule.selectors.includes('.fold-caret.fold-caret-expanded'))
+  assert.match(caret.decls.transform, /rotate\(0deg\)/)
+  assert.match(caret.decls.transition, /transform var\(--duration-state\) var\(--ease-out\)/)
+  assert.match(caretExpanded.decls.transform, /rotate\(180deg\)/)
+
+  const month = foldRules.find(rule => rule.selectors.includes('.month-header'))
+  const pressed = foldRules.find(rule => rule.selectors.includes('.month-header:active') && rule.selectors.includes('.month-header.month-header-hover'))
+  assert.match(month.decls.transition, /transform var\(--duration-press\) var\(--ease-out\)/)
+  assert.match(month.decls.transition, /background-color var\(--duration-press\) ease/)
+  assert.match(pressed.decls.transform, /scale\(0\.98\)/)
+  assert.match(pressed.decls.transition, /transform var\(--duration-press-in\) var\(--ease-out\)/)
+
+  assert.match(wxml, /class="segment-panel segment-panel-\{\{segmentMotion\}\}"/)
+  const segment = foldRules.find(rule => rule.selectors.some(selector => selector.includes('.segment-panel-a')) && rule.decls.animation)
+  assert.ok(segment, 'the active segment replays its micro transition')
+  assert.match(segment.decls.animation, /segmentPanelIn var\(--duration-enter\) var\(--ease-out\) both/)
+  assert.match(wxss, /@keyframes segmentPanelIn\s*\{[\s\S]*?from\s*\{\s*opacity:\s*0;\s*transform:\s*translateX\(12rpx\)/)
+  assert.match(wxss, /\.record-content-reveal\s*\{[^}]*animation:\s*fadeIn var\(--duration-enter\) var\(--ease-out\) both/)
+  assert.match(wxss, /\.record-skeleton\s*\{[^}]*animation:\s*skeletonPulse 2\.4s ease-in-out infinite/)
+  const reduced = wxss.slice(wxss.indexOf('@media (prefers-reduced-motion: reduce)'))
+  for (const selector of ['.fold-grid', '.fold-caret', '.segment-panel-a', '.record-content-reveal', '.record-skeleton']) {
+    assert.ok(reduced.includes(selector), `${selector} has a reduced-motion override`)
+  }
+})
+
+test('memory editor uses a clickable journal date letter and a 280rpx placeholder writing well', () => {
+  const raw = readRawPageFile('pages/memory/edit/edit.wxml')
+  const wxml = readPageFile('pages/memory/edit/edit.wxml')
+  const wxss = readPageFile('pages/memory/edit/edit.wxss')
+  assert.match(raw, /journal: true/)
+  assert.match(raw, /displayValue: dateJournalLabel/)
+  assert.doesNotMatch(raw, /<text class="form-label">(?:日期|内容)<\/text>/)
+  const letter = /<view [^>]*class="form-picker form-control[^"]*memory-date-letter[^"]*"[^>]*bindtap="\{\{tapHandler\}\}"[^>]*>/.exec(wxml)
+  assert.ok(letter, 'the whole journal letter opens the existing date panel')
+  assert.match(letter[0], /aria-role="button"/)
+  assert.match(letter[0], /aria-disabled="\{\{saving\}\}"/)
+  assert.match(wxml, /class="memory-heart" aria-hidden="true">♥<\/text>/)
+  assert.match(wxml, /class="memory-date-value">\{\{value \? displayValue : placeholder\}\}<\/text>/)
+  assert.match(wxml, /class="memory-date-action">改日期<\/text>/)
+  assert.match(wxml, /placeholder="记下今天想留住的小事…"/)
+  const diary = /\.memory-note-input\s*\{([^}]*)\}/.exec(wxss)
+  assert.ok(diary, 'the writing well keeps its own minimum height')
+  assert.match(diary[1], /min-height:\s*280rpx/)
 })
 
 test('record edit pages isolate delete loading, constrain period dates, and cap notes', () => {
@@ -342,7 +405,7 @@ test('record edit templates use action titles, paired authors, and the required 
   assert.match(periodRawWxml, /ariaLabel: '经期状态 ' \+ item\.label \+ '，' \+ item\.hint/)
   assert.match(periodRawWxml, /placeholder: '选择结束日期'[\s\S]*ariaLabel: endDate \? '结束日期，' \+ endDateLabel \+ '，点按修改' : '结束日期，还没选，点按选择'/)
 
-  assert.match(memoryWxml, /<text class="form-label">内容<\/text>/)
+  assert.doesNotMatch(memoryWxml, /<text class="form-label">(?:日期|内容)<\/text>/)
   assert.match(memoryWxml, /<textarea[^>]*aria-label="内容"/)
   assert.doesNotMatch(memoryWxml, /<text class="form-label">备注<\/text>|aria-label="备注"/)
 })
@@ -399,7 +462,7 @@ test('edit textareas expose keyboard completion, saving opacity, and a roomy mem
   const memoryWxss = readPageFile('pages/memory/edit/edit.wxss')
   const diary = /\.memory-note-input\s*\{([^}]*)\}/.exec(memoryWxss)
   assert.ok(diary, 'memory gives the diary textarea its own minimum height')
-  assert.match(diary[1], /min-height:\s*200rpx/)
+  assert.match(diary[1], /min-height:\s*280rpx/)
 })
 
 // 日期错误常驻在所属字段的 picker 下方，同时并进带当前显示值的 picker 读屏名；
@@ -489,31 +552,43 @@ test('edit templates keep save and delete disabled after submission until return
   }
 })
 
-test('record lists preview long notes as one clamped line without displacing later records', () => {
+test('record lists clamp period notes to one line and give memory notes two warm-white body lines above single-line metadata', () => {
   const periodWxml = readPageFile('pages/period/period.wxml')
   const memoryWxml = readPageFile('pages/memory/memory.wxml')
   const periodWxss = readPageFile('pages/period/period.wxss')
 
-  // 列表绑定真实备注（本人写下的文字原样显示），显示与否由 wx:if 决定。
-  // 欢乐时光列表在记录 tab；旧页不再渲染备注行
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}" class="item-note">\{\{item\.note\}\}/)
   assert.match(periodWxml, /wx:if="\{\{item\.note\}\}" class="memory-note">\{\{item\.note\}\}/)
+  assert.match(periodWxml, /class="memory-author"> · \{\{item\.authorLabel\}\}<\/text>/)
   assert.doesNotMatch(memoryWxml, /wx:for/)
 
-  // 长备注只显示短预览：单行截断 + 省略号，换行折叠成一行，不把后面的记录挤出屏幕
-  const clamps = [
-    [periodWxss, '.item-note'],
-    [periodWxss, '.memory-note']
-  ]
-  for (const [wxss, selector] of clamps) {
-    const rule = new RegExp(`\\${selector}\\s*\\{[^}]*\\}`).exec(wxss)
-    assert.ok(rule, `${selector} rule exists`)
-    assert.match(rule[0], /white-space:\s*nowrap/)
-    assert.match(rule[0], /overflow:\s*hidden/)
-    assert.match(rule[0], /text-overflow:\s*ellipsis/)
-  }
+  const periodNote = /\.item-note\s*\{[^}]*\}/.exec(periodWxss)
+  assert.ok(periodNote, 'the period note keeps its compact preview')
+  assert.match(periodNote[0], /white-space:\s*nowrap/)
+  assert.match(periodNote[0], /overflow:\s*hidden/)
+  assert.match(periodNote[0], /text-overflow:\s*ellipsis/)
 
-  // 截断生效的前提：备注所在的弹性列允许收缩到内容宽度以下
+  const memoryNote = /\.memory-note\s*\{[^}]*\}/.exec(periodWxss)
+  assert.ok(memoryNote, 'the memory note is the primary journal text')
+  assert.match(memoryNote[0], /font-size:\s*var\(--font-size-body\)/)
+  assert.match(memoryNote[0], /color:\s*rgba\(255,255,255,0\.92\)/)
+  assert.match(memoryNote[0], /display:\s*-webkit-box/)
+  assert.match(memoryNote[0], /-webkit-line-clamp:\s*2/)
+  assert.match(memoryNote[0], /-webkit-box-orient:\s*vertical/)
+  assert.match(memoryNote[0], /white-space:\s*normal/)
+  assert.match(memoryNote[0], /overflow:\s*hidden/)
+  assert.match(memoryNote[0], /text-overflow:\s*ellipsis/)
+
+  const memoryDate = /\.memory-date\s*\{[^}]*\}/.exec(periodWxss)
+  assert.ok(memoryDate, 'date and author share secondary metadata')
+  assert.match(memoryDate[0], /font-size:\s*var\(--font-size-caption\)/)
+  assert.match(memoryDate[0], /color:\s*var\(--text-secondary\)/)
+  assert.match(memoryDate[0], /white-space:\s*nowrap/)
+  const row = /<view class="list-item"[^>]*bindtap="editMemory"[\s\S]*?<view class="ui-icon ui-icon-right/.exec(periodWxml)
+  assert.ok(row, 'the memory journal row exists')
+  assert.ok(row[0].indexOf('class="memory-note"') < row[0].indexOf('class="memory-date"'), 'journal text leads its date metadata')
+  assert.match(row[0], /class="memory-date">\s*<text>\{\{item\.dayLabel\}\}<\/text>\s*<text wx:if="\{\{item\.authorLabel\}\}" class="memory-author"> · \{\{item\.authorLabel\}\}<\/text>/)
+
   assert.match(periodWxss, /\.item-left\s*\{[^}]*min-width:\s*0[^}]*\}/)
   assert.match(periodWxss, /\.memory-left\s*\{[^}]*min-width:\s*0[^}]*\}/)
   assert.match(periodWxss, /\.memory-info\s*\{[^}]*min-width:\s*0[^}]*\}/)

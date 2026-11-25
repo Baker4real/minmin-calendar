@@ -327,7 +327,8 @@ const ONE_SHOT_ANIMATIONS = {
   calendarHaloA: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)', reducedMotion: 'stays' },
   calendarHaloB: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)', reducedMotion: 'stays' },
   recordBloom: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)', delay: RETURN_DELAY, reducedMotion: 'fades' },
-  recordAppear: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)', delay: RETURN_DELAY, reducedMotion: 'stays' }
+  recordAppear: { duration: 'var(--duration-emphasis)', easing: 'var(--ease-out)', delay: RETURN_DELAY, reducedMotion: 'stays' },
+  segmentPanelIn: { duration: 'var(--duration-enter)', easing: 'var(--ease-out)' }
 }
 
 // pageEnter、homeContentReveal、recordAppear、dayDetailFade 共用 fadeIn 关键帧；选择器仍决定各自的时长、延迟和减弱动效政策。
@@ -337,7 +338,8 @@ const SHARED_FADE_ROLES = new Map([
   ['.content.home-content-reveal', 'homeContentReveal'],
   ['.day-detail-fade', 'dayDetailFade'],
   ['.calendar-days .day-cell.record-feedback-period .period-band', 'recordAppear'],
-  ['.calendar-days .day-cell.record-feedback-memory .memory-mark', 'recordAppear']
+  ['.calendar-days .day-cell.record-feedback-memory .memory-mark', 'recordAppear'],
+  ['.record-content-reveal', 'pageEnter']
 ])
 function oneShotExpectation(name, selector) {
   const role = name === SHARED_FADE ? SHARED_FADE_ROLES.get(selector) : name
@@ -469,7 +471,7 @@ function expectedTransitionDuration(files, pressTargets, selector, prop) {
   const target = lastCompound(selector)
   const pressDuration = isPressStateSelector(selector) ? PRESS_IN_DURATION : PRESS_DURATION
   if (prop === 'transform') return pressTargets.has(target) ? pressDuration : STATE_DURATION
-  // #271：双层网格的 0fr / 1fr 折叠是与选中状态同拍的几何过渡，不是按压。
+  // #271 / #274：双层网格的 0fr / 1fr 折叠是与选中状态同拍的几何过渡，不是按压。
   if (prop === 'grid-template-rows') return STATE_DURATION
   if (COLOR_TRANSITION_PROPS.has(prop)) {
     return activeSetsProperty(files, target, prop) ? pressDuration : STATE_DURATION
@@ -573,7 +575,9 @@ test('one-shot transitions and animations use the shared duration tokens and rol
           continue
         }
         const expectedDuration = expectedDurations[0]
-        const expectedEasing = prop === 'transform' || prop === 'grid-template-rows' ? EASE_OUT_TOKEN : 'ease'
+        const expectedEasing = prop === 'transform' || prop === 'grid-template-rows' || rule.selectors.every(selector => lastCompound(selector) === '.fold-grid')
+          ? EASE_OUT_TOKEN
+          : 'ease'
         if (duration !== expectedDuration || easing !== expectedEasing) {
           violations.push(`${where} ${prop} must be ${expectedDuration} ${expectedEasing}, got ${duration} ${easing}`)
         }
@@ -670,7 +674,7 @@ test('home and record skeletons pulse only at their parent containers', () => {
   }
   assert.deepEqual(pulses.sort(), [
     'pages/index/index.wxss .calendar-skeleton',
-    'pages/period/period.wxss .skeleton-card'
+    'pages/period/period.wxss .record-skeleton'
   ])
 })
 
@@ -960,9 +964,10 @@ test('state channels survive reduced motion: timing changes only, sync color and
   assert.deepEqual(violations, [])
 
   const index = analyzeFile(readRepo('pages/index/index.wxss'))
-  const syncing = fillOf(declsOf(index, '.sync-pill.syncing .sync-dot'))
+  const navbar = analyzeFile(readRepo('pages/shared/nav-bar.wxss'))
+  const syncing = fillOf(declsOf(navbar, '.sync-pill.syncing .sync-dot'))
   assert.ok(syncing, 'the syncing dot paints a fill of its own')
-  assert.notEqual(syncing, fillOf(declsOf(index, '.sync-dot')), 'syncing reads as a color, not only as syncDotPulse')
+  assert.notEqual(syncing, fillOf(declsOf(navbar, '.sync-dot')), 'syncing reads as a color, not only as syncDotPulse')
 
   const dim = Number(declsOf(index, '.content-refreshing .calendar-grid').opacity)
   assert.ok(dim > 0 && dim < 1, `the background-refresh dim ${dim} stays visible and distinct`)

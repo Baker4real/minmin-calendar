@@ -1,7 +1,7 @@
 <import src="/pages/shared/nav-bar.wxml" />
 <view class="page safe-top {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px; --nav-title-padding-left: {{navTitlePaddingLeft}}px; --nav-title-padding-right: {{navTitlePaddingRight}}px">
   <include src="/pages/shared/aurora.wxml" />
-  <template is="sharedNavbar" data="{{variant: 'placeholder', title: '记录', pageObscured: false}}" />
+  <template is="sharedNavbar" data="{{variant: 'placeholder', title: '记录', pageObscured: false, syncStatusMounted: syncStatusMounted, syncStatusPhase: syncStatusPhase, refreshing: refreshing, syncStatusText: syncStatusText}}" />
 
   <view class="content">
     <!-- 记录分类：经期 / 欢乐时光 同级可达，单选 radio 语义（issue #103） -->
@@ -23,9 +23,9 @@
         aria-checked="{{segment === 'memory'}}" hover-start-time="20" hover-stay-time="70" hover-class="segment-option-hover">欢乐时光</view>
     </view>
 
-    <view wx:if="{{refreshing}}" class="refresh-status" aria-role="status" aria-label="正在刷新">正在刷新</view>
 
-    <view wx:if="{{segment === 'period'}}">
+    <view class="segment-panel segment-panel-{{segmentMotion}}">
+    <view wx:if="{{segment === 'period'}}" class="record-segment {{loading && !hasLoaded ? 'record-skeleton' : 'record-content-reveal'}}">
       <!-- 首次加载与首次失败仍保留概览；确认同步成功且为零条时撤掉，让空态紧跟新增按钮。 -->
       <view wx:if="{{loading || !hasLoaded || periodCount > 0}}" class="cycle-card glass-surface">
         <text class="card-label">周期概览</text>
@@ -64,7 +64,8 @@
         </view>
       </view>
 
-      <view class="btn-premium button-primary" bindtap="addPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">
+      <view wx:if="{{loading && !hasLoaded}}" class="skeleton-cta" data-segment="period" aria-hidden="true"></view>
+      <view wx:else class="btn-premium button-primary" bindtap="addPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">
         <view wx:if="{{periodQuickMode === 'add'}}" class="ui-icon ui-icon-plus ui-icon-28" aria-hidden="true"></view>
         <text>{{periodQuickLabel}}</text>
       </view>
@@ -79,37 +80,41 @@
         <view class="period-year" wx:for="{{periodGroups}}" wx:key="key" wx:for-item="yearGroup">
           <view class="period-year-title" bindtap="togglePeriodYear" data-key="{{yearGroup.key}}" aria-role="button" aria-label="{{yearGroup.ariaLabel}}" aria-expanded="{{yearGroup.expanded}}" hover-start-time="20" hover-stay-time="70" hover-class="period-year-title-hover">
             <text>{{yearGroup.title}}</text>
-            <text class="year-toggle">{{yearGroup.toggleLabel}}</text>
+            <view class="ui-icon ui-icon-down ui-icon-24 fold-caret {{yearGroup.expanded ? 'fold-caret-expanded' : ''}}" aria-hidden="true"></view>
           </view>
-          <view wx:if="{{yearGroup.expanded}}">
-          <view class="premium-card glass-surface month-card" wx:for="{{yearGroup.months}}" wx:key="key" wx:for-item="group">
-            <view class="month-header" bindtap="togglePeriodMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-start-time="20" hover-stay-time="70" hover-class="month-header-hover">
-              <view class="month-header-text">
-                <text>{{group.title}}</text>
-                <text wx:if="{{!group.expanded}}" class="month-count" aria-hidden="true">· {{group.count}} 条</text>
+          <view class="fold-grid {{yearGroup.expanded ? 'fold-grid-expanded' : ''}}" aria-hidden="{{!yearGroup.expanded}}">
+            <view class="fold-inner">
+              <view class="premium-card glass-surface month-card" wx:for="{{yearGroup.months}}" wx:key="key" wx:for-item="group">
+                <view class="month-header {{group.expanded ? 'month-header-expanded' : ''}}" bindtap="togglePeriodMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-start-time="20" hover-stay-time="70" hover-class="month-header-hover">
+                  <view class="month-header-text">
+                    <text>{{group.title}}</text>
+                    <text wx:if="{{!group.expanded}}" class="month-count" aria-hidden="true">· {{group.count}} 条</text>
+                  </view>
+                  <view class="ui-icon ui-icon-down ui-icon-24 fold-caret {{group.expanded ? 'fold-caret-expanded' : ''}}" aria-hidden="true"></view>
+                </view>
+                <view class="fold-grid {{group.expanded ? 'fold-grid-expanded' : ''}}" aria-hidden="{{!group.expanded}}">
+                  <view class="fold-inner">
+                    <view class="list-item" wx:for="{{group.records}}" wx:key="_id" bindtap="editPeriod" data-id="{{item._id}}" aria-role="button" aria-label="编辑经期记录 {{item.rangeSummary}}" hover-start-time="20" hover-stay-time="70" hover-class="list-item-hover">
+                      <view class="item-left">
+                        <view class="item-date">
+                          <text>{{item.dateLabel}}</text><text wx:if="{{item.authorLabel}}" class="item-author"> · {{item.authorLabel}}</text>
+                        </view>
+                        <view wx:if="{{item.flowLabel || item.symptomText}}" class="item-tags">
+                          <text wx:if="{{item.flowLabel}}" class="item-tag flow">{{item.flowLabel}}</text>
+                          <text wx:for="{{item.symptomLabels}}" wx:for-item="tag" wx:key="*this" class="item-tag">{{tag}}</text>
+                        </view>
+                        <view wx:if="{{item.note}}" class="item-note">{{item.note}}</view>
+                      </view>
+                      <view class="item-right">
+                        <text wx:if="{{item.status === 'known-end'}}" class="item-duration">{{item.durationText}}</text>
+                        <text wx:else class="item-duration ongoing">{{item.durationText}}</text>
+                        <view class="ui-icon ui-icon-right ui-icon-24 item-arrow" aria-hidden="true"></view>
+                      </view>
+                    </view>
+                  </view>
+                </view>
               </view>
-              <text class="month-toggle">{{group.toggleLabel}}</text>
             </view>
-            <block wx:if="{{group.expanded}}">
-              <view class="list-item" wx:for="{{group.records}}" wx:key="_id" bindtap="editPeriod" data-id="{{item._id}}" aria-role="button" aria-label="编辑经期记录 {{item.rangeSummary}}" hover-start-time="20" hover-stay-time="70" hover-class="list-item-hover">
-                <view class="item-left">
-                  <view class="item-date">
-                    <text>{{item.dateLabel}}</text><text wx:if="{{item.authorLabel}}" class="item-author"> · {{item.authorLabel}}</text>
-                  </view>
-                  <view wx:if="{{item.flowLabel || item.symptomText}}" class="item-tags">
-                    <text wx:if="{{item.flowLabel}}" class="item-tag flow">{{item.flowLabel}}</text>
-                    <text wx:for="{{item.symptomLabels}}" wx:for-item="tag" wx:key="*this" class="item-tag">{{tag}}</text>
-                  </view>
-                  <view wx:if="{{item.note}}" class="item-note">{{item.note}}</view>
-                </view>
-                <view class="item-right">
-                  <text wx:if="{{item.status === 'known-end'}}" class="item-duration">{{item.durationText}}</text>
-                  <text wx:else class="item-duration ongoing">{{item.durationText}}</text>
-                  <view class="ui-icon ui-icon-right ui-icon-24 item-arrow" aria-hidden="true"></view>
-                </view>
-              </view>
-            </block>
-          </view>
           </view>
         </view>
       </view>
@@ -134,8 +139,32 @@
       </view>
     </view>
 
-    <view wx:else>
-      <view class="btn-premium button-primary" bindtap="addMemory" aria-role="button" aria-label="记欢乐时光" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">
+    <view wx:else class="record-segment {{memoryLoading && !memoryHasLoaded ? 'record-skeleton' : 'record-content-reveal'}}">
+      <!-- 与周期概览对称：只有成功同步后的数字才作为事实呈现；首次加载与失败保留同高占位。 -->
+      <view wx:if="{{memoryLoading || !memoryHasLoaded || memoryCount > 0}}" class="cycle-card memory-overview glass-surface">
+        <text class="card-label">共同点滴</text>
+        <view class="cycle-stats memory-stats">
+          <view class="cycle-item">
+            <text class="cycle-label">总记录</text>
+            <view class="cycle-value">
+              <text wx:if="{{!memoryLoading && memoryHasLoaded}}" class="cycle-num">{{memoryCount}}</text>
+              <text wx:elif="{{!memoryLoading}}" class="cycle-num memory-overview-unknown">--</text>
+              <text wx:else class="cycle-num cycle-num-placeholder memory-overview-placeholder" aria-hidden="true"></text>
+            </view>
+          </view>
+          <view class="cycle-item">
+            <text class="cycle-label">本年</text>
+            <view class="cycle-value">
+              <text wx:if="{{!memoryLoading && memoryHasLoaded}}" class="cycle-num">{{memoryYearCount}}</text>
+              <text wx:elif="{{!memoryLoading}}" class="cycle-num memory-overview-unknown">--</text>
+              <text wx:else class="cycle-num cycle-num-placeholder memory-overview-placeholder" aria-hidden="true"></text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view wx:if="{{memoryLoading && !memoryHasLoaded}}" class="skeleton-cta" data-segment="memory" aria-hidden="true"></view>
+      <view wx:else class="btn-premium button-primary" bindtap="addMemory" aria-role="button" aria-label="记欢乐时光" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">
         <view class="ui-icon ui-icon-plus ui-icon-28" aria-hidden="true"></view>
         <text>记欢乐时光</text>
       </view>
@@ -146,30 +175,32 @@
         <text class="load-failed-text">欢乐时光加载失败</text>
         <view class="btn-premium button-primary retry-btn" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">重试</view>
       </view>
-      <!-- 欢乐时光月份分组（issue #108）：每月一张玻璃卡，卡头写年月与条数；
-           点卡头切换展开/收起，默认全部收起（2026-11-14 取代 #143 的最近三个月默认展开），收起时组内行不渲染 -->
+      <!-- 欢乐时光月份分组：首月默认展开；双层网格保留行动画，收起时读屏与点按都隔离。 -->
       <view wx:if="{{memoryCount > 0 && !memoryLoading}}" class="memory-month-list">
         <view class="premium-card glass-surface month-card" wx:for="{{memoryGroups}}" wx:key="key" wx:for-item="group">
-          <view class="month-header" bindtap="toggleMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-start-time="20" hover-stay-time="70" hover-class="month-header-hover">
+          <view class="month-header {{group.expanded ? 'month-header-expanded' : ''}}" bindtap="toggleMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-start-time="20" hover-stay-time="70" hover-class="month-header-hover">
             <view class="month-header-main">
               <text class="month-header-text">{{group.title}}</text>
               <text wx:if="{{!group.expanded && group.excerpt}}" class="month-excerpt" aria-hidden="true">{{group.excerpt}}</text>
             </view>
-            <text class="month-toggle">{{group.toggleLabel}}</text>
+            <view class="ui-icon ui-icon-down ui-icon-24 fold-caret {{group.expanded ? 'fold-caret-expanded' : ''}}" aria-hidden="true"></view>
           </view>
-          <block wx:if="{{group.expanded}}">
-            <view class="list-item" wx:for="{{group.records}}" wx:key="_id" bindtap="editMemory" data-id="{{item._id}}" aria-role="button" aria-label="{{item.ariaLabel}}" hover-start-time="20" hover-stay-time="70" hover-class="list-item-hover">
-              <view class="memory-left">
-                <text class="memory-heart" aria-hidden="true">♥</text>
-                <view class="memory-info">
-                  <view class="memory-date">{{item.dayLabel}}</view>
-                  <view wx:if="{{item.authorLabel}}" class="memory-note">{{item.authorLabel}}</view>
-                  <view wx:if="{{item.note}}" class="memory-note">{{item.note}}</view>
+          <view class="fold-grid {{group.expanded ? 'fold-grid-expanded' : ''}}" aria-hidden="{{!group.expanded}}">
+            <view class="fold-inner">
+              <view class="list-item" wx:for="{{group.records}}" wx:key="_id" bindtap="editMemory" data-id="{{item._id}}" aria-role="button" aria-label="{{item.ariaLabel}}" hover-start-time="20" hover-stay-time="70" hover-class="list-item-hover">
+                <view class="memory-left">
+                  <text class="memory-heart" aria-hidden="true">♥</text>
+                  <view class="memory-info">
+                    <view wx:if="{{item.note}}" class="memory-note">{{item.note}}</view>
+                    <view class="memory-date">
+                      <text>{{item.dayLabel}}</text><text wx:if="{{item.authorLabel}}" class="memory-author"> · {{item.authorLabel}}</text>
+                    </view>
+                  </view>
                 </view>
+                <view class="ui-icon ui-icon-right ui-icon-24 memory-arrow" aria-hidden="true"></view>
               </view>
-              <view class="ui-icon ui-icon-right ui-icon-24 memory-arrow" aria-hidden="true"></view>
             </view>
-          </block>
+          </view>
         </view>
       </view>
 
@@ -192,6 +223,7 @@
           </view>
         </view>
       </view>
+    </view>
     </view>
   </view>
 </view>
