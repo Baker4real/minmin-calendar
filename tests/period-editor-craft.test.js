@@ -110,8 +110,8 @@ test('period symptom selection uses a quiet rose outline and both chip glows fad
   assert.equal(symptom['min-height'], '88rpx', 'the touch target remains at least 44px at the 750rpx design width')
   assert.equal(symptom['border-radius'], 'var(--radius-full)')
   const active = declarations(WXSS, '.symptom-chip.active')
-  assert.equal(active.color, 'var(--color-memory)')
-  assert.equal(active.background, 'rgba(232,144,158,0.16)')
+  assert.equal(active.color, 'var(--aurora-pink)')
+  assert.equal(active.background, 'linear-gradient(rgba(232,144,158,0.16), rgba(232,144,158,0.16)), var(--glass-fallback)')
   assert.equal(active['border-color'], 'rgba(232,144,158,0.62)')
   assert.equal(active['box-shadow'], 'none')
 

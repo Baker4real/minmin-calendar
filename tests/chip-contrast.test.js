@@ -115,9 +115,12 @@ test('active flow chip uses rose type over the quiet eight-percent treatment', (
 })
 
 test('active symptom chip uses rose type, a sixteen-percent fill and a sixty-two-percent outline', () => {
-  const symptom = activeChipPair(PERIOD_EDIT_WXSS, 'symptom-chip')
-  assert.equal(symptom.color, '#F0C4C0')
-  assert.equal(declarationFor(PERIOD_EDIT_WXSS, '.symptom-chip.active', 'background'), 'rgba(232,144,158,0.16)')
+  const color = cascadedDeclaration(PERIOD_EDIT_WXSS, 'symptom-chip', 'color', selectorIsActiveChip)
+  assert.equal(cssColorToHex(color), '#E8909E')
+  assert.equal(
+    declarationFor(PERIOD_EDIT_WXSS, '.symptom-chip.active', 'background'),
+    'linear-gradient(rgba(232,144,158,0.16), rgba(232,144,158,0.16)), var(--glass-fallback)'
+  )
   assert.equal(declarationFor(PERIOD_EDIT_WXSS, '.symptom-chip.active', 'border-color'), 'rgba(232,144,158,0.62)')
 })
 

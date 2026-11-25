@@ -511,9 +511,8 @@ test('period editor selected flow and symptom text clears 4.5:1 on card and auro
   const failures = []
   for (const selector of ['.flow-chip.active', '.symptom-chip.active']) {
     const text = layerPaint(exactDeclaration(file, selector, 'color'))
-    const fill = layerPaint(exactDeclaration(file, selector, 'background'))
-    for (const cardSurface of stackSurfaces([['app.wxss', '.premium-card']])) {
-      const surface = composite(cardSurface, fill, fill.a)
+    const surfaces = stackSurfaces([['app.wxss', '.premium-card'], [file, selector]])
+    for (const surface of surfaces) {
       const ratio = contrastOn(text, surface)
       if (ratio < 4.5) failures.push(`${selector} on ${toHex(surface)} = ${ratio.toFixed(2)}:1`)
     }

@@ -181,8 +181,8 @@
   box-shadow: none;
 }
 .symptom-chip.active {
-  color: var(--color-memory);
-  background: rgba(232,144,158,0.16);
+  color: var(--aurora-pink);
+  background: linear-gradient(rgba(232,144,158,0.16), rgba(232,144,158,0.16)), var(--glass-fallback);
   border-color: rgba(232,144,158,0.62);
   box-shadow: none;
 }

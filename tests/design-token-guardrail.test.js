@@ -710,6 +710,8 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/settings/settings.wxss', '.segment-control'],
     ['pages/period/period.wxss', '.segment-control'],
     ['pages/period/edit/edit.wxss', '.segment-control'],
+    // #273：症状选中态的 16% 玫瑰平涂叠玻璃回退，不是实色主按钮。
+    ['pages/period/edit/edit.wxss', '.symptom-chip.active'],
     ['pages/period/period.wxss', '.skeleton-card'],
     ['pages/period/period.wxss', '.record-empty'],
     // #236：共享表单规则及两个 @import 调用页核对同一份既有平涂登记。
@@ -803,7 +805,7 @@ test('CTA fill guardrail flags unregistered gradient and literal rose fills', ()
     // issue #104：绑定页选中 tab 收敛回 var(--aurora-pink) 玫瑰填充，var() 填充照旧不误伤
     ['pages/bind/bind.wxss', '.tab.active { background: var(--aurora-pink); }'],
     ['pages/period/edit/edit.wxss', '.flow-chip.active { background: rgba(232,144,158,0.08); }'],
-    ['pages/period/edit/edit.wxss', '.symptom-chip.active { background: rgba(232,144,158,0.16); }']
+    ['pages/period/edit/edit.wxss', '.symptom-chip.active { background: linear-gradient(rgba(232,144,158,0.16), rgba(232,144,158,0.16)), var(--glass-fallback); }']
   ]
   assert.deepEqual(legit.flatMap(([f, css]) => scanCtaFillDiscipline(f, css)), [])
 })
