@@ -24,7 +24,7 @@ page {
   /* Glass */
   --glass-bg: rgba(255,255,255,0.08);
   --glass-border: rgba(255,255,255,0.12);
-  --glass-fallback: rgba(18,22,61,0.92);
+  --glass-fallback: rgba(15,19,52,0.88);
 
   /* Font Roles — 共享字号角色，页面 WXSS 只允许引用角色 token（glyph/display/scale-hold 例外登记在 tests/typography-roles.test.js） */
   --font-size-month-title: 44rpx;
@@ -199,17 +199,20 @@ page {
 .premium-card {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
+  background: linear-gradient(rgba(255,255,255,0.095), rgba(255,255,255,0.035)), var(--glass-fallback);
   border-radius: var(--radius-card);
-  border: 1px solid rgba(255,255,255,0.12);
-  box-shadow: 0 16rpx 64rpx rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
+  border-top: 1px solid rgba(255,255,255,0.16);
+  border-right: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  border-left: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 16rpx 64rpx rgba(0,0,0,0.2);
   color: var(--text-primary);
 }
 .premium-card::after {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0; height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(232,144,158,0.42) 24%, rgba(255,255,255,0.30) 50%, rgba(184,169,232,0.32) 76%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(232,144,158,0.42) 24%, rgba(255,255,255,0.30) 50%, rgba(196,160,210,0.32) 76%, transparent 100%);
 }
 /* ===== Premium Button — 实色玫瑰，不再常驻发光 ===== */
 .btn-premium {
@@ -217,14 +220,15 @@ page {
   background: var(--aurora-pink);
   color: var(--text-on-accent);
   border-radius: var(--radius-md);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.30);
   padding: 26rpx 0;
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-control);
   transition: transform var(--duration-press) var(--ease-out), background-color var(--duration-state) ease;
 }
-/* 柔光层（issue #166）：玫瑰实色按钮的光画在 ::before 上，不画在按钮本身（按钮自己带 position: relative）。
-   柔光层铺满按钮、跟按钮同一个圆角、不拦点按；按下时透明度沉到 0.5，和缩放同一拍（box-shadow 不能过渡，
-   透明度可以）。主按钮、首页记录入口和本月小结的复制键共用这一层，各自只写光的大小（box-shadow）；
+/* 柔光层（issue #166 / #269）：玫瑰实色按钮的光画在 ::before 上，按钮自身只保留顶缘内高光。
+   柔光层铺满按钮、跟按钮同一个圆角、不拦点按；静止 0.35，按下沉到 0.15，和缩放同一拍。
+   主按钮、首页记录入口和本月小结的复制键共用这一层，各自只写光的大小（box-shadow）；
    绑定页与设置页的复制键是另一份同款契约（DESIGN.md「按压的四路」），不在这组。主按钮禁用和加载中没有柔光 */
 .btn-premium::before,
 .quick-btn::before,
@@ -236,6 +240,7 @@ page {
   bottom: 0;
   left: 0;
   border-radius: inherit;
+  opacity: 0.35;
   transition: opacity var(--duration-press) ease;
   pointer-events: none;
 }
@@ -245,7 +250,7 @@ page {
 .quick-btn.quick-btn-hover::before,
 .copy-recap:active::before,
 .copy-recap.copy-recap-hover::before {
-  opacity: 0.5;
+  opacity: 0.15;
 }
 .btn-premium::before {
   box-shadow: 0 8rpx 30rpx rgba(232,144,158,0.28);
@@ -297,7 +302,7 @@ button.share-invite::after {
   transform: scale(0.96);
 }
 .share-invite.share-invite-hover::before {
-  opacity: 0.5;
+  opacity: 0.15;
 }
 
 /* ===== Danger Button — 柔红，与玫瑰体系同族 ===== */

@@ -38,7 +38,7 @@ test('glass surfaces share one structural base while modifiers keep their tint a
   })
 
   const modifiers = [
-    ['app.wxss', '.premium-card', 'linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback)', '1px solid rgba(255,255,255,0.12)'],
+    ['app.wxss', '.premium-card', 'linear-gradient(rgba(255,255,255,0.095), rgba(255,255,255,0.035)), var(--glass-fallback)', undefined],
     ['pages/index/index.wxss', '.month-nav', 'linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback)', '1px solid rgba(255,255,255,0.15)'],
     ['pages/period/period.wxss', '.cycle-card', 'linear-gradient(135deg, rgba(232,144,158,0.18), rgba(196,160,210,0.12)), var(--glass-fallback)', '1px solid rgba(255,255,255,0.12)'],
     ['pages/period/period.wxss', '.skeleton-card', 'linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback)', '1px solid rgba(255,255,255,0.12)']
@@ -86,6 +86,30 @@ test('rose fill buttons share one flex and positioning base while modifiers keep
     }
   }
   assertEveryInstanceHasBase('button-primary', ['btn-premium', 'quick-btn', 'copy-recap', 'copy-btn'], ['btn-ghost'])
+})
+
+test('rose primary buttons pair a 1px top highlight with quiet resting and pressed glow', () => {
+  const highlight = 'inset 0 1px 0 rgba(255,255,255,0.30)'
+  for (const [file, selector] of [
+    ['app.wxss', '.btn-premium'],
+    ['pages/index/index.wxss', '.quick-btn'],
+    ['pages/index/index.wxss', '.copy-recap']
+  ]) {
+    assert.equal(rawDeclarations(file, selector)['box-shadow'], highlight, `${selector} keeps its glaze highlight`)
+  }
+  assert.equal(rawDeclarations('pages/index/index.wxss', '.quick-btn.btn-ghost')['box-shadow'], 'none', 'the secondary ghost does not inherit the primary glaze')
+
+  const appRules = parseWxssRules(readRaw('app.wxss'))
+  const glowSelectors = ['.btn-premium::before', '.quick-btn::before', '.copy-recap::before']
+  const resting = appRules.find(rule => glowSelectors.every(selector => rule.selectors.includes(selector)))
+  assert.ok(resting, 'the shared glow layer exists')
+  assert.equal(resting.decls.opacity, '0.35')
+  const pressed = appRules.find(rule => rule.selectors.includes('.btn-premium:active::before') && rule.selectors.includes('.copy-recap.copy-recap-hover::before'))
+  assert.ok(pressed, 'the shared pressed glow layer exists')
+  assert.equal(pressed.decls.opacity, '0.15')
+  const sharePressed = appRules.find(rule => rule.selectors.includes('.share-invite.share-invite-hover::before'))
+  assert.ok(sharePressed, 'native rose share buttons use the same pressed glow')
+  assert.equal(sharePressed.decls.opacity, '0.15')
 })
 
 test('warning buttons share one overlay structure while button and menu modifiers keep their red values', () => {

@@ -16,7 +16,7 @@
         <text class="draft-discard micro-notice-action" hover-class="draft-discard-hover" bindtap="discardDraft" aria-role="button" aria-label="{{draftDiscardText}}">{{draftDiscardText}}</text>
       </view>
       <view class="form-item" id="field-startDate">
-        <template is="sharedDateField" data="{{label: '开始日期', value: startDate, displayValue: startDateLabel, placeholder: '', ariaLabel: '开始日期，' + startDateLabel + '，点按修改', error: fieldErrors.startDate, maxDate: maxDate, saving: saving, tapHandler: 'openStartDatePicker'}}" />
+        <template is="sharedDateField" data="{{label: '开始日期', value: startDate, displayValue: startDateLabel, placeholder: '', ariaLabel: '开始日期，' + startDateLabel + '，点按修改', error: fieldErrors.startDate, maxDate: maxDate, saving: saving, tapHandler: 'openStartDatePicker', focused: datePickerMounted && datePickerName === '开始日期'}}" />
         <view wx:if="{{startDateOwnerText}}" class="form-hint start-date-owner micro-notice">
           <text class="micro-notice-text">{{startDateOwnerText}}</text>
           <text class="start-date-owner-action micro-notice-action" hover-class="start-date-owner-action-hover" bindtap="openStartDateOwner" aria-role="button" aria-label="打开那条">打开那条</text>
@@ -30,7 +30,7 @@
         <text class="form-hint status-hint" aria-role="status">{{statusHint}}</text>
       </view>
       <view class="form-item" wx:if="{{status === 'known-end'}}" id="field-endDate">
-        <template is="sharedDateField" data="{{label: '结束日期', value: endDate, displayValue: endDateLabel, placeholder: '选择结束日期', ariaLabel: endDate ? '结束日期，' + endDateLabel + '，点按修改' : '结束日期，还没选，点按选择', error: fieldErrors.endDate, startDate: startDate, maxDate: maxDate, saving: saving, tapHandler: 'openEndDatePicker'}}" />
+        <template is="sharedDateField" data="{{label: '结束日期', value: endDate, displayValue: endDateLabel, placeholder: '选择结束日期', ariaLabel: endDate ? '结束日期，' + endDateLabel + '，点按修改' : '结束日期，还没选，点按选择', error: fieldErrors.endDate, startDate: startDate, maxDate: maxDate, saving: saving, tapHandler: 'openEndDatePicker', focused: datePickerMounted && datePickerName === '结束日期'}}" />
         <text wx:if="{{periodDayCountText}}" class="form-hint period-length-hint">{{periodDayCountText}}</text>
         <text wx:if="{{periodLengthHint}}" class="form-hint period-length-hint">{{periodLengthHint}}</text>
       </view>

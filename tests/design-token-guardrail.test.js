@@ -408,9 +408,9 @@ test('the settings danger zone is set apart from the regular groups by a larger 
 
 test('glass fallback fill has a single token source', () => {
   const tokens = appCustomProperties()
-  assert.equal(tokens['--glass-fallback'], 'rgba(18,22,61,0.92)')
+  assert.equal(tokens['--glass-fallback'], 'rgba(15,19,52,0.88)')
 
-  const fallbackPattern = /rgba\(\s*18\s*,\s*22\s*,\s*61\s*,\s*0\.92\s*\)/
+  const fallbackPattern = /rgba\(\s*15\s*,\s*19\s*,\s*52\s*,\s*0\.88\s*\)/
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
@@ -438,9 +438,20 @@ test('premium cards own clipping and an ordered rose-white-lavender prism hairli
     'transparent',
     'rgba(232,144,158,0.42)',
     'rgba(255,255,255,0.30)',
-    'rgba(184,169,232,0.32)',
+    'rgba(196,160,210,0.32)',
     'transparent'
   ])
+})
+
+test('premium cards use directional refraction and velvet tint without a duplicate inset top line', () => {
+  const card = declsFor('app.wxss', '.premium-card')
+  assert.equal(card.background, 'linear-gradient(rgba(255,255,255,0.095), rgba(255,255,255,0.035)), var(--glass-fallback)')
+  assert.equal(card['border-top'], '1px solid rgba(255,255,255,0.16)')
+  assert.equal(card['border-right'], '1px solid rgba(255,255,255,0.08)')
+  assert.equal(card['border-bottom'], '1px solid rgba(255,255,255,0.04)')
+  assert.equal(card['border-left'], '1px solid rgba(255,255,255,0.08)')
+  assert.equal(card['box-shadow'], '0 16rpx 64rpx rgba(0,0,0,0.2)')
+  assert.doesNotMatch(card['box-shadow'], /inset\s+0\s+1px\s+0/, 'the prism is the only top hairline')
 })
 
 // issue #104：绑定页紫粉试点（issue #86–#89）结论是「不推广」，页面级 --bind-* token 与
@@ -880,14 +891,14 @@ test('home page reserves gold for prediction, range, certainty, and calendar met
 // 阴影登记（区间登记制）：与 DESIGN.md「Shadow / overlay 登记」的区间一致；
 // allow 为闭区间/精确值组合，区间内免逐值登记，区间外或表外颜色拒绝。
 const SHADOW_COLOR_FAMILIES = [
-  { name: 'black elevation', rgb: [0, 0, 0], allow: (a) => (a >= 0.12 && a <= 0.15) || a === 0.2 || a === 0.34 },
+  { name: 'black elevation', rgb: [0, 0, 0], allow: (a) => (a >= 0.12 && a <= 0.15) || (a >= 0.2 && a <= 0.28) || a === 0.34 },
   { name: 'navy near-field', rgb: [10, 14, 39], allow: (a) => a >= 0.16 && a <= 0.35 },
   { name: 'fixed action bar elevation', rgb: [5, 8, 22], allow: (a) => a === 0.55 },
   { name: 'rose glow', rgb: [232, 144, 158], allow: (a) => a >= 0.1 && a <= 0.45 },
   { name: 'soft pink glow', rgb: [240, 196, 192], allow: (a) => a >= 0.28 && a <= 0.32 },
   { name: 'gold glow', rgb: [212, 165, 116], allow: (a) => a >= 0.3 && a <= 0.5 },
   { name: 'warning glow', rgb: [249, 115, 115], allow: (a) => a === 0.38 },
-  { name: 'inset highlight', rgb: [255, 255, 255], allow: (a) => a >= 0.08 && a <= 0.22 }
+  { name: 'inset highlight', rgb: [255, 255, 255], allow: (a) => a >= 0.08 && a <= 0.32 }
   // issue #162：今天的薰衣草描边改成胶囊与色带的 border，不再是阴影，阴影登记里没有薰衣草
 ]
 
@@ -958,7 +969,6 @@ test('shadow offsets use rpx and preserve registered 1px hairlines', () => {
     }
   }
   assert.deepEqual(violations, [])
-  assert.match(declsFor('app.wxss', '.premium-card')['box-shadow'], /inset 0 1px 0/)
   assert.match(declsFor('pages/index/index.wxss', '.month-nav')['box-shadow'], /inset 0 1px 0/)
 })
 
@@ -992,7 +1002,10 @@ test('glow stays on primary buttons and the copy control', () => {
     ['pages/bind/bind.wxss', '.copy-btn']
   ]) {
     assert.equal(declsFor(relative, `${selector}::before`)['box-shadow'], roseGlow, `${relative} ${selector} glow layer`)
-    assert.equal(declsFor(relative, selector)['box-shadow'], undefined, `${relative} ${selector} itself carries no shadow`)
+    const expectedElevation = relative === 'app.wxss' && selector === '.btn-premium'
+      ? 'inset 0 1px 0 rgba(255,255,255,0.30)'
+      : undefined
+    assert.equal(declsFor(relative, selector)['box-shadow'], expectedElevation, `${relative} ${selector} elevation stays on its own surface`)
   }
 
   const monthNav = declsFor('pages/index/index.wxss', '.month-nav')['box-shadow'] || ''
@@ -1014,7 +1027,7 @@ test('glow stays on primary buttons and the copy control', () => {
 })
 
 // issue #168：辉光（不是 inset 的有色阴影：box-shadow、text-shadow 或 filter 的 drop-shadow）只在 DESIGN.md
-// 「Shadow / overlay 登记」列出的几处。按压柔光层、选中态的静态玫瑰光和三处情感装饰；
+// 「Shadow / overlay 登记」列出的几处。按压柔光层、输入焦点、选中态的静态玫瑰光和三处情感装饰；
 // 新加一处辉光先在那里登记，再加进这张表。黑、海军和白的投影与高光是 elevation，不在此列。
 const REGISTERED_GLOWS = [
   // 按压柔光层（issue #166）
@@ -1024,6 +1037,12 @@ const REGISTERED_GLOWS = [
   'pages/settings/settings.wxss .copy-btn::before',
   'pages/bind/bind.wxss .copy-btn::before',
   'pages/shared/room-code.wxss .copy-btn::before',
+  // 深海内凹输入槽的焦点玫瑰光环（issue #269）
+  'pages/shared/form-control.wxss .form-control.form-control-focused',
+  'pages/shared/record-form.wxss .form-control.form-control-focused',
+  'pages/bind/bind.wxss .form-control.form-control-focused',
+  'pages/period/edit/edit.wxss .form-control.form-control-focused',
+  'pages/memory/edit/edit.wxss .form-control.form-control-focused',
   // 选月面板的静态玫瑰光只经伪元素透明度切换（issue #268）
   'pages/index/index.wxss .jump-option::after',
   'pages/period/edit/edit.wxss .flow-chip.active',

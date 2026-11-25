@@ -207,10 +207,11 @@ test('period: legacy draft restores its known dates, labels, flow and selected s
 test('R2 date panel: period start opens three bounded columns and confirms the draft', async (t) => {
   const app = setup(t)
   const { page } = await openEditor(app, period, { startDate: '2025-12-30' })
-  sharedTemplateData(period, 'sharedDateField', 'tapHandler', 'openStartDatePicker', page.data)
+  assert.equal(sharedTemplateData(period, 'sharedDateField', 'tapHandler', 'openStartDatePicker', page.data).focused, false)
 
   await app.dispatch(page, 'openStartDatePicker')
   await app.settle()
+  assert.equal(sharedTemplateData(period, 'sharedDateField', 'tapHandler', 'openStartDatePicker', page.data).focused, true)
   assert.equal(page.data.datePickerPhase, 'open')
   assert.equal(page.data.datePickerTitle, '开始日期')
   assert.equal(page.data.datePickerYears[0].label, '1900年')
