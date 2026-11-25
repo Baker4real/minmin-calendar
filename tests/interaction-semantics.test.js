@@ -300,6 +300,40 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
 
 })
 
+test('recap rows expose full sentences through structured date badges and prediction leads with a warm-gold glass hero', () => {
+  const elements = elementsOf('pages/index/index.wxml')
+  const recapRow = elements.find(element => element.classes.includes('recap-highlight-row'))
+  assert.ok(recapRow)
+  assert.equal(recapRow.attrs['aria-label'], '{{item.text}}', 'the complete sentence remains the screen-reader and copy source')
+  const badge = recapRow.children.find(element => element.classes.includes('recap-date-badge'))
+  const summary = recapRow.children.find(element => element.classes.includes('recap-highlight'))
+  assert.ok(badge && summary)
+  assert.equal(badge.attrs['aria-hidden'], 'true')
+  assert.equal(summary.attrs['aria-hidden'], 'true')
+  assert.match(readPage('pages/index/index.wxml'), /class="recap-date-badge"[^>]*>\{\{item\.dateBadge\}\}/)
+  assert.match(readPage('pages/index/index.wxml'), /class="text-pair-desc recap-highlight"[^>]*>\{\{item\.summary\}\}/)
+
+  const prediction = elements.find(element => element.classes.includes('prediction-summary'))
+  assert.ok(prediction)
+  assert.ok(prediction.parent.classes.includes('prediction-hero'))
+  const hero = declsOf('pages/index/index.wxss', '.prediction-hero')
+  assert.equal(hero.border, '1px solid rgba(212,165,116,0.28)')
+  assert.equal(hero['border-left'], '4rpx solid var(--aurora-gold)')
+  assert.equal(hero.background, 'var(--glass-bg)')
+  assert.equal(declsOf('pages/index/index.wxss', '.prediction-summary').color, 'rgba(255,255,255,0.92)')
+})
+
+test('legend samples gain breathing room and day-detail rails become inset rounded semantic columns', () => {
+  assert.equal(declsOf('pages/index/index.wxss', '.legend-row').padding, '20rpx')
+  const rail = declsOf('pages/index/index.wxss', '.detail-rail')
+  assert.equal(rail.width, '4rpx')
+  assert.equal(rail['min-height'], '64rpx')
+  assert.equal(rail.margin, '6rpx 0')
+  assert.equal(rail['border-radius'], 'var(--radius-full)')
+  assert.equal(rail['box-shadow'], undefined)
+  assert.equal(declsOf('pages/index/index.wxss', '.memory-detail .detail-rail')['box-shadow'], undefined)
+})
+
 test('day detail record rows show edit arrows while meaning blocks stay borderless without arrows', () => {
   const file = 'pages/index/index.wxml'
   const elements = elementsOf(file)

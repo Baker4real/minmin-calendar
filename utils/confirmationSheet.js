@@ -15,7 +15,7 @@ function registeredSheetInteractions(page, { name, phaseKey, dragClearKey, close
   return {
     dragRelease(detailPage, detail) {
       if (!detail || detail.sheet !== name || detailPage.data[phaseKey] !== 'open') return
-      const action = decideSheetDragRelease(detail.displacement, detail.elapsed, detail.panelHeight)
+      const action = decideSheetDragRelease(detail.displacement, detail.elapsed, detail.panelHeight, detail.velocity)
       const extra = dragClearPatch(detailPage, action)
       if (action === 'close') close(detailPage, extra)
       else detailPage.setData(extra)

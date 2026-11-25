@@ -1,7 +1,8 @@
-// 全部底部弹层共用跟手。只在视图层改面板 transform，松手把位移、耗时、面板高度交给页面。
+// 全部底部弹层共用跟手。只在视图层改面板 transform，松手把位移、最近 80ms 瞬时速度、面板高度交给页面。
 
 var START_PX = 10
 var RUBBER = 0.55
+var VELOCITY_WINDOW_MS = 80
 var pendingClearBySheet = {}
 
 function touchStart(event, ownerInstance) {
@@ -16,6 +17,7 @@ function touchStart(event, ownerInstance) {
   state.identifier = touch.identifier
   state.startY = touch.pageY
   state.startTime = event.timeStamp
+  state.samples = [{ y: touch.pageY, time: event.timeStamp }]
   state.sheet = sheetName(event)
   // A new gesture owns the panel now; any clear queued by the previous gesture is stale.
   pendingClearBySheet[state.sheet] = null
@@ -30,6 +32,7 @@ function touchMove(event, ownerInstance) {
   if (!state.tracking) return
   var touch = findTouch(event.touches, state.identifier)
   if (!touch) return
+  recordSample(state, touch.pageY, event.timeStamp)
   var delta = touch.pageY - state.startY
   if (!state.dragging) {
     if (!(delta > START_PX || delta < -START_PX)) return
@@ -58,6 +61,7 @@ function touchEnd(event, ownerInstance) {
   state.displacement = 0
   var touch = findTouch(event.changedTouches, state.identifier)
   if (!touch) return
+  var velocity = recentVelocity(state, touch.pageY, event.timeStamp)
   var delta = touch.pageY - state.startY
   if (!dragging && (delta > START_PX || delta < -START_PX)) {
     dragging = true
@@ -72,6 +76,7 @@ function touchEnd(event, ownerInstance) {
     sheet: sheet,
     displacement: displacement,
     elapsed: elapsed,
+    velocity: velocity,
     panelHeight: panelHeight
   })
 }
@@ -86,6 +91,39 @@ function touchCancel(event, ownerInstance) {
   state.dragging = false
   state.displacement = 0
   ownerInstance.callMethod('onSheetDragCancel', { sheet: sheet })
+}
+
+function recordSample(state, y, time) {
+  var samples = state.samples || []
+  samples.push({ y: y, time: time })
+  var cutoff = time - VELOCITY_WINDOW_MS
+  var previous = null
+  var recent = []
+  for (var index = 0; index < samples.length; index++) {
+    if (samples[index].time >= cutoff) recent.push(samples[index])
+    else previous = samples[index]
+  }
+  // Keep one older point for a no-move release; recentVelocity prefers points inside the window.
+  state.samples = previous ? [previous].concat(recent) : recent
+}
+
+function recentVelocity(state, y, time) {
+  recordSample(state, y, time)
+  var samples = state.samples
+  var end = samples[samples.length - 1]
+  var cutoff = time - VELOCITY_WINDOW_MS
+  var baseline = null
+  for (var index = 0; index < samples.length - 1; index++) {
+    if (samples[index].time >= cutoff) {
+      baseline = samples[index]
+      break
+    }
+  }
+  // A direct start/end gesture has no move sample. Otherwise an old identical point yields zero,
+  // so a stationary hold cannot inherit speed from the whole drag.
+  if (!baseline && samples.length > 1) baseline = samples[samples.length - 2]
+  if (!baseline || !(end.time > baseline.time)) return 0
+  return (end.y - baseline.y) / (end.time - baseline.time)
 }
 
 function clearInline(newValue, oldValue, ownerInstance, instance) {

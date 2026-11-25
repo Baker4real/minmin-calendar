@@ -989,15 +989,18 @@ test('sheets scroll within a bounded height and are never clipped by the mask', 
   const jumpSheet = { ...daySheet, ...findDecls(rules, '.calendar-jump-sheet') }
   const infoPanel = findDecls(rules, '.calendar-info-panel')
   const mask = findDecls(rules, '.day-sheet-mask')
+  const body = findDecls(parseWxssRules(readRepo('app.wxss')), '.sheet-body')
 
-  // 月份跳转与日操作 sheet：自有滚动边界
+  // 月份跳转与日操作 sheet：圆角外框裁切，内层内容块承担滚动。
   for (const [name, decls] of [['.calendar-jump-sheet', jumpSheet], ['.day-action-sheet', daySheet]]) {
     const maxVh = Number(/(\d+(?:\.\d+)?)vh/.exec(decls['max-height'] || '0')[1])
     assert.ok(maxVh > 0 && maxVh < 100, `${name} needs a sub-viewport max-height`)
-    assert.equal(decls['overflow-y'], 'auto', `${name} must scroll when content grows`)
+    assert.equal(decls.overflow, 'hidden', `${name} clips its rounded outer frame`)
   }
+  assert.equal(body['overflow-y'], 'auto', 'the shared body scrolls long sheet content')
+  assert.equal(body['min-height'], '0')
 
-  // 图例/预测/月小结面板复用 .day-action-sheet 的 overflow-y，自身只收紧高度
+  // 图例/预测/月小结面板复用 .day-action-sheet 的外框裁切与 .sheet-body 内层滚动，自身只收紧高度
   const infoVh = Number(/(\d+(?:\.\d+)?)vh/.exec(infoPanel['max-height'] || '0')[1])
   assert.ok(infoVh > 0 && infoVh < 100, '.calendar-info-panel needs a sub-viewport max-height')
   assert.match(wxml, /class="day-action-sheet calendar-info-panel"/)
@@ -1018,7 +1021,10 @@ test('the settings help sheet scrolls within the bottom-sheet height band so its
   const maxVh = /^(\d+(?:\.\d+)?)vh$/.exec(sheet['max-height'] || '')
   assert.ok(maxVh, 'the shared help sheet needs a viewport-relative max-height')
   assert.ok(Number(maxVh[1]) >= 82 && Number(maxVh[1]) <= 86, `shared help max-height ${maxVh[1]}vh is outside 82–86vh`)
-  assert.equal(sheet['overflow-y'], 'auto', 'the shared help sheet must scroll when content grows')
+  assert.equal(sheet.overflow, 'hidden', 'the shared outer frame crops content at its rounded corners')
+  const body = findDecls(parseWxssRules(readRepo('app.wxss')), '.sheet-body')
+  assert.equal(body['overflow-y'], 'auto', 'the shared inner body scrolls while the close stays in the fixed title row')
+  assert.equal(body.flex, '1')
   for (const host of ['.sheet-host', '.sheet-slide']) {
     assert.doesNotMatch(findDecls(rules, host).overflow || '', /hidden/, `${host} must not clip the sheet`)
   }

@@ -83,27 +83,43 @@ function buildMonthlyRecap({
   const periodDays = periodCoverage.getMonthCoverage(periods, year, month, today).count
   const highlights = []
   const highlightItems = []
-  const addHighlight = (kind, text) => {
+  const addHighlight = (kind, text, dateBadge) => {
     if (!text) return
     highlights.push(text)
-    highlightItems.push({ key: `recap:${highlightItems.length}`, kind, text })
+    const summaryStart = text.indexOf('，')
+    highlightItems.push({
+      key: `recap:${highlightItems.length}`,
+      kind,
+      text,
+      dateBadge,
+      summary: summaryStart < 0 ? text : text.slice(summaryStart + 1)
+    })
   }
 
   monthPeriods.forEach(period => {
-    addHighlight('period', formatPeriodHighlight(period, monthStart, monthEnd, today))
+    const range = normalizePeriodRange(period, today)
+    if (!range) return
+    const dateBadge = range.status === 'unknown-end'
+      ? util.formatDisplayDate(range.startDate, { today })
+      : util.formatDisplayDateRange(range.startDate, range.endDate, { today })
+    addHighlight('period', formatPeriodHighlight(period, monthStart, monthEnd, today), dateBadge)
   })
 
-  formatMemoryHighlights(monthMemories, today).forEach(highlight => addHighlight('memory', highlight))
+  formatMemoryHighlights(monthMemories, today).forEach(highlight => {
+    addHighlight('memory', highlight.text, highlight.dateBadge)
+  })
 
-  const title = `${year}年${month + 1}月小结`
+  const shareTitle = `${year}年${month + 1}月小结`
   const periodSummary = formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd, today)
   const memorySummary = monthMemories.length ? `留下 ${util.formatQuantity(monthMemories.length, '条')}欢乐时光` : '本月还没有欢乐时光'
   const predictionSummary = formatPredictionSummary(prediction)
-  const shareLines = [title, periodSummary, memorySummary, predictionSummary, ...highlights]
+  const shareLines = [shareTitle, periodSummary, memorySummary, predictionSummary, ...highlights]
   const summaryLine = `本月 经期 ${util.formatQuantity(periodDays, '天')} · 欢乐时光 ${util.formatQuantity(monthMemories.length, '条')}`
 
   return {
-    title,
+    title: '本月小结',
+    subtitle: `${year}年${month + 1}月`,
+    shareTitle,
     periodSummary,
     memorySummary,
     predictionSummary,
@@ -190,8 +206,11 @@ function formatPeriodHighlight(period, monthStart, monthEnd, today) {
 
 function formatMemoryHighlights(memories, today) {
   return memories.map(memory => {
-    const date = util.formatDisplayDate(memory.date, { today })
-    return `欢乐时光：${date}，${normalizeMemoryNote(memory)}`
+    const dateBadge = util.formatDisplayDate(memory.date, { today })
+    return {
+      text: `欢乐时光：${dateBadge}，${normalizeMemoryNote(memory)}`,
+      dateBadge
+    }
   })
 }
 
