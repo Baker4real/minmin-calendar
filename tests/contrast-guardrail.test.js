@@ -390,10 +390,8 @@ test('the light heart stays the happy-time color and uses text glow on memory ro
   assert.equal(declarationOf('pages/period/period.wxss', '.memory-heart', 'filter'), undefined)
 })
 
-test('year and month expansion labels share the secondary text color', () => {
-  for (const selector of ['.year-toggle', '.month-toggle']) {
-    assert.equal(declarationOf('pages/period/period.wxss', selector, 'color'), 'var(--text-secondary)')
-  }
+test('year and month expansion carets share the secondary text color', () => {
+  assert.equal(declarationOf('pages/period/period.wxss', '.fold-caret', 'color'), 'var(--text-secondary)')
 })
 
 test('list flow tag rose text clears 4.5:1 on its quiet tint over the list card', () => {

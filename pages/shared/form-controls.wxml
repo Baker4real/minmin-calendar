@@ -1,8 +1,17 @@
 <template name="sharedDateField">
-  <text class="form-label">{{label}}</text>
-  <view class="form-picker form-control{{focused ? ' form-control-focused' : ''}}{{saving ? ' disabled' : ''}}" hover-start-time="20" hover-stay-time="70" hover-class="form-picker-hover" bindtap="{{tapHandler}}" aria-role="button" aria-disabled="{{saving}}" aria-label="{{ariaLabel}}{{error ? '，' + error : ''}}">
-    <text class="{{value ? '' : 'input-placeholder'}}">{{value ? displayValue : placeholder}}</text>
-    <view class="ui-icon ui-icon-right ui-icon-24 form-picker-arrow" aria-hidden="true"></view>
+  <text wx:if="{{!journal}}" class="form-label">{{label}}</text>
+  <view class="form-picker form-control{{focused ? ' form-control-focused' : ''}}{{saving ? ' disabled' : ''}}{{journal ? ' memory-date-letter' : ''}}" hover-start-time="20" hover-stay-time="70" hover-class="form-picker-hover" bindtap="{{tapHandler}}" aria-role="button" aria-disabled="{{saving}}" aria-label="{{ariaLabel}}{{error ? '，' + error : ''}}">
+    <block wx:if="{{journal}}">
+      <text class="memory-heart" aria-hidden="true">♥</text>
+      <view class="memory-date-copy">
+        <text class="memory-date-value">{{value ? displayValue : placeholder}}</text>
+      </view>
+      <text class="memory-date-action">改日期</text>
+    </block>
+    <block wx:else>
+      <text class="{{value ? '' : 'input-placeholder'}}">{{value ? displayValue : placeholder}}</text>
+      <view class="ui-icon ui-icon-right ui-icon-24 form-picker-arrow" aria-hidden="true"></view>
+    </block>
   </view>
   <text wx:if="{{error}}" class="field-error" aria-role="alert">{{error}}</text>
 </template>

@@ -235,12 +235,13 @@ test('box-centered caption controls keep single-line box geometry', () => {
 // 页面外用户可读 caption 下限矩阵（26rpx）。首页格内/格外微字另有
 // tests/calendar-micro-labels.test.js 的 22 个选择器深钉，这里登记各页代表面。
 const PAGE_CAPTION_MATRIX = {
-  [INDEX_WXSS]: ['.sync-text', '.week-cell', '.home-status-countdown', '.month-summary-text', '.legend-text', '.sheet-subtitle'],
+  [INDEX_WXSS]: ['.week-cell', '.home-status-countdown', '.month-summary-text', '.legend-text', '.sheet-subtitle'],
+  'pages/shared/nav-bar.wxss': ['.sync-text'],
   'pages/bind/bind.wxss': ['.hero-desc', '.info-text', '.error-msg'],
   [SETTINGS_WXSS]: ['.settings-group-title', '.room-code-label', '.copy-btn', '.density-option'],
-  'pages/period/period.wxss': ['.card-label', '.cycle-label', '.item-note', '.item-tag', '.item-duration', '.memory-note', '.segment-option'],
+  'pages/period/period.wxss': ['.card-label', '.cycle-label', '.item-note', '.item-tag', '.item-duration', '.memory-date', '.segment-option'],
   [PERIOD_EDIT_WXSS]: ['.form-label', '.form-hint', '.symptom-group-label', '.flow-chip', '.symptom-chip'],
-  'pages/memory/edit/edit.wxss': ['.form-label']
+  'pages/memory/edit/edit.wxss': ['.memory-date-action']
 }
 
 test('user-readable captions on every page resolve at or above the 26rpx floor', () => {

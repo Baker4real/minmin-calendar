@@ -36,7 +36,7 @@ test('record tab segments period and memory lists behind one radio group', () =>
   // 经期分段保留现有列表结构；欢乐时光分段复用同一套列表状态机（memory 前缀键），
   // 列表以月份分组卡渲染（issue #108），行循环挂在分组数组的 records 上
   assert.match(wxml, /wx:if="\{\{segment === 'period'\}\}"/)
-  assert.match(wxml, /<view wx:else>/, 'the memory segment is the else branch of the period segment')
+  assert.match(wxml, /<view wx:else class="record-segment /, 'the memory segment is the else branch of the period segment')
   assert.match(wxml, /wx:for="\{\{memoryGroups\}\}"/)
   assert.match(wxml, /memoryLoadFailed/)
   assert.match(wxml, /memoryLoading/)
