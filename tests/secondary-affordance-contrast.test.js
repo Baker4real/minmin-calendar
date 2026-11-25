@@ -158,9 +158,9 @@ const CASES = [
   { file: 'pages/period/period.wxss', selector: '.month-toggle', surfaces: [['app.wxss', '.premium-card']], note: '欢乐时光月份卡展开/收起入口' },
   { file: 'pages/period/period.wxss', selector: '.memory-arrow', surfaces: [['app.wxss', '.premium-card']], note: '欢乐时光列表行箭头' },
   { file: 'pages/index/index.wxss', selector: '.sheet-action-arrow', surfaces: [['pages/index/index.wxss', '.day-action-sheet'], ['pages/index/index.wxss', '.sheet-action']], note: '弹层操作行箭头' },
-  { file: 'pages/index/index.wxss', selector: '.sheet-close', surfaces: [['pages/index/index.wxss', '.day-action-sheet']], note: '弹层关闭按钮' },
+  { file: 'pages/index/index.wxss', selector: '.sheet-close-surface', surfaces: [['pages/index/index.wxss', '.day-action-sheet']], note: '弹层关闭按钮' },
   // issue #235：设置「使用说明」直接复用首页的深色底部 Sheet，关闭键叠在同一表面上
-  { file: 'pages/settings/settings.wxss', selector: '.sheet-close', surfaces: [['pages/shared/confirmation-sheet.wxss', '.day-action-sheet']], note: '设置使用说明关闭按钮' },
+  { file: 'pages/settings/settings.wxss', selector: '.sheet-close-surface', surfaces: [['pages/shared/confirmation-sheet.wxss', '.day-action-sheet']], note: '设置使用说明关闭按钮' },
   // 月份导航在吸顶区里；静态 D1 的 86%→94% 海军渐变与底层极光逐站合成（#255）
   { file: 'pages/index/index.wxss', selector: '.nav-btn', surfaces: [['pages/index/index.wxss', '.home-sticky'], ['pages/index/index.wxss', '.month-nav']], note: '月份前后切换箭头' },
   { file: 'app.wxss', selector: '.nav-back', surfaces: [['app.wxss', '.nav-back-surface']], note: '导航返回箭头' },

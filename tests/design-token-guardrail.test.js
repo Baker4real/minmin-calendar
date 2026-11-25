@@ -876,6 +876,7 @@ const INDEX_GOLD_ALLOWLIST = new Set([
   '.calendar-days.calendar-emphasis-predict-a .predict-mark::after',
   '.calendar-days.calendar-emphasis-predict-b .predict-mark::after',
   '.predict-date',
+  '.prediction-hero',
   '.detail-meaning.predict',
   '.detail-meaning.holiday',
   '.detail-meaning.predict .detail-meaning-title',
@@ -1040,7 +1041,8 @@ test('glow stays on primary buttons and the copy control', () => {
 
   assert.equal(
     declsFor('pages/index/index.wxss', '.detail-rail')['box-shadow'],
-    '0 0 16rpx rgba(232,144,158,0.35)'
+    undefined,
+    'day-detail semantic rails stay quiet and inset rather than glowing'
   )
 
   const design = readSource(path.join(repoRoot, 'DESIGN.md'), 'utf8')
@@ -1049,7 +1051,7 @@ test('glow stays on primary buttons and the copy control', () => {
 })
 
 // issue #168：辉光（不是 inset 的有色阴影：box-shadow、text-shadow 或 filter 的 drop-shadow）只在 DESIGN.md
-// 「Shadow / overlay 登记」列出的几处。按压柔光层、选中态的静态玫瑰光、承载状态色的 rail 和三处情感装饰；
+// 「Shadow / overlay 登记」列出的几处。按压柔光层、输入焦点、选中态的静态玫瑰光和三处情感装饰；
 // 新加一处辉光先在那里登记，再加进这张表。黑、海军和白的投影与高光是 elevation，不在此列。
 const REGISTERED_GLOWS = [
   // 按压柔光层（issue #166）
@@ -1065,13 +1067,10 @@ const REGISTERED_GLOWS = [
   'pages/bind/bind.wxss .form-control.form-control-focused',
   'pages/period/edit/edit.wxss .form-control.form-control-focused',
   'pages/memory/edit/edit.wxss .form-control.form-control-focused',
-  // 选中态的静态玫瑰光
-  'pages/index/index.wxss .jump-option.active',
+  // 选月面板的静态玫瑰光只经伪元素透明度切换（issue #268）
+  'pages/index/index.wxss .jump-option::after',
   'pages/period/edit/edit.wxss .flow-chip.active',
   'pages/period/edit/edit.wxss .symptom-chip.active',
-  // 承载状态色的 rail
-  'pages/index/index.wxss .detail-rail',
-  'pages/index/index.wxss .memory-detail .detail-rail',
   // 情感装饰
   'pages/bind/bind.wxss .hero-icon',
   'pages/period/period.wxss .memory-heart',
@@ -1121,7 +1120,7 @@ test('glows sit only on the places DESIGN.md registers', () => {
   for (const registered of [
     'text-shadow: 0 0 10px rgba(240,196,192,0.3)',
     '0 16rpx 64rpx rgba(232,144,158,0.15)',
-    '`.jump-option.active`',
+    '`.jump-option::after`',
     '经期编辑页选中的状态、经量和症状芯片'
   ]) {
     assert.ok(design.includes(registered), `DESIGN.md Shadow / overlay registers ${registered}`)

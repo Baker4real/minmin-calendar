@@ -163,10 +163,14 @@ function dismissSheetOnSystemBack(page, { dismissTop, isMounted }) {
   })
 }
 
-function decideSheetDragRelease(displacement, elapsed, panelHeight) {
+function decideSheetDragRelease(displacement, elapsed, panelHeight, velocity) {
   if (!(displacement > 0)) return 'reset'
+  const instantaneousVelocity = Number.isFinite(velocity)
+    ? velocity
+    : (elapsed > 0 ? displacement / elapsed : 0)
+  if (instantaneousVelocity < -0.08) return 'reset'
   const pastDistance = panelHeight > 0 && displacement > panelHeight * 0.25
-  const pastSpeed = elapsed > 0 && displacement / elapsed > 0.11
+  const pastSpeed = instantaneousVelocity > 0.11
   return pastDistance || pastSpeed ? 'close' : 'reset'
 }
 
