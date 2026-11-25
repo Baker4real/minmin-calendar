@@ -118,6 +118,7 @@
 .period-year-title:active,
 .period-year-title.period-year-title-hover {
   opacity: 0.75;
+  transition: opacity var(--duration-press-in) ease;
 }
 
 /* List Items */
@@ -136,6 +137,7 @@
 .list-item:active,
 .list-item.list-item-hover {
   background: rgba(255,255,255,0.05);
+  transition: background-color var(--duration-press-in) ease, transform var(--duration-press-in) var(--ease-out);
 }
 .item-left {
   flex: 1;
@@ -287,8 +289,7 @@
 }
 
 /* Memory Segment – 欢乐时光月份分组（issue #108）：每月一张卡复用 app 级 .premium-card 玻璃面，
-   不另做一种卡面。
-   卡头可点切换展开/收起（issue #109）：即时生效、无动画（不写 transition/animation），
+   不另做一种卡面。卡头展开状态即时生效，按压反馈按 #270 的双拍过渡；
    右侧「展开/收起」仍是文字；导航与行尾几何图标由 shared/vector-icons.wxss 统一提供。 */
 .month-card {
   margin-bottom: var(--space-page-block-gap);
@@ -304,6 +305,7 @@
   gap: 16rpx;
   padding: 20rpx var(--space-page-row-inset);
   border-bottom: 1px solid rgba(255,255,255,0.06);
+  transition: background-color var(--duration-press) ease;
 }
 /* 收起时卡头是卡内唯一子节点：不出悬空分隔线 */
 .month-header:last-child {
@@ -312,6 +314,7 @@
 .month-header:active,
 .month-header.month-header-hover {
   background: rgba(255,255,255,0.05);
+  transition: background-color var(--duration-press-in) ease;
 }
 .month-header-main {
   flex: 1;
@@ -422,6 +425,7 @@
 .load-failed:active,
 .load-failed.load-failed-hover {
   border-color: rgba(255,255,255,0.2);
+  transition: border-color var(--duration-press-in) ease;
 }
 
 /* 未同步的分段在失败卡下面照常列出本机已保存的记录（#194），两块之间与月份卡同一档间距 */
@@ -454,7 +458,18 @@
   }
   .list-item,
   .load-failed,
-  .period-year-title {
+  .period-year-title,
+  .month-header {
+    transition: none;
+  }
+  .period-year-title:active,
+  .period-year-title.period-year-title-hover,
+  .list-item:active,
+  .list-item.list-item-hover,
+  .month-header:active,
+  .month-header.month-header-hover,
+  .load-failed:active,
+  .load-failed.load-failed-hover {
     transition: none;
   }
 }

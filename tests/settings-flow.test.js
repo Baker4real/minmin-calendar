@@ -1090,7 +1090,7 @@ test('settings page leads with room info in named groups and keeps unbind in the
   const dangerAt = wxml.indexOf('settings-danger-zone')
   assert.ok(dangerAt > aboutAt, 'the danger zone sits after the about group')
   const danger = wxml.slice(dangerAt)
-  assert.match(danger, /wx:if="\{\{roomCode\}\}" class="menu-item danger button-danger" hover-class="danger-hover" bindtap="unbind"/)
+  assert.match(danger, /wx:if="\{\{roomCode\}\}" class="menu-item danger button-danger" hover-start-time="20" hover-stay-time="70" hover-class="danger-hover" bindtap="unbind"/)
   assert.match(danger, />解除绑定<\//)
   assert.doesNotMatch(wxml.slice(0, dangerAt), /bindtap="unbind"/)
 

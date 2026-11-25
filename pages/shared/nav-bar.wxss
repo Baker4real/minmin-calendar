@@ -67,11 +67,13 @@
 .nav-back:active,
 .nav-back.nav-back-hover {
   transform: scale(0.94);
+  transition: transform var(--duration-press-in) var(--ease-out);
 }
 .nav-back:active .nav-back-surface,
 .nav-back.nav-back-hover .nav-back-surface {
   background: rgba(255,255,255,0.12);
   border-color: rgba(255,255,255,0.42);
+  transition: background-color var(--duration-press-in) ease, border-color var(--duration-press-in) ease;
 }
 .nav-placeholder { width: 0; flex-shrink: 0; }
 
@@ -111,10 +113,12 @@
 .nav-tool:active,
 .nav-tool.nav-tool-hover {
   transform: scale(0.96);
+  transition: transform var(--duration-press-in) var(--ease-out);
 }
 .nav-tool:active .nav-tool-surface,
 .nav-tool.nav-tool-hover .nav-tool-surface {
   background: rgba(255,255,255,0.12);
+  transition: background-color var(--duration-press-in) ease;
 }
 
 .header-gradient {
@@ -185,6 +189,16 @@
   .nav-tool,
   .nav-tool-surface {
     animation: none;
+    transition: none;
+  }
+  .nav-back:active,
+  .nav-back.nav-back-hover,
+  .nav-back:active .nav-back-surface,
+  .nav-back.nav-back-hover .nav-back-surface,
+  .nav-tool:active,
+  .nav-tool.nav-tool-hover,
+  .nav-tool:active .nav-tool-surface,
+  .nav-tool.nav-tool-hover .nav-tool-surface {
     transition: none;
   }
 }

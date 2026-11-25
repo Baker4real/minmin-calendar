@@ -201,11 +201,11 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
   const premiumCard = findRule(css, '.premium-card')
   assert.equal(premiumCard.background, undefined, 'the bind card must ride the app-level navy glass background')
 
-  // 选中 tab 与记录分段、密度控件同一种描边玫瑰弱选中
+  // 选中 tab 只保留玫瑰字，选中底与描边由共享滑块唯一承载，避免双层涂抹。
   const activeTab = findRule(css, '.tab.active')
   assert.equal(activeTab.color, 'var(--aurora-pink)')
-  assert.equal(activeTab.background, 'rgba(232,144,158,0.08)')
-  assert.equal(activeTab['border-color'], 'rgba(232,144,158,0.45)')
+  assert.equal(activeTab.background, 'transparent')
+  assert.equal(activeTab['border-color'], 'transparent')
 
   // R10：原生 :focus 没有画出玫瑰，改由共享 focus/blur 类画出同一道 1px 实线。
   const focus = findRule(readPageFile('pages/shared/form-control.wxss'), '.form-control.form-control-focused')

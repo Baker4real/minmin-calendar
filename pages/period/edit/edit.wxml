@@ -13,13 +13,13 @@
       <view wx:if="{{authorLabel}}" class="record-author">{{authorLabel}}</view>
       <view wx:if="{{draftRestored}}" class="draft-notice micro-notice" aria-role="alert">
         <text class="micro-notice-text">{{draftNoticeText}}</text>
-        <text class="draft-discard micro-notice-action" hover-class="draft-discard-hover" bindtap="discardDraft" aria-role="button" aria-label="{{draftDiscardText}}">{{draftDiscardText}}</text>
+        <text class="draft-discard micro-notice-action" hover-start-time="20" hover-stay-time="70" hover-class="draft-discard-hover" bindtap="discardDraft" aria-role="button" aria-label="{{draftDiscardText}}">{{draftDiscardText}}</text>
       </view>
       <view class="form-item" id="field-startDate">
         <template is="sharedDateField" data="{{label: '开始日期', value: startDate, displayValue: startDateLabel, placeholder: '', ariaLabel: '开始日期，' + startDateLabel + '，点按修改', error: fieldErrors.startDate, maxDate: maxDate, saving: saving, tapHandler: 'openStartDatePicker', focused: datePickerMounted && datePickerName === '开始日期'}}" />
         <view wx:if="{{startDateOwnerText}}" class="form-hint start-date-owner micro-notice">
           <text class="micro-notice-text">{{startDateOwnerText}}</text>
-          <text class="start-date-owner-action micro-notice-action" hover-class="start-date-owner-action-hover" bindtap="openStartDateOwner" aria-role="button" aria-label="打开那条">打开那条</text>
+          <text class="start-date-owner-action micro-notice-action" hover-start-time="20" hover-stay-time="70" hover-class="start-date-owner-action-hover" bindtap="openStartDateOwner" aria-role="button" aria-label="打开那条">打开那条</text>
         </view>
       </view>
       <view class="form-item">

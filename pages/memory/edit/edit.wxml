@@ -13,7 +13,7 @@
       <view wx:if="{{authorLabel}}" class="record-author">{{authorLabel}}</view>
       <view wx:if="{{draftRestored}}" class="draft-notice micro-notice" aria-role="alert">
         <text class="micro-notice-text">{{draftNoticeText}}</text>
-        <text class="draft-discard micro-notice-action" hover-class="draft-discard-hover" bindtap="discardDraft" aria-role="button" aria-label="{{draftDiscardText}}">{{draftDiscardText}}</text>
+        <text class="draft-discard micro-notice-action" hover-start-time="20" hover-stay-time="70" hover-class="draft-discard-hover" bindtap="discardDraft" aria-role="button" aria-label="{{draftDiscardText}}">{{draftDiscardText}}</text>
       </view>
       <view class="form-item" id="field-date">
         <template is="sharedDateField" data="{{label: '日期', value: date, displayValue: dateLabel, placeholder: '', ariaLabel: '日期，' + dateLabel + '，点按修改', error: fieldErrors.date, maxDate: maxDate, saving: saving, tapHandler: 'openMemoryDatePicker', focused: datePickerMounted && datePickerName === '日期'}}" />

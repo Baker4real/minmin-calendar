@@ -482,12 +482,12 @@ test('primary CTA rose fill comes from var(--aurora-pink) only', () => {
   }
 })
 
-// issue #145：分段控件只有一种选中态。描边玫瑰弱选中，不用主按钮实色填充。
-// 记录分类、设置页密度、绑定页创建/加入是全部分段控件。
+// issue #270：分段选项只保留玫瑰字，选中底与描边由共享 .segment-thumb 唯一承载，避免双层涂抹。
+// 记录分类、设置页密度、绑定页创建/加入是当前接入的轨道；三等分契约供后续编辑页复用。
 const SEGMENTED_SELECTED = {
   color: 'var(--aurora-pink)',
-  background: 'rgba(232,144,158,0.08)',
-  'border-color': 'rgba(232,144,158,0.45)'
+  background: 'transparent',
+  'border-color': 'transparent'
 }
 const SEGMENTED_CONTROLS = [
   ['pages/period/period.wxss', '.segment-option.active'],
@@ -495,7 +495,7 @@ const SEGMENTED_CONTROLS = [
   ['pages/bind/bind.wxss', '.tab.active']
 ]
 
-test('segmented controls share one outlined-rose selected style', () => {
+test('segmented options leave selected fill and stroke to the one rose-glass thumb', () => {
   for (const [relative, selector] of SEGMENTED_CONTROLS) {
     const rules = parseWxssRules(readSource(path.join(repoRoot, relative), 'utf8'))
     const rule = rules.find((candidate) => candidate.selectors.includes(selector))
@@ -575,6 +575,30 @@ function tapControls(nodes, found = []) {
   }
   return found
 }
+
+function hoverControls(nodes, found = []) {
+  for (const node of nodes) {
+    if (node.attrs['hover-class']) found.push(node)
+    hoverControls(node.children, found)
+  }
+  return found
+}
+
+test('every hover-class node opts into the 20ms touch start and 70ms release window', () => {
+  const violations = []
+  let checked = 0
+  for (const file of listWxmlFiles(repoRoot)) {
+    const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
+    for (const control of hoverControls(wxmlElementTree(readSource(file, 'utf8')))) {
+      checked += 1
+      if (control.attrs['hover-start-time'] !== '20' || control.attrs['hover-stay-time'] !== '70') {
+        violations.push(`${relative} <${control.tag} class="${control.attrs.class || ''}"> must declare hover-start-time="20" hover-stay-time="70"`)
+      }
+    }
+  }
+  assert.ok(checked > 0, 'the expanded shared templates expose hover-class nodes')
+  assert.deepEqual(violations, [])
+})
 
 test('every tappable control carries its own hover-class, painted by an :active rule', () => {
   const activeClasses = new Set(listWxssFiles(repoRoot).flatMap((file) =>

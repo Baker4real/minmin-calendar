@@ -81,7 +81,7 @@ module.exports = {
     <view wx:if="{{roomStatusAction == 'bind'}}" class="no-room-icon" aria-hidden="true">♥</view>
     <text class="text-pair-title no-room-title">{{roomStatusTitle}}</text>
     <text class="text-pair-desc no-room-desc">{{roomStatusDesc}}</text>
-    <view class="btn-premium button-primary" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}" hover-class="btn-premium-hover">{{roomStatusActionText}}</view>
+    <view class="btn-premium button-primary" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">{{roomStatusActionText}}</view>
   </view>
 
   <view wx:elif="{{loading && !hasLoadedHomeData}}" class="content calendar-skeleton" aria-role="status" aria-label="正在加载" aria-hidden="{{pageObscured}}">
@@ -112,7 +112,7 @@ module.exports = {
   <view wx:else class="content {{refreshing ? 'content-refreshing' : ''}}" aria-hidden="{{pageObscured}}">
     <view class="home-sticky">
       <view class="month-nav glass-surface">
-        <view class="nav-btn {{prevMonthDisabled ? 'disabled' : ''}}" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月" aria-disabled="{{prevMonthDisabled}}">
+        <view class="nav-btn {{prevMonthDisabled ? 'disabled' : ''}}" hover-start-time="20" hover-stay-time="70" hover-class="nav-btn-hover" bindtap="prevMonth" aria-role="button" aria-label="上一个月" aria-disabled="{{prevMonthDisabled}}">
           <view class="ui-icon ui-icon-left ui-icon-36 ui-icon-circle" aria-hidden="true"></view>
         </view>
         <view
@@ -120,26 +120,26 @@ module.exports = {
           bindtap="openMonthPicker"
           aria-role="button"
           aria-label="{{year}}年{{month + 1}}月，选择年份和月份"
-          hover-class="month-title-trigger-hover"
+          hover-start-time="20" hover-stay-time="70" hover-class="month-title-trigger-hover"
         >
           <text>{{year}}年{{month + 1}}月</text>
           <view class="ui-icon ui-icon-down ui-icon-24 month-title-caret" aria-hidden="true"></view>
         </view>
-        <view class="nav-btn {{nextMonthDisabled ? 'disabled' : ''}}" hover-class="nav-btn-hover" bindtap="nextMonth" aria-role="button" aria-label="下一个月" aria-disabled="{{nextMonthDisabled}}">
+        <view class="nav-btn {{nextMonthDisabled ? 'disabled' : ''}}" hover-start-time="20" hover-stay-time="70" hover-class="nav-btn-hover" bindtap="nextMonth" aria-role="button" aria-label="下一个月" aria-disabled="{{nextMonthDisabled}}">
           <view class="ui-icon ui-icon-right ui-icon-36 ui-icon-circle" aria-hidden="true"></view>
         </view>
       </view>
       <view
         wx:if="{{showBackToToday}}"
         class="back-today"
-        hover-class="back-today-hover"
+        hover-start-time="20" hover-stay-time="70" hover-class="back-today-hover"
         bindtap="jumpToToday"
         aria-role="button"
         aria-label="回到今天"
       >回到今天</view>
       <view
         class="home-status {{homeStatus.tone == 'neutral' ? 'neutral' : ''}}"
-        hover-class="home-status-hover"
+        hover-start-time="20" hover-stay-time="70" hover-class="home-status-hover"
         bindtap="openPredictionSheet"
         aria-role="button"
         aria-label="{{homeStatus.ariaLabel}}"
@@ -156,13 +156,13 @@ module.exports = {
         <text class="text-pair-title partner-invite-title">TA 还没加入</text>
         <text class="text-pair-desc partner-invite-desc">发个邀请，TA 加入后你们看的是同一本日历</text>
       </view>
-      <button class="share-invite home-share-invite" open-type="share" hover-class="home-share-invite-hover" aria-role="button" aria-label="发邀请">发邀请</button>
+      <button class="share-invite home-share-invite" open-type="share" hover-start-time="20" hover-stay-time="70" hover-class="home-share-invite-hover" aria-role="button" aria-label="发邀请">发邀请</button>
     </view>
     <!-- 一次性配对欢迎条：吸顶占位之后的正常文档流；整条直达图例，高度计入日历行高（issue #149、#215） -->
-    <view wx:if="{{partnerWelcome}}" class="partner-welcome" hover-class="partner-welcome-hover" bindtap="openLegendSheet" aria-role="button" aria-label="已和 TA 连上。点按打开日历图例">已和 TA 连上。玫瑰色带是经期，♥ 是欢乐时光，「预」是可能开始的日子。点这里或左上角「图例」随时再看</view>
+    <view wx:if="{{partnerWelcome}}" class="partner-welcome" hover-start-time="20" hover-stay-time="70" hover-class="partner-welcome-hover" bindtap="openLegendSheet" aria-role="button" aria-label="已和 TA 连上。点按打开日历图例">已和 TA 连上。玫瑰色带是经期，♥ 是欢乐时光，「预」是可能开始的日子。点这里或左上角「图例」随时再看</view>
 
     <!-- 刷新失败重试句：正常文档流放在月份导航与日历之间，不遮月份标题；留驻到重试成功（issue #79） -->
-    <view wx:if="{{refreshRetryVisible}}" class="refresh-retry" bindtap="retryRefresh" aria-role="button" aria-label="{{refreshRetryLabel}}" hover-class="refresh-retry-hover">
+    <view wx:if="{{refreshRetryVisible}}" class="refresh-retry" bindtap="retryRefresh" aria-role="button" aria-label="{{refreshRetryLabel}}" hover-start-time="20" hover-stay-time="70" hover-class="refresh-retry-hover">
       <text class="refresh-retry-text">{{refreshRetryText}}</text>
     </view>
 
@@ -190,7 +190,7 @@ module.exports = {
           aria-role="button"
           aria-hidden="{{item.isEmpty}}"
           aria-label="{{item.ariaLabel}}"
-          hover-class="day-cell-hover"
+          hover-start-time="20" hover-stay-time="70" hover-class="day-cell-hover"
         >
           <view class="day-num">{{item.day}}</view>
           <view class="period-slot" aria-hidden="true">
@@ -214,14 +214,14 @@ module.exports = {
 
     <!-- 首页记录入口：图标用日历图例的单日经期色带与欢乐时光浅色心（海军圆盘承载），不用表情 -->
     <view class="quick-actions">
-      <view class="quick-btn button-primary" bindtap="quickPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-class="quick-btn-hover">
+      <view class="quick-btn button-primary" bindtap="quickPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-start-time="20" hover-stay-time="70" hover-class="quick-btn-hover">
         <view class="quick-icon sample-plate">
           <template is="periodBandSample" data="{{...periodBandSample, calendarDensity: calendarDensity}}" />
         </view>
         <text class="quick-text">{{periodQuickLabel}}</text>
       </view>
       <view class="quick-ghost-surface">
-        <view class="quick-btn btn-ghost button-outline" bindtap="quickMemory" aria-role="button" aria-label="记欢乐时光" hover-class="btn-ghost-hover">
+        <view class="quick-btn btn-ghost button-outline" bindtap="quickMemory" aria-role="button" aria-label="记欢乐时光" hover-start-time="20" hover-stay-time="70" hover-class="btn-ghost-hover">
           <text class="quick-icon memory-tone">♥</text>
           <text class="quick-text">记欢乐时光</text>
         </view>
@@ -231,7 +231,7 @@ module.exports = {
     <view
       wx:if="{{hasRecords}}"
       class="month-summary"
-      hover-class="month-summary-hover"
+      hover-start-time="20" hover-stay-time="70" hover-class="month-summary-hover"
       bindtap="openMonthlyRecap"
       aria-role="button"
       aria-label="查看本月小结，{{monthSummaryLine}}"

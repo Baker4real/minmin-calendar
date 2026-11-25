@@ -153,19 +153,19 @@ test('white type on active chip fills fails 4.5:1', () => {
   assert.equal(meetsContrast('#FFFFFF', symptom.fill), false)
 })
 
-// issue #225：列表经量标签改成分段选中态的弱态；编辑页选中芯片与进行中胶囊仍用实色。
-test('list flow tag shares the selected segment quiet rose treatment', () => {
+// issue #225 的列表经量弱态保持不变；#270 后分段选中底与描边由滑块承载，不再与标签共用一层样式。
+test('list flow tag keeps its quiet rose treatment beside the moving segment thumb', () => {
   for (const [property, expected] of [
     ['color', '#E8909E'],
     ['background', 'rgba(232,144,158,0.08)'],
     ['border-color', 'rgba(232,144,158,0.45)']
   ]) {
     const flowValue = declarationFor(PERIOD_LIST_WXSS, '.item-tag.flow', property)
-    const segmentValue = declarationFor(PERIOD_LIST_WXSS, '.segment-option.active', property)
     assert.equal(property === 'color' ? cssColorToHex(flowValue) : flowValue, expected)
-    assert.equal(property === 'color' ? cssColorToHex(segmentValue) : segmentValue, expected,
-      `flow tag ${property} matches the selected segment`)
   }
+  assert.equal(cssColorToHex(declarationFor(PERIOD_LIST_WXSS, '.segment-option.active', 'color')), '#E8909E')
+  assert.equal(declarationFor(PERIOD_LIST_WXSS, '.segment-thumb', 'background'), 'rgba(232,144,158,0.14)')
+  assert.equal(declarationFor(PERIOD_LIST_WXSS, '.segment-thumb', 'border'), '1px solid rgba(232,144,158,0.48)')
 })
 
 test('list flow tag quiet treatment leaves the in-progress duration solid', () => {

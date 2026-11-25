@@ -258,6 +258,11 @@ test('motion tokens the styles use are the shared ones defined on the app page',
   assert.deepEqual(violations, [])
 })
 
+test('press tokens use a 90ms touch-in beat and a 180ms release beat', () => {
+  assert.equal(appTokenMs('--duration-press-in'), 90)
+  assert.equal(appTokenMs('--duration-press'), 180)
+})
+
 // 常驻动画注册表，与 docs/motion-and-interaction.md「常驻动画注册表」是同一张表，新增或删除时两边一起改（issue #163）。
 // decorative：装饰，周期 6–12s，弹层遮挡和页面不可见时暂停在当前帧，减弱动效下静止；
 // functional：状态指示，只在对应状态期间存在，可以快于 6s，遮挡和隐藏时照常；
@@ -338,6 +343,7 @@ function oneShotExpectation(name, selector) {
 }
 
 const COLOR_TRANSITION_PROPS = new Set(['background', 'background-color', 'color', 'border-color'])
+const PRESS_IN_DURATION = 'var(--duration-press-in)'
 const PRESS_DURATION = 'var(--duration-press)'
 const STATE_DURATION = 'var(--duration-state)'
 const EASE_OUT_TOKEN = 'var(--ease-out)'
@@ -361,8 +367,12 @@ function splitTopLevelComma(value) {
 }
 
 function lastCompound(selector) {
-  // :not(.non-interactive) 只排除不可点行，按压时长仍按控件本体（.menu-item / .list-item）归类
-  const stripped = selector.replace(/:active/g, '').replace(/:not\([^)]*\)/g, '').trim()
+  // hover-class 与 :active 是同一个按压目标；:not(.non-interactive) 只排除不可点行。
+  const normalized = selector.replace(
+    /\.([A-Za-z_][\w-]*)((?::not\([^)]*\))*)\.\1-hover\b/g,
+    '.$1$2:active'
+  )
+  const stripped = normalized.replace(/:active/g, '').replace(/:not\([^)]*\)/g, '').trim()
   const parts = stripped.split(/\s+/).filter(Boolean)
   return parts[parts.length - 1] || ''
 }
@@ -374,7 +384,7 @@ function pressScaleTargets(files) {
       if (rule.inReducedMotion) continue
       if (!/scale\(\s*0\.\d+/.test(rule.decls.transform || '')) continue
       for (const selector of rule.selectors) {
-        if (selector.includes(':active')) targets.add(lastCompound(selector))
+        if (isPressStateSelector(selector)) targets.add(lastCompound(selector))
       }
     }
   }
@@ -386,7 +396,7 @@ function activeSetsProperty(files, target, prop) {
     for (const rule of file.rules) {
       if (rule.inReducedMotion) continue
       for (const selector of rule.selectors) {
-        if (!selector.includes(':active') || lastCompound(selector) !== target) continue
+        if (!isPressStateSelector(selector) || lastCompound(selector) !== target) continue
         if (prop === 'background' || prop === 'background-color') {
           if (rule.decls.background || rule.decls['background-color']) return true
         } else if (prop === 'border-color') {
@@ -437,14 +447,19 @@ function sheetMotionExpectation(selector, prop) {
   return null
 }
 
+function isPressStateSelector(selector) {
+  return selector.includes(':active') || /\.[A-Za-z_][\w-]*-hover\b/.test(selector)
+}
+
 function expectedTransitionDuration(files, pressTargets, selector, prop) {
   const target = lastCompound(selector)
-  if (prop === 'transform') return pressTargets.has(target) ? PRESS_DURATION : STATE_DURATION
+  const pressDuration = isPressStateSelector(selector) ? PRESS_IN_DURATION : PRESS_DURATION
+  if (prop === 'transform') return pressTargets.has(target) ? pressDuration : STATE_DURATION
   if (COLOR_TRANSITION_PROPS.has(prop)) {
-    return activeSetsProperty(files, target, prop) ? PRESS_DURATION : STATE_DURATION
+    return activeSetsProperty(files, target, prop) ? pressDuration : STATE_DURATION
   }
   // 按压会改的透明度（柔光层，issue #166）跟着按压走；其余透明度变化是状态
-  if (prop === 'opacity') return activeSetsProperty(files, target, 'opacity') ? PRESS_DURATION : STATE_DURATION
+  if (prop === 'opacity') return activeSetsProperty(files, target, 'opacity') ? pressDuration : STATE_DURATION
   return null
 }
 
@@ -806,14 +821,10 @@ test('reduced motion makes native tab bar hide and restore instant', () => {
   }
 })
 
-// issue #166：按压改变的每一路——缩放、底色、描边、柔光层透明度——都在 --duration-press 里一起走，
-// 松手按同一拍回来，没有哪一路先跳到位。按压不换 box-shadow：阴影不能过渡，柔光的变化落在柔光层的透明度上。
+// issue #166 / #270：按压改变的每一路——缩放、底色、描边、柔光层透明度——基态都在 --duration-press 里一起回弹，
+// 按压与 hover 态另以 --duration-press-in 贴合指尖。按压不换 box-shadow：阴影不能过渡，柔光的变化落在柔光层的透明度上。
 // 禁用与加载变体不算按压，这里跳过它们。它们按下时每一路都不动，这一条已经没有护栏：#196 按 spec 决定 29/30
 // 删了 interaction-semantics 里那条检查（它不在保留的不变量里），interaction-semantics 现在只钉它们读作禁用。
-// 唯一例外是「记录」tab 欢乐时光卡头：issue #109 让卡头不写过渡，它的按压只有一层底色，没有第二路要对齐。
-const PRESS_BEAT_EXCEPTIONS = {
-  'pages/period/period.wxss .month-header': 'issue #109: the collapsible month header writes no transition'
-}
 // 按压会改的各路；两种底色写法在 transition 里都走 background-color 这一路
 const PRESS_CHANNELS = ['transform', ...FILL_PROPERTIES, 'border-color', 'opacity', 'color']
 const transitionChannel = (prop) => (FILL_PROPERTIES.includes(prop) ? 'background-color' : prop)
@@ -851,7 +862,6 @@ test('a press moves every channel it changes on the press beat, and never swaps 
         if (selectorSignature(target).classes.some((cls) => INERT_CLASSES.includes(cls))) continue
         const where = `${file.relative} ${selector}`
         if (rule.decls['box-shadow']) violations.push(`${where} swaps its box-shadow; dim a glow layer instead`)
-        if (PRESS_BEAT_EXCEPTIONS[`${file.relative} ${target}`]) continue
         const transition = effectiveTransition(file.relative, target)
         const segments = splitTopLevelComma(transition || '')
         for (const prop of PRESS_CHANNELS) {
@@ -867,6 +877,33 @@ test('a press moves every channel it changes on the press beat, and never swaps 
     }
   }
   assert.ok(checked > 0, 'the survey reaches the press rules')
+  assert.deepEqual(violations, [])
+})
+
+test('every pressed and hover rule applies its changed channels on the 90ms press-in shorthand', () => {
+  const violations = []
+  let checked = 0
+  for (const file of analyzedWxssFiles()) {
+    for (const rule of file.rules) {
+      if (rule.inReducedMotion) continue
+      const pressSelectors = rule.selectors.filter(isPressStateSelector)
+      const actionableSelectors = pressSelectors.filter((selector) =>
+        !selectorSignature(lastCompound(selector)).classes.some((cls) => INERT_CLASSES.includes(cls)))
+      if (!actionableSelectors.length) continue
+      const where = `${file.relative} ${rule.selectors.join(', ')}`
+      const segments = splitTopLevelComma(rule.decls.transition || '')
+      for (const prop of PRESS_CHANNELS) {
+        if (!rule.decls[prop]) continue
+        checked += 1
+        const channel = transitionChannel(prop)
+        const segment = segments.find((part) => part.startsWith(`${channel} `))
+        if (!segment || !segment.includes(PRESS_IN_DURATION)) {
+          violations.push(`${where} changes ${prop} without ${PRESS_IN_DURATION} in its own transition shorthand`)
+        }
+      }
+    }
+  }
+  assert.ok(checked > 0, 'the survey reaches pressed and hover rules')
   assert.deepEqual(violations, [])
 })
 
