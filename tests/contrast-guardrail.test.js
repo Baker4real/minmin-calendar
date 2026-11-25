@@ -4,7 +4,7 @@ const test = require('node:test')
 const { readSource: readFile } = require('./sourceFiles')
 
 const { auroraPeakHex, contrastGrounds, contrastRatio, meetsContrast, surfaceFill } = require('./contrast')
-const { findOffScaleTextOpacities, listWxssFiles, parseWxssRules } = require('./designTokens')
+const { declarations: cascadedDeclarations, findOffScaleTextOpacities, listWxssFiles, parseWxssRules } = require('./designTokens')
 
 test('white on black is the WCAG 21:1 reference pair and meets 4.5:1', () => {
   assert.equal(contrastRatio('#FFFFFF', '#000000'), 21)
@@ -122,7 +122,7 @@ test('legacy opacity values use nearest tiers and round ties upward', () => {
     ['pages/index/index.wxss', '.legend-title', 'rgba(255,255,255,0.85)'],
     ['pages/period/edit/edit.wxss', '.flow-chip', 'rgba(255,255,255,0.72)']
   ]) {
-    assert.equal(exactDeclaration(file, selector, 'color'), expected, `${selector} uses the nearest legacy mapping`)
+    assert.equal(cascadedDeclarations(file, selector).color, expected, `${selector} uses the nearest legacy mapping`)
   }
 })
 
@@ -504,6 +504,21 @@ test('edit form field labels and hints ride the secondary text token', () => {
   ]) {
     assert.equal(exactDeclaration(file, selector, 'color'), 'var(--text-secondary)', `${file} ${selector}`)
   }
+})
+
+test('period editor selected flow and symptom text clears 4.5:1 on card and aurora-peak composites', () => {
+  const file = 'pages/period/edit/edit.wxss'
+  const failures = []
+  for (const selector of ['.flow-chip.active', '.symptom-chip.active']) {
+    const text = layerPaint(exactDeclaration(file, selector, 'color'))
+    const fill = layerPaint(exactDeclaration(file, selector, 'background'))
+    for (const cardSurface of stackSurfaces([['app.wxss', '.premium-card']])) {
+      const surface = composite(cardSurface, fill, fill.a)
+      const ratio = contrastOn(text, surface)
+      if (ratio < 4.5) failures.push(`${selector} on ${toHex(surface)} = ${ratio.toFixed(2)}:1`)
+    }
+  }
+  assert.deepEqual(failures, [])
 })
 
 test('non-key grouping labels use the nearest secondary tier and still clear 4.5:1', () => {

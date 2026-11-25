@@ -1,5 +1,6 @@
 @import '../../shared/confirmation-sheet.wxss';
 @import '../../shared/record-form.wxss';
+@import '../../shared/segmented-control.wxss';
 
 /* ===== Aurora Bloom: Period Edit ===== */
 /* 导航标题使用 pages/shared/nav-bar.wxss 的中性白。 */
@@ -54,6 +55,26 @@
   transition: transform var(--duration-press-in) var(--ease-out);
 }
 
+.end-date-disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-state) var(--ease-out);
+}
+.end-date-disclosure.end-date-expanded {
+  grid-template-rows: 1fr;
+}
+.end-date-inner {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-state) var(--ease-out);
+}
+.end-date-disclosure.end-date-expanded .end-date-inner {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .symptom-group + .symptom-group {
   margin-top: 20rpx;
 }
@@ -66,19 +87,32 @@
   color: var(--text-secondary);
   margin-bottom: 12rpx;
 }
-.flow-options,
+.status-options {
+  background: rgba(10,14,39,0.88);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: inset 0 2rpx 6rpx rgba(0,0,0,0.28);
+}
+.status-options .segment-option.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.flow-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+}
 .symptom-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 14rpx;
+  gap: 12rpx;
 }
 .flow-chip,
 .symptom-chip {
   min-height: 88rpx;
+  position: relative;
   display: flex;
   align-items: center;
-  padding: 0 28rpx;
-  border-radius: var(--radius-full);
+  justify-content: center;
   box-sizing: border-box;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
@@ -87,6 +121,45 @@
   background: rgba(255,255,255,0.065);
   border: 1px solid rgba(255,255,255,0.12);
   transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);
+}
+.flow-chip {
+  flex-direction: column;
+  gap: 8rpx;
+  min-width: 0;
+  padding: 12rpx 8rpx;
+  border-radius: var(--radius-md);
+}
+.symptom-chip {
+  padding: 0 24rpx;
+  border-radius: var(--radius-full);
+}
+.flow-degree {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  height: 8rpx;
+}
+.flow-degree-dot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: var(--radius-circle);
+  background: currentColor;
+}
+.flow-chip::after,
+.symptom-chip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 18rpx rgba(232,144,158,0.22);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-state) ease;
+}
+.flow-chip.active::after,
+.symptom-chip.active::after {
+  opacity: 1;
 }
 .flow-chip:active,
 .flow-chip.flow-chip-hover,
@@ -101,19 +174,28 @@
   opacity: 0.5;
   pointer-events: none;
 }
-.flow-chip.active,
+.flow-chip.active {
+  color: var(--aurora-pink);
+  background: rgba(232,144,158,0.08);
+  border-color: rgba(232,144,158,0.45);
+  box-shadow: none;
+}
 .symptom-chip.active {
-  color: var(--text-on-accent);
-  background: rgba(232,144,158,0.92);
-  border-color: rgba(232,144,158,0.95);
-  box-shadow: 0 0 18rpx rgba(232,144,158,0.22);
+  color: var(--color-memory);
+  background: rgba(232,144,158,0.16);
+  border-color: rgba(232,144,158,0.62);
+  box-shadow: none;
 }
 
 /* 减弱动效：边框、底色与按压缩放的过渡即时切换，不做渐进
    （issue #106；DESIGN.md 动效政策——按压=即时 scale + 既有底色变化） */
 @media (prefers-reduced-motion: reduce) {
+  .end-date-disclosure,
+  .end-date-inner,
   .flow-chip,
   .symptom-chip,
+  .flow-chip::after,
+  .symptom-chip::after,
   .start-date-owner-action {
     transition: none;
   }

@@ -15,7 +15,10 @@ Page(withPageVisibility({
     ...safeArea.getNavTitlePadding('back'),
     noteFocused: false,
     statusOptions: cycle.PERIOD_STATUS_OPTIONS.map(item => ({ ...item, hint: cycle.periodStatusHint(item.value) })),
-    flowOptions: cycle.FLOW_OPTIONS,
+    flowOptions: cycle.FLOW_OPTIONS.map((item, index) => ({
+      ...item,
+      degreeDots: Array.from({ length: index + 1 }, (_, dot) => dot + 1)
+    })),
     symptomGroups: cycle.buildSymptomOptions(),
     ...confirmationSheetData(),
     ...datePickerSheetData()
@@ -56,7 +59,7 @@ Page(withPageVisibility({
   },
 
   openEndDatePicker(event) {
-    if (this.data.saving) return
+    if (this.data.saving || this.data.status !== 'known-end') return
     datePickerSheet(this).open({
       openedAt: event && Number.isFinite(event.timeStamp) ? event.timeStamp : null,
       label: '结束日期',
