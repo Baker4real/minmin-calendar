@@ -225,7 +225,7 @@ test('edit form cards are border-box so width and padding never add up past the 
 })
 
 test('record tab memory month card header stays on one line at 320px', () => {
-  // issue #108：欢乐时光月份卡头「YYYY年M月 · N 条」在 320px 宽单行完整显示。
+  // issue #108：欢乐时光月份卡头「YYYY年M月 · N 条」在 320px 宽单行完整显示。
   // issue #109：卡头右侧多了「展开/收起」文字（caption 档），一并纳入账本。
   // 宽度账本口径与 typography-hierarchy 的月份标题先例一致：CJK 按 1em、数字按 0.6em 上限估算。
   const appRules = parseWxssRules(readRepo('app.wxss'))
@@ -261,7 +261,7 @@ test('record tab memory month card header stays on one line at 320px', () => {
   const headerGapRpx = Number(/(\d+)rpx/.exec(header.gap)[1])
   const availableRpx = 750 - 2 * contentPadRpx - 2 * headerPadRpx
 
-  // 卡头标题最坏文案「2026年12月 · 99 条」：8 位数字（0.6em）+ 年/月/条 3 个 CJK（1em）
+  // 卡头标题最坏文案「2026年12月 · 99 条」：8 位数字（0.6em）+ 年/月/条 3 个 CJK（1em）
   // +「·」按全宽 1em + 两侧空格按 0.5em；切换文字最坏「收起」2 个 CJK（1em）
   const titleRpx = (8 * 0.6 + 3 + 1 + 2 * 0.5) * headerSizeRpx
   const toggleRpx = 2 * toggleSizeRpx
@@ -558,8 +558,8 @@ test('the first-screen ledger is the CSS flow above the record actions', async (
   assert.equal(CALENDAR_LEDGER.firstScreenBorderPx, navBorder + stickyBorder + borderPx(week) + 2 * borderPx(grid))
 })
 
-// issue #159：进行中经期的记录入口「经期第 N 天 · 记结束」一行放不下。连写的中文不拆开，只在文案里的空格处折行，
-// 于是第一行停在「经期第 N 天 ·」、第二行是「记结束」；两行字仍在按钮最小高度里，首屏账本的记录入口高度不变。字号不缩
+// issue #159：进行中经期的记录入口「经期第 N 天 · 记结束」一行放不下。连写的中文不拆开，只在文案里的空格处折行，
+// 于是第一行停在「经期第 N 天 ·」、第二行是「记结束」；两行字仍在按钮最小高度里，首屏账本的记录入口高度不变。字号不缩
 test('the ongoing quick-period label wraps only at its spaces and two lines stay inside the record button', () => {
   const cycle = require('../utils/cycle')
   const appTokens = readAppTokens()
@@ -568,7 +568,7 @@ test('the ongoing quick-period label wraps only at its spaces and two lines stay
   const button = findDecls(rules, '.quick-btn')
   assert.equal(text['font-size'], '28rpx', 'issue #247 keeps the old body size where the new ramp would add a third line')
   assert.equal(text['word-break'], 'keep-all', 'CJK runs break only at the spaces of the label')
-  assert.equal(text['line-height'], 'var(--line-height-title)')
+  assert.equal(text['line-height'], 'var(--line-height-snug)')
 
   // 文字列宽（320px 下 1px 描边最宽）= 半行按钮宽 − 左右内边距 − 描边 − 圆盘 − 图文间距
   const fontRpx = fontSizeRpx(text, appTokens)
@@ -578,19 +578,19 @@ test('the ongoing quick-period label wraps only at its spaces and two lines stay
     2 * parseFloat(horizontalPaddingTokens(button)[0]) - 2 * borderRpx -
     rpxNumber(findDecls(rules, '.quick-icon'), 'width') - rpxNumber(button, 'gap')
 
-  // 宽度按上界估（与本文件其他账本同口径）：CJK 与「·」1em、数字 0.6em、空格 0.5em
-  const widthRpx = copy => [...copy].reduce((sum, ch) => sum + (/\d/.test(ch) ? 0.6 : ch === ' ' ? 0.5 : 1), 0) * fontRpx
+  // 宽度按上界估（与本文件其他账本同口径）：CJK 与「·」1em、数字 0.6em、空格 0.5em；word joiner 不占宽。
+  const widthRpx = copy => [...copy].reduce((sum, ch) => sum + (ch === String.fromCharCode(0x2060) ? 0 : /\d/.test(ch) ? 0.6 : /\s/.test(ch) ? 0.5 : 1), 0) * fontRpx
   for (const days of [1, 12, 120]) {
     const start = '2026-01-01'
     const today = new Date(Date.UTC(2026, 0, days)).toISOString().slice(0, 10)
     const { label } = cycle.buildPeriodQuickAction([{ _id: 'stand-in', startDate: start, endDate: '', status: 'ongoing' }], { today })
     const lines = label.split(/(?<=·) /)
-    assert.deepEqual(lines, [`经期第 ${days} 天 ·`, '记结束'], `day ${days} label shape`)
+    assert.deepEqual(lines, [`经期第 ${days} 天 ·`, '记结束'], `day ${days} label shape`)
     assert.ok(widthRpx(lines[0]) <= columnRpx, `「${lines[0]}」 ${widthRpx(lines[0])}rpx needs more than the ${columnRpx.toFixed(1)}rpx column`)
   }
 
   // 两行字 + 上下内边距 + 上下描边不超过按钮最小高：按钮不因折行变高，账本里的 quickActions 照旧成立
-  const twoLinesRpx = 2 * fontRpx * Number(appTokens['--line-height-title'])
+  const twoLinesRpx = 2 * fontRpx * Number(appTokens['--line-height-snug'])
   const boxRpx = twoLinesRpx + verticalPaddingRpx(button) + 2 * borderRpx
   assert.ok(boxRpx <= rpxNumber(button, 'min-height'), `two label lines need ${boxRpx.toFixed(1)}rpx, more than the ${rpxNumber(button, 'min-height')}rpx button`)
 })
@@ -650,10 +650,13 @@ test('every longest home status form fits one line and the 88rpx ledger stays un
 
   const mainFont = fontSizeRpx(main, appTokens)
   const countdownFont = fontSizeRpx(countdown, appTokens)
-  const widthRpx = (copy, fontRpx) => [...copy].reduce((sum, ch) => sum + (/\d/.test(ch) ? 0.6 : ch === ' ' ? 0.5 : 1), 0) * fontRpx
+  const widthRpx = (copy, fontRpx) => [...copy].reduce((sum, ch) => sum + (ch === String.fromCharCode(0x2060) ? 0 : /\d/.test(ch) ? 0.6 : /\s/.test(ch) ? 0.5 : 1), 0) * fontRpx
   const availableRpx = 750 - 2 * horizontalPaddingRpx(sticky, appTokens)[0] - 2 * parseFloat(horizontalPaddingTokens(status)[0] || '0')
   const gapRpx = rpxNumber(status, 'gap')
-  const arrowRpx = rpxNumber(arrow, 'width')
+  const iconRules = parseWxssRules(readRepo('pages/shared/vector-icons.wxss'))
+  const arrowRpx = rpxNumber(findDecls(iconRules, '.ui-icon-24'), 'width')
+  assert.equal(arrowRpx, 24)
+  assert.equal(arrow.width, undefined, 'the arrow box comes from the shared icon size')
   for (const form of forms) {
     const requiredRpx = widthRpx(form.text, mainFont) +
       (form.countdownText ? widthRpx(form.countdownText, countdownFont) + gapRpx : 0) + gapRpx + arrowRpx
@@ -698,7 +701,7 @@ test('the prediction summary starts the window clause on its own line and each c
   const { summary } = insights.buildPredictionExplanation({
     canPredict: true,
     nextStart: '2027-12-30',
-    nextDisplay: '2027年12月30日',
+    nextDisplay: '2027年12月30⁠日',
     rangeEnd: '2028-01-09',
     usedCycleCount: 2,
     avgCycle: 28,
@@ -708,7 +711,7 @@ test('the prediction summary starts the window clause on its own line and each c
     ignoredCycleCount: 0
   }, [], { today: '2027-12-30' })
   const clauses = summary.split('\n')
-  assert.deepEqual(clauses, ['预计 2027年12月30日 开始，', '前后 10 天是可能开始的窗口'])
+  assert.deepEqual(clauses, ['预计 2027年12月30⁠日 开始，', '前后 10 天是可能开始的窗口'])
 
   const appTokens = readAppTokens()
   const rules = parseWxssRules(readRepo('pages/index/index.wxss'))

@@ -144,10 +144,10 @@
 .item-date {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
-  line-height: var(--line-height-body);
+  line-height: var(--line-height-assist);
   font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.85);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .item-author {
   font-size: var(--font-size-caption);
@@ -173,7 +173,10 @@
 }
 .item-tag {
   min-height: 38rpx;
-  line-height: 38rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   padding: 4rpx 12rpx;
   border-radius: var(--radius-full);
   box-sizing: border-box;
@@ -198,10 +201,13 @@
 }
 .item-duration {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   white-space: nowrap;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
-  line-height: var(--line-height-assist);
+  line-height: 1;
   font-variant-numeric: tabular-nums;
   color: var(--aurora-pink);
   background: rgba(232,144,158,0.12);
@@ -217,7 +223,6 @@
 .item-arrow {
   flex-shrink: 0;
   white-space: nowrap;
-  font-size: 32rpx;
   color: var(--text-secondary);
 }
 
@@ -284,7 +289,7 @@
 /* Memory Segment – 欢乐时光月份分组（issue #108）：每月一张卡复用 app 级 .premium-card 玻璃面，
    不另做一种卡面。
    卡头可点切换展开/收起（issue #109）：即时生效、无动画（不写 transition/animation），
-   右侧「展开/收起」是文字不是字形（「›」表示点开编辑、「⌄」已用于首页选月，见 DESIGN.md） */
+   右侧「展开/收起」仍是文字；导航与行尾几何图标由 shared/vector-icons.wxss 统一提供。 */
 .month-card {
   margin-bottom: var(--space-page-block-gap);
 }
@@ -315,7 +320,7 @@
 .month-header-text {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-assist);
-  line-height: var(--line-height-body);
+  line-height: var(--line-height-assist);
   font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.85);
   white-space: nowrap;
@@ -365,7 +370,7 @@
 .memory-date {
   font-size: var(--font-size-body);
   font-weight: var(--font-weight-body);
-  line-height: var(--line-height-body);
+  line-height: var(--line-height-assist);
   font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.85);
 }
@@ -381,7 +386,6 @@
   text-overflow: ellipsis;
 }
 .memory-arrow {
-  font-size: 32rpx;
   color: var(--text-secondary);
 }
 /* 欢乐时光骨架是圆点变体（经期侧是 pill），复用已注册的 skeletonPulse */

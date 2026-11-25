@@ -13,7 +13,7 @@ const { restoreTabBarOnShow } = require('../../utils/sheetLifecycle')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 
 Page(withPageVisibility({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), ...safeArea.getNavTitlePadding('placeholder'), segment: 'period', periodCount: 0, periodGroups: [], periodQuickLabel: '＋ 记经期', periodQuickAriaLabel: '记经期', predictionThresholdText: '记两次经期后就能估下次', avgCycle: null, avgDuration: null, loading: true, refreshing: false, loadFailed: false, hasLoaded: false, memoryCount: 0, memoryGroups: [], memoryLoading: true, memoryLoadFailed: false, memoryHasLoaded: false },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), ...safeArea.getNavTitlePadding('placeholder'), segment: 'period', periodCount: 0, periodGroups: [], periodQuickLabel: '记经期', periodQuickMode: 'add', periodQuickAriaLabel: '记经期', predictionThresholdText: '记两次经期后就能估下次', avgCycle: null, avgDuration: null, loading: true, refreshing: false, loadFailed: false, hasLoaded: false, memoryCount: 0, memoryGroups: [], memoryLoading: true, memoryLoadFailed: false, memoryHasLoaded: false },
 
   // 欢乐时光月份卡的展开选择（issue #109）：页面内存按月份键记「用户点过卡头」的月份，
   // 值为 memoryMonthGroups.EXPANDED / COLLAPSED；没点过的月份默认收起。
@@ -159,7 +159,8 @@ Page(withPageVisibility({
     return {
       periodCount: state.collections.periods.records.length,
       periodGroups: this.periodProjection(state),
-      periodQuickLabel: quickEntry.mode === 'add' ? '＋ 记经期' : quickEntry.label,
+      periodQuickLabel: quickEntry.label,
+      periodQuickMode: quickEntry.mode,
       periodQuickAriaLabel: quickEntry.ariaLabel,
       predictionThresholdText: cycle.buildPredictionThresholdText(state.collections.periods.records),
       memoryCount: state.collections.memories.records.length,

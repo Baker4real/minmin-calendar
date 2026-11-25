@@ -193,7 +193,7 @@ function decoratePeriod(period, { today, projectedRange } = {}) {
     endDateDisplay: range
       ? util.formatDisplayDate(range.endDate, { today })
       : status === 'ongoing' ? (isDateString(today) ? util.formatDisplayDate(today, { today }) : '') : '结束日期不详',
-    durationText: range ? `${duration}天` : PERIOD_STATUS_LABELS[status] || '',
+    durationText: range ? util.formatQuantity(duration, '天') : PERIOD_STATUS_LABELS[status] || '',
     dateLabel: periodDateLabel(status, range, period, today),
     rangeSummary: periodRangeSummary(status, range, period, today)
   }
@@ -304,11 +304,11 @@ function buildHomeStatusLine(periods, options = {}) {
   const prediction = options.prediction || predictNextPeriod(periods, { ...options, today })
   const active = periodCoverage.getPeriodOnDate(periods, today, today)
   if (active) {
-    let text = `经期第 ${active.day} 天`
+    let text = `经期第 ${util.formatQuantity(active.day, '天')}`
     if (active.status === 'ongoing') {
       const expected = expectedPeriodLength(periods)
       const overdueDays = active.day - expected.days
-      if (overdueDays > 0) text += ` · 比预期多 ${overdueDays} 天`
+      if (overdueDays > 0) text += ` · 比预期多 ${util.formatQuantity(overdueDays, '天')}`
     }
     return { status: 'in-period', text, countdownText: '', tone: 'default' }
   }
@@ -326,7 +326,7 @@ function buildHomeStatusLine(periods, options = {}) {
     return {
       status: 'before-window',
       text: `预计 ${dateText} 开始`,
-      countdownText: `还有 ${days} 天`,
+      countdownText: `还有 ${util.formatQuantity(days, '天')}`,
       tone: 'default'
     }
   }
@@ -343,7 +343,7 @@ function buildHomeStatusLine(periods, options = {}) {
     const lateDays = util.daysBetween(util.parseDate(prediction.nextStart), util.parseDate(today))
     return {
       status: 'late',
-      text: `比预计晚 ${lateDays} 天`,
+      text: `比预计晚 ${util.formatQuantity(lateDays, '天')}`,
       countdownText: '',
       tone: 'neutral'
     }
@@ -365,7 +365,7 @@ function buildPeriodQuickAction(periods, options = {}) {
   if (!ongoing) return { label: '记经期', ariaLabel: '记经期', mode: 'add' }
   const owner = periodCoverage.getPeriodOnDate([ongoing], today, today)
   if (!owner) return { label: '记结束', ariaLabel: '记结束', mode: 'complete' }
-  const label = `经期第 ${owner.day} 天 · 记结束`
+  const label = `经期第 ${util.formatQuantity(owner.day, '天')} · 记结束`
   return { label, ariaLabel: label, mode: 'complete' }
 }
 
@@ -445,11 +445,11 @@ function describeKnownPeriodLength({ startDate, endDate, periods = [] } = {}) {
   const exceedsExpected = days > expected.days
   return {
     days,
-    text: `共 ${days} 天`,
+    text: `共 ${util.formatQuantity(days, '天')}`,
     exceedsExpected,
     expectedDays: expected.days,
     expectedSource: expected.source,
-    hint: exceedsExpected ? `比你通常的 ${expected.days} 天长，确认一下结束日？` : ''
+    hint: exceedsExpected ? `比你通常的 ${util.formatQuantity(expected.days, '天')}长，确认一下结束日？` : ''
   }
 }
 

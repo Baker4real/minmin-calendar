@@ -69,7 +69,7 @@ test('period empty state uses the current action label and cycle prediction thre
   const app = setup(t)
   const page = app.launch(route)
   await app.flush()
-  assert.equal(page.data.periodQuickLabel, '＋ 记经期')
+  assert.equal(page.data.periodQuickLabel, '记经期')
   assert.equal(page.data.predictionThresholdText, '记两次经期后就能估下次')
   assert.ok(draws(page.data, node => node.classes.includes('empty-state') && !node.classes.includes('load-failed')))
 })
@@ -522,16 +522,16 @@ const periodCases = [
   { name: 'inclusive durations override stored numbers and enable prediction', records: [
     { _id: 'p1', startDate: '2026-06-01', endDate: '2026-06-05', duration: 2 },
     { _id: 'p2', startDate: '2026-06-30', endDate: '2026-07-04', duration: 9 }
-  ], rows: [['p2', '6月30日–7月4日', '5天'], ['p1', '6月1日–6月5日', '5天']], cycle: 29, duration: 5 },
+  ], rows: [['p2', '6月30⁠日–7月4⁠日', '5 天'], ['p1', '6月1⁠日–6月5⁠日', '5 天']], cycle: 29, duration: 5 },
   { name: 'legacy unknown ends do not inflate the fallback average', records: [
     { _id: 'done', startDate: '2026-06-01', endDate: '2026-06-05', duration: 99 },
     { _id: 'unknown', startDate: '2026-08-12', duration: 9 }
-  ], rows: [['unknown', '8月12日', '结束日期不详'], ['done', '6月1日–6月5日', '5天']], cycle: null, duration: 5 },
+  ], rows: [['unknown', '8月12⁠日', '结束日期不详'], ['done', '6月1⁠日–6月5⁠日', '5 天']], cycle: null, duration: 5 },
   { name: 'ongoing and unknown ends contribute no duration', records: [
     { _id: 'done', startDate: '2026-06-01', endDate: '2026-06-03' },
     { _id: 'unknown', startDate: '2026-07-01', status: 'unknown-end', duration: 9 },
     { _id: 'live', startDate: '2026-10-18', status: 'ongoing', duration: 9 }
-  ], rows: [['live', '10月18日–10月20日', '进行中'], ['unknown', '7月1日', '结束日期不详'], ['done', '6月1日–6月3日', '3天']], duration: 3 },
+  ], rows: [['live', '10月18⁠日–10月20⁠日', '进行中'], ['unknown', '7月1⁠日', '结束日期不详'], ['done', '6月1⁠日–6月3⁠日', '3 天']], duration: 3 },
   { name: 'no known end keeps the duration unknown even with a default prediction', records: [
     { _id: 'a', startDate: '2026-07-01', status: 'unknown-end', duration: 9 },
     { _id: 'b', startDate: '2026-07-29', status: 'unknown-end', duration: 9 }
@@ -578,8 +578,8 @@ for (const status of ['paired', 'waiting', null, 'archived']) {
     await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-09' }))
     const rows = page.data.memoryGroups.flatMap(group => group.records)
     assert.deepEqual(rows.map(row => row.ariaLabel), status === 'paired' ? [
-      '编辑欢乐时光，9月18日，散步，我记的', '编辑欢乐时光，9月18日，TA 记的', '编辑欢乐时光，9月2日，旧记录'
-    ] : ['编辑欢乐时光，9月18日，散步', '编辑欢乐时光，9月18日', '编辑欢乐时光，9月2日，旧记录'])
+      '编辑欢乐时光，9月18⁠日，散步，我记的', '编辑欢乐时光，9月18⁠日，TA 记的', '编辑欢乐时光，9月2⁠日，旧记录'
+    ] : ['编辑欢乐时光，9月18⁠日，散步', '编辑欢乐时光，9月18⁠日', '编辑欢乐时光，9月2⁠日，旧记录'])
   })
 }
 
@@ -651,18 +651,18 @@ test('memory month cards sort across years, preserve same-day records and match 
   await app.flush()
   let groups = page.data.memoryGroups
   assert.deepEqual(groups.map(group => [group.key, group.title]), [
-    ['2026-10', '2026年10月 · 3 条'], ['2026-09', '2026年9月 · 1 条'], ['2025-12', '2025年12月 · 1 条']
+    ['2026-10', '2026年10月 · 3 条'], ['2026-09', '2026年9月 · 1 条'], ['2025-12', '2025年12月 · 1 条']
   ])
-  assert.equal(groups[0].ariaLabel, '2026年10月，3 条欢乐时光，海边散步，已收起')
+  assert.equal(groups[0].ariaLabel, '2026年10月，3 条欢乐时光，海边散步，已收起')
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-10' }))
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2025-12' }))
   groups = page.data.memoryGroups
-  assert.deepEqual(groups[0].records.map(row => [row._id, row.dayLabel]), [['a1', '10月8日'], ['a2', '10月8日'], ['first', '10月1日']])
+  assert.deepEqual(groups[0].records.map(row => [row._id, row.dayLabel]), [['a1', '10月8⁠日'], ['a2', '10月8⁠日'], ['first', '10月1⁠日']])
   assert.equal(groups[0].records[1].note, '')
-  assert.equal(groups[2].records[0].dayLabel, '2025年12月31日')
+  assert.equal(groups[2].records[0].dayLabel, '2025年12月31⁠日')
   const { buildHomeCalendarState } = require('../utils/homeCalendarState')
   const projection = buildHomeCalendarState({ year: 2026, month: 9, today: '2026-10-20', periods: [], memories: records })
-  assert.equal(projection.monthlyRecap.memorySummary, '留下 3 条欢乐时光')
+  assert.equal(projection.monthlyRecap.memorySummary, '留下 3 条欢乐时光')
   assert.equal(groups[0].count, 3)
 })
 
@@ -686,7 +686,7 @@ test('period year and month groups use the start month once, newest first, while
   ])
   const rows = page.data.periodGroups.flatMap(year => year.months.flatMap(month => month.records))
   assert.equal(page.data.periodCount, records.length)
-  assert.deepEqual(rows.map(row => row.durationText), ['进行中', '5天', '结束日期不详', '2天', '1天', '6天'])
+  assert.deepEqual(rows.map(row => row.durationText), ['进行中', '5 天', '结束日期不详', '2 天', '1 天', '6 天'])
   assert.equal(rows[0].authorLabel, '我记的')
   assert.equal(rows[1].authorLabel, 'TA 记的')
   assert.equal(rows[1].flowLabel, '量多')
@@ -912,12 +912,12 @@ test('month headers start collapsed, toggle without navigation, retain choices a
   const page = app.launch(route)
   await app.flush()
   assert.deepEqual(expansion(page), [['2026-09', false], ['2026-08', false], ['2026-07', false], ['2026-06', false], ['2026-05', false]])
-  assert.equal(page.data.memoryGroups[0].ariaLabel, '2026年9月，1 条欢乐时光，九月晚餐，已收起')
+  assert.equal(page.data.memoryGroups[0].ariaLabel, '2026年9月，1 条欢乐时光，九月晚餐，已收起')
   const june = page.data.memoryGroups[3]
   assert.equal(june.excerpt, '六月海边 傍晚')
-  assert.equal(june.ariaLabel, '2026年6月，2 条欢乐时光，六月海边 傍晚，已收起')
+  assert.equal(june.ariaLabel, '2026年6月，2 条欢乐时光，六月海边 傍晚，已收起')
   assert.equal(june.toggleLabel, '展开')
-  assert.equal(page.data.memoryGroups[4].ariaLabel, '2026年5月，1 条欢乐时光，已收起')
+  assert.equal(page.data.memoryGroups[4].ariaLabel, '2026年5月，1 条欢乐时光，已收起')
   const navigationCount = app.navigation.length
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-06' }))
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-09' }))
@@ -926,7 +926,7 @@ test('month headers start collapsed, toggle without navigation, retain choices a
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2030-01' }))
   assert.equal(app.navigation.length, navigationCount)
   assert.equal(page.data.memoryGroups[3].toggleLabel, '收起')
-  assert.equal(page.data.memoryGroups[3].ariaLabel, '2026年6月，2 条欢乐时光，已展开')
+  assert.equal(page.data.memoryGroups[3].ariaLabel, '2026年6月，2 条欢乐时光，已展开')
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'period' }))
   await app.dispatch(page, 'selectSegment', dataset({ segment: 'memory' }))
   assert.deepEqual(expansion(page), [['2026-09', true], ['2026-08', false], ['2026-07', false], ['2026-06', true], ['2026-05', false]])
@@ -1062,14 +1062,14 @@ test('record tab period entry matches the home projection with and without an on
   await app.dispatch(app.currentPage, 'goBack')
   await app.flush()
   home = buildHomeCalendarState({ year: 2026, month: 9, today: '2026-10-20', periods: [closed] })
-  assert.equal(page.data.periodQuickLabel, '＋ 记经期')
+  assert.equal(page.data.periodQuickLabel, '记经期')
   assert.equal(page.data.periodQuickAriaLabel, home.periodQuickAriaLabel)
   await app.dispatch(page, 'addPeriod')
   assert.equal(app.navigation.at(-1).url, home.periodQuickAction.url)
   assert.equal(app.navigation.at(-1).url, '/pages/period/edit/edit?startDate=2026-10-20')
   assert.equal(app.currentPage.data.startDate, '2026-10-20')
   assert.equal(app.wx.toasts.length, 0)
-  assert.match(tabWxml, /bindtap="addPeriod"[^>]*aria-label="\{\{periodQuickAriaLabel\}\}"[^>]*>\{\{periodQuickLabel\}\}<\/view>/)
+  assert.match(tabWxml, /bindtap="addPeriod"[^>]*aria-label="\{\{periodQuickAriaLabel\}\}"[^>]*>\s*<view wx:if="\{\{periodQuickMode === 'add'\}\}" class="ui-icon ui-icon-plus ui-icon-28" aria-hidden="true"><\/view>\s*<text>\{\{periodQuickLabel\}\}<\/text>/)
 })
 
 test('record tab chooses the latest ongoing record, then creates today even when completed coverage exists', async (t) => {
@@ -1084,7 +1084,7 @@ test('record tab chooses the latest ongoing record, then creates today even when
   await app.flush()
   assert.equal(page.data.periodCount, 3)
   let home = buildHomeCalendarState({ year: 2026, month: 9, today: '2026-10-20', periods: records })
-  assert.equal(page.data.periodQuickLabel, '经期第 6 天 · 记结束')
+  assert.equal(page.data.periodQuickLabel, '经期第 6 天 · 记结束')
   assert.equal(page.data.periodQuickLabel, home.periodQuickLabel)
   await app.dispatch(page, 'addPeriod')
   assert.equal(app.currentPage.data.id, 'latest-live')
@@ -1096,7 +1096,7 @@ test('record tab chooses the latest ongoing record, then creates today even when
   await app.flush()
   home = buildHomeCalendarState({ year: 2026, month: 9, today: '2026-10-20', periods: [closedToday] })
   assert.equal(home.periodQuickAction.url, '/pages/period/edit/edit?startDate=2026-10-20')
-  assert.equal(page.data.periodQuickLabel, '＋ 记经期')
+  assert.equal(page.data.periodQuickLabel, '记经期')
   await app.dispatch(page, 'addPeriod')
   assert.equal(app.currentPage.data.isEdit, false)
   assert.equal(app.currentPage.data.startDate, '2026-10-20')
@@ -1206,7 +1206,7 @@ test('memory add and move expand the saved older month after returning from the 
   await app.dispatch(app.currentPage, 'save')
   await app.flush()
   assert.deepEqual(expansion(page), [['2026-08', false], ['2026-07', false], ['2026-06', true], ['2026-05', true]])
-  assert.equal(page.data.memoryGroups.at(-1).records[0].dayLabel, '5月9日')
+  assert.equal(page.data.memoryGroups.at(-1).records[0].dayLabel, '5月9⁠日')
 })
 
 test('deleting rows through the editor removes an emptied month and retains other month choices', async (t) => {
@@ -1276,9 +1276,9 @@ function memoriesForYears(years, count, longNote) {
 // #224: same deterministic records and cumulative UTF-8 JSON byte rule as the ticket's before/after measurement.
 // The later shared prediction-threshold copy adds 80 bytes to each recorded post-projection total.
 const byteScenarios = [
-  { title: '一年13+50累计字节', years: [2026], memoryCount: 50, longNote: false, expectedBytes: 9894, ticketBaselineKiB: 46 },
-  { title: '三年39+150累计字节', years: [2024, 2025, 2026], memoryCount: 150, longNote: false, expectedBytes: 30077, ticketBaselineKiB: 141 },
-  { title: '39+300长备注累计字节', years: [2024, 2025, 2026], memoryCount: 300, longNote: true, expectedBytes: 50021, ticketBaselineKiB: 386 }
+  { title: '一年13+50累计字节', years: [2026], memoryCount: 50, longNote: false, expectedBytes: 10139, ticketBaselineKiB: 46 },
+  { title: '三年39+150累计字节', years: [2024, 2025, 2026], memoryCount: 150, longNote: false, expectedBytes: 30812, ticketBaselineKiB: 141 },
+  { title: '39+300长备注累计字节', years: [2024, 2025, 2026], memoryCount: 300, longNote: true, expectedBytes: 50756, ticketBaselineKiB: 386 }
 ]
 
 for (const scenario of byteScenarios) {
@@ -1429,7 +1429,7 @@ test('onShow redraws ongoing rows only when Today advances', async (t) => {
   const page = app.launch(route)
   await app.flush()
   assert.equal(periodRows(page)[0].durationText, '进行中')
-  assert.equal(page.data.periodQuickLabel, '经期第 3 天 · 记结束')
+  assert.equal(page.data.periodQuickLabel, '经期第 3 天 · 记结束')
 
   app.hide()
   await app.advance(24 * 60 * 60 * 1000)
@@ -1437,8 +1437,8 @@ test('onShow redraws ongoing rows only when Today advances', async (t) => {
   app.show()
   await app.flush()
   assert.equal(writes(page, 'periodGroups').length, 1)
-  assert.equal(page.data.periodQuickLabel, '经期第 4 天 · 记结束')
-  assert.equal(periodRows(page)[0].rangeSummary.includes('10月21日'), true)
+  assert.equal(page.data.periodQuickLabel, '经期第 4 天 · 记结束')
+  assert.equal(periodRows(page)[0].rangeSummary.includes('10月21⁠日'), true)
 
   app.hide()
   app.show()

@@ -441,7 +441,7 @@ test('RoomSession joinRoom rejects invalid room codes before cloud calls', async
 
   const result = await session.joinRoom('ABC')
 
-  assert.deepEqual(result, { code: -1, reason: 'other-failure', msg: '请输入6位房间码' })
+  assert.deepEqual(result, { code: -1, reason: 'other-failure', msg: '请输入 6 位房间码' })
   assert.deepEqual(cloud.calls, [])
 })
 

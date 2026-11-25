@@ -37,6 +37,8 @@
   border-radius: var(--radius-md);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
+  letter-spacing: var(--letter-spacing-control-sm);
+  text-indent: var(--letter-spacing-control-sm);
   color: rgba(255,255,255,0.72);
   border: 1px solid transparent;
   transition: background-color var(--duration-press) ease, border-color var(--duration-state) ease, color var(--duration-state) ease, transform var(--duration-press) var(--ease-out);

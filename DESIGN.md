@@ -240,7 +240,7 @@ issue #86–#89 的绑定页紫粉试点（深紫画布、紫玻璃 tint、粉�
 
 System font stack for zero-bloat + excellent CJK rendering;全页面只继承 `app.wxss` 的 `-apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', sans-serif`，不声明 `@font-face`、不引入外部字体（`tests/typography-hierarchy.test.js` 护栏）。Sizes, weights and line heights come only from the shared roles below; frontmatter `typography` carries the same values as nominal px at the 375px design width (×2 = the rpx token). Week headers keep natural letter-spacing and do not add tracking. Calendar holiday tags and 「预」 stay at caption scale: `.day-tag` / `.predict-mark` are `26rpx`, and the holiday/workday `.day-tag` box is `38rpx` tall so CJK glyphs are not clipped; in the compact density the `.day-tag` drops to the `24rpx` micro role in a `34rpx` box (see 日历微字 above).
 
-首页月份标题层级：`.month-title` 走 `--font-size-month-title`（44rpx）与 `--font-weight-title`（700），字距保持自然，不另加 letter-spacing；明显高于各页共享导航标题 `.nav-title`（`--font-size-title` 38rpx / 同一标题字重 700）。层级差来自字号（≥6rpx），不来自更重的 800。`line-height: var(--line-height-title)`（1.2）+ `white-space: nowrap` 保证单行完整显示，最坏文案「2026年12月」在 750rpx 视口的月份导航行内不溢出。年月数字走 `tabular-nums`；issue #247 将月份胶囊 `.month-title-trigger` 与骨架同形胶囊的最小宽同步调为 344rpx，兜住新字号下含描边约 341.1rpx 的最坏文案，仍小于导航行约 473.3rpx 的可用宽；1 位数和 2 位数月份同宽，翻月、换年时胶囊不变宽、不挪位，文字在胶囊内居中（issue #164）。层级差、单行、宽度账本与稳宽由 `tests/typography-hierarchy.test.js` 钉住。
+首页月份标题层级：`.month-title` 走 `--font-size-month-title`（44rpx）与 `--font-weight-title`（700），使用 `--letter-spacing-display` 并以等值 `text-indent` 补偿居中尾白；明显高于各页共享导航标题 `.nav-title`（`--font-size-title` 38rpx / 同一标题字重 700）。层级差来自字号（≥6rpx），不来自更重的 800。`line-height: var(--line-height-title)`（1.2）+ `white-space: nowrap` 保证单行完整显示，最坏文案「2026年12月」在 750rpx 视口的月份导航行内不溢出。年月数字走 `tabular-nums`；issue #247 将月份胶囊 `.month-title-trigger` 与骨架同形胶囊的最小宽同步调为 344rpx；issue #266 加入 `--letter-spacing-display` 及等值居中补偿后同步调至 352rpx，兜住含描边约 350.1rpx 的最坏文案，仍小于导航行约 473.3rpx 的可用宽；1 位数和 2 位数月份同宽，翻月、换年时胶囊不变宽、不挪位，文字在胶囊内居中（issue #164）。层级差、单行、宽度账本与稳宽由 `tests/typography-hierarchy.test.js` 钉住。
 
 caption 家族行高策略：流式说明文字（`.form-hint`、`.symptom-group-label`、`.settings-group-title`、`.room-code-label`）统一 `line-height: var(--line-height-assist)`（1.4）与 `font-weight: var(--font-weight-assist)`（500）；单行控件（`.copy-btn`）以盒高居中——盒高 88rpx flex 居中，不另设文字行高。图例符号复用日历格标记类，不另设 `.legend-symbol`。六族统一走 `--font-size-caption`（26rpx），由 `tests/typography-hierarchy.test.js` 钉住。
 
@@ -279,7 +279,7 @@ frontmatter 的 `typography` 与下表同值，写成 375px 设计宽下的名�
 | `--font-size-calendar-date-compact` | `30rpx` | 日历日期（compact 密度） | `.calendar-density-compact .day-num` |
 | `--font-size-calendar-micro` | `24rpx` | 日历格内微字（下限） | `.day-lunar`、`.memory-mark`、清爽密度的 `.day-tag` |
 
-issue #247 起 button 并入 body（30rpx），input 并入 body-lg（34rpx），不再保留 `--font-size-button` / `--font-size-input`；sheet 确认、复制等小操作文字仍按正文/caption 角色。glyph/display 例外清单（`.nav-back` 46rpx、`.sheet-close` 46rpx、箭头 42/32rpx、emoji 图标、`.cycle-num` 44rpx、`.hero-title` 48rpx、`.code-input` 40rpx 等）是收敛过程中登记的单点，issue #164 逐项复核后保留：字形随容器几何，展示型大字不是阅读文字。新增例外必须先登记。房间码自 #232 起不再是 display 例外，两页共用 `--font-size-title`。
+issue #247 起 button 并入 body（30rpx），input 并入 body-lg（34rpx），不再保留 `--font-size-button` / `--font-size-input`；sheet 确认、复制等小操作文字仍按正文/caption 角色。glyph/display 例外清单仅保留心形等装饰字形、`.cycle-num` 44rpx、`.hero-title` 48rpx 与 `.code-input` 40rpx 等单点；issue #266 的折角、叉号与加号全部改走共享矢量尺寸，不再登记裸字符字号例外。展示型大字不是阅读文字，新增例外必须先登记。房间码自 #232 起不再是 display 例外，两页共用 `--font-size-title`。
 
 issue #247 静态几何判定后保留旧值的例外如下；它们不扩成新的角色 token，也不改变日历格内字号：
 
@@ -292,7 +292,7 @@ issue #247 静态几何判定后保留旧值的例外如下；它们不扩成新
 
 ### 共享文字字重、行高与字距（issue #62）
 
-字号仍只来自上一节的 `--font-size-*`。字重、阅读行高和字距的数值只写在 `app.wxss` 下列 token；页面引用 `var(--…)`，不另写 400/500/600/700 或同义字距。文字角色不保留 800。无单位行高只能是下表三档，不写 1.25 这类近似值；rpx 盒高行高（按钮、输入框、日历格槽位）和图形符号的 `1` 不算阅读行高（issue #164）。
+字号仍只来自上一节的 `--font-size-*`。字重、阅读行高和字距的数值只写在 `app.wxss` 下列 token；页面引用 `var(--…)`，不另写 400/500/600/700 或同义字距。文字角色不保留 800。无单位行高只能是下表四档，不写 1.25 这类近似值；rpx 盒高行高（按钮、输入框、日历格槽位）和图形符号的 `1` 不算阅读行高（issue #164）。
 
 | token | 值 | 角色 |
 |---|---|---|
@@ -301,9 +301,12 @@ issue #247 静态几何判定后保留旧值的例外如下；它们不扩成新
 | `--font-weight-control` | `600` | 普通日历日期、主按钮与其他关键控件 |
 | `--font-weight-title` | `700` | 月份标题、导航/页面标题 |
 | `--line-height-body` | `1.6` | 流式正文 |
-| `--line-height-assist` | `1.4` | 流式辅助说明 |
-| `--line-height-title` | `1.2` | 标题与单行标签：月份、弹层、使用说明和绑定页标题，同步胶囊文字，弹层动作与图例的标题行；记录入口折成两行的标签（issue #159） |
+| `--line-height-assist` | `1.4` | 流式辅助说明、单行列表日期与表单选择框 |
+| `--line-height-title` | `1.2` | 标题与单行标签：月份、使用说明和绑定页标题，同步胶囊文字，弹层动作与图例的标题行 |
+| `--line-height-snug` | `1.32` | 首页双行快捷文案与多行弹层标题（issue #266） |
 | `--letter-spacing-assist` | `1rpx` | 有水平余量的流式辅助说明 |
+| `--letter-spacing-display` | `1rpx` | 大号粗体标题防粘连字距；居中标题以等值 text-indent 补偿尾白 |
+| `--letter-spacing-control-sm` | `0.5rpx` | 小号加粗分段控件微字距；居中控件以等值 text-indent 补偿尾白 |
 | `--letter-spacing-room-code` | `6rpx` | 房间码展示串，逐字核对，不是辅助说明字距 |
 | `--letter-spacing-code-input` | `12rpx` | 6 位房间码输入，逐字槽位，不是辅助说明字距 |
 
@@ -317,7 +320,7 @@ issue #247 静态几何判定后保留旧值的例外如下；它们不扩成新
 
 流式辅助说明在有水平余量时使用 `--letter-spacing-assist`。格内农历、节日/调休/预测文字、单字周标题、按钮标签和标题保持自然字距，不靠加字距或缩小字号制造轻盈。胶囊盒高和日历格留白不在本角色表里改。完整密度的格内农历只显示日名，农历初一显示月名（含闰月，如「闰四月」）；完整农历字符串留在日历格无障碍名称和日详情副标题。格内仍单行、不用省略号。清爽密度不显示农历。
 
-字形例外：`.sheet-action-icon`、`.jump-year-step` 是心形或步进箭头，不是阅读文字；经期记录动作的图标不是字形，是图例的单日色带样本（见「借入规则」的图例段）。它们保留字重 800 与既有字号，避免图标观感被文字角色改写。图例样本复用格内的 `.day-tag`、`.predict-mark`、`.memory-mark`、`.day-num` 与 `.period-band`，这些状态字走各自已有的辅助字重，不另设图例符号盒。
+字形例外：`.sheet-action-icon` 的心形保留既有装饰字重，避免被文字角色改写；步进折角、关闭叉号与加号自 issue #266 起均为共享矢量，不再是字形例外。经期记录动作的图标不是字形，是图例的单日色带样本（见「借入规则」的图例段）。图例样本复用格内的 `.day-tag`、`.predict-mark`、`.memory-mark`、`.day-num` 与 `.period-band`，这些状态字走各自已有的辅助字重，不另设图例符号盒。
 
 ## Components
 

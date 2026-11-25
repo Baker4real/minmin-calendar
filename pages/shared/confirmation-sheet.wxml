@@ -10,7 +10,9 @@
               <text class="text-pair-title sheet-title">{{sheetTitle}}</text>
               <text wx:if="{{sheetSubtitle}}" class="text-pair-desc sheet-subtitle">{{sheetSubtitle}}</text>
             </view>
-            <view class="sheet-close" bindtap="{{closeHandler}}" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">×</view>
+            <view class="sheet-close" bindtap="{{closeHandler}}" aria-role="button" aria-label="关闭" hover-class="sheet-close-hover">
+              <view class="ui-icon ui-icon-close ui-icon-36" aria-hidden="true"></view>
+            </view>
           </view>
         </view>
         <view class="sheet-body">
@@ -55,7 +57,9 @@
         bindtap="shiftJumpYear"
         aria-role="button"
         aria-label="上一年"
-        aria-disabled="{{jumpYearAtMin}}" hover-class="jump-year-step-hover">‹</view>
+        aria-disabled="{{jumpYearAtMin}}" hover-class="jump-year-step-hover">
+        <view class="ui-icon ui-icon-left ui-icon-28 ui-icon-circle" aria-hidden="true"></view>
+      </view>
       <text class="jump-year-value">{{jumpYear}}年</text>
       <view
         class="jump-year-step {{jumpYearAtMax ? 'disabled' : ''}}"
@@ -63,7 +67,9 @@
         bindtap="shiftJumpYear"
         aria-role="button"
         aria-label="下一年"
-        aria-disabled="{{jumpYearAtMax}}" hover-class="jump-year-step-hover">›</view>
+        aria-disabled="{{jumpYearAtMax}}" hover-class="jump-year-step-hover">
+        <view class="ui-icon ui-icon-right ui-icon-28 ui-icon-circle" aria-hidden="true"></view>
+      </view>
     </view>
   </view>
 
@@ -119,7 +125,7 @@
         <text wx:if="{{item.note}}" class="text-pair-desc detail-meta detail-note">{{item.note}}</text>
         <text wx:if="{{item.authorLabel}}" class="text-pair-desc detail-meta">{{item.authorLabel}}</text>
       </view>
-      <text class="detail-arrow" aria-hidden="true">›</text>
+      <view class="ui-icon ui-icon-right ui-icon-24 detail-arrow" aria-hidden="true"></view>
     </view>
 
     <view
@@ -139,7 +145,7 @@
         <text class="text-pair-desc detail-main">{{item.note}}</text>
         <text wx:if="{{item.authorLabel}}" class="text-pair-desc detail-meta">{{item.authorLabel}}</text>
       </view>
-      <text class="detail-arrow" aria-hidden="true">›</text>
+      <view class="ui-icon ui-icon-right ui-icon-24 detail-arrow" aria-hidden="true"></view>
     </view>
   </view>
 
@@ -161,7 +167,7 @@
       <view class="sheet-action-copy">
         <text class="sheet-action-title">{{item.label}}</text>
       </view>
-      <text wx:if="{{daySheetMode != 'detail'}}" class="sheet-action-arrow">›</text>
+      <view wx:if="{{daySheetMode != 'detail'}}" class="ui-icon ui-icon-right ui-icon-24 sheet-action-arrow" aria-hidden="true"></view>
     </view>
   </view>
 </template>

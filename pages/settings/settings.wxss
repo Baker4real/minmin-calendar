@@ -66,7 +66,6 @@ button.settings-share-invite {
   color: rgba(255,255,255,0.85);
 }
 .menu-arrow {
-  font-size: 32rpx;
   color: var(--text-secondary);
 }
 .settings-version {
@@ -105,7 +104,7 @@ button.settings-share-invite {
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.85);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 
 /* 导航标题使用 pages/shared/nav-bar.wxss 的中性白。 */
@@ -162,11 +161,14 @@ button.settings-share-invite {
 }
 .room-member-badge {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 4rpx 12rpx;
   border-radius: var(--radius-full);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-assist);
-  line-height: var(--line-height-assist);
+  line-height: 1;
 }
 .room-member-badge.paired {
   color: var(--aurora-pink);

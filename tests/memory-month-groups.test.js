@@ -19,13 +19,13 @@ test('memory month rows read out the date, a short note and the paired author', 
     { _id: 'a3', date: '2026-10-02', note: longNote, authorLabel: '我记的' },
     { _id: 'nye', date: '2025-12-31', note: '' }
   ], { today }))
-  assert.equal(paired.a1.ariaLabel, '编辑欢乐时光，10月8日，海边散步，我记的')
-  assert.equal(paired.a2.ariaLabel, '编辑欢乐时光，10月8日，TA 记的')
-  assert.equal(paired.a3.ariaLabel, '编辑欢乐时光，10月2日，第一次一起做饭 结果把锅烧糊了只好叫外卖…，我记的')
-  assert.equal(paired.nye.ariaLabel, '编辑欢乐时光，2025年12月31日')
+  assert.equal(paired.a1.ariaLabel, '编辑欢乐时光，10月8⁠日，海边散步，我记的')
+  assert.equal(paired.a2.ariaLabel, '编辑欢乐时光，10月8⁠日，TA 记的')
+  assert.equal(paired.a3.ariaLabel, '编辑欢乐时光，10月2⁠日，第一次一起做饭 结果把锅烧糊了只好叫外卖…，我记的')
+  assert.equal(paired.nye.ariaLabel, '编辑欢乐时光，2025年12月31⁠日')
   assert.deepEqual(
     [paired.a1.dayLabel, paired.a1.note, paired.a1.authorLabel],
-    ['10月8日', '海边散步', '我记的']
+    ['10月8⁠日', '海边散步', '我记的']
   )
   assert.equal(paired.a3.note, longNote)
 
@@ -35,8 +35,8 @@ test('memory month rows read out the date, a short note and the paired author', 
     { _id: 'a2', date: '2026-10-08', note: '  ' },
     { _id: 'a3', date: '2026-10-02', note: longNote }
   ], { today }))
-  assert.equal(unpaired.a1.ariaLabel, '编辑欢乐时光，10月8日，海边散步')
-  assert.equal(unpaired.a2.ariaLabel, '编辑欢乐时光，10月8日')
-  assert.equal(unpaired.a3.ariaLabel, '编辑欢乐时光，10月2日，第一次一起做饭 结果把锅烧糊了只好叫外卖…')
+  assert.equal(unpaired.a1.ariaLabel, '编辑欢乐时光，10月8⁠日，海边散步')
+  assert.equal(unpaired.a2.ariaLabel, '编辑欢乐时光，10月8⁠日')
+  assert.equal(unpaired.a3.ariaLabel, '编辑欢乐时光，10月2⁠日，第一次一起做饭 结果把锅烧糊了只好叫外卖…')
   assert.equal(unpaired.a1.authorLabel, undefined)
 })

@@ -5,7 +5,7 @@
     </view>
     <view wx:elif="{{variant === 'back'}}" class="nav-back" hover-class="nav-back-hover" bindtap="goBack" aria-role="button" aria-label="返回">
       <view class="nav-back-surface"></view>
-      <text class="nav-back-icon">‹</text>
+      <view class="ui-icon ui-icon-left ui-icon-36 ui-icon-circle nav-back-icon" aria-hidden="true"></view>
     </view>
     <view wx:else class="nav-placeholder"></view>
     <!-- The home sync pill replaces the title only while it is mounted. -->

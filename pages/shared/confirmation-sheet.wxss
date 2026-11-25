@@ -129,10 +129,11 @@
   min-width: 0;
   font-size: var(--font-size-title);
   font-weight: var(--font-weight-title);
-  line-height: var(--line-height-title);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-display);
   color: rgba(255,255,255,0.92);
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 .sheet-subtitle {
   min-width: 0;
@@ -142,7 +143,7 @@
   letter-spacing: var(--letter-spacing-assist);
   font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.72);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .sheet-close {
   flex: 0 0 auto;
@@ -155,7 +156,6 @@
   line-height: 1;
   text-align: center;
   border-radius: var(--radius-circle);
-  font-size: 46rpx;
   color: rgba(255,255,255,0.92);
   background: var(--glass-bg);
   border: 1px solid rgba(255,255,255,0.12);
@@ -171,7 +171,7 @@
   margin-bottom: 12rpx;
   font-size: var(--font-size-body-lg);
   font-weight: var(--font-weight-control);
-  line-height: var(--line-height-body);
+  line-height: var(--line-height-assist);
   font-variant-numeric: tabular-nums;
   color: rgba(255,255,255,0.92);
 }
@@ -181,7 +181,7 @@
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: var(--text-secondary);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .confirmation-actions {
   display: flex;

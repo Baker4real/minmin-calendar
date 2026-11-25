@@ -18,19 +18,19 @@ test('buildPredictionExplanation turns prediction math into plain copy', () => {
   assert.deepEqual(insights.buildPredictionExplanation(prediction, [], { today: '2026-08-10' }), {
     available: true,
     title: '预测说明',
-    summary: '预计 8月10日 开始，\n前后 1 天是可能开始的窗口',
+    summary: '预计 8月10⁠日 开始，\n前后 1 天是可能开始的窗口',
     lines: [
-      '参考最近 5 次有效周期',
-      '平均周期 28 天，平均持续 5 天',
+      '参考最近 5 次有效周期',
+      '平均周期 28 天，平均持续 5 天',
       '最近几次很规律，估得比较准',
-      '已忽略 1 次波动较大的记录',
+      '已忽略 1 次波动较大的记录',
       '根据记录估算，不是医疗建议'
     ],
     lineItems: [
-      { key: 'prediction:0', text: '参考最近 5 次有效周期' },
-      { key: 'prediction:1', text: '平均周期 28 天，平均持续 5 天' },
+      { key: 'prediction:0', text: '参考最近 5 次有效周期' },
+      { key: 'prediction:1', text: '平均周期 28 天，平均持续 5 天' },
       { key: 'prediction:2', text: '最近几次很规律，估得比较准' },
-      { key: 'prediction:3', text: '已忽略 1 次波动较大的记录' },
+      { key: 'prediction:3', text: '已忽略 1 次波动较大的记录' },
       { key: 'prediction:4', text: '根据记录估算，不是医疗建议' }
     ]
   })
@@ -50,7 +50,7 @@ test('buildPredictionExplanation uses the three-sentence delayed version for bot
     assert.deepEqual(insights.buildPredictionExplanation(prediction, periods, { today }), {
       available: true,
       title: '预测说明',
-      summary: `原本估在 8月10日 前后 1 天，现在已经过了 ${lateDays} 天`,
+      summary: `原本估在 8月10⁠日 前后 1 天，现在已经过了 ${lateDays} 天`,
       lines: [
         '已经开始了就记经期；漏记了，在日历上点那一天补记',
         '根据记录估算，不是医疗建议'
@@ -69,7 +69,7 @@ test('buildPredictionExplanation puts the overdue ongoing-period sentence at the
   const ongoing = { _id: 'live', startDate: '2026-06-20', status: 'ongoing' }
   const withoutPrediction = insights.buildPredictionExplanation(null, [ongoing], { today })
   assert.equal(withoutPrediction.summary, [
-    '这次已经 7 天，比预期的 5 天多；结束了就点「记结束」',
+    '这次已经 7 天，比预期的 5 天多；结束了就点「记结束」',
     '记两次经期后就能估下次'
   ].join('\n'))
 
@@ -80,7 +80,7 @@ test('buildPredictionExplanation puts the overdue ongoing-period sentence at the
   ]
   const prediction = cycle.predictNextPeriod(periods, { today })
   const withPrediction = insights.buildPredictionExplanation(prediction, periods, { today })
-  assert.equal(withPrediction.summary.split('\n')[0], '这次已经 7 天，比预期的 5 天多；结束了就点「记结束」')
+  assert.equal(withPrediction.summary.split('\n')[0], '这次已经 7 天，比预期的 5 天多；结束了就点「记结束」')
   assert.equal(withPrediction.summary.split('\n').length, 3)
 })
 
@@ -94,7 +94,7 @@ test('prediction explanation uses the shared date and spoken confidence, not a c
 
   const explanation = insights.buildPredictionExplanation(prediction, [], { today: '2026-04-23' })
 
-  assert.equal(explanation.summary, `预计 ${prediction.nextDisplay} 开始，\n前后 1 天是可能开始的窗口`)
+  assert.equal(explanation.summary, `预计 ${prediction.nextDisplay} 开始，\n前后 1 天是可能开始的窗口`)
   assert.equal(explanation.summary.includes('08月'), false)
   assert.equal(explanation.lines.includes('已经有几次记录，大致可以参考'), true)
   assert.equal(explanation.lines.some(line => line.startsWith('置信度：')), false)
@@ -102,17 +102,17 @@ test('prediction explanation uses the shared date and spoken confidence, not a c
 })
 
 test('prediction summary names the possible start window instead of promising it is normal', () => {
-  // 只有一个有效周期：窗口是预计开始日前后 3 天（7月24日–7月30日）
+  // 只有一个有效周期：窗口是预计开始日前后 3 天（7月24⁠日–7月30⁠日）
   const prediction = cycle.predictNextPeriod([
     period('2026-06-01', '2026-06-05'),
     period('2026-06-29', '2026-07-03')
   ], { today: '2026-07-10' })
-  assert.equal(prediction.rangeDisplay, '7月24日–7月30日')
+  assert.equal(prediction.rangeDisplay, '7月24⁠日–7月30⁠日')
 
   const explanation = insights.buildPredictionExplanation(prediction, [], { today: '2026-07-10' })
 
   // 首句只描述可能开始的窗口，天数与预测窗口一致；不做「正常」或健康保证
-  assert.equal(explanation.summary, '预计 7月27日 开始，\n前后 3 天是可能开始的窗口')
+  assert.equal(explanation.summary, '预计 7月27⁠日 开始，\n前后 3 天是可能开始的窗口')
   assert.doesNotMatch(explanation.summary, /正常|健康/)
   // 非医疗建议声明继续留在说明末尾
   assert.equal(explanation.lines.at(-1), '根据记录估算，不是医疗建议')
@@ -147,23 +147,23 @@ test('buildMonthlyRecap creates a gentle shareable recap with projected highligh
   })
 
   assert.equal(recap.title, '2026年8月小结')
-  assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 5 天')
-  assert.equal(recap.memorySummary, '留下 2 条欢乐时光')
-  assert.equal(recap.predictionSummary, '下次预测 8月8日，区间 8月7日–8月9日，已经有几次记录，大致可以参考')
+  assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 5 天')
+  assert.equal(recap.memorySummary, '留下 2 条欢乐时光')
+  assert.equal(recap.predictionSummary, '下次预测 8月8⁠日，区间 8月7⁠日–8月9⁠日，已经有几次记录，大致可以参考')
   assert.deepEqual(recap.highlights, [
-    '经期：8月9日–8月13日，5天，经量 量多，痛经',
-    '欢乐时光：8月7日，七夕晚餐',
-    '欢乐时光：8月22日，一起看电影'
+    '经期：8月9⁠日–8月13⁠日，5 天，经量 量多，痛经',
+    '欢乐时光：8月7⁠日，七夕晚餐',
+    '欢乐时光：8月22⁠日，一起看电影'
   ])
   assert.deepEqual(recap.highlightItems, [
-    { key: 'recap:0', kind: 'period', text: '经期：8月9日–8月13日，5天，经量 量多，痛经' },
-    { key: 'recap:1', kind: 'memory', text: '欢乐时光：8月7日，七夕晚餐' },
-    { key: 'recap:2', kind: 'memory', text: '欢乐时光：8月22日，一起看电影' }
+    { key: 'recap:0', kind: 'period', text: '经期：8月9⁠日–8月13⁠日，5 天，经量 量多，痛经' },
+    { key: 'recap:1', kind: 'memory', text: '欢乐时光：8月7⁠日，七夕晚餐' },
+    { key: 'recap:2', kind: 'memory', text: '欢乐时光：8月22⁠日，一起看电影' }
   ])
   assert.match(recap.shareText, /2026年8月小结/)
-  assert.match(recap.shareText, /本月记录了 1 次经期，共 5 天/)
-  assert.match(recap.shareText, /留下 2 条欢乐时光/)
-  assert.match(recap.shareText, /下次预测 8月8日，区间 8月7日–8月9日，已经有几次记录，大致可以参考/)
+  assert.match(recap.shareText, /本月记录了 1 次经期，共 5 天/)
+  assert.match(recap.shareText, /留下 2 条欢乐时光/)
+  assert.match(recap.shareText, /下次预测 8月8⁠日，区间 8月7⁠日–8月9⁠日，已经有几次记录，大致可以参考/)
   assert.equal(recap.shareText.includes('（中）'), false)
   assert.deepEqual(recap.shareText.split('\n').slice(-recap.highlights.length), recap.highlights)
   assert.doesNotMatch(JSON.stringify(recap), /置信度/)
@@ -183,9 +183,9 @@ test('buildMonthlyRecap keeps period duration and days in viewed month as two nu
   })
 
   assert.deepEqual(august.highlights, [
-    '经期：8月28日–9月1日，整段 5 天，本月 4 天'
+    '经期：8月28⁠日–9月1⁠日，整段 5 天，本月 4 天'
   ])
-  assert.equal(august.periodSummary, '本月 4 天')
+  assert.equal(august.periodSummary, '本月 4 天')
   assert.equal(august.shareText.includes('本月开始'), false)
   assert.equal(august.shareText.includes('从上月延续'), false)
 })
@@ -204,20 +204,20 @@ test('buildMonthlyRecap states period duration and days in viewed month separate
     periods: [spanning]
   })
 
-  assert.equal(august.periodSummary, '本月 4 天')
+  assert.equal(august.periodSummary, '本月 4 天')
   assert.deepEqual(august.highlights, [
-    '经期：8月28日–9月1日，整段 5 天，本月 4 天'
+    '经期：8月28⁠日–9月1⁠日，整段 5 天，本月 4 天'
   ])
-  assert.equal(september.periodSummary, '本月 1 天')
+  assert.equal(september.periodSummary, '本月 1 天')
   assert.deepEqual(september.highlights, [
-    '经期：8月28日–9月1日，整段 5 天，本月 1 天'
+    '经期：8月28⁠日–9月1⁠日，整段 5 天，本月 1 天'
   ])
-  assert.match(august.shareText, /本月 4 天/)
-  assert.match(august.shareText, /经期：8月28日–9月1日，整段 5 天，本月 4 天/)
-  assert.match(september.shareText, /本月 1 天/)
+  assert.match(august.shareText, /本月 4 天/)
+  assert.match(august.shareText, /经期：8月28⁠日–9月1⁠日，整段 5 天，本月 4 天/)
+  assert.match(september.shareText, /本月 1 天/)
   assert.equal(september.shareText.includes('从上月延续'), false)
   assert.equal(august.shareText.includes('本月开始'), false)
-  assert.doesNotMatch(september.shareText, /本月记录了 1 次经期，共 1 天/)
+  assert.doesNotMatch(september.shareText, /本月记录了 1 次经期，共 1 天/)
 })
 
 test('buildMonthlyRecap counts two periods continued from the previous month', () => {
@@ -230,12 +230,12 @@ test('buildMonthlyRecap counts two periods continued from the previous month', (
     ]
   })
 
-  // #177：9月1日同时被两条覆盖，总数只算一次；各条本月天数仍为 1 与 3。
-  assert.equal(recap.periodSummary, '本月 3 天')
+  // #177：9月1⁠日同时被两条覆盖，总数只算一次；各条本月天数仍为 1 与 3。
+  assert.equal(recap.periodSummary, '本月 3 天')
   assert.equal(recap.shareText.includes('从上月延续'), false)
   assert.deepEqual(recap.highlights, [
-    '经期：8月28日–9月1日，整段 5 天，本月 1 天',
-    '经期：8月30日–9月3日，整段 5 天，本月 3 天'
+    '经期：8月28⁠日–9月1⁠日，整段 5 天，本月 1 天',
+    '经期：8月30⁠日–9月3⁠日，整段 5 天，本月 3 天'
   ])
 })
 
@@ -249,12 +249,12 @@ test('buildMonthlyRecap splits started and continued counts when a month has bot
     ]
   })
 
-  assert.equal(recap.periodSummary, '本月 6 天')
+  assert.equal(recap.periodSummary, '本月 6 天')
   assert.equal(recap.shareText.includes('从上月延续'), false)
   assert.equal(recap.shareText.includes('本月开始'), false)
   assert.deepEqual(recap.highlights, [
-    '经期：8月28日–9月1日，整段 5 天，本月 1 天',
-    '经期：9月20日–9月24日，5天'
+    '经期：8月28⁠日–9月1⁠日，整段 5 天，本月 1 天',
+    '经期：9月20⁠日–9月24⁠日，5 天'
   ])
 })
 
@@ -274,14 +274,14 @@ test('buildMonthlyRecap uses the same started and continued copy across a year b
     today: '2026-10-10'
   })
 
-  assert.equal(december.periodSummary, '本月 4 天')
+  assert.equal(december.periodSummary, '本月 4 天')
   assert.deepEqual(december.highlights, [
-    '经期：12月28日–2027年1月1日，整段 5 天，本月 4 天'
+    '经期：12月28⁠日–2027年1月1⁠日，整段 5 天，本月 4 天'
   ])
-  assert.equal(january.periodSummary, '本月 1 天')
+  assert.equal(january.periodSummary, '本月 1 天')
   assert.equal(january.shareText.includes('从上月延续'), false)
   assert.deepEqual(january.highlights, [
-    '经期：12月28日–2027年1月1日，整段 5 天，本月 1 天'
+    '经期：12月28⁠日–2027年1月1⁠日，整段 5 天，本月 1 天'
   ])
 })
 
@@ -299,7 +299,7 @@ test('buildMonthlyRecap keeps flow and symptoms after spanning duration labels',
   })
 
   assert.deepEqual(recap.highlights, [
-    '经期：8月28日–9月1日，整段 5 天，本月 1 天，经量 量多，痛经'
+    '经期：8月28⁠日–9月1⁠日，整段 5 天，本月 1 天，经量 量多，痛经'
   ])
 })
 
@@ -311,10 +311,10 @@ test('buildMonthlyRecap treats a middle month of a three-month period as continu
     periods: [spanning]
   })
 
-  assert.equal(september.periodSummary, '本月 30 天')
+  assert.equal(september.periodSummary, '本月 30 天')
   assert.equal(september.shareText.includes('从上月延续'), false)
   assert.deepEqual(september.highlights, [
-    '经期：8月28日–10月2日，整段 36 天，本月 30 天'
+    '经期：8月28⁠日–10月2⁠日，整段 36 天，本月 30 天'
   ])
 })
 
@@ -343,11 +343,11 @@ test('buildMonthlyRecap ignores impossible dates before deriving counts and high
     ]
   })
 
-  assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 3 天')
-  assert.equal(recap.memorySummary, '留下 1 条欢乐时光')
+  assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 3 天')
+  assert.equal(recap.memorySummary, '留下 1 条欢乐时光')
   assert.deepEqual(recap.highlights, [
-    '经期：8月20日–8月22日，3天',
-    '欢乐时光：8月21日，有效记忆'
+    '经期：8月20⁠日–8月22⁠日，3 天',
+    '欢乐时光：8月21⁠日，有效记忆'
   ])
   assert.doesNotMatch(recap.shareText, /错误日期/)
 })
@@ -367,13 +367,13 @@ test('buildMonthlyRecap lists every default-labelled memory with its date', () =
   })
 
   assert.equal(recap.periodSummary, '本月暂无经期记录')
-  assert.equal(recap.memorySummary, '留下 5 条欢乐时光')
+  assert.equal(recap.memorySummary, '留下 5 条欢乐时光')
   assert.deepEqual(recap.highlights, [
-    '欢乐时光：6月1日，欢乐时光',
-    '欢乐时光：6月7日，欢乐时光',
-    '欢乐时光：6月13日，欢乐时光',
-    '欢乐时光：6月20日，欢乐时光',
-    '欢乐时光：6月28日，欢乐时光'
+    '欢乐时光：6月1⁠日，欢乐时光',
+    '欢乐时光：6月7⁠日，欢乐时光',
+    '欢乐时光：6月13⁠日，欢乐时光',
+    '欢乐时光：6月20⁠日，欢乐时光',
+    '欢乐时光：6月28⁠日，欢乐时光'
   ])
   assert.equal(recap.shareText.includes('特别日子'), false)
   assert.equal(recap.shareText.includes('欢乐时光；欢乐时光'), false)
@@ -394,11 +394,11 @@ test('buildMonthlyRecap keeps every memory note and default label in input order
   })
 
   assert.deepEqual(recap.highlights, [
-    '欢乐时光：6月1日，散步',
-    '欢乐时光：6月7日，欢乐时光',
-    '欢乐时光：6月13日，看电影',
-    '欢乐时光：6月20日，散步',
-    '欢乐时光：6月28日，欢乐时光'
+    '欢乐时光：6月1⁠日，散步',
+    '欢乐时光：6月7⁠日，欢乐时光',
+    '欢乐时光：6月13⁠日，看电影',
+    '欢乐时光：6月20⁠日，散步',
+    '欢乐时光：6月28⁠日，欢乐时光'
   ])
   assert.equal(recap.shareText.includes('特别日子'), false)
 })
@@ -415,12 +415,12 @@ test('buildMonthlyRecap gives duplicate highlight text unique render keys', () =
   })
 
   assert.deepEqual(recap.highlights, [
-    '经期：8月9日–8月9日，1天',
-    '经期：8月9日–8月9日，1天'
+    '经期：8月9⁠日–8月9⁠日，1 天',
+    '经期：8月9⁠日–8月9⁠日，1 天'
   ])
   assert.deepEqual(recap.highlightItems, [
-    { key: 'recap:0', kind: 'period', text: '经期：8月9日–8月9日，1天' },
-    { key: 'recap:1', kind: 'period', text: '经期：8月9日–8月9日，1天' }
+    { key: 'recap:0', kind: 'period', text: '经期：8月9⁠日–8月9⁠日，1 天' },
+    { key: 'recap:1', kind: 'period', text: '经期：8月9⁠日–8月9⁠日，1 天' }
   ])
 })
 
@@ -441,9 +441,9 @@ test('buildMonthlyRecap states an ongoing period as start-through-today without 
     today: '2026-09-24'
   })
 
-  // 进行中：区间写到今天并说明进行中，只报本月天数，不写「整段 N 天」
-  assert.deepEqual(recap.highlights, ['经期：9月20日–9月24日，进行中，本月 5 天，经量 量多'])
-  assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 5 天')
+  // 进行中：区间写到今天并说明进行中，只报本月天数，不写「整段 N 天」
+  assert.deepEqual(recap.highlights, ['经期：9月20⁠日–9月24⁠日，进行中，本月 5 天，经量 量多'])
+  assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 5 天')
 })
 
 test('buildMonthlyRecap states an unknown-end period as its known start day only', () => {
@@ -459,8 +459,8 @@ test('buildMonthlyRecap states an unknown-end period as its known start day only
   })
 
   // 结束日期不详：只写已知开始日与状态，不发明时长或区间
-  assert.deepEqual(recap.highlights, ['经期：8月12日，结束日期不详'])
-  assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 1 天')
+  assert.deepEqual(recap.highlights, ['经期：8月12⁠日，结束日期不详'])
+  assert.equal(recap.periodSummary, '本月记录了 1 次经期，共 1 天')
 })
 
 test('buildMonthlyRecap keeps completed precision separate from ongoing and unknown-end records', () => {
@@ -479,15 +479,15 @@ test('buildMonthlyRecap keeps completed precision separate from ongoing and unkn
 
   // 同月三种状态各说各的事实：已完成写精确时长，不详只写开始日，进行中只写本月天数
   assert.deepEqual(recap.highlights, [
-    '经期：9月2日–9月6日，5天',
-    '经期：9月10日，结束日期不详',
-    '经期：9月20日–9月24日，进行中，本月 5 天'
+    '经期：9月2⁠日–9月6⁠日，5 天',
+    '经期：9月10⁠日，结束日期不详',
+    '经期：9月20⁠日–9月24⁠日，进行中，本月 5 天'
   ])
-  // 存库的 9 天时长没有从任何未完成记录漏进文案
-  assert.equal(recap.shareText.includes('9天'), false)
-  assert.equal(recap.shareText.includes('9 天'), false)
+  // 存库的 9 天时长没有从任何未完成记录漏进文案
+  assert.equal(recap.shareText.includes('9 天'), false)
+  assert.equal(recap.shareText.includes('9 天'), false)
   assert.equal(recap.highlights.some(line => line.includes('整段')), false)
-  assert.equal(recap.periodSummary, '本月记录了 3 次经期，共 11 天')
+  assert.equal(recap.periodSummary, '本月记录了 3 次经期，共 11 天')
 })
 
 test('prediction explanation states where the predicted duration comes from', () => {
@@ -499,8 +499,8 @@ test('prediction explanation states where the predicted duration comes from', ()
     ]), [], { today: '2026-07-27' }
   )
   assert.deepEqual(defaulted.lines, [
-    '参考最近 1 次有效周期',
-    '平均周期 28 天，经期时长暂无已知记录，先按默认 5 天估',
+    '参考最近 1 次有效周期',
+    '平均周期 28 天，经期时长暂无已知记录，先按默认 5 天估',
     '记录还不多，仅供参考',
     '根据记录估算，不是医疗建议'
   ])

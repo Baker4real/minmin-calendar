@@ -84,7 +84,7 @@ test('one completed load commits both collection changes in a single calendar fr
   })), [{
     periods: ['2026-06-20'],
     memories: ['2026-06-12'],
-    summary: '本月 经期 1 天 · 欢乐时光 1 条'
+    summary: '本月 经期 1 天 · 欢乐时光 1 条'
   }])
 })
 
@@ -310,7 +310,7 @@ for (const failed of ['periods', 'memories']) {
     assertRetry(app, home, failed)
     assert.equal(app.rendered(home).syncStatusText, failed === 'periods' ? '已显示欢乐时光' : '已显示经期数据')
     assert.equal(app.rendered(home).monthSummaryLine, failed === 'periods'
-      ? '本月 经期未同步 · 欢乐时光 1 条' : '本月 经期 1 天 · 欢乐时光未同步')
+      ? '本月 经期未同步 · 欢乐时光 1 条' : '本月 经期 1 天 · 欢乐时光未同步')
     if (failed === 'periods') {
       assert.equal(app.rendered(home).homeStatus.text, '经期未同步，暂不预测')
       await app.dispatch(home, 'openPredictionSheet')
@@ -336,7 +336,7 @@ for (const failed of ['periods', 'memories']) {
     await app.settle()
     assertRetry(app, home, null)
     assertCalendar(app, home, ['2026-06-01'], ['2026-06-02'])
-    assert.equal(app.rendered(home).monthSummaryLine, '本月 经期 1 天 · 欢乐时光 1 条')
+    assert.equal(app.rendered(home).monthSummaryLine, '本月 经期 1 天 · 欢乐时光 1 条')
     assert.equal(app.rendered(home).syncStatusText, '已同步')
   })
 }
@@ -514,7 +514,7 @@ test('a late snapshot cannot resurrect a memory deleted through its day detail; 
   periods.resolve(success([period('p2', '2026-06-20')]))
   await app.settle()
   assertCalendar(app, home, ['2026-06-20'], [])
-  assert.equal(app.rendered(home).monthSummaryLine, '本月 经期 1 天 · 欢乐时光 0 条')
+  assert.equal(app.rendered(home).monthSummaryLine, '本月 经期 1 天 · 欢乐时光 0 条')
   await app.advance(60000)
   assert.equal(app.rendered(home).syncStatusVisible, true)
   assert.equal(app.rendered(home).syncStatusText, '已更新，正在同步')
@@ -543,7 +543,7 @@ test('a stale first period snapshot never replaces the locally saved period, and
   const home = app.launch('/pages/index/index')
   await app.settle()
   assert.equal(app.rendered(home).hasRecords, true)
-  assert.equal(app.rendered(home).monthSummaryLine, '本月 经期未同步 · 欢乐时光 0 条')
+  assert.equal(app.rendered(home).monthSummaryLine, '本月 经期未同步 · 欢乐时光 0 条')
   // A new period waits for the shared records to try the unread periods once, so it is saved before
   // the first snapshot starts; editing it (no wait) is the local change while that snapshot is on its way.
   const saved = period('saved', '2026-06-20')
@@ -575,7 +575,7 @@ test('a stale first period snapshot never replaces the locally saved period, and
   assert.ok(calendars.every(patch => patch.days.some(day => day.date === '2026-06-20' && day.isPeriod)), 'the stale snapshot never replaces the saved period')
   assert.equal(listCalls(app).length, lists + 2, 'the set-aside periods are read again within the same load')
   assertCalendar(app, home, ['2026-06-01', '2026-06-20'], [])
-  assert.equal(app.rendered(home).monthSummaryLine, '本月 经期 2 天 · 欢乐时光 0 条')
+  assert.equal(app.rendered(home).monthSummaryLine, '本月 经期 2 天 · 欢乐时光 0 条')
   assert.equal(app.rendered(home).syncStatusText, '已同步')
 })
 
@@ -599,14 +599,14 @@ test('F2: a locally saved ongoing period stays unsynced until a complete list re
   assert.equal(app.rendered(home).periodQuickAriaLabel, '记结束')
   assert.equal(Object.hasOwn(app.rendered(home), 'ongoingCompletionReminder'), false)
   assert.equal(Object.hasOwn(app.rendered(home), 'cycleReminders'), false)
-  assert.equal(app.rendered(home).monthSummaryLine, '本月 经期未同步 · 欢乐时光 0 条')
+  assert.equal(app.rendered(home).monthSummaryLine, '本月 经期未同步 · 欢乐时光 0 条')
   const today = app.rendered(home).days.find(day => day.date === '2026-06-26')
   assert.equal(today.isPeriod, true)
-  assert.equal(today.ariaLabel, '6月26日 周五 五月十二 今天 经期记录 经期进行中')
+  assert.equal(today.ariaLabel, '6月26⁠日 周五 五月十二 今天 经期记录 经期进行中')
   await app.dispatch(home, 'onDayTap', { currentTarget: { dataset: { date: '2026-06-26' } } })
   await app.settle()
-  assert.equal(app.rendered(home).selectedDateLabel, '6月26日 周五')
-  assert.equal(app.rendered(home).selectedDayDetail.periods[0].range, '6月20日–6月26日（进行中）')
+  assert.equal(app.rendered(home).selectedDateLabel, '6月26⁠日 周五')
+  assert.equal(app.rendered(home).selectedDayDetail.periods[0].range, '6月20⁠日–6月26⁠日（进行中）')
   assert.doesNotMatch(JSON.stringify(app.rendered(home)), /经期第\s*\d+\s*天/)
   app.hide()
   assert.equal(app.storage.ongoingPeriodReminderShown, undefined)
@@ -618,10 +618,10 @@ test('F2: a locally saved ongoing period stays unsynced until a complete list re
   await app.dispatch(home, 'retryRefresh')
   await app.settle()
   const synced = app.rendered(home)
-  assert.equal(synced.homeStatus.text, '经期第 7 天 · 比预期多 2 天')
-  assert.equal(synced.periodQuickLabel, '经期第 7 天 · 记结束')
-  assert.equal(synced.days.find(day => day.date === '2026-06-26').ariaLabel, '6月26日 周五 五月十二 今天 经期第7天 经期进行中')
-  assert.equal(synced.monthSummaryLine, '本月 经期 7 天 · 欢乐时光 0 条')
+  assert.equal(synced.homeStatus.text, '经期第 7 天 · 比预期多 2 天')
+  assert.equal(synced.periodQuickLabel, '经期第 7 天 · 记结束')
+  assert.equal(synced.days.find(day => day.date === '2026-06-26').ariaLabel, '6月26⁠日 周五 五月十二 今天 经期第 7 天 经期进行中')
+  assert.equal(synced.monthSummaryLine, '本月 经期 7 天 · 欢乐时光 0 条')
   assert.equal(Object.hasOwn(synced, 'ongoingCompletionReminder'), false)
   assert.equal(Object.hasOwn(synced, 'cycleReminders'), false)
   assert.equal(app.storage.ongoingPeriodReminderShown, undefined)
@@ -683,8 +683,8 @@ test('a merged save updates the existing ongoing period without duplicating the 
   await app.settle()
   await app.dispatch(home, 'openMonthlyRecap')
   await app.settle()
-  assert.equal(app.rendered(home).monthlyRecap.periodSummary, '本月记录了 1 次经期，共 9 天')
-  assert.equal(app.rendered(home).periodQuickLabel, '经期第 9 天 · 记结束')
+  assert.equal(app.rendered(home).monthlyRecap.periodSummary, '本月记录了 1 次经期，共 9 天')
+  assert.equal(app.rendered(home).periodQuickLabel, '经期第 9 天 · 记结束')
   confirming.resolve(success([ongoing, period('old', '2026-05-01')]))
   await app.settle()
 })

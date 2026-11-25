@@ -30,39 +30,18 @@ const FONT_ROLE_TOKENS = {
 // display = 展示型大数字/大字，单点登记；scale-hold = issue #247 几何账本判定后保留的旧值。
 // 新增例外必须在此登记 file + selector + 当前值，登记即评审；scale-hold 还必须在 DESIGN 写明原因。
 const TYPOGRAPHY_EXCEPTIONS = [
-  { file: 'app.wxss', selector: '.nav-back', kind: 'glyph', value: '46rpx' },
-  { file: 'pages/shared/nav-bar.wxss', selector: '.nav-back', kind: 'glyph', value: '46rpx' },
-  { file: 'pages/index/index.wxss', selector: '.month-title-caret', kind: 'glyph', value: '24rpx' },
-  { file: 'pages/index/index.wxss', selector: '.nav-btn', kind: 'glyph', value: '42rpx' },
   { file: 'pages/index/index.wxss', selector: '.quick-icon', kind: 'glyph', value: '32rpx' },
   { file: 'pages/index/index.wxss', selector: '.no-room-icon', kind: 'glyph', value: '120rpx' },
-  { file: 'pages/index/index.wxss', selector: '.jump-year-step', kind: 'glyph', value: '40rpx' },
-  { file: 'pages/index/index.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
   { file: 'pages/index/index.wxss', selector: '.sheet-action-icon', kind: 'glyph', value: '26rpx' },
-  { file: 'pages/index/index.wxss', selector: '.sheet-action-arrow', kind: 'glyph', value: '42rpx' },
-  { file: 'pages/index/index.wxss', selector: '.home-status-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/index/index.wxss', selector: '.home-status-text', kind: 'scale-hold', value: '32rpx' },
   { file: 'pages/index/index.wxss', selector: '.quick-text', kind: 'scale-hold', value: '28rpx' },
-  { file: 'pages/index/index.wxss', selector: '.detail-arrow', kind: 'glyph', value: '32rpx' },
-  { file: 'pages/period/period.wxss', selector: '.item-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/period/period.wxss', selector: '.cycle-num', kind: 'display', value: '44rpx' },
   // #258：周期概览大数字旁的次要「天」单位，与 44rpx 主数字共享基线。
   { file: 'pages/period/period.wxss', selector: '.cycle-unit', kind: 'display', value: '24rpx' },
   { file: 'pages/period/period.wxss', selector: '.memory-heart', kind: 'glyph', value: '36rpx' },
-  { file: 'pages/period/period.wxss', selector: '.memory-arrow', kind: 'glyph', value: '32rpx' },
-  { file: 'pages/shared/record-form.wxss', selector: '.form-picker-arrow', kind: 'glyph', value: '32rpx' },
-  { file: 'pages/period/edit/edit.wxss', selector: '.form-picker-arrow', kind: 'glyph', value: '32rpx' },
-  { file: 'pages/memory/edit/edit.wxss', selector: '.form-picker-arrow', kind: 'glyph', value: '32rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-icon', kind: 'glyph', value: '120rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-title', kind: 'display', value: '48rpx' },
-  { file: 'pages/bind/bind.wxss', selector: '.code-input', kind: 'display', value: '40rpx' },
-  { file: 'pages/settings/settings.wxss', selector: '.menu-arrow', kind: 'glyph', value: '32rpx' },
-  { file: 'pages/settings/settings.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
-  // #209：共享确认面板的同一枚 ×；@import 展开后的调用页也各登记一次
-  { file: 'pages/shared/confirmation-sheet.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
-  { file: 'pages/period/edit/edit.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
-  { file: 'pages/memory/edit/edit.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' },
-  { file: 'pages/bind/bind.wxss', selector: '.sheet-close', kind: 'glyph', value: '46rpx' }
+  { file: 'pages/bind/bind.wxss', selector: '.code-input', kind: 'display', value: '40rpx' }
 ]
 
 function readAppTokens() {
@@ -172,10 +151,13 @@ const FONT_WEIGHT_ROLE_TOKENS = {
 const LINE_HEIGHT_ROLE_TOKENS = {
   '--line-height-body': '1.6',
   '--line-height-assist': '1.4',
-  '--line-height-title': '1.2'
+  '--line-height-title': '1.2',
+  '--line-height-snug': '1.32'
 }
 const LETTER_SPACING_ROLE_TOKENS = {
   '--letter-spacing-assist': '1rpx',
+  '--letter-spacing-display': '1rpx',
+  '--letter-spacing-control-sm': '0.5rpx',
   '--letter-spacing-room-code': '6rpx',
   '--letter-spacing-code-input': '12rpx'
 }
@@ -270,9 +252,8 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/memory/edit/edit.wxss', '.form-input', 'body']
 ]
 
-// 圆点、心形、步进箭头留在图标槽里，不进文字字重角色，避免改图标观感。
+// 心形留在装饰字形槽里，不进文字字重角色；折角、叉号与加号已改用共享矢量。
 const GLYPH_WEIGHT_HOLDS = [
-  { file: 'pages/index/index.wxss', selector: '.jump-year-step', value: '800' },
   { file: 'pages/index/index.wxss', selector: '.sheet-action-icon', value: '800' }
 ]
 
@@ -306,14 +287,11 @@ const ASSIST_TRACKING = [
 ]
 
 const NATURAL_TRACKING = [
-  ['app.wxss', '.nav-title'],
   ['app.wxss', '.btn-premium'],
-  ['pages/index/index.wxss', '.month-title'],
   ['pages/index/index.wxss', '.week-cell'],
   ['pages/index/index.wxss', '.day-lunar'],
   ['pages/index/index.wxss', '.day-tag'],
   ['pages/index/index.wxss', '.predict-mark'],
-  ['pages/bind/bind.wxss', '.hero-title'],
   ['pages/index/index.wxss', '.jump-year-value']
 ]
 
@@ -556,12 +534,9 @@ test('flowing body copy uses the body line-height role', () => {
 // 标题与单行标签（含会折成两行的短标签）共用标题行高，不再写 1.25 这类近似值（issue #164）。
 const TITLE_LINE_HEIGHT = [
   ['pages/index/index.wxss', '.month-title'],
-  ['pages/index/index.wxss', '.sheet-title'],
   ['pages/index/index.wxss', '.sync-text'],
   ['pages/index/index.wxss', '.sheet-action-title'],
   ['pages/index/index.wxss', '.legend-title'],
-  ['pages/index/index.wxss', '.quick-text'],
-  ['pages/settings/settings.wxss', '.sheet-title'],
   ['pages/bind/bind.wxss', '.hero-title']
 ]
 
@@ -575,15 +550,15 @@ test('titles and single-line labels share the title line-height role', () => {
   }
 })
 
-// 无单位行高只能是三个角色 token；rpx 盒高行高（按钮、输入框、日历格槽位）和图形符号的 1 不是阅读行高。
-test('unitless line-heights are always one of the three role tokens', () => {
+// 无单位行高只能是四个角色 token；rpx 盒高行高（按钮、输入框、日历格槽位）和图形符号的 1 不是阅读行高。
+test('unitless line-heights are always one of the four role tokens', () => {
   const violations = []
   for (const file of listWxssFiles(repoRoot)) {
     const relative = path.relative(repoRoot, file).replaceAll('\\', '/')
     for (const rule of parseWxssRules(readSource(file, 'utf8'))) {
       const lineHeight = rule.decls['line-height']
       if (!lineHeight) continue
-      if (/^var\(--line-height-(body|assist|title)\)$/.test(lineHeight)) continue
+      if (/^var\(--line-height-(body|assist|title|snug)\)$/.test(lineHeight)) continue
       if (/^\d+(?:\.\d+)?rpx$/.test(lineHeight) || lineHeight === '1') continue
       violations.push(`${relative} ${rule.selectors.join(', ')}: line-height ${lineHeight} is not a shared role`)
     }

@@ -52,7 +52,7 @@
   background: var(--aurora-gold);
 }
 .sync-pill.syncing .sync-dot {
-  background: #E8909E;
+  background: var(--aurora-pink);
   animation: syncDotPulse 1s ease-in-out infinite;
 }
 .sync-text {
@@ -167,6 +167,8 @@ button.home-share-invite {
   font-size: var(--font-size-month-title);
   font-weight: var(--font-weight-title);
   line-height: var(--line-height-title);
+  letter-spacing: var(--letter-spacing-display);
+  text-indent: var(--letter-spacing-display);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   position: relative;
@@ -176,7 +178,7 @@ button.home-share-invite {
 /* 最小宽度兜住最坏文案「2026年12月」：1 位数和 2 位数月份同宽，切月时胶囊不变宽、不挪位（issue #164） */
 .month-title-trigger {
   min-height: 88rpx;
-  min-width: 344rpx;
+  min-width: 352rpx;
   padding: 16rpx 28rpx;
   display: flex;
   align-items: center;
@@ -195,7 +197,6 @@ button.home-share-invite {
 }
 /* 和月份标题同一玫瑰：按吸顶区 → 月份导航 → 触发钮的实际合成面算，85% 玫瑰只有约 4.2:1（issue #163） */
 .month-title-caret {
-  font-size: 24rpx;
   line-height: 1;
   color: var(--aurora-pink);
   transform: translateY(-2rpx);
@@ -209,7 +210,6 @@ button.home-share-invite {
   box-sizing: border-box;
   line-height: 1;
   text-align: center;
-  font-size: 42rpx;
   color: rgba(255,255,255,0.92);
   border-radius: var(--radius-circle);
   background: var(--glass-fallback);
@@ -305,7 +305,7 @@ button.home-share-invite {
   height: 88rpx;
   display: flex;
   align-items: center;
-  gap: 8rpx;
+  gap: 4rpx;
   box-sizing: border-box;
   padding: 0 4rpx;
   border-radius: var(--radius-md);
@@ -338,10 +338,6 @@ button.home-share-invite {
 }
 .home-status-arrow {
   flex: none;
-  width: 16rpx;
-  font-size: 32rpx;
-  line-height: 1;
-  text-align: center;
   color: var(--text-secondary);
 }
 .home-status:active,
@@ -456,7 +452,7 @@ button.home-share-invite {
 }
 .calendar-density-compact .day-tag {
   height: 34rpx;
-  line-height: 34rpx;
+  line-height: 1;
   padding: 0 8rpx;
   font-size: var(--font-size-calendar-micro);
 }
@@ -603,7 +599,10 @@ button.home-share-invite {
 }
 .day-tag {
   height: 38rpx;
-  line-height: 38rpx;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   padding: 0 10rpx;
   border-radius: var(--radius-full);
   box-sizing: border-box;
@@ -736,7 +735,7 @@ button.home-share-invite {
 /* Predict Mark – Gold */
 .predict-mark {
   box-sizing: border-box;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   align-self: flex-start;
@@ -850,7 +849,7 @@ button.home-share-invite {
   min-height: 104rpx;
   box-sizing: border-box;
   gap: 12rpx;
-  padding: 14rpx 24rpx;
+  padding: 12rpx 24rpx;
   background: var(--aurora-pink);
   color: var(--text-on-accent);
   border-radius: var(--radius-card);
@@ -882,7 +881,7 @@ button.home-share-invite {
 .quick-text {
   font-size: 28rpx;
   font-weight: var(--font-weight-control);
-  line-height: var(--line-height-title);
+  line-height: var(--line-height-snug);
   word-break: keep-all;
   color: var(--text-on-accent);
 }
@@ -930,6 +929,7 @@ button.home-share-invite {
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
+  text-indent: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
   text-align: center;
 }
@@ -956,6 +956,8 @@ button.home-share-invite {
 .no-room-title {
   font-size: var(--font-size-title);
   font-weight: var(--font-weight-title);
+  letter-spacing: var(--letter-spacing-display);
+  text-indent: var(--letter-spacing-display);
   /* 未绑定/加载失败标题不可点：中性文字色，不用玫瑰（issue #77） */
   color: rgba(255,255,255,0.92);
 }
@@ -1040,8 +1042,6 @@ button.home-share-invite {
   justify-content: center;
   box-sizing: border-box;
   border-radius: var(--radius-full);
-  font-size: 40rpx;
-  font-weight: 800;
   color: rgba(255,255,255,0.85);
   background: rgba(255,255,255,0.075);
   border: 1px solid rgba(255,255,255,0.11);
@@ -1171,8 +1171,8 @@ button.home-share-invite {
   font-weight: var(--font-weight-body);
   color: rgba(255,255,255,0.92);
   line-height: var(--line-height-title);
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 .sheet-action-desc {
   display: block;
@@ -1182,11 +1182,10 @@ button.home-share-invite {
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .sheet-action-arrow {
   flex: 0 0 auto;
-  font-size: 42rpx;
   color: rgba(255,255,255,0.72);
   line-height: 1;
 }
@@ -1214,8 +1213,8 @@ button.home-share-invite {
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.85);
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 .detail-empty-desc {
   min-width: 0;
@@ -1224,7 +1223,7 @@ button.home-share-invite {
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .day-detail-row {
   display: flex;
@@ -1267,8 +1266,8 @@ button.home-share-invite {
   font-weight: var(--font-weight-assist);
   line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.85);
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 .detail-meaning-text {
   min-width: 0;
@@ -1277,13 +1276,13 @@ button.home-share-invite {
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .detail-rail {
   width: 6rpx;
   min-height: 72rpx;
   border-radius: var(--radius-full);
-  background: #E8909E;
+  background: var(--aurora-pink);
   box-shadow: 0 0 16rpx rgba(232,144,158,0.35);
 }
 .memory-detail .detail-rail {
@@ -1300,9 +1299,7 @@ button.home-share-invite {
 .detail-arrow {
   flex: 0 0 auto;
   align-self: center;
-  font-size: 32rpx;
   color: var(--text-secondary);
-  line-height: 1;
 }
 .detail-title {
   min-width: 0;
@@ -1323,7 +1320,7 @@ button.home-share-invite {
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.85);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .detail-meta {
   min-width: 0;
@@ -1332,7 +1329,7 @@ button.home-share-invite {
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .detail-note {
   white-space: nowrap;
@@ -1427,8 +1424,8 @@ button.home-share-invite {
   font-weight: var(--font-weight-body);
   color: rgba(255,255,255,0.85);
   line-height: var(--line-height-title);
-  word-break: break-word;
-  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow-wrap: normal;
 }
 .legend-text {
   min-width: 0;
@@ -1437,7 +1434,7 @@ button.home-share-invite {
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .prediction-summary {
   min-width: 0;
@@ -1445,7 +1442,7 @@ button.home-share-invite {
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.92);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .explain-line {
   min-width: 0;
@@ -1454,7 +1451,7 @@ button.home-share-invite {
   line-height: var(--line-height-assist);
   letter-spacing: var(--letter-spacing-assist);
   color: rgba(255,255,255,0.72);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .recap-overview {
   display: flex;
@@ -1472,7 +1469,7 @@ button.home-share-invite {
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.85);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .recap-main {
   font-size: var(--font-size-body-lg);
@@ -1505,7 +1502,7 @@ button.home-share-invite {
   font-weight: var(--font-weight-body);
   line-height: var(--line-height-body);
   color: rgba(255,255,255,0.72);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 .copy-recap {
   min-height: 88rpx;
@@ -1538,7 +1535,7 @@ button.home-share-invite {
 }
 .skeleton-month-title {
   min-height: 88rpx;
-  min-width: 344rpx;
+  min-width: 352rpx;
   padding: 0 28rpx;
   display: flex;
   align-items: center;

@@ -950,7 +950,7 @@ test('shadow offsets use rpx and preserve registered 1px hairlines', () => {
   assert.match(declsFor('pages/index/index.wxss', '.month-nav')['box-shadow'], /inset 0 1px 0/)
 })
 
-test('sheet body copy and date ranges keep word integrity with anywhere fallback', () => {
+test('sheet body copy and date ranges keep word integrity with normal wrapping', () => {
   const cases = [
     ['pages/index/index.wxss', [
       '.sheet-subtitle', '.sheet-action-desc', '.detail-empty-desc', '.detail-meaning-text',
@@ -964,7 +964,7 @@ test('sheet body copy and date ranges keep word integrity with anywhere fallback
     for (const selector of selectors) {
       const decls = declsFor(relative, selector)
       assert.notEqual(decls['word-break'], 'break-all', `${relative} ${selector} must not split date digits or words`)
-      assert.equal(decls['overflow-wrap'], 'anywhere', `${relative} ${selector} keeps emergency wrapping`)
+      assert.equal(decls['overflow-wrap'], 'normal', `${relative} ${selector} uses word-boundary wrapping`)
     }
   }
 })

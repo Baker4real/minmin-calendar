@@ -176,7 +176,7 @@ test('findRule treats an :active selector and its hover-class as one rule', () =
   assert.deepEqual(hover, active)
 })
 
-// issue #104：未绑定表单域收敛回 Aurora 海军域——tab 条与输入框玻璃面回海军实底回退、
+// issue #104：未绑定表单域收敛回 Aurora 海军域——tab 条与输入框玻璃面回海军实底回退、
 // 聚焦描边回玫瑰；输入仍用等宽数字/逐字槽位/1px 实线描边，#211 为接受含空白粘贴码去掉原始 6 字截断；
 // 选中 tab 是描边玫瑰弱选中（issue #145），不再用主按钮实色填充。
 // 需解绑中间态入口在场（样式跟随 app 级警示红），错误提示保持警示红族形态。
@@ -187,7 +187,7 @@ test('bind unbound form rides the navy Aurora glass while the error strip keeps 
   assert.doesNotMatch(css, /--bind-/, 'the purple-pink pilot tokens must leave the bind page')
   assert.doesNotMatch(css, /\.page::before/, 'the dark-purple canvas override must leave the bind page')
 
-  // #252：tab 条使用共享卡内凹轻玻璃轨道；输入框仍保留自身玻璃面。
+  // #252：tab 条使用共享卡内凹轻玻璃轨道；输入框仍保留自身玻璃面。
   const tabBar = Object.assign({}, ...parseWxssRules(css)
     .filter(rule => rule.selectors.includes('.tab-bar'))
     .map(rule => rule.decls))
@@ -264,7 +264,7 @@ test('join room-code input switches between 2rpx placeholder and 12rpx uppercase
   const input = wxmlOpeningTags(readPageFile('pages/bind/bind.wxml'))
     .find(tag => tag.tag === 'input' && tag.classes.includes('code-input'))
   assert.ok(input)
-  assert.equal(input.attrs.placeholder, '输入6位码')
+  assert.equal(input.attrs.placeholder, '输入 6 位码')
   const classes = () => renderWxmlClasses(input.attrs.class, page.data)
   assert.equal(classes().includes('code-input-empty'), true)
   assert.equal(classes().includes('code-input-filled'), false)
@@ -1132,7 +1132,7 @@ function findRule(css, selector) {
 
 test('bind page reports restored records only after both collections load successfully', async (t) => {
   for (const [label, periods, memories, notice] of [
-    ['restored', { code: 0, data: [{ _id: 'p1' }, { _id: 'p2' }] }, { code: 0, data: [{ _id: 'm1' }] }, '已恢复原来的房间和 3 条记录'],
+    ['restored', { code: 0, data: [{ _id: 'p1' }, { _id: 'p2' }] }, { code: 0, data: [{ _id: 'm1' }] }, '已恢复原来的房间和 3 条记录'],
     ['empty', { code: 0, data: [] }, { code: 0, data: [] }, ''],
     ['incomplete', new Error('network down'), { code: 0, data: [{ _id: 'm1' }] }, '']
   ]) {
@@ -1211,7 +1211,7 @@ test('restored room notice reads periods and memories in parallel without delayi
   const frames = page.setDataCalls.slice(start)
   assert.equal(frames.length, 3)
   assert.equal(frames[1].loading, false)
-  assert.deepEqual(frames[2], { restoredNotice: '已恢复原来的房间和 3 条记录' })
+  assert.deepEqual(frames[2], { restoredNotice: '已恢复原来的房间和 3 条记录' })
 })
 
 // Scenario data programs only cloud responses and platform state; all pages and modules are real.

@@ -63,7 +63,10 @@
         </view>
       </view>
 
-      <view class="btn-premium button-primary" bindtap="addPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-class="btn-premium-hover">{{periodQuickLabel}}</view>
+      <view class="btn-premium button-primary" bindtap="addPeriod" aria-role="button" aria-label="{{periodQuickAriaLabel}}" hover-class="btn-premium-hover">
+        <view wx:if="{{periodQuickMode === 'add'}}" class="ui-icon ui-icon-plus ui-icon-28" aria-hidden="true"></view>
+        <text>{{periodQuickLabel}}</text>
+      </view>
 
       <!-- 未同步（从未读取成功）：重试是可识别的操作，不是与空列表一样的安静说明；
            本机已保存、还没同步的记录照常列在它下面（#194） -->
@@ -82,7 +85,7 @@
             <view class="month-header" bindtap="togglePeriodMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-class="month-header-hover">
               <view class="month-header-text">
                 <text>{{group.title}}</text>
-                <text wx:if="{{!group.expanded}}" class="month-count" aria-hidden="true">· {{group.count}} 条</text>
+                <text wx:if="{{!group.expanded}}" class="month-count" aria-hidden="true">· {{group.count}} 条</text>
               </view>
               <text class="month-toggle">{{group.toggleLabel}}</text>
             </view>
@@ -101,7 +104,7 @@
                 <view class="item-right">
                   <text wx:if="{{item.status === 'known-end'}}" class="item-duration">{{item.durationText}}</text>
                   <text wx:else class="item-duration ongoing">{{item.durationText}}</text>
-                  <text class="item-arrow">›</text>
+                  <view class="ui-icon ui-icon-right ui-icon-24 item-arrow" aria-hidden="true"></view>
                 </view>
               </view>
             </block>
@@ -131,7 +134,10 @@
     </view>
 
     <view wx:else>
-      <view class="btn-premium button-primary" bindtap="addMemory" aria-role="button" aria-label="记欢乐时光" hover-class="btn-premium-hover">＋ 记欢乐时光</view>
+      <view class="btn-premium button-primary" bindtap="addMemory" aria-role="button" aria-label="记欢乐时光" hover-class="btn-premium-hover">
+        <view class="ui-icon ui-icon-plus ui-icon-28" aria-hidden="true"></view>
+        <text>记欢乐时光</text>
+      </view>
 
       <!-- 未同步（从未读取成功）：重试是可识别的操作，不是与空列表一样的安静说明；
            本机已保存、还没同步的记录照常列在它下面（#194） -->
@@ -160,7 +166,7 @@
                   <view wx:if="{{item.note}}" class="memory-note">{{item.note}}</view>
                 </view>
               </view>
-              <view class="memory-arrow">›</view>
+              <view class="ui-icon ui-icon-right ui-icon-24 memory-arrow" aria-hidden="true"></view>
             </view>
           </block>
         </view>
@@ -168,7 +174,7 @@
 
       <!-- 空态断言句只在确认没有失败时出现，与经期列表的失败语境规则一致 -->
       <view wx:elif="{{memoryCount === 0 && !memoryLoading && !memoryLoadFailed}}" class="empty-state record-empty">
-        <text>想记的那天点「＋ 记欢乐时光」，写一句就留在日历上</text>
+        <text>想记的那天点「记欢乐时光」，写一句就留在日历上</text>
       </view>
 
       <!-- 已成功加载过再失败：保留上次列表，重试留在列表区域；和经期段同一条重试行（issue #166） -->

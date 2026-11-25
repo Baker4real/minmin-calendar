@@ -114,7 +114,7 @@ function buildHomeCalendarState({
   }
   if (!memoriesSynced) monthlyRecap.memorySummary = '本月欢乐时光未同步'
   if (!periodsSynced || !memoriesSynced) {
-    monthlyRecap.summaryLine = `本月 ${periodsSynced ? `经期 ${monthlyRecap.periodDays} 天` : '经期未同步'} · ${memoriesSynced ? `欢乐时光 ${monthlyRecap.memoryCount} 条` : '欢乐时光未同步'}`
+    monthlyRecap.summaryLine = `本月 ${periodsSynced ? `经期 ${util.formatQuantity(monthlyRecap.periodDays, '天')}` : '经期未同步'} · ${memoriesSynced ? `欢乐时光 ${util.formatQuantity(monthlyRecap.memoryCount, '条')}` : '欢乐时光未同步'}`
     monthlyRecap.shareText = [monthlyRecap.title, monthlyRecap.periodSummary, monthlyRecap.memorySummary,
       monthlyRecap.predictionSummary, ...monthlyRecap.highlights].filter(Boolean).join('\n')
   }
@@ -530,7 +530,7 @@ function buildDayAriaLabel(day, today) {
       return
     }
     if (meaning.key === 'period') {
-      parts.push(day.periodDayCount ? `经期第${day.periodDayCount}天` : '经期记录')
+      parts.push(day.periodDayCount ? `经期第 ${util.formatQuantity(day.periodDayCount, '天')}` : '经期记录')
       if (day.isOngoingPeriod) parts.push(DAY_ARIA_MEANING_TEXT['period-ongoing'])
       else if (day.isUnknownEndPeriod) parts.push(DAY_ARIA_MEANING_TEXT['period-unknown-end'])
       return

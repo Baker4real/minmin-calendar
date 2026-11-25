@@ -2,7 +2,7 @@
   <text class="form-label">{{label}}</text>
   <view class="form-picker form-control{{saving ? ' disabled' : ''}}" hover-class="form-picker-hover" bindtap="{{tapHandler}}" aria-role="button" aria-disabled="{{saving}}" aria-label="{{ariaLabel}}{{error ? '，' + error : ''}}">
     <text class="{{value ? '' : 'input-placeholder'}}">{{value ? displayValue : placeholder}}</text>
-    <text class="form-picker-arrow">›</text>
+    <view class="ui-icon ui-icon-right ui-icon-24 form-picker-arrow" aria-hidden="true"></view>
   </view>
   <text wx:if="{{error}}" class="field-error" aria-role="alert">{{error}}</text>
 </template>

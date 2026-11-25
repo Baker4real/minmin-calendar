@@ -73,11 +73,13 @@ function monthNavAvailableRpx(tokens) {
 function worstMonthTitleRpx(tokens) {
   const monthTitle = ruleDecls(INDEX_WXSS, '.month-title')
   const fontSize = resolveRpx(monthTitle, 'font-size', tokens, '.month-title')
-  const caretSize = resolveRpx(ruleDecls(INDEX_WXSS, '.month-title-caret'), 'font-size', tokens, '.month-title-caret')
+  const caretSize = resolveRpx(ruleDecls('pages/shared/vector-icons.wxss', '.ui-icon-24'), 'width', tokens, '.ui-icon-24')
+  const tracking = resolveRpx(monthTitle, 'letter-spacing', tokens, '.month-title')
+  const indent = resolveRpx(monthTitle, 'text-indent', tokens, '.month-title')
   const trigger = ruleDecls(INDEX_WXSS, '.month-title-trigger')
   const padX = horizontalPaddingRpx(trigger, '.month-title-trigger')
   const gap = resolveRpx(trigger, 'gap', tokens, '.month-title-trigger')
-  return 6 * 0.6 * fontSize + 2 * fontSize + gap + caretSize + 2 * padX
+  return 6 * 0.6 * fontSize + 2 * fontSize + 8 * tracking + indent + gap + caretSize + 2 * padX
 }
 
 test('home month title sits one level above the shared nav title', () => {
@@ -105,8 +107,10 @@ test('home month title sits one level above the shared nav title', () => {
   assert.equal(navTitle['font-weight'], 'var(--font-weight-title)')
   assert.equal(monthTitle['line-height'], 'var(--line-height-title)')
   assert.equal(tokens['--line-height-title'], '1.2')
-  assert.equal(monthTitle['letter-spacing'], undefined, 'month title keeps natural CJK tracking')
-  assert.equal(navTitle['letter-spacing'], undefined, 'nav title keeps natural CJK tracking')
+  assert.equal(monthTitle['letter-spacing'], 'var(--letter-spacing-display)')
+  assert.equal(navTitle['letter-spacing'], 'var(--letter-spacing-display)')
+  assert.equal(monthTitle['text-indent'], monthTitle['letter-spacing'], 'centered month title compensates trailing tracking')
+  assert.equal(navTitle['text-indent'], navTitle['letter-spacing'], 'centered nav title compensates trailing tracking')
 })
 
 test('font role scale stays strictly ordered for reading hierarchy', () => {
@@ -154,7 +158,8 @@ test('month title stays single-line and inside its 88rpx trigger', () => {
 test('month title worst-case CJK label fits the month-nav row on a 750rpx viewport', () => {
   const tokens = readAppTokens()
   const monthTitle = ruleDecls(INDEX_WXSS, '.month-title')
-  assert.equal(monthTitle['letter-spacing'], undefined, 'month title must not add tracking')
+  assert.equal(monthTitle['letter-spacing'], 'var(--letter-spacing-display)')
+  assert.equal(monthTitle['text-indent'], 'var(--letter-spacing-display)')
   const total = worstMonthTitleRpx(tokens)
   const available = monthNavAvailableRpx(tokens)
   assert.ok(

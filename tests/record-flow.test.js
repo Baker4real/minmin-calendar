@@ -83,7 +83,7 @@ test('period overview columns all stack the label above the number', () => {
 test('collapsed period months show their existing count without repeating it while expanded', () => {
   const periodWxml = readPageFile('pages/period/period.wxml')
   const periodWxss = readPageFile('pages/period/period.wxss')
-  assert.match(periodWxml, /<view class="month-header-text">\s*<text>\{\{group\.title\}\}<\/text>\s*<text wx:if="\{\{!group\.expanded\}\}" class="month-count" aria-hidden="true">· \{\{group\.count\}\} 条<\/text>/)
+  assert.match(periodWxml, /<view class="month-header-text">\s*<text>\{\{group\.title\}\}<\/text>\s*<text wx:if="\{\{!group\.expanded\}\}" class="month-count" aria-hidden="true">· \{\{group\.count\}\} 条<\/text>/)
   const countRule = /\.month-count\s*\{[^}]*\}/.exec(periodWxss)
   assert.ok(countRule, 'the collapsed month count has a secondary text role')
   assert.match(countRule[0], /color:\s*var\(--text-secondary\)/)
@@ -212,7 +212,7 @@ test('record tab memory segment mirrors the standalone memory list state contrac
   // 空列表说明保持安静：没有按钮、不可点；失败期间不显示断言式空态句
   const emptyBlock = /wx:elif="\{\{memoryCount === 0 && !memoryLoading && !memoryLoadFailed\}\}" class="empty-state record-empty">([\s\S]*?)<\/view>/.exec(periodWxml)
   assert.ok(emptyBlock, 'expected the memory segment empty state block')
-  assert.match(emptyBlock[1], /想记的那天点「＋ 记欢乐时光」，写一句就留在日历上/)
+  assert.match(emptyBlock[1], /想记的那天点「记欢乐时光」，写一句就留在日历上/)
   assert.doesNotMatch(emptyBlock[1], /点上面按钮新增/)
   assert.doesNotMatch(emptyBlock[1], /retry-btn|bindtap/)
 

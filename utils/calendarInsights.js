@@ -32,19 +32,19 @@ function buildPredictionExplanation(prediction, periods = [], options = {}) {
     return {
       available: true,
       title: '预测说明',
-      summary: `原本估在 ${prediction.nextDisplay} 前后 ${windowDays(prediction)} 天，现在已经过了 ${lateDays} 天`,
+      summary: `原本估在 ${prediction.nextDisplay} 前后 ${util.formatQuantity(windowDays(prediction), '天')}，现在已经过了 ${util.formatQuantity(lateDays, '天')}`,
       lines,
       lineItems: buildTextItems(lines, 'prediction'),
       periodAction: { label: '记经期' }
     }
   }
 
-  const lines = [`参考最近 ${prediction.usedCycleCount} 次有效周期`]
+  const lines = [`参考最近 ${util.formatQuantity(prediction.usedCycleCount, '次')}有效周期`]
   lines.push(formatDurationLine(prediction))
   lines.push(spokenConfidence(prediction))
 
   if (prediction.ignoredCycleCount > 0) {
-    lines.push(`已忽略 ${prediction.ignoredCycleCount} 次波动较大的记录`)
+    lines.push(`已忽略 ${util.formatQuantity(prediction.ignoredCycleCount, '次')}波动较大的记录`)
   }
 
   lines.push('根据记录估算，不是医疗建议')
@@ -53,7 +53,7 @@ function buildPredictionExplanation(prediction, periods = [], options = {}) {
     available: true,
     title: '预测说明',
     // 窗口从句另起一行（<text> 里的换行即断行）：整句折行时 430px 宽下「口」会单独落在第二行
-    summary: [leadingLine, `预计 ${prediction.nextDisplay} 开始，\n前后 ${windowDays(prediction)} 天是可能开始的窗口`].filter(Boolean).join('\n'),
+    summary: [leadingLine, `预计 ${prediction.nextDisplay} 开始，\n前后 ${util.formatQuantity(windowDays(prediction), '天')}是可能开始的窗口`].filter(Boolean).join('\n'),
     lines,
     lineItems: buildTextItems(lines, 'prediction')
   }
@@ -65,7 +65,7 @@ function buildOverdueLeadingLine(periods, today, status) {
   if (!active || active.status !== 'ongoing') return ''
   const length = cycle.describeKnownPeriodLength({ startDate: active.record.startDate, endDate: today, periods })
   if (!length.exceedsExpected) return ''
-  return `这次已经 ${length.days} 天，比预期的 ${length.expectedDays} 天多；结束了就点「记结束」`
+  return `这次已经 ${util.formatQuantity(length.days, '天')}，比预期的 ${util.formatQuantity(length.expectedDays, '天')}多；结束了就点「记结束」`
 }
 
 function buildMonthlyRecap({
@@ -97,10 +97,10 @@ function buildMonthlyRecap({
 
   const title = `${year}年${month + 1}月小结`
   const periodSummary = formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd, today)
-  const memorySummary = monthMemories.length ? `留下 ${monthMemories.length} 条欢乐时光` : '本月还没有欢乐时光'
+  const memorySummary = monthMemories.length ? `留下 ${util.formatQuantity(monthMemories.length, '条')}欢乐时光` : '本月还没有欢乐时光'
   const predictionSummary = formatPredictionSummary(prediction)
   const shareLines = [title, periodSummary, memorySummary, predictionSummary, ...highlights]
-  const summaryLine = `本月 经期 ${periodDays} 天 · 欢乐时光 ${monthMemories.length} 条`
+  const summaryLine = `本月 经期 ${util.formatQuantity(periodDays, '天')} · 欢乐时光 ${util.formatQuantity(monthMemories.length, '条')}`
 
   return {
     title,
@@ -133,9 +133,9 @@ function formatPredictionSummary(prediction) {
 // 五天默认不冒充已知天数，写明是估计的兜底值
 function formatDurationLine(prediction) {
   if (prediction.durationSource === 'default') {
-    return `平均周期 ${prediction.avgCycle} 天，经期时长暂无已知记录，先按默认 ${prediction.avgDuration} 天估`
+    return `平均周期 ${util.formatQuantity(prediction.avgCycle, '天')}，经期时长暂无已知记录，先按默认 ${util.formatQuantity(prediction.avgDuration, '天')}估`
   }
-  return `平均周期 ${prediction.avgCycle} 天，平均持续 ${prediction.avgDuration} 天`
+  return `平均周期 ${util.formatQuantity(prediction.avgCycle, '天')}，平均持续 ${util.formatQuantity(prediction.avgDuration, '天')}`
 }
 
 function formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd, today) {
@@ -145,10 +145,10 @@ function formatPeriodSummary(monthPeriods, periodDays, monthStart, monthEnd, tod
     const range = normalizePeriodRange(period, today)
     return range && !isPeriodFullyInMonth(range, monthStart, monthEnd)
   })
-  if (!spanning) return `本月记录了 ${monthPeriods.length} 次经期，共 ${periodDays} 天`
+  if (!spanning) return `本月记录了 ${util.formatQuantity(monthPeriods.length, '次')}经期，共 ${util.formatQuantity(periodDays, '天')}`
 
   // 跨月这件事由经期区间本身说明，小结不再另写「从上月延续 / 本月开始」。
-  return `本月 ${periodDays} 天`
+  return `本月 ${util.formatQuantity(periodDays, '天')}`
 }
 
 function formatPeriodHighlight(period, monthStart, monthEnd, today) {
@@ -164,7 +164,7 @@ function formatPeriodHighlight(period, monthStart, monthEnd, today) {
   // 进行中与结束日期不详没有精确经期时长，不写「整段 N 天」；只报本月天数
   if (range.status === 'ongoing') {
     const parts = [`经期：${util.formatDisplayDateRange(range.startDate, range.endDate, { today })}，进行中`]
-    parts.push(`本月 ${getPeriodDaysInMonth(period, monthStart, monthEnd, today)} 天`)
+    parts.push(`本月 ${util.formatQuantity(getPeriodDaysInMonth(period, monthStart, monthEnd, today), '天')}`)
     if (detail.flowLabel) parts.push(`经量 ${detail.flowLabel}`)
     if (detail.symptomText) parts.push(detail.symptomText)
     return parts.join('，')
@@ -179,9 +179,9 @@ function formatPeriodHighlight(period, monthStart, monthEnd, today) {
   const duration = cycle.getPeriodDuration(period)
   const parts = [`经期：${util.formatDisplayDateRange(detail.startDate, detail.endDate, { today })}`]
   if (isPeriodFullyInMonth(range, monthStart, monthEnd)) {
-    parts.push(`${duration}天`)
+    parts.push(util.formatQuantity(duration, '天'))
   } else {
-    parts.push(`整段 ${duration} 天`, `本月 ${getPeriodDaysInMonth(period, monthStart, monthEnd, today)} 天`)
+    parts.push(`整段 ${util.formatQuantity(duration, '天')}`, `本月 ${util.formatQuantity(getPeriodDaysInMonth(period, monthStart, monthEnd, today), '天')}`)
   }
   if (detail.flowLabel) parts.push(`经量 ${detail.flowLabel}`)
   if (detail.symptomText) parts.push(detail.symptomText)

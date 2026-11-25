@@ -7,6 +7,8 @@ const { parseWxssRules } = require('../designTokens')
 const { browsersPath, workspaceRequire } = require('./playwrightBrowsers.cjs')
 const { runActionHitTest } = require('./actionHitTest.cjs')
 const root = path.resolve(__dirname, '../..')
+// Keep the 0.25px centering budget and allow Chromium's 1/64px text-range quantization.
+const CENTER_TOLERANCE_PX = 0.25 + 1 / 64
 
 // Chromium once failed a capture with "Unable to capture screenshot" after the click had already worked (2026-10-11).
 // One retry keeps that transient failure from failing verify; a second failure still fails the run.
@@ -93,12 +95,12 @@ async function main() {
       })
       const titleGeometry = await readTitleGeometry()
       const titleCenter = titleGeometry.rangeCenter
-      assert.ok(Math.abs(titleCenter - width / 2) <= 0.25, `${width}px: title center ${titleCenter} must equal viewport center ${width / 2}; geometry ${JSON.stringify(titleGeometry)}`)
+      assert.ok(Math.abs(titleCenter - width / 2) <= CENTER_TOLERANCE_PX, `${width}px: title center ${titleCenter} must equal viewport center ${width / 2}; geometry ${JSON.stringify(titleGeometry)}`)
       if (width === 390) {
         // Platform font metrics can widen the two-glyph label. The balanced outer slot must not grow with it.
         await page.addStyleTag({ content: '.nav-tool-surface{letter-spacing:0.05em}' })
         const stressedGeometry = await readTitleGeometry()
-        assert.ok(Math.abs(stressedGeometry.rangeCenter - width / 2) <= 0.25, `390px: intrinsic label width must not move the title; geometry ${JSON.stringify(stressedGeometry)}`)
+        assert.ok(Math.abs(stressedGeometry.rangeCenter - width / 2) <= CENTER_TOLERANCE_PX, `390px: intrinsic label width must not move the title; geometry ${JSON.stringify(stressedGeometry)}`)
       }
       const box = await page.locator('.nav-tool').boundingBox()
       const surfaceBox = await page.locator('.nav-tool-surface').boundingBox()
