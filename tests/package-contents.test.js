@@ -67,10 +67,14 @@ test('only mini program roots go into the upload package', () => {
   assert.deepEqual(unexpected, [], 'Add these paths to packOptions.ignore in project.config.json, or to PACKAGE_ROOTS if the mini program loads them at runtime')
 })
 
-test('privacy-safe invite artwork is included in the upload package within 120 KB', () => {
+test('privacy-safe invite artwork is included in the upload package within its D1 budget', () => {
   const invite = packaged.find(file => file.rel === 'images/invite-card.png')
   assert.ok(invite, 'images/invite-card.png must be packaged, not ignored')
-  assert.ok(invite.size <= 120 * 1024, `invite card is ${invite.size} B (limit ${120 * 1024} B)`)
+  const artwork = fs.readFileSync(path.join(repoRoot, invite.rel))
+  const colorType = artwork[25]
+  const limit = colorType === 2 ? 115 * 1024 : colorType === 3 ? 95 * 1024 : 0
+  assert.ok(limit > 0, `invite card PNG color type ${colorType} must be 24-bit RGB or indexed color`)
+  assert.ok(invite.size <= limit, `invite card is ${invite.size} B (D1 limit ${limit} B)`)
 })
 
 test('unused application icon stays in source control but out of the upload package', () => {
@@ -83,9 +87,13 @@ test('sitemap disallows indexing every mini program page', () => {
   assert.deepEqual(sitemap.rules, [{ action: 'disallow', page: '*' }])
 })
 
-test('images and audio in the package stay under the 200 KB code-quality budget', () => {
+test('images and audio satisfy D1 headroom and the 200 KB code-quality budget', () => {
   const media = packaged.filter(file => MEDIA_EXTS.has(path.extname(file.rel).toLowerCase()))
   const total = media.reduce((sum, file) => sum + file.size, 0)
+  const invite = fs.readFileSync(path.join(repoRoot, 'images/invite-card.png'))
+  if (invite[25] === 2) {
+    assert.ok(total <= 180 * 1024, `24-bit D1 media total ${total} B (limit ${180 * 1024} B)`)
+  }
   assert.ok(total < MEDIA_LIMIT, `images and audio total ${total} B (limit ${MEDIA_LIMIT} B): ${media.map(file => file.rel).join(', ')}`)
 })
 

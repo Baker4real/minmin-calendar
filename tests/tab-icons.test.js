@@ -4,11 +4,12 @@ const path = require('node:path')
 const zlib = require('node:zlib')
 const test = require('node:test')
 
-// 钉住 issue #50 的 tab 图标契约：81×81 设计源、未选中基色 #7A7C8C（同 tabBar.color）、
+// 钉住 tab 图标契约：108×108 三倍设计源、未选中基色 #7A7C8C（同 tabBar.color）、
 // 选中基色 #E8909E（同 tabBar.selectedColor）、记录 tab 无医疗十字形态。
 // issue #159：图标清单直接读 app.json 的 tabBar，记录 tab 的两态读作列表（不是铅笔，也不是十字）。
+// issue #265：三枚图标的光学墨迹面积均衡，设置保持六齿与清晰中空。
 
-const ICON_SIZE = 81
+const ICON_SIZE = 108
 const UNSELECTED = { r: 0x7a, g: 0x7c, b: 0x8c }
 const SELECTED = { r: 0xe8, g: 0x90, b: 0x9e }
 
@@ -87,6 +88,15 @@ function loadIcon(file) {
   return decodePng(fs.readFileSync(path.join(__dirname, '..', file)))
 }
 
+function solidArea(file) {
+  const { width, height, data } = loadIcon(file)
+  let area = 0
+  for (let i = 0; i < width * height; i++) {
+    if (data[i * 4 + 3] >= 250) area++
+  }
+  return area
+}
+
 // 列表形态：不透明像素按行分成互不相连的横带；每条横带的中线上是两段——左边一个项目点，右边一条横线
 function listRows(icon) {
   const { width, height, data } = icon
@@ -149,7 +159,7 @@ function isCrossShape(icon) {
   return maxCol >= 0.65 && maxRow >= 0.65
 }
 
-test('six tab icons are 81x81 PNG design sources', () => {
+test('six tab icons are 108x108 triple-scale PNG design sources', () => {
   assert.equal(ICONS.length, 6)
   for (const [file] of ICONS) {
     assert.match(file, /^images\/[\w-]+\.png$/)
@@ -178,6 +188,22 @@ test('tab icon solid pixels match the tabBar color pair', () => {
   }
 })
 
+test('calendar, record, and settings solid ink areas differ by at most twenty percent', () => {
+  for (const [selected, suffix] of [[false, ''], [true, '_active']]) {
+    const areas = ['calendar', 'list', 'settings'].map(name => ({
+      name,
+      area: solidArea(`images/${name}${suffix}.png`)
+    }))
+    const values = areas.map(item => item.area)
+    const lightest = Math.min(...values)
+    const heaviest = Math.max(...values)
+    assert.ok(
+      heaviest <= lightest * 1.2,
+      `${selected ? 'selected' : 'unselected'} ink areas must be balanced: ${areas.map(item => `${item.name}=${item.area}`).join(', ')}`
+    )
+  }
+})
+
 test('settings tab icons have six teeth around a transparent center', () => {
   for (const file of [SETTINGS_TAB.iconPath, SETTINGS_TAB.selectedIconPath]) {
     const icon = loadIcon(file)
@@ -186,8 +212,8 @@ test('settings tab icons have six teeth around a transparent center', () => {
     const on = []
     for (let i = 0; i < samples; i++) {
       const angle = i * Math.PI * 2 / samples
-      const x = Math.round((width - 1) / 2 + Math.cos(angle) * 30)
-      const y = Math.round((height - 1) / 2 + Math.sin(angle) * 30)
+      const x = Math.round((width - 1) / 2 + Math.cos(angle) * 40)
+      const y = Math.round((height - 1) / 2 + Math.sin(angle) * 40)
       on.push(data[(y * width + x) * 4 + 3] >= 128)
     }
     let transitions = 0

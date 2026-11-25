@@ -171,14 +171,34 @@ function trackedImages() {
     .filter(file => IMAGE_FILE.test(file))
 }
 
-test('invite card is a tracked 1000 by 800 PNG no larger than 120 KB', () => {
+test('invite card is a tracked 1000 by 800 PNG that follows the D1 file-size ceiling', () => {
   assert.ok(trackedImages().includes(INVITE_CARD), `${INVITE_CARD} must be tracked`)
   const artwork = fs.readFileSync(path.join(repoRoot, INVITE_CARD))
-  assert.ok(artwork.length <= 120 * 1024, `invite card is ${artwork.length} B (limit ${120 * 1024} B)`)
   assert.ok(artwork.length >= 24, 'PNG header and IHDR dimensions must be present')
   assert.equal(artwork.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
   assert.equal(artwork.readUInt32BE(16), 1000)
   assert.equal(artwork.readUInt32BE(20), 800)
+  assert.equal(artwork[24], 8, 'D1 uses an 8-bit truecolor or indexed PNG')
+  const colorType = artwork[25]
+  if (colorType === 2) {
+    assert.ok(artwork.length <= 115 * 1024, `24-bit invite card is ${artwork.length} B (D1 limit ${115 * 1024} B)`)
+  } else if (colorType === 3) {
+    assert.ok(artwork.length <= 95 * 1024, `quantized invite card is ${artwork.length} B (D1 limit ${95 * 1024} B)`)
+    const paletteType = artwork.indexOf(Buffer.from('PLTE'))
+    assert.ok(paletteType >= 4, 'quantized invite card needs a palette')
+    assert.equal(artwork.readUInt32BE(paletteType - 4) / 3, 256, 'D1 fallback keeps exactly 256 palette colors')
+  } else {
+    assert.fail(`invite card PNG color type ${colorType} is neither 24-bit RGB nor indexed color`)
+  }
+})
+
+test('application icon source is a tracked 1024 by 1024 PNG', () => {
+  const file = 'images/app-icon.png'
+  assert.ok(trackedImages().includes(file), `${file} must be tracked`)
+  const artwork = fs.readFileSync(path.join(repoRoot, file))
+  assert.equal(artwork.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
+  assert.equal(artwork.readUInt32BE(16), 1024)
+  assert.equal(artwork.readUInt32BE(20), 1024)
 })
 
 test('every tracked image outside images/ is allowlisted with what it shows', () => {
