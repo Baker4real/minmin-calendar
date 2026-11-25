@@ -199,3 +199,31 @@ D1 保持 0.86：fresh current 六行滚动 scrollTop=86，月份与状态行可
 随后维护者选择官方修复路径：官方 `2.02.2609240 Stable` 更新说明明确包含“修复模拟器需要 touch 两次才能生效的问题”。官方 Windows x64 安装包 196,799,080 B、SHA-256 `fb416fd03b51d92b6ec82b83f56f861fe6a6b2b1ceb3f9e54fa3e7fddffe9a2c`，腾讯签名有效；已在 `D:/agents/run-evidence/wechat-devtools/20261124-stable-touch/install-before` 保留上一版完整安装副本（4241 文件、1,068,093,459 B，逐数一致）。安装后 `resources/app.asar.unpacked/package.json` 回读 `version: 2.02.2609240`，当前 app.asar SHA-256 为 `697593c4702e4d2fca2abb56635be6433dff89869249512ab0a15436ae96a08a`。项目重开与 preflight 全 PASS，真实导航 12/12、完整 verify 1426/1426 PASS。OS 窗口捕获在候选、旧基线和官方 Stable 上均全黑，因此没有继续盲点；改由维护者在 Stable 中保持鼠标不离开模拟器，连续 2–3 轮点「记欢乐时光」→左上返回、「记经期／新增经期」→左上返回，回复“全部正常”。官方修复已覆盖实际复发路径；上一版完整安装副本保留用于回滚，不擅自删除。
 
 2026-11-24 retro / neat-freak 收尾：transcript 审计定位四类改进并全部落地。`tests/tools/actionHitTest.cjs` 接入现有 `test:hit`，在 320/375/390/430 四档覆盖首页两类快捷入口与共享返回键中心按压、可见表面边缘点击及遮挡负控；`runtimeProbe.mjs` 的 prepare/clean 自动关闭并恢复 `ignoreDevUnusedFiles`，保留其他私有配置，新增 3 项生命周期回归（先红 2 后绿 3），真实项目 smoke 回读 true、probe/proof 均不存在。文档补入官方安装器等待、原生坐标校准失败判据，历史 tmp 矩阵只保留汇总且不再声称可打开。Serena 项目记忆 `verification` 已通过正式入口更新并回读；共享知识库只更新现有 DevTools CLI 验收页，ingest 记录 `log/2026/11/20261124-192401-ingest-0bbf450d.md`，保留 pending 和其他会话 WPF 工作。最终完整 verify：168 文件语法、1429/1429 tests、clock、room-artifacts、coordinate-hit 全 PASS；本轮不改业务运行代码，无部署或云写入。
+
+2026-11-26：epic #263 / #275 最终收口。对照当前源码、页面 harness 与测试注册表同步 DESIGN、动效与交互、CONTEXT：落定共享顶栏 14px 模糊与沉浸首屏、D2 顶光玻璃、输入槽与主按钮微高光、跨页凭证、首页减框与内嵌「今」、新槽位和今日暗缝、D1 邀请资产与六枚 108×108 底栏图标、几何图标/排印令牌、欢乐时光近月默认展开、经期三层控件、保存栏与记录页年月/顶栏刷新行为；清掉 81×81、旧 D1 数值、默认全收起、零毫秒折叠、display:none 保存栏和列表内刷新行等相互矛盾的旧规，没有另建目标稿。`npm run verify:target -- --tests 'tests/docs-index.test.js'` 为 5/5；相关文档/动效/记录/资产回归 140/140。
+
+判定规则实测落定：D1 的 24 位邀请候选为 1,147,928B、候选打包媒体为 1,154,892B，均超过 115KB / 180KB 条件；采用 256 色 Floyd–Steinberg 误差扩散加索引蓝噪声微抖动，邀请卡 84,763B（低于 95KB），当前打包媒体 91,727B（低于 200KB）。D2 采用 `rgba(15,19,52,0.88)`，在画布 `#0A0E27` 与峰值 `#503773` 的全量文字/次级入口均 ≥4.5:1、非文字 ≥3:1，未启用 `rgba(18,22,61,0.90)`。
+
+`npm run assets:check` 的八张 PNG 全部逐字节一致。`npm run impeccable:detect -- --target pages` 覆盖 12 份 WXML、生成 7 个页面 shim，返回 38 个 warning（cramped-padding 15、nested-cards 5、dark-glow 8、radial-halo 7、side-tab 3）。逐项回源账本在 `.scratch/standin/issue-275/detection-ledger.jsonl`：弹层 18/28/22+safe、滚轮 24rpx 侧内边距、输入槽和语义 rail 均在实际源码成立；玫瑰柔光只到已登记的主按钮/伪元素和情感装饰，radial 项是品牌极光。结合 current 画面未确认新的真实贴边或常驻粉雾缺陷，但检测器并非零告警，故不写「检测器全部清零」，也不为迎合规则改合规设计。
+
+运行态只在微信开发者工具当前模拟器、替身 Room `ABC123` 和 `standin-*` 构造记录中执行，未转发真实云端调用。9431 上三次探针失败均未计证据；改到独立 9275 后，磁盘与编译模块 nonce `107b0854-4fb7-47ac-8597-a2daf0709f04`、app/pages/utils 源码指纹 `d3f074e3c4348b3012b78ca717e5c04eeb70820855d7cbd52f7d1b2aeced9ebc` 在截图前后一致。实际每格回读均为 `windowWidth=390`、`windowHeight=844`；最终采用 49 张 current 图，全部 65 条采集记录（含已修正的验收脚本尝试）经 `classifyCaptureEvidence` 都是 current，没有把 runtime-unconfirmed、旧包或历史图算作通过。每格 ledger、图片 hash、状态与恢复报告在 `.scratch/standin/issue-275/`。
+
+| visual-scope 格 | 结论（均 390×844、current、有源码指纹） | current 图数 | 明确边界 |
+|---|---|---:|---|
+| bind-initial-created | 双琉璃心、沉浸顶栏、join/create 网格、创建后凭证与替身分享 payload 通过 | 3 | 涟漪逐帧、原生分享面板、物理输入未验证 |
+| home-today-full | 完整密度普通今天与图例通过 | 2 | 选择器 tap 不等于真实坐标 |
+| home-today-compact | 清爽密度普通今天与图例通过 | 2 | 同上 |
+| home-period-today-full | 连续/单日经期今天通过，裁剪图见暗缝，源槽位 2rpx | 4 | 物理真机像素未验证 |
+| home-period-today-compact | 清爽密度连续/单日经期今天通过 | 4 | 同上 |
+| home-markers-navigation | memory+predict、holiday+memory、workday、今字回跳与稳定几何通过；官方触摸注入实测 transform `none → matrix(...,-12.6,0) → 0` | 5 | 物理手势和坐标未验证 |
+| date-picker | 开始/结束/欢乐时光三字段均为 46/230/92/92px 几何，中央高亮、外置遮罩、惯性锁公开事件序列及取消通过 | 4 | 官方触摸未产生 pickstart，原生惯性与事件序未验证 |
+| sheets-information | 预测主卡、结构化小结、长使用说明固定 chrome 通过 | 4 | `view.scrollTop` 不可读，真实内层滚动与 80ms 快甩未验证 |
+| record-period | 首次骨架 CTA、周期概览、年折叠和顶栏「正在刷新」通过，无独立刷新行 | 4 | 物理下拉与坐标未验证 |
+| record-memory | 共同点滴总数/本年、最近月默认展开、双行正文与手动网格折叠通过 | 2 | 读屏实听未验证 |
+| memory-editor | 信笺、内凹书写槽、失败保留、保存、草稿恢复/放弃及确认删除回流通过 | 4 | 原生键盘/toast/失败 modal 外观未验证；modal 已显式 mock |
+| period-editor | 三层控件、结束日展开、焦点保存栏状态、字段级错误与更新成功通过 | 4 | 软键盘与真实过渡帧未验证 |
+| settings | 配对徽标、凭证复制回读 ABC123、数据双行卡、隐私分享及确认重同步通过 | 3 | 原生分享与坐标未验证 |
+| brand-assets | 三枚原生 tab 图标 current，等待分享 payload 指向静态邀请卡；D1 与源图复核通过 | 1 | 宿主分享预览与物理高分屏未验证 |
+| reduced-motion-and-semantics | 当前 ARIA role/name、弹层背景 obscured 开关及默认 reduced-motion probe=0px 通过 | 3 | 当前模拟器无法开启系统减弱动效；读屏、键盘和焦点恢复未实测 |
+
+清理与恢复：每次 standin 均回读 storageMatches=true、`wx.cloud` 原 accessor 恢复、stub 移除、无缺方法；最终 `devtools:runtime-proof -- clean` 删除 probe/proof，临时本地 `project.private.config.json` 也已删除。最终完整 `npm run verify` 为依赖 PASS、172 个 JS 语法文件 PASS、1486/1486 tests、双时区 clock、Room artifacts 与 coordinate-hit PASS；`git diff --check` 无错误。未验证项还包括物理真机、VoiceOver/TalkBack、键盘、真实坐标与上述手势/系统边界；小屏运行态按维护者决定不做，由 320/375/390/430 坐标与几何自动化覆盖。隐私边界保持：入库日志只有替身码、构造记录和脱敏计数，不含真实房间、真实日期/备注或本机绝对路径。
