@@ -669,7 +669,7 @@ test('record list rows, retry affordances and settings menu entries announce the
 
   assert.equal(byHandler(settings, 'copyRoomCode', 'copy-btn').attrs['aria-label'], '复制房间码')
   assert.equal(byHandler(settings, 'exportData', 'menu-item').attrs['aria-label'], '导出数据')
-  assert.equal(byHandler(settings, 'clearData', 'room-action-btn').attrs['aria-label'], '重新同步房间')
+  assert.equal(byHandler(settings, 'clearData', 'menu-item').attrs['aria-label'], '重新同步房间')
   assert.equal(byHandler(settings, 'openHelp', 'menu-item').attrs['aria-label'], '使用说明')
 
   // 密度偏好是单选：选中态用 aria-checked 表达（与 active 类同条件，由选中态镜像测试兜底）

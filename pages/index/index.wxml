@@ -1,5 +1,6 @@
 <import src="/pages/shared/confirmation-sheet.wxml" />
 <import src="/pages/shared/nav-bar.wxml" />
+<import src="/pages/shared/brand-hearts.wxml" />
 <page-meta page-style="{{pageObscured ? 'overflow: hidden;' : ''}}"></page-meta>
 <template is="sharedSheetPage" data="{{sheetExitGuard: sheetExitGuard}}" />
 <view class="page safe-top {{pageObscured ? 'page-obscured' : ''}} {{pageHidden ? 'page-hidden' : ''}}" style="--safe-top: {{safeTop}}px; --safe-bottom: {{safeBottom}}px; --nav-bar-height: {{navBarHeight}}px; --capsule-right: {{capsuleRight}}px; --nav-title-padding-left: {{navTitlePaddingLeft}}px; --nav-title-padding-right: {{navTitlePaddingRight}}px">
@@ -78,7 +79,7 @@ module.exports = {
 
   <view wx:if="{{noRoom}}" class="no-room" aria-hidden="{{pageObscured}}">
     <!-- 爱心画面只属于未绑定/需要重新绑定；加载失败保持失败标题 + 重试，不复用这颗心（issue #79） -->
-    <view wx:if="{{roomStatusAction == 'bind'}}" class="no-room-icon" aria-hidden="true">♥</view>
+    <view wx:if="{{roomStatusAction == 'bind'}}" class="no-room-icon" aria-hidden="true"><template is="brandGlassHearts" /></view>
     <text class="text-pair-title no-room-title">{{roomStatusTitle}}</text>
     <text class="text-pair-desc no-room-desc">{{roomStatusDesc}}</text>
     <view class="btn-premium button-primary" bindtap="handleRoomStatusAction" aria-role="button" aria-label="{{roomStatusActionText}}" hover-start-time="20" hover-stay-time="70" hover-class="btn-premium-hover">{{roomStatusActionText}}</view>

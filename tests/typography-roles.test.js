@@ -31,7 +31,6 @@ const FONT_ROLE_TOKENS = {
 // 新增例外必须在此登记 file + selector + 当前值，登记即评审；scale-hold 还必须在 DESIGN 写明原因。
 const TYPOGRAPHY_EXCEPTIONS = [
   { file: 'pages/index/index.wxss', selector: '.quick-icon', kind: 'glyph', value: '32rpx' },
-  { file: 'pages/index/index.wxss', selector: '.no-room-icon', kind: 'glyph', value: '120rpx' },
   { file: 'pages/index/index.wxss', selector: '.sheet-action-icon', kind: 'glyph', value: '26rpx' },
   { file: 'pages/index/index.wxss', selector: '.home-status-text', kind: 'scale-hold', value: '32rpx' },
   { file: 'pages/index/index.wxss', selector: '.quick-text', kind: 'scale-hold', value: '28rpx' },
@@ -39,7 +38,6 @@ const TYPOGRAPHY_EXCEPTIONS = [
   // #258：周期概览大数字旁的次要「天」单位，与 44rpx 主数字共享基线。
   { file: 'pages/period/period.wxss', selector: '.cycle-unit', kind: 'display', value: '24rpx' },
   { file: 'pages/period/period.wxss', selector: '.memory-heart', kind: 'glyph', value: '36rpx' },
-  { file: 'pages/bind/bind.wxss', selector: '.hero-icon', kind: 'glyph', value: '120rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.hero-title', kind: 'display', value: '48rpx' },
   { file: 'pages/bind/bind.wxss', selector: '.code-input', kind: 'display', value: '40rpx' }
 ]

@@ -455,6 +455,8 @@ function expectedTransitionDuration(files, pressTargets, selector, prop) {
   const target = lastCompound(selector)
   const pressDuration = isPressStateSelector(selector) ? PRESS_IN_DURATION : PRESS_DURATION
   if (prop === 'transform') return pressTargets.has(target) ? pressDuration : STATE_DURATION
+  // #271：双层网格的 0fr / 1fr 折叠是与选中状态同拍的几何过渡，不是按压。
+  if (prop === 'grid-template-rows') return STATE_DURATION
   if (COLOR_TRANSITION_PROPS.has(prop)) {
     return activeSetsProperty(files, target, prop) ? pressDuration : STATE_DURATION
   }
@@ -557,7 +559,7 @@ test('one-shot transitions and animations use the shared duration tokens and rol
           continue
         }
         const expectedDuration = expectedDurations[0]
-        const expectedEasing = prop === 'transform' ? EASE_OUT_TOKEN : 'ease'
+        const expectedEasing = prop === 'transform' || prop === 'grid-template-rows' ? EASE_OUT_TOKEN : 'ease'
         if (duration !== expectedDuration || easing !== expectedEasing) {
           violations.push(`${where} ${prop} must be ${expectedDuration} ${expectedEasing}, got ${duration} ${easing}`)
         }
