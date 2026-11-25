@@ -911,9 +911,6 @@ button.home-share-invite {
   z-index: 1;
 }
 .no-room-icon {
-  font-size: 120rpx;
-  /* 无房间心：玫瑰文本字形，与绑定页 hero / 设置资料卡同款（issue #77 模式，issue #106） */
-  color: var(--aurora-pink);
   margin-bottom: 30rpx;
   animation: pulse 6s ease-in-out infinite;
 }

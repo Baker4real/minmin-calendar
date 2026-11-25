@@ -16,21 +16,57 @@
   text-indent: 0;
 }
 
-/* 两页复制键共用触控、字号、按压与柔光基础；设置默认实色，绑定凭证票根另覆盖淡底胶囊。 */
+/* #271：两页共用深海内凹凭证票根，房间码在左、复制操作在右。 */
+.room-credential-ticket {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16rpx;
+  margin-bottom: 30rpx;
+  padding: 20rpx 24rpx;
+  border-radius: var(--radius-md);
+  background: rgba(10,14,39,0.52);
+  border: 1px solid rgba(232,144,158,0.20);
+  box-shadow: inset 0 2rpx 6rpx rgba(0,0,0,0.28);
+}
+.room-credential-ticket .room-code-value {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+/* 88rpx 透明触控热区包裹 60rpx 淡玫瑰胶囊；两层都不投柔光，根除票根外粉雾。 */
 .copy-btn {
   flex-shrink: 0;
+  height: 88rpx;
   min-height: 88rpx;
   box-sizing: border-box;
   white-space: nowrap;
-  background: var(--aurora-pink);
-  color: var(--text-on-accent);
-  padding: 0 28rpx;
-  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--aurora-pink);
+  padding: 0;
+  border-radius: var(--radius-full);
+  box-shadow: none;
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-control);
   transition: transform var(--duration-press) var(--ease-out);
 }
-/* 柔光层同 .btn-premium（issue #166）：按下沉到 0.5，和缩放同一拍。 */
+.copy-btn-surface {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60rpx;
+  min-height: 60rpx;
+  box-sizing: border-box;
+  padding: 0 28rpx;
+  background: rgba(232,144,158,0.14);
+  color: var(--aurora-pink);
+  border: 1px solid rgba(232,144,158,0.45);
+  border-radius: var(--radius-full);
+  box-shadow: none;
+  white-space: nowrap;
+  pointer-events: none;
+}
 .copy-btn::before {
   content: '';
   position: absolute;
@@ -38,8 +74,9 @@
   right: 0;
   bottom: 0;
   left: 0;
-  border-radius: var(--radius-sm);
-  box-shadow: 0 8rpx 30rpx rgba(232,144,158,0.28);
+  border-radius: inherit;
+  opacity: 0;
+  box-shadow: none;
   transition: opacity var(--duration-press) ease;
   pointer-events: none;
 }
@@ -50,7 +87,7 @@
 }
 .copy-btn:active::before,
 .copy-btn.copy-btn-hover::before {
-  opacity: 0.5;
+  opacity: 0;
   transition: opacity var(--duration-press-in) ease;
 }
 

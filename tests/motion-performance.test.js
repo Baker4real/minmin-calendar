@@ -469,6 +469,7 @@ function expectedTransitionDuration(files, pressTargets, selector, prop) {
   const target = lastCompound(selector)
   const pressDuration = isPressStateSelector(selector) ? PRESS_IN_DURATION : PRESS_DURATION
   if (prop === 'transform') return pressTargets.has(target) ? pressDuration : STATE_DURATION
+  // #271 / #274：双层网格的 0fr / 1fr 折叠是与选中状态同拍的几何过渡，不是按压。
   if (prop === 'grid-template-rows') return STATE_DURATION
   if (COLOR_TRANSITION_PROPS.has(prop)) {
     return activeSetsProperty(files, target, prop) ? pressDuration : STATE_DURATION

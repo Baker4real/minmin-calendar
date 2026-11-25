@@ -11,19 +11,18 @@
     <view class="settings-group">
       <text class="settings-group-title">房间</text>
       <view class="premium-card glass-surface">
-        <view class="menu-item room-code-item non-interactive">
-          <view class="room-code-content">
-            <view class="room-code-heading">
-              <text class="room-code-label">我的房间码</text>
-              <text wx:if="{{roomMemberLabel}}" class="room-member-badge {{roomStatus === 'paired' ? 'paired' : 'waiting'}}">{{roomMemberLabel}}</text>
-            </view>
-            <text class="room-code-value {{roomCode ? '' : 'muted'}}">{{roomCodeDisplay || roomCode || '未绑定'}}</text>
+        <view class="room-code-item non-interactive">
+          <view class="room-code-heading">
+            <text class="room-code-label">我的房间码</text>
+            <text wx:if="{{roomMemberLabel}}" class="room-member-badge {{roomStatus === 'paired' ? 'paired' : 'waiting'}}">{{roomMemberLabel}}</text>
           </view>
-          <view wx:if="{{roomCode}}" class="copy-btn button-primary" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码" hover-start-time="20" hover-stay-time="70" hover-class="copy-btn-hover">复制</view>
+          <view class="room-credential-ticket">
+            <text class="room-code-value {{roomCode ? '' : 'muted'}}">{{roomCodeDisplay || roomCode || '未绑定'}}</text>
+            <view wx:if="{{roomCode}}" class="copy-btn button-primary" bindtap="copyRoomCode" aria-role="button" aria-label="复制房间码" hover-start-time="20" hover-stay-time="70" hover-class="copy-btn-hover"><text class="copy-btn-surface">复制</text></view>
+          </view>
         </view>
         <view wx:if="{{roomCode}}" class="room-card-actions">
           <button wx:if="{{roomStatus === 'waiting' && roomCode}}" class="btn-premium share-invite settings-share-invite button-primary" open-type="share" hover-start-time="20" hover-stay-time="70" hover-class="share-invite-hover" aria-role="button" aria-label="再发邀请">再发邀请</button>
-          <view class="room-action-btn resync-room-btn button-outline" bindtap="clearData" aria-role="button" aria-label="重新同步房间" hover-start-time="20" hover-stay-time="70" hover-class="room-action-btn-hover">重新同步房间</view>
         </view>
         <view wx:if="{{roomCodeLoaded && !roomCode}}" class="room-code-actions">
           <view class="room-action-btn button-outline" bindtap="retryRoomResolve" aria-role="button" aria-label="重试获取房间码" hover-start-time="20" hover-stay-time="70" hover-class="room-action-btn-hover">重试</view>
@@ -63,6 +62,10 @@
     <view class="settings-group">
       <text class="settings-group-title">数据</text>
       <view class="premium-card glass-surface">
+        <view class="menu-item resync-room-btn" bindtap="clearData" aria-role="button" aria-label="重新同步房间" hover-start-time="20" hover-stay-time="70" hover-class="menu-item-hover">
+          <text class="menu-text">重新同步房间</text>
+          <view class="ui-icon ui-icon-right ui-icon-24 menu-arrow" aria-hidden="true"></view>
+        </view>
         <view class="menu-item" bindtap="exportData" aria-role="button" aria-label="导出数据" hover-start-time="20" hover-stay-time="70" hover-class="menu-item-hover">
           <text class="menu-text">导出数据</text>
           <view class="ui-icon ui-icon-right ui-icon-24 menu-arrow" aria-hidden="true"></view>

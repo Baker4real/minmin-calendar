@@ -460,9 +460,6 @@ test('premium cards use directional refraction and velvet tint without a duplica
 
 const CTA_FILL_SELECTORS = [
   ['app.wxss', '.btn-premium'],
-  ['pages/settings/settings.wxss', '.copy-btn'],
-  // issue #104：绑定页复制键回归玫瑰填充。创建/加入是分段控件，选中态不走实色填充（issue #145）。
-  ['pages/bind/bind.wxss', '.copy-btn'],
   // issue #145：创建/加入是分段控件，选中态不走实色填充。issue #137：选月确认按钮已退役。
   ['pages/index/index.wxss', '.quick-btn'],
   ['pages/index/index.wxss', '.jump-option.active'],
@@ -1024,26 +1021,22 @@ test('sheet body copy and date ranges keep word integrity with normal wrapping',
 // issue #146：辉光只留在主按钮和复制键上。月份导航、同步点不发光；
 // 绑定页爱心只留一层字阴影。提醒和详情的彩色 rail 继续承载状态色。
 // issue #166：主按钮和复制键的玫瑰光画在 ::before 柔光层上，按钮本身不带阴影（按压契约见 motion-performance）。
-test('glow stays on primary buttons and the copy control', () => {
+test('glow stays on primary buttons while credential copy stays haze-free', () => {
   const roseGlow = '0 8rpx 30rpx rgba(232,144,158,0.28)'
-  for (const [relative, selector] of [
-    ['app.wxss', '.btn-premium'],
-    ['pages/settings/settings.wxss', '.copy-btn'],
-    ['pages/bind/bind.wxss', '.copy-btn']
-  ]) {
-    assert.equal(declsFor(relative, `${selector}::before`)['box-shadow'], roseGlow, `${relative} ${selector} glow layer`)
-    const expectedElevation = relative === 'app.wxss' && selector === '.btn-premium'
-      ? 'inset 0 1px 0 rgba(255,255,255,0.30)'
-      : undefined
-    assert.equal(declsFor(relative, selector)['box-shadow'], expectedElevation, `${relative} ${selector} elevation stays on its own surface`)
+  assert.equal(declsFor('app.wxss', '.btn-premium::before')['box-shadow'], roseGlow, 'primary glow layer')
+  assert.equal(declsFor('app.wxss', '.btn-premium')['box-shadow'], 'inset 0 1px 0 rgba(255,255,255,0.30)')
+  for (const relative of ['pages/settings/settings.wxss', 'pages/bind/bind.wxss', 'pages/shared/room-code.wxss']) {
+    assert.equal(declsFor(relative, '.copy-btn')['box-shadow'], 'none', `${relative} copy hit area has no glow`)
+    assert.equal(declsFor(relative, '.copy-btn::before')['box-shadow'], 'none', `${relative} copy glow layer is disabled`)
+    assert.equal(declsFor(relative, '.copy-btn-surface')['box-shadow'], 'none', `${relative} capsule has no overflow haze`)
   }
 
   const monthNav = declsFor('pages/index/index.wxss', '.month-nav')['box-shadow'] || ''
   assert.doesNotMatch(monthNav, /232,\s*144,\s*158/)
   assert.equal(declsFor('pages/shared/nav-bar.wxss', '.sync-dot')['box-shadow'], undefined)
 
-  const heart = declsFor('pages/bind/bind.wxss', '.hero-icon')['text-shadow']
-  assert.equal(heart, '0 0 18rpx rgba(240,196,192,0.32)')
+  const brandFrame = declsFor('pages/shared/brand-hearts.wxss', '.brand-heart-frame')['box-shadow']
+  assert.equal(brandFrame, '0 0 24rpx rgba(232,144,158,0.14)')
 
   assert.equal(
     declsFor('pages/index/index.wxss', '.detail-rail')['box-shadow'],
@@ -1053,7 +1046,7 @@ test('glow stays on primary buttons and the copy control', () => {
 
   const design = readSource(path.join(repoRoot, 'DESIGN.md'), 'utf8')
   assert.match(design, /不可点元素不再发光/)
-  assert.match(design, /0 0 18rpx rgba\(240,196,192,0\.32\)/)
+  assert.match(design, /0 0 24rpx rgba\(232,144,158,0\.14\)/)
 })
 
 // issue #168：辉光（不是 inset 的有色阴影：box-shadow、text-shadow 或 filter 的 drop-shadow）只在 DESIGN.md
@@ -1064,9 +1057,6 @@ const REGISTERED_GLOWS = [
   'app.wxss .btn-premium::before',
   'pages/index/index.wxss .quick-btn::before',
   'pages/index/index.wxss .copy-recap::before',
-  'pages/settings/settings.wxss .copy-btn::before',
-  'pages/bind/bind.wxss .copy-btn::before',
-  'pages/shared/room-code.wxss .copy-btn::before',
   // 深海内凹输入槽的焦点玫瑰光环（issue #269）
   'pages/shared/form-control.wxss .form-control.form-control-focused',
   'pages/shared/record-form.wxss .form-control.form-control-focused',
@@ -1077,8 +1067,11 @@ const REGISTERED_GLOWS = [
   'pages/index/index.wxss .jump-option::after',
   'pages/period/edit/edit.wxss .flow-chip::after',
   'pages/period/edit/edit.wxss .symptom-chip::after',
-  // 情感装饰
-  'pages/bind/bind.wxss .hero-icon',
+  // 情感装饰：#271 双琉璃心的外圈柔光环由共享源展开到 app。
+  'app.wxss .brand-heart-frame',
+  'app.wxss .brand-heart-ring-echo',
+  'pages/shared/brand-hearts.wxss .brand-heart-frame',
+  'pages/shared/brand-hearts.wxss .brand-heart-ring-echo',
   'pages/period/period.wxss .memory-heart',
   'pages/period/period.wxss .cycle-card'
 ]

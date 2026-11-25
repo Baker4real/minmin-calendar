@@ -64,16 +64,6 @@ test('.btn-premium rose fill uses canvas-navy label at 4.5:1', () => {
   assertRoseFillNavyLabel(readStylesheet('app.wxss'), '.btn-premium')
 })
 
-test('.copy-btn rose fill uses canvas-navy label at 4.5:1', () => {
-  assertRoseFillNavyLabel(readStylesheet('pages/settings/settings.wxss'), '.copy-btn')
-})
-
-// issue #104：绑定页复制键回归玫瑰填充 + 画布海军字。
-// issue #145：创建/加入改为描边玫瑰弱选中，不再是实色玫瑰填充，对比度不走本表。
-test('bind .copy-btn rose fill uses canvas-navy label at 4.5:1', () => {
-  assertRoseFillNavyLabel(readStylesheet('pages/bind/bind.wxss'), '.copy-btn')
-})
-
 // issue #55：首页主操作统一玫瑰填充 + 画布海军字（快速记录、月份选中态、复制小结）
 const INDEX_WXSS = 'pages/index/index.wxss'
 

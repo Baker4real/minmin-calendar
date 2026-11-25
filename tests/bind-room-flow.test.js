@@ -21,6 +21,34 @@ const repoRoot = path.join(__dirname, '..')
 const readPageFile = (relativePath) => readSource(path.join(repoRoot, relativePath), 'utf8')
 const readRawPageFile = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8')
 
+test('bind and home unbound render the same inline rose-and-lavender glass-heart badge with hidden decorative semantics', () => {
+  for (const file of ['pages/bind/bind.wxml', 'pages/index/index.wxml']) {
+    assert.match(readRawPageFile(file), /<import src="\/pages\/shared\/brand-hearts\.wxml" \/>/)
+    const wxml = readPageFile(file)
+    const badge = wxmlOpeningTags(wxml).find(tag => tag.classes.includes('brand-glass-hearts'))
+    assert.ok(badge, `${file} expands the shared brand badge`)
+    assert.equal(badge.attrs['aria-hidden'], 'true')
+    assert.ok(wxmlOpeningTags(wxml).some(tag => tag.classes.includes('brand-heart-rose')))
+    assert.ok(wxmlOpeningTags(wxml).some(tag => tag.classes.includes('brand-heart-lavender')))
+    assert.doesNotMatch(wxml, /class="(?:hero-icon|no-room-icon)"[^>]*>♥</)
+  }
+  assert.match(readRawPageFile('app.wxss'), /@import '\.\/pages\/shared\/brand-hearts\.wxss';/)
+
+  const generator = readPageFile('tests/tools/generateBrandAssets.cjs')
+  const sourceHeart = /const HEART = '([^']+)'/.exec(generator)
+  assert.ok(sourceHeart, 'the #265 invitation artwork remains the brand source')
+  const css = readPageFile('pages/shared/brand-hearts.wxss')
+  for (const [selector, color] of [['.brand-heart-rose', '#E8909E'], ['.brand-heart-lavender', '#C4A0D2']]) {
+    const rule = findRule(css, selector)
+    const asset = /url\("(data:image\/svg\+xml,[^"]+)"\)/.exec(rule['background-image'] || '')
+    assert.ok(asset, `${selector} uses an inline vector without an image request`)
+    const svg = decodeURIComponent(asset[1])
+    assert.ok(svg.includes(sourceHeart[1]), `${selector} reuses the invitation heart geometry`)
+    assert.ok(svg.includes(`stop-color="${color}" stop-opacity=".36"`), `${selector} keeps its translucent glass fill`)
+    assert.ok(svg.includes('<clipPath'), `${selector} clips its glass sheen to the heart`)
+  }
+})
+
 test('bind bound screen puts the copy button in the same row as the room code, ahead of the enter-app main button', () => {
   const wxml = readPageFile('pages/bind/bind.wxml')
   const boundCard = sliceBetween(wxml, 'wx:if="{{bound}}"', 'wx:else')
@@ -45,7 +73,7 @@ test('bind bound screen puts the copy button in the same row as the room code, a
   // 不再是复制键独占的居中行；#232：两页的房间码共用 shared/room-code.wxss 的同一个类。
   assert.match(
     boundCard,
-    /<view class="[^"]*">\s*<text class="room-code-value"[^>]*>[^<]*<\/text>\s*<view class="copy-btn button-primary"[^>]*bindtap="copyRoomCode"[^>]*>[^<]*<\/view>\s*<\/view>/,
+    /<view class="[^"]*">\s*<text class="room-code-value"[^>]*>[^<]*<\/text>\s*<view class="copy-btn button-primary"[^>]*bindtap="copyRoomCode"[^>]*>\s*<text class="copy-btn-surface">复制<\/text>\s*<\/view>\s*<\/view>/,
     'the copy button must sit in the same row container as the room code'
   )
   const sharedRoomCode = findRule(readPageFile('pages/shared/room-code.wxss'), '.room-code-value')
@@ -77,62 +105,79 @@ test('bind bound screen puts the copy button in the same row as the room code, a
   )
 })
 
-// issue #78 像素同款契约重建（issue #104，DESIGN.md「试点不推广」节登记）；#232 将两页规则
-// 收进 shared/room-code.wxss，继续核对 fill/label/radius/padding/shadow，并补上唯一的 flex-shrink。
-test('bind and settings copy buttons share one rose base button contract (issue #78)', () => {
+// #271：两页共用深海凭证票根；复制操作是 88rpx 透明热区包 60rpx 淡玫瑰胶囊，彻底关闭越界柔光。
+test('bind and settings credential tickets share one navy slot and glow-free 88/60 rose capsule contract', () => {
   const sharedCss = readPageFile('pages/shared/room-code.wxss')
-  const sharedRule = findRule(sharedCss, '.copy-btn')
-
-  // #232：契约五属性和 flex-shrink 只保留共享来源；页面原始文件只 import，不再各写一份。
-  assert.equal(sharedRule.background, 'var(--aurora-pink)')
-  assert.equal(sharedRule.color, 'var(--text-on-accent)')
-  assert.equal(sharedRule['border-radius'], 'var(--radius-sm)')
-  assert.equal(sharedRule.padding, '0 28rpx')
-  assert.equal(sharedRule['box-shadow'], undefined)
-  assert.equal(sharedRule['flex-shrink'], '0')
-  assert.equal(sharedRule['min-height'], '88rpx')
-  for (const file of ['pages/bind/bind.wxss', 'pages/settings/settings.wxss']) {
-    assert.match(readRawPageFile(file), /@import '\.\.\/shared\/room-code\.wxss';/)
-    const localCopyRules = parseWxssRules(readRawPageFile(file)).filter(rule => rule.selectors.some(selector => selector.startsWith('.copy-btn')))
-    assert.deepEqual(localCopyRules, [], `${file} must not keep a local copy-button rule`)
-    assert.deepEqual(findRule(readPageFile(file), '.copy-btn'), sharedRule, `${file} expands to the one shared copy-button rule`)
-  }
-
-  const sharedGlow = findRule(sharedCss, '.copy-btn::before')
-  assert.equal(sharedGlow['box-shadow'], '0 8rpx 30rpx rgba(232,144,158,0.28)')
-  assert.equal(findRule(sharedCss, '.copy-btn:active').transform, 'scale(0.94)')
-  assert.equal(findRule(sharedCss, '.copy-btn:active::before').opacity, '0.5')
-})
-
-test('created room code is a left-aligned navy credential ticket with a rose capsule copy action', () => {
-  const wxml = readPageFile('pages/bind/bind.wxml')
-  const boundCard = sliceBetween(wxml, 'wx:if="{{bound}}"', 'wx:else')
-  assert.match(
-    boundCard,
-    /<view class="bound-code-row">\s*<text class="room-code-value">\{\{roomCode\}\}<\/text>\s*<view class="copy-btn button-primary"/,
-    'the ticket contains only the six-character code and its copy action'
-  )
-
-  const css = readPageFile('pages/bind/bind.wxss')
-  const ticket = findRule(css, '.bound-code-row')
+  const ticket = findRule(sharedCss, '.room-credential-ticket')
   assert.equal(ticket.display, 'flex')
   assert.equal(ticket['justify-content'], 'flex-start')
   assert.equal(ticket.padding, '20rpx 24rpx')
   assert.equal(ticket['border-radius'], 'var(--radius-md)')
   assert.equal(ticket.background, 'rgba(10,14,39,0.52)')
   assert.equal(ticket.border, '1px solid rgba(232,144,158,0.20)')
+  assert.equal(ticket['box-shadow'], 'inset 0 2rpx 6rpx rgba(0,0,0,0.28)')
 
-  const code = findRule(css, '.bound-code-row .room-code-value')
+  const code = findRule(sharedCss, '.room-credential-ticket .room-code-value')
   assert.equal(code.flex, '1')
+  assert.equal(code['min-width'], '0')
   assert.equal(code['text-align'], 'left')
-  const copy = findRule(css, '.bound-code-row .copy-btn')
-  assert.equal(copy.background, 'rgba(232,144,158,0.14)')
-  assert.equal(copy.color, 'var(--aurora-pink)')
-  assert.equal(copy.border, '1px solid rgba(232,144,158,0.45)')
-  assert.equal(copy['border-radius'], 'var(--radius-full)')
-  assert.equal(copy.padding, '0 24rpx')
-  assert.equal(findRule(css, '.copy-btn')['min-height'], '88rpx')
-  assert.equal(findRule(css, '.bound-code-row .copy-btn::before')['border-radius'], 'inherit')
+  const sharedRule = findRule(sharedCss, '.copy-btn')
+  assert.equal(sharedRule.background, 'transparent')
+  assert.equal(sharedRule.color, 'var(--aurora-pink)')
+  assert.equal(sharedRule.padding, '0')
+  assert.equal(sharedRule['min-height'], '88rpx')
+  assert.equal(sharedRule['box-shadow'], 'none')
+  assert.equal(sharedRule['flex-shrink'], '0')
+  const surface = findRule(sharedCss, '.copy-btn-surface')
+  assert.equal(surface.display, 'flex')
+  assert.equal(surface['align-items'], 'center')
+  assert.equal(surface['justify-content'], 'center')
+  assert.equal(surface.height, '60rpx')
+  assert.equal(surface.padding, '0 28rpx')
+  assert.equal(surface.background, 'rgba(232,144,158,0.14)')
+  assert.equal(surface.color, 'var(--aurora-pink)')
+  assert.equal(surface.border, '1px solid rgba(232,144,158,0.45)')
+  assert.equal(surface['border-radius'], 'var(--radius-full)')
+  assert.equal(surface['box-shadow'], 'none')
+  assert.equal(surface['pointer-events'], 'none')
+  assert.equal(findRule(sharedCss, '.copy-btn::before')['box-shadow'], 'none')
+  assert.equal(findRule(sharedCss, '.copy-btn:active').transform, 'scale(0.94)')
+  assert.equal(findRule(sharedCss, '.copy-btn:active::before').opacity, '0')
+
+  for (const file of ['pages/bind/bind.wxss', 'pages/settings/settings.wxss']) {
+    assert.match(readRawPageFile(file), /@import '\.\.\/shared\/room-code\.wxss';/)
+    const localRules = parseWxssRules(readRawPageFile(file)).filter(rule => rule.selectors.some(selector =>
+      selector.startsWith('.copy-btn') || selector.startsWith('.room-credential-ticket') || selector.startsWith('.bound-code-row')))
+    assert.deepEqual(localRules, [], `${file} must not fork the credential-ticket contract`)
+    for (const selector of ['.room-credential-ticket', '.copy-btn', '.copy-btn-surface']) {
+      assert.deepEqual(findRule(readPageFile(file), selector), findRule(sharedCss, selector), `${file} expands ${selector} from the shared source`)
+    }
+  }
+  for (const file of ['pages/bind/bind.wxml', 'pages/settings/settings.wxml']) {
+    assert.match(readPageFile(file), /class="room-credential-ticket"/)
+    assert.match(readPageFile(file), /<text class="copy-btn-surface">复制<\/text>/)
+  }
+})
+
+test('created room code uses the shared ticket and coordinates enter-app rhythm with the share action', () => {
+  const wxml = readPageFile('pages/bind/bind.wxml')
+  const boundCard = sliceBetween(wxml, 'wx:if="{{bound}}"', 'wx:else')
+  assert.match(
+    boundCard,
+    /<view class="room-credential-ticket">\s*<text class="room-code-value">\{\{roomCode\}\}<\/text>\s*<view class="copy-btn button-primary"/,
+    'the ticket contains only the six-character code and its copy action'
+  )
+
+  const css = readPageFile('pages/bind/bind.wxss')
+  const enter = findRule(css, '.btn-ghost')
+  assert.equal(enter.width, '100%')
+  assert.equal(enter['min-height'], '88rpx')
+  assert.equal(enter.padding, '12px 28px')
+  assert.equal(enter.margin, '0')
+  assert.equal(enter['border-radius'], 'var(--radius-md)')
+  const share = findRule(readPageFile('app.wxss'), 'button.share-invite')
+  assert.equal(share['border-radius'], enter['border-radius'])
+  assert.equal(share.margin, '0 0 30rpx')
 })
 
 // issue #104：粉胶囊/粉幽灵页面级覆盖整体移除——绑定页主按钮回 app 级玫瑰基类，
@@ -311,16 +356,13 @@ test('bind subtitle breaks the two phrases with a newline inside the text', () =
   assert.doesNotMatch(hero[1], /<br\b/i)
 })
 
-// issue #138：创建 / 加入页说明房间只有两个人能看到，两个 tab 都看得到。
-test('create and join screen says the room is visible only to the two of you', () => {
+// #271：副标题已经表达双人专属，卡片不再重复同义隐私提示；两个子表单自己的操作说明保留。
+test('bind card removes the privacy sentence that repeats the launch subtitle', () => {
   const wxml = readPageFile('pages/bind/bind.wxml')
   const unbound = wxml.slice(wxml.indexOf('wx:else'))
-  const sentence = unbound.indexOf('房间只有你们两个人能看到')
-  const createTab = unbound.indexOf("tab === 'create'")
-  const joinTab = unbound.indexOf("tab === 'join'")
-  assert.ok(sentence !== -1, 'the create/join screen explains who can see the room')
-  assert.ok(createTab !== -1 && joinTab !== -1)
-  assert.ok(sentence < createTab && sentence < joinTab, 'the sentence stays visible on both the create and join tabs')
+  assert.doesNotMatch(unbound, /房间只有你们两个人能看到/)
+  assert.match(unbound, /生成房间码，把码发给对方加入/)
+  assert.match(unbound, /输入对方给你的房间码/)
 })
 
 // issue #138：模板护栏。text 节点里出现 br 时，小程序不会换行，两句会粘在一起。
@@ -480,7 +522,7 @@ test('created room shows the room-ready title and its next-step explanation befo
   assert.equal(renderWxmlAttribute(status[1], page.data), '房间建好了')
   assert.equal(explanation[1], '把房间码发给 TA，一起共享这份日历')
   assert.ok(status.index < explanation.index)
-  assert.ok(explanation.index < card.indexOf('class="bound-code-row"'))
+  assert.ok(explanation.index < card.indexOf('class="room-credential-ticket"'))
 })
 
 test('creating a room leaves its code ready to copy and share, with sharing the only main action', async (t) => {
@@ -561,28 +603,44 @@ test('bind with a paired or unknown Room shares only the ordinary static card', 
   }
 })
 
-test('bind starts with two equal unselected entries and expands only the chosen room flow', async (t) => {
+test('bind create and join panels breathe with two-layer grid and keep collapsed controls out of focus and screen readers', async (t) => {
   const app = bindPlatform(t)
   const page = app.launch('/pages/bind/bind')
   await app.settle()
 
   const wxml = readPageFile('pages/bind/bind.wxml')
-  const entries = wxmlOpeningTags(wxml).filter(tag => tag.classes[0] === 'tab')
-  const tabBar = wxmlOpeningTags(wxml).find(tag => tag.classes[0] === 'tab-bar')
+  const tags = wxmlOpeningTags(wxml)
+  const entries = tags.filter(tag => tag.classes[0] === 'tab')
+  const tabBar = tags.find(tag => tag.classes[0] === 'tab-bar')
+  const panels = tags.filter(tag => tag.classes.includes('bind-form-panel'))
+  const createAction = tags.find(tag => tag.attrs.bindtap === 'createRoom')
+  const joinAction = tags.find(tag => tag.attrs.bindtap === 'joinRoom')
+  const input = tags.find(tag => tag.classes.includes('code-input'))
   assert.ok(tabBar)
+  assert.equal(panels.length, 2, 'both subforms stay mounted for measured transitions')
+  assert.ok(createAction && joinAction && input)
   assert.deepEqual(entries.map(tag => tag.attrs['aria-label']), ['我来建房间', '我有房间码'])
-  assert.match(wxml, />我来建房间<\/view>/)
-  assert.match(wxml, />我有房间码<\/view>/)
   assert.equal(page.data.tab, '')
-  const panels = wxmlOpeningTags(wxml).filter(tag => /^\{\{tab === '(create|join)'\}\}$/.test(tag.attrs['wx:if'] || ''))
-  const panelVisible = tab => {
-    const panel = panels.find(tag => tag.attrs['wx:if'].includes(`'${tab}'`))
-    assert.ok(panel, `expected the ${tab} panel`)
-    return evaluateWxmlExpression(panel.attrs['wx:if'].slice(2, -2), page.data)
+
+  const panelOpen = flow => {
+    const panel = panels.find(tag => tag.attrs['data-flow'] === flow)
+    assert.ok(panel, `expected the ${flow} panel`)
+    assert.equal(panel.attrs['wx:if'], undefined, 'the panel must not unmount during collapse')
+    return renderWxmlClasses(panel.attrs.class, page.data).includes('bind-form-panel-open')
   }
+  const panelHidden = flow => {
+    const panel = panels.find(tag => tag.attrs['data-flow'] === flow)
+    return renderWxmlAttribute(panel.attrs['aria-hidden'], page.data)
+  }
+  const actionDisabled = action => renderWxmlAttribute(action.attrs['aria-disabled'], page.data)
   const renderedEntryClasses = entry => renderWxmlClasses(entry.attrs.class, page.data)
-  assert.equal(panelVisible('create'), false)
-  assert.equal(panelVisible('join'), false)
+  for (const flow of ['create', 'join']) {
+    assert.equal(panelOpen(flow), false)
+    assert.equal(panelHidden(flow), 'true')
+  }
+  assert.equal(actionDisabled(createAction), 'true')
+  assert.equal(actionDisabled(joinAction), 'true')
+  assert.equal(renderWxmlAttribute(input.attrs.disabled, page.data), 'true', 'collapsed native input cannot receive focus')
   assert.deepEqual(renderWxmlClasses(tabBar.attrs.class, page.data), ['tab-bar', 'tab-bar-unselected'])
   for (const entry of entries) {
     assert.deepEqual(renderedEntryClasses(entry), ['tab', 'tab-equal'])
@@ -595,16 +653,42 @@ test('bind starts with two equal unselected entries and expands only the chosen 
   const bindCss = readRawPageFile('pages/bind/bind.wxss')
   assert.equal(findRule(bindCss, '.tab-bar')['margin-bottom'], '30rpx')
   assert.equal(findRule(bindCss, '.tab-bar.tab-bar-unselected')['margin-bottom'], '0')
+  const collapsed = findRule(bindCss, '.bind-form-panel')
+  assert.equal(collapsed.display, 'grid')
+  assert.equal(collapsed['grid-template-rows'], '0fr')
+  assert.equal(collapsed.opacity, '0')
+  assert.equal(collapsed.transition, 'grid-template-rows var(--duration-state) var(--ease-out), opacity var(--duration-state) ease')
+  const expanded = findRule(bindCss, '.bind-form-panel.bind-form-panel-open')
+  assert.equal(expanded['grid-template-rows'], '1fr')
+  assert.equal(expanded.opacity, '1')
+  const inner = findRule(bindCss, '.bind-form-panel-inner')
+  assert.equal(inner['min-height'], '0')
+  assert.equal(inner.overflow, 'hidden')
+  assert.equal(inner['pointer-events'], 'none')
+  assert.equal(findRule(bindCss, '.bind-form-panel-open .bind-form-panel-inner')['pointer-events'], 'auto')
+  const reduced = bindCss.slice(bindCss.lastIndexOf('@media (prefers-reduced-motion: reduce)'))
+  assert.equal(findRule(reduced, '.bind-form-panel').transition, 'none')
 
   await app.dispatch(page, 'switchTab', { currentTarget: { dataset: { tab: 'join' } } })
-  assert.equal(panelVisible('create'), false)
-  assert.equal(panelVisible('join'), true)
+  assert.equal(panelOpen('create'), false)
+  assert.equal(panelOpen('join'), true)
+  assert.equal(panelHidden('create'), 'true')
+  assert.equal(panelHidden('join'), 'false')
+  assert.equal(actionDisabled(createAction), 'true')
+  assert.equal(actionDisabled(joinAction), 'false')
+  assert.equal(renderWxmlAttribute(input.attrs.disabled, page.data), 'false')
   assert.deepEqual(renderWxmlClasses(tabBar.attrs.class, page.data), ['tab-bar'])
   assert.deepEqual(renderedEntryClasses(entries[0]), ['tab'])
   assert.deepEqual(renderedEntryClasses(entries[1]), ['tab', 'active'])
+
   await app.dispatch(page, 'switchTab', { currentTarget: { dataset: { tab: 'create' } } })
-  assert.equal(panelVisible('create'), true)
-  assert.equal(panelVisible('join'), false)
+  assert.equal(panelOpen('create'), true)
+  assert.equal(panelOpen('join'), false)
+  assert.equal(panelHidden('create'), 'false')
+  assert.equal(panelHidden('join'), 'true')
+  assert.equal(actionDisabled(createAction), 'false')
+  assert.equal(actionDisabled(joinAction), 'true')
+  assert.equal(renderWxmlAttribute(input.attrs.disabled, page.data), 'true')
   assert.deepEqual(renderedEntryClasses(entries[0]), ['tab', 'active'])
   assert.deepEqual(renderedEntryClasses(entries[1]), ['tab'])
 })
@@ -949,7 +1033,7 @@ test('bind page reveals the card and its title with the shared enter motion', ()
   assert.match(wxml, /<view wx:if="\{\{revealed\}\}" class="bind-reveal">\s*<text class="hero-title">[^<]*<\/text>\s*<text class="hero-desc">[^<]*<\/text>\s*<\/view>/)
 })
 
-test('created room blooms once, failed creation does not bloom, and rechecking clears the mark', async (t) => {
+test('created room ripples the secondary heart and outer ring once, failed creation does not bloom, and rechecking clears the mark', async (t) => {
   const app = bindPlatform(t, { failHome: true, createRoom: { code: -1, msg: '创建失败' } })
   const page = app.launch('/pages/bind/bind')
   await app.settle()
@@ -971,23 +1055,35 @@ test('created room blooms once, failed creation does not bloom, and rechecking c
   assert.deepEqual(renderedClasses('hero', page.data), ['hero'])
   assert.deepEqual(renderedClasses('premium-card', page.data, boundCard), ['premium-card', 'glass-surface'])
   const css = readPageFile('pages/bind/bind.wxss')
-  const frames = /@keyframes heroBloom\s*\{([\s\S]*?)\n\}/.exec(css)
+  const brandCss = readPageFile('pages/shared/brand-hearts.wxss')
+  const frames = /@keyframes heroBloom\s*\{([\s\S]*?)\n\}/.exec(brandCss)
   assert.ok(frames)
   assert.match(frames[1], /from\s*\{\s*opacity:\s*0\.\d+;\s*transform:\s*scale\(1\);\s*\}/)
   assert.match(frames[1], /to\s*\{\s*opacity:\s*0;\s*transform:\s*scale\(1\.\d+\);\s*\}/)
-  const echo = findRule(css, '.hero.hero-bloom .hero-icon::after')
-  assert.equal(echo.content, "'♥'")
+  const echo = findRule(brandCss, '.hero.hero-bloom .brand-heart-secondary-echo')
   assert.equal(echo.animation, 'heroBloom var(--duration-emphasis) var(--ease-out) both')
   assert.equal(echo.opacity, '0')
-  assert.equal(echo['text-shadow'], 'none')
   assert.equal(echo['pointer-events'], 'none')
+  const ring = findRule(brandCss, '.hero.hero-bloom .brand-heart-ring-echo')
+  assert.equal(ring.animation, 'heroBloom var(--duration-emphasis) var(--ease-out) both')
+  assert.equal(ring.opacity, '0')
+  assert.equal(ring['pointer-events'], 'none')
   const card = findRule(css, '.premium-card.bound-reveal')
   assert.equal(card.animation, 'bindReveal var(--duration-enter) var(--ease-out) both')
   assert.equal(card.opacity, undefined)
   assert.equal(card.transform, undefined)
-  const reduced = css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce)'))
-  assert.equal(findRule(reduced, '.hero.hero-bloom .hero-icon::after').animation, 'none')
-  assert.equal(findRule(reduced, '.premium-card.bound-reveal').animation, 'none')
+  for (const selector of ['.brand-heart-secondary-echo', '.brand-heart-ring-echo']) {
+    const resting = Object.assign({}, ...parseWxssRules(brandCss)
+      .filter(rule => rule.selectors.includes(selector))
+      .map(rule => rule.decls))
+    assert.equal(resting.opacity, '0', `${selector} is transparent before and after the one-shot ripple`)
+  }
+  const reduced = brandCss.slice(brandCss.lastIndexOf('@media (prefers-reduced-motion: reduce)'))
+  for (const selector of ['.hero.hero-bloom .brand-heart-secondary-echo', '.hero.hero-bloom .brand-heart-ring-echo']) {
+    assert.equal(findRule(reduced, selector).animation, 'none')
+  }
+  const bindReduced = css.slice(css.lastIndexOf('@media (prefers-reduced-motion: reduce)'))
+  assert.equal(findRule(bindReduced, '.premium-card.bound-reveal').animation, 'none')
 })
 
 test('bind shows archived and rejoin recovery lines after settings leave using only process memory', async (t) => {
