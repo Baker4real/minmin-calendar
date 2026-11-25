@@ -32,7 +32,12 @@ async function main() {
   const temp = path.join(root, '.scratch', 'tmp')
   fs.mkdirSync(out, { recursive: true })
   // Each run replaces the last; clear its files first so a failed run cannot leave older screenshots beside new evidence.
-  for (const name of ['evidence.json', ...widths.map(width => `nav-${width}.png`)]) fs.rmSync(path.join(out, name), { force: true })
+  const staleEvidence = [
+    'evidence.json', 'action-evidence.json',
+    ...widths.map(width => `nav-${width}.png`),
+    ...widths.flatMap(width => ['period', 'memory'].map(kind => `back-${kind}-${width}.png`))
+  ]
+  for (const name of staleEvidence) fs.rmSync(path.join(out, name), { force: true })
   fs.mkdirSync(temp, { recursive: true })
   process.env.TEMP = temp
   process.env.TMP = temp
@@ -41,14 +46,16 @@ async function main() {
   const evidence = []
   try {
     const wxml = readSource(path.join(root, 'pages/index/index.wxml'), 'utf8')
-    const navStart = wxml.indexOf('<view class="nav-bar header-gradient"')
+    const navStart = wxml.indexOf('<view class="nav-bar header-gradient')
     const navEnd = wxml.indexOf('<view wx:if="{{noRoom}}"', navStart)
     assert.ok(navStart >= 0 && navEnd > navStart, 'navbar fixture must include the complete shared template')
     const nav = wxml.slice(navStart, navEnd)
     assert.match(nav, /class="nav-tool"[^>]*bindtap="openLegendSheet"/)
     assert.match(nav, /class="nav-tool-surface">图例<\/view>/)
     assert.match(nav, /class="nav-title">\{\{title\}\}<\/view>/)
-    const html = nav.replace(/<(\/?)view\b/g, '<$1div').replace(/<(\/?)text\b/g, '<$1span').replace('{{title}}', '美少女的日历')
+    const html = nav.replace(/<(\/?)view\b/g, '<$1div').replace(/<(\/?)text\b/g, '<$1span')
+      .replaceAll("{{variant === 'immersive' ? ' nav-bar-immersive' : ''}}", '')
+      .replaceAll('{{title}}', '美少女的日历')
     for (const width of widths) {
       const page = await browser.newPage({ viewport: { width, height: 932 } })
       const sources = ['app.wxss', 'pages/index/index.wxss'].map(file => readSource(path.join(root, file), 'utf8'))
@@ -120,7 +127,7 @@ async function main() {
       await screenshotWithRetry(page, { path: path.join(out, `nav-${width}.png`) })
       // Reintroduce the actual failure without changing repository files.
       await page.evaluate(() => { document.querySelector('#legend').hidden = true })
-      await page.addStyleTag({ content: '.header-gradient::after{pointer-events:auto}' })
+      await page.addStyleTag({ content: '.header-gradient::after{pointer-events:auto;z-index:20}' })
       await page.mouse.click(point.x, point.y)
       assert.equal(await page.locator('#legend').isVisible(), false, `${width}px: negative control must detect the overlay`)
       console.log(`PASS ${width}x932 title center and unclipped legend; coordinate click and negative control`)
@@ -158,7 +165,7 @@ async function main() {
       }
       await page.close()
     }
-    await runActionHitTest(browser, out)
+    await runActionHitTest(browser, out, screenshotWithRetry)
   } finally {
     fs.writeFileSync(path.join(out, 'evidence.json'), JSON.stringify(evidence, null, 2))
     await browser.close()

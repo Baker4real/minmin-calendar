@@ -10,15 +10,27 @@ const SELECTORS = new Set([
   '.quick-btn.quick-btn-hover', '.quick-btn.btn-ghost', '.quick-btn.btn-ghost:active',
   '.quick-btn.btn-ghost.btn-ghost-hover', '.quick-ghost-surface', '.quick-icon', '.quick-text',
   '.quick-btn.btn-ghost .quick-text', '.button-primary', '.button-outline',
-  '.nav-bar', '.nav-back', '.nav-back-surface', '.nav-back-surface::before', '.nav-back-icon',
+  '.nav-bar', '.nav-title', '.nav-back', '.nav-back-surface', '.nav-back-icon',
+  '.ui-icon', '.ui-icon-left', '.ui-icon-36', '.ui-icon-circle.ui-icon-left',
   '.nav-back:active', '.nav-back.nav-back-hover', '.nav-back:active .nav-back-surface',
-  '.nav-back.nav-back-hover .nav-back-surface', '.nav-back:active .nav-back-surface::before',
-  '.nav-back.nav-back-hover .nav-back-surface::before', '.header-gradient',
+  '.nav-back.nav-back-hover .nav-back-surface', '.header-gradient',
   '.header-gradient::before', '.header-gradient::after'
 ])
 
 function htmlFragment(source) {
   return source.replace(/<(\/?)view\b/g, '<$1div').replace(/<(\/?)text\b/g, '<$1span')
+    .replaceAll("{{variant === 'immersive' ? ' nav-bar-immersive' : ''}}", '')
+}
+
+function editNavbarFragment(root, pagePath, title) {
+  const wxml = readSource(path.join(root, pagePath), 'utf8')
+  const navStart = wxml.indexOf('<view class="nav-bar header-gradient')
+  const navEnd = wxml.indexOf('<view class="content"', navStart)
+  assert.ok(navStart >= 0 && navEnd > navStart, `${pagePath} must use the actual shared navbar`)
+  const fragment = htmlFragment(wxml.slice(navStart, navEnd)).replaceAll('{{title}}', title)
+  assert.match(fragment, /class="nav-back"[^>]*bindtap="goBack"/)
+  assert.ok(fragment.includes(`class="nav-title">${title}</div>`), `${pagePath} keeps its centered title`)
+  return fragment
 }
 
 function actionFixtures(root) {
@@ -30,12 +42,11 @@ function actionFixtures(root) {
   assert.match(quick, /quick-btn button-primary/)
   assert.match(quick, /quick-btn btn-ghost/)
 
-  const navStart = wxml.indexOf('<view class="nav-bar header-gradient"')
-  const navEnd = wxml.indexOf('<view wx:if="{{noRoom}}"', navStart)
-  assert.ok(navStart >= 0 && navEnd > navStart, 'back fixture must use the actual shared navbar')
-  const back = htmlFragment(wxml.slice(navStart, navEnd))
-  assert.match(back, /class="nav-back"[^>]*bindtap="goBack"/)
-  return { quick, back }
+  const backs = [
+    { key: 'period', title: '补记经期', fragment: editNavbarFragment(root, 'pages/period/edit/edit.wxml', '补记经期') },
+    { key: 'memory', title: '补记欢乐时光', fragment: editNavbarFragment(root, 'pages/memory/edit/edit.wxml', '补记欢乐时光') }
+  ]
+  return { quick, backs }
 }
 
 function actionCss(root, width) {
@@ -69,7 +80,7 @@ async function clickAndExpect(page, locator, result, edge, surface = null) {
   return { hit, point: { x, y }, edge }
 }
 
-async function runActionHitTest(browser, out) {
+async function runActionHitTest(browser, out, screenshot = (page, options) => page.screenshot(options)) {
   const root = path.resolve(__dirname, '../..')
   const fixtures = actionFixtures(root)
   const evidence = []
@@ -104,31 +115,72 @@ async function runActionHitTest(browser, out) {
       record.quickNegativeControl = true
       await quickPage.close()
 
-      const backPage = await browser.newPage({ viewport: { width, height: 932 } })
-      await backPage.setContent(`<body class="page" style="margin:0">${fixtures.back}<div id="back-result" hidden></div><style>${css}</style></body>`)
-      await backPage.evaluate(() => {
-        for (const selector of ['.nav-tool', '.nav-placeholder', '.nav-title', '.sync-pill']) document.querySelector(selector)?.remove()
-        document.querySelector('.nav-back').addEventListener('click', () => { document.querySelector('#back-result').hidden = false })
-      })
-      const back = backPage.locator('.nav-back')
-      for (const edge of [false, true]) {
+      console.log(`PASS ${width}x932 quick-action center/edge coordinate clicks; interception negative controls`)
+      for (const fixture of fixtures.backs) {
+        const backPage = await browser.newPage({ viewport: { width, height: 932 } })
+        const contentHeight = width === 320 ? 40 : 44
+        const leftSlot = (30 + 88) * width / 750
+        const compensation = 96 - leftSlot
+        const bodyStyle = `margin:0;--safe-top:44px;--nav-bar-height:${44 + contentHeight}px;--capsule-right:96px;--nav-title-padding-left:${Math.max(0, compensation)}px;--nav-title-padding-right:${Math.max(0, -compensation)}px`
+        await backPage.setContent(`<body class="page" style="${bodyStyle}">${fixture.fragment}<div id="back-result" hidden></div><style>${css}</style></body>`)
+        await backPage.evaluate(() => {
+          for (const selector of ['.nav-tool', '.nav-placeholder', '.sync-pill']) document.querySelector(selector)?.remove()
+          document.querySelector('.nav-back').addEventListener('click', () => { document.querySelector('#back-result').hidden = false })
+        })
+        const back = backPage.locator('.nav-back')
+        const backBox = await back.boundingBox()
+        const surfaceBox = await backPage.locator('.nav-back-surface').boundingBox()
+        const navbarBox = await backPage.locator('.nav-bar').boundingBox()
+        assert.ok(backBox && surfaceBox && navbarBox, `${fixture.key}: back hit slot, surface and navbar boxes must exist`)
+        const touchFloor = 88 * width / 750
+        const expectedSurface = 64 * width / 750
+        assert.ok(backBox.width + 0.02 >= touchFloor && backBox.height + 0.02 >= touchFloor, `${fixture.key}: back hit slot must stay at least 88rpx at ${width}px`)
+        assert.ok(Math.abs(surfaceBox.width - expectedSurface) <= 0.04 && Math.abs(surfaceBox.height - expectedSurface) <= 0.04, `${fixture.key}: visual surface must be 64rpx at ${width}px; ${JSON.stringify(surfaceBox)}`)
+        const contentTop = navbarBox.y + 44
+        const contentBottom = contentTop + contentHeight
+        assert.ok(surfaceBox.y >= contentTop - 0.01 && surfaceBox.y + surfaceBox.height <= contentBottom + 0.01, `${fixture.key}: surface escapes the navbar content row at ${width}px`)
+        const title = await backPage.locator('.nav-title').evaluate(element => {
+          const range = document.createRange()
+          range.selectNodeContents(element)
+          const textRect = range.getBoundingClientRect()
+          const rect = element.getBoundingClientRect()
+          const style = getComputedStyle(element)
+          const paddingLeft = parseFloat(style.paddingLeft)
+          const paddingRight = parseFloat(style.paddingRight)
+          return {
+            center: rect.left + paddingLeft + (rect.width - paddingLeft - paddingRight) / 2,
+            textCenter: textRect.left + textRect.width / 2,
+            left: textRect.left,
+            right: textRect.right
+          }
+        })
+        const tolerance = 0.25 + 1 / 64
+        assert.ok(Math.abs(title.center - width / 2) <= tolerance, `${fixture.key}: title content box must stay centered at ${width}px; ${JSON.stringify(title)}`)
+        assert.ok(Math.abs(title.textCenter - title.center) <= 0.3, `${fixture.key}: title glyphs exceed the subpixel centering budget at ${width}px; ${JSON.stringify(title)}`)
+        assert.ok(title.left >= backBox.x + backBox.width - 0.02, `${fixture.key}: back hit slot overlaps the title at ${width}px`)
+        assert.ok(title.right <= width - 96 + tolerance, `${fixture.key}: title enters the capsule slot at ${width}px`)
+        const backRecord = { page: fixture.key, title: fixture.title, titleCenter: title.center, box: backBox, surfaceBox, clicks: [] }
+        for (const edge of [false, true]) {
+          await backPage.evaluate(() => { document.querySelector('#back-result').hidden = true })
+          backRecord.clicks.push(await clickAndExpect(backPage, back, '#back-result', edge, backPage.locator('.nav-back-surface')))
+        }
+        await screenshot(backPage, { path: path.join(out, `back-${fixture.key}-${width}.png`) })
         await backPage.evaluate(() => { document.querySelector('#back-result').hidden = true })
-        record.back.push(await clickAndExpect(backPage, back, '#back-result', edge, backPage.locator('.nav-back-surface')))
+        await backPage.evaluate(() => {
+          const overlay = document.createElement('div')
+          overlay.id = 'action-negative-overlay'
+          overlay.style.cssText = 'position:absolute;inset:0;z-index:999;background:transparent'
+          document.body.append(overlay)
+        })
+        await backPage.mouse.click(backRecord.clicks[0].point.x, backRecord.clicks[0].point.y)
+        assert.equal(await backPage.locator('#back-result').evaluate(element => element.hidden), true, `${fixture.key}: back interception negative control must fail to activate`)
+        backRecord.negativeControl = true
+        record.back.push(backRecord)
+        await backPage.close()
+        console.log(`PASS ${width}x932 ${fixture.key} edit back geometry, centered title and center/edge coordinate clicks; interception negative control`)
       }
-      await backPage.evaluate(() => { document.querySelector('#back-result').hidden = true })
-      await backPage.evaluate(() => {
-        const overlay = document.createElement('div')
-        overlay.id = 'action-negative-overlay'
-        overlay.style.cssText = 'position:absolute;inset:0;z-index:999;background:transparent'
-        document.body.append(overlay)
-      })
-      await backPage.mouse.click(record.back[0].point.x, record.back[0].point.y)
-      assert.equal(await backPage.locator('#back-result').evaluate(element => element.hidden), true, 'back interception negative control must fail to activate')
-      record.backNegativeControl = true
-      await backPage.close()
 
       evidence.push(record)
-      console.log(`PASS ${width}x932 quick actions and back center/edge coordinate clicks; interception negative controls`)
     }
   } finally {
     fs.writeFileSync(path.join(out, 'action-evidence.json'), JSON.stringify(evidence, null, 2))
