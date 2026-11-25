@@ -42,8 +42,9 @@ test('form page wxss layers define no extra entrance fade animation', () => {
 
   for (const relativePath of formPageWxss) {
     const wxss = readSource(path.join(repoRoot, relativePath), 'utf8')
+    const withoutReducedMotionResets = wxss.replace(/animation\s*:\s*none\s*;?/g, '')
     assert.equal(
-      /animation\s*:/.test(wxss),
+      /animation\s*:/.test(withoutReducedMotionResets),
       false,
       `${relativePath} must not define a second entrance animation layer`
     )

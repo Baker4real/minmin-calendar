@@ -24,15 +24,18 @@
       </view>
       <view class="form-item">
         <text class="form-label">经期状态</text>
-        <view class="flow-options" aria-role="radiogroup" aria-label="经期状态">
-          <template is="sharedChoiceChip" wx:for="{{statusOptions}}" wx:key="value" data="{{item: item, chipClass: 'flow-chip', checked: status === item.value, saving: saving, tapHandler: 'selectStatus', role: 'radio', ariaLabel: '经期状态 ' + item.label + '，' + item.hint}}" />
+        <view class="segment-control segment-columns-3 status-options" aria-role="radiogroup" aria-label="经期状态">
+          <view class="segment-thumb segment-thumb-columns-3 segment-thumb-index-{{status === 'unknown-end' ? 1 : status === 'known-end' ? 2 : 0}}" aria-hidden="true"></view>
+          <template is="sharedChoiceChip" wx:for="{{statusOptions}}" wx:key="value" data="{{item: item, chipClass: 'segment-option', checked: status === item.value, saving: saving, tapHandler: 'selectStatus', role: 'radio', ariaLabel: '经期状态 ' + item.label + '，' + item.hint}}" />
         </view>
         <text class="form-hint status-hint" aria-role="status">{{statusHint}}</text>
       </view>
-      <view class="form-item" wx:if="{{status === 'known-end'}}" id="field-endDate">
-        <template is="sharedDateField" data="{{label: '结束日期', value: endDate, displayValue: endDateLabel, placeholder: '选择结束日期', ariaLabel: endDate ? '结束日期，' + endDateLabel + '，点按修改' : '结束日期，还没选，点按选择', error: fieldErrors.endDate, startDate: startDate, maxDate: maxDate, saving: saving, tapHandler: 'openEndDatePicker', focused: datePickerMounted && datePickerName === '结束日期'}}" />
-        <text wx:if="{{periodDayCountText}}" class="form-hint period-length-hint">{{periodDayCountText}}</text>
-        <text wx:if="{{periodLengthHint}}" class="form-hint period-length-hint">{{periodLengthHint}}</text>
+      <view class="form-item end-date-disclosure{{status === 'known-end' ? ' end-date-expanded' : ''}}" id="field-endDate" aria-hidden="{{status !== 'known-end'}}">
+        <view class="end-date-inner">
+          <template is="sharedDateField" data="{{label: '结束日期', value: endDate, displayValue: endDateLabel, placeholder: '选择结束日期', ariaLabel: endDate ? '结束日期，' + endDateLabel + '，点按修改' : '结束日期，还没选，点按选择', error: fieldErrors.endDate, startDate: startDate, maxDate: maxDate, saving: saving || status !== 'known-end', tapHandler: 'openEndDatePicker', focused: datePickerMounted && datePickerName === '结束日期'}}" />
+          <text wx:if="{{periodDayCountText}}" class="form-hint period-length-hint">{{periodDayCountText}}</text>
+          <text wx:if="{{periodLengthHint}}" class="form-hint period-length-hint">{{periodLengthHint}}</text>
+        </view>
       </view>
     </view>
     <view class="premium-card glass-surface optional-card">
@@ -43,7 +46,7 @@
           <text class="form-hint">再点可取消</text>
         </view>
         <view class="flow-options">
-          <template is="sharedChoiceChip" wx:for="{{flowOptions}}" wx:key="value" data="{{item: item, chipClass: 'flow-chip', checked: flow === item.value, saving: saving, tapHandler: 'selectFlow', role: 'checkbox', ariaLabel: '经量 ' + item.label + '，单选，再点取消'}}" />
+          <template is="sharedChoiceChip" wx:for="{{flowOptions}}" wx:key="value" data="{{item: item, chipClass: 'flow-chip', checked: flow === item.value, saving: saving, tapHandler: 'selectFlow', role: 'checkbox', ariaLabel: '经量 ' + item.label + '，单选，再点取消', degreeDots: item.degreeDots}}" />
         </view>
       </view>
       <view class="form-item">
