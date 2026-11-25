@@ -29,4 +29,4 @@ intent: "确定确认交互的承载方式、跨页界面复用方式与本轮�
 
 ## 2026-11-26 补充：共享双层 disclosure/fold 样式
 
-#263 评审修复按本决定的 `@import` 路线新增 `pages/shared/disclosure.wxss`，承载绑定子表单、经期结束日期和记录页年月分组共同的双层网格、透明度与禁点结构。三处保留各自的展开条件、ARIA/disabled 业务语义和外观修饰；没有新建自定义组件。F1 运行态对照另确认 `sheetDrag` 必须由使用它的共享模板自己声明：`pages/shared/confirmation-sheet.wxml` 在模板作用域内引入 `utils/sheetDrag.wxs`，宿主页面不再各自声明同名模块；只把声明放在宿主页面时，导入模板里的 `bindtouch*` 不会进入该 WXS。测试展开入口同步保留模板 WXS，避免页面 harness 与真实渲染作用域脱节。
+#263 评审修复按本决定的 `@import` 路线新增 `pages/shared/disclosure.wxss`，承载绑定子表单、经期结束日期和记录页年月分组共同的双层网格、透明度与禁点结构。三处保留各自的展开条件、ARIA/disabled 业务语义和外观修饰；没有新建自定义组件。F1 运行态对照另确认 `sheetDrag` 必须由使用它的共享模板自己声明：`pages/shared/confirmation-sheet.wxml` 在模板作用域内引入 `utils/sheetDrag.wxs`，宿主页面不再各自声明同名模块；只把声明放在宿主页面时，导入模板里的 `bindtouch*` 不会进入该 WXS。测试展开入口同步保留模板 WXS，避免页面 harness 与真实渲染作用域脱节。F1 内层滚动对照进一步确认：普通 view 的公开 property/scrollTo 不能提供可用验证入口，而原生 scroll-view 是平台组件，不违反“不建自定义组件”的决定；直接放在 flex grow/shrink 轨道里仍不滚动，因此最终保留内容高与固定 chrome，使用 `flex: 0 0 auto` 加各面板自己的 max-height 轨道，不设置受控 scroll-top，也不改拖拽或生命周期。
