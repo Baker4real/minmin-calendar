@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { electronEnvironment } from './electronProcess.mjs'
+import { readAutoHealth } from './devtoolsLaunchHealth.mjs'
 
 export const defaultIde = 'D:/Program Files (x86)/Tencent/微信web开发者工具'
 const root = fileURLToPath(new URL('../../', import.meta.url))
@@ -70,6 +71,14 @@ export function runBounded(executable, args, { timeoutMs = 10000, cwd, env, spaw
   })
 }
 
+// A bounded CLI wait can expire after the IDE has actually launched the app. Recover only from
+// independent endpoint and lifecycle evidence; never turn an unhealthy timeout into a pass or retry in a loop.
+export function autoRecovery(result, health) {
+  if (result.status !== 'timeout') return {}
+  if (health.endpoint.ok && health.launch.ok) return { status: 'ok', exitCode: 0, recoveredFromTimeout: true }
+  return { health }
+}
+
 export async function runOfficialCli({ ide = defaultIde, command = 'islogin', project = root, port = 9420, timeoutMs = 10000, env, names } = {}) {
   const args = cliArguments(command, project, port, { env, names })
   const executable = path.join(ide, '微信开发者工具.exe')
@@ -93,6 +102,10 @@ async function main() {
   // Never print raw CLI output: login responses may contain account details.
   // The cloud queries are the exception: their answer is function metadata.
   const report = { command: options.command, status: result.status, exitCode: result.exitCode }
+  if (options.command === 'auto' && result.status === 'timeout') {
+    const health = await readAutoHealth(options.ide || defaultIde, options.project || root, `ws://127.0.0.1:${options.port || 9420}`)
+    Object.assign(report, autoRecovery(result, health))
+  }
   if (Object.hasOwn(cloudReads, options.command) && result.status === 'ok') {
     const answer = cloudAnswer(result.output)
     if (answer.failed) Object.assign(report, { status: 'failed', exitCode: 1 })

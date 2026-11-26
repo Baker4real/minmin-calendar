@@ -13,6 +13,8 @@ intent: "连接与资源诊断、官方 CLI/MCP 入口及 GUI 验收边界"
 
 先运行 `npm run devtools:preflight`。它分别检查官方 CLI 的服务/登录响应，以及本机 automator 端口；TCP 监听只表示可开始握手，不代表页面可用。它还比对开发者工具已加载的 `packOptions`、`watchOptions` 与磁盘上的 `project.config.json`，并打印最近一次代码质量结果（见下文「代码质量扫描口径」）。在 Windows 上它还回读本项目窗口（标题为 `project.config.json` 的 `projectname`）是否最小化。它还读模拟器的基础库生命周期日志，看最近一次逻辑层启动有没有加载页面、页面代码有没有跑；这项失败时列出最近 5 次启动各进了哪些页面。可传 `-- --ide <安装目录> --ws ws://127.0.0.1:<端口>`。默认探 9420；并行 worktree 的项目窗口开在别的端口时必须传同一个端口，否则只会报 `connect ECONNREFUSED 127.0.0.1:9420`。
 
+并行 worktree 的实现代理默认只跑离线门禁，不各自启动 DevTools 验收。`auto`、`standin`、截图、runtime-proof 和原生交互证明在同一个 IDE 里只能有一个 owner；由 orchestrator 指定最终验收 owner 串行执行、清理并交接，其他代理不得并发打开项目或采集。运行证据必须绑定当前 worktree、实际端口、源码指纹和本轮编译 nonce，旧包或 `runtime-unconfirmed` 一律不验收。最终源码变化后由同一 owner 重跑受影响矩阵，不能拼接不同 worktree 或不同指纹的截图。
+
 | 结果 | 下一步 |
 |---|---|
 | `DevTools loaded project.config.json` 为 FAIL | 开发者工具还在用旧配置：关闭并重新打开项目后重跑。SKIP 表示没找到本项目的状态文件，先在开发者工具里打开项目。 |
@@ -37,6 +39,8 @@ node tests/devtoolsCapture.mjs --ws ws://127.0.0.1:9420 --states 'home,home:lege
 `--trust-project` 是自动化首次连接所需参数。CLI 的服务端口和 automator 的 9420 是不同通路；开启服务端口不保证 9420 会监听。不要因 `auto` 卡住而把业务代码改成兜底逻辑。
 
 `devtools:cli` 使用安装包中的官方 CLI 入口，自动把项目路径规范为 Windows 原生绝对路径，并为 `auto` 添加 `--trust-project`。支持 `islogin`、`open`、`close`、`auto` 和下文两个云函数只读查询，默认 10 秒、最多 60 秒；除云函数查询外，输出只含命令、状态和退出码，不输出登录原文。超时返回 124，并终止本次启动的 CLI 进程树；不会终止已运行的 IDE。`ok` 只代表 CLI 退出成功，页面是否就绪仍需运行态检查。预检的登录检查共用此入口。
+
+`auto` 超时时不会直接假定启动失败：包装器随后回读同一端口的 TCP 与最近一次生命周期启动。只有端口可连接且页面代码确实执行，才返回 `status=ok`、`exitCode=0`、`recoveredFromTimeout=true`；否则保留 124，并在 `health` 里给出失败面。它不自动重启、不循环重试，也不把单纯端口监听当成页面健康。
 
 同一入口还有两个只读的云函数查询，云环境 ID 取 `app.js` 里 `wx.cloud.init` 的 `env`：
 
@@ -128,6 +132,10 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 采集后必须运行 `npm run devtools:runtime-proof -- clean`；若 prepare 改过 unused-file 过滤，clean 先恢复原值并保留其他私有配置，再只删除内容与本轮 proof 匹配的临时模块和证明文件，内容变动则拒绝清理；恢复失败时保留 proof 与探针供修正后重试。临时模块不参与业务指纹并被 git 忽略，完整验证的包内容检查会拒绝它的残留，防止进入发布。挑战证明本轮编译标记已进入运行环境，不替代页面状态、样式或关键交互验收。
 
 开始组件级视觉审计时先运行 `node tests/impeccableAudit.mjs --component <id>`（ID 用 `--list-components` 查看）。它把相关 DESIGN.md 与 `docs/motion-and-interaction.md` 片段、静态选择器、动效、测试和截图账本压成一份 JSON；截图分类复用上述指纹规则。先读这些定位信息，再按疑点打开源码和 current 证据，避免先读完整规范或遍历所有历史截图。摘要失败或没有 current 证据时按缺口记录，不把静态索引或旧图当作运行态验收。
+
+### 共享弹层原生交互证明
+
+静态 WXML/WXSS 断言之外，用 `npm run devtools:sheet-proof -- --ws ws://127.0.0.1:9420` 验证共享弹层的真实运行路径。它要求先 `npm run devtools:runtime-proof -- prepare` 并在当前 IDE 完成编译，必要时用上面的 `auto` 启动自动化；脚本先拒绝旧编译，再在 ABC123 替身 Room 中检查：长使用说明的原生 `scroll-view` 能产生 60px 实际内容偏移且固定 chrome 不动，Settings 与 Home 共享拖拽 owner 都能跟手，停顿超过 80ms 后快甩会关闭，过阈值后的快速上推保持 open 并复位。结果写入 `.scratch/standin/sheet-runtime-proof/result.json`，任何一项失败都返回非零；脚本结束恢复替身并自动 `runtime-proof -- clean`。它证明当前模拟器的公开运行路径，不冒充物理手势、真机惯性或系统读屏验收。
 
 实际坐标点击复用本机受管 GUI 会话（统一环境治理文档 `docs/env-governance/gui-session.md`）：Harness 无官方后端时使用其中的 Windows 传输。每次动作都绑定新截图、窗口身份和 DPI；失焦、几何变化或遮挡产生的是证据无效，不能登记成产品按钮 FAIL。连续两次失效后停止自动输入并做一次人工对照，不继续用自写点按脚本推进安装包补丁。
 

@@ -1,25 +1,13 @@
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync, readFileSync, statSync } from 'node:fs'
-import net from 'node:net'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { appLaunches, findProjectState, findWatcherIgnore, readLifecycleLog, staleConfig, summarizeQuality, userDataDirs } from './devtoolsState.mjs'
+import { findProjectState, findWatcherIgnore, staleConfig, summarizeQuality, userDataDirs } from './devtoolsState.mjs'
 import { runOfficialCli } from './devtoolsCli.mjs'
+import { checkLatestLaunch, launchLines, probeEndpoint } from './devtoolsLaunchHealth.mjs'
+export { launchResult, launchLines, probeEndpoint } from './devtoolsLaunchHealth.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
-export function probeEndpoint(endpoint, timeoutMs = 2500) {
-  const url = new URL(endpoint)
-  if (url.protocol !== 'ws:' || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) {
-    throw new Error('Use a local ws:// automator endpoint')
-  }
-  return new Promise((resolve, reject) => {
-    const socket = net.createConnection({ host: url.hostname.replace(/[\[\]]/g, ''), port: Number(url.port || 80) })
-    const finish = error => { socket.destroy(); error ? reject(error) : resolve() }
-    socket.once('connect', () => finish())
-    socket.once('error', finish)
-    socket.setTimeout(timeoutMs, () => finish(new Error(`Automator port timed out: ${url.port}`)))
-  })
-}
 
 const TRANSIENT_ISLOGIN_EXITS = new Set([4294967295, -1])
 
@@ -37,7 +25,7 @@ export async function checkLogin(ide, { runCli = runOfficialCli } = {}) {
 }
 
 // 读开发者工具落盘的项目状态和监听器日志：已加载的配置是否与磁盘一致，以及最近一次代码质量结果。
-function checkLoadedConfig(ide) {
+export function checkLoadedConfig(ide) {
   const name = 'DevTools loaded project.config.json'
   const found = findProjectState(userDataDirs(ide), root)
   if (!found) return { result: { name, skipped: true, error: 'no project state under DevTools User Data; open the project in DevTools first' } }
@@ -109,35 +97,8 @@ function checkProjectWindow() {
   return projectWindowResult(result.stdout, projectName)
 }
 
-// Right after DevTools starts, its second app-service reload can run App onLaunch and load no page (2026-11-07):
-// the CLI and automator still answer, but page logic stays dead until the next compile. The lifecycle log is
-// truncated to the second and written every 3 s, so a launch younger than 5 s without a page is only pending.
-// A page whose module threw while registering still logs onLoad (2026-11-08, after git wrote a new module and the
-// pages requiring it while the project was open); appLaunches tells it apart by the missing wx calls before onLoad.
-export function launchResult(launches, now = Date.now()) {
-  const name = 'Latest app launch loaded a page'
-  const latest = launches.at(-1)
-  if (!latest) return { name, skipped: true, error: 'no App onLaunch in the simulator lifecycle log; compile the project in DevTools first' }
-  const launched = latest.at.toLocaleString('sv-SE')
-  if (latest.page && latest.pageCodeRan) return { name, ok: true, note: `${latest.page}, launched ${launched}` }
-  if (latest.page) return { name, ok: false, error: `launched ${launched}: ${latest.page} logged onLoad but its page code never ran (no wx call before it), so the page failed to register, e.g. console "module '…' is not defined"; ask the maintainer to close and reopen the project in DevTools, then rerun` }
-  if (now - latest.at.getTime() < 5000) return { name, skipped: true, error: `launched ${launched}, no page logged yet; the log is written every 3 s, rerun in a few seconds` }
-  return { name, ok: false, error: `launched ${launched} without loading a page; click 编译 in DevTools, then rerun` }
-}
-
-// The last few launches, oldest first, with the pages each one reached; printed when the launch check fails.
-export function launchLines(launches, count = 5) {
-  return launches.slice(-count).map(launch => {
-    const pages = launch.pages.filter((page, i) => page !== launch.pages[i - 1])
-    const reached = pages.length ? pages.join(' > ') : 'no page loaded'
-    return `${launch.at.toLocaleString('sv-SE')} ${reached}${pages.length && !launch.pageCodeRan ? ' (page code never ran)' : ''}`
-  })
-}
-
-function checkLatestLaunch(ide) {
-  const { appid } = JSON.parse(readFileSync(path.join(root, 'project.config.json'), 'utf8'))
-  const launches = appLaunches(readLifecycleLog(userDataDirs(ide), appid))
-  return { result: launchResult(launches), launches }
+export function failedLaunchLines(launchCheck, launches) {
+  return launchCheck.ok === false ? launchLines(launches) : []
 }
 
 async function main() {
@@ -157,14 +118,14 @@ async function main() {
   }
   const connectionFailed = results.some(result => !result.ok)
   const { result: configResult, quality } = checkLoadedConfig(options.ide)
-  const { result: launchCheck, launches } = checkLatestLaunch(options.ide)
+  const { result: launchCheck, launches } = checkLatestLaunch(options.ide, root)
   results.push(configResult, checkProjectWindow(), launchCheck)
   const out = path.join(root, '.scratch', 'devtools')
   mkdirSync(out, { recursive: true })
   const log = path.join(out, 'preflight.json')
   writeFileSync(log, JSON.stringify({ endpoint: options.ws, results, quality }, null, 2))
   for (const result of results) console.log(`${result.skipped ? 'SKIP' : result.ok ? 'PASS' : 'FAIL'} ${result.name}${result.error ? `: ${result.error}` : ''}${result.note ? ` (${result.note})` : ''}`)
-  if (launchCheck.ok === false) for (const line of launchLines(launches)) console.log(`INFO   launch ${line}`)
+  for (const line of failedLaunchLines(launchCheck, launches)) console.log(`INFO   launch ${line}`)
   if (quality) {
     console.log(`INFO code quality scanned ${quality.scannedAt.toLocaleString()}: ${quality.total - quality.failed.length}/${quality.total} passed, main package ${quality.mainPackageBytes ?? 'unknown'} B`)
     for (const text of quality.failed) console.log(`INFO   failed: ${text}`)

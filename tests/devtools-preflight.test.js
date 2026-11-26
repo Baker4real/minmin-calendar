@@ -15,6 +15,13 @@ test('automator preflight distinguishes a listening port from a closed port', as
   assert.throws(() => probeEndpoint('ws://example.com:9420'), /local/)
 })
 
+test('loaded-config preflight reaches the state reader without an undefined dependency', async () => {
+  const { checkLoadedConfig } = await import('./tools/devtoolsPreflight.mjs')
+  const { result } = checkLoadedConfig('D:/nonexistent-minmin-calendar-ide')
+  assert.equal(result.name, 'DevTools loaded project.config.json')
+  assert.equal(result.skipped, true)
+})
+
 test('preflight fails while the project window is minimized, because captures fail then even with CLI and automator up', async () => {
   const { projectWindowResult } = await import('./tools/devtoolsPreflight.mjs')
   assert.deepEqual(projectWindowResult('50236\tFalse\r\n', 'minmin-calendar'), { name: 'DevTools project window', ok: true })
@@ -92,6 +99,13 @@ test('preflight fails when the first page logged onLoad but its code never ran, 
   assert.equal(dead.ok, false)
   assert.match(dead.error, /launched 2026-11-08 23:30:31: pages\/bind\/bind logged onLoad but its page code never ran/)
   assert.match(dead.error, /close and reopen the project in DevTools/)
+})
+
+test('preflight wires recent-launch details only into failed launch reports', async () => {
+  const { failedLaunchLines, launchLines } = await import('./tools/devtoolsPreflight.mjs')
+  const launches = [{ at: new Date(2026, 10, 8, 22, 9, 0), page: null, pages: [], pageCodeRan: false }]
+  assert.deepEqual(failedLaunchLines({ ok: false }, launches), launchLines(launches))
+  assert.deepEqual(failedLaunchLines({ ok: true }, launches), [])
 })
 
 test('a failing launch check lists the recent launches with the pages each one reached', async () => {

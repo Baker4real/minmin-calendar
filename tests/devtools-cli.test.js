@@ -57,3 +57,19 @@ test('bounded process reports exit failure, output cap and timeout distinctly', 
   const missing = await runBounded('nonexistent-test-devtools-executable', [])
   assert.equal(missing.status, 'spawn-error')
 })
+
+test('auto timeout is recovered only by endpoint and real page-launch evidence', async () => {
+  const { autoRecovery } = await import('./tools/devtoolsCli.mjs')
+  const timeout = { status: 'timeout', exitCode: 124 }
+  assert.deepEqual(autoRecovery(timeout, { endpoint: { ok: true }, launch: { ok: true } }), {
+    status: 'ok', exitCode: 0, recoveredFromTimeout: true
+  })
+  for (const health of [
+    { endpoint: { ok: false, error: 'ECONNREFUSED' }, launch: { ok: true } },
+    { endpoint: { ok: true }, launch: { ok: false, error: 'without loading a page' } },
+    { endpoint: { ok: false, error: 'ECONNREFUSED' }, launch: { ok: false, error: 'without loading a page' } }
+  ]) {
+    assert.deepEqual(autoRecovery(timeout, health), { health })
+  }
+  assert.deepEqual(autoRecovery({ status: 'failed', exitCode: 2 }, { endpoint: { ok: true }, launch: { ok: true } }), {})
+})
