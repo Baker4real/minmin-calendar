@@ -144,7 +144,11 @@ function openRecordEditSession({ kind, route, render, confirm }) {
   const routeState = config.parseRoute(route, { today: today() })
   const storage = recordDraft.createWxDraftStorage(wx)
   let draftKey = recordDraft.buildDraftKey({ collection: config.collection, id: routeState.id })
-  let baseline = recordDraft.pickDraftFields(routeState, config.draftFields)
+  function normalizedDraftFields(form) {
+    const normalized = config.normalizeForm ? config.normalizeForm({ ...form }) : form
+    return recordDraft.pickDraftFields(normalized, config.draftFields)
+  }
+  let baseline = normalizedDraftFields(routeState)
   const storedDraft = recordDraft.readDraft(storage, draftKey)
   const restoredDraft = storedDraft && (routeState.isEdit || storedDraft[config.dateField] === routeState[config.dateField])
     ? storedDraft
@@ -254,7 +258,7 @@ function openRecordEditSession({ kind, route, render, confirm }) {
     // 清掉被丢弃的新建草稿，再以真实记录的字段重建身份与基线。
     clearDraftAndStopPersistence()
     draftKey = recordDraft.buildDraftKey({ collection: config.collection, id: form.id })
-    baseline = recordDraft.pickDraftFields(form, config.draftFields)
+    baseline = normalizedDraftFields(form)
     recordDraft.clearDraft(storage, draftKey)
     draftDiscarded = false
     publish({ ...form, pageTitle: config.pageTitle(form), draftRestored: false, fieldErrors: {} })
@@ -295,6 +299,12 @@ function openRecordEditSession({ kind, route, render, confirm }) {
 
     async save() {
       if (busy() || deleteConfirming) return
+      if (state.isEdit && route.intent !== 'complete'
+        && sameDraftFields(normalizedDraftFields(state), baseline)) {
+        clearDraftAndStopPersistence()
+        wx.navigateBack()
+        return { kind: 'unchanged' }
+      }
       savePreparing = true
       publish({ saving: true })
       try {
@@ -499,6 +509,17 @@ function findReconciledRecord(records, reconcile) {
 
 function fieldsMatch(record, fields) {
   return Object.keys(fields).every(key => sameFieldValue(record[key], fields[key]))
+}
+
+function sameDraftFields(actual, expected) {
+  return Object.keys(expected).every(key => {
+    if (!Array.isArray(actual[key]) && !Array.isArray(expected[key])) {
+      return sameFieldValue(actual[key], expected[key])
+    }
+    const left = new Set((Array.isArray(actual[key]) ? actual[key] : []).map(value => String(value)))
+    const right = new Set((Array.isArray(expected[key]) ? expected[key] : []).map(value => String(value)))
+    return left.size === right.size && [...left].every(value => right.has(value))
+  })
 }
 
 function sameFieldValue(actual, expected) {

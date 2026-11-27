@@ -359,6 +359,42 @@ function buildHomeStatusLine(periods, options = {}) {
   }
 }
 
+// Visual emphasis is derived beside the canonical sentence, never by splitting it in WXML.
+// Every branch degrades to the untouched sentence when an unexpected shape reaches this projection.
+function buildHomeStatusSegments(homeStatus) {
+  const text = String(homeStatus && homeStatus.text || '')
+  const plain = () => [{ text, emphasis: false }]
+  const emphasized = () => [{ text, emphasis: true }]
+  const split = (prefix, suffix) => {
+    if (!text.startsWith(prefix) || !text.endsWith(suffix)) return plain()
+    const fact = text.slice(prefix.length, text.length - suffix.length)
+    if (!fact) return plain()
+    return [
+      { text: prefix, emphasis: false },
+      { text: fact, emphasis: true },
+      { text: suffix, emphasis: false }
+    ]
+  }
+  switch (homeStatus && homeStatus.status) {
+    case 'in-period': {
+      const boundary = text.indexOf(' · ')
+      return boundary === -1 ? emphasized() : [
+        { text: text.slice(0, boundary), emphasis: true },
+        { text: text.slice(boundary), emphasis: false }
+      ]
+    }
+    case 'before-window':
+      return split('预计 ', ' 开始')
+    case 'in-window':
+    case 'late':
+      return emphasized()
+    case 'late-too-long':
+      return split('上次记录 ', ' 开始 · 可以补记')
+    default:
+      return plain()
+  }
+}
+
 function buildPeriodQuickAction(periods, options = {}) {
   const today = options.today || util.formatDate(new Date())
   const ongoing = findOngoingPeriod(periods)
@@ -531,6 +567,7 @@ module.exports = {
   decidePeriodRecordForDate,
   buildPeriodQuickAction,
   buildHomeStatusLine,
+  buildHomeStatusSegments,
   buildPredictionThresholdText,
   periodStatusHint,
   projectPeriodRange,

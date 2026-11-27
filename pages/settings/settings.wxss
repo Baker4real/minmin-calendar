@@ -78,11 +78,11 @@ button.settings-share-invite {
 /* 使用说明按主题分块；弹层 chrome 与几何统一由 shared/confirmation-sheet 提供（issue #235）。 */
 .help-topic {
   box-sizing: border-box;
-  margin-bottom: 16rpx;
+  margin-bottom: 24rpx;
   padding: 20rpx 24rpx;
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.04);
   border-radius: var(--radius-md);
-  background: rgba(255,255,255,0.035);
+  background: rgba(255,255,255,0.02);
 }
 .help-topic:last-child {
   margin-bottom: 0;
@@ -90,7 +90,7 @@ button.settings-share-invite {
 .help-topic-title {
   display: block;
   margin-bottom: 12rpx;
-  font-size: var(--font-size-caption);
+  font-size: var(--font-size-body);
   font-weight: var(--font-weight-control);
   line-height: var(--line-height-assist);
   color: rgba(255,255,255,0.92);

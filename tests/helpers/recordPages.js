@@ -42,18 +42,35 @@ async function confirmDelete(app, page = app.currentPage) {
 
 // 在真实编辑页里确认一次保存或删除（#195：记录变化只从编辑页来），云端按 write 回复这条记录。
 // 删除与开始日归属走共享面板；云端合并到已有进行中（reopened）的说明仍保留原生知悉弹窗。
-async function confirmInEditor(app, change, { query = editorQuery(change), write = change.mode, reopened = false } = {}) {
-  const { collection, mode, record } = change
+async function confirmInEditor(app, change, { query, write = change.mode, reopened = false } = {}) {
+  const { collection, mode, record, before } = change
+  const editingExisting = mode === 'update' && write === 'update'
+  if (editingExisting) assert.ok(before, 'an update scenario must open the pre-edit record and make a real field change')
+  const routeQuery = query || editorQuery({ collection, mode, record: before || record })
   app.cloud.when({ name: 'dataOp', data: { action: write, collection } })
     .reply(mode === 'remove' ? { code: 0 } : { code: 0, id: record._id, record, ...(reopened ? { reopened } : {}) })
-  app.wx.navigateTo({ url: `/pages/${EDITOR_PAGES[collection]}/edit/edit?${query}` })
+  app.wx.navigateTo({ url: `/pages/${EDITOR_PAGES[collection]}/edit/edit?${routeQuery}` })
   await app.settle()
   if (mode === 'remove') await confirmDelete(app)
   else {
+    if (editingExisting) await applyEditorChanges(app, collection, before, record)
     if (reopened) app.respondNext('showModal', { confirm: true })
     await app.dispatch(app.currentPage, 'save')
   }
   await app.settle()
+}
+
+async function applyEditorChanges(app, collection, before, record) {
+  const page = app.currentPage
+  if (collection === 'memories') {
+    if (record.date !== before.date) await changeEditorDate(app, page, 'onDateChange', record.date)
+    if (record.note !== before.note) await app.dispatch(page, 'onNoteInput', { detail: { value: record.note } })
+    return
+  }
+  if (record.startDate !== before.startDate) await changeEditorDate(app, page, 'onStartChange', record.startDate)
+  if (record.status !== before.status) await app.dispatch(page, 'selectStatus', { currentTarget: { dataset: { value: record.status } } })
+  if (record.endDate !== before.endDate) await changeEditorDate(app, page, 'onEndChange', record.endDate)
+  if (record.note !== before.note) await app.dispatch(page, 'onNoteInput', { detail: { value: record.note || '' } })
 }
 
 const DATE_OPEN_HANDLERS = {

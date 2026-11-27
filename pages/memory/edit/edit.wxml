@@ -22,7 +22,7 @@
         <view wx:if="{{noteCountText}}" class="memory-note-meta">
           <text class="note-count">{{noteCountText}}</text>
         </view>
-        <textarea class="form-input memory-note-input form-control{{noteFocused ? ' form-control-focused' : ''}}{{saving ? ' disabled' : ''}}" placeholder-class="input-placeholder" placeholder="记下今天想留住的小事…" value="{{note}}" bindinput="onNoteInput" bindfocus="onNoteFocus" bindblur="onNoteBlur" maxlength="500" auto-height show-confirm-bar="{{true}}" disabled="{{saving}}" aria-disabled="{{saving}}" aria-label="内容"/>
+        <textarea class="form-input memory-note-input form-control{{noteFocused ? ' form-control-focused' : ''}}{{saving ? ' disabled' : ''}}" style="min-height: {{noteMinHeightPx}}px;" placeholder-class="input-placeholder" placeholder="记下今天想留住的小事…" value="{{note}}" bindinput="onNoteInput" bindfocus="onNoteFocus" bindblur="onNoteBlur" maxlength="500" auto-height show-confirm-bar="{{true}}" disabled="{{saving}}" aria-disabled="{{saving}}" aria-label="欢乐时光内容"/>
       </view>
     </view>
 

@@ -45,7 +45,7 @@ test('record tab segments period and memory lists behind one radio group', () =>
   // 导航标题通过共享模板传入，不与分段控件重复维护
   const raw = fs.readFileSync(path.join(repoRoot, 'pages/period/period.wxml'), 'utf8')
   assert.match(raw, /title: '记录'/)
-  assert.match(wxml, /class="nav-title">\{\{title\}\}</)
+  assert.match(wxml, /class="nav-title-text">\{\{title\}\}</)
 })
 
 // 首页加载与同步行为统一由 home-sync.test.js 经共享平台 harness 覆盖（#171）。

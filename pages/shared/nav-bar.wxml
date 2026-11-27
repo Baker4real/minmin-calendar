@@ -1,3 +1,4 @@
+<import src="/pages/shared/brand-hearts.wxml" />
 <template name="sharedNavbar">
   <view class="nav-bar header-gradient{{variant === 'immersive' ? ' nav-bar-immersive' : ''}}" aria-hidden="{{pageObscured}}">
     <view wx:if="{{variant === 'home'}}" class="nav-tool" hover-start-time="20" hover-stay-time="70" hover-class="nav-tool-hover" bindtap="openLegendSheet" aria-role="button" aria-label="打开日历图例">
@@ -13,6 +14,9 @@
       <view class="sync-dot"></view>
       <text class="sync-text">{{syncStatusText}}</text>
     </view>
-    <view wx:elif="{{title}}" class="nav-title">{{title}}</view>
+    <view wx:elif="{{title}}" class="nav-title{{showPairMark ? ' nav-title-paired' : ''}}" aria-label="{{title + (showPairMark ? '，已与 TA 共享' : '')}}">
+      <template is="brandPairMark" data="{{showPairMark: showPairMark}}" />
+      <text class="nav-title-text">{{title}}</text>
+    </view>
   </view>
 </template>

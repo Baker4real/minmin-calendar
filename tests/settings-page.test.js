@@ -601,6 +601,19 @@ test('settings writes calendar density only when the selection changes', async (
   assert.deepEqual(densityWrites, ['full', 'compact'])
 })
 
+test('settings rolls back calendar density and reports a failed preference write', async (t) => {
+  const app = settingsApp(t, { storage: { roomCode: 'ROOM01', calendarDensity: 'compact' } })
+  const page = app.launch('/pages/settings/settings')
+  await app.settle()
+  app.wx.setStorageSync = key => {
+    if (key === 'calendarDensity') throw new Error('storage full')
+  }
+  await app.dispatch(page, 'setCalendarDensity', { currentTarget: { dataset: { density: 'full' } } })
+  assert.equal(page.data.calendarDensity, 'compact')
+  assert.equal(app.storage.calendarDensity, 'compact')
+  assert.deepEqual(app.wx.toasts.at(-1), { title: '保存失败，请重试', icon: 'none' })
+})
+
 test('settings help provides four themed cards and preserves period, recovery and medical guidance', async (t) => {
   const app = settingsApp(t)
   const page = app.launch('/pages/settings/settings')

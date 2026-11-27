@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict')
 const path = require('node:path')
 const test = require('node:test')
-const { readSource } = require('./sourceFiles')
+const { readRaw, readSource } = require('./sourceFiles')
 const { createMiniProgram } = require('./helpers/miniProgram')
 const { confirmInEditor, listed, roomLookups } = require('./helpers/recordPages')
 const { evaluateWxmlExpression, renderWxmlAttribute, renderWxmlClasses, wxmlOpeningTags } = require('./wxmlTemplate')
@@ -245,9 +245,9 @@ test('record notifications refresh the day details and removed rows do not leak 
   assert.equal(app.rendered(home).selectedDayDetail.memories[0].note, '只有四号的备注')
   await closeSheet(app, home, 'dayActions')
   holdRefresh(app)
-  await confirmInEditor(app, { collection: 'memories', mode: 'update', record: memory('m1', '2026-06-04', '修改后的备注') })
+  await confirmInEditor(app, { collection: 'memories', mode: 'update', before: memory('m1', '2026-06-04', '只有四号的备注'), record: memory('m1', '2026-06-04', '修改后的备注') })
   await returnHome(app)
-  await confirmInEditor(app, { collection: 'periods', mode: 'update', record: period('p1', '2026-06-01', '2026-06-04') })
+  await confirmInEditor(app, { collection: 'periods', mode: 'update', before: period('p1', '2026-06-01', '2026-06-03'), record: period('p1', '2026-06-01', '2026-06-04') })
   await returnHome(app)
   await day(app, home, '2026-06-04')
   assert.equal(app.rendered(home).selectedDayDetail.memories[0].note, '修改后的备注')
@@ -460,6 +460,17 @@ test('home status row reads its countdown, opens prediction explanation and neve
   assert.equal(Object.hasOwn(app.rendered(home), 'cycleReminders'), false)
 })
 
+test('home paired state reaches the navbar and names the shared title', async t => {
+  for (const roomStatus of ['waiting', 'paired']) {
+    const app = homeApp(t, { roomStatus })
+    const home = await launch(app)
+    assert.equal(app.rendered(home).roomPaired, roomStatus === 'paired')
+  }
+  assert.match(readRaw('pages/index/index.wxml'), /showPairMark: roomPaired/)
+  assert.equal(attr('nav-title', 'aria-label', { title: '美少女的日历', showPairMark: true }), '美少女的日历，已与 TA 共享')
+  assert.equal(tagWith('nav-pair-mark').attrs['wx:if'], '{{showPairMark}}')
+})
+
 test('empty rooms show the first-record guide and records supply status, recap and back-to-today', async t => {
   const app = homeApp(t)
   const home = await launch(app)
@@ -476,10 +487,16 @@ test('empty rooms show the first-record guide and records supply status, recap a
   await tap(app, home, 'openMonthlyRecap')
   assert.equal(sheet(app, home, 'infoSheet').name, '本月小结')
   assert.match(app.rendered(home).monthlyRecap.periodSummary, /8 天/)
+  const shareText = app.rendered(home).monthlyRecap.shareText
   await tap(app, home, 'copyMonthlyRecap')
   assert.match(app.clipboard[0], /经期/)
   assert.match(app.clipboard[0], /欢乐时光/)
+  assert.equal(app.clipboard[0], shareText)
   assert.equal(app.wx.toasts.at(-1).title, '已复制小结')
+  app.respondNext('setClipboardData', new Error('setClipboardData:fail system error'))
+  await tap(app, home, 'copyMonthlyRecap')
+  assert.deepEqual(app.wx.toasts.at(-1), { title: '复制失败', icon: 'error' })
+  assert.equal(app.wx.toasts.filter(toast => toast.title === '已复制小结').length, 1)
   await closeSheet(app, home, 'infoSheet')
   await tap(app, home, 'prevMonth')
   assert.equal(visible('back-today-inline', app.rendered(home)), true)
@@ -736,7 +753,7 @@ test('a short ongoing period has no overdue suffix and only its own editor save 
   const home = await launch(app)
   assert.equal(app.rendered(home).homeStatus.text, '经期第 3 天')
   assert.equal(Object.hasOwn(app.rendered(home), 'ongoingCompletionReminder'), false)
-  await confirmInEditor(app, { collection: 'periods', mode: 'update', record: period('p2', '2026-06-24', '2026-06-26') })
+  await confirmInEditor(app, { collection: 'periods', mode: 'update', before: period('p2', '2026-06-24', '', 'ongoing'), record: period('p2', '2026-06-24', '2026-06-26') })
   assert.equal(app.storage.ongoingPeriodReminderShown, undefined)
   assert.deepEqual(app.cloud.calls.filter(call => call.name === 'dataOp' && call.data.action !== 'list').map(call => call.data.action), ['update'], 'only the member\'s own save writes')
 })
@@ -1631,22 +1648,22 @@ for (const [label, initial, mode, saved, dates] of [
   test(`confirmed ${label} period blooms on every covered date`, async t => {
     const app = homeApp(t, { periods: initial })
     const home = await launch(app)
-    await confirmInEditor(app, { collection: 'periods', mode, record: saved })
+    await confirmInEditor(app, { collection: 'periods', mode, before: initial.find(record => record._id === saved._id), record: saved })
     assert.deepEqual(feedback(app, home), dates.map(date => [date, 'record-feedback-period']))
     assert.ok(dates.every(date => marked(app, home, 'period').includes(date)))
   })
 }
 
 for (const [label, collection, change, editor] of [
-  ['memory note edit', 'memories', { mode: 'update', record: memory('m1', '2026-06-02', '补一句') }],
-  ['memory date edit', 'memories', { mode: 'update', record: memory('m1', '2026-06-05') }],
+  ['memory note edit', 'memories', { mode: 'update', before: memory('m1', '2026-06-02'), record: memory('m1', '2026-06-02', '补一句') }],
+  ['memory date edit', 'memories', { mode: 'update', before: memory('m1', '2026-06-02'), record: memory('m1', '2026-06-05') }],
   ['memory delete', 'memories', { mode: 'remove', record: { _id: 'm1' } }],
   ['other month', 'memories', { mode: 'add', record: memory('m9', '2026-05-01') }],
   // A new ongoing period the cloud merges into the existing one comes back as an update of that record.
   ['merged into ongoing', 'periods', { mode: 'update', record: { ...ongoing, note: '已经记录过的经期' } },
     { query: 'startDate=2026-06-10&status=ongoing', write: 'add', reopened: true }],
-  ['unknown end', 'periods', { mode: 'update', record: { ...ongoing, status: 'unknown-end' } }],
-  ['completed record date edit', 'periods', { mode: 'update', record: { ...earlier, endDate: '2026-06-04' } }],
+  ['unknown end', 'periods', { mode: 'update', before: ongoing, record: { ...ongoing, status: 'unknown-end' } }],
+  ['completed record date edit', 'periods', { mode: 'update', before: earlier, record: { ...earlier, endDate: '2026-06-04' } }],
   ['period delete', 'periods', { mode: 'remove', record: { _id: 'p1' } }],
   // The cloud answers a new period with a record Home already holds.
   ['duplicate add notification', 'periods', { mode: 'add', record: { ...earlier, note: '重复回流' } },

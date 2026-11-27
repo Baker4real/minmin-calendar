@@ -52,15 +52,16 @@ async function main() {
     const nav = wxml.slice(navStart, navEnd)
     assert.match(nav, /class="nav-tool"[^>]*bindtap="openLegendSheet"/)
     assert.match(nav, /class="nav-tool-surface">图例<\/view>/)
-    assert.match(nav, /class="nav-title">\{\{title\}\}<\/view>/)
+    assert.match(nav, /class="nav-title-text">\{\{title\}\}<\/text>/)
     const html = nav.replace(/<(\/?)view\b/g, '<$1div').replace(/<(\/?)text\b/g, '<$1span')
       .replaceAll("{{variant === 'immersive' ? ' nav-bar-immersive' : ''}}", '')
+      .replaceAll("nav-title{{showPairMark ? ' nav-title-paired' : ''}}", 'nav-title')
       .replaceAll('{{title}}', '美少女的日历')
     for (const width of widths) {
       const page = await browser.newPage({ viewport: { width, height: 932 } })
       const sources = ['app.wxss', 'pages/index/index.wxss'].map(file => readSource(path.join(root, file), 'utf8'))
       const selectors = new Set([
-        'page', '.nav-bar', '.nav-title', '.nav-tool', '.nav-tool-surface',
+        'page', '.nav-bar', '.nav-title', '.nav-title-paired', '.nav-title-text', '.nav-pair-mark', '.nav-tool', '.nav-tool-surface',
         '.sync-pill', '.sync-pill.sync-open', '.sync-dot', '.sync-text',
         '.header-gradient', '.header-gradient::before', '.header-gradient::after'
       ])
@@ -78,6 +79,7 @@ async function main() {
       await page.setContent(fixture)
       await page.evaluate(() => {
         document.querySelector('.sync-pill').remove()
+        document.querySelector('.nav-pair-mark').remove()
         document.querySelector('.nav-back').remove()
         document.querySelector('.nav-placeholder').remove()
         document.querySelector('.nav-tool').addEventListener('click', () => { document.querySelector('#legend').hidden = false })
@@ -109,6 +111,18 @@ async function main() {
         const stressedGeometry = await readTitleGeometry()
         assert.ok(Math.abs(stressedGeometry.rangeCenter - width / 2) <= CENTER_TOLERANCE_PX, `390px: intrinsic label width must not move the title; geometry ${JSON.stringify(stressedGeometry)}`)
       }
+      const pair = await page.locator('.nav-title').evaluate(title => {
+        title.classList.add('nav-title-paired')
+        const mark = document.createElement('div')
+        mark.className = 'nav-pair-mark'
+        title.insertBefore(mark, title.querySelector('.nav-title-text'))
+        const markRect = mark.getBoundingClientRect()
+        const textRect = title.querySelector('.nav-title-text').getBoundingClientRect()
+        const toolRect = document.querySelector('.nav-tool').getBoundingClientRect()
+        return { center: (markRect.left + textRect.right) / 2, left: markRect.left, right: textRect.right, toolRight: toolRect.right }
+      })
+      assert.ok(Math.abs(pair.center - width / 2) <= CENTER_TOLERANCE_PX, `${width}px: paired title group must stay centered; ${JSON.stringify(pair)}`)
+      assert.ok(pair.left >= pair.toolRight - 0.01 && pair.right <= width - 96 + 0.01, `${width}px: paired title group must stay inside the original title slot; ${JSON.stringify(pair)}`)
       const box = await page.locator('.nav-tool').boundingBox()
       const surfaceBox = await page.locator('.nav-tool-surface').boundingBox()
       const navbarBox = await page.locator('.nav-bar').boundingBox()
@@ -123,7 +137,7 @@ async function main() {
       await page.mouse.click(point.x, point.y)
       const visible = await page.locator('#legend').isVisible()
       assert.equal(visible, true, `${width}px: coordinate click must reach the legend (hit ${hit})`)
-      evidence.push({ viewport: page.viewportSize(), titleCenter, box, surfaceBox, hit, legendVisible: visible, sync: null })
+      evidence.push({ viewport: page.viewportSize(), titleCenter, pair, box, surfaceBox, hit, legendVisible: visible, sync: null })
       await screenshotWithRetry(page, { path: path.join(out, `nav-${width}.png`) })
       // Reintroduce the actual failure without changing repository files.
       await page.evaluate(() => { document.querySelector('#legend').hidden = true })

@@ -331,6 +331,14 @@ issue #247 静态几何判定后保留旧值的例外如下；它们不扩成新
 
 ## Components
 
+### 2026-11-27 内容优先精修（#276）
+
+- Aurora Bloom 色板、极光强度、圆角、图标形状和既有动效预算不变。首页状态行仍为同一行、同一 32rpx 字号与 88rpx 高度，只把关键日期／天数拆成 `homeStatus.segments`，强调段使用 92% 中性白与标题字重；完整 `text` 和 `ariaLabel` 不受视觉分段影响，未同步集合不显示任何部分预测强调。
+- `.quiet-card` 是 `.premium-card` 的共享同族修饰：保留既有玻璃底和轻微中性 elevation，使用 8% 白边并取消棱镜顶线。房间关系卡、周期概览、绑定与未绑定情感卡继续使用高级材质；经期月份分组及设置「日历显示／数据／关于」普通组改用安静面。经期日期范围 `.item-date` 升为控件字重和 92% 白，年份强调、月份折叠与行内容不变。
+- 欢乐时光编辑页空白书写区仍保留 280rpx 下限，并由 `utils/memoryEditorLayout.js` 根据真实窗口、导航、安全区和固定槽位计算更大的 `noteMinHeightPx`；textarea 继续 `auto-height`，长文不被视口高度截断。输入读屏名为「欢乐时光内容」。
+- 图例行不再绘制第二层圆角行卡，只保留 20rpx 0 的行内留白和 6% 白细分隔；所有样本、符号、含义和 calendar density 类不变。使用说明主题标题使用正文尺寸与控件字重，主题块底和边进一步减淡、块间距增加，不引入手风琴或新导航。
+- 已配对首页标题在原文本前显示静态 `brandPairMark`：直接复用现有 inline SVG 玫瑰／薰衣草双心，装饰性读屏隐藏，标题朗读追加「已与 TA 共享」。等待、未配对、未知或未绑定状态不显示；同步胶囊挂载时仍替换整个标题组，标题原居中补偿与命中几何保持有效。
+
 Cards keep a vertical velvet tint over `var(--glass-fallback)`: `.premium-card` uses `linear-gradient(rgba(255,255,255,0.095), rgba(255,255,255,0.035)), var(--glass-fallback)` with top/side/bottom strokes at 0.16/0.08/0.04 white. `.premium-card` 自身为 `position: relative; overflow: hidden`，顶缘 `::after` 是透明 → 42% 玫瑰 → 30% 纯白 → `rgba(196,160,210,0.32)` 薰衣草 → 透明的三段棱镜高光（issue #260 / #269），基类不再叠加平白 inset 顶线，页面不再分别补定位或裁剪。 Over the 0.88 fallback a blur would not show, so cards, the calendar and danger buttons do not blur. The three intentional exceptions are the shared sheet mask, Home `.home-sticky` at 6px over its high-alpha navy stops, and the regular fixed `.header-gradient` at 14px over its high-alpha navy stops; the bind immersive navbar explicitly has no background, blur, hairline or orbs. Rows that sit straight on the aurora put the same fallback under their wash. A color is legal only as the last `background` layer; a two-color shorthand paints nothing. Cards and text add no decorative shadows beyond the card elevation and the few glows registered under Shadow / overlay. The shared bottom-sheet mask is registered once and imported by every sheet page. The press glow belongs only to the rose primary fills: it is painted on a `::before` glow layer. The shared primary button, home quick action and recap copy rest at 0.35 and sink to 0.15 on the same `--duration-press` beat as the scale; both room-code credential copy capsules have no glow. Primary fills keep a static 1px inset top highlight and never swap that shadow on press (see 按压的四路).
 
 Primary fill (`.btn-premium`): rose `#E8909E` fill, label `#0A0E27`; both credential-ticket copy capsules use the separate glow-free #271 contract above. Ghost / outline includes the bind page's secondary 「进入应用」: transparent, rose border and rose label on navy. 首页的 「记欢乐时光」虽沿用 `.btn-ghost` 类，实际按 #255 登记为按钮自身的 `#0A0E27` 海军实底、玫瑰描边与玫瑰字，外框是 `--radius-card`（24rpx）而非透明胶囊；海军底随 0.95 按压缩放，半栏尺寸、最小触控高度与内边距仍沿用 `.quick-btn` 几何。

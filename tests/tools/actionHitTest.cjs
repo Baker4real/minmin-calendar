@@ -20,6 +20,7 @@ const SELECTORS = new Set([
 function htmlFragment(source) {
   return source.replace(/<(\/?)view\b/g, '<$1div').replace(/<(\/?)text\b/g, '<$1span')
     .replaceAll("{{variant === 'immersive' ? ' nav-bar-immersive' : ''}}", '')
+    .replaceAll("nav-title{{showPairMark ? ' nav-title-paired' : ''}}", 'nav-title')
 }
 
 function editNavbarFragment(root, pagePath, title) {
@@ -29,7 +30,7 @@ function editNavbarFragment(root, pagePath, title) {
   assert.ok(navStart >= 0 && navEnd > navStart, `${pagePath} must use the actual shared navbar`)
   const fragment = htmlFragment(wxml.slice(navStart, navEnd)).replaceAll('{{title}}', title)
   assert.match(fragment, /class="nav-back"[^>]*bindtap="goBack"/)
-  assert.ok(fragment.includes(`class="nav-title">${title}</div>`), `${pagePath} keeps its centered title`)
+  assert.ok(fragment.includes(`<span class="nav-title-text">${title}</span>`), `${pagePath} keeps its centered title`)
   return fragment
 }
 
@@ -124,7 +125,7 @@ async function runActionHitTest(browser, out, screenshot = (page, options) => pa
         const bodyStyle = `margin:0;--safe-top:44px;--nav-bar-height:${44 + contentHeight}px;--capsule-right:96px;--nav-title-padding-left:${Math.max(0, compensation)}px;--nav-title-padding-right:${Math.max(0, -compensation)}px`
         await backPage.setContent(`<body class="page" style="${bodyStyle}">${fixture.fragment}<div id="back-result" hidden></div><style>${css}</style></body>`)
         await backPage.evaluate(() => {
-          for (const selector of ['.nav-tool', '.nav-placeholder', '.sync-pill']) document.querySelector(selector)?.remove()
+          for (const selector of ['.nav-tool', '.nav-placeholder', '.sync-pill', '.nav-pair-mark']) document.querySelector(selector)?.remove()
           document.querySelector('.nav-back').addEventListener('click', () => { document.querySelector('#back-result').hidden = false })
         })
         const back = backPage.locator('.nav-back')

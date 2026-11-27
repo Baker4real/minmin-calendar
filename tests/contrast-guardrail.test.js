@@ -241,11 +241,10 @@ test('today capsule keeps the rose date at 4.5:1 and its lavender edge at 3:1 on
   // 今天是调休日时，胶囊叠在调休格的低对比底上
   const wash = cssColor(exactDeclaration(file, '.day-cell.workday', 'background'))
   const workdaySurface = composite(gridSurface(), wash, wash.a)
-  // 图例的今天样本：遮罩 → 信息弹层（渐变每个色标各算一次）→ 图例行 → 样本格的网格玻璃底
+  // 图例行不再铺设第二张卡：遮罩 → 信息弹层 → 样本格的网格玻璃底。
   const legendSurfaces = stackSurfaces([
     [file, '.day-sheet-mask'],
     [file, '.day-action-sheet'],
-    [file, '.legend-row'],
     [file, '.legend-sample.day-cell']
   ]).map(surface => [`legend sample ${toHex(surface)}`, surface])
 

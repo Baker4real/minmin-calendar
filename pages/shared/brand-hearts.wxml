@@ -9,3 +9,10 @@
     <view class="brand-heart-ring-echo"></view>
   </view>
 </template>
+
+<template name="brandPairMark">
+  <view wx:if="{{showPairMark}}" class="nav-pair-mark" aria-hidden="true">
+    <view class="brand-heart brand-heart-lavender nav-pair-heart nav-pair-heart-lavender"></view>
+    <view class="brand-heart brand-heart-rose nav-pair-heart nav-pair-heart-rose"></view>
+  </view>
+</template>

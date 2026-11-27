@@ -123,6 +123,7 @@ Page(withPageVisibility({
     ...monthNavState(INITIAL_VIEW_DATE.getFullYear(), INITIAL_VIEW_DATE.getMonth()),
     ...homepageSheetData(),
     calendarDensity: 'compact',
+    roomPaired: false,
     calendarReducedMotion: false,
     // 翻月方向记号（next-a/next-b/prev-a/prev-b）挂在 .calendar-days 上，空串即不滑动（issue #165）
     calendarFlip: '',
@@ -379,6 +380,7 @@ Page(withPageVisibility({
 
     const update = {
       ...fields,
+      roomPaired,
       ...calendarRenderState(state),
       ...monthNavState(year, month),
       year,
@@ -563,7 +565,8 @@ Page(withPageVisibility({
     if (!recap || !recap.shareText) return
     wx.setClipboardData({
       data: recap.shareText,
-      success: () => wx.showToast({ title: '已复制小结', icon: 'none' })
+      success: () => wx.showToast({ title: '已复制小结', icon: 'none' }),
+      fail: () => wx.showToast({ title: '复制失败', icon: 'error' })
     })
   },
 

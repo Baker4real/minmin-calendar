@@ -123,7 +123,7 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 
 ## 点击与截图验收
 
-`npm run test:hit` 从当前 WXML 提取导航栏，从 WXSS 提取相应规则，在 Chromium 的 320、375、430 宽度按坐标点击按钮中心。每种宽度随后恢复装饰层拦截，必须观察到点击失效，证明检查能捕获原故障。截图和实际 viewport 保存到 `.scratch/coordinate-hit/`，每次运行覆盖上一次；截图偶发失败时打印 WARN 并重试一次，第二次仍失败则本次检查失败。这验证 CSS 命中，不模拟微信布局引擎或完整页面流程。
+`npm run test:hit` 从当前 WXML 提取导航栏，从 WXSS 提取相应规则，在 Chromium 的 320、375、390、430 宽度按坐标点击按钮中心，并验证原标题与 paired 标题＋双心整体居中、保持原槽位。每种宽度随后恢复装饰层拦截，必须观察到点击失效，证明检查能捕获原故障。截图和实际 viewport 保存到 `.scratch/coordinate-hit/`，每次运行覆盖上一次；截图偶发失败时打印 WARN 并重试一次，第二次仍失败则本次检查失败。这验证 CSS 命中，不模拟微信布局引擎或完整页面流程。
 
 `devtoolsCapture.mjs` 在已渲染的 `.page` 出现后截图，将微信 `systemInfo` 的实际 `windowWidth/windowHeight`、页面路径、具名状态、日历密度、采集时间和 `captureToolVersion` 追加到截图目录的 `captures.jsonl`。`source` 只表示采集时磁盘中 `app.*`、`pages/**`、`utils/**` 的 SHA-256 指纹，不单独证明模拟器加载了同一版。当前 version 2 另带 `runtime`；只有磁盘一致且本轮编译挑战匹配才是 `current`。磁盘不同为 `stale`，没有磁盘指纹为 `historical-unbound`，磁盘一致但缺少运行确认（包括旧版图）为 `runtime-unconfirmed`；后三者都不能作为当前版本验收。MCP `--preflight` 同样报告实际视口；截图尺寸或机型名称不能证明逻辑视口。
 
@@ -132,6 +132,10 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 采集后必须运行 `npm run devtools:runtime-proof -- clean`；若 prepare 改过 unused-file 过滤，clean 先恢复原值并保留其他私有配置，再只删除内容与本轮 proof 匹配的临时模块和证明文件，内容变动则拒绝清理；恢复失败时保留 proof 与探针供修正后重试。临时模块不参与业务指纹并被 git 忽略，完整验证的包内容检查会拒绝它的残留，防止进入发布。挑战证明本轮编译标记已进入运行环境，不替代页面状态、样式或关键交互验收。
 
 开始组件级视觉审计时先运行 `node tests/impeccableAudit.mjs --component <id>`（ID 用 `--list-components` 查看）。它把相关 DESIGN.md 与 `docs/motion-and-interaction.md` 片段、静态选择器、动效、测试和截图账本压成一份 JSON；截图分类复用上述指纹规则。先读这些定位信息，再按疑点打开源码和 current 证据，避免先读完整规范或遍历所有历史截图。摘要失败或没有 current 证据时按缺口记录，不把静态索引或旧图当作运行态验收。
+
+### 整合视觉运行证明
+
+`npm run devtools:aesthetic-proof -- --runtime-proof .scratch/runtime-probe.json` 在当前编译挑战和替身 Room 下直接检查 DOM 状态：paired 首页恰好一个双心标题组、waiting 为零；经期与设置安静卡存在；直接展开旧月份时，默认月份保持已访问且目标月份首次挂载；欢乐时光书写区带计算后的像素最小高。结果写入 `.scratch/standin/aesthetic-runtime-proof/result.json`，两轮都核对真实存储与 `wx.cloud` 恢复。它补足截图无法证明的隐藏状态，不替代逐张视觉审查。
 
 ### 共享弹层原生交互证明
 
@@ -142,6 +146,10 @@ JSON-RPC error、`isError`、结构化或文本 JSON 中的 `success:false`、�
 选择器 `tap()` 可能绕过命中遮挡。验证“按钮点不到”时，CSS 坐标回归之外还需在微信中实际坐标点击或人工点击；图例直接打开、关闭等状态流可用选择器自动化验证。截图若出现空白或未完成状态，先确认目标页面已就绪再重截，不能将文件写入成功当作界面验收。
 
 automator 驱动时，由页面内 `wx.navigateTo` 打开的页面常常退不回：小程序内 `wx.navigateBack` 报 ok，页面栈却不变，点导航栏返回也一样。2026-11-14 记录 tab 的 `editPeriod` 打开的编辑页 6/6 退不回，automator `navigateTo` 打开的 5/5 都退回；同一个删除流程在后一种页面上 4/4 退回记录 tab，前一种 1/1 卡住，导航代码当时没有改动，所以这不是删除流程的故障（真机未验证）。替身 Room 的 `openFrom` 按这条打开编辑页：入口照常运行，`wx.navigateTo` 只记下入口拼出的 URL、不跳转，再由 automator 按这个 URL 打开，页面拿到的参数与点入口相同。`restoreWxMethod` 只对本次 mock 过的方法调用：对没 mock 过的方法，它会把方法置成 `undefined`（2026-11-14 `showModal`、`navigateTo` 因此消失，用 `devtools:cli` 关闭并重开项目后恢复）；替身 Room 的 `restoreWx` 只还原自己 mock 过的方法，结束时回读这些 `wx` 方法仍在。automator 的 `page.callMethod` 在记录 tab 上报 `this.<方法名> is not a function`，方法其实就在页面实例上（2026-11-15，基础库 3.18.0）：要调页面方法时，在小程序内取 `getCurrentPages()` 的末页调用，替身 Room 的 `openFrom` 和 `callMethod` 步骤都这样做。
+
+### 大量记录性能门槛
+
+`npm run devtools:record-performance -- --runtime-proof .scratch/runtime-probe.json --out .scratch/record-performance/final --mount-mode lazy` 在当前模拟器、同一编译挑战和替身 Room 下分别构造 500／1000 条记录（40% Period、60% Memory，至少 24 个 Memory 月份）。每档执行 5 次 Home → 记录 tab 就绪测量和 10 次分段切换，保留原始值与中位数；1000 条时就绪中位数 `>1500ms` 或切换中位数 `>300ms` 时采用折叠分组懒挂载，等于阈值不触发。门槛只决定是否实现，不把后续仍受导航与 automator 通道影响的总耗时写成性能达标。首次 eager 测量超阈值输出 `lazy-mount-required`；优化后用 `--mount-mode lazy`，同样的数据如实输出 `lazy-mounted-above-threshold`，避免重复实施。每档结束都核对真实存储和 `wx.cloud` 已恢复。
 
 ### 替身 Room
 

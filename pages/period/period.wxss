@@ -158,10 +158,10 @@
 }
 .item-date {
   font-size: var(--font-size-body);
-  font-weight: var(--font-weight-body);
+  font-weight: var(--font-weight-control);
   line-height: var(--line-height-assist);
   font-variant-numeric: tabular-nums;
-  color: rgba(255,255,255,0.85);
+  color: rgba(255,255,255,0.92);
   overflow-wrap: normal;
 }
 .item-author {

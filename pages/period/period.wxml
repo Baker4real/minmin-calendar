@@ -84,7 +84,7 @@
           </view>
           <view class="disclosure-grid fold-grid {{yearGroup.expanded ? 'fold-grid-expanded' : ''}}" aria-hidden="{{!yearGroup.expanded}}">
             <view class="disclosure-inner fold-inner">
-              <view class="premium-card glass-surface month-card" wx:for="{{yearGroup.months}}" wx:key="key" wx:for-item="group">
+              <view class="premium-card glass-surface month-card quiet-card" wx:for="{{yearGroup.months}}" wx:key="key" wx:for-item="group">
                 <view class="month-header {{group.expanded ? 'month-header-expanded' : ''}}" bindtap="togglePeriodMonth" data-key="{{group.key}}" aria-role="button" aria-label="{{group.ariaLabel}}" aria-expanded="{{group.expanded}}" hover-start-time="20" hover-stay-time="70" hover-class="month-header-hover">
                   <view class="month-header-text">
                     <text>{{group.title}}</text>
@@ -93,7 +93,7 @@
                   <view class="ui-icon ui-icon-down ui-icon-24 fold-caret {{group.expanded ? 'fold-caret-expanded' : ''}}" aria-hidden="true"></view>
                 </view>
                 <view class="disclosure-grid fold-grid {{group.expanded ? 'fold-grid-expanded' : ''}}" aria-hidden="{{!group.expanded}}">
-                  <view class="disclosure-inner fold-inner">
+                  <view class="disclosure-inner fold-inner" wx:if="{{group.expanded || periodContentMounts[group.key]}}">
                     <view class="list-item" wx:for="{{group.records}}" wx:key="_id" bindtap="editPeriod" data-id="{{item._id}}" aria-role="button" aria-label="编辑经期记录 {{item.rangeSummary}}" hover-start-time="20" hover-stay-time="70" hover-class="list-item-hover">
                       <view class="item-left">
                         <view class="item-date">
@@ -186,7 +186,7 @@
             <view class="ui-icon ui-icon-down ui-icon-24 fold-caret {{group.expanded ? 'fold-caret-expanded' : ''}}" aria-hidden="true"></view>
           </view>
           <view class="disclosure-grid fold-grid {{group.expanded ? 'fold-grid-expanded' : ''}}" aria-hidden="{{!group.expanded}}">
-            <view class="disclosure-inner fold-inner">
+            <view class="disclosure-inner fold-inner" wx:if="{{group.expanded || memoryContentMounts[group.key]}}">
               <view class="list-item" wx:for="{{group.records}}" wx:key="_id" bindtap="editMemory" data-id="{{item._id}}" aria-role="button" aria-label="{{item.ariaLabel}}" hover-start-time="20" hover-stay-time="70" hover-class="list-item-hover">
                 <view class="memory-left">
                   <text class="memory-heart" aria-hidden="true">♥</text>

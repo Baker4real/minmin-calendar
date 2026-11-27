@@ -1355,7 +1355,7 @@ test('shared navbar is fixed, reserves the capsule, and content starts at the ba
   assert.match(sharedTemplate, /wx:if="\{\{variant === 'home'\}\}" class="nav-tool"[^>]*bindtap="openLegendSheet"/)
   assert.match(sharedTemplate, /wx:elif="\{\{variant === 'back'\}\}" class="nav-back"[^>]*bindtap="goBack"/)
   assert.match(sharedTemplate, /wx:else class="nav-placeholder"/)
-  assert.match(sharedTemplate, /wx:elif="\{\{title\}\}" class="nav-title">\{\{title\}\}<\/view>/)
+  assert.match(sharedTemplate, /class="nav-title-text">\{\{title\}\}<\/text>/)
   assert.match(readRawRepo('app.wxss'), /@import '\.\/pages\/shared\/nav-bar\.wxss';/)
 
   const expectedWiring = new Map([
@@ -1469,7 +1469,7 @@ test('the sync pill takes the navbar title slot, clear of the sticky month title
   assert.ok(navStart !== -1 && navEnd !== -1, 'expected the home navbar ahead of the page states')
   assert.match(
     wxml.slice(navStart, navEnd),
-    /<view wx:if="\{\{syncStatusMounted\}\}" class="sync-pill [^"]*"[\s\S]*?<\/view>\s*<view wx:elif="\{\{title\}\}" class="nav-title">\{\{title\}\}<\/view>/,
+    /<view wx:if="\{\{syncStatusMounted\}\}" class="sync-pill [^"]*"[\s\S]*?<\/view>\s*<view wx:elif="\{\{title\}\}" class="nav-title\{\{showPairMark \? ' nav-title-paired' : ''\}\}"[\s\S]*?<text class="nav-title-text">\{\{title\}\}<\/text>/,
     'the mounted pill replaces the app title in the navbar'
   )
   assert.equal(wxml.split('class="sync-pill').length, 2, 'the navbar holds the only sync pill')

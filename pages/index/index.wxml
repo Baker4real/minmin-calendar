@@ -137,7 +137,7 @@ module.exports = {
 </wxs>
   <include src="/pages/shared/aurora.wxml" />
 
-  <template is="sharedNavbar" data="{{variant: 'home', title: '美少女的日历', pageObscured: pageObscured, syncStatusMounted: syncStatusMounted, syncStatusPhase: syncStatusPhase, refreshing: refreshing, syncStatusText: syncStatusText}}" />
+  <template is="sharedNavbar" data="{{variant: 'home', title: '美少女的日历', pageObscured: pageObscured, syncStatusMounted: syncStatusMounted, syncStatusPhase: syncStatusPhase, refreshing: refreshing, syncStatusText: syncStatusText, showPairMark: roomPaired}}" />
 
   <view wx:if="{{noRoom}}" class="no-room" aria-hidden="{{pageObscured}}">
     <!-- 爱心画面只属于未绑定/需要重新绑定；加载失败保持失败标题 + 重试，不复用这颗心（issue #79） -->
@@ -209,7 +209,7 @@ module.exports = {
         aria-role="button"
         aria-label="{{homeStatus.ariaLabel}}"
       >
-        <text class="home-status-text">{{homeStatus.text}}</text>
+        <text class="home-status-text"><text wx:for="{{homeStatus.segments}}" wx:key="index" class="home-status-segment {{item.emphasis ? 'home-status-segment-emphasis' : ''}}">{{item.text}}</text></text>
         <text wx:if="{{homeStatus.countdownText}}" class="home-status-countdown">{{homeStatus.countdownText}}</text>
         <view class="ui-icon ui-icon-right ui-icon-24 home-status-arrow" aria-hidden="true"></view>
       </view>

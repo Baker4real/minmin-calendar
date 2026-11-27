@@ -150,7 +150,8 @@ test('homepage status line is one named row with countdown and arrow, without re
   assert.match(sticky, /aria-label="回到今天"/)
   assert.doesNotMatch(sticky, /class="back-today"/)
   assert.match(sticky, /bindtap="openPredictionSheet"/)
-  assert.match(sticky, /class="home-status-text">\{\{homeStatus\.text\}\}<\/text>/)
+  assert.match(sticky, /wx:for="\{\{homeStatus\.segments\}\}"[^>]*class="home-status-segment \{\{item\.emphasis \? 'home-status-segment-emphasis' : ''\}\}"/)
+  assert.doesNotMatch(sticky, /class="home-status-text">\{\{homeStatus\.text\}\}<\/text>/)
   assert.match(sticky, /wx:if="\{\{homeStatus\.countdownText\}\}" class="home-status-countdown">\{\{homeStatus\.countdownText\}\}<\/text>/)
   assert.match(sticky, /class="ui-icon ui-icon-right ui-icon-24 home-status-arrow" aria-hidden="true"><\/view>/)
   assert.match(sticky, /aria-label="\{\{homeStatus\.ariaLabel\}\}"/)
@@ -358,6 +359,10 @@ test('period band samples follow density classes and keep their shared source da
   const actionSamples = wxml.match(/class="action-sample day-cell \{\{cellClass\}\} calendar-density-\{\{calendarDensity\}\}"/g) || []
   assert.equal(actionSamples.length, 2, 'the quick period and day action share the density-aware sample')
   assert.match(wxml, /wx:for="\{\{legendItems\}\}"/)
+  const legendRow = ruleBody(readIndexWxss(), '.legend-row')
+  assert.doesNotMatch(legendRow, /background\s*:|border:\s*1px/)
+  assert.match(legendRow, /border-bottom:\s*1px solid rgba\(255,255,255,0\.06\)/)
+  assert.match(legendRow, /padding:\s*20rpx 0/)
 })
 
 test('quick record actions keep period primary and memory button-ghost with readable touch targets', () => {

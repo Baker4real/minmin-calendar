@@ -19,7 +19,8 @@ function section(markdown, heading) {
 
 test('every utils module is named in CONTEXT.md Technical Shape', () => {
   const shape = section(read('CONTEXT.md'), 'Technical Shape')
-  const modules = fs.readdirSync(path.join(repoRoot, 'utils')).filter(name => name.endsWith('.js'))
+  // The compile challenge is a generated, git-ignored diagnostic module; package-contents owns its release rejection.
+  const modules = fs.readdirSync(path.join(repoRoot, 'utils')).filter(name => name.endsWith('.js') && name !== '__captureProbe.js')
   assert.ok(modules.length > 0)
   assert.deepEqual(modules.filter(name => !shape.includes(`utils/${name}`)), [], 'add each module above to CONTEXT.md Technical Shape with its responsibility')
 })

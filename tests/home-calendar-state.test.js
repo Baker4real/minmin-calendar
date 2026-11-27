@@ -69,6 +69,38 @@ test('homeCalendarState projects every status sentence with its accessible name 
   }
 })
 
+test('home status visual segments preserve every sentence and emphasize only its primary fact', () => {
+  const predictable = [
+    period('2026-05-18', '2026-05-22'),
+    period('2026-06-15', '2026-06-19'),
+    period('2026-07-13', '2026-07-17')
+  ]
+  const cases = [
+    {
+      today: '2026-07-18', periods: [{ _id: 'live', startDate: '2026-07-13', status: 'ongoing' }],
+      segments: [{ text: '经期第 6 天', emphasis: true }, { text: ' · 比预期多 1 天', emphasis: false }]
+    },
+    {
+      today: '2026-08-01', periods: predictable,
+      segments: [{ text: '预计 ', emphasis: false }, { text: '8月10⁠日', emphasis: true }, { text: ' 开始', emphasis: false }]
+    },
+    { today: '2026-08-10', periods: predictable, segments: [{ text: '这几天可能开始', emphasis: true }] },
+    { today: '2026-08-12', periods: predictable, segments: [{ text: '比预计晚 2 天', emphasis: true }] },
+    {
+      today: '2026-08-19', periods: predictable,
+      segments: [{ text: '上次记录 ', emphasis: false }, { text: '7月13⁠日', emphasis: true }, { text: ' 开始 · 可以补记', emphasis: false }]
+    },
+    { today: '2026-08-01', periods: [], segments: [{ text: '记两次经期后就能估下次', emphasis: false }] }
+  ]
+  for (const scenario of cases) {
+    const state = buildHomeCalendarState({ year: 2026, month: 7, today: scenario.today, periods: scenario.periods })
+    assert.deepEqual(state.homeStatus.segments, scenario.segments)
+    assert.equal(state.homeStatus.segments.map(segment => segment.text).join(''), state.homeStatus.text)
+  }
+  const unsynced = buildHomeCalendarState({ year: 2026, month: 7, today: '2026-08-01', periods: predictable, periodsSynced: false })
+  assert.deepEqual(unsynced.homeStatus.segments, [{ text: '经期未同步，暂不预测', emphasis: false }])
+})
+
 const firstScreenCases = [
   { name: 'no periods', periods: [], count: 0, status: '记两次经期后就能估下次', quick: '记经期', aria: '', range: '', highlight: '' },
   { name: 'ongoing', periods: [{ _id: 'live', startDate: '2026-06-20', status: 'ongoing' }], count: 7, status: '经期第 7 天 · 比预期多 2 天', quick: '经期第 7 天 · 记结束', aria: ' 经期第 7 天 经期进行中', range: '6月20⁠日–6月26⁠日（进行中）', highlight: '经期：6月20⁠日–6月26⁠日，进行中，本月 7 天' },

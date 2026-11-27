@@ -14,7 +14,7 @@ const { syncPill } = require('../../utils/syncPill')
 const { withPageVisibility } = require('../../utils/pageVisibility')
 
 Page(withPageVisibility({
-  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), ...safeArea.getNavTitlePadding('placeholder'), segment: 'period', segmentMotion: 'a', periodCount: 0, periodGroups: [], periodQuickLabel: '记经期', periodQuickMode: 'add', periodQuickAriaLabel: '记经期', predictionThresholdText: '记两次经期后就能估下次', avgCycle: null, avgDuration: null, loading: true, refreshing: false, loadFailed: false, hasLoaded: false, memoryCount: 0, memoryYearCount: 0, memoryGroups: [], memoryLoading: true, memoryLoadFailed: false, memoryHasLoaded: false, syncStatusVisible: false, syncStatusText: '', syncStatusMounted: false, syncStatusPhase: 'closed' },
+  data: { safeTop: safeArea.getSafeTop(), safeBottom: safeArea.getSafeBottom(), navBarHeight: safeArea.getNavBarHeight(), capsuleRight: safeArea.getCapsuleRightInset(), ...safeArea.getNavTitlePadding('placeholder'), segment: 'period', segmentMotion: 'a', periodCount: 0, periodGroups: [], periodQuickLabel: '记经期', periodQuickMode: 'add', periodQuickAriaLabel: '记经期', predictionThresholdText: '记两次经期后就能估下次', avgCycle: null, avgDuration: null, loading: true, refreshing: false, loadFailed: false, hasLoaded: false, memoryCount: 0, memoryYearCount: 0, memoryGroups: [], memoryContentMounts: {}, periodContentMounts: {}, memoryLoading: true, memoryLoadFailed: false, memoryHasLoaded: false, syncStatusVisible: false, syncStatusText: '', syncStatusMounted: false, syncStatusPhase: 'closed' },
 
   // 欢乐时光月份卡的展开选择（issue #109）：页面内存按月份键记「用户点过卡头」的月份，
   // 值为 memoryMonthGroups.EXPANDED / COLLAPSED；尚无选择时仅首月默认展开。
@@ -164,7 +164,9 @@ Page(withPageVisibility({
       periodsSynced: state.collections.periods.synced,
       roomPaired: state.roomPaired
     })
+    const memoryContentMounts = preservedMemoryMounts(this.data)
     return {
+      ...(memoryContentMounts ? { memoryContentMounts } : {}),
       periodCount: state.collections.periods.records.length,
       periodGroups: this.periodProjection(state),
       periodQuickLabel: quickEntry.label,
@@ -190,8 +192,8 @@ Page(withPageVisibility({
     const memories = [...state.collections.memories.records]
       .sort((a, b) => b.date.localeCompare(a.date))
       .map(memory => withAuthorLabel(memory, state.roomPaired))
-    // 欢乐时光月份分组：展开状态由页面内存选择推导；行数据在收起时仍保留，
-    // 由模板的读屏隐藏与禁点网格隔离，供 0fr / 1fr 连续伸缩（#274）。
+    // 欢乐时光月份分组：展开状态由页面内存选择推导；外层 0fr / 1fr 网格常驻，
+    // 默认展开或首次点开的月份挂载记录行，访问过的月份由页面稀疏映射保留（#286）。
     return memoryMonthGroups.applyMemoryMonthExpansion(
       memoryMonthGroups.buildMemoryMonthGroups(memories, { today }),
       this.memoryMonthChoices
@@ -241,6 +243,7 @@ Page(withPageVisibility({
     const next = this.periodProjection(roomRecordsSync.readCurrentRoom())[yearIndex].months[monthIndex]
     const root = `periodGroups[${yearIndex}].months[${monthIndex}]`
     this.setData({
+      periodContentMounts: { ...this.data.periodContentMounts, [key]: true },
       [`${root}.expanded`]: next.expanded,
       [`${root}.toggleLabel`]: next.toggleLabel,
       [`${root}.ariaLabel`]: next.ariaLabel
@@ -277,7 +280,11 @@ Page(withPageVisibility({
       [key]: target.expanded ? memoryMonthGroups.COLLAPSED : memoryMonthGroups.EXPANDED
     }
     const nextGroups = this.memoryProjection(roomRecordsSync.readCurrentRoom())
-    const patch = {}
+    const memoryContentMounts = { ...this.data.memoryContentMounts, [key]: true }
+    for (const group of this.data.memoryGroups) {
+      if (group.expanded) memoryContentMounts[group.key] = true
+    }
+    const patch = { memoryContentMounts }
     nextGroups.forEach((next, nextIndex) => {
       const current = this.data.memoryGroups[nextIndex]
       if (current.expanded === next.expanded && current.ariaLabel === next.ariaLabel) return
@@ -296,6 +303,16 @@ Page(withPageVisibility({
     syncPill(this).hide()
   }
 }))
+
+function preservedMemoryMounts(data) {
+  const current = data.memoryContentMounts || {}
+  const keys = new Set(Object.keys(current))
+  for (const group of data.memoryGroups || []) {
+    if (group.expanded) keys.add(group.key)
+  }
+  if (keys.size === Object.keys(current).length) return null
+  return Object.fromEntries([...keys].map(key => [key, true]))
+}
 
 function changedFields(data, update) {
   return Object.fromEntries(Object.entries(update).filter(([key, value]) => !Object.is(data[key], value)))

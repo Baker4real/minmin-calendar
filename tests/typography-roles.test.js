@@ -234,7 +234,7 @@ const TEXT_WEIGHT_ROLES = [
   ['pages/period/period.wxss', '.card-label', 'assist'],
   ['pages/period/period.wxss', '.cycle-num', 'control'],
   ['pages/period/period.wxss', '.cycle-label', 'assist'],
-  ['pages/period/period.wxss', '.item-date', 'body'],
+  ['pages/period/period.wxss', '.item-date', 'control'],
   ['pages/period/period.wxss', '.item-note', 'assist'],
   ['pages/period/period.wxss', '.item-tag', 'assist'],
   ['pages/period/period.wxss', '.item-duration', 'assist'],

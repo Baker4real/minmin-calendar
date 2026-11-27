@@ -33,7 +33,7 @@
 
     <view class="settings-group">
       <text class="settings-group-title">日历显示</text>
-      <view class="premium-card glass-surface">
+      <view class="premium-card glass-surface quiet-card">
         <text class="density-menu-desc">清爽只看日期与标记（含节日和调休）；<text class="density-menu-desc-full">完整另外显示农历</text></text>
         <view class="density-control" aria-role="radiogroup" aria-label="日历信息密度">
           <view class="segment-thumb segment-thumb-index-{{calendarDensity == 'full' ? 1 : 0}}" aria-hidden="true"></view>
@@ -61,7 +61,7 @@
 
     <view class="settings-group">
       <text class="settings-group-title">数据</text>
-      <view class="premium-card glass-surface">
+      <view class="premium-card glass-surface quiet-card">
         <view class="menu-item resync-room-btn" bindtap="clearData" aria-role="button" aria-label="重新同步房间" hover-start-time="20" hover-stay-time="70" hover-class="menu-item-hover">
           <text class="menu-text">重新同步房间</text>
           <view class="ui-icon ui-icon-right ui-icon-24 menu-arrow" aria-hidden="true"></view>
@@ -75,7 +75,7 @@
 
     <view class="settings-group">
       <text class="settings-group-title">关于</text>
-      <view class="premium-card glass-surface">
+      <view class="premium-card glass-surface quiet-card">
         <view class="menu-item non-interactive">
           <text class="menu-text">版本</text>
           <text class="settings-version">v1.0.0</text>

@@ -909,19 +909,19 @@ test('settings about group shows the version once and opens a short help sheet',
   assert.match(wxml, /aria-label="关闭使用说明"/)
 })
 
-test('settings help topics use rounded light cards with emphasized captions and no trailing gaps', () => {
+test('settings help topics use quiet cards with body-scale titles and no trailing gaps', () => {
   const wxss = readPageFile('pages/settings/settings.wxss')
   const topic = wxssRuleBody(wxss, '.help-topic')
   assert.match(topic, /padding:\s*20rpx 24rpx/)
   assert.match(topic, /border-radius:\s*var\(--radius-md\)/)
-  assert.match(topic, /background:\s*rgba\(255,255,255,0\.035\)/)
-  assert.match(topic, /border:\s*1px solid rgba\(255,255,255,0\.06\)/)
-  assert.match(topic, /margin-bottom:\s*16rpx/)
+  assert.match(topic, /background:\s*rgba\(255,255,255,0\.02\)/)
+  assert.match(topic, /border:\s*1px solid rgba\(255,255,255,0\.04\)/)
+  assert.match(topic, /margin-bottom:\s*24rpx/)
   assert.match(wxssRuleBody(wxss, '.help-topic:last-child'), /margin-bottom:\s*0/)
   assert.match(wxssRuleBody(wxss, '.help-topic .help-copy:last-child'), /margin-bottom:\s*0/)
 
   const title = wxssRuleBody(wxss, '.help-topic-title')
-  assert.match(title, /font-size:\s*var\(--font-size-caption\)/)
+  assert.match(title, /font-size:\s*var\(--font-size-body\)/)
   assert.match(title, /font-weight:\s*var\(--font-weight-control\)/)
   assert.match(title, /color:\s*rgba\(255,255,255,0\.92\)/)
 })
@@ -1070,6 +1070,12 @@ test('settings page leads with room info in named groups and keeps unbind in the
   assert.deepEqual(titles, ['房间', '日历显示', '数据', '关于'])
 
   const room = wxml.slice(wxml.indexOf('>房间<'), wxml.indexOf('>日历显示<'))
+  assert.doesNotMatch(room, /quiet-card/)
+  for (const [title, nextTitle] of [['日历显示', '数据'], ['数据', '关于'], ['关于', null]]) {
+    const start = wxml.indexOf(`>${title}<`)
+    const end = nextTitle ? wxml.indexOf(`>${nextTitle}<`) : wxml.indexOf('settings-danger-zone')
+    assert.match(wxml.slice(start, end), /class="premium-card glass-surface quiet-card"/, `${title} uses the quiet card modifier`)
+  }
   assert.match(room, /class="room-code-item/)
   assert.match(room, /bindtap="copyRoomCode"/)
   assert.doesNotMatch(room, /bindtap="clearData"/)

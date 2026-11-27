@@ -161,6 +161,7 @@ test('shared sheets keep chrome fixed above a cropped independently scrolling bo
   const surfaceNode = wxmlOpeningTags(shared).find(tag => tag.classes.includes('sheet-close-surface'))
   const closeIcon = wxmlOpeningTags(shared).find(tag => tag.classes.includes('ui-icon-close'))
   assert.ok(closeNode && surfaceNode && closeIcon)
+  assert.equal(closeNode.attrs['aria-label'], '关闭{{sheetName}}')
   assert.ok(closeIcon.classes.includes('ui-icon-36'), 'the #266 geometric vector close icon is preserved')
   assert.equal(closeIcon.attrs['aria-hidden'], 'true')
 })

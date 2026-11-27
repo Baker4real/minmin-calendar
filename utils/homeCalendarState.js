@@ -112,6 +112,7 @@ function buildHomeCalendarState({
     monthlyRecap.periodSummary = '本月经期未同步'
     monthlyRecap.predictionSummary = UNSYNCED_PERIODS_TEXT
   }
+  homeStatus = { ...homeStatus, segments: cycle.buildHomeStatusSegments(homeStatus) }
   if (!memoriesSynced) monthlyRecap.memorySummary = '本月欢乐时光未同步'
   if (!periodsSynced || !memoriesSynced) {
     monthlyRecap.summaryLine = `本月 ${periodsSynced ? `经期 ${util.formatQuantity(monthlyRecap.periodDays, '天')}` : '经期未同步'} · ${memoriesSynced ? `欢乐时光 ${util.formatQuantity(monthlyRecap.memoryCount, '条')}` : '欢乐时光未同步'}`

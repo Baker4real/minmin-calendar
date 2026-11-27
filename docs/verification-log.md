@@ -239,3 +239,11 @@ F1 **done（当前微信开发者工具 390×844；不代表物理真机）**。
 原生滚动修复提交后再次重新执行全部 15 格，而不是沿用旧图：scope/required=15/15，processed=15、failed=0、pending/skipped=0；51 张最终截图与 51 条采集记录全部 current，390×844，runtime nonce 为 `ed591302-e3a4-4abf-a7de-7514a9ed02e8`，app/pages/utils 指纹为 `9f6699783adbc56cd48e58e5c6233db5f02706a8ba8981327ad905f82de2a8ea`。`audit.json` 为 `status=current`，每格均恢复 storage/cloud/stub。受影响 UI 的 bind join、Period editor 展开、Record 折叠、两档今日裁剪、固定 chrome、真实 60px 内层滚动及快甩/上推复位图已逐张目视复核。原始 38 个页面 shim 检测器 warning 及逐项披露保留在上文；原生改动后再次执行 `impeccable:detect -- --json --changed` 返回 37 个 warning，均落在原 38 项已登记的 cramped-padding、nested-cards、dark-glow、radial-halo、side-tab 五类中；共享面板 inset 已有逐页源码复核，没有据此改写或删除原 38 项账本，也没有把 shim 警告当成新运行态缺陷。
 
 最终门禁：完整 `npm run verify` 为依赖 PASS、177 个 JS 语法文件 PASS、1493/1493 tests、双时区 clock、Room artifacts 与 coordinate-hit PASS；`npm run assets:check` 八张 PNG 逐字节一致（邀请卡 84,763B、打包媒体 91,727B）；`git diff --check` 无错误。probe/proof 与临时 `project.private.config.json` 已清理，standin 均已恢复。物理真机/原生惯性、VoiceOver/TalkBack、键盘、真实坐标、原生分享面板、系统减弱动效与真实过渡帧仍未验证；小屏运行态按维护者决定不做。
+
+2026-11-27：epic #276 的 11 张审美与反馈子票全部落地。保留 Aurora Bloom 色板，完成首页状态关键段、经期记录内容层级、设置安静材质、欢乐时光自适应书写区、图例减框与具体关闭名、paired 双心、复制／密度失败反馈、未修改保存直接返回、大记录懒挂载与统一验收；ADR-0008/0009 的记录所有权和共享 disclosure 结构不变。未修改保存的测试驱动统一改为从修改前记录出发、经公开 UI 事件制造真实变化，失败矩阵也先修改字段，未为旧假绿场景放宽生产逻辑。
+
+运行态仅在当前微信模拟器与替身 Room 验收。最终 15 张截图均为逻辑 390×844、编译挑战 current，app/pages/utils 指纹 `73c63083d868ee044c12756de151031dac75ecb9b686cba93a8c16410d6d8721`，nonce `7d74c4bd-7540-457d-935f-1eedd3f2c48b`；逐张检查首页、记录、编辑、设置、帮助、图例与绑定页。正式 `devtools:aesthetic-proof` 在同源指纹下确认 paired 双心 1／waiting 0、经期安静卡 3、设置安静卡 3、直接展开旧月份时记录行 2→3 且默认月保留、书写区 min-height 527.44px；每轮 storageMatches=true、stubGone=true。
+
+大记录门槛先以 eager 测得 1000 条就绪／切换中位数 2102.86／495.84ms，触发懒挂载。最终 schema 2 复测显式使用 `mountMode=lazy`，结果为 2088.17／437.33ms，`decision=lazy-mounted-above-threshold`；总耗时仍高于 1500／300ms，故只声明按门槛实现并保留原始测量，不声明性能目标达标。每档 500／1000 条、5 次就绪与 10 次切换均完成且恢复真实存储和云访问。
+
+当前会话 retro 三个候选全部落地：新增可复跑 `devtools:aesthetic-proof`；性能工具区分 eager/lazy，避免重复实施；临时编译探针只由 package-contents 拒绝发布，不再产生第二处文档索引噪声。DESIGN、动效交互、CONTEXT 与 DevTools 验收文档已同步，Serena 项目记忆 `verification` 经正式入口更新并回读；无新跨项目知识入库。最终完整 `npm run verify` 为依赖 PASS、185 个 JS 语法文件、1514/1514 tests、双时区 clock、Room artifacts、coordinate-hit 全 PASS。物理真机、VoiceOver/TalkBack、原生键盘／惯性／真实减弱动效和性能达标仍未验证；小屏运行态按维护者决定不做，由 320/375/390/430 坐标与几何自动化覆盖。

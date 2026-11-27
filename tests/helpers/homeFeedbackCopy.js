@@ -22,8 +22,8 @@ async function homeFeedbackCopy() {
         if (data.syncStatusMounted && data.syncStatusText) statuses.add(data.syncStatusText)
       }
       // Save in a real editor opened from Home: Home stays hidden, then shows and refreshes when it returns.
-      const saveInEditor = async (record, query) => {
-        await confirmInEditor(app, { collection: failed, mode: query.has('id') ? 'update' : 'add', record }, { query })
+      const saveInEditor = async (record, query, before) => {
+        await confirmInEditor(app, { collection: failed, mode: query.has('id') ? 'update' : 'add', before, record }, { query })
         await capture()
       }
       const returnHome = async () => {
@@ -45,7 +45,7 @@ async function homeFeedbackCopy() {
       await saveInEditor(saved, new URLSearchParams(fields))
       routes[failed].reply({ code: 0, data: [saved] })
       await returnHome()
-      await saveInEditor({ ...saved, note: '补一句' }, new URLSearchParams({ id: saved._id, ...fields, note: '补一句' }))
+      await saveInEditor({ ...saved, note: '补一句' }, new URLSearchParams({ id: saved._id, ...fields }), saved)
       routes[failed].reject(new Error('network unavailable'))
       await returnHome()
       routes[failed === 'periods' ? 'memories' : 'periods'].reject(new Error('network unavailable'))

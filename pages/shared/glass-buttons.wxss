@@ -4,6 +4,16 @@
   overflow: hidden;
 }
 
+/* 信息容器的高级卡保留棱镜顶线；重复年月与普通设置组使用同族安静面，把焦点还给记录。 */
+.quiet-card {
+  background: linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 8rpx 32rpx rgba(0,0,0,0.14);
+}
+.quiet-card::after {
+  content: none;
+}
+
 /* 玫瑰实色按钮只共享布局与柔光锚点；填充、文字、圆角、尺寸和按压值留在修饰类。 */
 .button-primary {
   display: flex;

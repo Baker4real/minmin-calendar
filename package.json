@@ -27,7 +27,9 @@
     "devtools:cli": "node tests/tools/devtoolsCli.mjs",
     "devtools:mcp": "node tests/tools/wechatMcp.mjs",
     "devtools:standin": "node tests/tools/devtoolsStandin.mjs",
-    "devtools:sheet-proof": "node tests/tools/sheetRuntimeProof.mjs"
+    "devtools:sheet-proof": "node tests/tools/sheetRuntimeProof.mjs",
+    "devtools:record-performance": "node tests/tools/recordTabPerformance.mjs",
+    "devtools:aesthetic-proof": "node tests/tools/aestheticRuntimeProof.mjs"
   },
   "devDependencies": {
     "jimp": "file:tests/tools/automator-image",

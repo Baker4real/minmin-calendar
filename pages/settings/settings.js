@@ -123,10 +123,14 @@ Page(withPageVisibility({
     const density = e.currentTarget.dataset.density
     if (density !== 'compact' && density !== 'full') return
     if (density === this.data.calendarDensity) return
+    const previousDensity = this.data.calendarDensity
     this.setData({ calendarDensity: density })
     try {
       wx.setStorageSync(CALENDAR_DENSITY_STORAGE_KEY, density)
-    } catch (e) {}
+    } catch (e) {
+      this.setData({ calendarDensity: previousDensity })
+      wx.showToast({ title: '保存失败，请重试', icon: 'none' })
+    }
   },
 
   async copyRoomCode() {

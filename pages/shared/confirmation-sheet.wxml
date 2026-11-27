@@ -11,7 +11,7 @@
               <text class="text-pair-title sheet-title">{{sheetTitle}}</text>
               <text wx:if="{{sheetSubtitle}}" class="text-pair-desc sheet-subtitle">{{sheetSubtitle}}</text>
             </view>
-            <view class="sheet-close" bindtap="{{closeHandler}}" aria-role="button" aria-label="关闭" hover-start-time="20" hover-stay-time="70" hover-class="sheet-close-hover">
+            <view class="sheet-close" bindtap="{{closeHandler}}" aria-role="button" aria-label="关闭{{sheetName}}" hover-start-time="20" hover-stay-time="70" hover-class="sheet-close-hover">
               <view class="sheet-close-surface">
                 <view class="ui-icon ui-icon-close ui-icon-36" aria-hidden="true"></view>
               </view>

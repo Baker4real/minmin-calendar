@@ -66,6 +66,17 @@ test('glass surfaces share one structural base while modifiers keep their tint a
   assert.equal(monthNav['box-shadow'], 'none')
 })
 
+test('quiet cards keep the glass base while removing decorative emphasis from record containers', () => {
+  assert.deepEqual(rawDeclarations(SHARED, '.quiet-card'), {
+    background: 'linear-gradient(var(--glass-bg), var(--glass-bg)), var(--glass-fallback)',
+    border: '1px solid rgba(255,255,255,0.08)',
+    'box-shadow': '0 8rpx 32rpx rgba(0,0,0,0.14)'
+  })
+  assert.deepEqual(rawDeclarations(SHARED, '.quiet-card::after'), { content: 'none' })
+  assert.match(readRaw('pages/period/period.wxml'), /class="premium-card glass-surface month-card quiet-card" wx:for="\{\{yearGroup\.months\}\}"/)
+  assertEveryInstanceHasBase('glass-surface', ['quiet-card'])
+})
+
 test('rose fill buttons share one flex and positioning base while modifiers keep their rendered values', () => {
   assert.deepEqual(rawDeclarations(SHARED, '.button-primary'), {
     display: 'flex',

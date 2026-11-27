@@ -684,6 +684,8 @@ const GRADIENT_FILL_ALLOWLIST = new Set(
     ['pages/period/period.wxss', '.cycle-card'],
     // 平涂 tint 图像层叠在海军回退上。不是装饰渐变，也不是 CTA 填充。
     ['app.wxss', '.premium-card'],
+    ['app.wxss', '.quiet-card'],
+    ['pages/shared/glass-buttons.wxss', '.quiet-card'],
     ['app.wxss', '.header-gradient'],
     ['pages/shared/nav-bar.wxss', '.header-gradient'],
     ['app.wxss', '.sync-pill'],

@@ -302,6 +302,10 @@ button.home-share-invite {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.home-status-segment-emphasis {
+  color: rgba(255,255,255,0.92);
+  font-weight: var(--font-weight-title);
+}
 .home-status-countdown {
   flex: none;
   font-size: var(--font-size-caption);
@@ -1383,11 +1387,12 @@ button.home-share-invite {
   display: flex;
   align-items: center;
   gap: 18rpx;
-  padding: 20rpx;
+  padding: 20rpx 0;
   box-sizing: border-box;
-  border-radius: var(--radius-md);
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.legend-row:last-child {
+  border-bottom: none;
 }
 /* 图例样本就是一枚日历格（issue #162）：铺日历网格同款玻璃底、同款圆角，今天胶囊和各个标记落在和网格相同的合成面上。
    要写在 .day-cell.period 后面：同特异度，经期样本才不会被改成直角。经期色带在样本格里竖向居中 */

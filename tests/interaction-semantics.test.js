@@ -269,7 +269,7 @@ test('month navigation, sheet dismiss, quick record and sheet actions are screen
   // 每个 sheet 的 × 关闭按钮
   for (const button of elements.filter((element) => element.classes.includes('sheet-close'))) {
     assert.equal(button.attrs['aria-role'], 'button')
-    assert.equal(button.attrs['aria-label'], '关闭')
+    assert.match(button.attrs['aria-label'], /^关闭.+/)
   }
 
   // 日操作弹层与详情模式的补记操作；issue #157：详情行读屏名由日历投影按记录拼好
@@ -324,7 +324,7 @@ test('recap rows expose full sentences through structured date badges and predic
 })
 
 test('legend samples gain breathing room and day-detail rails become inset rounded semantic columns', () => {
-  assert.equal(declsOf('pages/index/index.wxss', '.legend-row').padding, '20rpx')
+  assert.equal(declsOf('pages/index/index.wxss', '.legend-row').padding, '20rpx 0')
   const rail = declsOf('pages/index/index.wxss', '.detail-rail')
   assert.equal(rail.width, '4rpx')
   assert.equal(rail['min-height'], '64rpx')
@@ -397,7 +397,7 @@ test('sheet mask and panel are siblings so only the mask is announced as close',
       if (node.attrs['aria-label']) named.push(node.attrs['aria-label'])
     })
     assert.ok(named.length > 0, `${name} panel controls stay reachable`)
-    assert.ok(named.includes('关闭'), `${name} keeps its own close control`)
+    assert.ok(named.includes(name), `${name} keeps its own specifically named close control`)
   }
 })
 
@@ -429,7 +429,7 @@ test('settings help keeps a separately named mask and a visible close in its tit
     assert.ok(closes.length > 0, 'the help panel has a visible close')
     for (const close of closes) {
       assert.equal(close.attrs['aria-role'], 'button')
-      assert.equal(close.attrs['aria-label'], '关闭')
+      assert.equal(close.attrs['aria-label'], '关闭使用说明')
       const titleRowClasses = []
       walk(close.parent.children, (node) => titleRowClasses.push(...node.classes))
       assert.ok(titleRowClasses.includes('sheet-title'), 'the close sits in the title row')

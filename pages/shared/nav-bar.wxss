@@ -27,6 +27,34 @@
   text-indent: var(--letter-spacing-display);
   color: rgba(255,255,255,0.92);
 }
+.nav-title-paired {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+}
+.nav-title-text {
+  min-width: 0;
+}
+.nav-pair-mark {
+  position: relative;
+  width: 44rpx;
+  height: 40rpx;
+  flex: none;
+  pointer-events: none;
+}
+.nav-pair-mark .nav-pair-heart {
+  width: 36rpx;
+  height: 37rpx;
+}
+.nav-pair-mark .nav-pair-heart-lavender {
+  left: 10rpx;
+  top: 0;
+}
+.nav-pair-mark .nav-pair-heart-rose {
+  left: 0;
+  top: 3rpx;
+}
 .nav-back {
   width: 88rpx;
   height: 88rpx;

@@ -1396,7 +1396,76 @@ test('memory: note focus only toggles the focused class and never hides the fixe
   })
 })
 
-test('new and existing record saves use the same iconless success capsule on both edit pages', async (t) => {
+test('existing records with baseline fields save as unchanged without any record side effects', async (t) => {
+  for (const spec of records) {
+    await t.test(spec.kind, async (t) => {
+      const id = 'unchanged'
+      const fields = spec.kind === 'period'
+        ? { startDate: '2026-09-18', endDate: '2026-09-19', status: 'known-end', note: '原备注', flow: 'light', symptoms: ['cramps', 'tired'] }
+        : { date: '2026-09-18', note: '原备注' }
+      const key = draftKey(spec, id)
+      const app = setup(t, { storage: { [key]: JSON.stringify(fields) } })
+      const { home, page } = await openEditor(app, spec, { id, ...fields })
+      assert.equal(page.data.draftRestored, true)
+      cloudRoute(app, spec, 'update').reply({ code: 0, record: { _id: id, ...fields } })
+
+      await app.dispatch(page, 'save')
+      await app.settle()
+
+      assert.equal(app.currentPage, home, 'unchanged save returns immediately without the success delay')
+      assert.equal(app.navigation.filter(item => item.method === 'navigateBack').length, 1)
+      assert.equal(app.storage[key], undefined, 'return and unload cannot resurrect the identity draft')
+      assert.deepEqual(writes(app), [], 'unchanged save does not call the cloud update')
+      assert.deepEqual(app.wx.toasts, [], 'unchanged save has no success toast')
+      assert.equal(app.platformCalls.vibrateShort, undefined, 'unchanged save has no light haptic')
+      assert.equal(app.storage.recordTabSegment, undefined, 'unchanged save publishes no record-tab intent')
+      assert.equal(cell(home, fields[spec.dateField])[spec.marker], false, 'unchanged save does not apply a local record change')
+      assert.deepEqual(app.rendered(home).recordFeedback, {}, 'unchanged save triggers no homepage record feedback')
+      await app.advance(1000)
+      assert.equal(app.navigation.filter(item => item.method === 'navigateBack').length, 1, 'no delayed success return follows the direct return')
+    })
+  }
+})
+
+test('restored drafts returned to baseline and reordered symptoms save as unchanged', async (t) => {
+  for (const spec of records) {
+    await t.test(spec.kind, async (t) => {
+      const id = 'restored-baseline'
+      const fields = spec.kind === 'period'
+        ? { startDate: '2026-09-18', endDate: '2026-09-19', status: 'known-end', note: '原备注', flow: 'light', symptoms: ['cramps', 'tired'] }
+        : { date: '2026-09-18', note: '原备注' }
+      const key = draftKey(spec, id)
+      const app = setup(t, { storage: { [key]: JSON.stringify({ ...fields, note: '草稿备注' }) } })
+      const { home, page } = await openEditor(app, spec, { id, ...fields })
+      assert.equal(page.data.note, '草稿备注')
+      assert.equal(page.data.draftRestored, true)
+
+      await app.dispatch(page, 'onNoteInput', value(fields.note))
+      if (spec.kind === 'period') {
+        await app.dispatch(page, 'toggleSymptom', dataset({ value: 'cramps' }))
+        await app.dispatch(page, 'toggleSymptom', dataset({ value: 'cramps' }))
+        assert.deepEqual(page.data.symptoms, ['tired', 'cramps'], 'the public controls reorder the same semantic set')
+      }
+      app.hide()
+      app.show()
+      assert.ok(app.storage[key], 'the restored draft remains stored until save')
+      cloudRoute(app, spec, 'update').reply({ code: 0, record: { _id: id, ...fields } })
+
+      await app.dispatch(page, 'save')
+      await app.settle()
+
+      assert.equal(app.currentPage, home, 'returning every field to the baseline is unchanged')
+      assert.equal(app.storage[key], undefined, 'unchanged save removes the stale restored draft')
+      assert.deepEqual(writes(app), [])
+      assert.deepEqual(app.wx.toasts, [])
+      assert.equal(app.platformCalls.vibrateShort, undefined)
+      assert.equal(app.storage.recordTabSegment, undefined)
+      assert.deepEqual(app.rendered(home).recordFeedback, {})
+    })
+  }
+})
+
+test('new and genuinely edited record saves use the same iconless success capsule on both edit pages', async (t) => {
   for (const spec of records) {
     for (const mode of ['new', 'edit']) {
       await t.test(`${spec.kind}: ${mode}`, async (t) => {
@@ -1406,13 +1475,49 @@ test('new and existing record saves use the same iconless success capsule on bot
           ...spec.fields,
           ...(mode === 'edit' ? { id: 'existing' } : {})
         })
-        cloudRoute(app, spec, action).reply({ code: 0, record: { _id: 'saved', ...spec.payload } })
+        if (mode === 'edit') await app.dispatch(page, 'onNoteInput', value('真实修改'))
+        const saved = { _id: 'saved', ...spec.payload, ...(mode === 'edit' ? { note: '真实修改' } : {}) }
+        cloudRoute(app, spec, action).reply({ code: 0, record: saved })
         await app.dispatch(page, 'save')
+        assert.equal(writes(app).length, 1, 'new records and real edits still reach the cloud')
         assert.equal(app.wx.toasts.at(-1).title, spec.success)
         assert.equal(app.wx.toasts.at(-1).icon, 'none')
+        assert.deepEqual(app.platformCalls.vibrateShort, [{ type: 'light' }])
+        assert.equal(app.storage.recordTabSegment, spec.kind)
       })
     }
   }
+})
+
+test('period: completion intent keeps the confirmed update flow even when its routed fields match the baseline', async (t) => {
+  const app = setup(t)
+  const ongoing = { _id: 'complete-me', startDate: '2026-09-18', endDate: '', status: 'ongoing', note: '', flow: '', symptoms: [] }
+  cloudRoute(app, period, 'list').reply({ code: 0, data: [ongoing] })
+  const { home, page } = await openEditor(app, period, {
+    id: ongoing._id,
+    ...period.fields,
+    startDate: ongoing.startDate,
+    intent: 'complete',
+    status: 'known-end',
+    endDate: '2026-09-20'
+  })
+  assert.equal(page.data.endDate, '2026-09-20')
+  const completed = { ...ongoing, endDate: '2026-09-20', status: 'known-end', duration: 3 }
+  cloudRoute(app, period, 'update').reply({ code: 0, record: completed })
+
+  await app.dispatch(page, 'save')
+  await app.settle()
+
+  assert.deepEqual(writes(app).map(call => [call.action, call.id]), [['update', ongoing._id]])
+  assert.equal(app.currentPage, page, 'confirmed completion keeps the ordinary success delay')
+  assert.equal(app.wx.toasts.at(-1).title, period.success)
+  assert.deepEqual(app.platformCalls.vibrateShort, [{ type: 'light' }])
+  assert.equal(app.storage.recordTabSegment, 'period')
+  assert.deepEqual(app.rendered(home).recordFeedback, {
+    '2026-09-18': 'period',
+    '2026-09-19': 'period',
+    '2026-09-20': 'period'
+  })
 })
 
 for (const spec of records) {

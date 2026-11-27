@@ -88,6 +88,9 @@ async function prepare(t, { operation, record }, failure, { missingModal = false
   if (operation === 'save' || operation === 'delete') {
     page = app.launch(`/pages/${record.kind}/edit/edit?${new URLSearchParams(record.fields)}`)
     await app.settle()
+    if (operation === 'save') {
+      await app.dispatch(page, 'onNoteInput', { detail: { value: '失败矩阵中的真实修改' } })
+    }
   } else if (operation === 'export') {
     page = app.launch('/pages/settings/settings')
     await app.settle()

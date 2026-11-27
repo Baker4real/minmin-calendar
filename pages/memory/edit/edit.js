@@ -4,6 +4,8 @@ const { datePickerSheet, datePickerSheetData } = require('../../../utils/datePic
 const { probeReducedMotion } = require('../../../utils/sheetLifecycle')
 const safeArea = require('../../../utils/safeArea')
 const { withPageVisibility } = require('../../../utils/pageVisibility')
+const { getWindowWidth, getWindowHeight } = require('../../../utils/wxWindow')
+const { memoryNoteMinHeightPx } = require('../../../utils/memoryEditorLayout')
 
 Page(withPageVisibility({
   data: {
@@ -13,6 +15,12 @@ Page(withPageVisibility({
     capsuleRight: safeArea.getCapsuleRightInset(),
     ...safeArea.getNavTitlePadding('back'),
     noteFocused: false,
+    noteMinHeightPx: memoryNoteMinHeightPx({
+      windowWidth: getWindowWidth() || 375,
+      windowHeight: getWindowHeight() || 844,
+      navBarHeight: safeArea.getNavBarHeight(),
+      safeBottom: safeArea.getSafeBottom()
+    }),
     ...confirmationSheetData(),
     ...datePickerSheetData()
   },

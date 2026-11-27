@@ -721,11 +721,15 @@ test('memory month cards sort across years, preserve same-day records and match 
     ['2026-10', '2026年10月 · 3 条'], ['2026-09', '2026年9月 · 1 条'], ['2025-12', '2025年12月 · 1 条']
   ])
   assert.equal(groups[0].ariaLabel, '2026年10月，3 条欢乐时光，已展开')
+  assert.equal(draws({ ...page.data, group: groups[1], item: { note: '测试' } }, node => node.classes.includes('memory-note')), false)
+  assert.equal(draws({ ...page.data, group: groups[0], item: { note: '测试' } }, node => node.classes.includes('memory-note')), true)
   assert.deepEqual(groups[0].records.map(row => [row._id, row.dayLabel]), [['a1', '10月8⁠日'], ['a2', '10月8⁠日'], ['first', '10月1⁠日']])
   assert.equal(groups[0].records[1].note, '')
-  await app.dispatch(page, 'toggleMonth', dataset({ key: '2026-10' }))
   await app.dispatch(page, 'toggleMonth', dataset({ key: '2025-12' }))
   groups = page.data.memoryGroups
+  assert.equal(draws({ ...page.data, group: groups[0], item: { note: '测试' } }, node => node.classes.includes('memory-note')), true, 'a visited month stays mounted after collapsing')
+  assert.equal(draws({ ...page.data, group: groups[2], item: { note: '测试' } }, node => node.classes.includes('memory-note')), true, 'first expansion mounts this month')
+  assert.equal(draws({ ...page.data, group: groups[1], item: { note: '测试' } }, node => node.classes.includes('memory-note')), false, 'an untouched month stays unmounted')
   assert.equal(groups[2].records[0].dayLabel, '2025年12月31⁠日')
   const { buildHomeCalendarState } = require('../utils/homeCalendarState')
   const projection = buildHomeCalendarState({ year: 2026, month: 9, today: '2026-10-20', periods: [], memories: records })
@@ -1393,7 +1397,7 @@ test('record tab sends counts and complete grouped rows without flat arrays', as
   assert.ok(page.setDataCalls.every(patch => !('periods' in patch) && !('memories' in patch)))
 })
 
-test('month and year folding update only expanded ARIA paths and retain every row for the grid animation', async (t) => {
+test('month and year folding update only expanded ARIA paths plus sparse mount keys and retain every row', async (t) => {
   const app = setup(t, { segment: 'memory' })
   list(app, 'periods').reply({ code: 0, data: [
     { _id: 'p-oct', startDate: '2026-10-01', endDate: '2026-10-05' },
@@ -1411,7 +1415,9 @@ test('month and year folding update only expanded ARIA paths and retain every ro
   assert.equal(page.setDataCalls.length, 1)
   const memoryCollapse = page.setDataCalls[0]
   assert.equal(memoryCollapse['memoryGroups[0].expanded'], false)
-  assert.ok(Object.keys(memoryCollapse).every(key => key.startsWith('memoryGroups[0].') && !key.endsWith('.records')))
+  const { memoryContentMounts, ...memoryGroupPatch } = memoryCollapse
+  assert.deepEqual(memoryContentMounts, { '2026-10': true })
+  assert.ok(Object.keys(memoryGroupPatch).every(key => key.startsWith('memoryGroups[0].') && !key.endsWith('.records')))
   assert.deepEqual(page.data.memoryGroups[0].records.map(row => row._id), ['m-oct'])
   assert.deepEqual(page.data.memoryGroups[1].records.map(row => row._id), ['m-sep'])
 
@@ -1426,7 +1432,9 @@ test('month and year folding update only expanded ARIA paths and retain every ro
   assert.equal(page.setDataCalls.length, 1)
   const periodCollapse = page.setDataCalls[0]
   assert.equal(periodCollapse['periodGroups[0].months[0].expanded'], false)
-  assert.ok(Object.keys(periodCollapse).every(key => key.startsWith('periodGroups[0].months[0].') && !key.endsWith('.records')))
+  const { periodContentMounts, ...periodGroupPatch } = periodCollapse
+  assert.deepEqual(periodContentMounts, { '2026-10': true })
+  assert.ok(Object.keys(periodGroupPatch).every(key => key.startsWith('periodGroups[0].months[0].') && !key.endsWith('.records')))
   assert.deepEqual(page.data.periodGroups[0].months[0].records.map(row => row._id), ['p-oct'])
 
   page.setDataCalls.length = 0
